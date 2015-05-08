@@ -1,0 +1,30 @@
+CREATE SEQUENCE bricks_id_seq;
+
+CREATE TABLE bricks (
+    id bigint primary key not null default nextval('bricks_id_seq'::regclass),
+    brickname text,
+    brickid integer,
+    brickrow integer,
+    brickcol integer,
+    brickq integer,
+    ra double precision,
+    "dec" double precision,
+    ra1 double precision,
+    dec1 double precision,
+    ra2 double precision,
+    dec2 double precision,
+    has_g boolean,
+    has_r boolean,
+    has_z boolean,
+    filename text default null,
+    tractorvr text default null,
+    loaded boolean default 'false'
+);
+
+CREATE INDEX bricks_q3c_idx ON bricks (q3c_ang2ipix(ra,dec));
+CLUSTER bricks_q3c_idx on bricks;
+CREATE INDEX bricks_brickid_idx ON bricks (brickid);
+CREATE INDEX bricks_hasg_idx ON bricks (has_g);
+CREATE INDEX bricks_hasr_idx ON bricks (has_r);
+CREATE INDEX bricks_hasz_idx ON bricks (has_z);
+

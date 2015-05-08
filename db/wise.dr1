@@ -1,0 +1,32 @@
+CREATE SEQUENCE wise_id_seq; 
+
+CREATE TABLE wise (
+    id bigint primary key not null default nextval('wise_id_seq'::regclass),
+    cand_id bigint REFERENCES candidate (id),
+    W1flux real,
+    W1flux_ivar real,
+    W1fracflux real,
+    W1_rchi2 real,
+    W1nobs integer,
+    W1_ext real,
+    W2flux real,
+    W2flux_ivar real,
+    W2fracflux real,
+    W2_rchi2 real,
+    W2nobs integer,
+    W2_ext real,
+    W3flux real,
+    W3flux_ivar real,
+    W3fracflux real,
+    W3_rchi2 real,
+    W3nobs integer,
+    W3_ext real,
+    W4flux real,
+    W4flux_ivar real,
+    W4fracflux real,
+    W4_rchi2 real,
+    W4nobs integer,
+    W4_ext real
+);
+
+CREATE INDEX wise_candid_idx ON wise (cand_id);

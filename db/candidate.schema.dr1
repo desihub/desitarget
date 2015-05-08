@@ -1,0 +1,42 @@
+CREATE SEQUENCE candidate_id_seq; 
+
+CREATE TABLE candidate (
+    id bigint primary key not null default nextval('candidate_id_seq'::regclass),
+    brickid integer,
+    objid integer,
+    blob integer,
+    "type" text,
+    ra double precision,
+    ra_ivar real,
+    "dec" double precision,
+    dec_ivar real,
+    bx double precision,
+    by double precision,
+    bx0 real,
+    by0 real,
+    left_blob boolean,
+    out_of_bounds boolean,
+    EBV real,
+    DCHISQ1 real,
+    DCHISQ2 real,
+    DCHISQ3 real,
+    DCHISQ4 real,
+    FRACDEV real,
+    FRACDEV_IVAR real,
+    SHAPEEXP_R real,
+    SHAPEEXP_R_IVAR real,
+    SHAPEEXP_E1 real,
+    SHAPEEXP_E1_IVAR real,
+    SHAPEEXP_E2 real,
+    SHAPEEXP_E2_IVAR real,
+    SHAPEDEV_R real,
+    SHAPEDEV_R_IVAR real,
+    SHAPEDEV_E1 real,
+    SHAPEDEV_E1_IVAR real,
+    SHAPEDEV_E2 real,
+    SHAPEDEV_E2_IVAR real
+);
+
+CREATE INDEX cand_q3c_candidate_idx ON candidate (q3c_ang2ipix(ra,dec));
+CLUSTER cand_q3c_candidate_idx on candidate;
+CREATE INDEX cand_brickid_idx ON candidate (brickid);

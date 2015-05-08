@@ -1,0 +1,6 @@
+CREATE INDEX uflux_idx ON decam (uflux);
+CREATE INDEX gflux_idx ON decam (gflux);
+CREATE INDEX rflux_idx ON decam (rflux);
+CREATE INDEX iflux_idx ON decam (iflux);
+CREATE INDEX zflux_idx ON decam (zflux);
+CREATE INDEX Yflux_idx ON decam (Yflux);

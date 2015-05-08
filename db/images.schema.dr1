@@ -1,0 +1,53 @@
+CREATE SEQUENCE images_id_seq;
+
+CREATE TABLE images (
+    id bigint primary key not null default nextval('images_id_seq'::regclass),
+    ra double precision,
+    "dec" double precision,
+    ra_bore double precision,
+    dec_bore double precision,
+    filter text, 
+    observatory_id text default 'decam', 
+    exptime real,
+    airmass real,
+    date_obs timestamp without time zone,
+    mjd_obs double precision,
+    ccdzpt real,
+    ccdphrms real,
+    ccdskyrms real,
+    ccdnstar integer,
+    ccdnmatch integer,
+    ccdmdncol real,
+    guider integer,
+    ccdnum integer,
+    object text,
+    propid text,
+    extname text,
+    fwhm real,
+    expnum integer,
+    avsky real,
+    arawgain real,
+    crpix1 real,
+    crpix2 real,
+    crval1 real,
+    crval2 real,
+    cd1_1 real,
+    cd1_2 real,
+    cd2_1 real,
+    cd2_2 real,
+    height real,
+    width real,
+    dr1 boolean,
+    cpimage_hdu integer,
+    cpimage text,
+    calname text,
+    version_id real default 1.0
+);
+
+CREATE INDEX img_q3c_candidate_idx ON images (q3c_ang2ipix(ra,dec));
+CLUSTER img_q3c_candidate_idx on images;
+CREATE INDEX img_filter_idx ON images (filter);
+CREATE INDEX img_expnum_idx ON images (expnum);
+CREATE INDEX img_ccdnum_idx ON images (ccdnum);
+CREATE INDEX img_dr1_idx ON images (dr1);
+CREATE INDEX img_cpimage_idx ON images (cpimage);

@@ -1,0 +1,16 @@
+CREATE SEQUENCE zp_id_seq;
+
+CREATE TABLE zp (
+    id bigint primary key not null default nextval('zp_id_seq'::regclass),
+    EXPNUM integer,
+    CCDNUM integer,
+    CCDZPT real,
+    CCDPHRMS real,
+    CCDSKYRMS real,
+    CCDNSTAR integer,
+    CCDNMATCH integer,
+    CCDMDNCOL real
+);
+
+CREATE INDEX zp_expnum_idx ON zp (EXPNUM);
+CREATE INDEX zp_ccdnum_idx ON zp (CCDNUM);
