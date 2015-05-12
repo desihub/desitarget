@@ -1,0 +1,70 @@
+#----------------------------------------------------------------------#
+# filename: pyfits+psycopg2_ex.py 
+# author: Peter Nugent
+# date: 10/30/2014
+# ---------------------------------------------------------------------#
+# Function: Read in a Arjun fits binary table from standard in and load it
+# into the desi calib pg table database with psycopg2.
+# ---------------------------------------------------------------------#
+
+# First, we'll load up the dependencies:
+
+# psycopg2 is an open-source postgres client for python. 
+# We may want db access at some point and, of course, pyfits & sys
+
+import psycopg2 
+
+import astropy
+from astropy.io import fits
+
+import sys, os, re, glob
+import numpy as np
+
+
+# Read in the image name (ooi) and create the mask (ood) and weight (oow) names
+
+fitsbin = str(sys.argv[1])
+
+# First, open the table using pyfits:
+
+table = fits.open( fitsbin )
+
+
+# Access the data part of the table.
+
+tbdata = table[1].data
+tbdata = np.asarray(tbdata)
+
+# determine the number of elements 
+
+nrows = tbdata.shape[0] 
+newdata = []
+
+# Fire up the db
+
+con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', password='L00cy-1959', database='desi')
+cursor = con.cursor()
+
+# Re-cast as strings so the load is easy 
+
+for i in range(0, nrows):
+   
+
+    line = [ tbdata['filter'][i], tbdata['ra'][i], tbdata['dec'][i], tbdata['airmass'][i], tbdata['date_obs'][i], tbdata['exptime'][i], tbdata['expnum'][i], tbdata['mjd_obs'][i], tbdata['propid'][i], tbdata['guider'][i], tbdata['object'][i], tbdata['avsky'][i], tbdata['arawgain'][i], tbdata['fwhm'][i], tbdata['crpix1'][i], tbdata['crpix2'][i], tbdata['crval1'][i], tbdata['crval2'][i], tbdata['cd1_1'][i], tbdata['cd1_2'][i], tbdata['cd2_1'][i], tbdata['cd2_2'][i], tbdata['extname'][i], tbdata['ccdnum'][i], tbdata['cpimage'][i], tbdata['cpimage_hdu'][i], tbdata['calname'][i], tbdata['height'][i], tbdata['width'][i], tbdata['ra_bore'][i], tbdata['dec_bore'][i], tbdata['dr1'][i] ]
+
+    newdata.append(line) 
+
+## Re-cast as strings so the load is easy 
+#
+for i, f in enumerate(newdata):
+##
+   query = 'INSERT INTO images ( filter, ra, dec, airmass, date_obs, exptime, expnum, mjd_obs, propid, guider, object, avsky, arawgain, fwhm, crpix1, crpix2, crval1, crval2, cd1_1, cd1_2, cd2_1, cd2_2, extname, ccdnum, cpimage, cpimage_hdu, calname, height, width, ra_bore, dec_bore, dr1 ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )' 
+##
+   cursor.execute( query, tuple( [str(elem) for elem in newdata[i]] ) ) 
+#
+#
+
+con.commit()
+
+# That's it!
+
