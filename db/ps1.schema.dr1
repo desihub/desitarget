@@ -1,0 +1,41 @@
+CREATE SEQUENCE ps1_id_seq; 
+
+CREATE TABLE ps1 (
+    id bigint primary key not null default nextval('ps1_id_seq'::regclass),
+    objid bigint,
+    ra double precision,
+    "dec" double precision,
+    g_nmag_ok integer,
+    r_nmag_ok integer,
+    i_nmag_ok integer,
+    z_nmag_ok integer,
+    y_nmag_ok integer,
+    g_stdev real,
+    r_stdev real,
+    i_stdev real,
+    z_stdev real,
+    y_stdev real,
+    g_mean real,
+    r_mean real,
+    i_mean real,
+    z_mean real,
+    y_mean real,
+    g_median real,
+    r_median real,
+    i_median real,
+    z_median real,
+    y_median real,
+    g_mean_ap real,
+    r_mean_ap real,
+    i_mean_ap real,
+    z_mean_ap real,
+    y_mean_ap real,
+    g_median_ap real,
+    r_median_ap real,
+    i_median_ap real,
+    z_median_ap real,
+    y_median_ap real
+);
+
+CREATE INDEX ps1_q3c_ps1_idx ON ps1 (q3c_ang2ipix(ra,dec));
+CLUSTER ps1_q3c_ps1_idx on ps1;
