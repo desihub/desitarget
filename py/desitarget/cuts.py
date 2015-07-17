@@ -43,7 +43,15 @@ def select_target(target_id, g_mags, r_mags, z_mags, target_type=""):
                                    ((r_mags - z_mags)<1.5) & 
                                    ((g_mags - r_mags)<(r_mags - z_mags - 0.2)) & 
                                    ((g_mags - r_mags)< 1.2 - (r_mags - z_mags)))
-            
+
+        elif (target_type=="QSO"):
+            target_true = np.where((r_mags < 23.0) &
+                                   ((g_mags - r_mags) < 1.0) &
+                                   ((r_mags - z_mags) > -0.3) &
+                                   ((r_mags - z_mags) < 1.1))
+        elif (target_type=="BGS"):
+                        target_true =  np.where((r_mags < 19.35))
+
     else:
          raise RuntimeError("Target type %s not recognized"%(target_type))
         
