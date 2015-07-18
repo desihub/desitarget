@@ -2,6 +2,10 @@ import cuts
 
 
 def cut_example():
+    """
+    This example takes a Durham light cone, performs target selection 
+    and writes the results in a FITS format for fiber allocation.
+    """
     mockfile="/gpfs/data/Lightcone/lightcone_out/LC144/GAL437a/Generic.r25/Gonzalez13.DB.MillGas.field1.photometry.0.hdf5"
     target_id, ra, dec, g_mags, r_mags, z_mags = cuts.load_light_cone_durham(mockfile)
     outputdir="/gpfs/data/jeforero/desidata/inputfiber/"
