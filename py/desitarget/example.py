@@ -1,4 +1,42 @@
 import cuts
+import os
+from astropy.io import fits
+import numpy as np
+    
+def fits_to_bin_example():
+    """
+    Takes a FITS file for fiber assignment and puts it into Matin White binary format
+    """
+    type_id = {'ELG':4, 'LRG':3, 'QSO': 2}
+    outputdir="/gpfs/data/jeforero/desidata/inputfiber/"
+    inputfile = os.path.join(outputdir, 'Targets_Tile_000000.fits')
+    fin = fits.open(inputfile)
+    Nt = np.int_(fin[1].data['ID'])
+    ra = fin[1].data['RA']
+    dc = fin[1].data['DEC']
+    zz  = np.ones([ra.size])
+    pp = np.int_(fin[1].data['PRIORITY'])
+    no = np.int_(fin[1].data['NOBS'])
+    types  = fin[1].data['OBJTYPE']
+
+    id = np.zeros([ra.size], dtype='int')
+    for t in type_id:
+        index = np.where(types==t)
+        if(np.size(index)):
+            id[index] = id[index] + type_id[t]
+
+    icat = 0
+    fout = open("%s/Targets_Tile_%05d.rdzipn"%(outputdir, icat),"w")
+    Nt.tofile(fout)
+    ra.tofile(fout)
+    dc.tofile(fout)
+    zz.tofile(fout)
+    id.tofile(fout)
+    pp.tofile(fout)
+    no.tofile(fout)
+    fout.close()
+    return 
+
 
 
 def cut_example():
@@ -13,4 +51,6 @@ def cut_example():
                            output_dir=outputdir, 
                            tile_ra=ra.mean(), tile_dec=dec.mean())
     
-    
+
+
+
