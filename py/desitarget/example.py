@@ -14,12 +14,21 @@ def fits_to_bin_example():
 
     ra = fin[1].data['RA']
     dc = fin[1].data['DEC']
-    Nt =  np.array(ra.size,dtype='i4')
-    zz  = np.ones([ra.size])
-    pp = np.int_(fin[1].data['PRIORITY'])
-    no = np.int_(fin[1].data['NOBS'])
+    zz  = np.ones(ra.size, dtype='f4')
     types  = fin[1].data['OBJTYPE']
-    id = np.zeros(ra.size, dtype='i4')
+
+
+    Nt =  np.array([ra.size],dtype='i4')
+    id       = np.zeros(ra.size,dtype='i4')
+    pp       = np.zeros(ra.size,dtype='f4')
+    no       = np.zeros(ra.size,dtype='i4')
+    ra       = np.zeros(ra.size,dtype='f4')
+    dc       = np.zeros(ra.size,dtype='f4')
+
+    pp = fin[1].data['PRIORITY']
+    no = fin[1].data['NOBS']
+    ra = fin[1].data['RA']
+    dc = fin[1].data['DEC']
 
     for t in type_id:
         index = np.where(types==t)
@@ -51,6 +60,8 @@ def cut_example():
     cuts.selection_to_fits(target_id, g_mags, r_mags, z_mags, ra, dec, 
                            output_dir=outputdir, 
                            tile_ra=ra.mean(), tile_dec=dec.mean())
-    
+
+#cut_example()
+#fits_to_bin_example()
 
 
