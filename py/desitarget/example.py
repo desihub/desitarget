@@ -1,4 +1,3 @@
-
 import cuts
 import os
 from astropy.io import fits
@@ -26,10 +25,13 @@ def fits_to_bin_example():
     ra       = np.zeros(ra.size,dtype='f4')
     dc       = np.zeros(ra.size,dtype='f4')
 
-    pp = fin[1].data['PRIORITY']
-    no = fin[1].data['NOBS']
-    ra = fin[1].data['RA']
-    dc = fin[1].data['DEC']
+    pp[:] = fin[1].data['PRIORITY']
+    no[:] = fin[1].data['NOBS']
+    ra[:] = fin[1].data['RA']
+    dc[:] = fin[1].data['DEC']
+
+    print ra
+    print dc 
 
     for t in type_id:
         index = np.where(types==t)
