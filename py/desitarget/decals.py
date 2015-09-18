@@ -1,7 +1,7 @@
 from __future__ import absolute_import
 
 """
-    Target Selection
+    Target Selection for DECALS catalogue data
 
     https://desi.lbl.gov/trac/wiki/TargetSelection
 
