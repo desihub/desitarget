@@ -1,4 +1,5 @@
 import cuts
+import targetselection
 import os
 from astropy.io import fits
 import numpy as np
@@ -63,6 +64,18 @@ def cut_example():
     cuts.selection_to_fits(target_id, g_mags, r_mags, z_mags, ra, dec, 
                            output_dir=outputdir, 
                            tile_ra=ra.mean(), tile_dec=dec.mean())
+
+def cut_decals_example():
+    # find this file from DR1 catalogue on edison:/global/project/projectdirs/cosmo/data/legacysurvey/dr1/tractor/
+    tractorfile="tractor-2437p082.fits"
+    data = fits.open(tractorfile)[1].data
+    # where is inefficient, but apparently desihub likes `where` very much..
+    with np.errstate(all='ignore'):
+        where = np.where(targetselection.LRG(data))
+    print("%d / %d objects are selected." %( len(where), len(data)))
+    return where
+
+cut_decals_example()
 
 #cut_example()
 #fits_to_bin_example()
