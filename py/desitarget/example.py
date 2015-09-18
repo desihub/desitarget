@@ -1,5 +1,5 @@
 import cuts
-import targetselection
+import decals
 import os
 from astropy.io import fits
 import numpy as np
@@ -71,7 +71,7 @@ def cut_decals_example():
     data = fits.open(tractorfile)[1].data
     # where is inefficient, but apparently desihub likes `where` very much..
     with np.errstate(all='ignore'):
-        where = np.where(targetselection.LRG(data))
+        where = np.where(decals.LRG(data))
     print("%d / %d objects are selected." %( len(where), len(data)))
     return where
 
