@@ -163,26 +163,14 @@ def selection_to_fits(target_id, g_mags, r_mags, z_mags, ra, dec, output_dir="./
         if(os.path.isfile(fits_filename)):
             os.remove(fits_filename)
 
-        c0=fits.Column(name='ID', format='K', array=target_file_id)
-        c1=fits.Column(name='TARGETID', format='K', array=target_db_id)
-        c2=fits.Column(name='RA', format='D', array=target_ra)
-        c3=fits.Column(name='DEC', format='D', array=target_dec)
-        c4=fits.Column(name='PRIORITY', format='D', array=target_priority)
-        c5=fits.Column(name='NOBS', format='D', array=target_nobs)
-        c6=fits.Column(name='OBJTYPE', format='8A', array=target_types)
-        
-        targetcat=fits.ColDefs([c0,c1,c2,c3,c4,c5,c6])
-        
-        table_targetcat_hdu=fits.TableHDU.from_columns(targetcat)
-        table_targetcat_hdu.header['TILE_ID'] = tile_id
-        table_targetcat_hdu.header['TILE_RA'] = tile_ra
-        table_targetcat_hdu.header['TILE_DEC'] = tile_dec
-        
-        hdu=fits.PrimaryHDU()
-        hdulist=fits.HDUList([hdu])
-        hdulist.append(table_targetcat_hdu)
-        hdulist.verify()
-        hdulist.writeto(fits_filename)        
+        write_ts_catalogue(target_file_id,
+                target_db_id,
+                target_ra,
+                target_dec,
+                target_priority,
+                target_nobs,
+                target_types, tile_id, tile_ra, tile_dec)
+
 
     return
 
