@@ -267,7 +267,7 @@ class Expr(Node):
         return iter(self.operands)
 
     def __getitem__(self, index):
-        return self.operands[i]
+        return self.operands[index]
 
     def flatten(self, operands):
         """ Flattens operands of associative operators.

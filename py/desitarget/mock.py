@@ -38,7 +38,8 @@ LRG &= W1FLUX * RFLUX ** (1.33-1) > ZFLUX**1.33 * 10**(-0.33/2.5)
 
 
 ELG  = RFLUX > 10**((22.5-23.4)/2.5)
-""" ELG Cut """ ELG &= ZFLUX > 10**(0.3/2.5) * RFLUX
+""" ELG Cut """ 
+ELG &= ZFLUX > 10**(0.3/2.5) * RFLUX
 ELG &= ZFLUX < 10**(1.5/2.5) * RFLUX
 ELG &= RFLUX**2 < GFLUX * ZFLUX * 10**(-0.2/2.5)
 ELG &= ZFLUX < GFLUX * 10**(1.2/2.5) 
