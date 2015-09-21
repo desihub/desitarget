@@ -1,5 +1,6 @@
 import cuts
 import decals
+import mock
 import os
 from astropy.io import fits
 import numpy as np
@@ -69,13 +70,42 @@ def cut_decals_example():
     # find this file from DR1 catalogue on edison:/global/project/projectdirs/cosmo/data/legacysurvey/dr1/tractor/
     tractorfile="tractor-2437p082.fits"
     data = fits.open(tractorfile)[1].data
-    # where is inefficient, but apparently desihub likes `where` very much..
     with np.errstate(all='ignore'):
         where = np.where(decals.LRG(data))
     print("%d / %d objects are selected." %( len(where), len(data)))
     return where
 
+def cut_mock_example():
+    import numpy
+
+    TOFLUX = lambda mag : 10 ** ((22.5 - mag) / 2.5)
+
+    randoms = numpy.random.uniform(size=(4, 1000))
+    r = randoms[0] * (24- 16) + 16
+    g = randoms[1] * 2.5 - 0.5 + r
+    W1 = r - (randoms[2] * 8 - 2)
+    W2 = r - (randoms[2] * 8 - 2)
+    z = r - (randoms[3] * 3.0 - 0.5)
+
+    GFLUX = TOFLUX(g)
+    RFLUX = TOFLUX(r)
+    ZFLUX = TOFLUX(z)
+    W1FLUX = TOFLUX(W1)
+    W2FLUX = TOFLUX(W1)
+    
+    data = np.rec.fromarrays(
+            [GFLUX, RFLUX, W1FLUX, W2FLUX, ZFLUX],
+            names=['GFLUX', 'RFLUX', 'W1FLUX', 'W2FLUX', 'ZFLUX'],
+            )
+
+    with np.errstate(all='ignore'):
+        where = np.where(mock.LRG(data))[0]
+
+    print("%d / %d objects are selected." %( len(where), len(data)))
+    return where
+
 cut_decals_example()
+cut_mock_example()
 
 #cut_example()
 #fits_to_bin_example()
