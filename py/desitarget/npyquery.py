@@ -113,7 +113,14 @@ class Node(object):
         return Transpose(self)
 
     def __call__(self, array):
-        return array[self.visit(array)]
+        mask = self.visit(array)
+        if isinstance(array, dict):
+            d = {}
+            for key in array.keys():
+                d[key] = array[key][mask]
+            return d
+        else:
+            return array[mask]
 
     def real_visit(self, array, s):
         """ returns a selection mask.
@@ -124,8 +131,12 @@ class Node(object):
 
     def visit(self, array):
         chunksize=1024 * 128
-        result = numpy.empty(len(array), dtype='?')
-        for i in range(0, len(array), chunksize):
+        if isinstance(array, dict):
+            length = len(array[array.keys()[0]])
+        else:
+            length = len(array)
+        result = numpy.empty(length, dtype='?')
+        for i in range(0, length, chunksize):
             s = slice(i, i + chunksize)
             result[s] = self.real_visit(array, s)
         return result
