@@ -18,8 +18,8 @@ __author__ = "Yu Feng and John Moustous"
 __version__ = "1.0"
 __email__  = "yfeng1@berkeley.edu"
 
-from npyquery import Column as C
-from npyquery import Max, Min
+from desitarget.npyquery import Column as C
+from desitarget.npyquery import Max, Min
 
 
 ### use these lines for mag cuts.
