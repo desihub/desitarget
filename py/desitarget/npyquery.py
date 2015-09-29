@@ -8,6 +8,10 @@ by other python database implementations as well.
 Override Column.visit for customized access to objects (e.g.
     Pandas dataframe or imaginglss's ColumnStore )
 
+Simple manipulation of the AST is allowed. For example, 
+:code:`node.assume(a, b)` allows one to replace 'a' with 'b'
+in the expression.
+
 Examples
 --------
 >>> d = dtype([
@@ -22,9 +26,15 @@ Examples
 >>> query &= (Column('Position')[:, 2] > 1.0)
 >>> print(query.visit(data))
 
+>>> query = query.assume(Column('BlackholeMass'), 1.0)
+>>> print(query.visit(data))
+
 """
 import numpy
 from numpy import ndarray
+from copy import deepcopy
+import operator
+
 try:
     basestring
 except NameError:
@@ -44,21 +54,21 @@ class Node(object):
         self.children = []
 
     def __invert__(self):
-        return Expr("~", ndarray.__invert__, [self])
+        return Expr("~", operator.__invert__, [self])
     def __neg__(self):
-        return Expr("-", ndarray.__neg__, [self])
+        return Expr("-", operator.__neg__, [self])
     def __le__(self, other):
-        return Expr("<=", ndarray.__le__, [self, other])
+        return Expr("<=", operator.__le__, [self, other])
     def __lt__(self, other):
-        return Expr("<", ndarray.__lt__, [self, other])
+        return Expr("<", operator.__lt__, [self, other])
     def __eq__(self, other):
-        return Expr("==", ndarray.__eq__, [self, other])
+        return Expr("==", operator.__eq__, [self, other])
     def __ne__(self, other):
-        return Expr("!=", ndarray.__ne__, [self, other])
+        return Expr("!=", operator.__ne__, [self, other])
     def __gt__(self, other):
-        return Expr(">", ndarray.__gt__, [self, other])
+        return Expr(">", operator.__gt__, [self, other])
     def __ge__(self, other):
-        return Expr(">=", ndarray.__ge__, [self, other])
+        return Expr(">=", operator.__ge__, [self, other])
     def __and__(self, other):
         return Expr("&", numpy.bitwise_and, [self, other])
     def __or__(self, other):
@@ -122,13 +132,6 @@ class Node(object):
         else:
             return array[mask]
 
-    def real_visit(self, array, s):
-        """ returns a selection mask.
-
-            True for items satisfying the query in array.
-        """
-        raise NotImplemented 
-
     def visit(self, array):
         chunksize=1024 * 128
         if isinstance(array, dict):
@@ -138,8 +141,20 @@ class Node(object):
         result = numpy.empty(length, dtype='?')
         for i in range(0, length, chunksize):
             s = slice(i, i + chunksize)
-            result[s] = self.real_visit(array, s)
+            v = QueryVisitor(array, s)
+            result[s] = v.visit(self)
         return result
+
+    def assume(self, node, literal):
+        """ Replace all subexpression 'node' with 'literal'.
+        """
+        av = AssumptionVisitor(node, literal)
+        rt = deepcopy(self)
+        av.visit(rt)
+        return rt
+
+    def __deepcopy__(self, memo):
+        return NotImplemented
 
     @property
     def names(self):
@@ -151,7 +166,10 @@ class Node(object):
         for c in self.children:
             r.extend(c.names)
         return list(set(r))
-        
+
+    def equals(self, other):
+        return repr(self) == repr(other)
+
 def repr_slice(s):
     if not isinstance(s, slice):
         return repr(s)
@@ -174,7 +192,10 @@ class GetItem(Node):
     def __init__(self, obj, index):
         self.children = [obj]
         self.index = index
-        self.obj = obj
+
+    @property
+    def obj(self):
+        return self.children[0]
 
     def __repr__(self):
         if isinstance(self.index, tuple):
@@ -183,8 +204,8 @@ class GetItem(Node):
             rslice = repr_slice(self.index)
         return "%s[%s]" % (repr(self.obj), rslice)
 
-    def real_visit(self, array, s):
-        return self.obj.real_visit(array, s)[self.index]
+    def __deepcopy__(self, memo):
+        return GetItem(deepcopy(self.obj, memo), self.index)
 
 class Literal(Node):
     """ 
@@ -197,12 +218,8 @@ class Literal(Node):
     def __repr__(self):
         return repr(self.value)
 
-    def real_visit(self, array, s):
-        if isinstance(self.value, basestring):
-            v = numpy.array(self.value, 'S')
-        else:
-            v = self.value
-        return v
+    def __deepcopy__(self, memo):
+        return Literal(self.value)
 
 class Column(Node):
     """ 
@@ -215,12 +232,12 @@ class Column(Node):
     def __repr__(self):
         return "%s" % self.name
 
-    def real_visit(self, array, s):
-        return array[self.name][s]
-
     @property
     def names(self):
         return [self.name]
+
+    def __deepcopy__(self, memo):
+        return Column(self.name)
 
 
 class Transpose(Node):
@@ -229,11 +246,15 @@ class Transpose(Node):
     """
     def __init__(self, node):
         self.children = [node]
-        self.obj = node
+
+    @property
+    def obj(self):
+        return self.children[0]
+
     def __repr__(self):
         return "%s.T" % str(self.obj)
-    def real_visit(self, array, s):
-        return self.obj.real_visit(array, s).T
+    def __deepcopy__(self, memo):
+        return Transpose(deepcopy(self.obj, memo))
 
 class Expr(Node):
     """ 
@@ -300,6 +321,10 @@ class Expr(Node):
         return o
 
     def __repr__(self):
+        if self.operator == 'max': 
+            return "max(%s)" % (', ').join([repr(a) for a in self.operands])
+        if self.operator == 'min': 
+            return "min(%s)" % (', ').join([repr(a) for a in self.operands])
         if len(self.operands) >= 2:
             return "(%s)" % (' ' + self.operator + ' ').join([repr(a) for a in self.operands])
         elif len(self.operands) == 1:
@@ -308,32 +333,92 @@ class Expr(Node):
         else:
             raise ValueError
 
-    def real_visit(self, array, s):
-        """ Evaluates the selection boolean masks of the array.
-        """
-        ops = [a.real_visit(array, s) for a in self.operands]
-        if self.is_associative():
+    def __deepcopy__(self, memo):
+        return Expr(self.operator, self.function, 
+                    [deepcopy(c, memo) for c in self.operands])
+
+def Max(*args):
+    f = lambda *args: numpy.max(args, axis=0)
+    return Expr('max', f, args)
+
+def Min(*args):
+    f = lambda *args: numpy.min(args, axis=0)
+    return Expr('min', f, args)
+
+class Visitor(object):
+    def __init__(self):
+        self.m = {}
+
+        self.reg('visit_getitem', GetItem)
+        self.reg('visit_literal', Literal)
+        self.reg('visit_column', Column)
+        self.reg('visit_transpose', Transpose)
+        self.reg('visit_expr', Expr)
+        self.reg('visit_node', Node)
+
+    def reg(self, attr, type):
+        if hasattr(self, attr):
+            self.m[type] = getattr(self, attr)
+
+    def visit(self, node):
+        t = type(node)
+        while t not in self.m:
+            t = t.__base__
+        return self.m[t](node)
+
+    def visit_node(self, node):
+        return NotImplemented
+
+class AssumptionVisitor(Visitor):
+    def __init__(self, node, literal):
+        Visitor.__init__(self)
+        self.node = node
+        if not isinstance(literal, Node):
+            literal = Literal(literal)
+        self.literal = literal
+
+    def visit_node(self, node):
+        newchildren = []
+        for c in node.children:
+            if c.equals(self.node):
+                c = self.literal
+            else:
+                self.visit(c)
+            newchildren.append(c)
+        node.children = newchildren
+class QueryVisitor(Visitor):
+    def __init__(self, array, s):
+        Visitor.__init__(self)
+        self.array = array
+        self.s = s
+
+    def visit_getitem(self, node):
+        return self.visit(node.obj)[node.index]
+
+    def visit_literal(self, node):
+        if isinstance(node.value, basestring):
+            v = numpy.array(node.value, 'S')
+        else:
+            v = node.value
+        return v
+
+    def visit_column(self, node):
+        return self.array[node.name][self.s]
+
+    def visit_transpose(self, node):
+        return self.visit(node.obj).T
+
+    def visit_expr(self, node):
+        ops = [self.visit(a) for a in node.operands]
+        if node.is_associative():
             # do not use ufunc reduction because ops can 
             # be of different shape
             r = ops[0]
-            for a, s in zip(ops[1:], self.operands[1:]):
-                r = self.function(r, a)
+            for a, s in zip(ops[1:], node.operands[1:]):
+                r = node.function(r, a)
         else:
-            r = self.function(*ops)
+            r = node.function(*ops)
         return r
-class Max(Expr):
-    def __init__(self, *args):
-        f = lambda *args: numpy.max(args, axis=0)
-        Expr.__init__(self, 'max', f, args)
-    def __repr__(self):
-        return "max(%s)" % (', ').join([repr(a) for a in self.operands])
-        
-class Min(Expr):
-    def __init__(self, *args):
-        f = lambda *args: numpy.min(args, axis=0)
-        Expr.__init__(self, 'min', f, args)
-    def __repr__(self):
-        return "min(%s)" % (', ').join([repr(a) for a in self.operands])
 
 def test():    
     d = numpy.dtype([
@@ -364,6 +449,12 @@ def test():
     assert query5.visit(data).sum() == 4
     query6 = Max(Column('BlackholeMass'), Column('PhaseOfMoon'), Column('Position').max()) > 0
     assert query6.visit(data).sum() == 5
+
+    assert query6.equals(deepcopy(query6))
+    assert not query6.equals(deepcopy(query5))
+    query7 = query4.assume(Column('Position')[:, 1], 1.0) \
+                .assume(Column('Position')[:, 2], -1.0)
+    assert query7.visit(data).sum() == 0
 
 if __name__ == '__main__':
     test()
