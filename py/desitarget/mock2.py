@@ -41,6 +41,14 @@ QSO = make_most_assumptions(QSO)
 
 BGS = make_most_assumptions(BGS).assume(TYPE, 'AAA')
 
+MyQSO =  RFLUX > 10**((22.5-23.0)/2.5) 
+MyQSO &= RFLUX < 10**(1.0/2.5) * GFLUX
+MyQSO &= ZFLUX > 10**(-0.3/2.5) * RFLUX
+MyQSO &= ZFLUX < 10**(1.1/2.5) * RFLUX
+MyQSO &= WFLUX * GFLUX**1.2 > 10**(2/2.5) * RFLUX**(1+1.2)
+
+MyQSO = make_most_assumptions(MyQSO)
+
 __all__ = ['LRG', 'ELG', 'QSO', 'BGS']
 
 def makedecals(GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX):
@@ -81,6 +89,7 @@ def test():
     print 'LRG kept', len(LRG(data)), '/', len(data)
     print 'ELG kept', len(ELG(data)), '/', len(data)
     print 'BGS kept', len(BGS(data)), '/', len(data)
+    print 'MyQSO kept', len(MyQSO(data)), '/', len(data)
 
 if __name__ == '__main__':
     test()
