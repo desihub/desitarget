@@ -61,21 +61,24 @@ def write_targets(filename, data, tsbits):
     # FIXME: assert data and tsbits schema
     #
     # add a column name
-    width = 1 if len(tsbits.shape) == 1 else tsbits.shape[-1]
-    tsbits = tsbits.view(dtype=[('TSBITS', (tsbits.dtype, width))])
+    tsbits = tsbits.view(dtype=[('TSBITS', tsbits.dtype)])
 
-    with fits.open(filename, mode='ostream') as ff:
-        # OK we will follow the rules at
-        # https://pythonhosted.org/pyfits/users_guide/users_table.html
-        # to merge two tables.
-        #
-        # This does look like a workaround of lacking in numpy api.
-        hdu1 = fits.BinTableHDU(data)
-        hdu2 = fits.BinTableHDU(tsbits)
+    # do not use a context manager as
+    # the fits context manager doesn't flush.
+    ff = fits.open(filename, mode='ostream')
 
-        columns = hdu1.columns + hdu2.columns
+    # OK we will follow the rules at
+    # https://pythonhosted.org/pyfits/users_guide/users_table.html
+    # to merge two tables.
+    #
+    # This does look like a workaround of lacking in numpy api.
+    hdu1 = fits.BinTableHDU(data)
+    hdu2 = fits.BinTableHDU(tsbits)
 
-        hdu = fits.BinTableHDU.from_columns(columns)
-        ff.append(hdu)
-        ff.verify() # for what?
+    columns = hdu1.columns + hdu2.columns
+    hdu = fits.BinTableHDU.from_columns(columns)
+    ff.append(hdu)
 
+    ff.flush()
+
+    ff.close()    

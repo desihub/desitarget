@@ -25,15 +25,20 @@ def main():
     candidates = read_tractor(ns.src)
 
     # lets not set the bits yet.
-    tsbits = numpy.zeros(len(candidates), dtype=('u1', 8))
+
+    # FIXME: fits doesn't like u8; there must be a workaround
+    # but lets stick with i8 for now.
+    tsbits = numpy.zeros(len(candidates), dtype='i8')
 
     for t in TYPES.keys():
         cut = TYPES[t]
-        bitnum = targetmask.bitnum(t)
-        mask = cut.apply(candidates)
-        tsbits[:, bitnum] = mask
- 
-    print ('selected', tsbits.sum(axis=0, dtype='i4'))
+        bitfield = targetmask.mask(t)
+        with numpy.errstate(all='ignore'):
+            mask = cut.apply(candidates)
+        tsbits[mask] |= bitfield
+        assert ((tsbits & bitfield) != 0).sum() == mask.sum()
+        print (t, 'selected', mask.sum())
+
     write_targets(ns.dest, candidates, tsbits)
     print ('written to', ns.dest)
 
