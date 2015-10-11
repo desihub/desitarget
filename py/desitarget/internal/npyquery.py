@@ -5,7 +5,7 @@ We reuse the python expression parser to construct the
 AST. This is inspired by TinyDB, and may have been inspired
 by other python database implementations as well.
 
-Override Column.visit for customized access to objects (e.g.
+Override Column.apply for customized access to objects (e.g.
     Pandas dataframe or imaginglss's ColumnStore )
 
 Simple manipulation of the AST is allowed. For example, 
@@ -24,10 +24,10 @@ Examples
 >>> query  = (Column('BlackholeMass') > 2.0)
 >>> query &= (Column('BlackholeMass') > 4.0)
 >>> query &= (Column('Position')[:, 2] > 1.0)
->>> print(query.visit(data))
+>>> print(query.apply(data))
 
 >>> query = query.assume(Column('BlackholeMass'), 1.0)
->>> print(query.visit(data))
+>>> print(query.apply(data))
 
 """
 import numpy
@@ -123,7 +123,7 @@ class Node(object):
         return Transpose(self)
 
     def __call__(self, array):
-        mask = self.visit(array)
+        mask = self.apply(array)
         if isinstance(array, dict):
             d = {}
             for key in array.keys():
@@ -132,7 +132,7 @@ class Node(object):
         else:
             return array[mask]
 
-    def visit(self, array):
+    def apply(self, array):
         chunksize=1024 * 128
         if isinstance(array, dict):
             length = len(array[array.keys()[0]])
@@ -239,6 +239,8 @@ class Column(Node):
     def __deepcopy__(self, memo):
         return Column(self.name)
 
+    def apply(self, array, s):
+        return array[self.name][s]
 
 class Transpose(Node):
     """
@@ -386,6 +388,7 @@ class AssumptionVisitor(Visitor):
                 self.visit(c)
             newchildren.append(c)
         node.children = newchildren
+
 class QueryVisitor(Visitor):
     def __init__(self, array, s):
         Visitor.__init__(self)
@@ -403,7 +406,7 @@ class QueryVisitor(Visitor):
         return v
 
     def visit_column(self, node):
-        return self.array[node.name][self.s]
+        return node.apply(self.array, self.s)
 
     def visit_transpose(self, node):
         return self.visit(node.obj).T
@@ -438,23 +441,23 @@ def test():
     data['Name'][3] = 'N4'
 
     query1 = (Column('BlackholeMass') > 0.0)
-    assert query1.visit(data).sum() == 4
+    assert query1.apply(data).sum() == 4
     query2 = (Column('Name') == 'N1')
-    assert query2.visit(data).sum() == 1
+    assert query2.apply(data).sum() == 1
     query3 = (Column('BlackholeMass') < 5.0)
-    assert query3.visit(data).sum() == 5
+    assert query3.apply(data).sum() == 5
     query4 = (Column('Position')[:, 2] > 0.0) | (Column('Position')[:, 1] < 0.0)
-    assert query4.visit(data).sum() == 5
+    assert query4.apply(data).sum() == 5
     query5 = (numpy.sin(Column('PhaseOfMoon') * (2 * numpy.pi)) < 0.1)
-    assert query5.visit(data).sum() == 4
+    assert query5.apply(data).sum() == 4
     query6 = Max(Column('BlackholeMass'), Column('PhaseOfMoon'), Column('Position').max()) > 0
-    assert query6.visit(data).sum() == 5
+    assert query6.apply(data).sum() == 5
 
     assert query6.equals(deepcopy(query6))
     assert not query6.equals(deepcopy(query5))
     query7 = query4.assume(Column('Position')[:, 1], 1.0) \
                 .assume(Column('Position')[:, 2], -1.0)
-    assert query7.visit(data).sum() == 0
+    assert query7.apply(data).sum() == 0
 
 if __name__ == '__main__':
     test()
