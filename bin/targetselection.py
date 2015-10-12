@@ -11,9 +11,6 @@ ap.add_argument("src", help="File that stores Candidates/Objects")
 ap.add_argument("dest", help="File that stores targets")
 
 TYPES = {
-    # FIXME: this is verbose,
-    # but since the list will change, may better leave it this
-    # ugly for now.
     'LRG': LRG,
     'ELG': ELG,
     'BGS': BGS,
@@ -22,9 +19,8 @@ TYPES = {
 
 def main():
     ns = ap.parse_args()
-    candidates = read_tractor(ns.src)
 
-    # lets not set the bits yet.
+    candidates = read_tractor(ns.src)
 
     # FIXME: fits doesn't like u8; there must be a workaround
     # but lets stick with i8 for now.

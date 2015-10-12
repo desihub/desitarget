@@ -71,4 +71,3 @@ BGS =  BRICK_PRIMARY != 0
 BGS &= TYPE != 'PSF'
 BGS &=  RFLUX > 10**((22.5-19.35)/2.5)
 
-#__all__ = ['LRG', 'ELG', 'QSO', 'BGS']
