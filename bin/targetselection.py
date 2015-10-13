@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import numpy
 from desitarget.io import read_tractor, write_targets
 from desitarget.cuts import LRG, ELG, BGS, QSO
