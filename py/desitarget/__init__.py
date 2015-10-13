@@ -18,3 +18,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 from ._version import __version__
 
+# desitarget.targetmask makes more sense?
+
+from .targetmask import targetmask
+
