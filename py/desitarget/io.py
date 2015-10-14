@@ -46,15 +46,8 @@ def read_tractor(filename):
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
-        
     """
-    data = fits.open(filename)[1].data.copy()
-
-    # convert all fields to upper case. 
-    # We expect normalized upper case field names.
-    data.dtype.names = [name.upper() for name in data.dtype.names]
-
-    return data
+    return fits.getdata(filename, 1)
 
 def write_targets(filename, data, tsbits):
     """ 
