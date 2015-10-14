@@ -11,7 +11,7 @@ from __future__ import absolute_import
     These cuts assume we are passed the extinction-corrected fluxes
     (flux/mw_transmission) and are taken from:
 
-    https://desi.lbl.gov/trac/wiki/TargetSelection
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 
     These files (together with npyquery, were originally from ImagingLSS (github.com/desihub/imaginglss)
 
