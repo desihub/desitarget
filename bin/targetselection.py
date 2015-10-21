@@ -1,3 +1,4 @@
+from __future__ import print_function
 import numpy
 from desitarget.io import read_tractor, write_targets
 from desitarget.cuts import LRG, ELG, BGS, QSO
