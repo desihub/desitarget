@@ -117,8 +117,11 @@ def iter_tractor(root):
 
     """
     def parse_filename(filename):
+        """parse filename to check if this is a tractor brick file;
+        returns brickname if it is, otherwise raises ValueError"""
         if not filename.endswith('.fits'): raise ValueError
-        match = re.search('-([pm0123456789]+)\.', 
+        #- match filename tractor-0003p027.fits -> brickname 0003p027
+        match = re.search('tractor-(\d{4}[pm]\d{3})\.fits', 
                 os.path.basename(filename))
 
         if not match: raise ValueError
@@ -127,10 +130,11 @@ def iter_tractor(root):
         return brickname
 
     for roots, dirnames, filenames in os.walk(root, followlinks=True):
-        print filenames
+        ### print filenames
         for filename in filenames:
             try:
                 yield parse_filename(filename), filename
             except ValueError:
+                #- not a brick file but that's ok; keep going
                 pass 
     
