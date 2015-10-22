@@ -7,6 +7,7 @@
 import numpy as np 
 from astropy.io import fits
 import fitsio
+import os, re
 
 def read_mock_durham(filename):
     """
@@ -82,21 +83,63 @@ def write_targets(filename, data, tsbits):
 
     # do not use a context manager as
     # the fits context manager doesn't flush.
-    ff = fits.open(filename, mode='ostream')
+    with file(filename, mode='w') as f:
+        ff = fits.open(f, mode='ostream')
 
-    # OK we will follow the rules at
-    # https://pythonhosted.org/pyfits/users_guide/users_table.html
-    # to merge two tables.
-    #
-    hdu1 = fits.BinTableHDU(data)
-    hdu2 = fits.BinTableHDU(tsbits)
+        # OK we will follow the rules at
+        # https://pythonhosted.org/pyfits/users_guide/users_table.html
+        # to merge two tables.
+        #
+        hdu1 = fits.BinTableHDU(data)
+        hdu2 = fits.BinTableHDU(tsbits)
 
-    columns = hdu1.columns + hdu2.columns
+        columns = hdu1.columns + hdu2.columns
 
-    hdu = fits.BinTableHDU.from_columns(columns)
+        hdu = fits.BinTableHDU.from_columns(columns)
 
-    ff.append(hdu)
+        ff.append(hdu)
 
-    # flush and close are both required.
-    ff.flush()
-    ff.close()    
+        # flush and close are both required.
+        ff.flush()
+        ff.close()    
+
+def iter_tractor(root):
+    """ Iterator all tractor files in a directory.
+
+        Parameters
+        ----------
+        root : string
+            Path to start looking
+        
+        Returns
+        -------
+        An iterator of (brickname, filename).
+
+        Examples
+        --------
+        >>> for brickname, filename in iter_tractor('./'):
+        >>>     print(brickname, filename)
+
+    """
+    def parse_filename(filename):
+        """parse filename to check if this is a tractor brick file;
+        returns brickname if it is, otherwise raises ValueError"""
+        if not filename.endswith('.fits'): raise ValueError
+        #- match filename tractor-0003p027.fits -> brickname 0003p027
+        match = re.search('tractor-(\d{4}[pm]\d{3})\.fits', 
+                os.path.basename(filename))
+
+        if not match: raise ValueError
+
+        brickname = match.group(1)
+        return brickname
+
+    for roots, dirnames, filenames in os.walk(root, followlinks=True):
+        ### print filenames
+        for filename in filenames:
+            try:
+                yield parse_filename(filename), filename
+            except ValueError:
+                #- not a brick file but that's ok; keep going
+                pass 
+    

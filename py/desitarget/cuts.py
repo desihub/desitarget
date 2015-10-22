@@ -20,10 +20,10 @@ from __future__ import absolute_import
 from desitarget.internal.npyquery import Column as C
 from desitarget.internal.npyquery import Max, Min
 
-DECAM_FLUX = C('DECAM_FLUX').T
-DECAM_MW_TRANSMISSION = C('DECAM_MW_TRANSMISSION').T
-WISE_FLUX = C('WISE_FLUX').T
-WISE_MW_TRANSMISSION = C('WISE_MW_TRANSMISSION').T
+DECAM_FLUX = C('DECAM_FLUX')
+DECAM_MW_TRANSMISSION = C('DECAM_MW_TRANSMISSION')
+WISE_FLUX = C('WISE_FLUX')
+WISE_MW_TRANSMISSION = C('WISE_MW_TRANSMISSION')
 BRICK_PRIMARY = C('BRICK_PRIMARY')
 TYPE = C('TYPE')
 

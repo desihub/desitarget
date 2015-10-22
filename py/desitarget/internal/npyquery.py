@@ -23,7 +23,7 @@ Examples
 >>> data['Position'][:] = numpy.arange(12).reshape(3, 1)
 >>> query  = (Column('BlackholeMass') > 2.0)
 >>> query &= (Column('BlackholeMass') > 4.0)
->>> query &= (Column('Position')[:, 2] > 1.0)
+>>> query &= (Column('Position')[2] > 1.0)
 >>> print(query.apply(data))
 
 >>> query = query.assume(Column('BlackholeMass'), 1.0)
@@ -133,7 +133,7 @@ class Node(object):
             return array[mask]
 
     def apply(self, array):
-        chunksize=1024 * 128
+        chunksize = 128 * 1024
         if isinstance(array, dict):
             length = len(array[array.keys()[0]])
         else:
@@ -396,7 +396,18 @@ class QueryVisitor(Visitor):
         self.s = s
 
     def visit_getitem(self, node):
-        return self.visit(node.obj)[node.index]
+        obj = self.visit(node.obj)
+        if not isinstance(node.index, tuple):
+            index = [node.index]
+        else:
+            index = node.index 
+        assert numpy.ndim(obj) >= 2
+
+        index = tuple(
+            [Ellipsis] + list(index) +
+            (numpy.ndim(obj) - len(index) - 1) * [Ellipsis])
+
+        return obj[index]
 
     def visit_literal(self, node):
         if isinstance(node.value, basestring):
@@ -446,7 +457,7 @@ def test():
     assert query2.apply(data).sum() == 1
     query3 = (Column('BlackholeMass') < 5.0)
     assert query3.apply(data).sum() == 5
-    query4 = (Column('Position')[:, 2] > 0.0) | (Column('Position')[:, 1] < 0.0)
+    query4 = (Column('Position')[2] > 0.0) | (Column('Position')[1] < 0.0)
     assert query4.apply(data).sum() == 5
     query5 = (numpy.sin(Column('PhaseOfMoon') * (2 * numpy.pi)) < 0.1)
     assert query5.apply(data).sum() == 4
@@ -455,8 +466,8 @@ def test():
 
     assert query6.equals(deepcopy(query6))
     assert not query6.equals(deepcopy(query5))
-    query7 = query4.assume(Column('Position')[:, 1], 1.0) \
-                .assume(Column('Position')[:, 2], -1.0)
+    query7 = query4.assume(Column('Position')[1], 1.0) \
+                .assume(Column('Position')[2], -1.0)
     assert query7.apply(data).sum() == 0
 
 if __name__ == '__main__':
