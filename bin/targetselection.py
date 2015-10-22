@@ -1,15 +1,16 @@
 from __future__ import print_function
 import numpy
-from desitarget.io import read_tractor, write_targets
+from desitarget.io import read_tractor, iter_tractor, write_targets
 from desitarget.cuts import LRG, ELG, BGS, QSO
 from desitarget import targetmask 
 
 from argparse import ArgumentParser
+import os
 
 ap = ArgumentParser()
 ap.add_argument("--type", choices=["tractor"], default="tractor", help="Assume a type for src files")
-ap.add_argument("src", help="File that stores Candidates/Objects")
-ap.add_argument("dest", help="File that stores targets")
+ap.add_argument("src", help="File that stores Candidates/Objects. Ending with a '/' will be a directory")
+ap.add_argument("dest", help="File that stores targets. A directory if src is a directory.")
 
 TYPES = {
     'LRG': LRG,
@@ -21,7 +22,19 @@ TYPES = {
 def main():
     ns = ap.parse_args()
 
-    candidates = read_tractor(ns.src)
+    if ns.src.endswith('/'):
+        for brickname, filename in iter_tractor(ns.src):
+            dest = os.path.join(ns.dest, os.path.relpath(filename, ns.src))
+            try:
+                os.makedirs(os.path.dirname(dest))
+            except:
+                pass
+            do_one(filename, dest)
+    else:
+        do_one(ns.src, ns.dest)
+
+def do_one(src, dest):
+    candidates = read_tractor(src)
 
     # FIXME: fits doesn't like u8; there must be a workaround
     # but lets stick with i8 for now.
@@ -36,8 +49,8 @@ def main():
         assert ((tsbits & bitfield) != 0).sum() == mask.sum()
         print (t, 'selected', mask.sum())
 
-    write_targets(ns.dest, candidates, tsbits)
-    print ('written to', ns.dest)
+    write_targets(dest, candidates, tsbits)
+    print ('written to', dest)
 
 if __name__ == "__main__":
     main()
