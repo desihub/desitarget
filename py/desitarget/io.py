@@ -6,6 +6,7 @@
 # everybody likes np
 import numpy as np 
 from astropy.io import fits
+import fitsio
 
 def read_mock_durham(filename):
     """
@@ -36,7 +37,10 @@ def read_mock_durham(filename):
     n_gals = ra.size
     target_id = np.arange(n_gals)
 
-       
+def get_tractor_files(data_release_dir):
+    from glob import glob
+    return sorted(glob(data_release_dir+'/tractor/???/tractor-*.fits'))
+
 def read_tractor(filename):
     """ 
         Read a tractor catalogue. Always the latest DR. 
@@ -47,7 +51,8 @@ def read_tractor(filename):
         Returns:
             ndarray with the tractor schema, uppercase field names.
     """
-    return fits.getdata(filename, 1)
+    ### return fits.getdata(filename, 1)
+    return fitsio.read(filename, 1, upper=True)
 
 def write_targets(filename, data, tsbits):
     """ 
