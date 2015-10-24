@@ -1,7 +1,9 @@
 """
-    This file knjow how to write a TS catalogue.
+    This file knows how to write a TS catalogue.
 
 """
+
+from desitarget import cuts
 
 # everybody likes np
 import numpy as np 
@@ -38,10 +40,6 @@ def read_mock_durham(filename):
     n_gals = ra.size
     target_id = np.arange(n_gals)
 
-def get_tractor_files(data_release_dir):
-    from glob import glob
-    return sorted(glob(data_release_dir+'/tractor/???/tractor-*.fits'))
-
 def read_tractor(filename):
     """ 
         Read a tractor catalogue. Always the latest DR. 
@@ -77,31 +75,35 @@ def write_targets(filename, data, tsbits):
         
     """
     # FIXME: assert data and tsbits schema
-    #
+    
     # add a column name
-    tsbits = tsbits.view(dtype=[('TSBITS', tsbits.dtype)])
+    # tsbits = tsbits.view(dtype=[('TSBITS', tsbits.dtype)])
 
-    # do not use a context manager as
-    # the fits context manager doesn't flush.
-    with file(filename, mode='w') as f:
-        ff = fits.open(f, mode='ostream')
+    #- Keep columns needed for fiber assignment
+    #- and those used by target selection
+    keepcols = [
+        'BRICKID', 'BRICKNAME', 'OBJID',
+        'RA', 'DEC', 'RA_IVAR', 'DEC_IVAR',
+        ]
+    for cut in cuts.types.values():
+        for colname in cut.names:
+            if colname not in keepcols:
+                keepcols.append(colname)
+    
+    dropcols = set(data.dtype.names) - set(keepcols)
+    data = np.lib.recfunctions.drop_fields(data, dropcols, usemask=False)
 
-        # OK we will follow the rules at
-        # https://pythonhosted.org/pyfits/users_guide/users_table.html
-        # to merge two tables.
-        #
-        hdu1 = fits.BinTableHDU(data)
-        hdu2 = fits.BinTableHDU(tsbits)
+    #- OBJID in tractor files is only unique within the brick;
+    #- rename and add a unique object ID
+    data = np.lib.recfunctions.rename_fields(data, {'OBJID':'BRICK_OBJID'})
+    targetid = data['BRICKID'].astype(np.int64)*1000000 + data['BRICK_OBJID']
+    data = np.lib.recfunctions.append_fields(data, 'TARGETID', targetid, usemask=False)
+    
+    #- Add tsbits as a new column
+    data = np.lib.recfunctions.append_fields(data, 'DESI_TARGET', tsbits, usemask=False)
 
-        columns = hdu1.columns + hdu2.columns
-
-        hdu = fits.BinTableHDU.from_columns(columns)
-
-        ff.append(hdu)
-
-        # flush and close are both required.
-        ff.flush()
-        ff.close()    
+    #- Actually write the output file
+    fitsio.write(filename, data, extname='TARGETS', clobber=True)
 
 def iter_tractor(root):
     """ Iterator all tractor files in a directory.
@@ -134,12 +136,11 @@ def iter_tractor(root):
         brickname = match.group(1)
         return brickname
 
-    for roots, dirnames, filenames in os.walk(root, followlinks=True):
-        ### print filenames
+    for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
         for filename in filenames:
             try:
-                yield parse_filename(filename), filename
+                yield parse_filename(filename), os.path.join(dirpath, filename)
             except ValueError:
                 #- not a brick file but that's ok; keep going
-                pass 
+                pass
     

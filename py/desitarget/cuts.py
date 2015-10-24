@@ -20,6 +20,7 @@ from __future__ import absolute_import
 from desitarget.internal.npyquery import Column as C
 from desitarget.internal.npyquery import Max, Min
 
+#- Collect the columns to use in the cuts below
 DECAM_FLUX = C('DECAM_FLUX')
 DECAM_MW_TRANSMISSION = C('DECAM_MW_TRANSMISSION')
 WISE_FLUX = C('WISE_FLUX')
@@ -30,12 +31,16 @@ TYPE = C('TYPE')
 SHAPEDEV_R = C('SHAPEDEV_R')
 SHAPEEXP_R = C('SHAPEEXP_R')
 
+#- Some new columns are combinations of others
 GFLUX = DECAM_FLUX[1] / DECAM_MW_TRANSMISSION[1]
 RFLUX = DECAM_FLUX[2] / DECAM_MW_TRANSMISSION[2]
 ZFLUX = DECAM_FLUX[4] / DECAM_MW_TRANSMISSION[4]
 W1FLUX = WISE_FLUX[0] / WISE_MW_TRANSMISSION[0] 
 WFLUX = 0.75 * WISE_FLUX[0] / WISE_MW_TRANSMISSION[0] \
       + 0.25 * WISE_FLUX[1] / WISE_MW_TRANSMISSION[1] 
+
+#-------------------------------------------------------------------------
+#- The actual target selection cuts for each object type
 
 LRG =  BRICK_PRIMARY != 0
 """ LRG Cut """
@@ -70,4 +75,14 @@ BGS =  BRICK_PRIMARY != 0
 
 BGS &= TYPE != 'PSF'
 BGS &=  RFLUX > 10**((22.5-19.35)/2.5)
+
+#-------------------------------------------------------------------------
+#- Make a dictionary of the cut types known in this file
+types = {
+    'LRG': LRG,
+    'ELG': ELG,
+    'BGS': BGS,
+    'QSO': QSO,
+}
+
 
