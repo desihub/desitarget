@@ -12,6 +12,7 @@ from desitarget import targetmask
 
 from argparse import ArgumentParser
 import os
+from time import time
 
 default_outfile = 'desi-targets-{}.fits'.format(desitarget.__version__)
 
@@ -27,11 +28,17 @@ def main():
         #- and candidates that pass the cuts
         tsbits = list()
         candidates = list()
+        t0 = time()
+        nbrick = 0
         for brickname, filename in iter_tractor(ns.src):
-            print(brickname)
-            brick_tsbits, brick_candidates = do_one(filename)
+            nbrick += 1
+            print(brickname, ':', end=' ')
+            brick_tsbits, brick_candidates = do_one(filename, verbose=True)
             tsbits.append(brick_tsbits)
             candidates.append(brick_candidates)
+            if nbrick % 10 == 0:
+                rate = nbrick / (time() - t0)
+                print('{} bricks finished; {:.1f} bricks/sec'.format(nbrick, rate))
                     
         #- convert list of per-brick items to single arrays across all bricks
         tsbits = np.concatenate(tsbits)
@@ -42,7 +49,7 @@ def main():
     write_targets(ns.dest, candidates, tsbits)
     print ('written to', ns.dest)
 
-def do_one(src):
+def do_one(src, verbose=False):
     candidates = read_tractor(src)
 
     # FIXME: fits doesn't like u8; there must be a workaround
@@ -54,8 +61,14 @@ def do_one(src):
         with np.errstate(all='ignore'):
             mask = cut.apply(candidates)
         tsbits[mask] |= bitfield
-        assert ((tsbits & bitfield) != 0).sum() == mask.sum()
-        print (' ', t, 'selected', mask.sum())
+        nselected = np.count_nonzero(mask)
+        assert np.count_nonzero(tsbits & bitfield) == nselected
+        # print (' ', t, 'selected', np.count_nonzero(mask))
+        if verbose:
+            print('{:5d} {:s}'.format(nselected, t), end='')
+    
+    if verbose:
+        print()
 
     keep = (tsbits != 0)
     return tsbits[keep], candidates[keep]
