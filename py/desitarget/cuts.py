@@ -59,6 +59,8 @@ ELG &= ZFLUX > 10**(0.3/2.5) * RFLUX
 ELG &= ZFLUX < 10**(1.5/2.5) * RFLUX
 ELG &= RFLUX**2 < GFLUX * ZFLUX * 10**(-0.2/2.5)
 ELG &= ZFLUX < GFLUX * 10**(1.2/2.5) 
+
+#- This shape cut is not included on the above reference wiki page
 ELG &= Max(SHAPEDEV_R, SHAPEEXP_R) < 1.5
 
 QSO =  BRICK_PRIMARY != 0
@@ -73,7 +75,8 @@ QSO &= WFLUX * GFLUX**1.2 > 10**(2/2.5) * RFLUX**(1+1.2)
 BGS =  BRICK_PRIMARY != 0
 """ BGS Cut """
 
-BGS &= TYPE != 'PSF'
+BGS &= TYPE != 'PSF'   #- for astropy.io.fits
+BGS &= TYPE != 'PSF '  #- for fitsio  (sigh)
 BGS &=  RFLUX > 10**((22.5-19.35)/2.5)
 
 #-------------------------------------------------------------------------
@@ -84,5 +87,66 @@ types = {
     'BGS': BGS,
     'QSO': QSO,
 }
+
+#-------------------------------------------------------------------------
+#- SJB Alternate TS code
+
+def select_targets(objects):
+    '''
+    Given an input table from a tractor sweep file, return
+    boolean array for whether each object passes LRG cuts or not.
+
+    Assumes columns rflux, zflux, w1flux have been added, and
+    brick_primary='T' filter has already been applied
+    '''
+    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
+    gflux = dered_decam_flux[:, 1]
+    rflux = dered_decam_flux[:, 2]
+    zflux = dered_decam_flux[:, 4]
+
+    # gflux = objects['decam_flux'][:,1] / objects['decam_mw_transmission'][:,1]
+    # rflux = objects['decam_flux'][:,2] / objects['decam_mw_transmission'][:,2]
+    # zflux = objects['decam_flux'][:,4] / objects['decam_mw_transmission'][:,4]
+
+    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
+    w1flux = dered_wise_flux[:, 0]
+    wflux = 0.75* w1flux + 0.25*dered_wise_flux[:, 1]
+
+    # w1flux = objects['wise_flux'][:,0] / objects['WISE_MW_TRANSMISSION'][:,0]
+    # wflux = 0.75*objects['wise_flux'][:,0] / objects['WISE_MW_TRANSMISSION'][:,0] + \
+            #         0.25*objects['WISE_FLUX'][:,1] / objects['WISE_MW_TRANSMISSION'][:,1]
+
+    primary = objects['BRICK_PRIMARY']
+
+    lrg = primary.copy()
+    lrg &= rflux > 10**((22.5-23.0)/2.5)
+    lrg &= zflux > 10**((22.5-22.56)/2.5)
+    lrg &= w1flux > 10**((22.5-19.35)/2.5)
+    lrg &= zflux > rflux * 10**(1.6/2.5)
+    lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
+
+    elg = primary.copy()
+    elg &= rflux > 10**((22.5-23.4)/2.5)
+    elg &= zflux > rflux * 10**(0.3/2.5)
+    elg &= zflux < rflux * 10**(1.5/2.5)
+    elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
+    elg &= zflux < gflux * 10**(1.2/2.5)
+
+    bgs = primary.copy()
+    bgs &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits
+    bgs &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
+    bgs &= rflux > 10**((22.5-19.35)/2.5)
+
+    qso = primary.copy()
+    qso &= rflux > 10**((22.5-23.0)/2.5)
+    qso &= rflux < gflux * 10**(1.0/2.5)
+    qso &= zflux > rflux * 10**(-0.3/2.5)
+    qso &= zflux < rflux * 10**(1.1/2.5)
+    qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
+
+    #- TODO: fix hardcoded bit numbers
+    target_mask = (lrg * 2**0) + (elg * 2**1) + (bgs * 2**3) + (qso * 2**4)
+
+    return target_mask
 
 

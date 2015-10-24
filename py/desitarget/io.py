@@ -7,6 +7,7 @@ from desitarget import cuts
 
 # everybody likes np
 import numpy as np 
+import numpy.lib.recfunctions
 from astropy.io import fits
 import fitsio
 import os, re
@@ -51,7 +52,16 @@ def read_tractor(filename):
             ndarray with the tractor schema, uppercase field names.
     """
     ### return fits.getdata(filename, 1)
-    return fitsio.read(filename, 1, upper=True)
+
+    columns = [
+        'BRICKID', 'BRICKNAME', 'OBJID', 'BRICK_PRIMARY', 'TYPE',
+        'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
+        'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+        'WISE_FLUX', 'WISE_MW_TRANSMISSION',
+        ]
+    data = fitsio.read(filename, 1, upper=True, columns=columns)
+    return data
+
 
 def write_targets(filename, data, tsbits):
     """ 
