@@ -7,14 +7,14 @@ import numpy as np
 import desitarget
 from desitarget.io import read_tractor, iter_tractor, write_targets
 from desitarget.io import fix_tractor_dr1_dtype
-from desitarget.cuts import select_targets, select_targets_npyquery
-from desitarget import targetmask 
+from desitarget.cuts import calc_numobs
+from desitarget.cuts import select_targets
+import desitarget.targets
+### from desitarget.cuts_npyquery import select_targets
 
 from argparse import ArgumentParser
 import os, sys
 from time import time
-
-default_outfile = 'desi-targets-{}.fits'.format(desitarget.__version__)
 
 ap = ArgumentParser()
 ### ap.add_argument("--type", choices=["tractor"], default="tractor", help="Assume a type for src files")
@@ -26,22 +26,20 @@ ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to i
 def main():
     ns = ap.parse_args()
     
+    #- Load list of bricknames to use
     if ns.bricklist is not None:
         bricklist = np.loadtxt(ns.bricklist, dtype='S8')
     else:
         bricklist = None
-    
-    
-    print(bricklist)
-    
-    #- Loop over bricks, collecting target selection bitmask (tsbits)
-    #- and candidates that pass the cuts
+        
+    #- Loop over bricks collecting target selection flags
+    #- and targets that passed the cuts
     targetflags = list()
     targets = list()
     t0 = time()
     nbrick = 0
     for brickname, filename in iter_tractor(ns.src):
-        if bricklist is not None and brickname not in bricklist:
+        if (bricklist is not None) and (brickname not in bricklist):
             continue
             
         nbrick += 1
@@ -59,7 +57,10 @@ def main():
     targetflags = np.concatenate(targetflags)
     targets = np.concatenate(targets)
 
-    write_targets(ns.dest, targets, targetflags)
+    numobs = calc_numobs(targets, targetflags)
+    targets = desitarget.targets.finalize(targets, targetflags, numobs)
+
+    write_targets(ns.dest, targets)
     print ('written to', ns.dest)
 
 if __name__ == "__main__":

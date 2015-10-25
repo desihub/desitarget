@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+import numpy as np
 
 """
     Target Selection for DECALS catalogue data
@@ -17,99 +18,20 @@ from __future__ import absolute_import
 
 """
 
-from desitarget.internal.npyquery import Column as C
-from desitarget.internal.npyquery import Max, Min
 from desitarget.targetmask import targetmask
 
-#- Collect the columns to use in the cuts below
-DECAM_FLUX = C('DECAM_FLUX')
-DECAM_MW_TRANSMISSION = C('DECAM_MW_TRANSMISSION')
-WISE_FLUX = C('WISE_FLUX')
-WISE_MW_TRANSMISSION = C('WISE_MW_TRANSMISSION')
-BRICK_PRIMARY = C('BRICK_PRIMARY')
-TYPE = C('TYPE')
-
-SHAPEDEV_R = C('SHAPEDEV_R')
-SHAPEEXP_R = C('SHAPEEXP_R')
-
-#- Some new columns are combinations of others
-GFLUX = DECAM_FLUX[1] / DECAM_MW_TRANSMISSION[1]
-RFLUX = DECAM_FLUX[2] / DECAM_MW_TRANSMISSION[2]
-ZFLUX = DECAM_FLUX[4] / DECAM_MW_TRANSMISSION[4]
-W1FLUX = WISE_FLUX[0] / WISE_MW_TRANSMISSION[0] 
-WFLUX = 0.75 * WISE_FLUX[0] / WISE_MW_TRANSMISSION[0] \
-      + 0.25 * WISE_FLUX[1] / WISE_MW_TRANSMISSION[1] 
-
-#-------------------------------------------------------------------------
-#- The actual target selection cuts for each object type
-
-LRG =  BRICK_PRIMARY != 0
-""" LRG Cut """
-
-LRG &= RFLUX > 10**((22.5-23.0)/2.5)
-LRG &= ZFLUX > 10**((22.5-20.56)/2.5)
-LRG &= W1FLUX > 10**((22.5-19.35)/2.5)
-LRG &= ZFLUX > RFLUX * 10**(1.6/2.5)
-LRG &= W1FLUX * RFLUX ** (1.33-1) > ZFLUX**1.33 * 10**(-0.33/2.5)
-
-ELG =  BRICK_PRIMARY != 0
-""" ELG Cut """
-
-ELG &= RFLUX > 10**((22.5-23.4)/2.5)
-ELG &= ZFLUX > 10**(0.3/2.5) * RFLUX
-ELG &= ZFLUX < 10**(1.5/2.5) * RFLUX
-ELG &= RFLUX**2 < GFLUX * ZFLUX * 10**(-0.2/2.5)
-ELG &= ZFLUX < GFLUX * 10**(1.2/2.5) 
-
-#- This shape cut is not included on the above reference wiki page
-ELG &= Max(SHAPEDEV_R, SHAPEEXP_R) < 1.5
-
-QSO =  BRICK_PRIMARY != 0
-""" QSO Cut """
-
-QSO &= RFLUX > 10**((22.5-23.0)/2.5)
-QSO &= RFLUX < 10**(1.0/2.5) * GFLUX
-QSO &= ZFLUX > 10**(-0.3/2.5) * RFLUX
-QSO &= ZFLUX < 10**(1.1/2.5) * RFLUX
-QSO &= WFLUX * GFLUX**1.2 > 10**(2/2.5) * RFLUX**(1+1.2)
-
-BGS =  BRICK_PRIMARY != 0
-""" BGS Cut """
-
-BGS &= TYPE != 'PSF'   #- for astropy.io.fits
-BGS &= TYPE != 'PSF '  #- for fitsio  (sigh)
-BGS &=  RFLUX > 10**((22.5-19.35)/2.5)
-
-def select_targets_npyquery(objects):
-    targetflag = np.zeros(len(objects), dtype='i8')
-
-    for t, cut in desitarget.cuts.types.items():
-        bitfield = targetmask.mask(t)
-        with np.errstate(all='ignore'):
-            mask = cut.apply(candidates)
-        targetflag[mask] |= bitfield
-        nselected = np.count_nonzero(mask)
-        assert np.count_nonzero(targetflag & bitfield) == nselected
-        
-    return targetflag
-
-#-------------------------------------------------------------------------
-#- Make a dictionary of the cut types known in this file
-types = {
-    'LRG': LRG,
-    'ELG': ELG,
-    'BGS': BGS,
-    'QSO': QSO,
-}
-
-#-------------------------------------------------------------------------
-#- SJB alternate target selection code
-
 def select_targets(objects):
-    '''
-    Given an input table from a tractor sweep file, return
-    boolean array for whether each object passes LRG cuts or not.
-    '''
+    """Perform target selection on objects, returning targetflag array
+
+    Args:
+        objects: numpy structured array with UPPERCASE columns needed for
+            target selection
+            
+    Returns:
+        targetflag : ndarray of target selection bitmask flags for each object
+        
+    See desitarget.targetmask for the definition of each bit
+    """
     #- construct milky way extinction corrected fluxes
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
     gflux = dered_decam_flux[:, 1]
@@ -162,4 +84,33 @@ def select_targets(objects):
 
     return targetflag
 
-
+def calc_numobs(targets, targetflags):
+    """
+    Return array of number of observations needed for each target.
+    
+    Args:
+        targets: numpy structured array with tractor inputs
+        targetflags: array of target selection bit flags 
+    
+    Returns:
+        array of integers of number of observations needed
+    """
+    #- Default is one observation
+    nobs = np.ones(len(targets), dtype='i4')
+    
+    #- If it wasn't selected by any target class, it gets 0 observations
+    #- Normally these would have already been removed, but just in case...
+    nobs[targetflags == 0] = 0
+    
+    #- LRGs get 1, 2, or 3 observations depending upon magnitude
+    zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]    
+    islrg = (targetflags & targetmask.LRG) != 0
+    lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
+    lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
+    nobs[lrg2] = 2
+    nobs[lrg3] = 3
+    
+    #- TBD: flag QSOs for 4-5 obs ahead of time, or only after confirming
+    #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
+    
+    return nobs
