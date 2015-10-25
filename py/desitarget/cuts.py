@@ -19,6 +19,7 @@ from __future__ import absolute_import
 
 from desitarget.internal.npyquery import Column as C
 from desitarget.internal.npyquery import Max, Min
+from desitarget.targetmask import targetmask
 
 #- Collect the columns to use in the cuts below
 DECAM_FLUX = C('DECAM_FLUX')
@@ -79,6 +80,19 @@ BGS &= TYPE != 'PSF'   #- for astropy.io.fits
 BGS &= TYPE != 'PSF '  #- for fitsio  (sigh)
 BGS &=  RFLUX > 10**((22.5-19.35)/2.5)
 
+def select_targets_npyquery(objects):
+    targetflag = np.zeros(len(objects), dtype='i8')
+
+    for t, cut in desitarget.cuts.types.items():
+        bitfield = targetmask.mask(t)
+        with np.errstate(all='ignore'):
+            mask = cut.apply(candidates)
+        targetflag[mask] |= bitfield
+        nselected = np.count_nonzero(mask)
+        assert np.count_nonzero(targetflag & bitfield) == nselected
+        
+    return targetflag
+
 #-------------------------------------------------------------------------
 #- Make a dictionary of the cut types known in this file
 types = {
@@ -89,41 +103,35 @@ types = {
 }
 
 #-------------------------------------------------------------------------
-#- SJB Alternate TS code
+#- SJB alternate target selection code
 
 def select_targets(objects):
     '''
     Given an input table from a tractor sweep file, return
     boolean array for whether each object passes LRG cuts or not.
-
-    Assumes columns rflux, zflux, w1flux have been added, and
-    brick_primary='T' filter has already been applied
     '''
+    #- construct milky way extinction corrected fluxes
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
     gflux = dered_decam_flux[:, 1]
     rflux = dered_decam_flux[:, 2]
     zflux = dered_decam_flux[:, 4]
 
-    # gflux = objects['decam_flux'][:,1] / objects['decam_mw_transmission'][:,1]
-    # rflux = objects['decam_flux'][:,2] / objects['decam_mw_transmission'][:,2]
-    # zflux = objects['decam_flux'][:,4] / objects['decam_mw_transmission'][:,4]
-
     dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
     w1flux = dered_wise_flux[:, 0]
     wflux = 0.75* w1flux + 0.25*dered_wise_flux[:, 1]
 
-    # w1flux = objects['wise_flux'][:,0] / objects['WISE_MW_TRANSMISSION'][:,0]
-    # wflux = 0.75*objects['wise_flux'][:,0] / objects['WISE_MW_TRANSMISSION'][:,0] + \
-            #         0.25*objects['WISE_FLUX'][:,1] / objects['WISE_MW_TRANSMISSION'][:,1]
-
+    #- DR1 has targets off the edge of the brick; trim to just this brick
     primary = objects['BRICK_PRIMARY']
 
+    #- each of lrg, elg, bgs, ... will be a boolean array of matches
     lrg = primary.copy()
     lrg &= rflux > 10**((22.5-23.0)/2.5)
     lrg &= zflux > 10**((22.5-22.56)/2.5)
     lrg &= w1flux > 10**((22.5-19.35)/2.5)
     lrg &= zflux > rflux * 10**(1.6/2.5)
-    lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
+    #- clip to avoid warnings from negative numbers raised to fractional powers
+    lrg &= w1flux * rflux.clip(0)**(1.33-1) > zflux.clip(0)**1.33 * 10**(-0.33/2.5)
+    ### lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
 
     elg = primary.copy()
     elg &= rflux > 10**((22.5-23.4)/2.5)
@@ -133,7 +141,7 @@ def select_targets(objects):
     elg &= zflux < gflux * 10**(1.2/2.5)
 
     bgs = primary.copy()
-    bgs &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits
+    bgs &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
     bgs &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
     bgs &= rflux > 10**((22.5-19.35)/2.5)
 
@@ -142,11 +150,16 @@ def select_targets(objects):
     qso &= rflux < gflux * 10**(1.0/2.5)
     qso &= zflux > rflux * 10**(-0.3/2.5)
     qso &= zflux < rflux * 10**(1.1/2.5)
-    qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
+    #- clip to avoid warnings from negative numbers raised to fractional powers
+    qso &= wflux * gflux.clip(0)**1.2 > rflux.clip(0)**(1+1.2) * 10**(2/2.5)
+    ### qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
 
-    #- TODO: fix hardcoded bit numbers
-    target_mask = (lrg * 2**0) + (elg * 2**1) + (bgs * 2**3) + (qso * 2**4)
+    #- construct the targetflag bits
+    targetflag  = lrg * targetmask.LRG
+    targetflag |= elg * targetmask.ELG
+    targetflag |= bgs * targetmask.BGS
+    targetflag |= qso * targetmask.QSO
 
-    return target_mask
+    return targetflag
 
 

@@ -6,7 +6,8 @@ import numpy as np
 
 import desitarget
 from desitarget.io import read_tractor, iter_tractor, write_targets
-import desitarget.cuts
+from desitarget.io import fix_tractor_dr1_dtype
+from desitarget.cuts import select_targets, select_targets_npyquery
 from desitarget import targetmask 
 
 from argparse import ArgumentParser
@@ -20,76 +21,46 @@ ap = ArgumentParser()
 ap.add_argument("src", help="Tractor file or root directory with tractor files")
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
+ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 
 def main():
     ns = ap.parse_args()
-    if os.path.isdir(ns.src):
-        #- Loop over bricks, collecting target selection bitmask (tsbits)
-        #- and candidates that pass the cuts
-        tsbits = list()
-        candidates = list()
-        t0 = time()
-        nbrick = 0
-        for brickname, filename in iter_tractor(ns.src):
-            nbrick += 1
-            if ns.verbose:
-                print(brickname, ':', end=' ')
-            ### brick_tsbits, brick_candidates = do_one(filename, verbose=ns.verbose)
-            brick_tsbits, brick_candidates = do_sjb(filename)
-            tsbits.append(brick_tsbits)
-
-            #- Hack to work around DR1 tractor datamodel inconsistency
-            if brick_candidates['TYPE'].dtype != 'S4':
-                print("fixing TYPE dtype for brick", brickname)
-                dt = brick_candidates.dtype.descr
-                for i in range(len(dt)):
-                    if dt[i][0] == 'TYPE':
-                        dt[i] = ('TYPE', '|S4')
-                brick_candidates = brick_candidates.astype(np.dtype(dt))
-
-            candidates.append(brick_candidates)
-            if nbrick % 50 == 0:
-                rate = nbrick / (time() - t0)
-                print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
-                    
-        #- convert list of per-brick items to single arrays across all bricks
-        tsbits = np.concatenate(tsbits)
-        candidates = np.concatenate(candidates)
-    else:
-        tsbits, candidates = do_one(ns.src, ns.dest)
-
-    write_targets(ns.dest, candidates, tsbits)
-    print ('written to', ns.dest)
-
-def do_sjb(src):
-    objects = read_tractor(src)
-    tsbits = desitarget.cuts.select_targets(objects)
-    keep = (tsbits != 0)
-    return tsbits[keep], objects[keep]
-
-def do_one(src, verbose=False):
-    candidates = read_tractor(src)
-
-    # FIXME: fits doesn't like u8; there must be a workaround
-    # but lets stick with i8 for now.
-    tsbits = np.zeros(len(candidates), dtype='i8')
-
-    for t, cut in desitarget.cuts.types.items():
-        bitfield = targetmask.mask(t)
-        with np.errstate(all='ignore'):
-            mask = cut.apply(candidates)
-        tsbits[mask] |= bitfield
-        nselected = np.count_nonzero(mask)
-        assert np.count_nonzero(tsbits & bitfield) == nselected
-        # print (' ', t, 'selected', np.count_nonzero(mask))
-        if verbose:
-            print('{:5d} {:s}'.format(nselected, t), end='')
     
-    if verbose:
-        print()
+    if ns.bricklist is not None:
+        bricklist = np.loadtxt(ns.bricklist, dtype='S8')
+    else:
+        bricklist = None
+    
+    
+    print(bricklist)
+    
+    #- Loop over bricks, collecting target selection bitmask (tsbits)
+    #- and candidates that pass the cuts
+    targetflags = list()
+    targets = list()
+    t0 = time()
+    nbrick = 0
+    for brickname, filename in iter_tractor(ns.src):
+        if bricklist is not None and brickname not in bricklist:
+            continue
+            
+        nbrick += 1
+        objects = read_tractor(filename)
+        targetflag = select_targets(objects)
+        keep = (targetflag != 0)
+        targetflags.append(targetflag[keep])
+        targets.append(fix_tractor_dr1_dtype(objects[keep]))
 
-    keep = (tsbits != 0)
-    return tsbits[keep], candidates[keep]
+        if nbrick % 50 == 0:
+            rate = nbrick / (time() - t0)
+            print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
+                
+    #- convert list of per-brick items to single arrays across all bricks
+    targetflags = np.concatenate(targetflags)
+    targets = np.concatenate(targets)
+
+    write_targets(ns.dest, targets, targetflags)
+    print ('written to', ns.dest)
 
 if __name__ == "__main__":
     main()

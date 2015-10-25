@@ -71,6 +71,27 @@ def read_tractor(filename):
     data = fitsio.read(filename, 1, upper=True, columns=columns)
     return data
 
+def fix_tractor_dr1_dtype(objects):
+    """DR1 tractor files have inconsitent dtype for the TYPE field.  Fix this.
+    
+    Args:
+        objects : numpy structured array from target file
+        
+    Returns:
+        structured array with TYPE.dtype = '|S4' if needed
+        
+    If the type was already correct, returns the original array
+    """
+    if objects['TYPE'].dtype == 'S4':
+        return objects
+    else:
+        dt = objects.dtype.descr
+        for i in range(len(dt)):
+            if dt[i][0] == 'TYPE':
+                dt[i] = ('TYPE', 'S4')
+                break
+        return objects.astype(np.dtype(dt))
+
 
 def write_targets(filename, data, tsbits):
     """ 
@@ -118,6 +139,8 @@ def iter_tractor(root):
         ----------
         root : string
             Path to start looking
+        bricklist (optional) :
+            list of bricknames to include; or None to include all found
         
         Returns
         -------
@@ -127,7 +150,10 @@ def iter_tractor(root):
         --------
         >>> for brickname, filename in iter_tractor('./'):
         >>>     print(brickname, filename)
-
+        
+        Notes
+        -----
+        root can be a directory or a single file; both create an iterator
     """
     def parse_filename(filename):
         """parse filename to check if this is a tractor brick file;
@@ -142,11 +168,19 @@ def iter_tractor(root):
         brickname = match.group(1)
         return brickname
 
-    for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
-        for filename in filenames:
-            try:
-                yield parse_filename(filename), os.path.join(dirpath, filename)
-            except ValueError:
-                #- not a brick file but that's ok; keep going
-                pass
+    if os.path.isdir(root):
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+            for filename in filenames:
+                try:
+                    brickname = parse_filename(filename)
+                    yield brickname, os.path.join(dirpath, filename)
+                except ValueError:
+                    #- not a brick file but that's ok; keep going
+                    pass
+    else:
+        try:
+            brickname = parse_filename(os.path.basename(root))
+            yield brickname, root
+        except ValueError:
+            pass
     
