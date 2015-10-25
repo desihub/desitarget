@@ -79,7 +79,7 @@ def main():
     targets = desitarget.targets.finalize(targets, targetflags, numobs)
     t4 = time()
 
-    write_targets(ns.dest, targets)
+    write_targets(ns.dest, targets, indir=ns.src)
     t5 = time()
     print ('written to', ns.dest)
     print(1, t1-t0)

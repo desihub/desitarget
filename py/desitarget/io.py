@@ -11,6 +11,8 @@ import fitsio
 import os, re
 from distutils.version import LooseVersion
 
+import desitarget
+
 def read_mock_durham(filename):
     """
     Args:
@@ -40,12 +42,15 @@ def read_mock_durham(filename):
     n_gals = ra.size
     target_id = np.arange(n_gals)
 
-def read_tractor(filename):
+def read_tractor(filename, header=False):
     """ 
         Read a tractor catalogue. Always the latest DR. 
         
         Args:
             filename: a file name of one tractor file
+            
+        Optional:
+            header: if true, return (data, header) instead of just data
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
@@ -67,7 +72,10 @@ def read_tractor(filename):
         'WISE_FLUX', 'WISE_MW_TRANSMISSION',
         'SHAPEDEV_R', 'SHAPEEXP_R',
         ]
-    data = fitsio.read(filename, 1, upper=True, columns=columns)
+
+    #- if header is True, data will be tuple of (data, header) but that is
+    #- actually what we want to return in that case anyway
+    data = fitsio.read(filename, 1, upper=True, columns=columns, header=header)
     return data
 
 def fix_tractor_dr1_dtype(objects):
@@ -92,27 +100,29 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
-def write_targets(filename, data):
+def write_targets(filename, data, indir=None):
     """ 
         Write a target catalogue. 
         
         Args:
-            filename : a file name of one tractor file.
-                 File contains the original tractor catalogue fields,
-                 with target selection mask added as 'TSBITS'
-
+            filename : output target selection file
             data     : numpy structured array of targets to save
 
-        Notes:
-            This function raises an exception if the file already exists.
-            Depending on the use case, this function may need to be split
-            into two functions: one appends the column, another writes the
-            fits file.
-        
     """
     # FIXME: assert data and tsbits schema
 
-    fitsio.write(filename, data, extname='TARGETS', clobber=True)
+    #- Create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    hdr['DEPNAM00'] = 'desitarget'
+    hdr.add_record(dict(name='DEPVER00', value=desitarget.__version__, comment='desitarget.__version__'))
+    hdr['DEPNAM01'] = 'desitarget-git'
+    hdr.add_record(dict(name='DEPVAL01', value=desitarget.gitversion(), comment='git revision'))
+    
+    if indir is not None:
+        hdr['DEPNAM02'] = 'tractor-files'
+        hdr['DEPVER02'] = indir
+
+    fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 def map_tractor(function, root, bricklist=None, numproc=4):
     import multiprocessing as mp
