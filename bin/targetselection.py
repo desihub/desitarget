@@ -5,12 +5,12 @@ from __future__ import print_function, division
 import numpy as np
 
 import desitarget
+import desitarget.targets
 from desitarget.io import read_tractor, write_targets
 from desitarget.io import iter_tractor, map_tractor
 from desitarget.io import fix_tractor_dr1_dtype
 from desitarget.cuts import calc_numobs
 from desitarget.cuts import select_targets
-import desitarget.targets
 ### from desitarget.cuts_npyquery import select_targets
 
 from argparse import ArgumentParser
@@ -47,8 +47,8 @@ def main():
     t0 = time()
     nbrick = 0
     if ns.numproc > 1:
-        print('Using {} concurrent processes'.format(ns.numproc))
-        results = map_tractor(do_one, ns.src, bricklist=bricklist, numproc=ns.numproc)
+        bnames, bfiles, results = \
+            map_tractor(do_one, ns.src, bricklist=bricklist, numproc=ns.numproc)
         #- unpack list of tuples into tuple of lists
         targets, targetflags = zip(*results)
     else:
@@ -61,12 +61,13 @@ def main():
             targets.append(xtargets)
             targetflags.append(xflags)
 
-            if nbrick % 50 == 0:
+            if ns.verbose and nbrick%50 == 0:
                 rate = nbrick / (time() - t0)
                 print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
-    
-    rate = len(targets) / (time() - t0)
-    print('--> {:.1f} bricks/sec'.format(rate))
+
+    if ns.verbose:
+        rate = len(targets) / (time() - t0)
+        print('--> {:.1f} bricks/sec'.format(rate))
     
     #- convert list of per-brick items to single arrays across all bricks
     t1 = time()
@@ -81,12 +82,13 @@ def main():
 
     write_targets(ns.dest, targets, indir=ns.src)
     t5 = time()
-    print ('written to', ns.dest)
-    print(1, t1-t0)
-    print(2, t2-t1)
-    print(3, t3-t2)
-    print(4, t4-t3)
-    print(5, t5-t4)
+    if ns.verbose:
+        print ('written to', ns.dest)
+        print('Target selection {:.1f} sec'.format(t1-t0))
+        print('Combine results  {:.1f} sec'.format(t2-t1))
+        print('Calculate numobs {:.1f} sec'.format(t3-t2))
+        print('Add columns      {:.1f} sec'.format(t4-t3))
+        print('Write output     {:.1f} sec'.format(t5-t4))
 
 if __name__ == "__main__":
     main()

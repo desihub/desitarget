@@ -30,6 +30,7 @@ def read_mock_durham(filename):
     """
     raise NotImplementedError("Read and convert a Durham mock to DECALS schema")
 
+    import h5py
     fin = h5py.File(filename, "r") 
     data = fin.require_group('/Data') 
     ra = data['ra'].value                                                                                    
@@ -65,6 +66,7 @@ def read_tractor(filename, header=False):
                     fitsio.__version__))
             raise ImportError
 
+    #- Columns needed for target selection and/or passing forward
     columns = [
         'BRICKID', 'BRICKNAME', 'OBJID', 'BRICK_PRIMARY', 'TYPE',
         'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
@@ -85,7 +87,7 @@ def fix_tractor_dr1_dtype(objects):
         objects : numpy structured array from target file
         
     Returns:
-        structured array with TYPE.dtype = '|S4' if needed
+        structured array with TYPE.dtype = 'S4' if needed
         
     If the type was already correct, returns the original array
     """
@@ -125,15 +127,39 @@ def write_targets(filename, data, indir=None):
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 def map_tractor(function, root, bricklist=None, numproc=4):
-    import multiprocessing as mp
+    """Apply `function` to tractor files in `root`
+    
+    Args:
+        function: python function that takes a tractor filename as input
+        root: root directory to scan to find tractor files
+        
+    Optional:
+        bricklist: only process files with bricknames in this list
+        numproc: number of parallel processes to use
+        
+    Returns tuple of 3 lists (bricknames, brickfiles, results):
+        bricknames : brick names found in root
+        brickfiles : brick files found in root
+        results : return values of applying function on each brickfile
+
+    e.g. results[i] = function(brickfiles[i])
+
+    """
+    bricknames = list()
     brickfiles = list()
-    for brickname, filepath in iter_tractor(root):
-        if bricklist is None or brickname in bricklist:
+    for bname, filepath in iter_tractor(root):
+        if bricklist is None or bname in bricklist:
+            bricknames.append(bname)
             brickfiles.append(filepath)
-                        
-    pool = mp.Pool(numproc)
-    results = pool.map(function, brickfiles)
-    return results
+    
+    if numproc > 1:    
+        import multiprocessing as mp
+        pool = mp.Pool(numproc)
+        results = pool.map(function, brickfiles)
+    else:
+        results = [function(x) for x in brickfiles]
+        
+    return bricknames, brickfiles, results
 
 def iter_tractor(root):
     """ Iterator over all tractor files in a directory.
