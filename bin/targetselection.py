@@ -3,8 +3,6 @@
 from __future__ import print_function, division
 
 import numpy as np
-import numpy.lib.recfunctions as rfn
-from astropy.table import Table
 
 import desitarget
 from desitarget.io import read_tractor, iter_tractor, write_targets
@@ -19,11 +17,11 @@ default_outfile = 'desi-targets-{}.fits'.format(desitarget.__version__)
 
 ap = ArgumentParser()
 ### ap.add_argument("--type", choices=["tractor"], default="tractor", help="Assume a type for src files")
-ap.add_argument("src", help="File that stores Candidates/Objects. Ending with a '/' will be a directory")
-ap.add_argument("dest", help="File that stores targets. A directory if src is a directory.")
+ap.add_argument("src", help="Tractor file or root directory with tractor files")
+ap.add_argument("dest", help="Output target selection file")
+ap.add_argument('-v', "--verbose", action='store_true')
 
 def main():
-    verbose = False
     ns = ap.parse_args()
     if os.path.isdir(ns.src):
         #- Loop over bricks, collecting target selection bitmask (tsbits)
@@ -34,13 +32,13 @@ def main():
         nbrick = 0
         for brickname, filename in iter_tractor(ns.src):
             nbrick += 1
-            if verbose:
+            if ns.verbose:
                 print(brickname, ':', end=' ')
-            ### brick_tsbits, brick_candidates = do_one(filename, verbose=verbose)
+            ### brick_tsbits, brick_candidates = do_one(filename, verbose=ns.verbose)
             brick_tsbits, brick_candidates = do_sjb(filename)
             tsbits.append(brick_tsbits)
 
-            #- Hack to work around tractor datamodel inconsistency
+            #- Hack to work around DR1 tractor datamodel inconsistency
             if brick_candidates['TYPE'].dtype != 'S4':
                 print("fixing TYPE dtype for brick", brickname)
                 dt = brick_candidates.dtype.descr
@@ -53,14 +51,6 @@ def main():
             if nbrick % 50 == 0:
                 rate = nbrick / (time() - t0)
                 print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
-            if brick_candidates.dtype != candidates[0].dtype:
-                print('ERROR: incompatible dtypes in brick', brickname)
-                print(brick_candidates.dtype)
-                print(candidates[0].dtype)
-                for name in brick_candidates.dtype.names:
-                    if brick_candidates[name].dtype != candidates[0][name].dtype:
-                        print(name, brick_candidates[name].dtype, candidates[0][name].dtype)
-                sys.exit(1)
                     
         #- convert list of per-brick items to single arrays across all bricks
         tsbits = np.concatenate(tsbits)

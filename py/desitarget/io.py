@@ -11,6 +11,7 @@ import numpy.lib.recfunctions
 from astropy.io import fits
 import fitsio
 import os, re
+from distutils.version import LooseVersion
 
 def read_mock_durham(filename):
     """
@@ -53,6 +54,14 @@ def read_tractor(filename):
     """
     ### return fits.getdata(filename, 1)
 
+    #- fitsio prior to 0.9.8rc1 has a bug parsing boolean columns.
+    #- LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx
+    if LooseVersion(fitsio.__version__) < LooseVersion('0.9.8') and \
+        not fitsio.__version__.startswith('0.9.8'):
+            print('ERROR: fitsio >0.9.8rc1 required (not {})'.format(\
+                    fitsio.__version__))
+            raise ImportError
+
     columns = [
         'BRICKID', 'BRICKNAME', 'OBJID', 'BRICK_PRIMARY', 'TYPE',
         'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
@@ -89,20 +98,7 @@ def write_targets(filename, data, tsbits):
     # add a column name
     # tsbits = tsbits.view(dtype=[('TSBITS', tsbits.dtype)])
 
-    #- Keep columns needed for fiber assignment
-    #- and those used by target selection
-    keepcols = [
-        'BRICKID', 'BRICKNAME', 'OBJID',
-        'RA', 'DEC', 'RA_IVAR', 'DEC_IVAR',
-        ]
-    for cut in cuts.types.values():
-        for colname in cut.names:
-            if colname not in keepcols:
-                keepcols.append(colname)
-    
-    dropcols = set(data.dtype.names) - set(keepcols)
-    data = np.lib.recfunctions.drop_fields(data, dropcols, usemask=False)
-
+    #- TODO: does this really belong in an I/O function?
     #- OBJID in tractor files is only unique within the brick;
     #- rename and add a unique object ID
     data = np.lib.recfunctions.rename_fields(data, {'OBJID':'BRICK_OBJID'})
