@@ -1,6 +1,8 @@
 from __future__ import absolute_import
 import numpy as np
 
+from desitarget.io import read_tractor
+
 """
     Target Selection for DECALS catalogue data
 
@@ -32,6 +34,10 @@ def select_targets(objects):
         
     See desitarget.targetmask for the definition of each bit
     """
+    #- Check if objects is a filename instead of the actual data
+    if isinstance(objects, (str, unicode)):
+        objects = read_tractor(objects)
+    
     #- construct milky way extinction corrected fluxes
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
     gflux = dered_decam_flux[:, 1]

@@ -3,8 +3,6 @@
 
 """
 
-from desitarget import cuts
-
 # everybody likes np
 import numpy as np 
 import numpy.lib.recfunctions
@@ -116,14 +114,14 @@ def write_targets(filename, data):
 
     fitsio.write(filename, data, extname='TARGETS', clobber=True)
 
-def map_tractor(function, root, bricklist=None, nproc=4):
+def map_tractor(function, root, bricklist=None, numproc=4):
     import multiprocessing as mp
     brickfiles = list()
     for brickname, filepath in iter_tractor(root):
         if bricklist is None or brickname in bricklist:
             brickfiles.append(filepath)
                         
-    pool = mp.Pool(nproc)
+    pool = mp.Pool(numproc)
     results = pool.map(function, brickfiles)
     return results
 
