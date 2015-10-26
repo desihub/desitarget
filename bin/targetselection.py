@@ -25,7 +25,10 @@ ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int, help='number of concurrent processes to use', default=1)
 
-def do_one(filename):
+def _select_targets_brickfile(filename):
+    '''Wrapper function for performing target selection on a single brick file
+    
+    Used by _map_tractor() for parallel processing'''
     objects = read_tractor(filename)
     targetflag = select_targets(objects)
     keep = (targetflag != 0)
@@ -33,7 +36,7 @@ def do_one(filename):
 
 def main():
     ns = ap.parse_args()
-    
+            
     #- Load list of bricknames to use
     if ns.bricklist is not None:
         bricklist = np.loadtxt(ns.bricklist, dtype='S8')
@@ -48,7 +51,8 @@ def main():
     nbrick = 0
     if ns.numproc > 1:
         bnames, bfiles, results = \
-            map_tractor(do_one, ns.src, bricklist=bricklist, numproc=ns.numproc)
+            map_tractor(_select_targets_brickfile, ns.src, \
+                bricklist=bricklist, numproc=ns.numproc)
         #- unpack list of tuples into tuple of lists
         targets, targetflags = zip(*results)
     else:
@@ -57,7 +61,7 @@ def main():
                 continue
             
             nbrick += 1
-            xtargets, xflags = do_one(filename)
+            xtargets, xflags = _select_targets_brickfile(filename)
             targets.append(xtargets)
             targetflags.append(xflags)
 
