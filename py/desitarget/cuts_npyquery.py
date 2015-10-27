@@ -53,9 +53,9 @@ LRG &= ZFLUX > RFLUX * 10**(1.6/2.5)
 LRG &= W1FLUX * RFLUX ** (1.33-1) > ZFLUX**1.33 * 10**(-0.33/2.5)
 
 """ 2PASS LRG"""
-LGR_2PASS = LRG & ZFLUX < 10**((22.5-20.36) / 2.5)
+LRG_2PASS = LRG & ZFLUX < 10**((22.5-20.36) / 2.5)
 """ 3PASS LRG"""
-LGR_3PASS = LRG & ZFLUX < 10**((22.5-20.55) / 2.5)
+LRG_3PASS = LRG & ZFLUX < 10**((22.5-20.55) / 2.5)
 
 """ ELG Cut """
 ELG =  BRICK_PRIMARY != 0
