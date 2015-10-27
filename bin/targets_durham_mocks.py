@@ -37,13 +37,13 @@ def main():
 
     t2 = time()
     numobs = calc_numobs(targets, targetflag)
-    targets = desitarget.targets.finalize(objects, targetflag, numobs)
+    targets = desitarget.targets.finalize(targets, targetflag, numobs)
 
     t3 = time()
     write_targets(ns.dest, targets)
     t4 = time()
     if ns.verbose:
-        print ('written to', ns.dest)
+        print ('written {} targets to {}'.format(len(targets), ns.dest))
         print('Read mock file {:.1f} sec'.format(t1-t0))
         print('Make target selection  {:.1f} sec'.format(t2-t1))
         print('Compute numobs, finalize target selection {:.1f} sec'.format(t3-t2))
