@@ -25,22 +25,6 @@ ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int, help='number of concurrent processes to use', default=1)
 
-def _select_targets_brickfile(filename):
-    '''Wrapper function for performing target selection on a single brick file
-    
-    Used by _map_tractor() for parallel processing'''
-    objects = read_tractor(filename)
-    targetflag = select_targets(objects)
-    keep = (targetflag != 0)
-
-    objects = objects[keep]
-    targetflag = targetflag[keep]
-    numobs = calc_numobs(objects, targetflag)
-
-    targets = desitarget.targets.finalize(objects, targetflag, numobs)
-
-    return fix_tractor_dr1_dtype(targets)
-
 def main():
     ns = ap.parse_args()
             
@@ -53,23 +37,37 @@ def main():
     #- Loop over bricks collecting target selection flags
     #- and targets that passed the cuts
     t0 = time()
-    if ns.numproc > 1:
-        bnames, bfiles, targets = \
-            map_tractor(_select_targets_brickfile, ns.src, \
-                bricklist=bricklist, numproc=ns.numproc)
-    else:
-        targets = list()
-        for nbrick, (bname, filepath) in enumerate(iter_tractor(ns.src)):
-            if (bricklist is not None) and (brickname not in bricklist):
-                continue
 
-            xtargets = _select_targets_brickfile(filepath)
+    def _select_targets_brickfile(filename):
+        '''Wrapper function for performing target selection on a single brick file
+        
+        Used by _map_tractor() for parallel processing'''
+        objects = read_tractor(filename)
+        targetflag = select_targets(objects)
+        keep = (targetflag != 0)
 
-            targets.append(xtargets)
+        objects = objects[keep]
+        targetflag = targetflag[keep]
+        numobs = calc_numobs(objects, targetflag)
 
-            if ns.verbose and nbrick%50 == 0:
-                rate = nbrick / (time() - t0)
-                print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
+        targets = desitarget.targets.finalize(objects, targetflag, numobs)
+
+        return fix_tractor_dr1_dtype(targets)
+
+    nbrick = np.zeros((), dtype='i8')
+
+    def collect_results(result):
+        ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+        if ns.verbose and nbrick%50 == 0:
+            rate = nbrick / (time() - t0)
+            print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
+        nbrick[...] += 1
+        return result
+
+    bnames, bfiles, targets = \
+        map_tractor(_select_targets_brickfile, ns.src, \
+            bricklist=bricklist, numproc=ns.numproc, reduce=collect_results)
 
     #- convert list of per-brick items to single arrays across all bricks
     t1 = time()

@@ -12,6 +12,7 @@ import os, re
 from distutils.version import LooseVersion
 
 import desitarget
+from desitarget.internal import sharedmem
 
 def read_mock_durham(filename):
     """
@@ -126,7 +127,7 @@ def write_targets(filename, data, indir=None):
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
-def map_tractor(function, root, bricklist=None, numproc=4):
+def map_tractor(function, root, bricklist=None, numproc=4, reduce=None):
     """Apply `function` to tractor files in `root`
     
     Args:
@@ -152,12 +153,10 @@ def map_tractor(function, root, bricklist=None, numproc=4):
             bricknames.append(bname)
             brickfiles.append(filepath)
     
-    if numproc > 1:    
-        import multiprocessing as mp
-        pool = mp.Pool(numproc)
-        results = pool.map(function, brickfiles)
-    else:
-        results = [function(x) for x in brickfiles]
+    pool = sharedmem.MapReduce(np=numproc)
+
+    with pool:
+        results = pool.map(function, brickfiles, reduce=reduce)
         
     return bricknames, brickfiles, results
 
