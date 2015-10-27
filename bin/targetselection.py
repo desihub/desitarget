@@ -55,6 +55,7 @@ def main():
         return fix_tractor_dr1_dtype(targets)
 
     nbrick = np.zeros((), dtype='i8')
+    targets = [] 
 
     def collect_results(result):
         ''' wrapper function for the critical reduction operation,
@@ -63,11 +64,10 @@ def main():
             rate = nbrick / (time() - t0)
             print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
         nbrick[...] += 1
-        return result
+        targets.append(result)
 
-    bnames, bfiles, targets = \
-        map_tractor(_select_targets_brickfile, ns.src, \
-            bricklist=bricklist, numproc=ns.numproc, reduce=collect_results)
+    map_tractor(_select_targets_brickfile, ns.src, \
+        bricklist=bricklist, numproc=ns.numproc, reduce=collect_results)
 
     #- convert list of per-brick items to single arrays across all bricks
     t1 = time()
