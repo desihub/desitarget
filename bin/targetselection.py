@@ -32,7 +32,14 @@ def _select_targets_brickfile(filename):
     objects = read_tractor(filename)
     targetflag = select_targets(objects)
     keep = (targetflag != 0)
-    return fix_tractor_dr1_dtype(objects[keep]), targetflag[keep]
+
+    objects = objects[keep]
+    targetflag = targetflag[keep]
+    numobs = calc_numobs(objects, targetflag)
+
+    targets = desitarget.targets.finalize(objects, targetflag, numobs)
+
+    return fix_tractor_dr1_dtype(targets)
 
 def main():
     ns = ap.parse_args()
@@ -45,54 +52,37 @@ def main():
         
     #- Loop over bricks collecting target selection flags
     #- and targets that passed the cuts
-    targetflags = list()
-    targets = list()
     t0 = time()
-    nbrick = 0
     if ns.numproc > 1:
-        bnames, bfiles, results = \
+        bnames, bfiles, targets = \
             map_tractor(_select_targets_brickfile, ns.src, \
                 bricklist=bricklist, numproc=ns.numproc)
-        #- unpack list of tuples into tuple of lists
-        targets, targetflags = zip(*results)
     else:
-        for brickname, filename in iter_tractor(ns.src):
+        targets = list()
+        for nbrick, (bname, filepath) in enumerate(iter_tractor(ns.src)):
             if (bricklist is not None) and (brickname not in bricklist):
                 continue
-            
-            nbrick += 1
-            xtargets, xflags = _select_targets_brickfile(filename)
+
+            xtargets = _select_targets_brickfile(filepath)
+
             targets.append(xtargets)
-            targetflags.append(xflags)
 
             if ns.verbose and nbrick%50 == 0:
                 rate = nbrick / (time() - t0)
                 print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
 
-    if ns.verbose:
-        rate = len(targets) / (time() - t0)
-        print('--> {:.1f} bricks/sec'.format(rate))
-    
     #- convert list of per-brick items to single arrays across all bricks
     t1 = time()
-    targetflags = np.concatenate(targetflags)
     targets = np.concatenate(targets)
     t2 = time()
 
-    numobs = calc_numobs(targets, targetflags)
-    t3 = time()
-    targets = desitarget.targets.finalize(targets, targetflags, numobs)
-    t4 = time()
-
     write_targets(ns.dest, targets, indir=ns.src)
-    t5 = time()
+    t3 = time()
     if ns.verbose:
         print ('written to', ns.dest)
         print('Target selection {:.1f} sec'.format(t1-t0))
         print('Combine results  {:.1f} sec'.format(t2-t1))
-        print('Calculate numobs {:.1f} sec'.format(t3-t2))
-        print('Add columns      {:.1f} sec'.format(t4-t3))
-        print('Write output     {:.1f} sec'.format(t5-t4))
+        print('Write output     {:.1f} sec'.format(t3-t2))
 
 if __name__ == "__main__":
     main()
