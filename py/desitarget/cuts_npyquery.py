@@ -44,18 +44,21 @@ WFLUX = 0.75 * WISE_FLUX[0] / WISE_MW_TRANSMISSION[0] \
 #-------------------------------------------------------------------------
 #- The actual target selection cuts for each object type
 
-LRG =  BRICK_PRIMARY != 0
 """ LRG Cut """
-
+LRG =  BRICK_PRIMARY != 0
 LRG &= RFLUX > 10**((22.5-23.0)/2.5)
 LRG &= ZFLUX > 10**((22.5-20.56)/2.5)
 LRG &= W1FLUX > 10**((22.5-19.35)/2.5)
 LRG &= ZFLUX > RFLUX * 10**(1.6/2.5)
 LRG &= W1FLUX * RFLUX ** (1.33-1) > ZFLUX**1.33 * 10**(-0.33/2.5)
 
-ELG =  BRICK_PRIMARY != 0
-""" ELG Cut """
+""" 2PASS LRG"""
+LRG_2PASS = LRG & ZFLUX < 10**((22.5-20.36) / 2.5)
+""" 3PASS LRG"""
+LRG_3PASS = LRG & ZFLUX < 10**((22.5-20.55) / 2.5)
 
+""" ELG Cut """
+ELG =  BRICK_PRIMARY != 0
 ELG &= RFLUX > 10**((22.5-23.4)/2.5)
 ELG &= ZFLUX > 10**(0.3/2.5) * RFLUX
 ELG &= ZFLUX < 10**(1.5/2.5) * RFLUX
@@ -65,18 +68,16 @@ ELG &= ZFLUX < GFLUX * 10**(1.2/2.5)
 #- This shape cut is not included on the above reference wiki page
 ELG &= Max(SHAPEDEV_R, SHAPEEXP_R) < 1.5
 
-QSO =  BRICK_PRIMARY != 0
 """ QSO Cut """
-
+QSO =  BRICK_PRIMARY != 0
 QSO &= RFLUX > 10**((22.5-23.0)/2.5)
 QSO &= RFLUX < 10**(1.0/2.5) * GFLUX
 QSO &= ZFLUX > 10**(-0.3/2.5) * RFLUX
 QSO &= ZFLUX < 10**(1.1/2.5) * RFLUX
 QSO &= WFLUX * GFLUX**1.2 > 10**(2/2.5) * RFLUX**(1+1.2)
 
-BGS =  BRICK_PRIMARY != 0
 """ BGS Cut """
-
+BGS =  BRICK_PRIMARY != 0
 BGS &= TYPE != 'PSF'   #- for astropy.io.fits
 BGS &= TYPE != 'PSF '  #- for fitsio  (sigh)
 BGS &=  RFLUX > 10**((22.5-19.35)/2.5)
