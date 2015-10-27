@@ -54,6 +54,8 @@ def main():
 
         return fix_tractor_dr1_dtype(targets)
 
+    # a numpy scalar allows updating nbrick in python 2
+    # c.f https://www.python.org/dev/peps/pep-3104/
     nbrick = np.zeros((), dtype='i8')
 
     def collect_results(result):
@@ -62,7 +64,10 @@ def main():
         if ns.verbose and nbrick%50 == 0:
             rate = nbrick / (time() - t0)
             print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
+
+        # this is an in-place modification
         nbrick[...] += 1
+
         return result
 
     bnames, bfiles, targets = \
