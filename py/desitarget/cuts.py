@@ -27,7 +27,7 @@ def select_targets(objects):
 
     Args:
         objects: numpy structured array with UPPERCASE columns needed for
-            target selection
+            target selection, OR a string tractor filename
             
     Returns:
         targetflag : ndarray of target selection bitmask flags for each object
@@ -68,11 +68,6 @@ def select_targets(objects):
     elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
     elg &= zflux < gflux * 10**(1.2/2.5)
 
-    bgs = primary.copy()
-    bgs &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
-    bgs &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
-    bgs &= rflux > 10**((22.5-19.35)/2.5)
-
     qso = primary.copy()
     qso &= rflux > 10**((22.5-23.0)/2.5)
     qso &= rflux < gflux * 10**(1.0/2.5)
@@ -82,11 +77,40 @@ def select_targets(objects):
     qso &= wflux * gflux.clip(0)**1.2 > rflux.clip(0)**(1+1.2) * 10**(2/2.5)
     ### qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
 
+    bgs = primary.copy()
+    bgs &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
+    bgs &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
+    bgs &= rflux > 10**((22.5-19.35)/2.5)
+
+    fstd = primary.copy()
+    fstd &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
+    fstd &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
+    fracflux = objects['DECAM_FRACFLUX'].T
+    signal2noise = objects['DECAM_FLUX'] * sqrt(objects['DECAM_FLUX_IVAR'])
+    for j in (1,2,4):  #- g, r, z
+        fstd &= fracflux[j] < 0.04
+        fstd &= signal2noise[:, j] > 10
+    #- observed flux; no Milky Way extinction
+    obs_rflux = objects['DECAM_FLUX'][:, 2]
+    fstd &= obs_rflux < 10**((22.5-16.0)/2.5)
+    fstd &= obs_rflux > 10**((22.5-19.0)/2.5)
+    #- colors near BD+17
+    grcolor = 2.5 * np.log10(rflux / gflux)
+    rzcolor = 2.5 * np.log10(zflux / rflux)
+    fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+
+    #-----
     #- construct the targetflag bits
     targetflag  = lrg * targetmask.LRG
     targetflag |= elg * targetmask.ELG
-    targetflag |= bgs * targetmask.BGS
     targetflag |= qso * targetmask.QSO
+    targetflag |= bgs * targetmask.BGS
+    targetflag |= fstd * targetmask.FSTD
+
+    #- Currently our only cuts are DECam based (i.e. South)
+    targetflag  = lrg * targetmask.LRG_SOUTH
+    targetflag |= elg * targetmask.ELG_SOUTH
+    targetflag |= qso * targetmask.QSO_SOUTH
 
     return targetflag
 

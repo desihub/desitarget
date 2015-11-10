@@ -140,6 +140,7 @@ def read_tractor(filename, header=False):
         'BRICKID', 'BRICKNAME', 'OBJID', 'BRICK_PRIMARY', 'TYPE',
         'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
         'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+        'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
         'WISE_FLUX', 'WISE_MW_TRANSMISSION',
         'SHAPEDEV_R', 'SHAPEEXP_R',
         ]
