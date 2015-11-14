@@ -6,7 +6,6 @@
 # everybody likes np
 import numpy as np 
 import numpy.lib.recfunctions
-from astropy.io import fits
 import fitsio
 import os, re
 from distutils.version import LooseVersion
@@ -25,6 +24,7 @@ def read_mock_durham(core_filename, photo_filename):
     """
 
     import h5py
+        
     fin_core = h5py.File(core_filename, "r") 
     fin_mags = h5py.File(photo_filename, "r")
 
@@ -125,15 +125,8 @@ def read_tractor(filename, header=False):
         Returns:
             ndarray with the tractor schema, uppercase field names.
     """
-    ### return fits.getdata(filename, 1)
 
-    #- fitsio prior to 0.9.8rc1 has a bug parsing boolean columns.
-    #- LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx
-    if LooseVersion(fitsio.__version__) < LooseVersion('0.9.8') and \
-        not fitsio.__version__.startswith('0.9.8'):
-            print('ERROR: fitsio >0.9.8rc1 required (not {})'.format(\
-                    fitsio.__version__))
-            raise ImportError
+    check_fitsio_version()
 
     #- Columns needed for target selection and/or passing forward
     columns = [
@@ -277,4 +270,13 @@ def iter_tractor(root):
             yield brickname, root
         except ValueError:
             pass
-    
+
+def check_fitsio_version():
+    #- fitsio prior to 0.9.8rc1 has a bug parsing boolean columns.
+    #- LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx
+    if LooseVersion(fitsio.__version__) < LooseVersion('0.9.8') and \
+        not fitsio.__version__.startswith('0.9.8'):
+            print('ERROR: fitsio >0.9.8rc1 required (not {})'.format(\
+                    fitsio.__version__))
+            raise ImportError
+
