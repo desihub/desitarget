@@ -1,0 +1,112 @@
+#- THESE BIT DEFINITIONS WILL ALMOST CERTAINLY CHANGE
+#- After some initial development experimentation we will freeze the bit
+#- definitions, but we should expect these to change.
+
+#- Target type
+#- See "obsconditions" definitions below for interpreting mask of what
+#- observing conditions are allowable for each target bit
+targetmask:
+    #------ Dark Time Survey: Bits 0-31
+    - [LRG,         0, "LRG", {obsconditions: DARK}]
+    - [ELG,         1, "ELG", {obsconditions: DARK,GRAY}]
+    - [QSO,         2, "QSO", {obsconditions: DARK}]
+    
+    #- Not yet used, but placeholders for North vs. South selections
+    - [LRG_NORTH,   8, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
+    - [ELG_NORTH,   9, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
+    - [QSO_NORTH,   10, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
+
+    - [LRG_SOUTH,   16, "LRG from DECam data", {obsconditions: DARK}]
+    - [ELG_SOUTH,   17, "ELG from DECam data", {obsconditions: DARK|GRAY}]
+    - [QSO_SOUTH,   18, "QSO from DECam data", {obsconditions: DARK}]
+
+    #------ Calibration targets
+    - [FSTD,        24, "F-type standard stars", {obsconditions: DARK|GRAY,}]
+    - [WDSTAR,      25, "White Dwarf stars", {obsconditions: DARK|GRAY}]
+    - [SKY,         26, "Blank sky locations", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BRIGHTSTD,   28, "F-type standard for BRIGHT conditions", {obsconditions: BRIGHT}]
+    
+    #----- Bright Galaxy Survey: bits 32-47
+    - [BGS_FAINT,           32, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT,          33, "BGS bright targets", {obsconditions: BRIGHT}]
+
+    #- Not yet used, but placeholders for North vs. South selections
+    - [BGS_FAINT_NORTH,     34, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_FAINT_SOUTH,     36, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT_NORTH,    35, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_BRIGHT_SOUTH,    37, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
+
+    - [BGS_KNOWN_COLLIDED,  40, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_SDSS,      41, "BGS known SDSS targets", {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_BOSS,      42, "BGS known BOSS targets", {obsconditions: BRIGHT}]
+    
+    #------ Milky Way Survey placeholder: bits 48-59
+    - [MWS_WD,              48, "Milky Way Survey White Dwarf", {obsconditions: BRIGHT}]
+    - [MWS_PLX,             49, "Milky Way Survey Parallax", {obsconditions: BRIGHT}]
+    
+    #------ Placeholder flags
+    - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
+    - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
+    - [ANCILLARY_ANY,       62, "Any ancillary bit is set", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
+#- Observing conditions
+#- These are a bitmask to allow target bits to specify multiple conditions
+#- in which they are allowed to be observed.
+obsconditions:
+    - [DARK,   0, "Moon is down"]
+    - [GRAY,   1, "Moon is above horizon with illumation fraction<0.25 [TBD]"]
+    - [BRIGHT, 2, "Moon is above horizon with illumination fraction>0.25 [TBD]"]
+    - [POOR,   3, "Very bad seeing, high extinction, or bright cloud cover"]
+    - [TWILIGHT12,  4, "Between sunset/sunrise and 12 degree twilight"]
+    - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]
+    - [DAY,         6, "Daytime calibrations"]
+    - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
+    - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]    
+
+#- Possible processing states that a target could be in
+#- This isn't really a bitmask since a target can be on only one state, but
+#- it can be a useful enumeration
+targetstate:
+    - [UNOBS, 0, "unobserved"]
+    - [OBS,   1, "observed but no spectro pipeline answer yet"]
+    - [ZWARN, 2, "uncertain redshift (ZWARN flag set)"]
+    - [ZBAD,  3, "confident redshift but it wasn't what we wanted"]
+    - [DONE,  4, "confident redshift and no more obs needed"]
+    - [MORE,  5, "confident redshift and want more obs (e.g. LyA)"]
+
+#- Priorities for each target bit
+#- NOTE: these aren't a bitmask, they are a mapping from bit -> priority
+#- SAME_AS_XXX means to use the priorities for bitname XXX
+#- -1 means the concept of priority doesn't really apply to this target class
+#- Every target bit must define priority for "unobs"
+#- Default priority for "more" is same as "unobs"
+#- Other states are default 0 unless specified here
+#- -1 means that the concept of priority doesn't apply to this bit
+priorities:
+    LRG: {unobs: 100}
+    ELG: {unobs: 200}
+    QSO: {unobs: 300, more: 400}  #- 'more' used for LyA, with higher priority
+    LRG_NORTH: SAME_AS_LRG
+    ELG_NORTH: SAME_AS_ELG
+    QSO_NORTH: SAME_AS_QSO
+    LRG_SOUTH: SAME_AS_LRG
+    ELG_SOUTH: SAME_AS_ELG
+    QSO_SOUTH: SAME_AS_QSO
+    FSTD:      -1
+    WDSTAR:    -1
+    SKY:       -1
+    BRIGHTSTD: -1
+    BGS_FAINT: {unobs: 100, zwarn: 200, more: 300}
+    BGS_BRIGHT: {unobs: 100, zwarn: 200, more: 300}
+    BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
+    BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
+    BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
+    BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+    BGS_KNOWN_COLLIDED: {unobs: 100, zwarn: 200, more: 300}
+    BGS_KNOWN_SDSS: {unobs: 100, zwarn: 200, more: 300}
+    BGS_KNOWN_BOSS: {unobs: 100, zwarn: 200, more: 300}
+    MWS_WD: {unobs: 100}
+    MWS_PLX: {unobs: 100}
+    BGS_ANY: -1
+    MWS_ANY: -1
+    ANCILLARY_ANY: -1

@@ -76,13 +76,24 @@ class BitMask(object):
         self._bitname = dict()  #- key num -> value name
         self._bitnum = dict()   #- key name -> value num
         self._comment = dict()  #- key name or num -> comment
-        for bitname, bitnum, comment in bitdefs[name]:
+        self._extra = dict()
+        for x in bitdefs[name]:
+            bitname, bitnum, comment = x[0:3]
             assert bitname not in self._bitnum
             assert bitnum not in self._bitname
             self._bitnum[bitname] = bitnum
             self._bitname[bitnum] = bitname
             self._comment[bitname] = comment
             self._comment[bitnum] = comment
+            
+            if len(x) == 4:
+                self._extra[bitname] = x[3]
+            else:
+                self._extra[bitname] = dict()
+
+    def extra(self, bitname):
+        """Return extra metadata for bitname (or an empty dict if no extra info)"""
+        return self._extra[bitname]
 
     def bitnum(self, bitname):
         """Return bit number (int) for bitname (string)"""
