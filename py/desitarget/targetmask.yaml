@@ -1,6 +1,6 @@
 #- THESE BIT DEFINITIONS WILL ALMOST CERTAINLY CHANGE
 #- After some initial development experimentation we will freeze the bit
-#- definitions, but we should expect these to change.
+#- definitions, but we should expect this version (Nov 2015) to change.
 
 #- Target type
 #- See "obsconditions" definitions below for interpreting mask of what
@@ -32,8 +32,8 @@ targetmask:
 
     #- Not yet used, but placeholders for North vs. South selections
     - [BGS_FAINT_NORTH,     34, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_FAINT_SOUTH,     36, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    35, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_FAINT_SOUTH,     36, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_SOUTH,    37, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
 
     - [BGS_KNOWN_COLLIDED,  40, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
@@ -52,11 +52,12 @@ targetmask:
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
 #- in which they are allowed to be observed.
+#- See DESI-0311 and DESI-0333 for discussion of DARK vs. GRAY
 obsconditions:
-    - [DARK,   0, "Moon is down"]
-    - [GRAY,   1, "Moon is above horizon with illumation fraction<0.25 [TBD]"]
-    - [BRIGHT, 2, "Moon is above horizon with illumination fraction>0.25 [TBD]"]
-    - [POOR,   3, "Very bad seeing, high extinction, or bright cloud cover"]
+    - [DARK,        0, "Moon is down"]
+    - [GRAY,        1, "Moon up; illum fraction<0.6 and (illum*elev)<30 deg"]
+    - [BRIGHT,      2, "Moon up and bright (not GRAY)"
+    - [POOR,        3, "Very bad seeing, high extinction, or bright cloud cover"]
     - [TWILIGHT12,  4, "Between sunset/sunrise and 12 degree twilight"]
     - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]
     - [DAY,         6, "Daytime calibrations"]
@@ -75,6 +76,7 @@ targetstate:
     - [MORE,  5, "confident redshift and want more obs (e.g. LyA)"]
 
 #- Priorities for each target bit
+#- Numerically larger priorities are higher priority to be observed first.
 #- NOTE: these aren't a bitmask, they are a mapping from bit -> priority
 #- SAME_AS_XXX means to use the priorities for bitname XXX
 #- -1 means the concept of priority doesn't really apply to this target class
@@ -83,21 +85,24 @@ targetstate:
 #- Other states are default 0 unless specified here
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
-    LRG: {unobs: 100}
-    ELG: {unobs: 200}
-    QSO: {unobs: 300, more: 400}  #- 'more' used for LyA, with higher priority
+    #- Dark Survey: priorities 3000 - 3999
+    ELG: {unobs: 3000}
+    LRG: {unobs: 3200}
+    QSO: {unobs: 3400, more: 3500}  #- 'more' used for LyA, with higher priority
     LRG_NORTH: SAME_AS_LRG
     ELG_NORTH: SAME_AS_ELG
     QSO_NORTH: SAME_AS_QSO
     LRG_SOUTH: SAME_AS_LRG
     ELG_SOUTH: SAME_AS_ELG
     QSO_SOUTH: SAME_AS_QSO
+    #- Standards and sky are treated specially; priorities don't apply
     FSTD:      -1
     WDSTAR:    -1
     SKY:       -1
     BRIGHTSTD: -1
-    BGS_FAINT: {unobs: 100, zwarn: 200, more: 300}
-    BGS_BRIGHT: {unobs: 100, zwarn: 200, more: 300}
+    #- Bright Galaxy Survey: priorities 2000-2999
+    BGS_FAINT: {unobs: 2000, zwarn: 2200, more: 2300}
+    BGS_BRIGHT: {unobs: 2100, zwarn: 2200, more: 2300}
     BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
     BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
     BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
@@ -105,8 +110,9 @@ priorities:
     BGS_KNOWN_COLLIDED: {unobs: 100, zwarn: 200, more: 300}
     BGS_KNOWN_SDSS: {unobs: 100, zwarn: 200, more: 300}
     BGS_KNOWN_BOSS: {unobs: 100, zwarn: 200, more: 300}
-    MWS_WD: {unobs: 100}
-    MWS_PLX: {unobs: 100}
+    #- Milky Way Survey: priorities 1000-1999
+    MWS_WD: {unobs: 1500}
+    MWS_PLX: {unobs: 1500}
     BGS_ANY: -1
     MWS_ANY: -1
     ANCILLARY_ANY: -1
