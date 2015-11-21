@@ -8,7 +8,7 @@
 targetmask:
     #------ Dark Time Survey: Bits 0-31
     - [LRG,         0, "LRG", {obsconditions: DARK}]
-    - [ELG,         1, "ELG", {obsconditions: DARK,GRAY}]
+    - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
     #- Not yet used, but placeholders for North vs. South selections
@@ -21,10 +21,10 @@ targetmask:
     - [QSO_SOUTH,   18, "QSO from DECam data", {obsconditions: DARK}]
 
     #------ Calibration targets
-    - [FSTD,        24, "F-type standard stars", {obsconditions: DARK|GRAY,}]
-    - [WDSTAR,      25, "White Dwarf stars", {obsconditions: DARK|GRAY}]
-    - [SKY,         26, "Blank sky locations", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [BRIGHTSTD,   28, "F-type standard for BRIGHT conditions", {obsconditions: BRIGHT}]
+    - [SKY,         24, "Blank sky locations", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [FSTD,        25, "F-type standard stars", {obsconditions: DARK|GRAY}]
+    - [WDSTAR,      26, "White Dwarf stars", {obsconditions: DARK|GRAY}]
+    - [BRIGHTSTD,   27, "F-type standard for BRIGHT conditions", {obsconditions: BRIGHT}]
     
     #----- Bright Galaxy Survey: bits 32-47
     - [BGS_FAINT,           32, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
@@ -56,7 +56,7 @@ targetmask:
 obsconditions:
     - [DARK,        0, "Moon is down"]
     - [GRAY,        1, "Moon up; illum fraction<0.6 and (illum*elev)<30 deg"]
-    - [BRIGHT,      2, "Moon up and bright (not GRAY)"
+    - [BRIGHT,      2, "Moon up and bright (not GRAY)"]
     - [POOR,        3, "Very bad seeing, high extinction, or bright cloud cover"]
     - [TWILIGHT12,  4, "Between sunset/sunrise and 12 degree twilight"]
     - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]

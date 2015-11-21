@@ -222,10 +222,14 @@ def map_tractor(function, root, bricklist=None, numproc=4, reduce=None):
             bricknames.append(bname)
             brickfiles.append(filepath)
     
-    pool = sharedmem.MapReduce(np=numproc)
-
-    with pool:
-        results = pool.map(function, brickfiles, reduce=reduce)
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            results = pool.map(function, brickfiles, reduce=reduce)
+    else:
+        results = list()
+        for b in brickfiles:
+            results.append(reduce(function(b)))
         
     return bricknames, brickfiles, results
 

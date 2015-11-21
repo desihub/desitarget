@@ -13,6 +13,9 @@ from desitarget.cuts import calc_numobs
 from desitarget.cuts import select_targets
 ### from desitarget.cuts_npyquery import select_targets
 
+import warnings
+warnings.simplefilter('error')
+
 from argparse import ArgumentParser
 import os, sys
 from time import time
