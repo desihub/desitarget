@@ -224,23 +224,20 @@ def map_tractor(function, root, bricklist=None, numproc=4, reduce=None):
 def iter_tractor(root):
     """ Iterator over all tractor files in a directory.
 
-        Parameters
-        ----------
-        root : string
-            Path to start looking
+        Args:
+            root : string
+                Path to start looking
         
-        Returns
-        -------
-        An iterator of (brickname, filename).
+        Returns an iterator of (brickname, filename).
 
-        Examples
-        --------
-        >>> for brickname, filename in iter_tractor('./'):
-        >>>     print(brickname, filename)
+        Examples:
+
+            >>> for brickname, filename in iter_tractor('./'):
+            >>>     print(brickname, filename)
         
-        Notes
-        -----
-        root can be a directory or a single file; both create an iterator
+        Notes:
+
+            root can be a directory or a single file; both create an iterator
     """
     def parse_filename(filename):
         """parse filename to check if this is a tractor brick file;
