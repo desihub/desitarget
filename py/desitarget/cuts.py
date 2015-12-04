@@ -88,8 +88,7 @@ def select_targets(objects):
     bgs &= rflux > 10**((22.5-19.35)/2.5)
 
     fstd = primary.copy()
-    fstd &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
-    fstd &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
+    fstd &= ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     with warnings.catch_warnings():
