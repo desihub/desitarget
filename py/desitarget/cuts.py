@@ -21,7 +21,7 @@ from desitarget.io import read_tractor
 
 """
 
-from desitarget.targetmask import targetmask
+from desitarget import desi_mask, bgs_mask, mws_mask
 
 def select_targets(objects):
     """Perform target selection on objects, returning targetflag array
@@ -31,7 +31,8 @@ def select_targets(objects):
             target selection, OR a string tractor filename
             
     Returns:
-        targetflag : ndarray of target selection bitmask flags for each object
+        (desi_target, bgs_target, mws_target) where each element is
+        an ndarray of target selection bitmask flags for each object
         
     See desitarget.targetmask for the definition of each bit
     """
@@ -104,19 +105,23 @@ def select_targets(objects):
 
     #-----
     #- construct the targetflag bits
-    targetflag  = lrg * targetmask.LRG
-    targetflag |= elg * targetmask.ELG
-    targetflag |= qso * targetmask.QSO
-    targetflag |= bgs * targetmask.BGS_BRIGHT
-    targetflag |= fstd * targetmask.FSTD
+    desi_target  = lrg * desi_mask.LRG
+    desi_target |= elg * desi_mask.ELG
+    desi_target |= qso * desi_mask.QSO
+    desi_target |= fstd * desi_mask.FSTD
 
     #- Currently our only cuts are DECam based (i.e. South)
-    targetflag |= lrg * targetmask.LRG_SOUTH
-    targetflag |= elg * targetmask.ELG_SOUTH
-    targetflag |= qso * targetmask.QSO_SOUTH
-    targetflag |= bgs * targetmask.BGS_BRIGHT_SOUTH
+    desi_target |= lrg * desi_mask.LRG_SOUTH
+    desi_target |= elg * desi_mask.ELG_SOUTH
+    desi_target |= qso * desi_mask.QSO_SOUTH
 
-    return targetflag
+    
+    bgs_target = bgs * bgs_mask.BGS_BRIGHT
+    bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
+
+    mws_target = np.zeros_like(bgs_target)
+
+    return desi_target, bgs_target, mws_target
 
 def calc_numobs(targets, targetflags):
     """

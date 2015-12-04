@@ -2,11 +2,8 @@
 #- After some initial development experimentation we will freeze the bit
 #- definitions, but we should expect this version (Nov 2015) to change.
 
-#- Target type
-#- See "obsconditions" definitions below for interpreting mask of what
-#- observing conditions are allowable for each target bit
-targetmask:
-    #------ Dark Time Survey: Bits 0-31
+#- DESI primary survey target bit mask: dark survey + calib + 
+desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
@@ -20,34 +17,41 @@ targetmask:
     - [ELG_SOUTH,   17, "ELG from DECam data", {obsconditions: DARK|GRAY}]
     - [QSO_SOUTH,   18, "QSO from DECam data", {obsconditions: DARK}]
 
-    #------ Calibration targets
-    - [SKY,         24, "Blank sky locations", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [FSTD,        25, "F-type standard stars", {obsconditions: DARK|GRAY}]
-    - [WDSTAR,      26, "White Dwarf stars", {obsconditions: DARK|GRAY}]
-    - [BRIGHTSTD,   27, "F-type standard for BRIGHT conditions", {obsconditions: BRIGHT}]
-    
-    #----- Bright Galaxy Survey: bits 32-47
-    - [BGS_FAINT,           32, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT,          33, "BGS bright targets", {obsconditions: BRIGHT}]
+    #- Calibration targets
+    - [SKY,         32, "Blank sky locations",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [FSTD,        33, "F-type standard stars", {obsconditions: DARK|GRAY}]
+    - [WDSTAR,      34, "White Dwarf stars", {obsconditions: DARK|GRAY}]
+    - [BRIGHTSTD,   35, "F-type standard for BRIGHT conditions",
+        {obsconditions: BRIGHT}]
 
-    #- Not yet used, but placeholders for North vs. South selections
-    - [BGS_FAINT_NORTH,     34, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT_NORTH,    35, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
-    - [BGS_FAINT_SOUTH,     36, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT_SOUTH,    37, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
-
-    - [BGS_KNOWN_COLLIDED,  40, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
-    - [BGS_KNOWN_SDSS,      41, "BGS known SDSS targets", {obsconditions: BRIGHT}]
-    - [BGS_KNOWN_BOSS,      42, "BGS known BOSS targets", {obsconditions: BRIGHT}]
-    
-    #------ Milky Way Survey placeholder: bits 48-59
-    - [MWS_WD,              48, "Milky Way Survey White Dwarf", {obsconditions: BRIGHT}]
-    - [MWS_PLX,             49, "Milky Way Survey Parallax", {obsconditions: BRIGHT}]
-    
-    #------ Placeholder flags
+    #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
-    - [ANCILLARY_ANY,       62, "Any ancillary bit is set", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ANCILLARY_ANY,       62, "Any ancillary bit is set",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    
+#- Bright Galaxy Survey
+bgs_mask:    
+    - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
+
+    #- Not yet used, but placeholders for North vs. South selections
+    - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT_SOUTH,    17, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
+
+    - [BGS_KNOWN_ANY,       40, "Known target from another survey", {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_SDSS,      42, "BGS known SDSS targets", {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_BOSS,      43, "BGS known BOSS targets", {obsconditions: BRIGHT}]
+
+#- Milky Way Survey
+mws_mask:
+    - [MWS_WD,              0, "Milky Way Survey White Dwarf", {obsconditions: BRIGHT}]
+    - [MWS_PLX,             1, "Milky Way Survey Parallax selected", {obsconditions: BRIGHT}]
+    
 
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
@@ -64,55 +68,64 @@ obsconditions:
     - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
     - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]    
 
-#- Possible processing states that a target could be in
-#- This isn't really a bitmask since a target can be on only one state, but
-#- it can be a useful enumeration
-targetstate:
-    - [UNOBS, 0, "unobserved"]
-    - [OBS,   1, "observed but no spectro pipeline answer yet"]
-    - [ZWARN, 2, "uncertain redshift (ZWARN flag set)"]
-    - [ZBAD,  3, "confident redshift but it wasn't what we wanted"]
-    - [DONE,  4, "confident redshift and no more obs needed"]
-    - [MORE,  5, "confident redshift and want more obs (e.g. LyA)"]
+#- Observation State
+#- if a target passes more than one target bit, it is possible that one bit
+#- will consider the observations "DONE" while another bit will want "MORE".
+#- DONOTOBSERVE trumps MORE which trumps DONE
+obsstate:
+    - [UNOBS,       0, "unobserved"]
+    - [OBS,         1, "observed but no spectro pipeline answer yet"]
+    - [DONE,        2, "enough observations already obtained"]
+    - [MORE_ZWARN,  3, "ambiguous redshift; need more observations"]
+    - [MORE_ZGOOD,  4, "redshift known; need more observations"]
+    - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
 #- NOTE: these aren't a bitmask, they are a mapping from bit -> priority
 #- SAME_AS_XXX means to use the priorities for bitname XXX
 #- -1 means the concept of priority doesn't really apply to this target class
-#- Every target bit must define priority for "unobs"
-#- Default priority for "more" is same as "unobs"
+#- Every target bit must define priority for "UNOBS"
+#- Default priority for "MORE_ZGOOD" is same as "UNOBS"
 #- Other states are default 0 unless specified here
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
-    ELG: {unobs: 3000}
-    LRG: {unobs: 3200}
-    QSO: {unobs: 3400, more: 3500}  #- 'more' used for LyA, with higher priority
-    LRG_NORTH: SAME_AS_LRG
-    ELG_NORTH: SAME_AS_ELG
-    QSO_NORTH: SAME_AS_QSO
-    LRG_SOUTH: SAME_AS_LRG
-    ELG_SOUTH: SAME_AS_ELG
-    QSO_SOUTH: SAME_AS_QSO
-    #- Standards and sky are treated specially; priorities don't apply
-    FSTD:      -1
-    WDSTAR:    -1
-    SKY:       -1
-    BRIGHTSTD: -1
+    desi_mask:
+        ELG: {UNOBS: 3000}
+        LRG: {UNOBS: 3200}
+        QSO: {UNOBS: 3400, MORE_ZGOOD: 3500}
+        LRG_NORTH: SAME_AS_LRG
+        ELG_NORTH: SAME_AS_ELG
+        QSO_NORTH: SAME_AS_QSO
+        LRG_SOUTH: SAME_AS_LRG
+        ELG_SOUTH: SAME_AS_ELG
+        QSO_SOUTH: SAME_AS_QSO
+        #- Standards and sky are treated specially; priorities don't apply
+        FSTD:      -1
+        WDSTAR:    -1
+        SKY:       -1
+        BRIGHTSTD: -1
+        #- placeholders to show we haven't forgotten these bits, but the
+        #- exact bits in the other sections define the priorities
+        BGS_ANY: -1
+        MWS_ANY: -1
+        ANCILLARY_ANY: -1
+
     #- Bright Galaxy Survey: priorities 2000-2999
-    BGS_FAINT: {unobs: 2000, zwarn: 2200, more: 2300}
-    BGS_BRIGHT: {unobs: 2100, zwarn: 2200, more: 2300}
-    BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
-    BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
-    BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
-    BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
-    BGS_KNOWN_COLLIDED: {unobs: 100, zwarn: 200, more: 300}
-    BGS_KNOWN_SDSS: {unobs: 100, zwarn: 200, more: 300}
-    BGS_KNOWN_BOSS: {unobs: 100, zwarn: 200, more: 300}
+    bgs_mask:
+        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2200, MORE_ZGOOD: 2300}
+        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2200, MORE_ZGOOD: 2300}
+        BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
+        BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
+        BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
+        BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+        BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
+        BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
+        BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
+        BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
+
     #- Milky Way Survey: priorities 1000-1999
-    MWS_WD: {unobs: 1500}
-    MWS_PLX: {unobs: 1500}
-    BGS_ANY: -1
-    MWS_ANY: -1
-    ANCILLARY_ANY: -1
+    mws_mask:
+        MWS_WD: {UNOBS: 1500}
+        MWS_PLX: {UNOBS: 1500}

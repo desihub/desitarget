@@ -46,14 +46,17 @@ def main():
         
         Used by _map_tractor() for parallel processing'''
         objects = read_tractor(filename)
-        targetflag = select_targets(objects)
-        keep = (targetflag != 0)
-
+        desi_target, bgs_target, mws_target = select_targets(objects)
+        
+        #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
+        #- on desi_target != 0
+        keep = (desi_target != 0)
         objects = objects[keep]
-        targetflag = targetflag[keep]
-        numobs = calc_numobs(objects, targetflag)
+        desi_target = desi_target[keep]
+        bgs_target = bgs_target[keep]
+        mws_target = mws_target[keep]
 
-        targets = desitarget.targets.finalize(objects, targetflag, numobs)
+        targets = desitarget.targets.finalize(objects, desi_target, bgs_target, mws_target)
 
         return fix_tractor_dr1_dtype(targets)
 
