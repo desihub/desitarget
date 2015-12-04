@@ -51,7 +51,10 @@ def select_targets(objects):
     wflux = 0.75* w1flux + 0.25*dered_wise_flux[:, 1]
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
-    primary = objects['BRICK_PRIMARY']
+    if 'BRICK_PRIMARY' in objects.dtype.names:
+        primary = objects['BRICK_PRIMARY']
+    else:
+        primary = np.ones(len(objects), dtype=bool)
 
     #- each of lrg, elg, bgs, ... will be a boolean array of matches
     lrg = primary.copy()
@@ -87,11 +90,14 @@ def select_targets(objects):
     fstd = primary.copy()
     fstd &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
     fstd &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
-    fracflux = objects['DECAM_FRACFLUX'].T
+    fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    for j in (1,2,4):  #- g, r, z
-        fstd &= fracflux[j] < 0.04
-        fstd &= signal2noise[:, j] > 10
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        for j in (1,2,4):  #- g, r, z
+            fstd &= fracflux[j] < 0.04
+            fstd &= signal2noise[:, j] > 10
+
     #- observed flux; no Milky Way extinction
     obs_rflux = objects['DECAM_FLUX'][:, 2]
     fstd &= obs_rflux < 10**((22.5-16.0)/2.5)

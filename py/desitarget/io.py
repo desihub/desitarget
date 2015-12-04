@@ -121,12 +121,11 @@ def read_tractor(filename, header=False):
             
         Optional:
             header: if true, return (data, header) instead of just data
+            sweep: sweep file; doesn't have BRICK_PRIMARY
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
     """
-    ### return fits.getdata(filename, 1)
-
     #- fitsio prior to 0.9.8rc1 has a bug parsing boolean columns.
     #- LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx
     if LooseVersion(fitsio.__version__) < LooseVersion('0.9.8') and \
@@ -137,7 +136,7 @@ def read_tractor(filename, header=False):
 
     #- Columns needed for target selection and/or passing forward
     columns = [
-        'BRICKID', 'BRICKNAME', 'OBJID', 'BRICK_PRIMARY', 'TYPE',
+        'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
         'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
         'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
         'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
@@ -145,10 +144,19 @@ def read_tractor(filename, header=False):
         'SHAPEDEV_R', 'SHAPEEXP_R',
         ]
 
-    #- if header is True, data will be tuple of (data, header) but that is
-    #- actually what we want to return in that case anyway
-    data = fitsio.read(filename, 1, upper=True, columns=columns, header=header)
-    return data
+    fx = fitsio.FITS(filename, upper=True)
+    #- tractor files have BRICK_PRIMARY; sweep files don't
+    if 'BRICK_PRIMARY' in fx[1].get_colnames():
+        columns.append('BRICK_PRIMARY')
+    
+    data = fx[1].read(columns=columns)
+    if header:
+        hdr = fx[1].read_header()
+        fx.close()
+        return data, hdr
+    else:
+        fx.close()
+        return data
 
 def fix_tractor_dr1_dtype(objects):
     """DR1 tractor files have inconsitent dtype for the TYPE field.  Fix this.
@@ -232,6 +240,29 @@ def map_tractor(function, root, bricklist=None, numproc=4, reduce=None):
             results.append(reduce(function(b)))
         
     return bricknames, brickfiles, results
+
+def map_sweep(function, root, numproc=4, reduce=None):
+    sweepfiles = [x for x in iter_sweep(root)]
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            results = pool.map(function, sweepfiles, reduce=reduce)
+    else:
+        results = list()
+        for x in sweepfiles:
+            results.append(reduce(function(x)))
+        
+    return sweepfiles, results
+
+def iter_sweep(root, prefix='sweep', ext='fits'):
+    '''Iterator over sweep files found in a directory'''
+    if os.path.isdir(root):
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+            for filename in filenames:
+                if filename.startswith(prefix) and filename.endswith('.'+ext):
+                    yield os.path.join(dirpath, filename)
+    else:
+        raise ValueError('{} is not a directory'.format(root))
 
 def iter_tractor(root):
     """ Iterator over all tractor files in a directory.

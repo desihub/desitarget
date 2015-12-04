@@ -7,7 +7,7 @@ import numpy as np
 import desitarget
 import desitarget.targets
 from desitarget.io import read_tractor, write_targets
-from desitarget.io import iter_tractor, map_tractor
+from desitarget.io import map_tractor, map_sweep
 from desitarget.io import fix_tractor_dr1_dtype
 from desitarget.cuts import calc_numobs
 from desitarget.cuts import select_targets
@@ -25,6 +25,7 @@ ap = ArgumentParser()
 ap.add_argument("src", help="Tractor file or root directory with tractor files")
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
+ap.add_argument("--sweep", action='store_true', help='look for sweep files instead of tractor files')
 ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int, help='number of concurrent processes to use', default=1)
 
@@ -76,9 +77,14 @@ def main():
 
         return result
 
-    bnames, bfiles, targets = \
-        map_tractor(_select_targets_brickfile, ns.src, \
-            bricklist=bricklist, numproc=ns.numproc, reduce=collect_results)
+    if ns.sweep:
+        infiles, targets = \
+            map_sweep(_select_targets_brickfile, ns.src, \
+                numproc=ns.numproc, reduce=collect_results)
+    else:
+        bnames, infiles, targets = \
+            map_tractor(_select_targets_brickfile, ns.src, \
+                bricklist=bricklist, numproc=ns.numproc, reduce=collect_results)
 
     #- convert list of per-brick items to single arrays across all bricks
     t1 = time()
