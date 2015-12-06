@@ -21,13 +21,22 @@ import os, sys
 from time import time
 
 ap = ArgumentParser()
-### ap.add_argument("--type", choices=["tractor"], default="tractor", help="Assume a type for src files")
 ap.add_argument("src", help="Tractor file or root directory with tractor files")
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument("--sweep", action='store_true', help='look for sweep files instead of tractor files')
 ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int, help='number of concurrent processes to use', default=1)
+
+def newmain():
+    infiles = io.list_sweepfiles(src)
+    if len(infiles) == 0:
+        infiles = io.list_tractorfiles(src)
+    if len(infiles) == 0:
+        print('FATAL: no sweep or tractor files found')
+        sys.exit(1)
+        
+    targets = select_targets(infiles)
 
 def main():
     ns = ap.parse_args()
@@ -38,14 +47,11 @@ def main():
     else:
         bricklist = None
         
-    #- Loop over bricks collecting target selection flags
-    #- and targets that passed the cuts
-    t0 = time()
-
+    #- function to run on every brick/sweep file
     def _select_targets_brickfile(filename):
-        '''Wrapper function for performing target selection on a single brick file
+        '''Returns targets in filename that pass the cuts
         
-        Used by _map_tractor() for parallel processing'''
+        Used by map_tractor / map_sweep for parallel processing'''
         objects = read_tractor(filename)
         desi_target, bgs_target, mws_target = select_targets(objects)
         
@@ -57,47 +63,50 @@ def main():
         bgs_target = bgs_target[keep]
         mws_target = mws_target[keep]
 
-        targets = desitarget.targets.finalize(objects, desi_target, bgs_target, mws_target)
+        #- Add *_target mask columns
+        targets = desitarget.targets.finalize(
+            objects, desi_target, bgs_target, mws_target)
 
         return fix_tractor_dr1_dtype(targets)
 
+    # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
     # c.f https://www.python.org/dev/peps/pep-3104/
     nbrick = np.zeros((), dtype='i8')
 
-    def collect_results(result):
+    def update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if ns.verbose and nbrick%50 == 0:
+        if ns.verbose and nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
+            print('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
-        # this is an in-place modification
-        nbrick[...] += 1
-
+        nbrick[...] += 1    # this is an in-place modification
         return result
 
+    #- Parallel loop over bricks collecting target selection flags
+    #- and targets that passed the cuts
+    t0 = time()
     if ns.sweep:
         infiles, targets = \
             map_sweep(_select_targets_brickfile, ns.src, \
-                numproc=ns.numproc, reduce=collect_results)
+                numproc=ns.numproc, reduce=update_status)
     else:
         bnames, infiles, targets = \
             map_tractor(_select_targets_brickfile, ns.src, \
-                bricklist=bricklist, numproc=ns.numproc, reduce=collect_results)
+                bricklist=bricklist, numproc=ns.numproc, reduce=update_status)
 
     #- convert list of per-brick items to single arrays across all bricks
-    t1 = time()
     targets = np.concatenate(targets)
-    t2 = time()
 
+    t1 = time()
     write_targets(ns.dest, targets, indir=ns.src)
-    t3 = time()
+    t2 = time()
+    print('{} targets written to {}'.format(len(targets), ns.dest))
     if ns.verbose:
-        print ('written to', ns.dest)
-        print('Target selection {:.1f} sec'.format(t1-t0))
-        print('Combine results  {:.1f} sec'.format(t2-t1))
-        print('Write output     {:.1f} sec'.format(t3-t2))
+        print('Timing:')
+        print('  Target selection {:.1f} sec'.format(t1-t0))
+        print('  Write output     {:.1f} sec'.format(t2-t1))
 
 if __name__ == "__main__":
     main()

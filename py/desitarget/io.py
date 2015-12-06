@@ -9,6 +9,7 @@ import numpy.lib.recfunctions
 from astropy.io import fits
 import fitsio
 import os, re
+import os.path
 from distutils.version import LooseVersion
 
 import desitarget
@@ -254,15 +255,27 @@ def map_sweep(function, root, numproc=4, reduce=None):
         
     return sweepfiles, results
 
-def iter_sweep(root, prefix='sweep', ext='fits'):
-    '''Iterator over sweep files found in a directory'''
+def iter_files(root, prefix, ext='fits'):
+    '''Iterator over files under in root dir with given prefix and extension'''
     if os.path.isdir(root):
         for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
             for filename in filenames:
                 if filename.startswith(prefix) and filename.endswith('.'+ext):
                     yield os.path.join(dirpath, filename)
     else:
-        raise ValueError('{} is not a directory'.format(root))
+        filename = os.path.basename(root)
+        if filename.startswith(prefix) and filename.endswith('.'+ext):
+            yield root
+        else:
+            pass
+
+def iter_sweep(root):
+    '''return iterator over sweep files found under root directory'''
+    return iter_files(root, prefix='sweep', ext='fits')
+
+def list_sweep(root):
+    '''return a list of sweep files found under root directory'''
+    return [x for x in iter_sweep(root)]
 
 def iter_tractor(root):
     """ Iterator over all tractor files in a directory.
