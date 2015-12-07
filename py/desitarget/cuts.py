@@ -1,34 +1,28 @@
 from __future__ import absolute_import, division, print_function
 import warnings
+from time import time
 import numpy as np
 
-from desitarget.io import read_tractor
-
-"""
-    Target Selection for DECALS catalogue data
-
-    https://desi.lbl.gov/trac/wiki/TargetSelection
-
-    A collection of helpful (static) methods to check whether an object's
-    flux passes a given selection criterion (e.g. LRG, ELG or QSO).
-
-    These cuts assume we are passed the extinction-corrected fluxes
-    (flux/mw_transmission) and are taken from:
-
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
-
-    These files (together with npyquery, were originally from ImagingLSS (github.com/desihub/imaginglss)
-
-"""
-
+from desitarget import io
+from desitarget.internal import sharedmem
+import desitarget.targets
 from desitarget import desi_mask, bgs_mask, mws_mask
 
-def select_targets(objects):
+"""
+Target Selection for DECALS catalogue data
+
+https://desi.lbl.gov/trac/wiki/TargetSelection
+
+A collection of helpful (static) methods to check whether an object's
+flux passes a given selection criterion (e.g. LRG, ELG or QSO).
+"""
+
+def apply_cuts(objects):
     """Perform target selection on objects, returning targetflag array
 
     Args:
         objects: numpy structured array with UPPERCASE columns needed for
-            target selection, OR a string tractor filename
+            target selection, OR a string tractor/sweep filename
             
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -38,7 +32,7 @@ def select_targets(objects):
     """
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, (str, unicode)):
-        objects = read_tractor(objects)
+        objects = io.read_tractor(objects)
     
     #- construct milky way extinction corrected fluxes
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
@@ -64,7 +58,6 @@ def select_targets(objects):
     lrg &= zflux > rflux * 10**(1.6/2.5)
     #- clip to avoid warnings from negative numbers raised to fractional powers
     lrg &= w1flux * rflux.clip(0)**(1.33-1) > zflux.clip(0)**1.33 * 10**(-0.33/2.5)
-    ### lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
 
     elg = primary.copy()
     elg &= rflux > 10**((22.5-23.4)/2.5)
@@ -128,33 +121,101 @@ def select_targets(objects):
 
     return desi_target, bgs_target, mws_target
 
-def calc_numobs(targets, targetflags):
+def select_targets(infiles, numproc=4, verbose=False):
     """
-    Return array of number of observations needed for each target.
+    Select targets from input files
     
     Args:
-        targets: numpy structured array with tractor inputs
-        targetflags: array of target selection bit flags 
-    
+        infiles: list of input filenames (tractor or sweep files)
+        
+    Optional:
+        numproc: number of parallel processes to use
+        verbose: if True, print progress messages
+        
     Returns:
-        array of integers of number of observations needed
+        targets numpy structured array: the subset of input targets which
+            pass the cuts, including extra columns for DESI_TARGET,
+            BGS_TARGET, and MWS_TARGET target selection bitmasks. 
+        
     """
-    #- Default is one observation
-    nobs = np.ones(len(targets), dtype='i4')
     
-    #- If it wasn't selected by any target class, it gets 0 observations
-    #- Normally these would have already been removed, but just in case...
-    nobs[targetflags == 0] = 0
+    #- function to run on every brick/sweep file
+    def _select_targets_file(filename):
+        '''Returns targets in filename that pass the cuts'''
+        objects = io.read_tractor(filename)
+        desi_target, bgs_target, mws_target = apply_cuts(objects)
+        
+        #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
+        #- on desi_target != 0
+        keep = (desi_target != 0)
+        objects = objects[keep]
+        desi_target = desi_target[keep]
+        bgs_target = bgs_target[keep]
+        mws_target = mws_target[keep]
+
+        #- Add *_target mask columns
+        targets = desitarget.targets.finalize(
+            objects, desi_target, bgs_target, mws_target)
+
+        return io.fix_tractor_dr1_dtype(targets)
+
+    # Counter for number of bricks processed;
+    # a numpy scalar allows updating nbrick in python 2
+    # c.f https://www.python.org/dev/peps/pep-3104/
+    nbrick = np.zeros((), dtype='i8')
+
+    t0 = time()
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+        if verbose and nbrick%50 == 0 and nbrick>0:
+            rate = nbrick / (time() - t0)
+            print('{} files; {:.1f} files/sec'.format(nbrick, rate))
+
+        nbrick[...] += 1    # this is an in-place modification
+        return result
+
+    #- Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+    else:
+        targets = list()
+        for x in infiles:
+            targets.append(_update_status(_select_targets_file(x)))
+        
+    targets = np.concatenate(targets)
     
-    #- LRGs get 1, 2, or 3 observations depending upon magnitude
-    zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]    
-    islrg = (targetflags & targetmask.LRG) != 0
-    lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
-    lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
-    nobs[lrg2] = 2
-    nobs[lrg3] = 3
-    
-    #- TBD: flag QSOs for 4-5 obs ahead of time, or only after confirming
-    #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
-    
-    return nobs
+    return targets
+
+# def calc_numobs(targets, targetflags):
+#     """
+#     Return array of number of observations needed for each target.
+#     
+#     Args:
+#         targets: numpy structured array with tractor inputs
+#         targetflags: array of target selection bit flags 
+#     
+#     Returns:
+#         array of integers of number of observations needed
+#     """
+#     #- Default is one observation
+#     nobs = np.ones(len(targets), dtype='i4')
+#     
+#     #- If it wasn't selected by any target class, it gets 0 observations
+#     #- Normally these would have already been removed, but just in case...
+#     nobs[targetflags == 0] = 0
+#     
+#     #- LRGs get 1, 2, or 3 observations depending upon magnitude
+#     zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]    
+#     islrg = (targetflags & targetmask.LRG) != 0
+#     lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
+#     lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
+#     nobs[lrg2] = 2
+#     nobs[lrg3] = 3
+#     
+#     #- TBD: flag QSOs for 4-5 obs ahead of time, or only after confirming
+#     #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
+#     
+#     return nobs

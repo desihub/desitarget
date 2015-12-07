@@ -5,8 +5,6 @@
 
 # everybody likes np
 import numpy as np 
-import numpy.lib.recfunctions
-from astropy.io import fits
 import fitsio
 import os, re
 import os.path
@@ -197,63 +195,13 @@ def write_targets(filename, data, indir=None):
     hdr['DEPNAM00'] = 'desitarget'
     hdr.add_record(dict(name='DEPVER00', value=desitarget.__version__, comment='desitarget.__version__'))
     hdr['DEPNAM01'] = 'desitarget-git'
-    hdr.add_record(dict(name='DEPVAL01', value=desitarget.gitversion(), comment='git revision'))
+    hdr.add_record(dict(name='DEPVER01', value=desitarget.gitversion(), comment='git revision'))
     
     if indir is not None:
         hdr['DEPNAM02'] = 'tractor-files'
         hdr['DEPVER02'] = indir
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
-
-def map_tractor(function, root, bricklist=None, numproc=4, reduce=None):
-    """Apply `function` to tractor files in `root`
-    
-    Args:
-        function: python function that takes a tractor filename as input
-        root: root directory to scan to find tractor files
-        
-    Optional:
-        bricklist: only process files with bricknames in this list
-        numproc: number of parallel processes to use
-        
-    Returns tuple of 3 lists (bricknames, brickfiles, results):
-        bricknames : brick names found in root
-        brickfiles : brick files found in root
-        results : return values of applying function on each brickfile
-
-    e.g. results[i] = function(brickfiles[i])
-
-    """
-    bricknames = list()
-    brickfiles = list()
-    for bname, filepath in iter_tractor(root):
-        if bricklist is None or bname in bricklist:
-            bricknames.append(bname)
-            brickfiles.append(filepath)
-    
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            results = pool.map(function, brickfiles, reduce=reduce)
-    else:
-        results = list()
-        for b in brickfiles:
-            results.append(reduce(function(b)))
-        
-    return bricknames, brickfiles, results
-
-def map_sweep(function, root, numproc=4, reduce=None):
-    sweepfiles = [x for x in iter_sweep(root)]
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            results = pool.map(function, sweepfiles, reduce=reduce)
-    else:
-        results = list()
-        for x in sweepfiles:
-            results.append(reduce(function(x)))
-        
-    return sweepfiles, results
 
 def iter_files(root, prefix, ext='fits'):
     '''Iterator over files under in root dir with given prefix and extension'''
@@ -269,15 +217,18 @@ def iter_files(root, prefix, ext='fits'):
         else:
             pass
 
-def iter_sweep(root):
+def iter_sweepfiles(root):
     '''return iterator over sweep files found under root directory'''
     return iter_files(root, prefix='sweep', ext='fits')
 
-def list_sweep(root):
+def list_sweepfiles(root):
     '''return a list of sweep files found under root directory'''
-    return [x for x in iter_sweep(root)]
+    return [x for x in iter_sweepfiles(root)]
 
-def iter_tractor(root):
+def list_tractorfiles(root):
+    return [x for x in iter_tractorfiles(root)]
+
+def iter_tractorfiles(root):
     """ Iterator over all tractor files in a directory.
 
         Parameters
@@ -298,32 +249,19 @@ def iter_tractor(root):
         -----
         root can be a directory or a single file; both create an iterator
     """
-    def parse_filename(filename):
-        """parse filename to check if this is a tractor brick file;
-        returns brickname if it is, otherwise raises ValueError"""
-        if not filename.endswith('.fits'): raise ValueError
-        #- match filename tractor-0003p027.fits -> brickname 0003p027
-        match = re.search('tractor-(\d{4}[pm]\d{3})\.fits', 
-                os.path.basename(filename))
+    return iter_files(root, prefix='tractor', ext='fits')
 
-        if not match: raise ValueError
+def brickname_from_filename(filename):
+    """parse filename to check if this is a tractor brick file;
+    returns brickname if it is, otherwise raises ValueError"""
+    if not filename.endswith('.fits'): raise ValueError
+    #- match filename tractor-0003p027.fits -> brickname 0003p027
+    match = re.search('tractor-(\d{4}[pm]\d{3})\.fits', 
+            os.path.basename(filename))
 
-        brickname = match.group(1)
-        return brickname
+    if not match: raise ValueError
 
-    if os.path.isdir(root):
-        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
-            for filename in filenames:
-                try:
-                    brickname = parse_filename(filename)
-                    yield brickname, os.path.join(dirpath, filename)
-                except ValueError:
-                    #- not a brick file but that's ok; keep going
-                    pass
-    else:
-        try:
-            brickname = parse_filename(os.path.basename(root))
-            yield brickname, root
-        except ValueError:
-            pass
-    
+    brickname = match.group(1)
+    return brickname
+
+

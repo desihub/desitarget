@@ -1,0 +1,2 @@
+This is a test file to make sure that iterating over tractor files will
+skip non-tractor files in the directories.
