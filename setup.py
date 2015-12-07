@@ -72,6 +72,7 @@ setup (
     requires=['Python (>2.7.0)', ],
     use_2to3=True,
     zip_safe=False,
-    cmdclass={'version': Version}
+    cmdclass={'version': Version},
+    test_suite='desitarget.test.test_suite',
 )
 
