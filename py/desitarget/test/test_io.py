@@ -34,6 +34,29 @@ class TestIO(unittest.TestCase):
         for x in files:
             self.assertTrue(os.path.basename(x).startswith('sweep'))
             self.assertTrue(os.path.basename(x).endswith('.fits'))
+            
+    def test_iter(self):
+        for x in io.iter_files(self.datadir, prefix='tractor', ext='fits'):
+            pass
+        #- io.iter_files should also work with a file, not just a directory
+        for y in io.iter_files(x, prefix='tractor', ext='fits'):
+            self.assertEqual(x, y)
+    
+    def test_fix_dr1(self):
+        '''test the DR1 TYPE dype fix (make everything S4)'''
+        #- First, break it
+        files = io.list_sweepfiles(self.datadir)
+        objects = io.read_tractor(files[0])
+        dt = objects.dtype.descr
+        for i in range(len(dt)):
+            if dt[i][0] == 'TYPE':
+                dt[i] = ('TYPE', 'S10')
+                break
+        badobjects = objects.astype(np.dtype(dt))
+        
+        newobjects = io.fix_tractor_dr1_dtype(badobjects)
+        self.assertEqual(newobjects['TYPE'].dtype, np.dtype('S4'))
+        
     
     def test_readwrite_tractor(self):
         tractorfile = io.list_tractorfiles(self.datadir)[0]
