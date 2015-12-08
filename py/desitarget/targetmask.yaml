@@ -20,9 +20,9 @@ desi_mask:
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [FSTD,        33, "F-type standard stars", {obsconditions: DARK|GRAY}]
-    - [WDSTAR,      34, "White Dwarf stars", {obsconditions: DARK|GRAY}]
-    - [BRIGHTSTD,   35, "F-type standard for BRIGHT conditions",
+    - [STD_FSTAR,   33, "F-type standard stars", {obsconditions: DARK|GRAY}]
+    - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY}]
+    - [STD_BRIGHT,  35, "F-type standard for BRIGHT conditions",
         {obsconditions: BRIGHT}]
 
     #- A bit for another survey is set
@@ -102,10 +102,10 @@ priorities:
         ELG_SOUTH: SAME_AS_ELG
         QSO_SOUTH: SAME_AS_QSO
         #- Standards and sky are treated specially; priorities don't apply
-        FSTD:      -1
-        WDSTAR:    -1
-        SKY:       -1
-        BRIGHTSTD: -1
+        STD_FSTAR:  -1
+        STD_WD:     -1
+        SKY:        -1
+        STD_BRIGHT: -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities
         BGS_ANY: -1

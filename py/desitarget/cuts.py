@@ -18,7 +18,7 @@ flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
 
 def apply_cuts(objects):
-    """Perform target selection on objects, returning targetflag array
+    """Perform target selection on objects, returning target mask arrays
 
     Args:
         objects: numpy structured array with UPPERCASE columns needed for
@@ -50,7 +50,7 @@ def apply_cuts(objects):
     else:
         primary = np.ones(len(objects), dtype=bool)
 
-    #- each of lrg, elg, bgs, ... will be a boolean array of matches
+    #----- LRG
     lrg = primary.copy()
     lrg &= rflux > 10**((22.5-23.0)/2.5)
     lrg &= zflux > 10**((22.5-22.56)/2.5)
@@ -59,6 +59,7 @@ def apply_cuts(objects):
     #- clip to avoid warnings from negative numbers raised to fractional powers
     lrg &= w1flux * rflux.clip(0)**(1.33-1) > zflux.clip(0)**1.33 * 10**(-0.33/2.5)
 
+    #----- ELG
     elg = primary.copy()
     elg &= rflux > 10**((22.5-23.4)/2.5)
     elg &= zflux > rflux * 10**(0.3/2.5)
@@ -66,6 +67,7 @@ def apply_cuts(objects):
     elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
     elg &= zflux < gflux * 10**(1.2/2.5)
 
+    #----- Quasars
     qso = primary.copy()
     qso &= rflux > 10**((22.5-23.0)/2.5)
     qso &= rflux < gflux * 10**(1.0/2.5)
@@ -75,13 +77,16 @@ def apply_cuts(objects):
     qso &= wflux * gflux.clip(0)**1.2 > rflux.clip(0)**(1+1.2) * 10**(2/2.5)
     ### qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
 
+    #------ Bright Galaxy Survey
+    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
+    psflike = ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))    
     bgs = primary.copy()
-    bgs &= objects['TYPE'] != 'PSF'   #- for astropy.io.fits (sigh)
-    bgs &= objects['TYPE'] != 'PSF '  #- for fitsio (sigh)
+    bgs &= ~psflike
     bgs &= rflux > 10**((22.5-19.35)/2.5)
 
+    #----- Standard stars
     fstd = primary.copy()
-    fstd &= ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))
+    fstd &= psflike
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     with warnings.catch_warnings():
@@ -103,27 +108,28 @@ def apply_cuts(objects):
 
     #-----
     #- construct the targetflag bits
-    desi_target  = lrg * desi_mask.LRG
-    desi_target |= elg * desi_mask.ELG
-    desi_target |= qso * desi_mask.QSO
-    desi_target |= fstd * desi_mask.FSTD
-
     #- Currently our only cuts are DECam based (i.e. South)
-    desi_target |= lrg * desi_mask.LRG_SOUTH
+    desi_target  = lrg * desi_mask.LRG_SOUTH
     desi_target |= elg * desi_mask.ELG_SOUTH
     desi_target |= qso * desi_mask.QSO_SOUTH
 
+    desi_target |= lrg * desi_mask.LRG
+    desi_target |= elg * desi_mask.ELG
+    desi_target |= qso * desi_mask.QSO
+
+    desi_target |= fstd * desi_mask.STD_FSTAR
     
     bgs_target = bgs * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
 
+    #- nothing for MWS yet; will be GAIA-based
     mws_target = np.zeros_like(bgs_target)
 
     return desi_target, bgs_target, mws_target
 
 def select_targets(infiles, numproc=4, verbose=False):
     """
-    Select targets from input files
+    Process input files in parallel to select targets
     
     Args:
         infiles: list of input filenames (tractor or sweep files)
@@ -136,7 +142,9 @@ def select_targets(infiles, numproc=4, verbose=False):
         targets numpy structured array: the subset of input targets which
             pass the cuts, including extra columns for DESI_TARGET,
             BGS_TARGET, and MWS_TARGET target selection bitmasks. 
-        
+            
+    Notes:
+        if numproc==1, use serial code instead of parallel
     """
     
     #- function to run on every brick/sweep file
