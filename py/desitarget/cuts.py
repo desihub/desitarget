@@ -125,6 +125,10 @@ def apply_cuts(objects):
     #- nothing for MWS yet; will be GAIA-based
     mws_target = np.zeros_like(bgs_target)
 
+    #- Are any BGS or MWS bit set?  Tell desi_target too.
+    desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
+    desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
+
     return desi_target, bgs_target, mws_target
 
 def select_targets(infiles, numproc=4, verbose=False):
