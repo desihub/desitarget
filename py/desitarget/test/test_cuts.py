@@ -39,7 +39,7 @@ class TestCuts(unittest.TestCase):
                 self.assertTrue('MWS_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['DESI_TARGET']))
             
-                bgs1 = targets['DESI_TARGET'] & desi_mask.BGS_ANY
+                bgs1 = (targets['DESI_TARGET'] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets['BGS_TARGET'] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
         

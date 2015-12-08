@@ -11,7 +11,7 @@ from desitarget import desi_mask, bgs_mask, mws_mask
 """
 Target Selection for DECALS catalogue data
 
-https://desi.lbl.gov/trac/wiki/TargetSelection
+https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
