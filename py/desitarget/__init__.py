@@ -38,5 +38,6 @@ def gitversion():
         return 'unknown'
 
 # desitarget.targetmask makes more sense?
-from .targetmask import targetmask
+from .targetmask import priorities, obsconditions, obsstate
+from .targetmask import desi_mask, mws_mask, bgs_mask
 

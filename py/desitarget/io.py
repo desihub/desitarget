@@ -8,6 +8,7 @@ import numpy as np
 import numpy.lib.recfunctions
 import fitsio
 import os, re
+import os.path
 from distutils.version import LooseVersion
 
 import desitarget
@@ -121,26 +122,36 @@ def read_tractor(filename, header=False):
             
         Optional:
             header: if true, return (data, header) instead of just data
+            sweep: sweep file; doesn't have BRICK_PRIMARY
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
     """
-
     check_fitsio_version()
 
     #- Columns needed for target selection and/or passing forward
     columns = [
-        'BRICKID', 'BRICKNAME', 'OBJID', 'BRICK_PRIMARY', 'TYPE',
+        'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
         'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
         'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+        'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
         'WISE_FLUX', 'WISE_MW_TRANSMISSION',
         'SHAPEDEV_R', 'SHAPEEXP_R',
         ]
 
-    #- if header is True, data will be tuple of (data, header) but that is
-    #- actually what we want to return in that case anyway
-    data = fitsio.read(filename, 1, upper=True, columns=columns, header=header)
-    return data
+    fx = fitsio.FITS(filename, upper=True)
+    #- tractor files have BRICK_PRIMARY; sweep files don't
+    if 'BRICK_PRIMARY' in fx[1].get_colnames():
+        columns.append('BRICK_PRIMARY')
+    
+    data = fx[1].read(columns=columns)
+    if header:
+        hdr = fx[1].read_header()
+        fx.close()
+        return data, hdr
+    else:
+        fx.close()
+        return data
 
 def fix_tractor_dr1_dtype(objects):
     """DR1 tractor files have inconsitent dtype for the TYPE field.  Fix this.
@@ -180,7 +191,7 @@ def write_targets(filename, data, indir=None):
     hdr['DEPNAM00'] = 'desitarget'
     hdr.add_record(dict(name='DEPVER00', value=desitarget.__version__, comment='desitarget.__version__'))
     hdr['DEPNAM01'] = 'desitarget-git'
-    hdr.add_record(dict(name='DEPVAL01', value=desitarget.gitversion(), comment='git revision'))
+    hdr.add_record(dict(name='DEPVER01', value=desitarget.gitversion(), comment='git revision'))
     
     if indir is not None:
         hdr['DEPNAM02'] = 'tractor-files'
@@ -188,40 +199,32 @@ def write_targets(filename, data, indir=None):
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
-def map_tractor(function, root, bricklist=None, numproc=4, reduce=None):
-    """Apply `function` to tractor files in `root`
-    
-    Args:
-        function: python function that takes a tractor filename as input
-        root: root directory to scan to find tractor files
-        
-    Optional:
-        bricklist: only process files with bricknames in this list
-        numproc: number of parallel processes to use
-        
-    Returns tuple of 3 lists (bricknames, brickfiles, results):
-        bricknames : brick names found in root
-        brickfiles : brick files found in root
-        results : return values of applying function on each brickfile
+def iter_files(root, prefix, ext='fits'):
+    '''Iterator over files under in root dir with given prefix and extension'''
+    if os.path.isdir(root):
+        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+            for filename in filenames:
+                if filename.startswith(prefix) and filename.endswith('.'+ext):
+                    yield os.path.join(dirpath, filename)
+    else:
+        filename = os.path.basename(root)
+        if filename.startswith(prefix) and filename.endswith('.'+ext):
+            yield root
+        else:
+            pass
 
-    e.g. results[i] = function(brickfiles[i])
+def iter_sweepfiles(root):
+    '''return iterator over sweep files found under root directory'''
+    return iter_files(root, prefix='sweep', ext='fits')
 
-    """
-    bricknames = list()
-    brickfiles = list()
-    for bname, filepath in iter_tractor(root):
-        if bricklist is None or bname in bricklist:
-            bricknames.append(bname)
-            brickfiles.append(filepath)
-    
-    pool = sharedmem.MapReduce(np=numproc)
+def list_sweepfiles(root):
+    '''return a list of sweep files found under root directory'''
+    return [x for x in iter_sweepfiles(root)]
 
-    with pool:
-        results = pool.map(function, brickfiles, reduce=reduce)
-        
-    return bricknames, brickfiles, results
+def list_tractorfiles(root):
+    return [x for x in iter_tractorfiles(root)]
 
-def iter_tractor(root):
+def iter_tractorfiles(root):
     """ Iterator over all tractor files in a directory.
 
         Args:
@@ -239,34 +242,21 @@ def iter_tractor(root):
 
             root can be a directory or a single file; both create an iterator
     """
-    def parse_filename(filename):
-        """parse filename to check if this is a tractor brick file;
-        returns brickname if it is, otherwise raises ValueError"""
-        if not filename.endswith('.fits'): raise ValueError
-        #- match filename tractor-0003p027.fits -> brickname 0003p027
-        match = re.search('tractor-(\d{4}[pm]\d{3})\.fits', 
-                os.path.basename(filename))
+    return iter_files(root, prefix='tractor', ext='fits')
 
-        if not match: raise ValueError
+def brickname_from_filename(filename):
+    """parse filename to check if this is a tractor brick file;
+    returns brickname if it is, otherwise raises ValueError"""
+    if not filename.endswith('.fits'): raise ValueError
+    #- match filename tractor-0003p027.fits -> brickname 0003p027
+    match = re.search('tractor-(\d{4}[pm]\d{3})\.fits', 
+            os.path.basename(filename))
 
-        brickname = match.group(1)
-        return brickname
+    if not match: raise ValueError
 
-    if os.path.isdir(root):
-        for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
-            for filename in filenames:
-                try:
-                    brickname = parse_filename(filename)
-                    yield brickname, os.path.join(dirpath, filename)
-                except ValueError:
-                    #- not a brick file but that's ok; keep going
-                    pass
-    else:
-        try:
-            brickname = parse_filename(os.path.basename(root))
-            yield brickname, root
-        except ValueError:
-            pass
+    brickname = match.group(1)
+    return brickname
+
 
 def check_fitsio_version():
     #- fitsio prior to 0.9.8rc1 has a bug parsing boolean columns.
@@ -276,4 +266,3 @@ def check_fitsio_version():
             print('ERROR: fitsio >0.9.8rc1 required (not {})'.format(\
                     fitsio.__version__))
             raise ImportError
-
