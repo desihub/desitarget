@@ -19,6 +19,7 @@ class TestCuts(unittest.TestCase):
         cls.sweepfiles = io.list_sweepfiles(cls.datadir)
 
     def test_cuts1(self):
+        #- Cuts work with either data or filenames
         desi, bgs, mws = cuts.apply_cuts(self.tractorfiles[0])
         desi, bgs, mws = cuts.apply_cuts(self.sweepfiles[0])
         data = io.read_tractor(self.tractorfiles[0])
@@ -31,6 +32,24 @@ class TestCuts(unittest.TestCase):
         # self.assertTrue(np.all(bgs_any1 == bgs_any2))
 
     def test_select_targets(self):
+        #- select targets should work with either data or filenames
+        for filelist in [self.tractorfiles, self.sweepfiles]:
+            targets = cuts.select_targets(filelist, numproc=1)
+            t1 = cuts.select_targets(filelist[0:1], numproc=1)
+            t2 = cuts.select_targets(filelist[0], numproc=1)
+            for col in t1.dtype.names:
+                try:
+                    notNaN = ~np.isnan(t1[col])
+                except TypeError:  #- can't check string columns for NaN
+                    notNan = np.ones(len(t1), dtype=bool)
+                    
+                self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))            
+            
+    def test_missing_files(self):
+        with self.assertRaises(ValueError):
+            targets = cuts.select_targets(['blat.foo1234',], numproc=1)
+        
+    def test_parallel_select(self):
         for nproc in [1,2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
                 targets = cuts.select_targets(filelist, numproc=nproc)

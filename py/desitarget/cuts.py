@@ -1,6 +1,7 @@
 from __future__ import absolute_import, division, print_function
 import warnings
 from time import time
+import os.path
 import numpy as np
 
 from desitarget import io
@@ -136,7 +137,8 @@ def select_targets(infiles, numproc=4, verbose=False):
     Process input files in parallel to select targets
     
     Args:
-        infiles: list of input filenames (tractor or sweep files)
+        infiles: list of input filenames (tractor or sweep files),
+            OR a single filename
         
     Optional:
         numproc: number of parallel processes to use
@@ -150,6 +152,14 @@ def select_targets(infiles, numproc=4, verbose=False):
     Notes:
         if numproc==1, use serial code instead of parallel
     """
+    #- Convert single file to list of files
+    if isinstance(infiles, (str, unicode)):
+        infiles = [infiles,]
+
+    #- Sanity check that files exist before going further
+    for filename in infiles:
+        if not os.path.exists(filename):
+            raise ValueError("{} doesn't exist".format(filename))
     
     #- function to run on every brick/sweep file
     def _select_targets_file(filename):
