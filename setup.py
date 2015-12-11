@@ -67,12 +67,13 @@ setup (
     url='https://github.com/desihub/desitarget',
     package_dir={'':'py'},
     packages=find_packages('py'),
-    scripts=[ fname for fname in glob.glob(os.path.join('bin', '*.py')) ],
+    scripts=[ fname for fname in glob.glob(os.path.join('bin', '*')) ],
     license='BSD',
     requires=['Python (>2.7.0)', ],
     use_2to3=True,
     zip_safe=False,
     cmdclass={'version': Version},
     test_suite='desitarget.test.test_suite',
+    package_data = {'desitarget': ['targetmask.yaml',]}
 )
 
