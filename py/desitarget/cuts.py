@@ -3,6 +3,7 @@ import warnings
 from time import time
 import os.path
 import numpy as np
+from astropy.table import Table
 
 from desitarget import io
 from desitarget.internal import sharedmem
@@ -17,6 +18,38 @@ https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
+
+def unextinct_fluxes(objects):
+    """
+    Calculate unextincted DECam and WISE fluxes
+    
+    Args:
+        objects: array or Table with columns DECAM_FLUX, DECAM_MW_TRANSMISSION,
+            WISE_FLUX, and WISE_MW_TRANSMISSION
+            
+    Returns:
+        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX, WFLUX
+        
+    Output type is Table if input is Table, otherwise numpy structured array
+    """
+    dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
+             ('W1FLUX','f4'), ('W2FLUX','f4'), ('WFLUX', 'f4')]
+    result = np.zeros(len(objects), dtype=dtype)
+
+    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
+    result['GFLUX'] = dered_decam_flux[:, 1]
+    result['RFLUX'] = dered_decam_flux[:, 2]
+    result['ZFLUX'] = dered_decam_flux[:, 4]
+
+    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
+    result['W1FLUX'] = dered_wise_flux[:, 0]
+    result['W2FLUX'] = dered_wise_flux[:, 1]
+    result['WFLUX']  = 0.75* result['W1FLUX'] + 0.25*result['W2FLUX']
+
+    if isinstance(objects, Table):
+        return Table(result)
+    else:
+        return result
 
 def apply_cuts(objects):
     """Perform target selection on objects, returning target mask arrays
@@ -35,16 +68,14 @@ def apply_cuts(objects):
     if isinstance(objects, (str, unicode)):
         objects = io.read_tractor(objects)
     
-    #- construct milky way extinction corrected fluxes
-    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
-    gflux = dered_decam_flux[:, 1]
-    rflux = dered_decam_flux[:, 2]
-    zflux = dered_decam_flux[:, 4]
-
-    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
-    w1flux = dered_wise_flux[:, 0]
-    wflux = 0.75* w1flux + 0.25*dered_wise_flux[:, 1]
-
+    #- undo Milky Way extinction
+    flux = unextinct_fluxes(objects)
+    gflux = flux['GFLUX']
+    rflux = flux['RFLUX']
+    zflux = flux['ZFLUX']
+    w1flux = flux['W1FLUX']
+    wflux = flux['WFLUX']
+    
     #- DR1 has targets off the edge of the brick; trim to just this brick
     if 'BRICK_PRIMARY' in objects.dtype.names:
         primary = objects['BRICK_PRIMARY']
@@ -54,7 +85,7 @@ def apply_cuts(objects):
     #----- LRG
     lrg = primary.copy()
     lrg &= rflux > 10**((22.5-23.0)/2.5)
-    lrg &= zflux > 10**((22.5-22.56)/2.5)
+    lrg &= zflux > 10**((22.5-20.56)/2.5)
     lrg &= w1flux > 10**((22.5-19.35)/2.5)
     lrg &= zflux > rflux * 10**(1.6/2.5)
     #- clip to avoid warnings from negative numbers raised to fractional powers

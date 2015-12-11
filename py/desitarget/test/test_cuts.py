@@ -2,6 +2,7 @@ import unittest
 import os.path
 from uuid import uuid4
 from astropy.io import fits
+from astropy.table import Table
 import numpy as np
 
 from desitarget import io
@@ -17,6 +18,17 @@ class TestCuts(unittest.TestCase):
         cls.datadir = os.path.abspath(thisdir+'/../../../') + '/etc/testdata'
         cls.tractorfiles = io.list_tractorfiles(cls.datadir)
         cls.sweepfiles = io.list_sweepfiles(cls.datadir)
+
+    def test_unextinct_fluxes(self):
+        targets = io.read_tractor(self.tractorfiles[0])
+        t1 = cuts.unextinct_fluxes(targets)
+        self.assertTrue(isinstance(t1, np.ndarray))
+        t2 = cuts.unextinct_fluxes(Table(targets))
+        self.assertTrue(isinstance(t2, Table))
+        for col in ['GFLUX', 'RFLUX', 'ZFLUX', 'W1FLUX', 'W2FLUX', 'WFLUX']:
+            self.assertIn(col, t1.dtype.names)
+            self.assertIn(col, t2.dtype.names)
+            self.assertTrue(np.all(t1[col] == t2[col]))
 
     def test_cuts1(self):
         #- Cuts work with either data or filenames
