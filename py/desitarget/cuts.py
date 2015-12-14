@@ -50,7 +50,7 @@ def apply_cuts(objects):
         primary = objects['BRICK_PRIMARY']
     else:
         primary = np.ones(len(objects), dtype=bool)
-
+        
     #----- LRG
     lrg = primary.copy()
     lrg &= rflux > 10**((22.5-23.0)/2.5)
@@ -69,18 +69,19 @@ def apply_cuts(objects):
     elg &= zflux < gflux * 10**(1.2/2.5)
 
     #----- Quasars
+    psflike = ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))    
     qso = primary.copy()
+    qso &= psflike
     qso &= rflux > 10**((22.5-23.0)/2.5)
     qso &= rflux < gflux * 10**(1.0/2.5)
     qso &= zflux > rflux * 10**(-0.3/2.5)
     qso &= zflux < rflux * 10**(1.1/2.5)
     #- clip to avoid warnings from negative numbers raised to fractional powers
-    qso &= wflux * gflux.clip(0)**1.2 > rflux.clip(0)**(1+1.2) * 10**(2/2.5)
+    qso &= wflux * gflux.clip(0)**1.2 > rflux.clip(0)**(1+1.2) * 10**(-0.4/2.5)
     ### qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
 
     #------ Bright Galaxy Survey
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    psflike = ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))    
     bgs = primary.copy()
     bgs &= ~psflike
     bgs &= rflux > 10**((22.5-19.35)/2.5)
