@@ -136,6 +136,7 @@ def read_tractor(filename, header=False):
         'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
         'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
         'WISE_FLUX', 'WISE_MW_TRANSMISSION',
+        'WISE_FLUX_IVAR',
         'SHAPEDEV_R', 'SHAPEEXP_R',
         ]
 
