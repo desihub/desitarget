@@ -37,13 +37,13 @@ def unextinct_fluxes(objects):
     result = np.zeros(len(objects), dtype=dtype)
 
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
-    result['GFLUX'] = dered_decam_flux[:, 1]
-    result['RFLUX'] = dered_decam_flux[:, 2]
-    result['ZFLUX'] = dered_decam_flux[:, 4]
+    result['GFLUX'] = dered_decam_flux[..., 1]
+    result['RFLUX'] = dered_decam_flux[..., 2]
+    result['ZFLUX'] = dered_decam_flux[..., 4]
 
     dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
-    result['W1FLUX'] = dered_wise_flux[:, 0]
-    result['W2FLUX'] = dered_wise_flux[:, 1]
+    result['W1FLUX'] = dered_wise_flux[..., 0]
+    result['W2FLUX'] = dered_wise_flux[..., 1]
     result['WFLUX']  = 0.75* result['W1FLUX'] + 0.25*result['W2FLUX']
 
     if isinstance(objects, Table):
@@ -126,10 +126,10 @@ def apply_cuts(objects):
         warnings.simplefilter('ignore')
         for j in (1,2,4):  #- g, r, z
             fstd &= fracflux[j] < 0.04
-            fstd &= signal2noise[:, j] > 10
+            fstd &= signal2noise[..., j] > 10
 
     #- observed flux; no Milky Way extinction
-    obs_rflux = objects['DECAM_FLUX'][:, 2]
+    obs_rflux = objects['DECAM_FLUX'][..., 2]
     fstd &= obs_rflux < 10**((22.5-16.0)/2.5)
     fstd &= obs_rflux > 10**((22.5-19.0)/2.5)
     #- colors near BD+17; ignore warnings about flux<=0
