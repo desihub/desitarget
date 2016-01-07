@@ -68,6 +68,12 @@ def apply_cuts(objects):
     if isinstance(objects, (str, unicode)):
         objects = io.read_tractor(objects)
     
+    #- ensure uppercase column names if astropy Table
+    if isinstance(objects, Table):
+        for name in objects.colnames:
+            if not name.isupper():
+                objects.rename_column(name, name.upper())
+
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
     gflux = flux['GFLUX']
