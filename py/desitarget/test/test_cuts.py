@@ -3,6 +3,7 @@ import os.path
 from uuid import uuid4
 from astropy.io import fits
 from astropy.table import Table
+import fitsio
 import numpy as np
 
 from desitarget import io
@@ -42,6 +43,22 @@ class TestCuts(unittest.TestCase):
         # bgs_any1 = (desi & desi_mask.BGS_ANY)
         # bgs_any2 = (bgs != 0)
         # self.assertTrue(np.all(bgs_any1 == bgs_any2))
+
+    #- cuts should work with tables from several I/O libraries
+    def test_astropy_fits(self):
+        targets = fits.getdata(self.tractorfiles[0])
+        blat = cuts.apply_cuts(targets)
+        blat = cuts.apply_cuts(targets[0])
+
+    def test_astropy_table(self):
+        targets = Table.read(self.tractorfiles[0])
+        blat = cuts.apply_cuts(targets)
+        blat = cuts.apply_cuts(targets[0])
+        
+    def test_numpy_ndarray(self):
+        targets = fitsio.read(self.tractorfiles[0], upper=True)
+        blat = cuts.apply_cuts(targets)
+        blat = cuts.apply_cuts(targets[0])
 
     def test_select_targets(self):
         #- select targets should work with either data or filenames
