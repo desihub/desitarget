@@ -83,9 +83,9 @@ def apply_cuts(objects):
     wflux = flux['WFLUX']
     
     #- DR1 has targets off the edge of the brick; trim to just this brick
-    if 'BRICK_PRIMARY' in objects.dtype.names:
+    try:
         primary = objects['BRICK_PRIMARY']
-    else:
+    except (KeyError, ValueError):
         primary = np.ones(len(objects), dtype=bool)
         
     #----- LRG
