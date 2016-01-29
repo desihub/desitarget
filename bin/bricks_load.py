@@ -43,7 +43,7 @@ newdata = []
 
 # Fire up the db
 
-#con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', password='L00cy-1959', database='desi')
+#con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
 #cursor = con.cursor()
 
 # Re-cast as strings so the load is easy 
