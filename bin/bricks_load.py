@@ -1,9 +1,9 @@
 #----------------------------------------------------------------------#
 # filename: pyfits+psycopg2_ex.py 
 # author: Peter Nugent
-# date: 10/30/2014
+# date: 1/29/2016
 # ---------------------------------------------------------------------#
-# Function: Read in a Arjun fits binary table from standard in and load it
+# Function: DR2, Read in a Arjun fits binary table from standard in and load it
 # into the desi calib pg table database with psycopg2.
 # ---------------------------------------------------------------------#
 

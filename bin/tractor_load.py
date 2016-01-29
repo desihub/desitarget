@@ -1,9 +1,9 @@
 #----------------------------------------------------------------------#
 # filename: astropy+psycopg2_ex.py 
 # author: Peter Nugent
-# date: 2/18/2015
+# date: 1/29/2016
 # ---------------------------------------------------------------------#
-# Function: Read in a Dustin's fits tractor binary table from standard 
+# Function: DR2, Read in a Dustin's fits tractor binary table from standard 
 # in and load it into the desi candidate pg table database with psycopg2.
 # ---------------------------------------------------------------------#
 
@@ -47,7 +47,7 @@ cursor.execute( "SELECT loaded from bricks where brickid = %s", (hdrbrickid,)  )
 loaded = cursor.fetchone()[0]
 
 if loaded:
-  print fimage, 'is already loaded'
+  print 'SKIPPING ',fimage,'ALREADY loaded it'
   sys.exit(0)
 
 ##
