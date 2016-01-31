@@ -79,7 +79,7 @@ def PSFLIKE(type):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #- this could be fixed in the IO routine too.
-    psflike = ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))
+    psflike = ((type == 'PSF') | (type == 'PSF '))
     return psflike
 
 def BGS(rflux, type=None, primary=None):
@@ -231,8 +231,8 @@ def apply_cuts(objects):
     bgs = BGS(primary=primary, rflux=rflux, type=objects['TYPE'])
 
     qso = QSO(primary=primary, zflux=zflux,
-              rflux=rflux, gflux=gflux, type=objects['TYPE'])
-              wflux=(w1flux, w2flux))
+              rflux=rflux, gflux=gflux, type=objects['TYPE'],
+              wflux=wflux)
 
     #----- Standard stars
     # FIXME: it will be messy as hell to move this code to a separate function.
