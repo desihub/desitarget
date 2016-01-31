@@ -19,6 +19,142 @@ A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
 
+def LRG(rflux, zflux, w1flux, primary=None):
+    """Target Definition of LRG. Returning a boolean array.
+
+    Args:
+        rflux, zflux, w1flux : array_like
+            The flux in nano-maggies of r, z, and w1 band.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is an LRG
+            target.
+
+    """
+    #----- Luminous Red Galaxies
+    if primary is None:
+        primary = numpy.ones_like(rflux, dtype='?')
+
+    lrg = primary.copy()
+    lrg &= rflux > 10**((22.5-23.0)/2.5)
+    lrg &= zflux > 10**((22.5-22.56)/2.5)
+    lrg &= w1flux > 10**((22.5-19.35)/2.5)
+    lrg &= zflux > rflux * 10**(1.6/2.5)
+    #- clip to avoid warnings from negative numbers raised to fractional powers
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
+
+    return lrg
+
+def ELG(gflux, rflux, zflux, primary=None):
+    """Target Definition of ELG. Returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux : array_like
+            The flux in nano-maggies of g, r, and z band.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is an ELG
+            target.
+
+    """
+    #----- Emission Line Galaxies
+    if primary is None:
+        primary = numpy.ones_like(gflux, dtype='?')
+    elg = primary.copy()
+    elg &= rflux > 10**((22.5-23.4)/2.5)
+    elg &= zflux > rflux * 10**(0.3/2.5)
+    elg &= zflux < rflux * 10**(1.5/2.5)
+    elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
+    elg &= zflux < gflux * 10**(1.2/2.5)
+
+    return elg
+
+def PSFLIKE(type):
+    """ If the object is PSF """
+    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
+    #- this could be fixed in the IO routine too.
+    psflike = ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))
+    return psflike
+
+def BGS(rflux, type=None, primary=None):
+    """Target Definition of BGS. Returning a boolean array.
+
+    Args:
+        rflux: array_like
+            The flux in nano-maggies of r band.
+        type: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a BGS
+            target.
+
+    """
+    #------ Bright Galaxy Survey
+    if primary is None:
+        primary = numpy.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
+    bgs &= rflux > 10**((22.5-19.35)/2.5)
+    if type is not None:
+        bgs &= ~PSFLIKE(type)
+    return bgs
+
+def QSO(gflux, rflux, zflux, wflux, type=None, primary=None):
+    """Target Definition of QSO. Returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux: array_like
+            The flux in nano-maggies of g, r, z band.
+        wflux: array or tuple of arrays
+            If an array is given, the array is the composited
+            w band flux in nano-maggies. (from w1 and w2,
+            refer to TargetSelection documentation for the definition).
+            If a tuple is given, the first two items of the tuple
+            is assumed to be w1flux and w2flux, and the composition
+            rule described in the TargetSelection documentation is used to
+            composite a wflux.
+        type: arary_like or None
+            If given, the TYPE column of the catalogue
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    """
+    #----- Quasars
+    if primary is None:
+        primary = numpy.ones_like(gflux, dtype='?')
+
+    if isinstance(wflux, tuple):
+        w1flux, w2flux = wflux[0], wflux[1]
+        wflux = 0.75* w1flux + 0.25*w2flux
+
+    qso = primary.copy()
+    qso &= rflux > 10**((22.5-23.0)/2.5)
+    qso &= rflux < gflux * 10**(1.0/2.5)
+    qso &= zflux > rflux * 10**(-0.3/2.5)
+    qso &= zflux < rflux * 10**(1.1/2.5)
+    #- clip to avoid warnings from negative numbers raised to fractional powers
+    gflux = gflux.clip(0)
+    rflux = rflux.clip(0)
+    qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(-0.4/2.5)
+
+    if type is not None:
+        qso &= PSFLIKE(type)
+
+    return qso
+
+
 def unextinct_fluxes(objects):
     """
     Calculate unextincted DECam and WISE fluxes
@@ -88,47 +224,25 @@ def apply_cuts(objects):
     except (KeyError, ValueError):
         primary = np.ones(len(objects), dtype=bool)
         
-    #----- LRG
-    lrg = primary.copy()
-    lrg &= rflux > 10**((22.5-23.0)/2.5)
-    lrg &= zflux > 10**((22.5-20.56)/2.5)
-    lrg &= w1flux > 10**((22.5-19.35)/2.5)
-    lrg &= zflux > rflux * 10**(1.6/2.5)
-    #- clip to avoid warnings from negative numbers raised to fractional powers
-    lrg &= w1flux * rflux.clip(0)**(1.33-1) > zflux.clip(0)**1.33 * 10**(-0.33/2.5)
+    lrg = LRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
 
-    #----- ELG
-    elg = primary.copy()
-    elg &= rflux > 10**((22.5-23.4)/2.5)
-    elg &= zflux > rflux * 10**(0.3/2.5)
-    elg &= zflux < rflux * 10**(1.5/2.5)
-    elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
-    elg &= zflux < gflux * 10**(1.2/2.5)
+    elg = ELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    #----- Quasars
-    psflike = ((objects['TYPE'] == 'PSF') | (objects['TYPE'] == 'PSF '))    
-    qso = primary.copy()
-    qso &= psflike
-    qso &= rflux > 10**((22.5-23.0)/2.5)
-    qso &= rflux < gflux * 10**(1.0/2.5)
-    qso &= zflux > rflux * 10**(-0.3/2.5)
-    qso &= zflux < rflux * 10**(1.1/2.5)
-    #- clip to avoid warnings from negative numbers raised to fractional powers
-    qso &= wflux * gflux.clip(0)**1.2 > rflux.clip(0)**(1+1.2) * 10**(-0.4/2.5)
-    ### qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(2/2.5)
+    bgs = BGS(primary=primary, rflux=rflux, type=objects['TYPE'])
 
-    #------ Bright Galaxy Survey
-    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    bgs = primary.copy()
-    bgs &= ~psflike
-    bgs &= rflux > 10**((22.5-19.35)/2.5)
+    qso = QSO(primary=primary, zflux=zflux,
+              rflux=rflux, gflux=gflux, type=objects['TYPE'])
+              wflux=(w1flux, w2flux))
 
     #----- Standard stars
+    # FIXME: it will be messy as hell to move this code to a separate function.
+    # along the lines of the other target types.
     fstd = primary.copy()
-    fstd &= psflike
+    fstd &= PSFLIKE(objects['TYPE'])
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     with warnings.catch_warnings():
+        # FIXME: what warnings are we ignoring?
         warnings.simplefilter('ignore')
         for j in (1,2,4):  #- g, r, z
             fstd &= fracflux[j] < 0.04
