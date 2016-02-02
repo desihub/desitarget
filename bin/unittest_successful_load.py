@@ -26,17 +26,17 @@ ans['decam_aper']=trac['decam_apflux'][i][1][0],trac['decam_apflux'][i][2][0],tr
 ans['wise']=trac['wise_flux'][i][0],trac['wise_flux'][i][1],trac['wise_flux'][i][2],trac['wise_flux'][i][3],trac['wise_flux_ivar'][i][3]
 
 #db
-con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_user', database='desi')
 cur = con.cursor()
 def output(cursor,query):
     cursor.execute(query)
     return cursor.fetchall()
 
 sql={}
-sql['cand']= output(cur,"SELECT blob,ra,dec,dchisq2,dchisq4,id from candidate where objid=1000")
-sql['decam']= output(cur,"SELECT gnobs,gflux,rflux,zflux from decam where cand_id=884")
-sql['decam_aper']= output(cur,"SELECT gapflux_1,rapflux_1,zapflux_1,zapflux_8 from decam_aper where cand_id=884")
-sql['wise']= output(cur,"SELECT w1flux,w2flux,w3flux,w4flux,w4flux_ivar from wise where cand_id=884")
+sql['cand']= output(cur,"SELECT blob,ra,dec,dchisq2,dchisq4,id from dr2.candidate where objid=1000")
+sql['decam']= output(cur,"SELECT gnobs,gflux,rflux,zflux from dr2.decam where cand_id=884")
+sql['decam_aper']= output(cur,"SELECT gapflux_1,rapflux_1,zapflux_1,zapflux_8 from dr2.decam_aper where cand_id=884")
+sql['wise']= output(cur,"SELECT w1flux,w2flux,w3flux,w4flux,w4flux_ivar from dr2.wise where cand_id=884")
 
 for key in ans.keys():
     print '----',key.upper(),'----'

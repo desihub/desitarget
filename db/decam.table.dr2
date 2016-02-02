@@ -83,4 +83,3 @@ CREATE TABLE decam (
     Y_galdepth real
 );
 
-CREATE INDEX decam_candid_idx ON decam (cand_id);

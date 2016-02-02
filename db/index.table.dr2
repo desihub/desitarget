@@ -1,3 +1,9 @@
+CREATE INDEX cand_q3c_candidate_idx ON candidate (q3c_ang2ipix(ra,dec));
+CLUSTER cand_q3c_candidate_idx on candidate;
+CREATE INDEX cand_brickid_idx ON candidate (brickid);
+CREATE INDEX decam_candid_idx ON decam (cand_id);
+CREATE INDEX decam_aper_candid_idx ON decam_aper (cand_id);
+CREATE INDEX wise_candid_idx ON wise (cand_id);
 CREATE INDEX uflux_idx ON decam (uflux);
 CREATE INDEX gflux_idx ON decam (gflux);
 CREATE INDEX rflux_idx ON decam (rflux);

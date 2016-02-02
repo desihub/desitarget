@@ -29,4 +29,3 @@ CREATE TABLE wise (
     W4_ext real
 );
 
-CREATE INDEX wise_candid_idx ON wise (cand_id);
