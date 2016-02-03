@@ -3,7 +3,7 @@ import warnings
 from time import time
 import os.path
 import numpy as np
-from astropy.table import Table
+from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.internal import sharedmem
@@ -198,6 +198,11 @@ def apply_cuts(objects):
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object
         
+    Bugs:
+        If objects is a astropy Table with lowercase column names, this
+        converts them to UPPERCASE in-place, thus modifying the input table.
+        To avoid this, pass in objects.copy() instead. 
+
     See desitarget.targetmask for the definition of each bit
     """
     #- Check if objects is a filename instead of the actual data
@@ -205,10 +210,10 @@ def apply_cuts(objects):
         objects = io.read_tractor(objects)
     
     #- ensure uppercase column names if astropy Table
-    if isinstance(objects, Table):
-        for name in objects.colnames:
-            if not name.isupper():
-                objects.rename_column(name, name.upper())
+    if isinstance(objects, (Table, Row)):
+        for col in objects.columns.itervalues():
+            if not col.name.isupper():
+                col.name = col.name.upper()
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
