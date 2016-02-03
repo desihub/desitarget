@@ -45,44 +45,34 @@ class TestCuts(unittest.TestCase):
         # self.assertTrue(np.all(bgs_any1 == bgs_any2))
 
     #- cuts should work with tables from several I/O libraries
-    def _test_table_cuts(self, targets):
+    def _test_table_row(self, targets):
+        self.assertFalse(cuts._is_row(targets))
+        self.assertTrue(cuts._is_row(targets[0]))
+
         desi, bgs, mws = cuts.apply_cuts(targets)
         self.assertEqual(len(desi), len(targets))
         self.assertEqual(len(bgs), len(targets))
         self.assertEqual(len(mws), len(targets))
+        
+        desi, bgs, mws = cuts.apply_cuts(targets[0])
+        self.assertTrue(isinstance(desi, int), 'DESI_TARGET mask not an int')
+        self.assertTrue(isinstance(bgs, int), 'BGS_TARGET mask not an int')
+        self.assertTrue(isinstance(mws, int), 'MWS_TARGET mask not an int')
 
     def test_astropy_fits(self):
         targets = fits.getdata(self.tractorfiles[0])
-        self._test_table_cuts(targets)
+        self._test_table_row(targets)
 
     def test_astropy_table(self):
         targets = Table.read(self.tractorfiles[0])
-        self._test_table_cuts(targets)
+        self._test_table_row(targets)
 
     def test_numpy_ndarray(self):
         targets = fitsio.read(self.tractorfiles[0], upper=True)
-        self._test_table_cuts(targets)
+        self._test_table_row(targets)
 
-    #- cuts should also work on individual rows
-    def _test_row_cuts(self, row):
-        desi, bgs, mws = cuts.apply_cuts(row)
-        for mask in (desi, bgs, mws):
-            self.assertTrue((mask is True) or (mask is False))
-
-    def test_astropy_fits_row(self):
-        targets = fits.getdata(self.tractorfiles[0])
-        self._test_row_cuts(targets[0])
-
-    def test_astropy_table_row(self):
-        targets = Table.read(self.tractorfiles[0])
-        self._test_row_cuts(targets[0])
-
-    def test_numpy_ndarray_row(self):
-        targets = fitsio.read(self.tractorfiles[0], upper=True)
-        self._test_row_cuts(targets[0])
-
+    #- select targets should work with either data or filenames
     def test_select_targets(self):
-        #- select targets should work with either data or filenames
         for filelist in [self.tractorfiles, self.sweepfiles]:
             targets = cuts.select_targets(filelist, numproc=1)
             t1 = cuts.select_targets(filelist[0:1], numproc=1)

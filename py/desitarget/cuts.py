@@ -75,11 +75,12 @@ def ELG(gflux, rflux, zflux, primary=None):
 
     return elg
 
-def PSFLIKE(type):
+def PSFLIKE(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #- this could be fixed in the IO routine too.
-    psflike = ((type == 'PSF') | (type == 'PSF '))
+    psftype = np.asarray(psftype)
+    psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
     return psflike
 
 def BGS(rflux, type=None, primary=None):
@@ -154,6 +155,18 @@ def QSO(gflux, rflux, zflux, wflux, type=None, primary=None):
 
     return qso
 
+def _is_row(table):
+    '''Return True/False if this is a row of a table instead of a full table
+    
+    supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
+    '''
+    import astropy.io.fits.fitsrec
+    import astropy.table.row
+    if isinstance(table, (astropy.io.fits.fitsrec.FITS_record, astropy.table.row.Row)) or \
+        np.isscalar(table):
+        return True
+    else:
+        return False
 
 def unextinct_fluxes(objects):
     """
@@ -170,8 +183,11 @@ def unextinct_fluxes(objects):
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
              ('W1FLUX','f4'), ('W2FLUX','f4'), ('WFLUX', 'f4')]
-    result = np.zeros(len(objects), dtype=dtype)
-
+    if _is_row(objects):
+        result = np.zeros(1, dtype=dtype)[0]
+    else:
+        result = np.zeros(len(objects), dtype=dtype)
+    
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
     result['GFLUX'] = dered_decam_flux[..., 1]
     result['RFLUX'] = dered_decam_flux[..., 2]
@@ -227,7 +243,10 @@ def apply_cuts(objects):
     try:
         primary = objects['BRICK_PRIMARY']
     except (KeyError, ValueError):
-        primary = np.ones(len(objects), dtype=bool)
+        if _is_row(objects):
+            primary = True
+        else:
+            primary = np.ones_like(objects, dtype=bool)
         
     lrg = LRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
 
@@ -281,7 +300,10 @@ def apply_cuts(objects):
     bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
 
     #- nothing for MWS yet; will be GAIA-based
-    mws_target = np.zeros_like(bgs_target)
+    if isinstance(bgs_target, int):
+        mws_target = 0
+    else:
+        mws_target = np.zeros_like(bgs_target)
 
     #- Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
