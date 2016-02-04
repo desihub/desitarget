@@ -5,6 +5,7 @@ import numpy as np
 import os
 import psycopg2
 import sys
+from subprocess import check_output
 
 def rem_if_exists(name):
     if os.path.exists(name):
@@ -52,10 +53,25 @@ def replace_key_np_record(data,oldkey,newkey):
     newn[i]= newkey
     data.dtype.names= newn
 
+def get_table_colnames(fname):
+    f=open(fname,'r')
+    lines= f.readlines()
+    f.close()
+    colnams=[]
+    for i in range(len(lines)):
+        if 'CREATE TABLE' in lines[i]:
+            i+=1
+            while ');' not in lines[i]:
+                li_arr= lines[i].strip().split()
+                i+=1
+                if 'id' == li_arr[0]: continue
+                else: colnams.append(li_arr[0])
+    return colnams
+
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['dr1','dr2','truth'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['index','bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 args = parser.parse_args()
@@ -69,7 +85,47 @@ data,keys= thesis_code.fits.getdata(a,1)
 nrows = data.shape[0] 
 
 #write schemas
-if args.table == 'bricks':
+if args.table == 'index':
+    outname= 'index.table.'+args.schema
+    rem_if_exists(outname)
+    fin=open(outname,'w')
+    #index flux values first, then q3c when done
+    #list names of all flux tables
+    cmd= "find . -maxdepth 1 -type f -name *flux.table.truth"
+    flux_tables= check_output(cmd.split())
+    flux_tables= flux_tables.strip().replace("./","").split()
+    print 'flux_tables= ',flux_tables
+    #index non 'id' columns for each flux table
+    for fn in flux_tables:
+        cnames= get_table_colnames(fn)
+        table= fn.split('.')[0]
+        for col in cnames: fin.write('CREATE INDEX %s_%s_idx ON %s.%s (%s);\n' % (table,col,args.schema,table,col))
+    #q3c indexing
+    #list names of all objs tables
+    cmd= "find . -maxdepth 1 -type f -name *objs.table.truth"
+    objs_tables= check_output(cmd.split())
+    objs_tables= objs_tables.strip().replace("./","").split()
+    print 'objs_tables= ',objs_tables
+    #index non 'id' columns for each flux table
+    for fn in objs_tables: 
+        table= fn.split('.')[0]
+        fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra,dec));\n' % (table,table))
+        fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (table,table))
+    #done
+    fin.close()    
+    #usual psql first
+    #for tname in tnames: fin.write('CREATE INDEX name_idx ON %s.%s (col_name);\n' % (schema,tname)
+    #q3c indexing
+    #fin.close()
+#CREATE INDEX cand_q3c_candidate_idx ON candidate (q3c_ang2ipix(ra,dec));
+#CLUSTER cand_q3c_candidate_idx on candidate;
+#CREATE INDEX cand_brickid_idx ON candidate (brickid);
+#CREATE INDEX decam_candid_idx ON decam (cand_id);
+#CREATE INDEX decam_aper_candid_idx ON decam_aper (cand_id);
+#CREATE INDEX wise_candid_idx ON wise (cand_id);
+#CREATE INDEX uflux_idx ON decam (uflux);
+#CREATE INDEX gflux_idx ON decam (gflux); 
+elif args.table == 'bricks':
     sql_dtype={}
     for key in keys:
         if key.startswith('RA') or key.startswith('ra') or key.startswith('DEC') or key.startswith('dec'): sql_dtype[key]= 'double precision' 
