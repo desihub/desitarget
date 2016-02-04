@@ -70,7 +70,7 @@ def get_table_colnames(fname):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
-parser.add_argument("-schema",choices=['dr1','dr2','truth'],action="store",help='',required=True)
+parser.add_argument("-schema",choices=['public','dr1','dr2','truth'],action="store",help='',required=True)
 parser.add_argument("-table",choices=['index','bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
