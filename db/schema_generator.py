@@ -29,8 +29,8 @@ def write_schema(schema,table,keys,sql_dtype,addrows=[],indexing=[]):
         if index == indexing[-1]: fin.write('\n')
     fin.close()
 
-def insert_query(table,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
-    query = 'INSERT INTO %s ( ' % table    
+def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
+    query = 'INSERT INTO %s.%s ( ' % (schema,table)    
     for nk in newkeys: query+= '%s, ' % nk
     for key in keys:
         query+= key.lower()
@@ -60,6 +60,10 @@ parser.add_argument("-overw_schema",action="store",help='set to anything to writ
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 args = parser.parse_args()
 
+if args.schema == 'dr1' or args.schema == 'dr2':
+    print 'preventing accidental load to dr1 or dr2'
+    raise ValueError
+
 a=fits.open(args.fits_file)
 data,keys= thesis_code.fits.getdata(a,1)
 nrows = data.shape[0] 
@@ -85,7 +89,7 @@ if args.table == 'bricks':
     cursor = con.cursor()
     for i in range(0,30): #nrows):
         print 'row= ',i
-        query= insert_query(args.table,i,data,keys)
+        query= insert_query(args.schema,args.table,i,data,keys)
         if args.load_db: cursor.execute(query) 
     if args.load_db: 
         con.commit()
@@ -119,12 +123,12 @@ elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     cursor = con.cursor()
     for i in range(0, 30): #nrows):
         print 'row= ',i
-        query1= insert_query(args.table+'_objs',i,data,obj_keys,returning=True)
+        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
             id = cursor.fetchone()[0]
         else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.table+'_flux',i,data,fluxes_keys,newkeys=['cand_id'],newvals=[id])
+        query2= insert_query(args.schema,args.table+'_flux',i,data,fluxes_keys,newkeys=['cand_id'],newvals=[id])
         if args.load_db: cursor.execute(query2) 
     if args.load_db: 
         con.commit()
@@ -156,12 +160,12 @@ elif args.table == 'cosmos_acs':
     cursor = con.cursor()
     for i in range(0, 30): #nrows):
         print 'row= ',i
-        query1= insert_query(args.table+'_objs',i,data,obj_keys,returning=True)
+        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
             id = cursor.fetchone()[0]
         else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
+        query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
         if args.load_db: cursor.execute(query2) 
     if args.load_db: 
         con.commit()
@@ -198,12 +202,12 @@ elif args.table == 'cosmos_zphot':
     cursor = con.cursor()
     for i in range(0, 30): #nrows):
         print 'row= ',i
-        query1= insert_query(args.table+'_objs',i,data,obj_keys,returning=True)
+        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
             id = cursor.fetchone()[0]
         else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
+        query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
         if args.load_db: cursor.execute(query2) 
     if args.load_db: 
         con.commit()
