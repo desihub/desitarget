@@ -10,8 +10,8 @@ def rem_if_exists(name):
     if os.path.exists(name):
         if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
 
-def write_schema(table,keys,sql_dtype,addrows=[],indexing=[]):
-    outname= table+'.table'
+def write_schema(schema,table,keys,sql_dtype,addrows=[],indexing=[]):
+    outname= table+'.table.%s' % schema
     rem_if_exists(outname)
     fin=open(outname,'w')
     fin.write('CREATE SEQUENCE %s_id_seq;' % table)
@@ -54,6 +54,7 @@ def replace_key_np_record(data,oldkey,newkey):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
+parser.add_argument("-schema",choices=['dr1','dr2','truth'],action="store",help='',required=True)
 parser.add_argument("-table",choices=['bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
@@ -78,7 +79,7 @@ if args.table == 'bricks':
                 "CLUSTER %s_q3c_idx on %s" % (args.table,args.table),\
                 "CREATE INDEX %s_brickid_idx ON %s (brickid)" %(args.table,args.table)]
     if args.overw_schema:
-        write_schema(args.table,keys,sql_dtype,addrows=more_rows,indexing=indexes)
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows,indexing=indexes)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
@@ -111,8 +112,8 @@ elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
                     "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
     if args.overw_schema:
-        write_schema(args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.table+'_flux',fluxes_keys,sql_dtype,addrows=more_flux_rows)
+        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
+        write_schema(args.schema,args.table+'_flux',fluxes_keys,sql_dtype,addrows=more_flux_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
@@ -148,8 +149,8 @@ elif args.table == 'cosmos_acs':
     more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
                     "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
     if args.overw_schema:
-        write_schema(args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
+        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
+        write_schema(args.schema,args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
@@ -190,8 +191,8 @@ elif args.table == 'cosmos_zphot':
     more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
                     "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
     if args.overw_schema:
-        write_schema(args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
+        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
+        write_schema(args.schema,args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
