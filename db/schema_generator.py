@@ -214,8 +214,8 @@ elif args.table == 'cosmos_acs':
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    for i in range(0, 30): #nrows):
-        print 'row= ',i
+    for i in range(0, nrows):
+        #print 'row= ',i
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
