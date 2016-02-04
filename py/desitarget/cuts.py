@@ -19,7 +19,7 @@ A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
 
-def LRG(rflux, zflux, w1flux, primary=None):
+def isLRG(rflux, zflux, w1flux, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
@@ -49,7 +49,7 @@ def LRG(rflux, zflux, w1flux, primary=None):
 
     return lrg
 
-def ELG(gflux, rflux, zflux, primary=None):
+def isELG(gflux, rflux, zflux, primary=None):
     """Target Definition of ELG. Returning a boolean array.
 
     Args:
@@ -75,7 +75,7 @@ def ELG(gflux, rflux, zflux, primary=None):
 
     return elg
 
-def PSFLIKE(psftype):
+def psflike(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #- this could be fixed in the IO routine too.
@@ -83,7 +83,7 @@ def PSFLIKE(psftype):
     psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
     return psflike
 
-def BGS(rflux, type=None, primary=None):
+def isBGS(rflux, type=None, primary=None):
     """Target Definition of BGS. Returning a boolean array.
 
     Args:
@@ -105,10 +105,10 @@ def BGS(rflux, type=None, primary=None):
     bgs = primary.copy()
     bgs &= rflux > 10**((22.5-19.35)/2.5)
     if type is not None:
-        bgs &= ~PSFLIKE(type)
+        bgs &= ~psflike(type)
     return bgs
 
-def QSO(gflux, rflux, zflux, wflux, type=None, primary=None):
+def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
     Args:
@@ -151,7 +151,7 @@ def QSO(gflux, rflux, zflux, wflux, type=None, primary=None):
     qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(-0.4/2.5)
 
     if type is not None:
-        qso &= PSFLIKE(type)
+        qso &= psflike(type)
 
     return qso
 
@@ -248,13 +248,13 @@ def apply_cuts(objects):
         else:
             primary = np.ones_like(objects, dtype=bool)
         
-    lrg = LRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
+    lrg = isLRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
 
-    elg = ELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    bgs = BGS(primary=primary, rflux=rflux, type=objects['TYPE'])
+    bgs = isBGS(primary=primary, rflux=rflux, type=objects['TYPE'])
 
-    qso = QSO(primary=primary, zflux=zflux,
+    qso = isQSO(primary=primary, zflux=zflux,
               rflux=rflux, gflux=gflux, type=objects['TYPE'],
               wflux=wflux)
 
@@ -262,7 +262,7 @@ def apply_cuts(objects):
     # FIXME: it will be messy as hell to move this code to a separate function.
     # along the lines of the other target types.
     fstd = primary.copy()
-    fstd &= PSFLIKE(objects['TYPE'])
+    fstd &= psflike(objects['TYPE'])
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     with warnings.catch_warnings():
