@@ -53,6 +53,16 @@ def replace_key_np_record(data,oldkey,newkey):
     newn[i]= newkey
     data.dtype.names= newn
 
+def get_sql_dtype(keys):
+    sql_dtype={}
+    for key in keys:
+        if key.startswith('RA') or key.startswith('ra') or key.startswith('DEC') or key.startswith('dec'): sql_dtype[key]= 'double precision' 
+        elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
+        elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
+        elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
+        else: raise ValueError
+    return sql_dtype
+
 def get_table_colnames(fname):
     f=open(fname,'r')
     lines= f.readlines()
@@ -68,6 +78,37 @@ def get_table_colnames(fname):
                 else: colnams.append(li_arr[0])
     return colnams
 
+def indexes_for_tables(schema):
+    if schema == 'truth' or schema == 'public':
+        return dict(bricks=['brickid'],\
+                    cfhtls_d2_r_objs=['id','brickid','radec'],\
+                    cfhtls_d2_r_flux=['cand_id','brickid','u_mag_auto','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
+                    cfhtls_d2_i_objs=['id','brickid','radec'],\
+                    cfhtls_d2_i_flux=['cand_id','brickid','u_mag_auto','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
+                    cosmos_acs_objs=['id','brickid','radec'],\
+                    cosmos_acs_flux=['cand_id','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
+                    cosmos_zphot_objs=['id','brickid','radec'],\
+                    cosmos_zphot_flux=['cand_id','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag'],\
+                    )
+    elif schema == 'dr1':
+        raise ValueError
+    elif schema == 'dr2':
+        raise ValueError
+    else:
+        raise ValueError
+
+def q3c_cluster_analyze(list_tables,cursor):
+    indexes= indexes_for_tables(args.schema)
+    for table in list_tables:
+        if 'radec' in indexes[table]:
+            print 'q3c cluster on table: %s' % table 
+            query = 'CLUSTER q3c_%s_idx ON %s' % (table,table)
+            cursor.execute(query)
+            print 'q3c analyze on table: %s' % table
+            query = 'ANALYZE %s' % args.table
+            cursor.execute(query)
+
+
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['public','dr1','dr2','truth'],action="store",help='',required=True)
@@ -82,57 +123,25 @@ if args.schema == 'dr1' or args.schema == 'dr2':
 
 a=fits.open(args.fits_file)
 data,keys= thesis_code.fits.getdata(a,1)
-nrows = data.shape[0] 
+nrows = data.shape[0]            
 
 #write schemas
 if args.table == 'index':
-    outname= 'index.table.'+args.schema
+    #open index file
+    outname= 'index.'+args.schema
     rem_if_exists(outname)
     fin=open(outname,'w')
-    #index flux values first, then q3c when done
-    #list names of all flux tables
-    cmd= "find . -maxdepth 1 -type f -name *flux.table.truth"
-    flux_tables= check_output(cmd.split())
-    flux_tables= flux_tables.strip().replace("./","").split()
-    print 'flux_tables= ',flux_tables
-    #index non 'id' columns for each flux table
-    for fn in flux_tables:
-        cnames= get_table_colnames(fn)
-        table= fn.split('.')[0]
-        for col in cnames: fin.write('CREATE INDEX %s_%s_idx ON %s.%s (%s);\n' % (table,col,args.schema,table,col))
-    #q3c indexing
-    #list names of all objs tables
-    cmd= "find . -maxdepth 1 -type f -name *objs.table.truth"
-    objs_tables= check_output(cmd.split())
-    objs_tables= objs_tables.strip().replace("./","").split()
-    print 'objs_tables= ',objs_tables
-    #index non 'id' columns for each flux table
-    for fn in objs_tables: 
-        table= fn.split('.')[0]
-        fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra,dec));\n' % (table,table))
-        fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (table,table))
+    #write create index cmds to file
+    indexes= indexes_for_tables(args.schema)
+    for table in indexes.keys(): 
+        for coln in indexes[table]: 
+            if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s.%s (q3c_ang2ipix(ra, dec));\n' % (table,args.schema,table))
+            else: fin.write('CREATE INDEX %s_%s_idx ON %s.%s (%s);\n' % (table,coln,args.schema,table,coln)) 
     #done
     fin.close()    
-    #usual psql first
-    #for tname in tnames: fin.write('CREATE INDEX name_idx ON %s.%s (col_name);\n' % (schema,tname)
-    #q3c indexing
-    #fin.close()
-#CREATE INDEX cand_q3c_candidate_idx ON candidate (q3c_ang2ipix(ra,dec));
-#CLUSTER cand_q3c_candidate_idx on candidate;
-#CREATE INDEX cand_brickid_idx ON candidate (brickid);
-#CREATE INDEX decam_candid_idx ON decam (cand_id);
-#CREATE INDEX decam_aper_candid_idx ON decam_aper (cand_id);
-#CREATE INDEX wise_candid_idx ON wise (cand_id);
-#CREATE INDEX uflux_idx ON decam (uflux);
-#CREATE INDEX gflux_idx ON decam (gflux); 
 elif args.table == 'bricks':
-    sql_dtype={}
-    for key in keys:
-        if key.startswith('RA') or key.startswith('ra') or key.startswith('DEC') or key.startswith('dec'): sql_dtype[key]= 'double precision' 
-        elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
-        elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
-        elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
-        else: raise ValueError
+    #dtype for each key using as column name
+    sql_dtype= get_sql_dtype(keys)
     #schema
     more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % args.table]
     indexes= ["CREATE INDEX %s_q3c_idx ON %s (q3c_ang2ipix(ra,dec))" % (args.table,args.table),\
@@ -143,15 +152,17 @@ elif args.table == 'bricks':
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    for i in range(0,30): #nrows):
-        print 'row= ',i
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0,nrows):
         query= insert_query(args.schema,args.table,i,data,keys)
         if args.load_db: cursor.execute(query) 
+    print 'finished loading files into %s' % args.table
+    print 'query looks like this: \n',query    
     if args.load_db: 
         con.commit()
-        print 'finished bricks load'
-    print 'query looks like this: \n',query    
-
+        print 'clustering and analyzing if need to'
+        q3c_cluster_analyze([args.table],cursor)
+    print 'done'
 elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     obj_keys,fluxes_keys=[],[]
     for key in keys:
@@ -159,13 +170,7 @@ elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
         elif key.startswith('U_') or key.startswith('G_') or key.startswith('R_') or key.startswith('I_') or key.startswith('Z_'):
             fluxes_keys.append(key)
         else: obj_keys.append(key)
-    sql_dtype={}
-    for key in keys:
-        if key == 'RA' or key == 'DEC': sql_dtype[key]= 'double precision' 
-        elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
-        elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
-        elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
-        else: raise ValueError
+    get_sql_dtype(keys)
     #schema
     more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
                     "brickid integer default null"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
@@ -178,7 +183,6 @@ elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     for i in range(0, 30): #nrows):
-        print 'row= ',i
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
@@ -196,13 +200,7 @@ elif args.table == 'cosmos_acs':
     '''description of columns: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_acs_colDescriptions.html'''
     flux_keys= keys[1:17] #[0] is running obj number from sextractor catalog says to ignore
     obj_keys= keys[17:]
-    sql_dtype={}
-    for key in keys:
-        if key.lower().startswith('ra') or key.lower().startswith('dec'): sql_dtype[key]= 'double precision' 
-        elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
-        elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
-        elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
-        else: raise ValueError
+    sql_dtype= get_sql_dtype(keys)
     #schema
     more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
                     "brickid integer default null"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
@@ -214,8 +212,7 @@ elif args.table == 'cosmos_acs':
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    for i in range(0, nrows):
-        #print 'row= ',i
+    for i in range(0, 10000): #nrows):
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
@@ -238,13 +235,7 @@ elif args.table == 'cosmos_zphot':
     flux_keys=[]
     for k in keys: 
         if k not in obj_keys: flux_keys+= [k]
-    sql_dtype={}
-    for key in keys:
-        if key.lower().startswith('ra') or key.lower().startswith('dec'): sql_dtype[key]= 'double precision' 
-        elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
-        elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
-        elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
-        else: raise ValueError
+    sql_dtype= get_sql_dtype(keys)
     #schema
     more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
                     "brickid integer default null"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
@@ -257,7 +248,6 @@ elif args.table == 'cosmos_zphot':
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     for i in range(0, 30): #nrows):
-        print 'row= ',i
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
