@@ -146,7 +146,7 @@ if args.table == 'bricks':
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
-    for i in range(0,30): #nrows):
+    for i in range(0,nrows):
         query= insert_query(args.schema,args.table,i,data,keys)
         if args.load_db: cursor.execute(query) 
     print 'finished loading files into %s' % args.table
@@ -173,7 +173,8 @@ elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    for i in range(0, 30): #nrows):
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
@@ -203,7 +204,8 @@ elif args.table == 'cosmos_acs':
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    for i in range(0, 10000): #nrows):
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
@@ -238,7 +240,8 @@ elif args.table == 'cosmos_zphot':
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    for i in range(0, 30): #nrows):
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
             cursor.execute(query1) 
@@ -253,17 +256,5 @@ elif args.table == 'cosmos_zphot':
     print 'obj query: \n',query1    
     print 'flux query: \n',query2   
 else: raise ValueError
-#output schemas
-#print 'writing objects table'
-#print 'done'
 
-#load data into obj and fluxes tables in db
-# Fire up the db
-#cursor.execute( "UPDATE bricks set filename = %s, loaded = 'true', tractorvr = %s where brickid = %s", (fimage, tractver, hdrbrickid,)  )
-
-     
-#   id = cursor.fetchone()[0]
-###
-###
-#   cursor.execute( query, tuple( [str(elem) for elem in [ id ] + newdata_decam[i]] ) )
-#
+print 'done'
