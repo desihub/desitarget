@@ -11,7 +11,7 @@ def rem_if_exists(name):
     if os.path.exists(name):
         if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
 
-def write_schema(schema,table,keys,sql_dtype,addrows=[],indexing=[]):
+def write_schema(schema,table,keys,sql_dtype,addrows=[]):
     outname= table+'.table.%s' % schema
     rem_if_exists(outname)
     fin=open(outname,'w')
@@ -25,13 +25,10 @@ def write_schema(schema,table,keys,sql_dtype,addrows=[],indexing=[]):
         if key != keys[-1]: stri+= ','
         fin.write(stri)
     fin.write('\n'+');'+'\n')
-    for index in indexing: 
-        fin.write('\n'+index+';')
-        if index == indexing[-1]: fin.write('\n')
     fin.close()
 
 def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
-    query = 'INSERT INTO %s.%s ( ' % (schema,table)    
+    query = 'INSERT INTO %s ( ' % table    
     for nk in newkeys: query+= '%s, ' % nk
     for key in keys:
         query+= key.lower()
@@ -80,11 +77,11 @@ def get_table_colnames(fname):
 
 def indexes_for_tables(schema):
     if schema == 'truth' or schema == 'public':
-        return dict(bricks=['brickid'],\
+        return dict(bricks=['brickid','radec'],\
                     cfhtls_d2_r_objs=['id','brickid','radec'],\
-                    cfhtls_d2_r_flux=['cand_id','brickid','u_mag_auto','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
+                    cfhtls_d2_r_flux=['cand_id','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
                     cfhtls_d2_i_objs=['id','brickid','radec'],\
-                    cfhtls_d2_i_flux=['cand_id','brickid','u_mag_auto','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
+                    cfhtls_d2_i_flux=['cand_id','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
                     cosmos_acs_objs=['id','brickid','radec'],\
                     cosmos_acs_flux=['cand_id','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
                     cosmos_zphot_objs=['id','brickid','radec'],\
@@ -97,71 +94,65 @@ def indexes_for_tables(schema):
     else:
         raise ValueError
 
-def q3c_cluster_analyze(list_tables,cursor):
-    indexes= indexes_for_tables(args.schema)
-    for table in list_tables:
-        if 'radec' in indexes[table]:
-            print 'q3c cluster on table: %s' % table 
-            query = 'CLUSTER q3c_%s_idx ON %s' % (table,table)
-            cursor.execute(query)
-            print 'q3c analyze on table: %s' % table
-            query = 'ANALYZE %s' % args.table
-            cursor.execute(query)
-
-
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['public','dr1','dr2','truth'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['index','bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
+parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
 args = parser.parse_args()
 
 if args.schema == 'dr1' or args.schema == 'dr2':
     print 'preventing accidental load to dr1 or dr2'
     raise ValueError
 
+#write index and cluster files
+if args.index_cluster:
+    indexes= indexes_for_tables(args.schema)
+    #write index file
+    outname= 'index.'+args.schema
+    rem_if_exists(outname)
+    fin=open(outname,'w')
+    #index cmds to file
+    for table in indexes.keys(): 
+        for coln in indexes[table]: 
+            if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra, dec));\n' % (table,table))
+            else: fin.write('CREATE INDEX %s_%s_idx ON %s (%s);\n' % (table,coln,table,coln)) 
+    fin.close()    
+    #write cluster file
+    outname= 'cluster.'+args.schema
+    rem_if_exists(outname)
+    fin=open(outname,'w')
+    for table in indexes.keys():
+        if 'radec' in indexes[table]:
+            fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (table,table))
+            fin.write('ANALYZE %s;\n' % table)
+
+
+#write tables
 a=fits.open(args.fits_file)
 data,keys= thesis_code.fits.getdata(a,1)
 nrows = data.shape[0]            
 
-#write schemas
-if args.table == 'index':
-    #open index file
-    outname= 'index.'+args.schema
-    rem_if_exists(outname)
-    fin=open(outname,'w')
-    #write create index cmds to file
-    indexes= indexes_for_tables(args.schema)
-    for table in indexes.keys(): 
-        for coln in indexes[table]: 
-            if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s.%s (q3c_ang2ipix(ra, dec));\n' % (table,args.schema,table))
-            else: fin.write('CREATE INDEX %s_%s_idx ON %s.%s (%s);\n' % (table,coln,args.schema,table,coln)) 
-    #done
-    fin.close()    
-elif args.table == 'bricks':
+if args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
     #schema
     more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % args.table]
-    indexes= ["CREATE INDEX %s_q3c_idx ON %s (q3c_ang2ipix(ra,dec))" % (args.table,args.table),\
-                "CLUSTER %s_q3c_idx on %s" % (args.table,args.table),\
-                "CREATE INDEX %s_brickid_idx ON %s (brickid)" %(args.table,args.table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows,indexing=indexes)
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
-    for i in range(0,nrows):
+    for i in range(0,30): #nrows):
         query= insert_query(args.schema,args.table,i,data,keys)
         if args.load_db: cursor.execute(query) 
     print 'finished loading files into %s' % args.table
     print 'query looks like this: \n',query    
     if args.load_db: 
         con.commit()
-        print 'clustering and analyzing if need to'
-        q3c_cluster_analyze([args.table],cursor)
     print 'done'
 elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     obj_keys,fluxes_keys=[],[]
