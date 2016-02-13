@@ -75,6 +75,34 @@ def isELG(gflux, rflux, zflux, primary=None):
 
     return elg
 
+def isFSTD(gflux, rflux, zflux, primary=None):
+    """Select FSTD targets just based on color cuts. Returns a boolean array. 
+
+    Args:
+        gflux, rflux, zflux : array_like
+            Flux in nano-maggies of g, r, and z band.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is an FSTD
+            target.
+
+    """
+    #----- F-type standard stars
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    fstd = primary.copy()
+
+    #- colors near BD+17; ignore warnings about flux<=0
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        grcolor = 2.5 * np.log10(rflux / gflux)
+        rzcolor = 2.5 * np.log10(zflux / rflux)
+        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+
+    return fstd
+
 def psflike(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
@@ -259,9 +287,8 @@ def apply_cuts(objects):
               wflux=wflux)
 
     #----- Standard stars
-    # FIXME: it will be messy as hell to move this code to a separate function.
-    # along the lines of the other target types.
-    fstd = primary.copy()
+    fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+
     fstd &= psflike(objects['TYPE'])
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
@@ -276,12 +303,6 @@ def apply_cuts(objects):
     obs_rflux = objects['DECAM_FLUX'][..., 2]
     fstd &= obs_rflux < 10**((22.5-16.0)/2.5)
     fstd &= obs_rflux > 10**((22.5-19.0)/2.5)
-    #- colors near BD+17; ignore warnings about flux<=0
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        grcolor = 2.5 * np.log10(rflux / gflux)
-        rzcolor = 2.5 * np.log10(zflux / rflux)
-        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
 
     #-----
     #- construct the targetflag bits
