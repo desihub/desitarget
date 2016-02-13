@@ -35,7 +35,7 @@ def isLRG(rflux, zflux, w1flux, primary=None):
     """
     #----- Luminous Red Galaxies
     if primary is None:
-        primary = numpy.ones_like(rflux, dtype='?')
+        primary = np.ones_like(rflux, dtype='?')
 
     lrg = primary.copy()
     lrg &= rflux > 10**((22.5-23.0)/2.5)
@@ -65,7 +65,7 @@ def isELG(gflux, rflux, zflux, primary=None):
     """
     #----- Emission Line Galaxies
     if primary is None:
-        primary = numpy.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
     elg &= rflux > 10**((22.5-23.4)/2.5)
     elg &= zflux > rflux * 10**(0.3/2.5)
@@ -101,7 +101,7 @@ def isBGS(rflux, type=None, primary=None):
     """
     #------ Bright Galaxy Survey
     if primary is None:
-        primary = numpy.ones_like(rflux, dtype='?')
+        primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
     bgs &= rflux > 10**((22.5-19.35)/2.5)
     if type is not None:
@@ -134,7 +134,7 @@ def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
     """
     #----- Quasars
     if primary is None:
-        primary = numpy.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gflux, dtype='?')
 
     if isinstance(wflux, tuple):
         w1flux, w2flux = wflux[0], wflux[1]
