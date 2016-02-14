@@ -75,7 +75,7 @@ def isELG(gflux, rflux, zflux, primary=None):
 
     return elg
 
-def isFSTD(gflux, rflux, zflux, primary=None):
+def isFSTD_colors(gflux, rflux, zflux, primary=None):
     """Select FSTD targets just based on color cuts. Returns a boolean array. 
 
     Args:
@@ -85,8 +85,11 @@ def isFSTD(gflux, rflux, zflux, primary=None):
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is an FSTD
-            target.
+        mask : boolean array, True if the object has colors like an FSTD
+
+    Notes:
+        The full FSTD target selection also includes PSF-like and fracflux
+        cuts; this function is only cuts on the colors.
 
     """
     #----- F-type standard stars
@@ -287,7 +290,7 @@ def apply_cuts(objects):
               wflux=wflux)
 
     #----- Standard stars
-    fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     fstd &= psflike(objects['TYPE'])
     fracflux = objects['DECAM_FRACFLUX'].T        

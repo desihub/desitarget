@@ -81,6 +81,10 @@ class TestCuts(unittest.TestCase):
         qso2 = cuts.isQSO(gflux, rflux, zflux, wflux, type=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
 
+        fstd1 = cuts.isFSTD_colors(gflux, rflux, zflux, primary=None)
+        fstd2 = cuts.isFSTD_colors(gflux, rflux, zflux, primary=primary)
+        self.assertTrue(np.all(fstd1==fstd2))
+
     #- cuts should work with tables from several I/O libraries
     def _test_table_row(self, targets):
         self.assertFalse(cuts._is_row(targets))
