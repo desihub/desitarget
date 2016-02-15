@@ -35,7 +35,7 @@ def isLRG(rflux, zflux, w1flux, primary=None):
     """
     #----- Luminous Red Galaxies
     if primary is None:
-        primary = numpy.ones_like(rflux, dtype='?')
+        primary = np.ones_like(rflux, dtype='?')
 
     lrg = primary.copy()
     lrg &= rflux > 10**((22.5-23.0)/2.5)
@@ -65,7 +65,7 @@ def isELG(gflux, rflux, zflux, primary=None):
     """
     #----- Emission Line Galaxies
     if primary is None:
-        primary = numpy.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
     elg &= rflux > 10**((22.5-23.4)/2.5)
     elg &= zflux > rflux * 10**(0.3/2.5)
@@ -74,6 +74,37 @@ def isELG(gflux, rflux, zflux, primary=None):
     elg &= zflux < gflux * 10**(1.2/2.5)
 
     return elg
+
+def isFSTD_colors(gflux, rflux, zflux, primary=None):
+    """Select FSTD targets just based on color cuts. Returns a boolean array. 
+
+    Args:
+        gflux, rflux, zflux : array_like
+            Flux in nano-maggies of g, r, and z band.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : boolean array, True if the object has colors like an FSTD
+
+    Notes:
+        The full FSTD target selection also includes PSF-like and fracflux
+        cuts; this function is only cuts on the colors.
+
+    """
+    #----- F-type standard stars
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    fstd = primary.copy()
+
+    #- colors near BD+17; ignore warnings about flux<=0
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        grcolor = 2.5 * np.log10(rflux / gflux)
+        rzcolor = 2.5 * np.log10(zflux / rflux)
+        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+
+    return fstd
 
 def psflike(psftype):
     """ If the object is PSF """
@@ -101,7 +132,7 @@ def isBGS(rflux, type=None, primary=None):
     """
     #------ Bright Galaxy Survey
     if primary is None:
-        primary = numpy.ones_like(rflux, dtype='?')
+        primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
     bgs &= rflux > 10**((22.5-19.35)/2.5)
     if type is not None:
@@ -134,7 +165,7 @@ def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
     """
     #----- Quasars
     if primary is None:
-        primary = numpy.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gflux, dtype='?')
 
     if isinstance(wflux, tuple):
         w1flux, w2flux = wflux[0], wflux[1]
@@ -259,9 +290,8 @@ def apply_cuts(objects):
               wflux=wflux)
 
     #----- Standard stars
-    # FIXME: it will be messy as hell to move this code to a separate function.
-    # along the lines of the other target types.
-    fstd = primary.copy()
+    fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+
     fstd &= psflike(objects['TYPE'])
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
@@ -276,12 +306,6 @@ def apply_cuts(objects):
     obs_rflux = objects['DECAM_FLUX'][..., 2]
     fstd &= obs_rflux < 10**((22.5-16.0)/2.5)
     fstd &= obs_rflux > 10**((22.5-19.0)/2.5)
-    #- colors near BD+17; ignore warnings about flux<=0
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        grcolor = 2.5 * np.log10(rflux / gflux)
-        rzcolor = 2.5 * np.log10(zflux / rflux)
-        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
 
     #-----
     #- construct the targetflag bits
