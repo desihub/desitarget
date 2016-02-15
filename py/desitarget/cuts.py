@@ -5,7 +5,6 @@ import os.path
 import numpy as np
 from astropy.table import Table, Row
 
-from desitarget import io
 from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget import desi_mask, bgs_mask, mws_mask
@@ -254,6 +253,7 @@ def apply_cuts(objects):
     """
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, (str, unicode)):
+        from desitarget import io
         objects = io.read_tractor(objects)
     
     #- ensure uppercase column names if astropy Table
@@ -367,6 +367,7 @@ def select_targets(infiles, numproc=4, verbose=False):
     #- function to run on every brick/sweep file
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
+        from desitarget import io
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = apply_cuts(objects)
         
