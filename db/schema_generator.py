@@ -57,7 +57,10 @@ def get_sql_dtype(keys):
         elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
         elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
         elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
-        else: raise ValueError
+        elif np.issubdtype(data[key].dtype, np.uint8): sql_dtype[key]= 'integer' #binary, store as int for now
+        else: 
+            print('key, type= ',key,data[key].dtype)
+            raise ValueError
     return sql_dtype
 
 def get_table_colnames(fname):
@@ -78,6 +81,8 @@ def get_table_colnames(fname):
 def indexes_for_tables(schema):
     if schema == 'truth' or schema == 'public':
         return dict(bricks=['brickid','radec'],\
+                    deep2_f2_objs=['id','radec'],\
+                    deep2_f2_flux=['zhelio','g','r','z'],\
                     cfhtls_d2_r_objs=['id','brickid','radec'],\
                     cfhtls_d2_r_flux=['cand_id','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
                     cfhtls_d2_i_objs=['id','brickid','radec'],\
@@ -97,7 +102,7 @@ def indexes_for_tables(schema):
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['public','dr1','dr2','truth'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['bricks','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['bricks','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
@@ -154,6 +159,41 @@ if args.table == 'bricks':
     if args.load_db: 
         con.commit()
     print 'done'
+elif args.table.startswith('deep2'):
+    '''http://deep.ps.uci.edu/DR4/photo.extended.html'''
+    #rename ra_deep,dec_deep to ra,dec
+    replace_key_np_record(data,'RA_DEEP','RA') 
+    replace_key_np_record(data,'DEC_DEEP','DEC') 
+    keys= list(data.dtype.names) #update keys
+    obj_keys= keys[:3]
+    flux_keys=keys[5:]
+    sql_dtype= get_sql_dtype(keys)
+    sql_dtype['OBJNO']= 'bigint'
+    #schema
+    more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs')]
+    more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
+                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    if args.overw_schema:
+        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
+        write_schema(args.schema,args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
+    #db
+    con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+    cursor = con.cursor()
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
+        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
+        if args.load_db: 
+            cursor.execute(query1) 
+            id = cursor.fetchone()[0]
+        else: id=2 #junk val so can print what query would look like 
+        query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
+        if args.load_db: cursor.execute(query2) 
+    if args.load_db: 
+        con.commit()
+        print 'finished %s load' %args.table
+    print '%s query looks like this: \n' % args.table    
+    print 'obj query: \n',query1    
+    print 'flux query: \n',query2   
 elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
     obj_keys,fluxes_keys=[],[]
     for key in keys:
