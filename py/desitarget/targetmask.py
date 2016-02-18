@@ -29,8 +29,14 @@ for maskname, priorities in _bitdefs['priorities'].items():
                 priorities[bitname]['MORE_ZWARN'] = priorities[bitname]['UNOBS']
             if 'MORE_ZGOOD' not in priorities[bitname]:
                 priorities[bitname]['MORE_ZGOOD'] = priorities[bitname]['UNOBS']
+
+            #- fill in other states as 0 priority
+            for state, blat, foo in _bitdefs['obsstate']:
+                if state not in priorities[bitname]:
+                    priorities[bitname][state] = 0
         else:
             priorities[bitname] = dict()
+            
         
     #- add to the extra info dictionary for this target mask
     for bitdef in _bitdefs[maskname]:

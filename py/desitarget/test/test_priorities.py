@@ -36,7 +36,17 @@ class TestPriorities(unittest.TestCase):
         self.assertEqual(p[1], bgs_mask.BGS_FAINT.priorities['MORE_ZWARN'])
         self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['MORE_ZGOOD'])
         ### BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2200, MORE_ZGOOD: 2300}
-        
-                
+
+    def test_priorities(self):
+        for mask in [desi_mask, bgs_mask, mws_mask]:
+            for name in mask.names():
+                if name == 'SKY' or name.startswith('STD') \
+                    or name in ['BGS_ANY', 'MWS_ANY', 'ANCILLARY_ANY']:
+                    self.assertEqual(mask[name].priorities, {}, 'mask.{} has priorities?'.format(name))
+                else:
+                    for state in obsstate.names():
+                        self.assertIn(state, mask[name].priorities,
+                            '{} not in mask.{}.priorities'.format(state, name))
+
 if __name__ == '__main__':
     unittest.main()
