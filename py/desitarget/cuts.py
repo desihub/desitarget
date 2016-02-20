@@ -414,34 +414,3 @@ def select_targets(infiles, numproc=4, verbose=False):
     targets = np.concatenate(targets)
     
     return targets
-
-# def calc_numobs(targets, targetflags):
-#     """
-#     Return array of number of observations needed for each target.
-#     
-#     Args:
-#         targets: numpy structured array with tractor inputs
-#         targetflags: array of target selection bit flags 
-#     
-#     Returns:
-#         array of integers of number of observations needed
-#     """
-#     #- Default is one observation
-#     nobs = np.ones(len(targets), dtype='i4')
-#     
-#     #- If it wasn't selected by any target class, it gets 0 observations
-#     #- Normally these would have already been removed, but just in case...
-#     nobs[targetflags == 0] = 0
-#     
-#     #- LRGs get 1, 2, or 3 observations depending upon magnitude
-#     zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]    
-#     islrg = (targetflags & targetmask.LRG) != 0
-#     lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
-#     lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
-#     nobs[lrg2] = 2
-#     nobs[lrg3] = 3
-#     
-#     #- TBD: flag QSOs for 4-5 obs ahead of time, or only after confirming
-#     #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
-#     
-#     return nobs

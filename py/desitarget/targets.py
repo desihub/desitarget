@@ -18,7 +18,7 @@ def calc_priority(targets, targetstate=None):
                         
     Returns:
         integer array of priorities
-        
+
     Notes:
         If a target passes more than one selection, the highest priority wins
     '''
@@ -60,6 +60,10 @@ def calc_numobs(targets):
             
     Returns:
         array of integers of requested number of observations
+        
+    Notes:
+        if ZFLUX or (DECAM_FLUX and DECAM_MW_TRANSMISSION) are in targets,
+            then LRG numobs depends upon zmag, else defaults to 2
     """
     #- Default is one observation
     nobs = np.ones(len(targets), dtype='i4')
@@ -67,17 +71,31 @@ def calc_numobs(targets):
     #- If it wasn't selected by any target class, it gets 0 observations
     #- Normally these would have already been removed, but just in case...
     nobs[targets['DESI_TARGET'] == 0] = 0
-    
+
     #- LRGs get 1, 2, or 3 observations depending upon magnitude
-    zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]    
+    zflux = None
+    if 'ZFLUX' in targets.dtype.names:
+        zflux = targets['ZFLUX']
+    elif 'DECAM_FLUX' in targets.dtype.names:
+        if 'DECAM_MW_TRANSMISSION' in targets.dtype.names:
+            zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]
+        else:
+            zflux = targets['DECAM_FLUX'][:,4]
+
     islrg = (targets['DESI_TARGET'] & desi_mask.LRG) != 0
-    lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
-    lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
-    nobs[lrg2] = 2
-    nobs[lrg3] = 3
-    
-    #- TBD: flag QSOs for 4-5 obs ahead of time, or only after confirming
+    if zflux is not None:
+        lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
+        lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
+        nobs[lrg2] = 2
+        nobs[lrg3] = 3
+    else:
+        nobs[islrg] = 2
+
+    #- TBD: flag QSOs for 4 obs ahead of time, or only after confirming
     #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
+    isqso = (targets['DESI_TARGET'] & desi_mask.QSO) != 0
+    nobs[isqso] = 4
+
     return nobs
 
 def finalize(targets, desi_target, bgs_target, mws_target):
