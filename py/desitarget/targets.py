@@ -1,52 +1,91 @@
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-from desitarget import desi_mask, bgs_mask, mws_mask
-from desitarget import obsstate
+from astropy.table import Table
 
-def calc_priority(targets, targetstate=None):
+from desitarget import desi_mask, bgs_mask, mws_mask
+from desitarget import obsmask
+
+def calc_priority(targets):
     '''
     Calculate target priorities given observation state and target masks
 
     Args:
         targets: numpy structured array or astropy Table of targets, including
             columns DESI_TARGET, BGS_TARGET, and MWS_TARGET
-            
-    Optional:
-        targetstate: array of integers with the obstate mask for each target.
-            If None, treat as desitarget.obsstate.UNOBS
-                        
+    
     Returns:
         integer array of priorities
 
     Notes:
         If a target passes more than one selection, the highest priority wins
     '''
-    if targetstate is None:
-        targetstate = obsstate.UNOBS
+    targets = Table(targets).copy()
+    if 'NUMOBS' not in targets.colnames:
+        targets['NUMOBS'] = np.zeros(len(targets), dtype=np.int32)
     
     #- default is 0 priority, i.e. do not observe
     priority = np.zeros(len(targets), dtype='i8')
-    
-    #- Cache what targets are in what states
-    targetstate = np.asarray(targetstate)
-    isstate = dict()
-    for x in obsstate.names():
-        isstate[x] = (targetstate & obsstate[x]) != 0
 
-    for xxx_target, xxx_mask in [
-            (targets['DESI_TARGET'], desi_mask),
-            (targets['BGS_TARGET'], bgs_mask),
-            (targets['MWS_TARGET'], mws_mask),
-        ]:
-        for objtype in xxx_mask.names():
-            #- targets of this objtype
-            thistype = (xxx_target & xxx_mask[objtype]) != 0
-            for state, p in xxx_mask[objtype].priorities.items():
-                #- targets of this type and in this obsstate
-                ii = isstate[state] & thistype
-                priority[ii] = np.maximum(priority[ii], p)
-                ### print objtype, state, ii, priority
+    #- Determine which targets have been observed
+    #- TODO: this doesn't distinguish between really unobserved vs not yet processed
+    unobs = (targets['NUMOBS'] == 0)
+    if np.all(unobs):
+        done  = np.zeros(len(targets), dtype=bool)
+        zgood = np.zeros(len(targets), dtype=bool)
+        zwarn = np.zeros(len(targets), dtype=bool)
+    else:
+        nmore = np.maximum(0, calc_numobs(targets) - targets['NUMOBS'])
+        assert np.all(nmore >= 0)
+        done = ~unobs & (nmore == 0)
+        zgood = ~unobs & (nmore > 0) & (targets['ZWARN'] == 0)
+        zwarn = ~unobs & (nmore > 0) & (targets['ZWARN'] != 0)
+
+    #- zgood, zwarn, done, and unobs should be mutually exclusive and cover all targets
+    assert not np.any(unobs & zgood)
+    assert not np.any(unobs & zwarn)
+    assert not np.any(unobs & done)
+    assert not np.any(zgood & zwarn)
+    assert not np.any(zgood & done)
+    assert not np.any(zwarn & done)
+    assert np.all(unobs | done | zgood | zwarn)
+
+    #- DESI dark time targets
+    if 'DESI_TARGET' in targets.colnames:
+        for name in ('ELG', 'LRG'):
+            ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+            priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+            priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
+            priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+    
+        #- QSO could be Lyman-alpha or Tracer
+        name = 'QSO'
+        ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+        good_hiz = zgood & (targets['Z'] >= 2.15) & (targets['ZWARN'] == 0)    
+        priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+        priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
+        priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
+        priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
+        priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+
+    #- BGS targets
+    if 'BGS_TARGET' in targets.colnames:
+        for name in bgs_mask.names():
+            ii = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
+            priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
+            priority[ii & done] = np.maximum(priority[ii & done], bgs_mask[name].priorities['DONE'])
+            priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
+
+    #- MWS targets
+    if 'MWS_TARGET' in targets.colnames:
+        for name in mws_mask.names():
+            ii = (targets['MWS_TARGET'] & mws_mask[name]) != 0
+            priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
+            priority[ii & done] = np.maximum(priority[ii & done], mws_mask[name].priorities['DONE'])
+            priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
 
     return priority
 
@@ -95,6 +134,11 @@ def calc_numobs(targets):
     #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
     isqso = (targets['DESI_TARGET'] & desi_mask.QSO) != 0
     nobs[isqso] = 4
+
+    #- TBD: BGS Faint = 2 observations
+    if 'BGS_TARGET' in targets.dtype.names:
+        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
+        nobs[ii] = np.maximum(nobs[ii], 2)
 
     return nobs
 

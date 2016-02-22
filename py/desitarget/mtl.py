@@ -1,9 +1,10 @@
 import numpy as np
+from astropy.table import Table, join
 
-from desitarget import desi_mask
-from desitarget.targets import calc_numobs
+from desitarget import desi_mask, obsmask
+from desitarget.targets import calc_numobs, calc_priority
 
-def make_mtl(targets):
+def make_mtl(targets, zcat=None):
     '''
     Adds NUMOBS, PRIORITY, and LASTPASS columns to a targets table
     
@@ -13,24 +14,27 @@ def make_mtl(targets):
     Returns:
         MTL Table with targets columns plus NUMOBS, PRIORITY, LASTPASS
 
-    Note:
-        v0 - no zcatalog information used yet
+    TODO:
+        Check if targets is ever altered (it shouldn't...)
     '''
     n = len(targets)
-    mtl = targets.copy(copy_data=False)
+    targets = Table(targets)
+    if zcat is not None:
+        ztargets = join(targets, zcat, keys='TARGETID', join_type='outer')
+        if ztargets.masked:
+            unobs = ztargets['NUMOBS'].mask
+            ztargets['NUMOBS'][unobs] = 0
+    else:
+        ztargets = targets.copy()
+        ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
+        ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
+        ztargets['ZWARN'] = -1  * np.ones(n, dtype=np.int32)
     
-    priority = np.zeros(n, dtype='i4')
-    for name in desi_mask.names():
-        if name.startswith('STD_') or \
-           name in ('SKY', 'BGS_ANY', 'MWS_ANY', 'ANCILLARY_ANY'):
-            continue
-        ii = (mtl['DESI_TARGET'] & desi_mask[name]) != 0
-        if np.any(ii):
-            priority[ii] = np.maximum(priority[ii], desi_mask[name].priorities['UNOBS'])
-                
-    mtl['PRIORITY'] = priority
+    ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
 
-    mtl['NUMOBS'] = calc_numobs(targets)
+    mtl = targets.copy()
+    mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
+    mtl['PRIORITY'] = calc_priority(ztargets)
 
     #- ELGs can be observed during gray time (the "last pass")
     lastpass = np.zeros(n, dtype='i4')
