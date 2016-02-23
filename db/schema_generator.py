@@ -7,6 +7,8 @@ import psycopg2
 import sys
 from subprocess import check_output
 
+from thesis_code.fits import tractor_cat
+
 def rem_if_exists(name):
     if os.path.exists(name):
         if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
@@ -101,7 +103,7 @@ def indexes_for_tables(schema):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
-parser.add_argument("-schema",choices=['public','dr1','dr2','truth'],action="store",help='',required=True)
+parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
 parser.add_argument("-table",choices=['bricks','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
@@ -136,11 +138,22 @@ if args.index_cluster:
 
 
 #write tables
-a=fits.open(args.fits_file)
-data,keys= thesis_code.fits.getdata(a,1)
-nrows = data.shape[0]            
+if args.schema == 'ptf':
+    data= tractor_cat(fn)
+    nrows = data['ra'].shape[0]            
+else:
+    a=fits.open(args.fits_file)
+    data,keys= thesis_code.fits.getdata(a,1)
+    nrows = data.shape[0]            
 
-if args.table == 'bricks':
+if args.schema == 'ptf':
+    k_dec= ['decam_flux','decam_flux_ivar','decam_fracflux','decam_fracmasked','decam_fracin','decam_rchi2','decam_nobs','decam_anymask','decam_allmask','decam_mw_transmission']
+
+    k_aper= ['decam_apflux','decam_apflux_resid','decam_apflux_ivar']
+    k_cand=[]
+    for key in data.keys():
+        if key not in k_dec and key not in k_aper: k_cand.append(key)
+elif args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
     #schema
