@@ -59,6 +59,7 @@ def get_sql_dtype(keys):
         elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
         elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
         elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
+        elif np.issubdtype(data[key].dtype, bool): sql_dtype[key]= 'boolean'
         elif np.issubdtype(data[key].dtype, np.uint8): sql_dtype[key]= 'integer' #binary, store as int for now
         else: 
             print('key, type= ',key,data[key].dtype)
@@ -103,7 +104,7 @@ def indexes_for_tables(schema):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
-parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
+parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf50','ptf100','ptf150','ptf200'],action="store",help='',required=True)
 parser.add_argument("-table",choices=['bricks','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
@@ -138,21 +139,64 @@ if args.index_cluster:
 
 
 #write tables
-if args.schema == 'ptf':
-    data= tractor_cat(fn)
+if args.schema.startswith('ptf'):
+    data= tractor_cat(args.fits_file)
     nrows = data['ra'].shape[0]            
 else:
     a=fits.open(args.fits_file)
     data,keys= thesis_code.fits.getdata(a,1)
     nrows = data.shape[0]            
 
-if args.schema == 'ptf':
-    k_dec= ['decam_flux','decam_flux_ivar','decam_fracflux','decam_fracmasked','decam_fracin','decam_rchi2','decam_nobs','decam_anymask','decam_allmask','decam_mw_transmission']
-
-    k_aper= ['decam_apflux','decam_apflux_resid','decam_apflux_ivar']
-    k_cand=[]
+if args.schema.startswith('ptf'):
+    #flatten multi-D arrays eg. seperate array for each band's flux
+    #bands
+    for cnt,b in enumerate(['u','g','r','i','z','Y']): 
+        #decam
+        data[b+'flux']=data['decam_flux'][:,cnt].copy()
+        data[b+'flux_ivar']= data['decam_flux_ivar'][:,cnt].copy()
+        data[b+'fracflux']= data['decam_fracflux'][:,cnt].copy()
+        data[b+'fracmasked']= data['decam_fracmasked'][:,cnt].copy()
+        data[b+'fracin']= data['decam_fracin'][:,cnt].copy()
+        data[b+'_rchi2']= data['decam_rchi2'][:,cnt].copy()
+        data[b+'nobs']= data['decam_nobs'][:,cnt].copy()
+        data[b+'_anymask']= data['decam_anymask'][:,cnt].copy()
+        data[b+'_allmask']= data['decam_allmask'][:,cnt].copy()
+        data[b+'_psfsize']= data['decam_psfsize'][:,cnt].copy()
+        data[b+'_ext']= data['decam_mw_transmission'][:,cnt].copy()
+        data[b+'_depth']= data['decam_depth'][:,cnt].copy()
+        data[b+'_galdepth']= data['decam_galdepth'][:,cnt].copy()
+        #decam_aper, 8 aperatures
+        for ap in range(8):
+            data[b+'apflux_%d' % ap+1]= data['decam_apflux'][:,cnt,ap].copy()
+            data[b+'apflux_resid_%d' % ap+1]= data['decam_apflux_resid'][:,cnt,ap].copy()
+            data[b+'apflux_ivar_%d' % ap+1]= data['decam_apflux_ivar'][:,cnt,ap].copy()
+    #types of sources 
+    for i in range(5): 
+        data['dchisq%d' % i]= data['dchisq'][:,i].copy()
+    multi_keys= ['dchisq','decam_flux','decam_flux_ivar','decam_fracflux','decam_fracmasked','decam_fracin','decam_rchi2','decam_nobs','decam_anymask','decam_allmask',\
+                'decam_psfsize','decam_mw_transmission','decam_depth','decam_galdepth','decam_apflux','decam_apflux_resid','decam_apflux_ivar']
+    for key in multi_keys: del data[key]
+    #get keys + flattened array keys
+    k_dec,k_aper,k_cand=[],[],[]
     for key in data.keys():
-        if key not in k_dec and key not in k_aper: k_cand.append(key)
+        if 'apflux' in key: k_aper.append(key)
+        elif 'flux' in key or 'mask' in key or 'depth' in key: k_dec.append(key)
+        elif 'rchi' in key or 'nobs' in key or 'psf' in key or 'ext' in key: k_dec.append(key)
+        elif key not in k_dec and key not in k_aper: k_cand.append(key)
+        else: raise ValueError
+    #dtype for each key using as column name
+    sql_dtype= get_sql_dtype(data.keys())
+    #schema
+    more_cand= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
+                    "brickid integer default -1"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
+    more_decam= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
+                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
+                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    if args.overw_schema:
+        write_schema(args.schema,'candidate',k_cand,sql_dtype,addrows=more_cand)
+        write_schema(args.schema,'decam',k_dec,sql_dtype,addrows=more_decam)
+        write_schema(args.schema,'aper',k_aper,sql_dtype,addrows=more_aper)
 elif args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
