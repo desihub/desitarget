@@ -4,18 +4,26 @@ from astropy.table import Table, join
 from desitarget import desi_mask, obsmask
 from desitarget.targets import calc_numobs, calc_priority
 
-def make_mtl(targets, zcat=None):
+def make_mtl(targets, zcat=None, trim=True):
     '''
-    Adds NUMOBS, PRIORITY, and LASTPASS columns to a targets table
+    Adds NUMOBS, PRIORITY, and GRAYLAYER columns to a targets table
     
     Args:
-        targets : Table with columns DESI_TARGET
+        targets : Table with columns TARGETID, DESI_TARGET
+
+    Optional:
+        zcat : redshift catalog table with columns TARGETID, NUMOBS, Z, ZWARN
+        trim: if True (default), don't include targets that don't need
+            any more observations.  If False, include every input target.
     
     Returns:
-        MTL Table with targets columns plus NUMOBS, PRIORITY, LASTPASS
+        MTL Table with targets columns plus
+          * NUMOBS_MORE - number of additional observations requested
+          * PRIORITY - target priority (larger number = higher priority)
+          * GRAYLAYER - can this be observed during gray time?
 
     TODO:
-        Check if targets is ever altered (it shouldn't...)
+        Check if input targets is ever altered (ist shouldn't...)
     '''
     n = len(targets)
     targets = Table(targets)
@@ -36,10 +44,14 @@ def make_mtl(targets, zcat=None):
     mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     mtl['PRIORITY'] = calc_priority(ztargets)
 
-    #- ELGs can be observed during gray time (the "last pass")
-    lastpass = np.zeros(n, dtype='i4')
+    #- ELGs can be observed during gray time
+    graylayer = np.zeros(n, dtype='i4')
     iselg = (mtl['DESI_TARGET'] & desi_mask.ELG) != 0
-    lastpass[iselg] = 1    
-    mtl['LASTPASS'] = lastpass
+    graylayer[iselg] = 1
+    mtl['GRAYLAYER'] = graylayer
+
+    if trim:
+        notdone = mtl['NUMOBS_MORE'] > 0
+        mtl = mtl[notdone]
     
     return mtl
