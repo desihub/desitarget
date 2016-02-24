@@ -59,8 +59,8 @@ def get_sql_dtype(keys):
         elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
         elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
         elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
-        elif np.issubdtype(data[key].dtype, bool): sql_dtype[key]= 'boolean'
         elif np.issubdtype(data[key].dtype, np.uint8): sql_dtype[key]= 'integer' #binary, store as int for now
+        elif np.issubdtype(data[key].dtype, bool): sql_dtype[key]= 'boolean'
         else: 
             print('key, type= ',key,data[key].dtype)
             raise ValueError
@@ -163,18 +163,18 @@ if args.schema.startswith('ptf'):
         data[b+'_allmask']= data['decam_allmask'][:,cnt].copy()
         data[b+'_psfsize']= data['decam_psfsize'][:,cnt].copy()
         data[b+'_ext']= data['decam_mw_transmission'][:,cnt].copy()
-        data[b+'_depth']= data['decam_depth'][:,cnt].copy()
-        data[b+'_galdepth']= data['decam_galdepth'][:,cnt].copy()
+        #data[b+'_depth']= data['decam_depth'][:,cnt].copy()
+        #data[b+'_galdepth']= data['decam_galdepth'][:,cnt].copy()
         #decam_aper, 8 aperatures
         for ap in range(8):
-            data[b+'apflux_%d' % ap+1]= data['decam_apflux'][:,cnt,ap].copy()
-            data[b+'apflux_resid_%d' % ap+1]= data['decam_apflux_resid'][:,cnt,ap].copy()
-            data[b+'apflux_ivar_%d' % ap+1]= data['decam_apflux_ivar'][:,cnt,ap].copy()
+            data[b+'apflux_'+str(ap+1)]= data['decam_apflux'][:,cnt,ap].copy()
+            data[b+'apflux_resid_'+str(ap+1)]= data['decam_apflux_resid'][:,cnt,ap].copy()
+            data[b+'apflux_ivar_'+str(ap+1)]= data['decam_apflux_ivar'][:,cnt,ap].copy()
     #types of sources 
     for i in range(5): 
-        data['dchisq%d' % i]= data['dchisq'][:,i].copy()
+        data['dchisq'+str(i)]= data['dchisq'][:,i].copy()
     multi_keys= ['dchisq','decam_flux','decam_flux_ivar','decam_fracflux','decam_fracmasked','decam_fracin','decam_rchi2','decam_nobs','decam_anymask','decam_allmask',\
-                'decam_psfsize','decam_mw_transmission','decam_depth','decam_galdepth','decam_apflux','decam_apflux_resid','decam_apflux_ivar']
+                'decam_psfsize','decam_mw_transmission','decam_apflux','decam_apflux_resid','decam_apflux_ivar'] #'decam_depth','decam_galdepth'
     for key in multi_keys: del data[key]
     #get keys + flattened array keys
     k_dec,k_aper,k_cand=[],[],[]
@@ -194,9 +194,9 @@ if args.schema.startswith('ptf'):
     more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
                     "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
     if args.overw_schema:
-        write_schema(args.schema,'candidate',k_cand,sql_dtype,addrows=more_cand)
-        write_schema(args.schema,'decam',k_dec,sql_dtype,addrows=more_decam)
-        write_schema(args.schema,'aper',k_aper,sql_dtype,addrows=more_aper)
+        write_schema(args.schema,'candidate',np.sort(k_cand),sql_dtype,addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
+        write_schema(args.schema,'decam',np.sort(k_dec),sql_dtype,addrows=more_decam)
+        write_schema(args.schema,'aper',np.sort(k_aper),sql_dtype,addrows=more_aper)
 elif args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
