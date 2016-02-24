@@ -16,7 +16,7 @@ class TestMTL(unittest.TestCase):
             
     def test_mtl(self):
         mtl = make_mtl(self.targets)
-        goodkeys = set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'LASTPASS'])
+        goodkeys = set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'GRAYLAYER'])
         self.assertTrue(set(mtl.dtype.names) == goodkeys, \
                         'colname mismatch: {} vs. {}'.format( \
                             mtl.dtype.names, goodkeys))
@@ -26,6 +26,6 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
         iselg = (self.types == 'ELG')
-        self.assertTrue(np.all(mtl['LASTPASS'][iselg] != 0))
-        self.assertTrue(np.all(mtl['LASTPASS'][~iselg] == 0))
+        self.assertTrue(np.all(mtl['GRAYLAYER'][iselg] != 0))
+        self.assertTrue(np.all(mtl['GRAYLAYER'][~iselg] == 0))
             
