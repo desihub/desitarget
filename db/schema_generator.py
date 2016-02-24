@@ -82,7 +82,8 @@ def get_table_colnames(fname):
     return colnams
 
 def indexes_for_tables(schema):
-    if schema == 'truth' or schema == 'public':
+    if schema == 'truth' or schema == 'public' or schema.startswith('ptf'):
+        bands= ['u','g','r','i','z','Y']
         return dict(bricks=['brickid','radec'],\
                     deep2_f2_objs=['id','radec'],\
                     deep2_f2_flux=['zhelio','g','r','z'],\
@@ -94,6 +95,8 @@ def indexes_for_tables(schema):
                     cosmos_acs_flux=['cand_id','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
                     cosmos_zphot_objs=['id','brickid','radec'],\
                     cosmos_zphot_flux=['cand_id','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag'],\
+                    ptf50_cand=['id','brickid','radec'],\
+                    ptf50_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
                     )
     elif schema == 'dr1':
         raise ValueError
@@ -104,8 +107,8 @@ def indexes_for_tables(schema):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
-parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf50','ptf100','ptf150','ptf200'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['bricks','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['bricks','ptf50','ptf100','ptf150','ptf200','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
@@ -139,7 +142,7 @@ if args.index_cluster:
 
 
 #write tables
-if args.schema.startswith('ptf'):
+if args.schema == 'ptf':
     data= tractor_cat(args.fits_file)
     nrows = data['ra'].shape[0]            
 else:
@@ -147,7 +150,7 @@ else:
     data,keys= thesis_code.fits.getdata(a,1)
     nrows = data.shape[0]            
 
-if args.schema.startswith('ptf'):
+if args.schema == 'ptf':
     #flatten multi-D arrays eg. seperate array for each band's flux
     #bands
     for cnt,b in enumerate(['u','g','r','i','z','Y']): 
@@ -194,9 +197,9 @@ if args.schema.startswith('ptf'):
     more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
                     "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
     if args.overw_schema:
-        write_schema(args.schema,'candidate',np.sort(k_cand),sql_dtype,addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
-        write_schema(args.schema,'decam',np.sort(k_dec),sql_dtype,addrows=more_decam)
-        write_schema(args.schema,'aper',np.sort(k_aper),sql_dtype,addrows=more_aper)
+        write_schema(args.schema,args.table+'_cand',np.sort(k_cand),sql_dtype,addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
+        write_schema(args.schema,args.table+'_decam',np.sort(k_dec),sql_dtype,addrows=more_decam)
+        write_schema(args.schema,args.table+'_aper',np.sort(k_aper),sql_dtype,addrows=more_aper)
 elif args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
