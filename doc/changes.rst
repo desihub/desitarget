@@ -5,7 +5,7 @@ desitarget Change Log
 0.4 (unreleased)
 ----------------
 
-* no changes yet
+* removed unused npyquery code
 
 0.3.2 (2016-02-15)
 ------------------
