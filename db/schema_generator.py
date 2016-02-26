@@ -6,6 +6,7 @@ import os
 import psycopg2
 import sys
 from subprocess import check_output
+from numpy.lib.recfunctions import append_fields
 
 from thesis_code.fits import tractor_cat
 
@@ -52,6 +53,10 @@ def replace_key_np_record(data,oldkey,newkey):
     newn[i]= newkey
     data.dtype.names= newn
 
+def append_np_record(data,newkey,newval):
+    '''adds key to numpy record array'''
+    data=append_fields(data,newkey,newval)
+
 def get_sql_dtype(keys):
     sql_dtype={}
     for key in keys:
@@ -82,9 +87,9 @@ def get_table_colnames(fname):
     return colnams
 
 def indexes_for_tables(schema):
-    if schema == 'truth' or schema == 'public' or schema.startswith('ptf'):
-        bands= ['u','g','r','i','z','Y']
+    if schema == 'truth':
         return dict(bricks=['brickid','radec'],\
+                    vipers_w4=['id','radec','zflag','zspec','u','g','r','i','z'],\
                     deep2_f2_objs=['id','radec'],\
                     deep2_f2_flux=['zhelio','g','r','z'],\
                     cfhtls_d2_r_objs=['id','brickid','radec'],\
@@ -94,9 +99,18 @@ def indexes_for_tables(schema):
                     cosmos_acs_objs=['id','brickid','radec'],\
                     cosmos_acs_flux=['cand_id','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
                     cosmos_zphot_objs=['id','brickid','radec'],\
-                    cosmos_zphot_flux=['cand_id','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag'],\
-                    ptf50_cand=['id','brickid','radec'],\
+                    cosmos_zphot_flux=['cand_id','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag']
+                    )
+    elif schema.startswith('ptf'):
+        bands= ['u','g','r','i','z','Y']
+        return dict(ptf50_cand=['id','brickid','radec'],\
                     ptf50_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
+                    ptf100_cand=['id','brickid','radec'],\
+                    ptf100_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
+                    ptf150_cand=['id','brickid','radec'],\
+                    ptf150_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
+                    ptf200_cand=['id','brickid','radec'],\
+                    ptf200_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands]
                     )
     elif schema == 'dr1':
         raise ValueError
@@ -108,7 +122,7 @@ def indexes_for_tables(schema):
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['bricks','ptf50','ptf100','ptf150','ptf200','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['bricks','ptf50','ptf100','ptf150','ptf200','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
@@ -142,9 +156,11 @@ if args.index_cluster:
 
 
 #write tables
+#dustin's fits_table format table
 if args.schema == 'ptf':
     data= tractor_cat(args.fits_file)
-    nrows = data['ra'].shape[0]            
+    nrows = data['ra'].shape[0]  
+#general fits table          
 else:
     a=fits.open(args.fits_file)
     data,keys= thesis_code.fits.getdata(a,1)
@@ -190,16 +206,39 @@ if args.schema == 'ptf':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(data.keys())
     #schema
-    more_cand= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
-                    "brickid integer default -1"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
-    more_decam= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
-                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
-    more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
-                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    tables=[args.table+name for name in ['_cand','_decam','_aper']]
+    keys=[k for k in [k_cand,k_dec,k_aper]]
+    more_cand= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[0])]
+    more_decam= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[1]),\
+                    "cand_id bigint REFERENCES %s (id)" % (tables[0])]
+    more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[2]),\
+                    "cand_id bigint REFERENCES %s (id)" % (tables[0])]
     if args.overw_schema:
-        write_schema(args.schema,args.table+'_cand',np.sort(k_cand),sql_dtype,addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
-        write_schema(args.schema,args.table+'_decam',np.sort(k_dec),sql_dtype,addrows=more_decam)
-        write_schema(args.schema,args.table+'_aper',np.sort(k_aper),sql_dtype,addrows=more_aper)
+        write_schema(args.schema,tables[0],np.sort(keys[0]),sql_dtype,addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
+        write_schema(args.schema,tables[1],np.sort(keys[1]),sql_dtype,addrows=more_decam)
+        write_schema(args.schema,tables[2],np.sort(keys[2]),sql_dtype,addrows=more_aper)
+    #db
+    con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+    cursor = con.cursor()
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
+        query_cand= insert_query(args.schema,tables[0],i,data,keys[0],returning=True)
+        if args.load_db: 
+            cursor.execute(query_cand) 
+            id = cursor.fetchone()[0]
+        else: id=2 #junk val so can print what query would look like 
+        query_decam= insert_query(args.schema,tables[1],i,data,keys[1],newkeys=['cand_id'],newvals=[id])
+        query_aper= insert_query(args.schema,tables[2],i,data,keys[2],newkeys=['cand_id'],newvals=[id])
+        if args.load_db: 
+            cursor.execute(query_decam) 
+            cursor.execute(query_aper) 
+    if args.load_db: 
+        con.commit()
+        print 'finished %s load' %args.table
+    print 'Load/insert queries are:'    
+    print 'query_cand= \n',query_cand    
+    print 'query_decam= \n',query_decam 
+    print 'query_aper= \n',query_aper    
 elif args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
@@ -219,6 +258,44 @@ elif args.table == 'bricks':
     if args.load_db: 
         con.commit()
     print 'done'
+elif args.table.startswith('vipers'):
+    '''http://vipers.inaf.it/data/pdr1/catalogs/README_VIPERS_SPECTRO_PDR1.txt'''
+    #rename ra_deep,dec_deep to ra,dec
+    replace_key_np_record(data,'ALPHA','RA') 
+    replace_key_np_record(data,'DELTA','DEC') 
+    replace_key_np_record(data,'ID_IAU','IAU_ID') 
+    #ZFLG contains info in two integers separated by decimal, split this up
+    one= np.zeros(data['ZFLG'].shape[0]).astype(np.int32)-1
+    two= one.copy()
+    for cnt in range(one.shape[0]):
+        both=str(data['ZFLG'][cnt]).split(".")
+        one[cnt]= int(both[0])
+        two[cnt]= int(both[1])
+    replace_key_np_record(data,'ZFLG','ZFLG_1')
+    data['ZFLG_1']= one
+    append_np_record(data,'ZFLG_2',two) 
+    print "one= ", one
+    print "two= ", two
+    print "data['ZFLG_2']= ",data['ZFLG_2']
+    print "data.dtype.names= ",data.dtype.names
+    keys= list(data.dtype.names) #update keys
+    sql_dtype= get_sql_dtype(keys)
+    #schema
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    if args.overw_schema:
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+    #db
+    con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+    cursor = con.cursor()
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
+        query= insert_query(args.schema,args.table,i,data,keys)
+        if args.load_db: 
+            cursor.execute(query) 
+            con.commit()
+            print 'finished %s load' %args.table
+    print 'query= \n'    
+    print query  
 elif args.table.startswith('deep2'):
     '''http://deep.ps.uci.edu/DR4/photo.extended.html'''
     #rename ra_deep,dec_deep to ra,dec
@@ -243,7 +320,7 @@ elif args.table.startswith('deep2'):
     for i in range(0, nrows):
         query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
         if args.load_db: 
-            cursor.execute(query1) 
+            cursor.execute(query1) 
             id = cursor.fetchone()[0]
         else: id=2 #junk val so can print what query would look like 
         query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
@@ -320,7 +397,8 @@ elif args.table == 'cosmos_acs':
     print 'obj query: \n',query1    
     print 'flux query: \n',query2   
 elif args.table == 'cosmos_zphot':
-    '''see doc: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
+    '''http://irsa.ipac.caltech.edu/data/COSMOS/datasets.html
+    col descriptoin: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
     #rename any 'id' or 'ID' keys to 'catid' since 'id'is reserved for column name of seqeunce in db
     replace_key_np_record(data,'ID','catID') 
     keys= list(data.dtype.names) #update keys
