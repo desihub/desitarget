@@ -90,16 +90,11 @@ def indexes_for_tables(schema):
     if schema == 'truth':
         return dict(bricks=['brickid','radec'],\
                     vipers_w4=['id','radec','zflag','zspec','u','g','r','i','z'],\
-                    deep2_f2_objs=['id','radec'],\
-                    deep2_f2_flux=['zhelio','g','r','z'],\
-                    cfhtls_d2_r_objs=['id','brickid','radec'],\
-                    cfhtls_d2_r_flux=['cand_id','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
-                    cfhtls_d2_i_objs=['id','brickid','radec'],\
-                    cfhtls_d2_i_flux=['cand_id','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
-                    cosmos_acs_objs=['id','brickid','radec'],\
-                    cosmos_acs_flux=['cand_id','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
-                    cosmos_zphot_objs=['id','brickid','radec'],\
-                    cosmos_zphot_flux=['cand_id','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag']
+                    deep2_f2=['id','radec','zhelio','g','r','z'],\
+                    cfhtls_d2_i=['id','radec','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
+                    cfhtls_d2_r=['id','radec','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
+                    cosmos_acs=['id','radec','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
+                    cosmos_zphot=['id','radec','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag']
                     )
     elif schema.startswith('ptf'):
         bands= ['u','g','r','i','z','Y']
@@ -234,7 +229,7 @@ if args.schema == 'ptf':
             cursor.execute(query_aper) 
     if args.load_db: 
         con.commit()
-        print 'finished %s load' %args.table
+    print 'finished %s load' %args.table
     print 'Load/insert queries are:'    
     print 'query_cand= \n',query_cand    
     print 'query_decam= \n',query_decam 
@@ -292,8 +287,9 @@ elif args.table.startswith('vipers'):
         query= insert_query(args.schema,args.table,i,data,keys)
         if args.load_db: 
             cursor.execute(query) 
-            con.commit()
-            print 'finished %s load' %args.table
+    if args.load_db:
+        con.commit()
+        print 'finished %s load' %args.table
     print 'query= \n'    
     print query  
 elif args.table.startswith('deep2'):
@@ -302,137 +298,90 @@ elif args.table.startswith('deep2'):
     replace_key_np_record(data,'RA_DEEP','RA') 
     replace_key_np_record(data,'DEC_DEEP','DEC') 
     keys= list(data.dtype.names) #update keys
-    obj_keys= keys[:3]
-    flux_keys=keys[5:]
     sql_dtype= get_sql_dtype(keys)
     sql_dtype['OBJNO']= 'bigint'
     #schema
-    more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs')]
-    more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
-                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.schema,args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
-        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
+        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
         if args.load_db: 
-            cursor.execute(query1) 
-            id = cursor.fetchone()[0]
-        else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
-        if args.load_db: cursor.execute(query2) 
-    if args.load_db: 
+            cursor.execute(query) 
+    if args.load_db:
         con.commit()
         print 'finished %s load' %args.table
-    print '%s query looks like this: \n' % args.table    
-    print 'obj query: \n',query1    
-    print 'flux query: \n',query2   
-elif args.table == 'cfhtls_d2_r' or args.table == 'cfhtls_d2_i':
-    obj_keys,fluxes_keys=[],[]
-    for key in keys:
-        if key == 'I_VERSION': obj_keys.append(key)
-        elif key.startswith('U_') or key.startswith('G_') or key.startswith('R_') or key.startswith('I_') or key.startswith('Z_'):
-            fluxes_keys.append(key)
-        else: obj_keys.append(key)
-    get_sql_dtype(keys)
-    #schema
-    more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
-                    "brickid integer default null"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
-    more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
-                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
-    if args.overw_schema:
-        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.schema,args.table+'_flux',fluxes_keys,sql_dtype,addrows=more_flux_rows)
-    #db
-    con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
-    cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
-    for i in range(0, nrows):
-        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
-        if args.load_db: 
-            cursor.execute(query1) 
-            id = cursor.fetchone()[0]
-        else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.schema,args.table+'_flux',i,data,fluxes_keys,newkeys=['cand_id'],newvals=[id])
-        if args.load_db: cursor.execute(query2) 
-    if args.load_db: 
-        con.commit()
-        print 'finished %s load' %args.table
-    print '%s query looks like this: \n' % args.table    
-    print 'obj query: \n',query1    
-    print 'flux query: \n',query2   
-elif args.table == 'cosmos_acs':
-    '''description of columns: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_acs_colDescriptions.html'''
-    flux_keys= keys[1:17] #[0] is running obj number from sextractor catalog says to ignore
-    obj_keys= keys[17:]
+    print 'query= \n'    
+    print query    
+elif args.table.startswith('cfhtls_d2_'):
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
-                    "brickid integer default null"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
-    more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
-                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.schema,args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
-        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
+        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
         if args.load_db: 
-            cursor.execute(query1) 
-            id = cursor.fetchone()[0]
-        else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
-        if args.load_db: cursor.execute(query2) 
-    if args.load_db: 
+            cursor.execute(query) 
+    if args.load_db:
         con.commit()
         print 'finished %s load' %args.table
-    print '%s query looks like this: \n' % args.table    
-    print 'obj query: \n',query1    
-    print 'flux query: \n',query2   
+    print 'query= '    
+    print query    
+elif args.table == 'cosmos_acs':
+    '''description of columns: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_acs_colDescriptions.html'''
+    sql_dtype= get_sql_dtype(keys)
+    print 'WARNING: cosmos-acs.fits if 300+ MB file, this will take a few min!'
+    #schema
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    if args.overw_schema:
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+    #db
+    con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+    cursor = con.cursor()
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
+        query1= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        if args.load_db: 
+            cursor.execute(query) 
+    if args.load_db:
+        con.commit()
+        print 'finished %s load' %args.table
+    print 'query='    
+    print query1    
 elif args.table == 'cosmos_zphot':
     '''http://irsa.ipac.caltech.edu/data/COSMOS/datasets.html
     col descriptoin: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
     #rename any 'id' or 'ID' keys to 'catid' since 'id'is reserved for column name of seqeunce in db
     replace_key_np_record(data,'ID','catID') 
     keys= list(data.dtype.names) #update keys
-    obj_keys= keys[:22]+keys[42:47]+[keys[50]]
-    flux_keys=[]
-    for k in keys: 
-        if k not in obj_keys: flux_keys+= [k]
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_obj_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_objs'),\
-                    "brickid integer default null"]#primary key not null default nextval('%s_id_seq'::regclass)," % args.table)
-    more_flux_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table+'_flux'),\
-                    "cand_id bigint REFERENCES %s (id)" % (args.table+'_objs')]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table+'_objs',obj_keys,sql_dtype,addrows=more_obj_rows)
-        write_schema(args.schema,args.table+'_flux',flux_keys,sql_dtype,addrows=more_flux_rows)
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
-        query1= insert_query(args.schema,args.table+'_objs',i,data,obj_keys,returning=True)
+        query1= insert_query(args.schema,args.table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query1) 
-            id = cursor.fetchone()[0]
-        else: id=2 #junk val so can print what query would look like 
-        query2= insert_query(args.schema,args.table+'_flux',i,data,flux_keys,newkeys=['cand_id'],newvals=[id])
-        if args.load_db: cursor.execute(query2) 
-    if args.load_db: 
+    if args.load_db:
         con.commit()
         print 'finished %s load' %args.table
-    print '%s query looks like this: \n' % args.table    
-    print 'obj query: \n',query1    
-    print 'flux query: \n',query2   
+    print 'finished %s load' %args.table
+    print 'query= '    
+    print query1   
 else: raise ValueError
 
 print 'done'
