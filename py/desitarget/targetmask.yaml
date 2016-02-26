@@ -72,7 +72,7 @@ obsconditions:
 #- if a target passes more than one target bit, it is possible that one bit
 #- will consider the observations "DONE" while another bit will want "MORE".
 #- DONOTOBSERVE trumps MORE which trumps DONE
-obsstate:
+obsmask:
     - [UNOBS,       0, "unobserved"]
     - [OBS,         1, "observed but no spectro pipeline answer yet"]
     - [DONE,        2, "enough observations already obtained"]

@@ -1,5 +1,6 @@
 import unittest
 import numpy as np
+from astropy.table import Table
 
 from desitarget import desi_mask
 from desitarget.targets import calc_numobs
@@ -25,10 +26,22 @@ class TestNumObs(unittest.TestCase):
         t['DESI_TARGET'] = desi_mask.ELG
         self.assertTrue(np.all(calc_numobs(t) == 1))
         t['DESI_TARGET'] = desi_mask.QSO
-        self.assertTrue(np.all(calc_numobs(t) == 1))
+        self.assertTrue(np.all(calc_numobs(t) == 4))
         
         #- LRG numobs depends upon zflux  (DECAM_FLUX index 4)
         t['DESI_TARGET'] = desi_mask.LRG
+        nobs = calc_numobs(t)
+        self.assertTrue(np.all(nobs == [1, 1, 2, 3, 3]))
+
+        #- test astropy Table
+        t = Table(t)
+        nobs = calc_numobs(t)
+        self.assertTrue(np.all(nobs == [1, 1, 2, 3, 3]))
+
+        #- LRG numobs also works with ZFLUX instead of DECAM*
+        t['ZFLUX'] = t['DECAM_FLUX'][:,4] / t['DECAM_MW_TRANSMISSION'][:,4]
+        t.remove_column('DECAM_FLUX')
+        t.remove_column('DECAM_MW_TRANSMISSION')
         nobs = calc_numobs(t)
         self.assertTrue(np.all(nobs == [1, 1, 2, 3, 3]))
 
@@ -36,6 +49,11 @@ class TestNumObs(unittest.TestCase):
         t['DESI_TARGET'] |= desi_mask.mask('ELG|BGS_ANY')
         nobs = calc_numobs(t)
         self.assertTrue(np.all(nobs == [1, 1, 2, 3, 3]))
+        
+        #- But if no *FLUX available, default to LRGs with 2 obs
+        t.remove_column('ZFLUX')
+        nobs = calc_numobs(t)
+        self.assertTrue(np.all(nobs == 2))
                 
 if __name__ == '__main__':
     unittest.main()
