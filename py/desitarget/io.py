@@ -122,7 +122,7 @@ def read_tractor(filename, header=False, morecolumns=False):
             
         Optional:
             header: if true, return (data, header) instead of just data
-            sweep: sweep file; doesn't have BRICK_PRIMARY
+            morecolumns: read additional Tractor catalog columns
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
@@ -280,3 +280,4 @@ def check_fitsio_version():
             print('ERROR: fitsio >0.9.8rc1 required (not {})'.format(\
                     fitsio.__version__))
             raise ImportError
+€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5:q
