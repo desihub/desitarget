@@ -113,7 +113,7 @@ def read_mock_durham(core_filename, photo_filename):
     
     return data
 
-def read_tractor(filename, header=False):
+def read_tractor(filename, header=False, morecolumns=False):
     """ 
         Read a tractor catalogue. Always the latest DR. 
         
@@ -129,16 +129,29 @@ def read_tractor(filename, header=False):
     """
     check_fitsio_version()
 
-    #- Columns needed for target selection and/or passing forward
-    columns = [
-        'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
-        'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-        'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
-        'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
-        'WISE_FLUX', 'WISE_MW_TRANSMISSION',
-        'WISE_FLUX_IVAR',
-        'SHAPEDEV_R', 'SHAPEEXP_R',
-        ]
+    if morecolumns:
+        #- Expanded set of columns.
+        columns = [
+            'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
+            'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
+            'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+            'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS',
+            'DECAM_ANYMASK', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
+            'WISE_FLUX', 'WISE_MW_TRANSMISSION',
+            'WISE_FLUX_IVAR',
+            'SHAPEDEV_R', 'SHAPEEXP_R',
+            ]
+    else:
+        #- Minimum columns needed for target selection and/or passing forward
+        columns = [
+            'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
+            'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
+            'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+            'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
+            'WISE_FLUX', 'WISE_MW_TRANSMISSION',
+            'WISE_FLUX_IVAR',
+            'SHAPEDEV_R', 'SHAPEEXP_R',
+            ]
 
     fx = fitsio.FITS(filename, upper=True)
     #- tractor files have BRICK_PRIMARY; sweep files don't
