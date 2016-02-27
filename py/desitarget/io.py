@@ -113,7 +113,7 @@ def read_mock_durham(core_filename, photo_filename):
     
     return data
 
-def read_tractor(filename, header=False, morecolumns=False):
+def read_tractor(filename, header=False, mycolumns=None):
     """ 
         Read a tractor catalogue. Always the latest DR. 
         
@@ -122,25 +122,15 @@ def read_tractor(filename, header=False, morecolumns=False):
             
         Optional:
             header: if true, return (data, header) instead of just data
-            morecolumns: read additional Tractor catalog columns
+            mycolumns: optionally specify the desired Tractor catalog columns to read
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
     """
     check_fitsio_version()
 
-    if morecolumns:
-        #- Expanded set of columns.
-        columns = [
-            'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
-            'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-            'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
-            'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS',
-            'DECAM_ANYMASK', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
-            'WISE_FLUX', 'WISE_MW_TRANSMISSION',
-            'WISE_FLUX_IVAR',
-            'SHAPEDEV_R', 'SHAPEEXP_R',
-            ]
+    if mycolumns:
+        columns = mycolumns
     else:
         #- Minimum columns needed for target selection and/or passing forward
         columns = [
@@ -152,7 +142,7 @@ def read_tractor(filename, header=False, morecolumns=False):
             'WISE_FLUX_IVAR',
             'SHAPEDEV_R', 'SHAPEEXP_R',
             ]
-
+        
     fx = fitsio.FITS(filename, upper=True)
     #- tractor files have BRICK_PRIMARY; sweep files don't
     if 'BRICK_PRIMARY' in fx[1].get_colnames():
@@ -280,4 +270,3 @@ def check_fitsio_version():
             print('ERROR: fitsio >0.9.8rc1 required (not {})'.format(\
                     fitsio.__version__))
             raise ImportError
-€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5€ý5:q
