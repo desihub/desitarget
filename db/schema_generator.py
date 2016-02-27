@@ -6,7 +6,6 @@ import os
 import psycopg2
 import sys
 from subprocess import check_output
-from numpy.lib.recfunctions import append_fields
 
 from thesis_code.fits import tractor_cat
 
@@ -46,16 +45,15 @@ def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newva
     else: query+= ' )'
     return query
 
-def replace_key_np_record(data,oldkey,newkey): 
-    '''renames key in a numpy.record array'''
-    i= np.where(np.array(data.dtype.names) == oldkey)[0][0]
-    newn= list(data.dtype.names)
-    newn[i]= newkey
-    data.dtype.names= newn
-
-def append_np_record(data,newkey,newval):
-    '''adds key to numpy record array'''
-    data=append_fields(data,newkey,newval)
+def update_keys(keys,newkeys,oldkey):
+    for k in newkeys:
+        keys.insert(keys.index(oldkey), k) #insert newkey so will have same index as oldkey
+    keys.pop(keys.index(oldkey)) #remove oldkey from ordered keys
+        
+def replace_key(data,newkey,oldkey):
+    '''data is dict of np arrays'''
+    data[newkey]= data[oldkey].copy()
+    del data[oldkey]
 
 def get_sql_dtype(keys):
     sql_dtype={}
@@ -89,6 +87,7 @@ def get_table_colnames(fname):
 def indexes_for_tables(schema):
     if schema == 'truth':
         return dict(bricks=['brickid','radec'],\
+                    stripe82=['id','radec','z'],\
                     vipers_w4=['id','radec','zflag','zspec','u','g','r','i','z'],\
                     deep2_f2=['id','radec','zhelio','g','r','z'],\
                     cfhtls_d2_i=['id','radec','brickid','u_mag_auto','g_mag_auto','r_mag_auto','i_mag_auto','z_mag_auto'],\
@@ -117,7 +116,7 @@ def indexes_for_tables(schema):
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['bricks','ptf50','ptf100','ptf150','ptf200','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['bricks','stripe82','ptf50','ptf100','ptf150','ptf200','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
@@ -158,8 +157,9 @@ if args.schema == 'ptf':
 #general fits table          
 else:
     a=fits.open(args.fits_file)
+    #keys is in desired order, data.keys() has all keys but out of order
     data,keys= thesis_code.fits.getdata(a,1)
-    nrows = data.shape[0]            
+    nrows = data[keys[0]].shape[0]            
 
 if args.schema == 'ptf':
     #flatten multi-D arrays eg. seperate array for each band's flux
@@ -256,9 +256,12 @@ elif args.table == 'bricks':
 elif args.table.startswith('vipers'):
     '''http://vipers.inaf.it/data/pdr1/catalogs/README_VIPERS_SPECTRO_PDR1.txt'''
     #rename ra_deep,dec_deep to ra,dec
-    replace_key_np_record(data,'ALPHA','RA') 
-    replace_key_np_record(data,'DELTA','DEC') 
-    replace_key_np_record(data,'ID_IAU','IAU_ID') 
+    replace_key(data,'RA','ALPHA') 
+    update_keys(keys,['RA'],'ALPHA')
+    replace_key(data,'DEC','DELTA') 
+    update_keys(keys,['DEC'],'DELTA')
+    replace_key(data,'IAU_ID','ID_IAU')
+    update_keys(keys,['IAU_ID'],'ID_IAU')
     #ZFLG contains info in two integers separated by decimal, split this up
     one= np.zeros(data['ZFLG'].shape[0]).astype(np.int32)-1
     two= one.copy()
@@ -266,14 +269,11 @@ elif args.table.startswith('vipers'):
         both=str(data['ZFLG'][cnt]).split(".")
         one[cnt]= int(both[0])
         two[cnt]= int(both[1])
-    replace_key_np_record(data,'ZFLG','ZFLG_1')
-    data['ZFLG_1']= one
-    append_np_record(data,'ZFLG_2',two) 
-    print "one= ", one
-    print "two= ", two
-    print "data['ZFLG_2']= ",data['ZFLG_2']
-    print "data.dtype.names= ",data.dtype.names
-    keys= list(data.dtype.names) #update keys
+    data['ZFLG_1']= one 
+    data['ZFLG_2']= two 
+    del data['ZFLG']
+    update_keys(keys,['ZFLG_1','ZFLG_2'],'ZFLG')
+    #drop keys, add new ones 
     sql_dtype= get_sql_dtype(keys)
     #schema
     more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
@@ -295,9 +295,10 @@ elif args.table.startswith('vipers'):
 elif args.table.startswith('deep2'):
     '''http://deep.ps.uci.edu/DR4/photo.extended.html'''
     #rename ra_deep,dec_deep to ra,dec
-    replace_key_np_record(data,'RA_DEEP','RA') 
-    replace_key_np_record(data,'DEC_DEEP','DEC') 
-    keys= list(data.dtype.names) #update keys
+    replace_key(data,'RA','RA_DEEP') 
+    update_keys(keys,['RA'],'RA_DEEP')
+    replace_key(data,'DEC','DEC_DEEP') 
+    update_keys(keys,['DEC'],'DEC_DEEP')
     sql_dtype= get_sql_dtype(keys)
     sql_dtype['OBJNO']= 'bigint'
     #schema
@@ -349,20 +350,20 @@ elif args.table == 'cosmos_acs':
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
-        query1= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query) 
     if args.load_db:
         con.commit()
         print 'finished %s load' %args.table
     print 'query='    
-    print query1    
+    print query    
 elif args.table == 'cosmos_zphot':
     '''http://irsa.ipac.caltech.edu/data/COSMOS/datasets.html
     col descriptoin: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
     #rename any 'id' or 'ID' keys to 'catid' since 'id'is reserved for column name of seqeunce in db
-    replace_key_np_record(data,'ID','catID') 
-    keys= list(data.dtype.names) #update keys
+    replace_key(data,'catID','ID') 
+    update_keys(keys,['catID'],'ID')
     sql_dtype= get_sql_dtype(keys)
     #schema
     more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
@@ -382,6 +383,30 @@ elif args.table == 'cosmos_zphot':
     print 'finished %s load' %args.table
     print 'query= '    
     print query1   
+elif args.table == 'stripe82':
+    print 'WARNING: stripe82_specz is 300+ MB file, this will take a few min!'
+    replace_key(data,'RA','PLUG_RA') 
+    update_keys(keys,['RA'],'PLUG_RA')
+    replace_key(data,'DEC','PLUG_DEC') 
+    update_keys(keys,['DEC'],'PLUG_DEC')
+    sql_dtype= get_sql_dtype(keys)
+    #schema
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    if args.overw_schema:
+        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+    #db
+    con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+    cursor = con.cursor()
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    for i in range(0, nrows):
+        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        if args.load_db: 
+            cursor.execute(query) 
+    if args.load_db:
+        con.commit()
+        print 'finished %s load' %args.table
+    print 'query= '    
+    print query 
 else: raise ValueError
 
 print 'done'
