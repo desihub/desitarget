@@ -113,42 +113,46 @@ def read_mock_durham(core_filename, photo_filename):
     
     return data
 
-def read_tractor(filename, header=False, mycolumns=None):
+tscolumns = [
+    'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
+    'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
+    'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+    'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
+    'WISE_FLUX', 'WISE_MW_TRANSMISSION',
+    'WISE_FLUX_IVAR',
+    'SHAPEDEV_R', 'SHAPEEXP_R',
+    ]
+
+def read_tractor(filename, header=False, columns=None):
     """ 
-        Read a tractor catalogue. Always the latest DR. 
+        Read a tractor catalogue file.
         
         Args:
             filename: a file name of one tractor file
             
         Optional:
             header: if true, return (data, header) instead of just data
-            mycolumns: optionally specify the desired Tractor catalog columns to read
+            columns: optionally specify the desired Tractor catalog columns
+                to read; defaults to desitarget.io.tscolumns
 
         Returns:
             ndarray with the tractor schema, uppercase field names.
     """
     check_fitsio_version()
 
-    if mycolumns:
-        columns = mycolumns
+    if columns is None:
+        readcolumns = list(tscolumns)
     else:
-        #- Minimum columns needed for target selection and/or passing forward
-        columns = [
-            'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
-            'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-            'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
-            'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
-            'WISE_FLUX', 'WISE_MW_TRANSMISSION',
-            'WISE_FLUX_IVAR',
-            'SHAPEDEV_R', 'SHAPEEXP_R',
-            ]
+        readcolumns = list(columns)
         
     fx = fitsio.FITS(filename, upper=True)
     #- tractor files have BRICK_PRIMARY; sweep files don't
-    if 'BRICK_PRIMARY' in fx[1].get_colnames():
-        columns.append('BRICK_PRIMARY')
+    fxcolnames = fx[1].get_colnames()
+    if (columns is None) and \
+       (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
+        readcolumns.append('BRICK_PRIMARY')
     
-    data = fx[1].read(columns=columns)
+    data = fx[1].read(columns=readcolumns)
     if header:
         hdr = fx[1].read_header()
         fx.close()
