@@ -56,8 +56,18 @@ class TestIO(unittest.TestCase):
         
         newobjects = io.fix_tractor_dr1_dtype(badobjects)
         self.assertEqual(newobjects['TYPE'].dtype, np.dtype('S4'))
-        
-    
+
+    def test_tractor_columns(self):
+        tscolumns = io.tscolumns + ['BRICK_PRIMARY',]
+        tractorfile = io.list_tractorfiles(self.datadir)[0]
+        data = io.read_tractor(tractorfile)
+        self.assertEqual(set(data.dtype.names), set(tscolumns))
+        columns = ['BX', 'BY']
+        data = io.read_tractor(tractorfile, columns=columns)
+        self.assertEqual(set(data.dtype.names), set(columns))
+        data = io.read_tractor(tractorfile, columns=tuple(columns))
+        self.assertEqual(set(data.dtype.names), set(columns))
+
     def test_readwrite_tractor(self):
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         sweepfile = io.list_sweepfiles(self.datadir)[0]
