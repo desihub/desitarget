@@ -105,6 +105,38 @@ def isFSTD_colors(gflux, rflux, zflux, primary=None):
 
     return fstd
 
+def isMWSSTAR_colors(gflux, rflux, primary=None):
+    """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array. 
+
+    Args:
+        gflux, rflux, : array_like
+            Flux in nano-maggies of g and r bands.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : boolean array, True if the object has colors like an old stellar population,
+        which is what we expect for the main MWS sample
+
+    Notes:
+        The full MWS target selection also includes PSF-like and fracflux
+        cuts and will include Gaia information; this function is only to enforce
+        a reasonable range of color/TEFF when simulating data. 
+
+    """
+    #----- Old stars, g-r > 0
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    mwsstar = primary.copy()
+
+    #- colors g-r > 0
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        grcolor = 2.5 * np.log10(rflux / gflux)
+        mwsstar &= (grcolor > 0.0)
+
+    return mwsstar
+
 def psflike(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
