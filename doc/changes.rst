@@ -5,6 +5,14 @@ desitarget Change Log
 0.4 (unreleased)
 ----------------
 
+* no changes yet
+
+0.3.3 (2016-03-08)
+------------------
+
+* added cuts.isMWSSTAR_colors() 
+* allow user to specify columns when reading tractor files
+* new code for generating merged target list (MTL)
 * removed unused npyquery code
 
 0.3.2 (2016-02-15)
