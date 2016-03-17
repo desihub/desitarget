@@ -9,10 +9,22 @@ class TestMTL(unittest.TestCase):
     
     def setUp(self):
         self.targets = Table()
-        self.types = np.array(['ELG', 'LRG', 'QSO'])
+        self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
+        self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
+        self.post_prio[0] = 0  #- ELG
+        self.post_prio[2] = 0  #- low-z QSO
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
-        self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 21, 3))/2.5)
+        n = len(self.targets)
+        self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 21.5, n))/2.5)
+        self.targets['TARGETID'] = range(n)
+        
+        #- reverse the order for zcat to make sure joins work
+        self.zcat = Table()
+        self.zcat['TARGETID'] = self.targets['TARGETID'][-1::-1]
+        self.zcat['Z'] = [2.5, 1.0, 0.5, 1.0]
+        self.zcat['ZWARN'] = [0, 0, 0, 0]
+        self.zcat['NUMOBS'] = [1, 1, 1, 1]
             
     def test_mtl(self):
         mtl = make_mtl(self.targets)
@@ -23,9 +35,19 @@ class TestMTL(unittest.TestCase):
                     
     def test_numobs(self):
         mtl = make_mtl(self.targets)
-        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4]))
+        mtl.sort(keys='TARGETID')
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
         iselg = (self.types == 'ELG')
         self.assertTrue(np.all(mtl['GRAYLAYER'][iselg] != 0))
         self.assertTrue(np.all(mtl['GRAYLAYER'][~iselg] == 0))
-            
+
+    def test_zcat(self):
+        mtl = make_mtl(self.targets, self.zcat, trim=False)
+        mtl.sort(keys='TARGETID')
+        print mtl
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3]))
+        self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
+
+if __name__ == '__main__':
+    unittest.main()

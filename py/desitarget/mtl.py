@@ -45,6 +45,10 @@ def make_mtl(targets, zcat=None, trim=True):
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     mtl['PRIORITY'] = calc_priority(ztargets)
 
+    #- If priority went to 0, then NUMOBS_MORE should also be 0
+    ii = (mtl['PRIORITY'] == 0)
+    mtl['NUMOBS_MORE'][ii] = 0
+
     #- remove extra zcat columns from join(targets, zcat) that are not needed
     #- for final MTL output
     for name in ['NUMOBS', 'Z', 'ZWARN']:

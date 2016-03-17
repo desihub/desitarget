@@ -103,6 +103,9 @@ def calc_numobs(targets):
     Notes:
         if ZFLUX or (DECAM_FLUX and DECAM_MW_TRANSMISSION) are in targets,
             then LRG numobs depends upon zmag, else defaults to 2
+        This is NUMOBS desired before any spectroscopic observations; i.e.
+            it does *not* take redshift into consideration (which is relevant
+            for interpreting low-z vs high-z QSOs)
     """
     #- Default is one observation
     nobs = np.ones(len(targets), dtype='i4')
