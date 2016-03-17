@@ -45,7 +45,6 @@ class TestMTL(unittest.TestCase):
     def test_zcat(self):
         mtl = make_mtl(self.targets, self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
-        print mtl
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
 
