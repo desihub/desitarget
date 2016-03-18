@@ -64,4 +64,9 @@ def make_mtl(targets, zcat=None, trim=True):
         notdone = mtl['NUMOBS_MORE'] > 0
         mtl = mtl[notdone]
 
+    #- filtering can reset the fill_value, which is just wrong wrong wrong
+    #- See https://github.com/astropy/astropy/issues/4707
+    #- and https://github.com/astropy/astropy/issues/4708
+    mtl['NUMOBS_MORE'].fill_value = -1
+
     return mtl
