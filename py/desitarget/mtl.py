@@ -28,7 +28,8 @@ def make_mtl(targets, zcat=None, trim=True):
     n = len(targets)
     targets = Table(targets)
     if zcat is not None:
-        ztargets = join(targets, zcat, keys='TARGETID', join_type='outer')
+        ztargets = join(targets, zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'],
+                            keys='TARGETID', join_type='outer')
         if ztargets.masked:
             unobs = ztargets['NUMOBS'].mask
             ztargets['NUMOBS'][unobs] = 0
@@ -37,12 +38,21 @@ def make_mtl(targets, zcat=None, trim=True):
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1  * np.ones(n, dtype=np.int32)
-    
+
     ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
 
-    mtl = targets.copy()
-    mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
+    mtl = ztargets.copy()
+    ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     mtl['PRIORITY'] = calc_priority(ztargets)
+
+    #- If priority went to 0, then NUMOBS_MORE should also be 0
+    ii = (mtl['PRIORITY'] == 0)
+    mtl['NUMOBS_MORE'][ii] = 0
+
+    #- remove extra zcat columns from join(targets, zcat) that are not needed
+    #- for final MTL output
+    for name in ['NUMOBS', 'Z', 'ZWARN']:
+        mtl.remove_column(name)
 
     #- ELGs can be observed during gray time
     graylayer = np.zeros(n, dtype='i4')
@@ -53,5 +63,5 @@ def make_mtl(targets, zcat=None, trim=True):
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
         mtl = mtl[notdone]
-    
+
     return mtl
