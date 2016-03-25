@@ -66,11 +66,11 @@ def isELG(gflux, rflux, zflux, primary=None):
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
-    elg &= rflux > 10**((22.5-23.4)/2.5)
-    elg &= zflux > rflux * 10**(0.3/2.5)
-    elg &= zflux < rflux * 10**(1.5/2.5)
-    elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
-    elg &= zflux < gflux * 10**(1.2/2.5)
+    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
+    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
+    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
+    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
 
     return elg
 
