@@ -37,14 +37,13 @@ def isLRG(rflux, zflux, w1flux, primary=None):
         primary = np.ones_like(rflux, dtype='?')
 
     lrg = primary.copy()
-    lrg &= rflux > 10**((22.5-23.0)/2.5)
-    lrg &= zflux > 10**((22.5-22.56)/2.5)
-    lrg &= w1flux > 10**((22.5-19.35)/2.5)
-    lrg &= zflux > rflux * 10**(1.6/2.5)
+    lrg &= zflux > 10**((22.5-22.46)/2.5)  # z<20.46
+    lrg &= zflux > rflux * 10**(1.5/2.5)   # (r-z)>1.5
+    lrg &= w1flux > 0                      # W1flux>0
     #- clip to avoid warnings from negative numbers raised to fractional powers
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
+    lrg &= w1flux * rflux**(1.8-1.0) > zflux**1.8 * 10**(-1.0/2.5)
 
     return lrg
 
