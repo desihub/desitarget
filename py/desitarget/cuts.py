@@ -180,16 +180,11 @@ def isQSO(gflux, rflux, zflux, wflux, objtype=None, wise_snr=None, primary=None)
     Args:
         gflux, rflux, zflux: array_like
             The flux in nano-maggies of g, r, z band.
-        wflux: array or tuple of arrays
-            If an array is given, the array is the composited
-            w band flux in nano-maggies. (from w1 and w2,
-            refer to TargetSelection documentation for the definition).
-            If a tuple is given, the first two items of the tuple
-            is assumed to be w1flux and w2flux, and the composition
-            rule described in the TargetSelection documentation is used to
-            composite a wflux.
-        objtype: arary_like or None
-            If given, the TYPE column of the catalogue
+        wflux: two-element tuple of w1flux and w2flux
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        wise_snr: array_like or None
+            If given, the S/N in the W1 and W2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
