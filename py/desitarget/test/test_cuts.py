@@ -26,7 +26,7 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(isinstance(t1, np.ndarray))
         t2 = cuts.unextinct_fluxes(Table(targets))
         self.assertTrue(isinstance(t2, Table))
-        for col in ['GFLUX', 'RFLUX', 'ZFLUX', 'W1FLUX', 'W2FLUX', 'WFLUX']:
+        for col in ['GFLUX', 'RFLUX', 'ZFLUX', 'W1FLUX', 'W2FLUX']:
             self.assertIn(col, t1.dtype.names)
             self.assertIn(col, t2.dtype.names)
             self.assertTrue(np.all(t1[col] == t2[col]))

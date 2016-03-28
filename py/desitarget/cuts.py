@@ -201,6 +201,7 @@ def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
     wflux = 0.75* w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.4
 
+    qso = primary.copy()
     qso &= rflux > 10**((22.5-23.0)/2.5)    # r<23
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
