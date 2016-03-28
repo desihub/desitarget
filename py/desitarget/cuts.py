@@ -174,13 +174,13 @@ def isBGS(rflux, objtype=None, primary=None):
         bgs &= ~psflike(objtype)
     return bgs
 
-def isQSO(gflux, rflux, zflux, wflux, objtype=None, wise_snr=None, primary=None):
+def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
+          wise_snr=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
     Args:
-        gflux, rflux, zflux: array_like
-            The flux in nano-maggies of g, r, z band.
-        wflux: two-element tuple of w1flux and w2flux
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
         wise_snr: array_like or None
@@ -196,9 +196,6 @@ def isQSO(gflux, rflux, zflux, wflux, objtype=None, wise_snr=None, primary=None)
     #----- Quasars
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
-
-    if isinstance(wflux, tuple):
-        w1flux, w2flux = wflux[0], wflux[1]
 
     # Create some composite fluxes.
     wflux = 0.75* w1flux + 0.25*w2flux
@@ -254,12 +251,12 @@ def unextinct_fluxes(objects):
             WISE_FLUX, and WISE_MW_TRANSMISSION
             
     Returns:
-        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX, WFLUX
+        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX
         
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'), ('WFLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -273,7 +270,6 @@ def unextinct_fluxes(objects):
     dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
     result['W1FLUX'] = dered_wise_flux[..., 0]
     result['W2FLUX'] = dered_wise_flux[..., 1]
-    result['WFLUX']  = 0.75* result['W1FLUX'] + 0.25*result['W2FLUX']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -336,7 +332,7 @@ def apply_cuts(objects):
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
 
     qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                wflux=(w1flux, w2flux), objtype=objtype,
+                w1flux=w1flux, w2flux=w2flux, objtype=objtype,
                 wise_snr=wise_snr)
 
     #----- Standard stars

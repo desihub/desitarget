@@ -62,7 +62,7 @@ class TestCuts(unittest.TestCase):
         rflux = flux['RFLUX']
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
-        wflux = flux['WFLUX']
+        w2flux = flux['W2FLUX']
         primary = targets['BRICK_PRIMARY']
         lrg1 = cuts.isLRG(rflux, zflux, w1flux, primary=None)
         lrg2 = cuts.isLRG(rflux, zflux, w1flux, primary=primary)
@@ -73,12 +73,14 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(np.all(elg1==elg2))
 
         psftype = targets['TYPE']
-        bgs1 = cuts.isBGS(rflux, type=psftype, primary=primary)
-        bgs2 = cuts.isBGS(rflux, type=None, primary=None)
+        bgs1 = cuts.isBGS(rflux, objtype=psftype, primary=primary)
+        bgs2 = cuts.isBGS(rflux, objtype=None, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
-        qso1 = cuts.isQSO(gflux, rflux, zflux, wflux, type=psftype, primary=primary)
-        qso2 = cuts.isQSO(gflux, rflux, zflux, wflux, type=None, primary=None)
+        qso1 = cuts.isQSO(gflux, rflux, zflux, w1flux, w2flux,
+                          objtype=psftype, primary=primary)
+        qso2 = cuts.isQSO(gflux, rflux, zflux, w1flux, w2flux,
+                          objtype=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux, rflux, zflux, primary=None)
