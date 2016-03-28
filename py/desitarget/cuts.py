@@ -69,6 +69,10 @@ def isELG(gflux, rflux, zflux, primary=None):
     elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
     elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
     elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
     elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
     elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
 
@@ -165,12 +169,12 @@ def isBGS(rflux, type=None, primary=None):
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
-    bgs &= rflux > 10**((22.5-19.35)/2.5)
+    bgs &= rflux > 10**((22.5-19.5)/2.5)
     if type is not None:
         bgs &= ~psflike(type)
     return bgs
 
-def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
+def isQSO(gflux, rflux, zflux, wflux, type=None, wise_snr=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
     Args:
@@ -200,17 +204,33 @@ def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
 
     if isinstance(wflux, tuple):
         w1flux, w2flux = wflux[0], wflux[1]
-        wflux = 0.75* w1flux + 0.25*w2flux
 
-    qso = primary.copy()
-    qso &= rflux > 10**((22.5-23.0)/2.5)
-    qso &= rflux < gflux * 10**(1.0/2.5)
-    qso &= zflux > rflux * 10**(-0.3/2.5)
-    qso &= zflux < rflux * 10**(1.1/2.5)
-    #- clip to avoid warnings from negative numbers raised to fractional powers
-    gflux = gflux.clip(0)
+    # Create some composite fluxes.
+    wflux = 0.75* w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.4
+
+    qso &= rflux > 10**((22.5-23.0)/2.5)    # r<23
+    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
+    qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
+    qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
+
+    # Harder cut on stellar contamination
+    mainseq = rflux > gflux * 10**(0.25/2.5)
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
-    qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(-0.4/2.5)
+    zflux = zflux.clip(0)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
+    mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    qso &= ~mainseq
+
+    if wise_snr is not None:
+        qso &= wise_snr[..., 0] > 4
+        qso &= wise_snr[..., 1] > 2
 
     if type is not None:
         qso &= psflike(type)
@@ -244,12 +264,12 @@ def unextinct_fluxes(objects):
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX','f4'), ('W2FLUX','f4'), ('WFLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'), ('WFLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
         result = np.zeros(len(objects), dtype=dtype)
-    
+
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
     result['GFLUX'] = dered_decam_flux[..., 1]
     result['RFLUX'] = dered_decam_flux[..., 2]
@@ -300,8 +320,11 @@ def apply_cuts(objects):
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
     w1flux = flux['W1FLUX']
-    wflux = flux['WFLUX']
+    w2flux = flux['W2FLUX']
+    objtype = objects['TYPE']
     
+    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
         primary = objects['BRICK_PRIMARY']
@@ -317,9 +340,9 @@ def apply_cuts(objects):
 
     bgs = isBGS(primary=primary, rflux=rflux, type=objects['TYPE'])
 
-    qso = isQSO(primary=primary, zflux=zflux,
-              rflux=rflux, gflux=gflux, type=objects['TYPE'],
-              wflux=wflux)
+    qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                wflux=(w1flux, w2flux), type=objects['TYPE'],
+                wise_snr=wise_snr)
 
     #----- Standard stars
     fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
