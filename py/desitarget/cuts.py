@@ -149,13 +149,13 @@ def psflike(psftype):
     psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
     return psflike
 
-def isBGS(rflux, type=None, primary=None):
+def isBGS(rflux, objtype=None, primary=None):
     """Target Definition of BGS. Returning a boolean array.
 
     Args:
         rflux: array_like
             The flux in nano-maggies of r band.
-        type: array_like or None
+        objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
@@ -170,11 +170,11 @@ def isBGS(rflux, type=None, primary=None):
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
     bgs &= rflux > 10**((22.5-19.5)/2.5)
-    if type is not None:
-        bgs &= ~psflike(type)
+    if objtype is not None:
+        bgs &= ~psflike(objtype)
     return bgs
 
-def isQSO(gflux, rflux, zflux, wflux, type=None, wise_snr=None, primary=None):
+def isQSO(gflux, rflux, zflux, wflux, objtype=None, wise_snr=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
     Args:
@@ -188,7 +188,7 @@ def isQSO(gflux, rflux, zflux, wflux, type=None, wise_snr=None, primary=None):
             is assumed to be w1flux and w2flux, and the composition
             rule described in the TargetSelection documentation is used to
             composite a wflux.
-        type: arary_like or None
+        objtype: arary_like or None
             If given, the TYPE column of the catalogue
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
@@ -232,8 +232,8 @@ def isQSO(gflux, rflux, zflux, wflux, type=None, wise_snr=None, primary=None):
         qso &= wise_snr[..., 0] > 4
         qso &= wise_snr[..., 1] > 2
 
-    if type is not None:
-        qso &= psflike(type)
+    if objtype is not None:
+        qso &= psflike(objtype)
 
     return qso
 
@@ -338,16 +338,16 @@ def apply_cuts(objects):
 
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    bgs = isBGS(primary=primary, rflux=rflux, type=objects['TYPE'])
+    bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
 
     qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                wflux=(w1flux, w2flux), type=objects['TYPE'],
+                wflux=(w1flux, w2flux), objtype=objtype,
                 wise_snr=wise_snr)
 
     #----- Standard stars
     fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    fstd &= psflike(objects['TYPE'])
+    fstd &= psflike(objtype)
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     with warnings.catch_warnings():
