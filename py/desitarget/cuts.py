@@ -37,14 +37,13 @@ def isLRG(rflux, zflux, w1flux, primary=None):
         primary = np.ones_like(rflux, dtype='?')
 
     lrg = primary.copy()
-    lrg &= rflux > 10**((22.5-23.0)/2.5)
-    lrg &= zflux > 10**((22.5-22.56)/2.5)
-    lrg &= w1flux > 10**((22.5-19.35)/2.5)
-    lrg &= zflux > rflux * 10**(1.6/2.5)
+    lrg &= zflux > 10**((22.5-22.46)/2.5)  # z<20.46
+    lrg &= zflux > rflux * 10**(1.5/2.5)   # (r-z)>1.5
+    lrg &= w1flux > 0                      # W1flux>0
     #- clip to avoid warnings from negative numbers raised to fractional powers
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    lrg &= w1flux * rflux**(1.33-1) > zflux**1.33 * 10**(-0.33/2.5)
+    lrg &= w1flux * rflux**(1.8-1.0) > zflux**1.8 * 10**(-1.0/2.5)
 
     return lrg
 
@@ -66,11 +65,15 @@ def isELG(gflux, rflux, zflux, primary=None):
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
-    elg &= rflux > 10**((22.5-23.4)/2.5)
-    elg &= zflux > rflux * 10**(0.3/2.5)
-    elg &= zflux < rflux * 10**(1.5/2.5)
-    elg &= rflux**2 < gflux * zflux * 10**(-0.2/2.5)
-    elg &= zflux < gflux * 10**(1.2/2.5)
+    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
+    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
+    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
 
     return elg
 
@@ -145,13 +148,13 @@ def psflike(psftype):
     psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
     return psflike
 
-def isBGS(rflux, type=None, primary=None):
+def isBGS(rflux, objtype=None, primary=None):
     """Target Definition of BGS. Returning a boolean array.
 
     Args:
         rflux: array_like
             The flux in nano-maggies of r band.
-        type: array_like or None
+        objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
@@ -165,27 +168,22 @@ def isBGS(rflux, type=None, primary=None):
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
-    bgs &= rflux > 10**((22.5-19.35)/2.5)
-    if type is not None:
-        bgs &= ~psflike(type)
+    bgs &= rflux > 10**((22.5-19.5)/2.5)
+    if objtype is not None:
+        bgs &= ~psflike(objtype)
     return bgs
 
-def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
+def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
+          wise_snr=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
     Args:
-        gflux, rflux, zflux: array_like
-            The flux in nano-maggies of g, r, z band.
-        wflux: array or tuple of arrays
-            If an array is given, the array is the composited
-            w band flux in nano-maggies. (from w1 and w2,
-            refer to TargetSelection documentation for the definition).
-            If a tuple is given, the first two items of the tuple
-            is assumed to be w1flux and w2flux, and the composition
-            rule described in the TargetSelection documentation is used to
-            composite a wflux.
-        type: arary_like or None
-            If given, the TYPE column of the catalogue
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        wise_snr: array_like or None
+            If given, the S/N in the W1 and W2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -198,22 +196,36 @@ def isQSO(gflux, rflux, zflux, wflux, type=None, primary=None):
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
 
-    if isinstance(wflux, tuple):
-        w1flux, w2flux = wflux[0], wflux[1]
-        wflux = 0.75* w1flux + 0.25*w2flux
+    # Create some composite fluxes.
+    wflux = 0.75* w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.4
 
     qso = primary.copy()
-    qso &= rflux > 10**((22.5-23.0)/2.5)
-    qso &= rflux < gflux * 10**(1.0/2.5)
-    qso &= zflux > rflux * 10**(-0.3/2.5)
-    qso &= zflux < rflux * 10**(1.1/2.5)
-    #- clip to avoid warnings from negative numbers raised to fractional powers
-    gflux = gflux.clip(0)
-    rflux = rflux.clip(0)
-    qso &= wflux * gflux**1.2 > rflux**(1+1.2) * 10**(-0.4/2.5)
+    qso &= rflux > 10**((22.5-23.0)/2.5)    # r<23
+    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
+    qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
+    qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
 
-    if type is not None:
-        qso &= psflike(type)
+    # Harder cut on stellar contamination
+    mainseq = rflux > gflux * 10**(0.25/2.5)
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
+    mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    qso &= ~mainseq
+
+    if wise_snr is not None:
+        qso &= wise_snr[..., 0] > 4
+        qso &= wise_snr[..., 1] > 2
+
+    if objtype is not None:
+        qso &= psflike(objtype)
 
     return qso
 
@@ -239,17 +251,17 @@ def unextinct_fluxes(objects):
             WISE_FLUX, and WISE_MW_TRANSMISSION
             
     Returns:
-        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX, WFLUX
+        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX
         
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX','f4'), ('W2FLUX','f4'), ('WFLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
         result = np.zeros(len(objects), dtype=dtype)
-    
+
     dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
     result['GFLUX'] = dered_decam_flux[..., 1]
     result['RFLUX'] = dered_decam_flux[..., 2]
@@ -258,7 +270,6 @@ def unextinct_fluxes(objects):
     dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
     result['W1FLUX'] = dered_wise_flux[..., 0]
     result['W2FLUX'] = dered_wise_flux[..., 1]
-    result['WFLUX']  = 0.75* result['W1FLUX'] + 0.25*result['W2FLUX']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -300,8 +311,11 @@ def apply_cuts(objects):
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
     w1flux = flux['W1FLUX']
-    wflux = flux['WFLUX']
+    w2flux = flux['W2FLUX']
+    objtype = objects['TYPE']
     
+    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
         primary = objects['BRICK_PRIMARY']
@@ -315,16 +329,16 @@ def apply_cuts(objects):
 
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    bgs = isBGS(primary=primary, rflux=rflux, type=objects['TYPE'])
+    bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
 
-    qso = isQSO(primary=primary, zflux=zflux,
-              rflux=rflux, gflux=gflux, type=objects['TYPE'],
-              wflux=wflux)
+    qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                w1flux=w1flux, w2flux=w2flux, objtype=objtype,
+                wise_snr=wise_snr)
 
     #----- Standard stars
     fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    fstd &= psflike(objects['TYPE'])
+    fstd &= psflike(objtype)
     fracflux = objects['DECAM_FRACFLUX'].T        
     signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     with warnings.catch_warnings():
