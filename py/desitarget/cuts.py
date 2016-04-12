@@ -215,8 +215,8 @@ def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
     # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
 
@@ -226,7 +226,7 @@ def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
 
     if objtype is not None:
         qso &= psflike(objtype)
-
+        
     return qso
 
 def _is_row(table):
