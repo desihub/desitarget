@@ -86,6 +86,7 @@ def get_table_colnames(fname):
     return colnams
 
 def indexes_for_tables(schema):
+    '''keywords from args.table choices where "keywords" are dict(keywords)'''
     if schema == 'truth':
         return dict(bricks=['brickid','radec'],\
                     stripe82=['id','radec','z'],\
@@ -96,21 +97,18 @@ def indexes_for_tables(schema):
                     cosmos_acs=['id','radec','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
                     cosmos_zphot=['id','radec','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag']
                     )
-    elif schema.startswith('ptf'):
+    elif schema in ['dr2,dr3']:
         bands= ['u','g','r','i','z','Y']
-        return dict(ptf50_cand=['id','brickid','radec'],\
-                    ptf50_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
-                    ptf100_cand=['id','brickid','radec'],\
-                    ptf100_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
-                    ptf150_cand=['id','brickid','radec'],\
-                    ptf150_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
-                    ptf200_cand=['id','brickid','radec'],\
-                    ptf200_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands]
+        optical= dict(decam_cand=['id','brickid','radec'],\
+                    decam_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
+                    bok_mzls_cand=['id','brickid','radec'],\
+                    bok_mzls_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands]
                     )
-    elif schema == 'dr1':
-        raise ValueError
-    elif schema == 'dr2':
-        raise ValueError
+        bands= ['w1','w2','w3','w4']
+        ir= dict(decam_wise=[b+'flux' for b in bands]+ [b+'nobs' for b in bands],\
+                    bok_mzls_wise=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]
+                    )
+        return optical.update(ir)
     else:
         raise ValueError
 
@@ -127,7 +125,7 @@ def pass_if_str_or_notnan(i,data,keys):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
-parser.add_argument("-schema",choices=['dr1','dr2','truth','ptf','dr3'],action="store",help='',required=True)
+parser.add_argument("-schema",choices=['dr1','dr2','dr3','truth'],action="store",help='',required=True)
 parser.add_argument("-table",choices=['bricks','stripe82','ptf50','ptf100','ptf150','ptf200','bok_mzls','decam','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
@@ -163,7 +161,7 @@ if args.index_cluster:
 
 #write tables
 #dustin's fits_table format table
-if args.schema in ['dr2','ptf','dr3']:  #dr2 same as dr3 at this point
+if args.schema in ['dr2','dr3']:  #dr2 same as dr3 at this point
     data= tractor_cat(args.fits_file)
     nrows = data['ra'].shape[0]  
 else:
@@ -172,7 +170,7 @@ else:
     data,keys= thesis_code.fits.getdata(a,1)
     nrows = data[keys[0]].shape[0]            
 
-if args.schema in ['dr2','dr3','ptf']:
+if args.schema in ['dr2','dr3']:
     #split up arrays containing ugrizY bands
     for cnt,b in enumerate(['u','g','r','i','z','Y']): 
         #decam
