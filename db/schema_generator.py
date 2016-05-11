@@ -118,6 +118,7 @@ def pass_if_str_or_notnan(i,data,keys):
     '''returns True is data does not have nans, False otherwise'''
     for test_key in keys[0]+keys[1]+keys[2]:
         if type(data[test_key][i]) == np.string_: continue #don't worry about strings
+        print('data[test_key][i]= ',data[test_key][i])
         if np.isnan(data[test_key][i]):
                 test_pass=False
                 print 'WARNING, nan for key=%s, row=%d' % (test_key,i)
@@ -126,14 +127,14 @@ def pass_if_str_or_notnan(i,data,keys):
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
-parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
+parser.add_argument("-schema",choices=['dr1','dr2','truth','ptf','dr3'],action="store",help='',required=True)
 parser.add_argument("-table",choices=['bricks','stripe82','ptf50','ptf100','ptf150','ptf200','bok_mzls','decam','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
 args = parser.parse_args()
 
-if args.schema == 'dr1' or args.schema == 'dr2':
+if args.schema == 'dr1':
     print 'preventing accidental load to dr1 or dr2'
     raise ValueError
 
@@ -162,19 +163,17 @@ if args.index_cluster:
 
 #write tables
 #dustin's fits_table format table
-if args.schema == 'ptf':
+if args.schema in ['dr2','ptf','dr3']:  #dr2 same as dr3 at this point
     data= tractor_cat(args.fits_file)
     nrows = data['ra'].shape[0]  
-#general fits table          
 else:
     a=fits.open(args.fits_file)
     #keys is in desired order, data.keys() has all keys but out of order
     data,keys= thesis_code.fits.getdata(a,1)
     nrows = data[keys[0]].shape[0]            
 
-if args.schema == 'ptf':
-    #flatten multi-D arrays eg. seperate array for each band's flux
-    #bands
+if args.schema in ['dr2','dr3','ptf']:
+    #split up arrays containing ugrizY bands
     for cnt,b in enumerate(['u','g','r','i','z','Y']): 
         #decam
         data[b+'flux']=data['decam_flux'][:,cnt].copy()
@@ -195,16 +194,28 @@ if args.schema == 'ptf':
             data[b+'apflux_'+str(ap+1)]= data['decam_apflux'][:,cnt,ap].copy()
             data[b+'apflux_resid_'+str(ap+1)]= data['decam_apflux_resid'][:,cnt,ap].copy()
             data[b+'apflux_ivar_'+str(ap+1)]= data['decam_apflux_ivar'][:,cnt,ap].copy()
-    #types of sources 
+    keys_to_del= ['decam_flux','decam_flux_ivar','decam_fracflux','decam_fracmasked','decam_fracin','decam_rchi2','decam_nobs','decam_anymask','decam_allmask',\
+                'decam_psfsize','decam_mw_transmission','decam_apflux','decam_apflux_resid','decam_apflux_ivar'] #'decam_depth','decam_galdepth'
+    #split up arrays containing source morphologies
     for i in range(5): 
         data['dchisq'+str(i)]= data['dchisq'][:,i].copy()
-    multi_keys= ['dchisq','decam_flux','decam_flux_ivar','decam_fracflux','decam_fracmasked','decam_fracin','decam_rchi2','decam_nobs','decam_anymask','decam_allmask',\
-                'decam_psfsize','decam_mw_transmission','decam_apflux','decam_apflux_resid','decam_apflux_ivar'] #'decam_depth','decam_galdepth'
-    for key in multi_keys: del data[key]
+    keys_to_del+= ['dchisq']
+    #split up arrays with wise bands 
+    for cnt,b in enumerate(['w1','w2','w3','w4']):
+        if args.schema == 'dr3': print "<<<<<< WARNING wise_lc* not being loaded >>>>>>>>" 
+        data[b+'flux']=data['wise_flux'][:,cnt].copy()
+        data[b+'flux_ivar']= data['wise_flux_ivar'][:,cnt].copy()
+        data[b+'fracflux']= data['wise_fracflux'][:,cnt].copy()
+        data[b+'_ext']= data['wise_mw_transmission'][:,cnt].copy()
+        data[b+'nobs']= data['wise_nobs'][:,cnt].copy()
+    keys_to_del+= ['wise_flux','wise_flux_ivar','wise_fracflux','wise_mw_transmission','wise_nobs']
+    print 'keys_to_del=',keys_to_del
+    for key in keys_to_del: del data[key]
     #get keys + flattened array keys
-    k_dec,k_aper,k_cand=[],[],[]
+    k_dec,k_aper,k_cand,k_wise=[],[],[],[]
     for key in data.keys():
-        if 'apflux' in key: k_aper.append(key)
+        if np.any(('w1' in key,'w2' in key,'w3' in key,'w4' in key),axis=0): k_wise.append(key)
+        elif 'apflux' in key: k_aper.append(key)
         elif 'flux' in key or 'mask' in key or 'depth' in key: k_dec.append(key)
         elif 'rchi' in key or 'nobs' in key or 'psf' in key or 'ext' in key: k_dec.append(key)
         elif key not in k_dec and key not in k_aper: k_cand.append(key)
@@ -212,24 +223,27 @@ if args.schema == 'ptf':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(data.keys())
     #schema
-    tables=[args.table+name for name in ['_cand','_decam','_aper']]
-    keys=[k for k in [k_cand,k_dec,k_aper]]
+    tables=[args.table+name for name in ['_cand','_decam','_aper','_wise']]
+    keys=[k for k in [k_cand,k_dec,k_aper,k_wise]]
     more_cand= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[0])]
     more_decam= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[1]),\
                     "cand_id bigint REFERENCES %s (id)" % (tables[0])]
     more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[2]),\
                     "cand_id bigint REFERENCES %s (id)" % (tables[0])]
+    more_wise= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[3]),\
+                    "cand_id bigint REFERENCES %s (id)" % (tables[0])]
     if args.overw_schema:
         write_schema(args.schema,tables[0],np.sort(keys[0]),sql_dtype,addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
         write_schema(args.schema,tables[1],np.sort(keys[1]),sql_dtype,addrows=more_decam)
         write_schema(args.schema,tables[2],np.sort(keys[2]),sql_dtype,addrows=more_aper)
+        write_schema(args.schema,tables[3],np.sort(keys[3]),sql_dtype,addrows=more_wise)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
         #skip row if any data has a nan
-        if pass_if_str_or_notnan(i,data,keys) == False: continue #skip the row
+        #if pass_if_str_or_notnan(i,data,keys) == False: continue #skip the row
         #data must be good, so write to db
         query_cand= insert_query(args.schema,tables[0],i,data,keys[0],returning=True)
         if args.load_db: 
@@ -238,16 +252,19 @@ if args.schema == 'ptf':
         else: id=2 #junk val so can print what query would look like 
         query_decam= insert_query(args.schema,tables[1],i,data,keys[1],newkeys=['cand_id'],newvals=[id])
         query_aper= insert_query(args.schema,tables[2],i,data,keys[2],newkeys=['cand_id'],newvals=[id])
+        query_wise= insert_query(args.schema,tables[3],i,data,keys[3],newkeys=['cand_id'],newvals=[id])
         if args.load_db: 
             cursor.execute(query_decam) 
             cursor.execute(query_aper) 
+            cursor.execute(query_wise) 
     if args.load_db: 
         con.commit()
     print 'finished %s load' %args.table
     print 'Load/insert queries are:'    
     print 'query_cand= \n',query_cand    
     print 'query_decam= \n',query_decam 
-    print 'query_aper= \n',query_aper    
+    print 'query_aper= \n',query_aper   
+    print 'query_wise= \n',query_wise   
 elif args.table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
