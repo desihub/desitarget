@@ -36,7 +36,8 @@ def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newva
         query+= key.lower()
         if key != keys[-1]: query+= ', '
     query+= ' ) VALUES ( '
-    for nv in newvals: query+= '%s, ' % str(nv)
+    for nv in newvals:
+        query+= '%s, ' % str(nv)
     for key in keys:
         if np.issubdtype(data[key][i].dtype, str): query+= "'%s'" % data[key][i].strip()
         else: query+= "%s" % str(data[key][i])
@@ -113,10 +114,20 @@ def indexes_for_tables(schema):
     else:
         raise ValueError
 
+def pass_if_str_or_notnan(i,data,keys):
+    '''returns True is data does not have nans, False otherwise'''
+    for test_key in keys[0]+keys[1]+keys[2]:
+        if type(data[test_key][i]) == np.string_: continue #don't worry about strings
+        if np.isnan(data[test_key][i]):
+                test_pass=False
+                print 'WARNING, nan for key=%s, row=%d' % (test_key,i)
+                return False
+    return True
+
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
 parser.add_argument("-schema",choices=['public','dr1','dr2','truth','ptf'],action="store",help='',required=True)
-parser.add_argument("-table",choices=['bricks','stripe82','ptf50','ptf100','ptf150','ptf200','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
+parser.add_argument("-table",choices=['bricks','stripe82','ptf50','ptf100','ptf150','ptf200','bok_mzls','decam','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=True)
 parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
 parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
 parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
@@ -217,6 +228,9 @@ if args.schema == 'ptf':
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
+        #skip row if any data has a nan
+        if pass_if_str_or_notnan(i,data,keys) == False: continue #skip the row
+        #data must be good, so write to db
         query_cand= insert_query(args.schema,tables[0],i,data,keys[0],returning=True)
         if args.load_db: 
             cursor.execute(query_cand) 
