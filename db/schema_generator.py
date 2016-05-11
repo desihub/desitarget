@@ -206,13 +206,15 @@ if args.schema in ['dr2','dr3']:
         data[b+'fracflux']= data['wise_fracflux'][:,cnt].copy()
         data[b+'_ext']= data['wise_mw_transmission'][:,cnt].copy()
         data[b+'nobs']= data['wise_nobs'][:,cnt].copy()
-    keys_to_del+= ['wise_flux','wise_flux_ivar','wise_fracflux','wise_mw_transmission','wise_nobs']
+        data[b+'_rchi2']= data['wise_rchi2'][:,cnt].copy()
+    keys_to_del+= ['wise_flux','wise_flux_ivar','wise_fracflux','wise_mw_transmission','wise_nobs','wise_rchi2']
     print 'keys_to_del=',keys_to_del
     for key in keys_to_del: del data[key]
     #get keys + flattened array keys
     k_dec,k_aper,k_cand,k_wise=[],[],[],[]
     for key in data.keys():
-        if np.any(('w1' in key,'w2' in key,'w3' in key,'w4' in key),axis=0): k_wise.append(key)
+        if 'wise_lc' in key: pass #temporary solution for not storing dr3 related keys
+        elif np.any(('w1' in key,'w2' in key,'w3' in key,'w4' in key),axis=0): k_wise.append(key)
         elif 'apflux' in key: k_aper.append(key)
         elif 'flux' in key or 'mask' in key or 'depth' in key: k_dec.append(key)
         elif 'rchi' in key or 'nobs' in key or 'psf' in key or 'ext' in key: k_dec.append(key)
