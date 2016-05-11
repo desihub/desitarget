@@ -30,16 +30,22 @@ def write_schema(schema,table,keys,sql_dtype,addrows=[]):
     fin.close()
 
 def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
-    query = 'INSERT INTO %s ( ' % table    
+    query = 'INSERT INTO %s ( ' % table   
+    #column names 
     for nk in newkeys: query+= '%s, ' % nk
     for key in keys:
         query+= key.lower()
         if key != keys[-1]: query+= ', '
     query+= ' ) VALUES ( '
+    #catalogue numeric or string entries
     for nv in newvals:
         query+= '%s, ' % str(nv)
     for key in keys:
-        if np.issubdtype(data[key][i].dtype, str): query+= "'%s'" % data[key][i].strip()
+        if np.issubdtype(data[key][i].dtype, str): #put strings in quotes 
+            query+= "'%s'" % data[key][i].strip()
+        elif np.any((np.isnan(data[key][i]),np.isinf(data[key][i])),axis=0): #NaN
+            query+= "'NaN'"
+            print "<<<<<<<< WARNING: %s is NaN in row %d >>>>>>>>>>" % (key,i)
         else: query+= "%s" % str(data[key][i])
         if key != keys[-1]: query+= ', '
     if returning: query+= ' ) RETURNING id'
@@ -111,17 +117,6 @@ def indexes_for_tables(schema):
         return optical.update(ir)
     else:
         raise ValueError
-
-def pass_if_str_or_notnan(i,data,keys):
-    '''returns True is data does not have nans, False otherwise'''
-    for test_key in keys[0]+keys[1]+keys[2]:
-        if type(data[test_key][i]) == np.string_: continue #don't worry about strings
-        print('data[test_key][i]= ',data[test_key][i])
-        if np.isnan(data[test_key][i]):
-                test_pass=False
-                print 'WARNING, nan for key=%s, row=%d' % (test_key,i)
-                return False
-    return True
 
 parser = ArgumentParser(description="test")
 parser.add_argument("-fits_file",action="store",help='',required=True)
@@ -242,8 +237,6 @@ if args.schema in ['dr2','dr3']:
     cursor = con.cursor()
     if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
     for i in range(0, nrows):
-        #skip row if any data has a nan
-        #if pass_if_str_or_notnan(i,data,keys) == False: continue #skip the row
         #data must be good, so write to db
         query_cand= insert_query(args.schema,tables[0],i,data,keys[0],returning=True)
         if args.load_db: 
@@ -254,7 +247,7 @@ if args.schema in ['dr2','dr3']:
         query_aper= insert_query(args.schema,tables[2],i,data,keys[2],newkeys=['cand_id'],newvals=[id])
         query_wise= insert_query(args.schema,tables[3],i,data,keys[3],newkeys=['cand_id'],newvals=[id])
         if args.load_db: 
-            cursor.execute(query_decam) 
+            cursor.execute(query_decam)
             cursor.execute(query_aper) 
             cursor.execute(query_wise) 
     if args.load_db: 
