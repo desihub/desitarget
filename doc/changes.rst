@@ -2,15 +2,16 @@
 desitarget Change Log
 =====================
 
-0.4 (unreleased)
-----------------
+0.4.0 (unreleased)
+------------------
 
-* no changes yet
+* Move data into Python package to aid pip installs.
+* Many other changes to support the above.
 
 0.3.3 (2016-03-08)
 ------------------
 
-* added cuts.isMWSSTAR_colors() 
+* added cuts.isMWSSTAR_colors()
 * allow user to specify columns when reading tractor files
 * new code for generating merged target list (MTL)
 * removed unused npyquery code
@@ -32,4 +33,3 @@ desitarget Change Log
 * PR #29 and #27 refactor desitarget.cuts to include per-class functions
 * other changes in git log before (this changes.rst didn't exist yet)
 * _version.py is wrong in this tag
-

@@ -1,0 +1,12 @@
+include LICENSE.rst
+include README.rst
+
+graft bin
+graft db
+graft doc
+graft etc
+
+prune build
+prune dist
+prune htmlcov
+prune doc/_build
