@@ -7,14 +7,13 @@ desitarget.io
 
 This file knows how to write a TS catalogue.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from __future__ import (absolute_import, division)
 #
 import numpy as np
 import fitsio
 import os, re
 from . import __version__ as desitarget_version
-
+from . import gitversion
 
 def read_mock_durham(core_filename, photo_filename):
     """
@@ -203,7 +202,7 @@ def write_targets(filename, data, indir=None):
     hdr['DEPNAM00'] = 'desitarget'
     hdr.add_record(dict(name='DEPVER00', value=desitarget_version, comment='desitarget version'))
     hdr['DEPNAM01'] = 'desitarget-git'
-    hdr.add_record(dict(name='DEPVER01', value=desitarget.gitversion(), comment='git revision'))
+    hdr.add_record(dict(name='DEPVER01', value=gitversion(), comment='git revision'))
 
     if indir is not None:
         hdr['DEPNAM02'] = 'tractor-files'
