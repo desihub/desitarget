@@ -49,7 +49,7 @@ env:
         # These packages will always be installed.
         - PIP_DEPENDENCIES='git+https://github.com/desihub/desiutil@1.4.0#egg=desiutil'
         # These packages will only be installed if we really need them.
-        - PIP_ALL_DEPENDENCIES='fitsio coveralls'
+        - PIP_ALL_DEPENDENCIES='fitsio coveralls git+https://github.com/desihub/desiutil@1.4.0#egg=desiutil'
         # Debug the Travis install process.
         - DEBUG=False
     matrix:

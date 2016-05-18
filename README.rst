@@ -35,6 +35,32 @@ current git location::
 
 And then install as usual
 
+Full Documentation
+------------------
+
+Please visit `desitarget on Read the Docs`_
+
+.. image:: https://readthedocs.org/projects/desitarget/badge/?version=latest
+    :target: http://desitarget.readthedocs.org/en/latest/
+    :alt: Documentation Status
+
+.. _`desitarget on Read the Docs`: http://desitarget.readthedocs.org/en/latest/
+
+Travis Build Status
+-------------------
+
+.. image:: https://img.shields.io/travis/desihub/desitarget.svg
+    :target: https://travis-ci.org/desihub/desitarget
+    :alt: Travis Build Status
+
+
+Test Coverage Status
+--------------------
+
+.. image:: https://coveralls.io/repos/desihub/desitarget/badge.svg?branch=master&service=github
+    :target: https://coveralls.io/github/desihub/desitarget?branch=master
+    :alt: Test Coverage Status
+
 License
 -------
 
