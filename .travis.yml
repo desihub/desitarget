@@ -44,9 +44,9 @@ env:
         - DESIUTIL_VERSION=1.4.0
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
-        - CONDA_DEPENDENCIES=''
+        - CONDA_DEPENDENCIES='pyyaml'
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES='h5py coverage==3.7.1 pyyaml requests'
+        - CONDA_ALL_DEPENDENCIES='h5py coverage==3.7.1 requests'
         # These packages will always be installed.
         - PIP_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
@@ -118,4 +118,4 @@ script:
     - $MAIN_CMD $SETUP_CMD
 
 after_success:
-    - if [[ $MAIN_CMD == 'coverage' ]]; then coveralls; fi
+    - if [[ $SETUP_CMD == 'test --coverage' ]]; then coveralls; fi
