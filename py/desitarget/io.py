@@ -127,19 +127,22 @@ tscolumns = [
 
 
 def read_tractor(filename, header=False, columns=None):
-    """
-        Read a tractor catalogue file.
+    """Read a tractor catalogue file.
 
-        Args:
-            filename: a file name of one tractor file
+    Parameters
+    ----------
+    filename : :class:`str`
+        File name of one tractor file.
+    header : :class:`bool`, optional
+        If ``True``, return (data, header) instead of just data.
+    columns: :class:`list`, optional
+        Specify the desired Tractor catalog columns to read; defaults to
+        desitarget.io.tscolumns.
 
-        Optional:
-            header: if true, return (data, header) instead of just data
-            columns: optionally specify the desired Tractor catalog columns
-                to read; defaults to desitarget.io.tscolumns
-
-        Returns:
-            ndarray with the tractor schema, uppercase field names.
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Array with the tractor schema, uppercase field names.
     """
     check_fitsio_version()
 

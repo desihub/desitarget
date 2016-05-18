@@ -1,30 +1,36 @@
 import numpy as np
 from astropy.table import Table, join
 
-from desitarget import desi_mask, obsmask
-from desitarget.targets import calc_numobs, calc_priority
+from .targetmask import desi_mask, obsmask
+from .targets import calc_numobs, calc_priority
 
 def make_mtl(targets, zcat=None, trim=True):
-    '''
-    Adds NUMOBS, PRIORITY, and GRAYLAYER columns to a targets table
-    
-    Args:
-        targets : Table with columns TARGETID, DESI_TARGET
+    """Adds NUMOBS, PRIORITY, and GRAYLAYER columns to a targets table.
 
-    Optional:
-        zcat : redshift catalog table with columns TARGETID, NUMOBS, Z, ZWARN
-        trim: if True (default), don't include targets that don't need
-            any more observations.  If False, include every input target.
-    
-    Returns:
+    Parameters
+    ----------
+    targets : :class:`~astropy.table.Table`
+        A table with columns ``TARGETID``, ``DESI_TARGET``.
+    zcat : :class:`~astropy.table.Table`, optional
+        Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
+        ``ZWARN``.
+    trim : :class:`bool`, optional
+        If ``True`` (default), don't include targets that don't need
+        any more observations.  If ``False``, include every input target.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
         MTL Table with targets columns plus
-          * NUMOBS_MORE - number of additional observations requested
-          * PRIORITY - target priority (larger number = higher priority)
-          * GRAYLAYER - can this be observed during gray time?
 
-    TODO:
-        Check if input targets is ever altered (ist shouldn't...)
-    '''
+        * NUMOBS_MORE - number of additional observations requested
+        * PRIORITY - target priority (larger number = higher priority)
+        * GRAYLAYER - can this be observed during gray time?
+
+    Notes
+    -----
+        TODO: Check if input targets is ever altered (it shouldn't...).
+    """
     n = len(targets)
     targets = Table(targets)
     if zcat is not None:
