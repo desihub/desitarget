@@ -7,6 +7,7 @@ desitarget Change Log
 
 * Move data into Python package to aid pip installs.
 * Many other changes to support the above.
+* Support for Travis, Coveralls and ReadTheDocs.
 
 0.3.3 (2016-03-08)
 ------------------
