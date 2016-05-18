@@ -1,0 +1,117 @@
+#
+# IMPORTANT.  OS X support is so experimental that you have to specifically
+# request to have it enabled, on a per-repository basis.  See
+# http://docs.travis-ci.com/user/multi-os/#Manual-intervention-required
+#
+# This file will still work, without OS X enabled, it just won't run those
+# tests.
+#
+# We set the language to c because python isn't supported on the MacOS X nodes
+# on Travis. However, the language ends up being irrelevant anyway, since we
+# install Python ourselves using conda.
+# language: python
+language: c
+
+os:
+    - linux
+    # - osx
+
+# Setting sudo to false opts in to Travis-CI container-based builds.
+sudo: false
+
+# The apt packages below are needed for sphinx builds, which can no longer
+# be installed with sudo apt-get.
+addons:
+    apt:
+        packages:
+            - graphviz
+            - texlive-latex-extra
+            - dvipng
+# python:
+    # - 2.6
+    # - 2.7
+    # - 3.3
+    # - 3.4
+    # This is just for "egg_info".  All other builds are explicitly given in the matrix
+env:
+    global:
+        # The following versions are the 'default' for tests, unless
+        # overidden underneath. They are defined here in order to save having
+        # to repeat them for all configurations.
+        # - NUMPY_VERSION=1.10
+        # - SCIPY_VERSION=0.17
+        - ASTROPY_VERSION=1.1.1
+        - MAIN_CMD='python setup.py'
+        # These packages will always be installed.
+        - CONDA_DEPENDENCIES=''
+        # These packages will only be installed if we really need them.
+        - CONDA_ALL_DEPENDENCIES='h5py coverage==3.7.1 pyyaml requests'
+        # These packages will always be installed.
+        - PIP_DEPENDENCIES='git+https://github.com/desihub/desiutil@1.4.0#egg=desiutil'
+        # These packages will only be installed if we really need them.
+        - PIP_ALL_DEPENDENCIES='fitsio coveralls'
+        # Debug the Travis install process.
+        - DEBUG=False
+    matrix:
+        - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+
+matrix:
+    # Don't wait for allowed failures.
+    fast_finish: true
+
+    # OS X support is still experimental, so don't penalize failuures.
+    allow_failures:
+        - os: osx
+
+    include:
+
+        # Check for sphinx doc build warnings - we do this first because it
+        # runs for a long time
+        - os: linux
+          env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
+          # -w is an astropy extension
+
+        # Try all python versions with the latest numpy
+        - os: linux
+          env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
+               SETUP_CMD="run py/specter/test/specter_test_suite.py"
+               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+
+        # - os: osx
+        #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
+        # - python: 3.3
+        #   env: SETUP_CMD='test --open-files'
+        # - python: 3.4
+        #   env: SETUP_CMD='test --open-files'
+
+        # Now try do scipy on 2.7 and an appropriate 3.x build (with latest numpy)
+        # We also note the code coverage on Python 2.7.
+        # - python: 2.7
+        #   env: SETUP_CMD='test --coverage'  OPTIONAL_DEPS=true LC_CTYPE=C.ascii LC_ALL=C.ascii
+        # - python: 3.4
+        #   env: SETUP_CMD='test'  OPTIONAL_DEPS=true LC_CTYPE=C.ascii LC_ALL=C.ascii
+
+        # Try older numpy versions
+        # - python: 2.7
+        #   env: NUMPY_VERSION=1.8 SETUP_CMD='test'
+        # - python: 2.7
+        #   env: NUMPY_VERSION=1.7 SETUP_CMD='test'
+        # - python: 2.7
+        #   env: NUMPY_VERSION=1.6 SETUP_CMD='test'
+
+        # Do a PEP8 test
+        # - python: 2.7
+        #   env: MAIN_CMD='pep8 astropy --count' SETUP_CMD=''
+
+install:
+    - git clone git://github.com/astropy/ci-helpers.git
+    - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
+    # egg_info causes the astropy/ci-helpers script to exit before the pip
+    # packages are installed, thus desiutil is not installed in that script.
+
+script:
+    - $MAIN_CMD $SETUP_CMD
+
+after_success:
+    - if [[ $MAIN_CMD == 'coverage' ]]; then coveralls; fi
