@@ -41,15 +41,19 @@ env:
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
         - ASTROPY_VERSION=1.1.1
+        - DESIUTIL_VERSION=1.4.0
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
         - CONDA_ALL_DEPENDENCIES='h5py coverage==3.7.1 pyyaml requests'
         # These packages will always be installed.
-        - PIP_DEPENDENCIES='git+https://github.com/desihub/desiutil@1.4.0#egg=desiutil'
+        - PIP_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
-        - PIP_ALL_DEPENDENCIES='fitsio coveralls git+https://github.com/desihub/desiutil@1.4.0#egg=desiutil'
+        - PIP_ALL_DEPENDENCIES='fitsio coveralls'
+        # These pip packages need to be installed in a certain order, so we
+        # do that separately from the astropy/ci-helpers scripts.
+        - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION}"
         # Debug the Travis install process.
         - DEBUG=False
     matrix:
@@ -73,8 +77,7 @@ matrix:
 
         # Try all python versions with the latest numpy
         - os: linux
-          env: PYTHON_VERSION=2.7 MAIN_CMD='coverage'
-               SETUP_CMD="run py/specter/test/specter_test_suite.py"
+          env: PYTHON_VERSION=2.7 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
@@ -109,6 +112,7 @@ install:
     - source ci-helpers/travis/setup_conda_$TRAVIS_OS_NAME.sh
     # egg_info causes the astropy/ci-helpers script to exit before the pip
     # packages are installed, thus desiutil is not installed in that script.
+    - for p in $DESIHUB_PIP_DEPENDENCIES; do r=$(echo $p | cut -d= -f1); v=$(echo $p | cut -d= -f2); pip install git+https://github.com/desihub/${r}.git@${v}#egg=${r}; done
 
 script:
     - $MAIN_CMD $SETUP_CMD
