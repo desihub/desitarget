@@ -1,4 +1,5 @@
 import unittest
+from pkg_resources import resource_filename
 import os.path
 from uuid import uuid4
 from astropy.io import fits
@@ -11,12 +12,10 @@ from desitarget import cuts
 from desitarget import desi_mask
 
 class TestCuts(unittest.TestCase):
-    
+
     @classmethod
     def setUpClass(cls):
-        # py/desitarget/test -> etc/datadir
-        thisdir, thisfile = os.path.split(__file__)
-        cls.datadir = os.path.abspath(thisdir+'/../../../') + '/etc/testdata'
+        cls.datadir = resource_filename('desitarget.test', 't')
         cls.tractorfiles = io.list_tractorfiles(cls.datadir)
         cls.sweepfiles = io.list_sweepfiles(cls.datadir)
 
@@ -96,7 +95,7 @@ class TestCuts(unittest.TestCase):
         self.assertEqual(len(desi), len(targets))
         self.assertEqual(len(bgs), len(targets))
         self.assertEqual(len(mws), len(targets))
-        
+
         desi, bgs, mws = cuts.apply_cuts(targets[0])
         self.assertTrue(isinstance(desi, int), 'DESI_TARGET mask not an int')
         self.assertTrue(isinstance(bgs, int), 'BGS_TARGET mask not an int')
@@ -125,13 +124,13 @@ class TestCuts(unittest.TestCase):
                     notNaN = ~np.isnan(t1[col])
                 except TypeError:  #- can't check string columns for NaN
                     notNan = np.ones(len(t1), dtype=bool)
-                    
-                self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))            
-            
+
+                self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
+
     def test_missing_files(self):
         with self.assertRaises(ValueError):
             targets = cuts.select_targets(['blat.foo1234',], numproc=1)
-        
+
     def test_parallel_select(self):
         for nproc in [1,2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
@@ -140,11 +139,10 @@ class TestCuts(unittest.TestCase):
                 self.assertTrue('BGS_TARGET' in targets.dtype.names)
                 self.assertTrue('MWS_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['DESI_TARGET']))
-            
+
                 bgs1 = (targets['DESI_TARGET'] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets['BGS_TARGET'] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
-        
+
 if __name__ == '__main__':
     unittest.main()
-
