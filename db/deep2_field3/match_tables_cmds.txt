@@ -26,7 +26,7 @@ update lookup_bok_mzls set nrep=cnt.nrep from cnt where lookup_bok_mzls.matching
 drop table cnt;
 --query data
 --bok_mzls sources that fall in 1'' of decam
-\o decam_with_matching_decam.txt
+\o decam_with_matching_bokmos.txt
 select decam_cand.ra,decam_cand.dec,decam_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext, bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,d.gflux,d.rflux,d.zflux,d.gflux_ivar,d.rflux_ivar,d.zflux_ivar,d.g_ext,d.r_ext,d.z_ext,d_wise.w1flux,d_wise.w1flux_ivar,d_wise.w1_ext from lookup_decam join decam_cand on decam_cand.id=lookup_decam.decam join decam_decam as b on b.cand_id=lookup_decam.decam join decam_wise as b_wise on b_wise.cand_id=lookup_decam.decam  join bok_mzls_cand on bok_mzls_cand.id=lookup_decam.matching_bok_mzls join bok_mzls_decam as d on d.cand_id=lookup_decam.matching_bok_mzls join bok_mzls_wise as d_wise on d_wise.cand_id=lookup_decam.matching_bok_mzls where lookup_decam.nrep=1;
 \o
 --decam sources that fall in 1'' of bok_mzls
