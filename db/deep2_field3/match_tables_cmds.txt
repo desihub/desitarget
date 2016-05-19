@@ -42,3 +42,10 @@ select decam_cand.ra,decam_cand.dec,decam_cand.type,b.gflux,b.rflux,b.zflux,b.gf
 \o bokmos_wout_match_in_decam.txt
 select bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1_ext from lookup_bok_mzls join bok_mzls_cand on bok_mzls_cand.id=lookup_bok_mzls.bok_mzls join bok_mzls_decam as b on b.cand_id=lookup_bok_mzls.bok_mzls join bok_mzls_wise as b_wise on b_wise.cand_id=lookup_bok_mzls.bok_mzls where lookup_bok_mzls.nrep<0;
 \o
+\o bokmos_all.txt
+select bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1_ext from bok_mzls_cand join bok_mzls_decam as b on b.cand_id=bok_mzls_cand.id join bok_mzls_wise as b_wise on b_wise.cand_id=bok_mzls_cand.id;
+\o
+\o decam_all.txt
+select decam_cand.ra,decam_cand.dec,decam_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1_ext from decam_cand join decam_decam as b on b.cand_id=decam_cand.id join decam_wise as b_wise on b_wise.cand_id=decam_cand.id;
+select bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1_ext from bok_mzls_cand join bok_mzls_decam as b on b.cand_id=bok_mzls_cand.id join bok_mzls_wise as b_wise on b_wise.cand_id=bok_mzls_cand.id;
+\o
