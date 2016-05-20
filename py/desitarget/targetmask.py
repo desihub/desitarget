@@ -1,15 +1,11 @@
-try:
-    from desiutil.bitmask import BitMask
-except ImportError:
-    from desitarget.internal.maskbits import BitMask
+from desiutil.bitmask import BitMask
 
 import os
 import sys
 import yaml
-
+from pkg_resources import resource_filename
 #- Load bit definitions from yaml file
-_thisdir = os.path.dirname(__file__)
-_filepath = os.path.join(_thisdir, "targetmask.yaml") 
+_filepath = resource_filename('desitarget', "data/targetmask.yaml") 
 with open(_filepath) as fx:
     _bitdefs = yaml.load(fx)
 
@@ -22,7 +18,7 @@ for maskname, priorities in _bitdefs['priorities'].items():
             priorities[bitname].startswith('SAME_AS_'):
                 other = priorities[bitname][8:]
                 priorities[bitname] = priorities[other]
-    
+
         #- fill in default "more" priority to be same as "unobs"
         if isinstance(priorities[bitname], dict):
             if 'MORE_ZWARN' not in priorities[bitname]:
@@ -36,8 +32,8 @@ for maskname, priorities in _bitdefs['priorities'].items():
                     priorities[bitname][state] = 0
         else:
             priorities[bitname] = dict()
-            
-        
+
+
     #- add to the extra info dictionary for this target mask
     for bitdef in _bitdefs[maskname]:
         bitname = bitdef[0]
@@ -59,11 +55,11 @@ obsmask = BitMask('obsmask', _bitdefs)
 #     if bitname not in priorities.keys():
 #         print >> sys.stderr, "ERROR: no priority defined for "+bitname
 #         error = True
-#         
+#
 # for bitname in priorities.keys():
 #     if bitname not in targetmask.names():
 #         print >> sys.stderr, "ERROR: priority defined for bogus name "+bitname
 #         error = True
-# 
+#
 # if error:
 #     raise ValueError("mismatch between priority and targetmask definitions")

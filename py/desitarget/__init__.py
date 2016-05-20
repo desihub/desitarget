@@ -4,13 +4,11 @@
 # -*- coding: utf-8 -*-
 """
 desitarget
-========
+==========
 
-Tools for DESI target selection.
+Tools for DESI_ target selection.
 
-.. _desitarget: https://github.com/desihub/desitarget
 .. _DESI: http://desi.lbl.gov
-.. _Python: http://python.org
 """
 
 # help with 2to3 support.
@@ -40,4 +38,3 @@ def gitversion():
 # desitarget.targetmask makes more sense?
 from .targetmask import obsconditions, obsmask
 from .targetmask import desi_mask, mws_mask, bgs_mask
-
