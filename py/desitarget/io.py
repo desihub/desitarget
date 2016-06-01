@@ -15,13 +15,63 @@ import os, re
 from . import __version__ as desitarget_version
 from . import gitversion
 
+def read_mock_dark_time(filename, read_z=True):
+    """Reads preliminary mocks (positions only) for the dark time survey.
+
+    Parameters:
+    ----------
+    filename : :class:`str`
+        File name of one mock dark time file.
+    read_z =: :class:`boolean`
+        Option to read the redshift column.
+
+    Returns:
+    --------    
+    ra: :class: `numpy.ndarray`
+        Array with the RA positions for the objects in the mock.
+    dec: :class: `numpy.ndarray`
+        Array with the DEC positions for the objects in the mock.
+    z: :class: `numpy.ndarray`
+        Array with the redshiffts for the objects in the mock.
+        Zeros if read_z = False
+    density: float
+        Object number density in the mock computed over a small patch.
+    """
+    check_fitsio_version()
+
+    if read_z :
+        data = fitsio.read(filename,columns=['RA','DEC','Z'])
+        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+        dec  = data['DEC'].astype('f8')
+        zz   = data[  'Z'].astype('f8')
+    else:
+        data = fitsio.read(filename,columns=['RA','DEC'])
+        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+        dec  = data['DEC'].astype('f8')
+        zz   = np.zeros(len(ra))
+
+    del data
+
+    # use small region to determine densities of mocks
+    footprint_area = 20. * 45.* np.sin(45. * np.pi/180.)/(45. * np.pi/180.)
+    smalldata = zz[(ra>170.) & (dec<190.) & (dec>0.) & (dec<45.)]
+    n_in = len(smalldata)
+    density = n_in/footprint_area
+
+    return ( (ra,dec,zz,density))
+
+    
+                                                                                                                             
+
 def read_mock_durham(core_filename, photo_filename):
     """
     Args:
+    -----
         core_filename: filename of the hdf5 file storing core lightconedata
         photo_filename: filename of the hdf5 storing photometric data
 
     Returns:
+    -------
         objects: ndarray with the structure required to go through
         desitarget.cuts.select_targets()
     """
