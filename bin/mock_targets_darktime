@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+import numpy as np
+
+import desitarget
+import desitarget.targets
+from desitarget.io import read_tractor, write_targets
+from desitarget.io import read_mock_durham
+
+import argparse 
+
+
+parser = argparse.ArgumentParser(description="Create mock target file from dark matter only mocks")
+parser.add_argument("--output_dir", "-O", help="Path to write the outputs (targets,truth)", type=str, default="./")
+parser.add_argument("--mock_qso", "-Q", help="Mock lightcone QSO file", type=str, required=True)
+parser.add_argument("--mock_elg","-E", help="Mock lightcone ELG file", type=str, required=True)
+parser.add_argument("--mock_lrg","-L", help="Mock lightcone LRG file", type=str, required=True)
+parser.add_argument("--n_epochs","-N", help="Number of epochs to run", type=int, default=1)
+parser.add_argument("--verbose", "-v", action='store_true')
+args = parser.parse_args()
