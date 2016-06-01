@@ -34,8 +34,6 @@ def read_mock_dark_time(filename, read_z=True):
     z: :class: `numpy.ndarray`
         Array with the redshiffts for the objects in the mock.
         Zeros if read_z = False
-    density: float
-        Object number density in the mock computed over a small patch.
     """
     check_fitsio_version()
 
@@ -52,13 +50,7 @@ def read_mock_dark_time(filename, read_z=True):
 
     del data
 
-    # use small region to determine densities of mocks
-    footprint_area = 20. * 45.* np.sin(45. * np.pi/180.)/(45. * np.pi/180.)
-    smalldata = zz[(ra>170.) & (dec<190.) & (dec>0.) & (dec<45.)]
-    n_in = len(smalldata)
-    density = n_in/footprint_area
-
-    return ( (ra,dec,zz,density))
+    return ( (ra,dec,zz))
 
     
                                                                                                                              
