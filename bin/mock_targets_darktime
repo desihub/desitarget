@@ -7,7 +7,7 @@ import desitarget
 import desitarget.targets
 import desitarget.io as dtio
 import desitarget.mock as dtmock
-
+from desitarget import desi_mask
 import argparse 
 
 
@@ -29,6 +29,33 @@ qso_mock_dens = dtmock.estimate_density(qso_mock_ra, qso_mock_dec)
 elg_mock_dens = dtmock.estimate_density(elg_mock_ra, elg_mock_dec)
 lrg_mock_dens = dtmock.estimate_density(lrg_mock_ra, lrg_mock_dec)
 random_mock_dens = dtmock.estimate_density(random_mock_ra, random_mock_dec)
+
+
+ra_list = [qso_mock_ra, qso_mock_ra, qso_mock_ra]
+dec_list = [qso_mock_dec, qso_mock_dec, qso_mock_dec]
+
+
+goal_density_qsoI = 120.0 # objects / deg^2
+ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_, sub_prior_ = \
+     dtmock.select_population(qso_mock_ra, qso_mock_dec, qso_mock_z, \
+     goal_density = goal_density_qsoI, min_z=2.1, true_type='QSO', \
+     desi_target_flag = desi_mask.QSO)
+
+goal_density_qsoII = 50.0 # objects / deg^2
+ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_, sub_prior_ = \
+     dtmock.select_population(qso_mock_ra, qso_mock_dec, qso_mock_z, \
+     goal_density = goal_density_qsoII, max_z=2.1, true_type='QSO', \
+     desi_target_flag = desi_mask.QSO)
+
+
+goal_density_qso_fake = 90.0 # objects / deg^2
+ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_, sub_prior_ = \
+     dtmock.select_population(qso_mock_ra, qso_mock_dec, qso_mock_z, \
+     goal_density = goal_density_qso_fake, true_type='STAR', \
+     desi_target_flag = desi_mask.QSO)
+
+
+
 
 print("LRG dens {}".format(lrg_mock_dens))
 print("QSO dens {}".format(qso_mock_dens))
