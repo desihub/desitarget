@@ -5,8 +5,8 @@ import numpy as np
 
 import desitarget
 import desitarget.targets
-from desitarget.io import read_tractor, write_targets
-from desitarget.io import read_mock_durham
+import desitarget.io as dtio
+import desitarget.mock as dtmock
 
 import argparse 
 
@@ -16,6 +16,21 @@ parser.add_argument("--output_dir", "-O", help="Path to write the outputs (targe
 parser.add_argument("--mock_qso", "-Q", help="Mock lightcone QSO file", type=str, required=True)
 parser.add_argument("--mock_elg","-E", help="Mock lightcone ELG file", type=str, required=True)
 parser.add_argument("--mock_lrg","-L", help="Mock lightcone LRG file", type=str, required=True)
-parser.add_argument("--n_epochs","-N", help="Number of epochs to run", type=int, default=1)
+parser.add_argument("--mock_random","-R", help="Mock lightcone random file", type=str, required=True)
 parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
+
+qso_mock_ra, qso_mock_dec, qso_mock_z = dtio.read_mock_dark_time(args.mock_qso)
+elg_mock_ra, elg_mock_dec, elg_mock_z = dtio.read_mock_dark_time(args.mock_elg)
+lrg_mock_ra, lrg_mock_dec, lrg_mock_z = dtio.read_mock_dark_time(args.mock_lrg)
+random_mock_ra, random_mock_dec, random_mock_z = dtio.read_mock_dark_time(args.mock_random, read_z=False)
+
+qso_mock_dens = dtmock.estimate_density(qso_mock_ra, qso_mock_dec)
+elg_mock_dens = dtmock.estimate_density(elg_mock_ra, elg_mock_dec)
+lrg_mock_dens = dtmock.estimate_density(lrg_mock_ra, lrg_mock_dec)
+random_mock_dens = dtmock.estimate_density(random_mock_ra, random_mock_dec)
+
+print("LRG dens {}".format(lrg_mock_dens))
+print("QSO dens {}".format(qso_mock_dens))
+print("ELG dens {}".format(elg_mock_dens))
+print("RAND dens {}".format(random_mock_dens))
