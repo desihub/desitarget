@@ -213,13 +213,13 @@ def build_mock(**kwargs):
     subprior = np.random.uniform(0., 1., size=n)
     brickname = desispec.brick.brickname(ra_total, dec_total)
     
-    print('Total in targetid {}'.format(len(targetid)))
-    print('Total in ra {}'.format(len(ra_total)))
-    print('Total in dec {}'.format(len(dec_total)))
-    print('Total in brickname {}'.format(len(brickname)))
-    print('Total in desi {}'.format(len(desi_target_total)))
-    print('Total in bgs {}'.format(len(bgs_target_total)))
-    print('Total in mws {}'.format(len(mws_target_total)))
+#    print('Total in targetid {}'.format(len(targetid)))
+#    print('Total in ra {}'.format(len(ra_total)))
+#    print('Total in dec {}'.format(len(dec_total)))
+#    print('Total in brickname {}'.format(len(brickname)))
+#    print('Total in desi {}'.format(len(desi_target_total)))
+#    print('Total in bgs {}'.format(len(bgs_target_total)))
+#    print('Total in mws {}'.format(len(mws_target_total)))
 
 
     # write the Targets to disk
