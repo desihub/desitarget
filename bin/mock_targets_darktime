@@ -54,29 +54,30 @@ mws_tf_list = [0,0,0,0,0,0]
 ra_total = np.empty(0)
 dec_total = np.empty(0)
 z_total = np.empty(0)
-subprior_total = np.empty(0)
 desi_target_total = np.empty(0, dtype='i8')
 bgs_target_total = np.empty(0, dtype='i8')
 mws_target_total = np.empty(0, dtype='i8')
+true_type_total = np.empty(0, dtype='S10')
 
 for ra, dec, z, min_z, max_z, goal, true_type, desi_tf, bgs_tf, mws_tf in\
         zip(ra_list, dec_list, z_list, min_z_list, max_z_list, goal_list,\
                 true_type_list, desi_tf_list, bgs_tf_list, mws_tf_list):
 
-    ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_, sub_prior_ = \
+    ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_ = \
         dtmock.select_population(ra, dec, z, min_z=min_z, max_z=max_z, goal_density=goal,\
         true_type=true_type, desi_target_flag = desi_tf, bgs_target_flag = bgs_tf, mws_target_flag = mws_tf)
 
     ra_total = np.append(ra_total, ra_)
     dec_total = np.append(dec_total, dec_)
+    z_total = np.append(z_total, z_)
     desi_target_total = np.append(desi_target_total, desi_flag_)
     bgs_target_total = np.append(bgs_target_total, bgs_flag_)
     mws_target_total = np.append(mws_target_total, mws_flag_)
-    subprior_total = np.append(subprior_total, sub_prior_)
-
+    true_type_total = np.append(true_type_total, true_type_)
 
 n = len(ra_total)
 targetid = np.random.randint(2**62, size=n)
+subprior = np.random.uniform(0., 1., size=n)
 brickname = desispec.brick.brickname(ra_total, dec_total)
 
 print('Total in targetid {}'.format(len(targetid)))
@@ -86,7 +87,7 @@ print('Total in brickname {}'.format(len(brickname)))
 print('Total in desi {}'.format(len(desi_target_total)))
 print('Total in bgs {}'.format(len(bgs_target_total)))
 print('Total in mws {}'.format(len(mws_target_total)))
-print('Total in subprior {}'.format(len(subprior_total)))
+
 
 targets_filename = os.path.join(args.output_dir, 'targets.fits')
 targets = Table()
@@ -97,5 +98,16 @@ targets['DEC'] = dec_total
 targets['DESI_TARGET'] = desi_target_total
 targets['BGS_TARGET'] = bgs_target_total
 targets['MWS_TARGET'] = mws_target_total
-targets['SUBPRIORITY'] = subprior_total
+targets['SUBPRIORITY'] = subprior
 targets.write(targets_filename, overwrite=True)
+
+truth_filename  = os.path.join(args.output_dir, 'truth.fits')
+truth = Table()
+truth['TARGETID'] = targetid
+truth['BRICKNAME'] = brickname
+truth['RA'] = ra_total
+truth['DEC'] = dec_total
+truth['TRUEZ'] = z_total
+truth['TRUETYPE'] = true_type_total
+truth.write(targets_filename, overwrite=True)
+
