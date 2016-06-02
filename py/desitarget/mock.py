@@ -14,7 +14,7 @@ import fitsio
 import os, re
 from . import __version__ as desitarget_version
 from . import gitversion
-import desitarget.io as dtio
+import desitarget.io 
 from desitarget import desi_mask
 import os
 from astropy.table import Table, Column
@@ -136,8 +136,7 @@ def select_population(ra, dec, z, **kwargs):
     ra_pop, dec_pop, z_pop = reduce(ra[ii], dec[ii], z[ii], frac_keep)
     n = len(ra_pop)
 
-
-    print("keeping total={} fraction={}".format(n, frac_keep))
+#    print("keeping total={} fraction={}".format(n, frac_keep))
 
     desi_target_pop  = np.zeros(n, dtype='i8'); desi_target_pop[:] = kwargs['desi_target_flag']
     bgs_target_pop = np.zeros(n, dtype='i8'); bgs_target_pop[:] = kwargs['bgs_target_flag']
@@ -146,7 +145,33 @@ def select_population(ra, dec, z, **kwargs):
 
     return ((ra_pop, dec_pop, z_pop, desi_target_pop, bgs_target_pop, mws_target_pop, true_type_pop))
 
-def build_mock(**kwargs):
+def build_mock_target(**kwargs):
+    """Builds a Target and Truth files from a series of mock files
+    
+    **kwargs:
+        qsoI_dens: float
+           Desired number density for Lya QSOs.
+        qsoII_dens: float
+           Desired number density for tracer QSOs.
+        qso_fake_dens: float
+           Desired number density for fake (contamination) QSOs.
+        lrg_dens: float
+           Desired number density for LRGs.
+        lrg_fake_dens: float
+           Desired number density for fake (contamination) LRGs.
+        elg_dens: float
+           Desired number density for ELGs.
+        mock_qso_file: string
+           Filename for the mock QSOs.
+        mock_lrg_file: string
+           Filename for the mock LRGss.
+        mock_elg_file: string
+           Filename for the mock ELGs.
+        mock_random_file: string
+           Filename for a random set of points.
+        output_dir: string
+           Path to write the outputs (targets.fits and truth.fits).
+    """
     # Set desired number densities
     goal_density_qsoI = kwargs['qsoI_dens']
     goal_density_qsoII = kwargs['qsoII_dens']
@@ -156,10 +181,10 @@ def build_mock(**kwargs):
     goal_density_elg = kwargs['elg_dens']
 
     # read the mocks on disk
-    qso_mock_ra, qso_mock_dec, qso_mock_z = dtio.read_mock_dark_time(kwargs['qso_file'])
-    elg_mock_ra, elg_mock_dec, elg_mock_z = dtio.read_mock_dark_time(kwargs['elg_file'])
-    lrg_mock_ra, lrg_mock_dec, lrg_mock_z = dtio.read_mock_dark_time(kwargs['lrg_file'])
-    random_mock_ra, random_mock_dec, random_mock_z = dtio.read_mock_dark_time(kwargs['random_file'], read_z=False)
+    qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.io.read_mock_dark_time(kwargs['qso_file'])
+    elg_mock_ra, elg_mock_dec, elg_mock_z = desitarget.io.read_mock_dark_time(kwargs['elg_file'])
+    lrg_mock_ra, lrg_mock_dec, lrg_mock_z = desitarget.io.read_mock_dark_time(kwargs['lrg_file'])
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
 
     # build lists for the different population types
     ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra]
