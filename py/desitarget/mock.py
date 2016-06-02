@@ -5,7 +5,7 @@
 mocks.io
 ========
 
-Makes mock target catalogs
+Builds target/truth files from already existing mock data
 """
 from __future__ import (absolute_import, division)
 #
@@ -92,13 +92,21 @@ def select_population(ra, dec, z, **kwargs):
         z: array_like
             An array with redshifts
 
-
     **kwargs:
         goal_density: float
             Number density (n/deg^2) desired for this set of points.
-goal_density=0.0, 
-min_z=-1.0, max_z=1000.0, true_type='UNKNOWN', 
-                      desi_target_flag=0, bgs_target_flag=0, mws_target_flag=0):            
+        min_z = float
+            Minimum redshift to select from the input z.
+        max_z = float
+            Maximum redshift to select from the input z.
+        true_type = string
+            Desired label for this population.
+        desi_target_flag = 64bit mask
+            Kind of DESI target following desitarget.desi_mask
+        bgs_target_flag = 64bit mask
+            Kind of BGS target following desitarget.desi_mask
+        mws_target_flag = 64bit mask
+            Kind of MWS target following desitarget.desi_mask
 
     Returns:
         ra_pop: array_like (float)
@@ -181,7 +189,9 @@ def build_mock(**kwargs):
 
         # select subpopulation
         ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_ = \
-            select_population(ra, dec, z, min_z=min_z, max_z=max_z,\
+            select_population(ra, dec, z,\
+                              min_z=min_z,\
+                              max_z=max_z,\
                               goal_density=goal,\
                               true_type=true_type,\
                               desi_target_flag = desi_tf,\
