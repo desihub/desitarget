@@ -274,3 +274,65 @@ def build_mock_target(**kwargs):
     return
     
 
+
+def build_mock_sky_star(**kwargs):
+    """Builds a Sky and StandardStar files from a series of mock files
+    
+    **kwargs:
+        std_star_dens: float
+           Desired number density for starndar stars.
+        sky_calib_dens: float
+           Desired number density for sky calibration locations.
+        mock_random_file: string
+           Filename for a random set of points.
+        output_dir: string
+           Path to write the outputs (targets.fits and truth.fits).
+    """
+    # Set desired number densities
+    goal_density_std_star = kwargs['std_star_dens']
+    goal_density_sky = kwargs['sky_calib_dens']
+
+    # read the mock on disk
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
+
+    true_type_list = ['STAR', 'SKY']
+    goal_density_list = [goal_density_std_star, goal_density_sky]
+    desi_target_list  = [desi_mask.STD_FSTAR, desi_mask.SKY]
+    filename_list = ['stdstar.fits', 'sky.fits']
+
+    for true_type, goal_density, desi_target_flag, filename in\
+            zip(true_type_list, goal_density_list, desi_target_list, filename_list):
+        ra_, dec_, z_star ,desi_flag_, bgs_flag_, mws_flag_, true_type_ = \
+            select_population(random_mock_ra, random_mock_dec, random_mock_z,\
+                                  min_z=-1.0,\
+                                  max_z=100,\
+                                  goal_density=goal_density,\
+                                  true_type=true_type,\
+                                  desi_target_flag = desi_target_flag,\
+                                  bgs_target_flag = 0,\
+                                  mws_target_flag = 0)
+        
+        # make up the IDs, subpriorities and bricknames
+        n = len(ra_)
+        targetid = np.random.randint(2**62, size=n)
+        subprior = np.random.uniform(0., 1., size=n)
+        brickname = desispec.brick.brickname(ra_, dec_)
+    
+        print('Total in targetid {}'.format(len(targetid)))
+
+        # write the targets to disk
+        targets_filename = os.path.join(kwargs['output_dir'], filename)
+        targets = Table()
+        targets['TARGETID'] = targetid
+        targets['BRICKNAME'] = brickname
+        targets['RA'] = ra_
+        targets['DEC'] = dec_
+        targets['DESI_TARGET'] = desi_flag_
+        targets['BGS_TARGET'] = bgs_flag_
+        targets['MWS_TARGET'] = mws_flag_
+        targets['SUBPRIORITY'] = subprior
+        targets.write(targets_filename, overwrite=True)
+        
+    return
+    
+
