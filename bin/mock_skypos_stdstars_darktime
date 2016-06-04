@@ -15,7 +15,7 @@ parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
 
 _ = desitarget.mock.darktime.build_mock_sky_star(output_dir=args.output_dir,\
-                                                     random_file=args.mock_random_file,\
+                                                     mock_random_file=args.mock_random_file,\
                                                      std_star_dens=args.std_star_dens,\
                                                      sky_calib_dens=args.sky_calib_dens)
 

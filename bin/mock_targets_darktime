@@ -25,10 +25,10 @@ parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
 
 _ = desitarget.mock.darktime.build_mock_target(output_dir=args.output_dir,\
-                                                   qso_file=args.mock_qso_file,\
-                                                   elg_file=args.mock_elg_file,\
-                                                   lrg_file=args.mock_elg_file,\
-                                                   random_file=args.mock_random_file,\
+                                                   mock_qso_file=args.mock_qso_file,\
+                                                   mock_elg_file=args.mock_elg_file,\
+                                                   mock_lrg_file=args.mock_elg_file,\
+                                                   mock_random_file=args.mock_random_file,\
                                                    qsolya_dens=args.qsolya_dens,\
                                                    qsotracer_dens=args.qsotracer_dens,\
                                                    qso_fake_dens=args.qso_fake_dens,\

@@ -143,13 +143,14 @@ def select_population(ra, dec, z, **kwargs):
 
     return ((ra_pop, dec_pop, z_pop, desi_target_pop, bgs_target_pop, mws_target_pop, true_type_pop))
 
-def build_mock_target(**kwargs):
+def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lrg_dens=0.0, lrg_fake_dens=0.0, elg_dens=0.0, elg_fake_dens=0.0,
+                      mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_random_file='', output_dir=''):
     """Builds a Target and Truth files from a series of mock files
     
-    **kwargs:
-        qsoI_dens: float
+    Args:
+        qsolya_dens: float
            Desired number density for Lya QSOs.
-        qsoII_dens: float
+        qsotracer_dens: float
            Desired number density for tracer QSOs.
         qso_fake_dens: float
            Desired number density for fake (contamination) QSOs.
@@ -159,6 +160,8 @@ def build_mock_target(**kwargs):
            Desired number density for fake (contamination) LRGs.
         elg_dens: float
            Desired number density for ELGs.
+        elg_fake_dens: float
+           Desired number density for fake (contamination) ELGs.
         mock_qso_file: string
            Filename for the mock QSOs.
         mock_lrg_file: string
@@ -170,20 +173,12 @@ def build_mock_target(**kwargs):
         output_dir: string
            Path to write the outputs (targets.fits and truth.fits).
     """
-    # Set desired number densities
-    goal_density_qsolya = kwargs['qsolya_dens']
-    goal_density_qsotracer = kwargs['qsotracer_dens']
-    goal_density_qso_fake = kwargs['qso_fake_dens']
-    goal_density_lrg = kwargs['lrg_dens']
-    goal_density_lrg_fake = kwargs['lrg_fake_dens']
-    goal_density_elg = kwargs['elg_dens']
-    goal_density_elg_fake = kwargs['elg_fake_dens']
 
     # read the mocks on disk
-    qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['qso_file'])
-    elg_mock_ra, elg_mock_dec, elg_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['elg_file'])
-    lrg_mock_ra, lrg_mock_dec, lrg_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['lrg_file'])
-    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
+    qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.mock.io.read_mock_dark_time(mock_qso_file)
+    elg_mock_ra, elg_mock_dec, elg_mock_z = desitarget.mock.io.read_mock_dark_time(mock_elg_file)
+    lrg_mock_ra, lrg_mock_dec, lrg_mock_z = desitarget.mock.io.read_mock_dark_time(mock_lrg_file)
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(mock_random_file, read_z=False)
 
     # build lists for the different population types
     ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra, elg_mock_ra]
@@ -191,7 +186,7 @@ def build_mock_target(**kwargs):
     z_list = [qso_mock_z, qso_mock_z, random_mock_z, lrg_mock_z, random_mock_z, elg_mock_z, elg_mock_z]
     min_z_list  = [2.1, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
     max_z_list  = [1000.0, 2.1, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
-    goal_list = [goal_density_qsolya, goal_density_qsotracer, goal_density_qso_fake, goal_density_lrg, goal_density_lrg_fake, goal_density_elg, goal_density_elg_fake]
+    goal_list = [qsolya_dens, qsotracer_dens, qso_fake_dens, lrg_dens, lrg_fake_dens, elg_dens, elg_fake_dens]
     true_type_list = ['QSO', 'QSO', 'STAR', 'GALAXY', 'UNKNOWN', 'GALAXY', 'UNKNOWN']
     desi_tf_list = [desi_mask.QSO, desi_mask.QSO, desi_mask.QSO, desi_mask.LRG, desi_mask.LRG, desi_mask.ELG, desi_mask.ELG]
     bgs_tf_list = [0,0,0,0,0,0,0]
@@ -237,7 +232,7 @@ def build_mock_target(**kwargs):
     subprior = np.random.uniform(0., 1., size=n)
     brickname = desispec.brick.brickname(ra_total, dec_total)
     
-#    print('Total in targetid {}'.format(len(targetid)))
+    print('Total in targetid {}'.format(len(targetid)))
 #    print('Total in ra {}'.format(len(ra_total)))
 #    print('Total in dec {}'.format(len(dec_total)))
 #    print('Total in brickname {}'.format(len(brickname)))
@@ -247,7 +242,7 @@ def build_mock_target(**kwargs):
 
 
     # write the Targets to disk
-    targets_filename = os.path.join(kwargs['output_dir'], 'targets.fits')
+    targets_filename = os.path.join(output_dir, 'targets.fits')
     targets = Table()
     targets['TARGETID'] = targetid
     targets['BRICKNAME'] = brickname
@@ -260,7 +255,7 @@ def build_mock_target(**kwargs):
     targets.write(targets_filename, overwrite=True)
     
     # write the Truth to disk
-    truth_filename  = os.path.join(kwargs['output_dir'], 'truth.fits')
+    truth_filename  = os.path.join(output_dir, 'truth.fits')
     truth = Table()
     truth['TARGETID'] = targetid
     truth['BRICKNAME'] = brickname
@@ -274,10 +269,10 @@ def build_mock_target(**kwargs):
     
 
 
-def build_mock_sky_star(**kwargs):
+def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file='', output_dir=''):
     """Builds a Sky and StandardStar files from a series of mock files
     
-    **kwargs:
+    Args:
         std_star_dens: float
            Desired number density for starndar stars.
         sky_calib_dens: float
@@ -288,11 +283,11 @@ def build_mock_sky_star(**kwargs):
            Path to write the outputs (targets.fits and truth.fits).
     """
     # Set desired number densities
-    goal_density_std_star = kwargs['std_star_dens']
-    goal_density_sky = kwargs['sky_calib_dens']
+    goal_density_std_star = std_star_dens
+    goal_density_sky = sky_calib_dens
 
     # read the mock on disk
-    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(mock_random_file, read_z=False)
 
     true_type_list = ['STAR', 'SKY']
     goal_density_list = [goal_density_std_star, goal_density_sky]
@@ -320,7 +315,7 @@ def build_mock_sky_star(**kwargs):
         print('Total in targetid {}'.format(len(targetid)))
 
         # write the targets to disk
-        targets_filename = os.path.join(kwargs['output_dir'], filename)
+        targets_filename = os.path.join(output_dir, filename)
         targets = Table()
         targets['TARGETID'] = targetid
         targets['BRICKNAME'] = brickname
