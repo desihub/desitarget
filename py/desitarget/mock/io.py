@@ -1,9 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-==================
-desitarget.mock.io
-==================
+=============
+desitarget.io
+=============
 
 This file knows how to write a TS catalogue.
 """
@@ -12,6 +12,8 @@ from __future__ import (absolute_import, division)
 import numpy as np
 import fitsio
 import os, re
+from . import __version__ as desitarget_version
+from . import gitversion
 
 def read_mock_dark_time(filename, read_z=True):
     """Reads preliminary mocks (positions only) for the dark time survey.
