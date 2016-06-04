@@ -156,14 +156,6 @@ def read_mock_durham(core_filename, photo_filename):
 
     return data
 
-tscolumns = [
-    'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
-    'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-    'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
-    'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
-    'WISE_FLUX', 'WISE_MW_TRANSMISSION',
-    'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R',
-    ]
+
 
 
