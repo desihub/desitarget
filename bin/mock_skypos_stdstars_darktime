@@ -3,7 +3,7 @@
 from __future__ import print_function, division
 
 import argparse 
-import desitarget.mock 
+import desitarget.mock.darktime 
 
 
 parser = argparse.ArgumentParser(description="Create mock target file from dark matter only mocks")
@@ -14,9 +14,9 @@ parser.add_argument("--sky_calib_dens","-sc",help="Sky calibration locations num
 parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
 
-_ = desitarget.mock.build_mock_sky_star(output_dir=args.output_dir,\
-                                            random_file=args.mock_random_file,\
-                                            std_star_dens=args.std_star_dens,\
-                                            sky_calib_dens=args.sky_calib_dens)
+_ = desitarget.mock.darktime.build_mock_sky_star(output_dir=args.output_dir,\
+                                                     random_file=args.mock_random_file,\
+                                                     std_star_dens=args.std_star_dens,\
+                                                     sky_calib_dens=args.sky_calib_dens)
 
 

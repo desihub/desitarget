@@ -3,7 +3,7 @@
 from __future__ import print_function, division
 
 import argparse 
-import desitarget.mock 
+import desitarget.mock.darktime
 
 
 
@@ -20,20 +20,20 @@ parser.add_argument("--qso_fake_dens","-qf",help="Fake QSO number density (n per
 parser.add_argument("--lrg_dens","-l",help="LRG number density (n per deg^2). Default 300.", type=float, default=300.0)
 parser.add_argument("--lrg_fake_dens","-lf",help="Fake LRG number density (n per deg^2). Default 50.", type=float, default=50.0)
 parser.add_argument("--elg_dens","-e",help="ELG number density (n per deg^2). Default 2400.", type=float, default=2400.0)
-parser.add_argument("--elg_fake_dens","-ef",help="Fake ELG number density (n per deg^2). Default 40.", type=float, default=40.0)
+parser.add_argument("--elg_fake_dens","-ef",help="Fake ELG number density (n per deg^2). Default 0.", type=float, default=0.0)
 parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
 
-_ = desitarget.mock.build_mock_target(output_dir=args.output_dir,\
-                                          qso_file=args.mock_qso_file,\
-                                          elg_file=args.mock_elg_file,\
-                                          lrg_file=args.mock_elg_file,\
-                                          random_file=args.mock_random_file,\
-                                          qsolya_dens=args.qsolya_dens,\
-                                          qsotracer_dens=args.qsotracer_dens,\
-                                          qso_fake_dens=args.qso_fake_dens,\
-                                          lrg_dens=args.lrg_dens,\
-                                          lrg_fake_dens=args.lrg_fake_dens,\
-                                          elg_dens=args.elg_dens,\
-                                          elg_fake_dens=args.elg_fake_dens)
+_ = desitarget.mock.darktime.build_mock_target(output_dir=args.output_dir,\
+                                                   qso_file=args.mock_qso_file,\
+                                                   elg_file=args.mock_elg_file,\
+                                                   lrg_file=args.mock_elg_file,\
+                                                   random_file=args.mock_random_file,\
+                                                   qsolya_dens=args.qsolya_dens,\
+                                                   qsotracer_dens=args.qsotracer_dens,\
+                                                   qso_fake_dens=args.qso_fake_dens,\
+                                                   lrg_dens=args.lrg_dens,\
+                                                   lrg_fake_dens=args.lrg_fake_dens,\
+                                                   elg_dens=args.elg_dens,\
+                                                   elg_fake_dens=args.elg_fake_dens)
 

@@ -1,9 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-========
-mocks.io
-========
+=============
+mock.darktime
+=============
 
 Builds target/truth files from already existing mock data
 """
@@ -12,9 +12,7 @@ from __future__ import (absolute_import, division)
 import numpy as np
 import fitsio
 import os, re
-from . import __version__ as desitarget_version
-from . import gitversion
-import desitarget.io 
+import desitarget.mock.io 
 from desitarget import desi_mask
 import os
 from astropy.table import Table, Column
@@ -182,10 +180,10 @@ def build_mock_target(**kwargs):
     goal_density_elg_fake = kwargs['elg_fake_dens']
 
     # read the mocks on disk
-    qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.io.read_mock_dark_time(kwargs['qso_file'])
-    elg_mock_ra, elg_mock_dec, elg_mock_z = desitarget.io.read_mock_dark_time(kwargs['elg_file'])
-    lrg_mock_ra, lrg_mock_dec, lrg_mock_z = desitarget.io.read_mock_dark_time(kwargs['lrg_file'])
-    random_mock_ra, random_mock_dec, random_mock_z = desitarget.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
+    qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['qso_file'])
+    elg_mock_ra, elg_mock_dec, elg_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['elg_file'])
+    lrg_mock_ra, lrg_mock_dec, lrg_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['lrg_file'])
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
 
     # build lists for the different population types
     ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra, elg_mock_ra]
@@ -294,7 +292,7 @@ def build_mock_sky_star(**kwargs):
     goal_density_sky = kwargs['sky_calib_dens']
 
     # read the mock on disk
-    random_mock_ra, random_mock_dec, random_mock_z = desitarget.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
 
     true_type_list = ['STAR', 'SKY']
     goal_density_list = [goal_density_std_star, goal_density_sky]
