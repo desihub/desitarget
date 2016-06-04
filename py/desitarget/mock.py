@@ -173,12 +173,13 @@ def build_mock_target(**kwargs):
            Path to write the outputs (targets.fits and truth.fits).
     """
     # Set desired number densities
-    goal_density_qsoI = kwargs['qsoI_dens']
-    goal_density_qsoII = kwargs['qsoII_dens']
+    goal_density_qsolya = kwargs['qsolya_dens']
+    goal_density_qsotracer = kwargs['qsotracer_dens']
     goal_density_qso_fake = kwargs['qso_fake_dens']
     goal_density_lrg = kwargs['lrg_dens']
     goal_density_lrg_fake = kwargs['lrg_fake_dens']
     goal_density_elg = kwargs['elg_dens']
+    goal_density_elg_fake = kwargs['elg_fake_dens']
 
     # read the mocks on disk
     qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.io.read_mock_dark_time(kwargs['qso_file'])
@@ -187,16 +188,16 @@ def build_mock_target(**kwargs):
     random_mock_ra, random_mock_dec, random_mock_z = desitarget.io.read_mock_dark_time(kwargs['random_file'], read_z=False)
 
     # build lists for the different population types
-    ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra]
-    dec_list = [qso_mock_dec, qso_mock_dec, random_mock_dec, lrg_mock_dec, random_mock_dec, elg_mock_dec]
-    z_list = [qso_mock_z, qso_mock_z, random_mock_z, lrg_mock_z, random_mock_z, elg_mock_z]
-    min_z_list  = [2.1, -1.0, -1.0, -1.0, -1.0, -1.0]
-    max_z_list  = [1000.0, 2.1, 1000.0, 1000.0, 1000.0, 1000.0]
-    goal_list = [goal_density_qsoI, goal_density_qsoII, goal_density_qso_fake, goal_density_lrg, goal_density_lrg_fake, goal_density_elg]
-    true_type_list = ['QSO', 'QSO', 'STAR', 'GALAXY', 'UNKNOWN', 'GALAXY']
-    desi_tf_list = [desi_mask.QSO, desi_mask.QSO, desi_mask.QSO, desi_mask.LRG, desi_mask.LRG, desi_mask.ELG]
-    bgs_tf_list = [0,0,0,0,0,0]
-    mws_tf_list = [0,0,0,0,0,0]
+    ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra, elg_mock_ra]
+    dec_list = [qso_mock_dec, qso_mock_dec, random_mock_dec, lrg_mock_dec, random_mock_dec, elg_mock_dec, elg_mock_dec]
+    z_list = [qso_mock_z, qso_mock_z, random_mock_z, lrg_mock_z, random_mock_z, elg_mock_z, elg_mock_z]
+    min_z_list  = [2.1, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
+    max_z_list  = [1000.0, 2.1, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
+    goal_list = [goal_density_qsolya, goal_density_qsotracer, goal_density_qso_fake, goal_density_lrg, goal_density_lrg_fake, goal_density_elg, goal_density_elg_fake]
+    true_type_list = ['QSO', 'QSO', 'STAR', 'GALAXY', 'UNKNOWN', 'GALAXY', 'UNKNOWN']
+    desi_tf_list = [desi_mask.QSO, desi_mask.QSO, desi_mask.QSO, desi_mask.LRG, desi_mask.LRG, desi_mask.ELG, desi_mask.ELG]
+    bgs_tf_list = [0,0,0,0,0,0,0]
+    mws_tf_list = [0,0,0,0,0,0,0]
 
     # arrays for the full target and truth tables
     ra_total = np.empty(0)
