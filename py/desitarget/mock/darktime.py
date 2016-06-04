@@ -107,20 +107,21 @@ def select_population(ra, dec, z, **kwargs):
             Kind of MWS target following desitarget.desi_mask
 
     Returns:
-        ra_pop: array_like (float)
-             Subset of input RA.
-        dec_pop: array_like (float)
-             Subset of input Dec.
-        z_pop: array_like (float)
-             Subset of input Z.
-        desi_target_pop: array_like (int)
-             Array of DESI target flags corresponding to the input desi_target_flag
-        bgs_target_pop: array_like (int)
-             Array of BGS target flags corresponding to the input bgs_target_flag
-        mws_target_pop: array_like (int)
-             Array of MWS target flags corresponding to the input mws_target_flag
-        true_type_pop: array_like (string)
-             Array of true types corresponding to the input true_type.
+        Dictionary with the following entries:
+            'RA': array_like (float)
+                Subset of input RA.
+            'DEC': array_like (float)
+                Subset of input Dec.
+            'Z': array_like (float)
+                Subset of input Z.
+            'DESI_TARGET': array_like (int)
+                Array of DESI target flags corresponding to the input desi_target_flag
+            'BGS_TARGET': array_like (int)
+                Array of BGS target flags corresponding to the input bgs_target_flag
+            'MWS_TARGET': array_like (int)
+                Array of MWS target flags corresponding to the input mws_target_flag
+            'TRUE_TYPE': array_like (string)
+                Array of true types corresponding to the input true_type.
     """
 
     ii = ((z>=kwargs['min_z']) & (z<=kwargs['max_z']))
@@ -141,7 +142,8 @@ def select_population(ra, dec, z, **kwargs):
     mws_target_pop = np.zeros(n, dtype='i8'); mws_target_pop[:] = kwargs['mws_target_flag']
     true_type_pop = np.zeros(n, dtype='S10'); true_type_pop[:] = kwargs['true_type']
 
-    return ((ra_pop, dec_pop, z_pop, desi_target_pop, bgs_target_pop, mws_target_pop, true_type_pop))
+    return {'RA':ra_pop, 'DEC':dec_pop, 'Z':z_pop, 
+            'DESI_TARGET':desi_target_pop, 'BGS_TARGET': bgs_target_pop, 'MWS_TARGET':mws_target_pop, 'TRUE_TYPE':true_type_pop}
 
 def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lrg_dens=0.0, lrg_fake_dens=0.0, elg_dens=0.0, elg_fake_dens=0.0,
                       mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_random_file='', output_dir=''):
@@ -207,24 +209,23 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
                     true_type_list, desi_tf_list, bgs_tf_list, mws_tf_list):
 
         # select subpopulation
-        ra_, dec_, z_ ,desi_flag_, bgs_flag_, mws_flag_, true_type_ = \
-            select_population(ra, dec, z,\
-                              min_z=min_z,\
-                              max_z=max_z,\
-                              goal_density=goal,\
-                              true_type=true_type,\
-                              desi_target_flag = desi_tf,\
-                              bgs_target_flag = bgs_tf,\
-                              mws_target_flag = mws_tf)
+        pop_dict =   select_population(ra, dec, z,\
+                                           min_z=min_z,\
+                                           max_z=max_z,\
+                                           goal_density=goal,\
+                                           true_type=true_type,\
+                                           desi_target_flag = desi_tf,\
+                                           bgs_target_flag = bgs_tf,\
+                                           mws_target_flag = mws_tf)
         
         # append to the full list
-        ra_total = np.append(ra_total, ra_)
-        dec_total = np.append(dec_total, dec_)
-        z_total = np.append(z_total, z_)
-        desi_target_total = np.append(desi_target_total, desi_flag_)
-        bgs_target_total = np.append(bgs_target_total, bgs_flag_)
-        mws_target_total = np.append(mws_target_total, mws_flag_)
-        true_type_total = np.append(true_type_total, true_type_)
+        ra_total = np.append(ra_total, pop_dict['RA'])
+        dec_total = np.append(dec_total, pop_dict['DEC'])
+        z_total = np.append(z_total, pop_dict['Z'])
+        desi_target_total = np.append(desi_target_total, pop_dict['DESI_TARGET'])
+        bgs_target_total = np.append(bgs_target_total, pop_dict['BGS_TARGET'])
+        mws_target_total = np.append(mws_target_total, pop_dict['MWS_TARGET'])
+        true_type_total = np.append(true_type_total, pop_dict['TRUE_TYPE'])
 
     # make up the IDs, subpriorities and bricknames
     n = len(ra_total)
@@ -296,21 +297,20 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
 
     for true_type, goal_density, desi_target_flag, filename in\
             zip(true_type_list, goal_density_list, desi_target_list, filename_list):
-        ra_, dec_, z_star ,desi_flag_, bgs_flag_, mws_flag_, true_type_ = \
-            select_population(random_mock_ra, random_mock_dec, random_mock_z,\
-                                  min_z=-1.0,\
-                                  max_z=100,\
-                                  goal_density=goal_density,\
-                                  true_type=true_type,\
-                                  desi_target_flag = desi_target_flag,\
-                                  bgs_target_flag = 0,\
-                                  mws_target_flag = 0)
+        pop_dict = select_population(random_mock_ra, random_mock_dec, random_mock_z,\
+                                         min_z=-1.0,\
+                                         max_z=100,\
+                                         goal_density=goal_density,\
+                                         true_type=true_type,\
+                                         desi_target_flag = desi_target_flag,\
+                                         bgs_target_flag = 0,\
+                                         mws_target_flag = 0)
         
         # make up the IDs, subpriorities and bricknames
-        n = len(ra_)
+        n = len(pop_dict['RA'])
         targetid = np.random.randint(2**62, size=n)
         subprior = np.random.uniform(0., 1., size=n)
-        brickname = desispec.brick.brickname(ra_, dec_)
+        brickname = desispec.brick.brickname(pop_dict['RA'], pop_dict['DEC'])
     
         print('Total in targetid {}'.format(len(targetid)))
 
@@ -319,11 +319,11 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
         targets = Table()
         targets['TARGETID'] = targetid
         targets['BRICKNAME'] = brickname
-        targets['RA'] = ra_
-        targets['DEC'] = dec_
-        targets['DESI_TARGET'] = desi_flag_
-        targets['BGS_TARGET'] = bgs_flag_
-        targets['MWS_TARGET'] = mws_flag_
+        targets['RA'] = pop_dict['RA']
+        targets['DEC'] = pop_dict['DEC']
+        targets['DESI_TARGET'] = pop_dict['DESI_TARGET']
+        targets['BGS_TARGET'] = pop_dict['BGS_TARGET']
+        targets['MWS_TARGET'] = pop_dict['MWS_TARGET']
         targets['SUBPRIORITY'] = subprior
         targets.write(targets_filename, overwrite=True)
         
