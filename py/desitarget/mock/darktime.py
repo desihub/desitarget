@@ -273,7 +273,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     
 
 
-def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file='', output_dir=''):
+def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file='', output_dir='', rand_seed=42):
     """Builds a Sky and StandardStar files from a series of mock files
     
     Args:
@@ -285,7 +285,11 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
            Filename for a random set of points.
         output_dir: string
            Path to write the outputs (targets.fits and truth.fits).
+        rand_seed: int
+           seed for random number generator
     """
+    np.random.seed(seed=rand_seed)
+
     # Set desired number densities
     goal_density_std_star = std_star_dens
     goal_density_sky = sky_calib_dens
