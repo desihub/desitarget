@@ -13,6 +13,7 @@ import numpy as np
 import fitsio
 import os, re
 import desitarget.mock.io 
+import desitarget.io
 from desitarget import desi_mask
 import os
 from astropy.table import Table, Column
@@ -246,8 +247,18 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
 
 
     # write the Targets to disk
-    targets_filename = os.path.join(output_dir, 'targets.fits')
-    targets = Table()
+    type_table = [
+        ('TARGETID', '>i4'),
+        ('BRICKNAME', '|S8'),
+        ('RA', '>f8'),
+        ('DEC', '>f8'),
+        ('DESI_TARGET', 'i8'),
+        ('BGS_TARGET', 'i8'),
+        ('MWS_TARGET', 'i8'),
+        ('SUBPRIORITY', '>f8')
+    ]
+
+    targets = np.ndarray(shape=(n), dtype=type_table)
     targets['TARGETID'] = targetid
     targets['BRICKNAME'] = brickname
     targets['RA'] = ra_total
@@ -256,18 +267,27 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     targets['BGS_TARGET'] = bgs_target_total
     targets['MWS_TARGET'] = mws_target_total
     targets['SUBPRIORITY'] = subprior
-    targets.write(targets_filename, overwrite=True)
-    
+
+    desitarget.io.write_targets('targets.fits', targets, indir=output_dir)
+
     # write the Truth to disk
-    truth_filename  = os.path.join(output_dir, 'truth.fits')
-    truth = Table()
+    type_table = [
+        ('TARGETID', '>i4'),
+        ('BRICKNAME', '|S8'),
+        ('RA', '>f8'),
+        ('DEC', '>f8'),
+        ('TRUEZ', '>f8'),
+        ('TRUETYPE', '|S10')
+    ]
+
+    truth = np.ndarray(shape=(n), dtype=type_table)
     truth['TARGETID'] = targetid
     truth['BRICKNAME'] = brickname
     truth['RA'] = ra_total
     truth['DEC'] = dec_total
     truth['TRUEZ'] = z_total
     truth['TRUETYPE'] = true_type_total
-    truth.write(truth_filename, overwrite=True)
+    desitarget.io.write_targets('truth.fits', targets, indir=output_dir)
     
     return
     
@@ -322,8 +342,18 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
         print('Total in targetid {}'.format(len(targetid)))
 
         # write the targets to disk
-        targets_filename = os.path.join(output_dir, filename)
-        targets = Table()
+        type_table = [
+            ('TARGETID', '>i4'),
+            ('BRICKNAME', '|S8'),
+            ('RA', '>f8'),
+            ('DEC', '>f8'),
+            ('DESI_TARGET', 'i8'),
+            ('BGS_TARGET', 'i8'),
+            ('MWS_TARGET', 'i8'),
+            ('SUBPRIORITY', '>f8')
+            ]
+
+        targets = np.ndarray(shape=(n), dtype=type_table)
         targets['TARGETID'] = targetid
         targets['BRICKNAME'] = brickname
         targets['RA'] = pop_dict['RA']
@@ -332,7 +362,7 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
         targets['BGS_TARGET'] = pop_dict['BGS_TARGET']
         targets['MWS_TARGET'] = pop_dict['MWS_TARGET']
         targets['SUBPRIORITY'] = subprior
-        targets.write(targets_filename, overwrite=True)
+        desitarget.io.write_targets(filename, targets, indir=output_dir)
         
     return
     
