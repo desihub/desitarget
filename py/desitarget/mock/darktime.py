@@ -245,6 +245,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
 #    print('Total in bgs {}'.format(len(bgs_target_total)))
 #    print('Total in mws {}'.format(len(mws_target_total)))
 
+    targets_filename = os.path.join(output_dir, 'targets.fits')
 
     # write the Targets to disk
     type_table = [
@@ -268,9 +269,10 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     targets['MWS_TARGET'] = mws_target_total
     targets['SUBPRIORITY'] = subprior
 
-    desitarget.io.write_targets('targets.fits', targets, indir=output_dir)
+    desitarget.io.write_targets(targets_filename, targets, indir=output_dir)
 
     # write the Truth to disk
+    truth_filename = os.path.join(output_dir, 'truth.fits')
     type_table = [
         ('TARGETID', '>i4'),
         ('BRICKNAME', '|S8'),
@@ -287,7 +289,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     truth['DEC'] = dec_total
     truth['TRUEZ'] = z_total
     truth['TRUETYPE'] = true_type_total
-    desitarget.io.write_targets('truth.fits', targets, indir=output_dir)
+    desitarget.io.write_targets(truth_filename, truth, indir=output_dir)
     
     return
     
@@ -342,6 +344,7 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
         print('Total in targetid {}'.format(len(targetid)))
 
         # write the targets to disk
+        targets_filename = os.path.join(output_dir, filename)
         type_table = [
             ('TARGETID', '>i4'),
             ('BRICKNAME', '|S8'),
@@ -362,7 +365,7 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
         targets['BGS_TARGET'] = pop_dict['BGS_TARGET']
         targets['MWS_TARGET'] = pop_dict['MWS_TARGET']
         targets['SUBPRIORITY'] = subprior
-        desitarget.io.write_targets(filename, targets, indir=output_dir)
+        desitarget.io.write_targets(targets_filename, targets, indir=output_dir)
         
     return
     
