@@ -21,6 +21,7 @@ parser.add_argument("--lrg_dens","-l",help="LRG number density (n per deg^2). De
 parser.add_argument("--lrg_fake_dens","-lf",help="Fake LRG number density (n per deg^2). Default 50.", type=float, default=50.0)
 parser.add_argument("--elg_dens","-e",help="ELG number density (n per deg^2). Default 2400.", type=float, default=2400.0)
 parser.add_argument("--elg_fake_dens","-ef",help="Fake ELG number density (n per deg^2). Default 0.", type=float, default=0.0)
+parser.add_argument("--rand_seed","-r",help="Seed for Random Number. Generator Default 42.", type=int, default=42)
 parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
 
@@ -35,5 +36,6 @@ _ = desitarget.mock.darktime.build_mock_target(output_dir=args.output_dir,\
                                                    lrg_dens=args.lrg_dens,\
                                                    lrg_fake_dens=args.lrg_fake_dens,\
                                                    elg_dens=args.elg_dens,\
-                                                   elg_fake_dens=args.elg_fake_dens)
+                                                   elg_fake_dens=args.elg_fake_dens,\
+                                                   rand_seed=args.rand_seed)
 

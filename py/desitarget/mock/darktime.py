@@ -146,7 +146,7 @@ def select_population(ra, dec, z, **kwargs):
             'DESI_TARGET':desi_target_pop, 'BGS_TARGET': bgs_target_pop, 'MWS_TARGET':mws_target_pop, 'TRUE_TYPE':true_type_pop}
 
 def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lrg_dens=0.0, lrg_fake_dens=0.0, elg_dens=0.0, elg_fake_dens=0.0,
-                      mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_random_file='', output_dir=''):
+                      mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_random_file='', output_dir='', rand_seed=42):
     """Builds a Target and Truth files from a series of mock files
     
     Args:
@@ -174,7 +174,10 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
            Filename for a random set of points.
         output_dir: string
            Path to write the outputs (targets.fits and truth.fits).
+        rand_seed: int
+           seed for random number generator
     """
+    np.random.seed(seed=rand_seed)
 
     # read the mocks on disk
     qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.mock.io.read_mock_dark_time(mock_qso_file)
