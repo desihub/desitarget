@@ -16,7 +16,7 @@ import desitarget.io
 
 def read_mock_milky_way_stars(filename):
     """
-    Reads mock information (positions only) for MWS bright time survey.
+    Reads mock information for MWS bright time survey.
     
     Parameters: 
     ----------
@@ -25,21 +25,31 @@ def read_mock_milky_way_stars(filename):
     
     Returns:
     -------
-    ra: :class: `numpy.ndarray`
-        RA positions for the objects in the mock.
-    dec: :class: `numpy.ndarray`
-        DEC positions for the objects in the mock.
-    v_helio: :class: `numpy.ndarray`
-        Heliocentric radial velocity (in km/s) 
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'v_helio': :class: `numpy.ndarray`
+            Heliocentric radial velocity (in km/s) 
+        'SDSSr_true': :class: `numpy.ndarray`
+            Apparent magnitudes in SDSS bands, including extinction.
+        'SDSSr_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS bands, including extinction.
     """
     desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,columns=['RA','DEC','v_helio'])
+    data = fitsio.read(filename,columns=
+                       ['RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
     ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec  = data['DEC'].astype('f8')
     v_helio   = data[  'v_helio'].astype('f8')
-    return ((ra, dec, v_helio))
+    SDSSr_true   = data['SDSSr_true'].astype('f8')
+    SDSSr_obs   = data['SDSSr_obs'].astype('f8')
 
-    
+    return {'RA':ra, 'DEC':dec, 'v_helio': v_helio, 
+            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
+        
 
 def read_mock_dark_time(filename, read_z=True):
     """Reads preliminary mocks (positions only) for the dark time survey.
