@@ -18,6 +18,7 @@ from desitarget import desi_mask
 import os
 from astropy.table import Table, Column
 import desispec.brick
+
 def build_mock_target(mock_bgs_file='', mock_mws_file='', output_dir='', rand_seed=42):
                       
     """Builds a Target and Truth files from a series of mock files

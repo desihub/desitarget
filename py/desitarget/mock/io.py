@@ -14,6 +14,33 @@ import fitsio
 import os, re
 import desitarget.io
 
+def read_mock_milky_way_stars(filename):
+    """
+    Reads mock information (positions only) for MWS bright time survey.
+    
+    Parameters: 
+    ----------
+    filename: :class:`str`
+        Name of a single MWS mock file.
+    
+    Returns:
+    -------
+    ra: :class: `numpy.ndarray`
+        RA positions for the objects in the mock.
+    dec: :class: `numpy.ndarray`
+        DEC positions for the objects in the mock.
+    v_helio: :class: `numpy.ndarray`
+        Heliocentric radial velocity (in km/s) 
+    """
+    desitarget.io.check_fitsio_version()
+    data = fitsio.read(filename,columns=['RA','DEC','v_helio'])
+    ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec  = data['DEC'].astype('f8')
+    v_helio   = data[  'v_helio'].astype('f8')
+    return ((ra, dec, v_helio))
+
+    
+
 def read_mock_dark_time(filename, read_z=True):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
