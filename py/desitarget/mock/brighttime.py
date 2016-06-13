@@ -19,15 +19,13 @@ import os
 from astropy.table import Table, Column
 import desispec.brick
 
-def build_mock_target(mock_bgs_file='', mock_mws_file='', output_dir='', rand_seed=42):
+def build_mock_target(mock_mws_dir='', output_dir='', rand_seed=42):
                       
     """Builds a Target and Truth files from a series of mock files
     
     Args:
-        mock_bgs_file: string
-           Filename for the mock BGS galaxies.
-        mock_mws_file: string
-           Filename for the mock MWS stars.
+        mock_mws_dir: string
+           Filename for the path with the MWS mock files.
         output_dir: string
            Path to write the outputs (targets.fits and truth.fits).
         rand_seed: int
@@ -45,10 +43,10 @@ def build_mock_target(mock_bgs_file='', mock_mws_file='', output_dir='', rand_se
     # loop over the populations
         
     # make up the IDs, subpriorities and bricknames
-    n = 1
-    targetid = np.random.randint(2**62, size=n)
-    subprior = np.random.uniform(0., 1., size=n)
-    brickname = desispec.brick.brickname(ra_total, dec_total)
+#    n = 1
+#    targetid = np.random.randint(2**62, size=n)
+#    subprior = np.random.uniform(0., 1., size=n)
+#    brickname = desispec.brick.brickname(ra_total, dec_total)
 
     # write the Targets to disk
 #    targets_filename = os.path.join(output_dir, 'targets.fits')
