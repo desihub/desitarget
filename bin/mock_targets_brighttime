@@ -7,12 +7,12 @@ import desitarget.mock.brighttime
 
 parser = argparse.ArgumentParser(description="Create mock target file from BGS and MWS mocks")
 parser.add_argument("--output_dir", "-O", help="Path to write the outputs (targets,truth)", type=str, default="./")
-parser.add_argument("--mock_mws_dir", "-S", help="Path to the MWS files", type=str, required=True)
+parser.add_argument("--root_mock_mws_dir", "-S", help="Root path to the MWS (desi_galfast) files", type=str, required=True)
 parser.add_argument("--rand_seed","-r",help="Seed for Random Number. Generator Default 42.", type=int, default=42)
 parser.add_argument("--verbose", "-v", action='store_true')
 args = parser.parse_args()
 
 _ = desitarget.mock.brighttime.build_mock_target(output_dir=args.output_dir,\
-                                                mock_mws_dir=args.mock_mws_dir,\
+                                                root_mock_mws_dir=args.root_mock_mws_dir,\
                                                 rand_seed=args.rand_seed)
 

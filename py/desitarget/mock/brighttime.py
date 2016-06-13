@@ -19,19 +19,32 @@ import os
 from astropy.table import Table, Column
 import desispec.brick
 
-def build_mock_target(mock_mws_dir='', output_dir='', rand_seed=42):
+
+
+def build_mock_target(root_mock_mws_dir='', output_dir='', rand_seed=42):
                       
     """Builds a Target and Truth files from a series of mock files
     
-    Args:
+    Parameters:
+    ----------    
         mock_mws_dir: string
-           Filename for the path with the MWS mock files.
+            Root path to all the 'desi_galfast' files.
         output_dir: string
-           Path to write the outputs (targets.fits and truth.fits).
+            Path to write the outputs (targets.fits and truth.fits).
         rand_seed: int
-           seed for random number generator
+            seed for random number generator
     """
     np.random.seed(seed=rand_seed)
+
+    mws_data = desitarget.mock.io.read_mock_mws_brighttime(root_mock_mws_dir=root_mock_mws_dir)
+    mws_keys = mws_data.keys()
+    n = len(mws_data[mws_keys[0]])
+
+    print("Keys: {}".format(mws_data.keys()))
+    print("n_items: {}".format(n))
+
+
+
 
     # read the mocks on disk
 

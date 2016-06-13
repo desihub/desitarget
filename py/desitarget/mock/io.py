@@ -14,7 +14,7 @@ import fitsio
 import os, re
 import desitarget.io
 
-def read_mock_milky_way_stars(filename):
+def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
     
@@ -49,8 +49,50 @@ def read_mock_milky_way_stars(filename):
 
     return {'RA':ra, 'DEC':dec, 'v_helio': v_helio, 
             'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
-        
 
+def read_mock_mws_brighttime(root_mock_mws_dir=''):
+    """ Reads and concatenates the MWS mock files stored below the root directory.
+
+    Parameters:
+    ----------    
+    mock_mws_dir: :class:`str`
+        Path to all the 'desi_galfast' files.
+
+    Returns:
+    -------
+    Dictionary concatenating all the 'desi_galfast' files with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'v_helio': :class: `numpy.ndarray`
+            Heliocentric radial velocity (in km/s) 
+        'SDSSr_true': :class: `numpy.ndarray`
+            Apparent magnitudes in SDSS bands, including extinction.
+        'SDSSr_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS bands, including extinction.
+    
+    """
+    # build iterator of all desi_galfast files
+    iter_mws = desitarget.io.iter_files(root_mock_mws_dir, "desi_galfast", ext="fits")
+
+    # read each file
+    target_list = []
+    for mws_file in iter_mws:
+        print(mws_file)
+        target_list.append(_load_mock_mws_file(mws_file))
+
+    #concatenate all the dictionaries into a single dictionary
+    full_data = dict()
+    if len(target_list):
+        for k in target_list[0].keys():
+            full_data[k] = np.empty(0)
+            for target_item in target_list:                
+                full_data[k] = np.append(full_data[k] ,target_item[k])
+
+    return full_data
+    
 def read_mock_dark_time(filename, read_z=True):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
