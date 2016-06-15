@@ -31,13 +31,14 @@ def _load_mock_mws_file(filename):
             RA positions for the objects in the mock.
         'DEC': :class: `numpy.ndarray`
             DEC positions for the objects in the mock.
-        'v_helio': :class: `numpy.ndarray`
-            Heliocentric radial velocity (in km/s) 
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
         'SDSSr_true': :class: `numpy.ndarray`
             Apparent magnitudes in SDSS bands, including extinction.
         'SDSSr_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
     """
+    C_LIGHT = 300000.0
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,columns=
                        ['RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
@@ -47,7 +48,7 @@ def _load_mock_mws_file(filename):
     SDSSr_true   = data['SDSSr_true'].astype('f8')
     SDSSr_obs   = data['SDSSr_obs'].astype('f8')
 
-    return {'RA':ra, 'DEC':dec, 'v_helio': v_helio, 
+    return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
             'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
 
 def read_mock_mws_brighttime(root_mock_mws_dir=''):
@@ -66,8 +67,8 @@ def read_mock_mws_brighttime(root_mock_mws_dir=''):
             RA positions for the objects in the mock.
         'DEC': :class: `numpy.ndarray`
             DEC positions for the objects in the mock.
-        'v_helio': :class: `numpy.ndarray`
-            Heliocentric radial velocity (in km/s) 
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
         'SDSSr_true': :class: `numpy.ndarray`
             Apparent magnitudes in SDSS bands, including extinction.
         'SDSSr_obs': :class: `numpy.ndarray`
