@@ -103,7 +103,7 @@ def indexes_for_tables(schema):
                     cosmos_acs=['id','radec','mag_iso','mag_isocor','mag_petro','mag_auto','mag_best','flux_auto'],\
                     cosmos_zphot=['id','radec','umag','bmag','vmag','gmag','rmag','imag','zmag','icmag','jmag','kmag']
                     )
-    elif schema in ['dr2,dr3']:
+    elif schema in 'dr2dr3':
         bands= ['u','g','r','i','z','Y']
         optical= dict(decam_cand=['id','brickid','radec'],\
                     decam_decam=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]+ [b+'_anymask' for b in bands],\
@@ -114,7 +114,8 @@ def indexes_for_tables(schema):
         ir= dict(decam_wise=[b+'flux' for b in bands]+ [b+'nobs' for b in bands],\
                     bok_mzls_wise=[b+'flux' for b in bands]+ [b+'nobs' for b in bands]
                     )
-        return optical.update(ir)
+        optical.update(ir)
+        return optical
     else:
         raise ValueError
 
@@ -139,6 +140,7 @@ if args.index_cluster:
     rem_if_exists(outname)
     fin=open(outname,'w')
     #index cmds to file
+    print 'indexes= ',indexes 
     for table in indexes.keys(): 
         for coln in indexes[table]: 
             if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra, dec));\n' % (table,table))
@@ -154,18 +156,17 @@ if args.index_cluster:
             fin.write('ANALYZE %s;\n' % table)
 
 
-#write tables
-#dustin's fits_table format table
-if args.schema in ['dr2','dr3']:  #dr2 same as dr3 at this point
-    data= tractor_cat(args.fits_file)
-    nrows = data['ra'].shape[0]  
-else:
-    a=fits.open(args.fits_file)
-    #keys is in desired order, data.keys() has all keys but out of order
-    data,keys= thesis_code.fits.getdata(a,1)
-    nrows = data[keys[0]].shape[0]            
+# Read Tractor Cat
+#if args.schema in ['dr2','dr3']:  #95% the same, wise lc handles with if statement
+#    data= tractor_cat(args.fits_file)
+#    nrows = data['ra'].shape[0]  
+#else:
+a=fits.open(args.fits_file)
+#keys is in desired order, data.keys() has all keys but out of order
+data,keys= thesis_code.fits.getdata(a,1)
+nrows = data[keys[0]].shape[0]            
 
-if args.schema in ['dr2','dr3']:
+if args.schema in 'dr2dr3':
     #split up arrays containing ugrizY bands
     for cnt,b in enumerate(['u','g','r','i','z','Y']): 
         #decam
@@ -195,7 +196,6 @@ if args.schema in ['dr2','dr3']:
     keys_to_del+= ['dchisq']
     #split up arrays with wise bands 
     for cnt,b in enumerate(['w1','w2','w3','w4']):
-        if args.schema == 'dr3': print "<<<<<< WARNING wise_lc* not being loaded >>>>>>>>" 
         data[b+'flux']=data['wise_flux'][:,cnt].copy()
         data[b+'flux_ivar']= data['wise_flux_ivar'][:,cnt].copy()
         data[b+'fracflux']= data['wise_fracflux'][:,cnt].copy()
@@ -203,13 +203,23 @@ if args.schema in ['dr2','dr3']:
         data[b+'nobs']= data['wise_nobs'][:,cnt].copy()
         data[b+'_rchi2']= data['wise_rchi2'][:,cnt].copy()
     keys_to_del+= ['wise_flux','wise_flux_ivar','wise_fracflux','wise_mw_transmission','wise_nobs','wise_rchi2']
+    if args.schema == 'dr3': 
+        # wise lightcurves, 6/29/2016 max 5 epochs w1,w2
+        fields = [s for s in data.keys() if "wise_lc" in s]
+        print 'fields = ',fields
+        for ifield,field in enumerate(fields):
+            for ib,b in enumerate(['w1','w2']):
+                for iepoch,epoch in enumerate(['1','2','3','4','5']):
+                    data[field+'_'+b+'_'+epoch]= data[field][:,ib,iepoch].copy()
+            keys_to_del+= [field]
+    # All keys added, delete old names
     print 'keys_to_del=',keys_to_del
     for key in keys_to_del: del data[key]
     #get keys + flattened array keys
     k_dec,k_aper,k_cand,k_wise=[],[],[],[]
     for key in data.keys():
-        if 'wise_lc' in key: pass #temporary solution for not storing dr3 related keys
-        elif np.any(('w1' in key,'w2' in key,'w3' in key,'w4' in key),axis=0): k_wise.append(key)
+        #if args.schema == 'dr3': k_wise+= [s for s in a.keys() if "wise_lc" in s]
+        if np.any(('w1' in key,'w2' in key,'w3' in key,'w4' in key),axis=0): k_wise.append(key)
         elif 'apflux' in key: k_aper.append(key)
         elif 'flux' in key or 'mask' in key or 'depth' in key: k_dec.append(key)
         elif 'rchi' in key or 'nobs' in key or 'psf' in key or 'ext' in key: k_dec.append(key)
