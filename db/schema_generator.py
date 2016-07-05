@@ -106,7 +106,10 @@ def indexes_for_tables(schema):
                     cosmos_zphot=['id','radec']
                     )
     elif schema in 'dr2dr3':
-        return dict(decam_cand=['id','brickid','radec'])
+        return dict(decam_cand=['id','brickid','radec'],\
+                    decam_decam=['cand_id','gflux','rflux','zflux'],\
+                    decam_aper=['cand_id'],\
+                    decam_wise=['cand_id','w1flux','w2flux'])
     else:
         raise ValueError
 
@@ -136,19 +139,19 @@ if args.index_cluster:
     fin=open(outname,'w')
     #index cmds to file
     print 'indexes= ',indexes 
-    for table in indexes.keys(): 
-        for coln in indexes[table]: 
-            if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra, dec));\n' % (table,table))
-            else: fin.write('CREATE INDEX %s_%s_idx ON %s (%s);\n' % (table,coln,table,coln)) 
+    for key in indexes.keys(): 
+        for coln in indexes[key]: 
+            if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra, dec));\n' % (key,key))
+            else: fin.write('CREATE INDEX %s_%s_idx ON %s (%s);\n' % (key,coln,key,coln)) 
     fin.close()    
     #write cluster file
     outname= 'cluster.'+args.schema
     rem_if_exists(outname)
     fin=open(outname,'w')
-    for table in indexes.keys():
-        if 'radec' in indexes[table]:
-            fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (table,table))
-            fin.write('ANALYZE %s;\n' % table)
+    for key in indexes.keys():
+        if 'radec' in indexes[key]:
+            fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (key,key))
+            fin.write('ANALYZE %s;\n' % key)
 
 
 # Read fits table
@@ -314,26 +317,26 @@ if table == 'decam':
     print 'query_decam= \n',query_decam 
     print 'query_aper= \n',query_aper   
     print 'query_wise= \n',query_wise   
-elif args.table == 'bricks':
+elif table == 'bricks':
     #dtype for each key using as column name
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % args.table]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % table]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0,nrows):
-        query= insert_query(args.schema,args.table,i,data,keys)
+        query= insert_query(args.schema,table,i,data,keys)
         if args.load_db: cursor.execute(query) 
-    print 'finished loading files into %s' % args.table
+    print 'finished loading files into %s' % table
     print 'query looks like this: \n',query    
     if args.load_db: 
         con.commit()
     print 'done'
-elif args.table.startswith('vipers'):
+elif table.startswith('vipers'):
     '''http://vipers.inaf.it/data/pdr1/catalogs/README_VIPERS_SPECTRO_PDR1.txt'''
     #rename ra_deep,dec_deep to ra,dec
     replace_key(data,'RA','ALPHA') 
@@ -356,23 +359,23 @@ elif args.table.startswith('vipers'):
     #drop keys, add new ones 
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0, nrows):
-        query= insert_query(args.schema,args.table,i,data,keys)
+        query= insert_query(args.schema,table,i,data,keys)
         if args.load_db: 
             cursor.execute(query) 
     if args.load_db:
         con.commit()
-        print 'finished %s load' %args.table
+        print 'finished %s load' %table
     print 'query= \n'    
     print query  
-elif args.table.startswith('deep2'):
+elif table.startswith('deep2'):
     '''http://deep.ps.uci.edu/DR4/photo.extended.html'''
     #rename ra_deep,dec_deep to ra,dec
     replace_key(data,'RA','RA_DEEP') 
@@ -382,63 +385,63 @@ elif args.table.startswith('deep2'):
     sql_dtype= get_sql_dtype(keys)
     sql_dtype['OBJNO']= 'bigint'
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0, nrows):
-        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        query= insert_query(args.schema,table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query) 
     if args.load_db:
         con.commit()
-        print 'finished %s load' %args.table
+        print 'finished %s load' %table
     print 'query= \n'    
     print query    
-elif args.table.startswith('cfhtls_d2_'):
+elif table.startswith('cfhtls_d2_'):
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0, nrows):
-        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        query= insert_query(args.schema,table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query) 
     if args.load_db:
         con.commit()
-        print 'finished %s load' %args.table
+        print 'finished %s load' %table
     print 'query= '    
     print query    
-elif args.table == 'cosmos_acs':
+elif table == 'cosmos_acs':
     '''description of columns: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_acs_colDescriptions.html'''
     sql_dtype= get_sql_dtype(keys)
     print 'WARNING: cosmos-acs.fits if 300+ MB file, this will take a few min!'
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0, nrows):
-        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        query= insert_query(args.schema,table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query) 
     if args.load_db:
         con.commit()
-        print 'finished %s load' %args.table
+        print 'finished %s load' %table
     print 'query='    
     print query    
-elif args.table == 'cosmos_zphot':
+elif table == 'cosmos_zphot':
     '''http://irsa.ipac.caltech.edu/data/COSMOS/datasets.html
     col descriptoin: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
     #rename any 'id' or 'ID' keys to 'catid' since 'id'is reserved for column name of seqeunce in db
@@ -446,24 +449,24 @@ elif args.table == 'cosmos_zphot':
     update_keys(keys,['catID'],'ID')
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0, nrows):
-        query1= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        query1= insert_query(args.schema,table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query1) 
     if args.load_db:
         con.commit()
-        print 'finished %s load' %args.table
-    print 'finished %s load' %args.table
+        print 'finished %s load' %table
+    print 'finished %s load' %table
     print 'query= '    
     print query1   
-elif args.table == 'stripe82':
+elif table == 'stripe82':
     print 'WARNING: stripe82_specz is 300+ MB file, this will take a few min!'
     replace_key(data,'RA','PLUG_RA') 
     update_keys(keys,['RA'],'PLUG_RA')
@@ -471,20 +474,20 @@ elif args.table == 'stripe82':
     update_keys(keys,['DEC'],'PLUG_DEC')
     sql_dtype= get_sql_dtype(keys)
     #schema
-    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (args.table)]
+    more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
     if args.overw_schema:
-        write_schema(args.schema,args.table,keys,sql_dtype,addrows=more_rows)
+        write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
     #db
     con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    if args.load_db: print 'loading %d rows into %s table' % (nrows,args.table)
+    if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
     for i in range(0, nrows):
-        query= insert_query(args.schema,args.table,i,data,keys,returning=False)
+        query= insert_query(args.schema,table,i,data,keys,returning=False)
         if args.load_db: 
             cursor.execute(query) 
     if args.load_db:
         con.commit()
-        print 'finished %s load' %args.table
+        print 'finished %s load' %table
     print 'query= '    
     print query 
 else: raise ValueError
