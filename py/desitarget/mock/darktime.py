@@ -130,7 +130,7 @@ def select_population(ra, dec, z, **kwargs):
     mock_dens = estimate_density(ra[ii], dec[ii])
     frac_keep = min(kwargs['goal_density']/mock_dens , 1.0)
     if mock_dens < kwargs['goal_density']:
-        print("WARNING: mock cannot achieve the goal density. Goal {}. Mock {}".format(kwargs['goal_density'], mock_dens))
+        print("WARNING: mock cannot achieve the goal density for true_type {}. Goal {}. Mock {}".format(kwargs['true_type'], kwargs['goal_density'], mock_dens))
 
 
     ra_pop, dec_pop, z_pop = reduce(ra[ii], dec[ii], z[ii], frac_keep)
@@ -147,7 +147,7 @@ def select_population(ra, dec, z, **kwargs):
             'DESI_TARGET':desi_target_pop, 'BGS_TARGET': bgs_target_pop, 'MWS_TARGET':mws_target_pop, 'TRUE_TYPE':true_type_pop}
 
 def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lrg_dens=0.0, lrg_fake_dens=0.0, elg_dens=0.0, elg_fake_dens=0.0,
-                      mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_random_file='', output_dir='', rand_seed=42):
+                      mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_contaminant_file='', output_dir='', rand_seed=42):
     """Builds a Target and Truth files from a series of mock files
     
     Args:
@@ -171,8 +171,8 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
            Filename for the mock LRGss.
         mock_elg_file: string
            Filename for the mock ELGs.
-        mock_random_file: string
-           Filename for a random set of points.
+        mock_contaminant_file: string
+           Filename for the mock contaminants.
         output_dir: string
            Path to write the outputs (targets.fits and truth.fits).
         rand_seed: int
@@ -184,7 +184,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     qso_mock_ra, qso_mock_dec, qso_mock_z = desitarget.mock.io.read_mock_dark_time(mock_qso_file)
     elg_mock_ra, elg_mock_dec, elg_mock_z = desitarget.mock.io.read_mock_dark_time(mock_elg_file)
     lrg_mock_ra, lrg_mock_dec, lrg_mock_z = desitarget.mock.io.read_mock_dark_time(mock_lrg_file)
-    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(mock_random_file, read_z=False)
+    random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(mock_contaminant_file, read_z=False)
 
     # build lists for the different population types
     ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra, elg_mock_ra]
