@@ -38,7 +38,8 @@ def estimate_density(ra, dec):
     smalldata = ra[(ra>170.) & (dec<190.) & (dec>0.) & (dec<45.)]
     n_in = len(smalldata)
     density = n_in/footprint_area
-
+    if(n_in==0):
+        density = 1E-6
     return density
 
 def reduce(ra, dec, z, frac):
