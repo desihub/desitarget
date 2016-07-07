@@ -302,11 +302,12 @@ def main(args):
         if args.load_db: 
             con.commit()
         print 'finished %s load' % table
-        print 'Load/insert queries are:'    
-        print 'query_cand= \n',query_cand    
-        print 'query_decam= \n',query_decam 
-        print 'query_aper= \n',query_aper   
-        print 'query_wise= \n',query_wise   
+        if args.overw_schema:
+            print 'Load/insert queries are:'    
+            print 'query_cand= \n',query_cand    
+            print 'query_decam= \n',query_decam 
+            print 'query_aper= \n',query_aper   
+            print 'query_wise= \n',query_wise   
     elif table == 'bricks':
         #dtype for each key using as column name
         sql_dtype= get_sql_dtype(keys)
