@@ -1,3 +1,7 @@
+import multiprocessing 
+import resource
+from functools import partial
+
 from astropy.io import fits
 from astropy.table import vstack, Table, Column
 from argparse import ArgumentParser
@@ -6,6 +10,10 @@ import os
 import psycopg2
 import sys
 from subprocess import check_output
+
+def current_mem_usage():
+    '''return mem usage in MB'''
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.**2
 
 def rem_if_exists(name):
     if os.path.exists(name):
@@ -211,6 +219,39 @@ def get_cand_keys(trac_keys):
                     get_aper_keys()[1]))
     return list(keys)
 
+def upload_a_row(i, args=None,tables=None,keys=None,cand=None,decam=None,aper=None,wise=None,\
+                 get_cursor=False,cursor=None):
+    '''get_cursor = True if to be called by pool.map(),
+    i -- ith row of tractor catalogue which will be uploaded by one of the workers'''
+    if args is None: 
+        print "Crash, keywords are None"
+        sys.exit()
+    if get_cursor:
+        assert(cursor is None)
+        name = multiprocessing.current_process().name
+        #print "%s: cat row=%d" % (name,i)
+        # Connect worker to db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi') #, async=1)
+        cursor = con.cursor()
+    else: assert(cursor is not None)
+    # Do the queries
+    query_cand= insert_query(args.schema,tables[0],i,cand,keys[0],returning=True)
+    if args.load_db: 
+        cursor.execute(query_cand) 
+        id = cursor.fetchone()[0]
+    else: id=np.nan #junk val so can print what query would look like 
+    query_decam= insert_query(args.schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
+    query_aper= insert_query(args.schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
+    query_wise= insert_query(args.schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
+    if args.load_db: 
+        cursor.execute(query_decam)
+        cursor.execute(query_aper) 
+        cursor.execute(query_wise)
+    if get_cursor: 
+        # Disconnect
+        con.commit()
+        con.close()
+
 
 def main(args):
     '''load a single Tractor Catalouge or fits truth table into the DB''' 
@@ -283,24 +324,31 @@ def main(args):
             write_schema(args.schema,tables[2],np.sort(keys[2]),sql_dtype[2],addrows=more_aper)
             write_schema(args.schema,tables[3],np.sort(keys[3]),sql_dtype[3],addrows=more_wise)
         # Load data into db
-        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
-        cursor = con.cursor()
         if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
-        for i in range(0, nrows):
-            query_cand= insert_query(args.schema,tables[0],i,cand,keys[0],returning=True)
+        # Option to multiprocess or not
+        if args.cores: 
+            # Multiprocess, each worker uploads a row
+            print "multiprocessing=True" 
+            print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
+            pool = multiprocessing.Pool(args.cores)
+            # The iterable is range(nrows)
+            results=pool.map(partial(upload_a_row, get_cursor=True,\
+                                                   args=args,tables=tables,keys=keys,cand=cand,decam=decam,aper=aper,wise=wise), \
+                             range(nrows))
+            pool.close()
+            pool.join()
+            del pool
+            print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
+            #err=np.array(results).astype(bool)
+        else:
+            print "multiprocessing=False" 
+            con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+            cursor = con.cursor()
+            for i in range(0, nrows):
+                upload_a_row(i, cursor=cursor,\
+                                args=args,tables=tables,keys=keys,cand=cand,decam=decam,aper=aper,wise=wise)
             if args.load_db: 
-                cursor.execute(query_cand) 
-                id = cursor.fetchone()[0]
-            else: id=2 #junk val so can print what query would look like 
-            query_decam= insert_query(args.schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
-            query_aper= insert_query(args.schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
-            query_wise= insert_query(args.schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
-            if args.load_db: 
-                cursor.execute(query_decam)
-                cursor.execute(query_aper) 
-                cursor.execute(query_wise) 
-        if args.load_db: 
-            con.commit()
+                con.commit()
         print 'finished %s load' % table
         if args.overw_schema:
             print 'Load/insert queries are:'    
@@ -487,12 +535,13 @@ def main(args):
 
 if __name__ == '__main__':
     parser = ArgumentParser(description="test")
-    parser.add_argument("-fits_file",action="store",help='',required=True)
-    parser.add_argument("-schema",choices=['dr2','dr3','truth'],action="store",help='',required=True)
-    parser.add_argument("-overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
-    parser.add_argument("-load_db",action="store",help='set to anything to load and write to db',required=False)
-    parser.add_argument("-index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
-    parser.add_argument("-special_table",choices=['bricks','stripe82','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=False)
+    parser.add_argument("--cores",type=int,action="store",help='',required=False)
+    parser.add_argument("--fits_file",action="store",help='',required=True)
+    parser.add_argument("--schema",choices=['dr2','dr3','truth'],action="store",help='',required=True)
+    parser.add_argument("--overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
+    parser.add_argument("--load_db",action="store",help='set to anything to load and write to db',required=False)
+    parser.add_argument("--index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
+    parser.add_argument("--special_table",choices=['bricks','stripe82','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=False)
     args = parser.parse_args()
         
     main(args)
