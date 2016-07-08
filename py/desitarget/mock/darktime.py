@@ -34,8 +34,8 @@ def estimate_density(ra, dec):
     """
     density = 0.0 
 
-    footprint_area = 20. * 45.* np.sin(45. * np.pi/180.)/(45. * np.pi/180.)
-    smalldata = ra[(ra>170.) & (dec<190.) & (dec>0.) & (dec<45.)]
+    footprint_area = 20. * 35.* np.sin(35. * np.pi/180.)/(35. * np.pi/180.)
+    smalldata = ra[(ra>170.) & (ra<190.) & (dec>0.) & (dec<35.)]
     n_in = len(smalldata)
     density = n_in/footprint_area
     if(n_in==0):
@@ -76,7 +76,6 @@ def reduce(ra, dec, z, frac):
     yra = xra[kept]
     ydec = xdec[kept]
     yzz = xzz[kept]
-    
     return((yra,ydec,yzz))
 
 
@@ -130,6 +129,7 @@ def select_population(ra, dec, z, **kwargs):
 
     mock_dens = estimate_density(ra[ii], dec[ii])
     frac_keep = min(kwargs['goal_density']/mock_dens , 1.0)
+#    print('goald density {} mock density {} fraction to keep {}'.format(kwargs['goal_density'], mock_dens, frac_keep))
     if mock_dens < kwargs['goal_density']:
         print("WARNING: mock cannot achieve the goal density for true_type {}. Goal {}. Mock {}".format(kwargs['true_type'], kwargs['goal_density'], mock_dens))
 
