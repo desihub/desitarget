@@ -11,6 +11,12 @@ import psycopg2
 import sys
 from subprocess import check_output
 
+def read_lines(fn):
+    fin=open(fn,'r')
+    lines=fin.readlines()
+    fin.close()
+    return list(np.char.strip(lines))
+
 def current_mem_usage():
     '''return mem usage in MB'''
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.**2
@@ -219,52 +225,27 @@ def get_cand_keys(trac_keys):
                     get_aper_keys()[1]))
     return list(keys)
 
-def upload_a_row(i, args=None,tables=None,keys=None,cand=None,decam=None,aper=None,wise=None,\
-                 get_cursor=False,cursor=None):
-    '''get_cursor = True if to be called by pool.map(),
-    i -- ith row of tractor catalogue which will be uploaded by one of the workers'''
-    if args is None: 
-        print "Crash, keywords are None"
-        sys.exit()
-    if get_cursor:
-        assert(cursor is None)
-        name = multiprocessing.current_process().name
-        #print "%s: cat row=%d" % (name,i)
-        # Connect worker to db
-        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi') #, async=1)
-        cursor = con.cursor()
-    else: assert(cursor is not None)
-    # Do the queries
-    query_cand= insert_query(args.schema,tables[0],i,cand,keys[0],returning=True)
-    if args.load_db: 
-        cursor.execute(query_cand) 
-        id = cursor.fetchone()[0]
-    else: id=np.nan #junk val so can print what query would look like 
-    query_decam= insert_query(args.schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
-    query_aper= insert_query(args.schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
-    query_wise= insert_query(args.schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
-    if args.load_db: 
-        cursor.execute(query_decam)
-        cursor.execute(query_aper) 
-        cursor.execute(query_wise)
-    if get_cursor: 
-        # Disconnect
-        con.commit()
-        con.close()
 
+   
+def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
+                                 overw_schema=False,load_db=False):
+    
+    '''load a single Tractor Catalouge or fits truth table into the DB
+    cons -- list of connection objects to database'''
+    assert(cons is not None)
+    assert(schema is not None)
+    assert(table is not None)
+    # Print cat name so know whether finished
+    if load_db: print '%s preload' % tractor_cat 
 
-def main(args):
-    '''load a single Tractor Catalouge or fits truth table into the DB''' 
-    if args.schema == 'truth':
-        table= args.special_table
+    if len(cons) == 1: con= cons[0]
     else:
-        table= 'decam'
-
-    if args.index_cluster:
-        write_index_cluster_files(args.schema)
-
+        iworker = int(multiprocessing.current_process().name[-1]) -1 # 0 indexed
+        print "######## iworker=%d, len(cons)=" % iworker,len(cons)
+        con= cons[iworker] 
+    
     # Read fits table
-    tractor = Table(fits.getdata(args.fits_file, 1))
+    tractor = Table(fits.getdata(tractor_cat, 1))
     nrows = len(tractor) 
 
     # Load data to appropriate schema file
@@ -318,40 +299,37 @@ def main(args):
         more_wise= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[3]),\
                         "cand_id bigint REFERENCES %s (id)" % (tables[0])]
         # Write schema format file
-        if args.overw_schema:
-            write_schema(args.schema,tables[0],np.sort(keys[0]),sql_dtype[0],addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
-            write_schema(args.schema,tables[1],np.sort(keys[1]),sql_dtype[1],addrows=more_decam)
-            write_schema(args.schema,tables[2],np.sort(keys[2]),sql_dtype[2],addrows=more_aper)
-            write_schema(args.schema,tables[3],np.sort(keys[3]),sql_dtype[3],addrows=more_wise)
+        if write_schema:
+            write_schema(schema,tables[0],np.sort(keys[0]),sql_dtype[0],addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
+            write_schema(schema,tables[1],np.sort(keys[1]),sql_dtype[1],addrows=more_decam)
+            write_schema(schema,tables[2],np.sort(keys[2]),sql_dtype[2],addrows=more_aper)
+            write_schema(schema,tables[3],np.sort(keys[3]),sql_dtype[3],addrows=more_wise)
         # Load data into db
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
-        # Option to multiprocess or not
-        if args.cores: 
-            # Multiprocess, each worker uploads a row
-            print "multiprocessing=True" 
-            print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
-            pool = multiprocessing.Pool(args.cores)
-            # The iterable is range(nrows)
-            results=pool.map(partial(upload_a_row, get_cursor=True,\
-                                                   args=args,tables=tables,keys=keys,cand=cand,decam=decam,aper=aper,wise=wise), \
-                             range(nrows))
-            pool.close()
-            pool.join()
-            del pool
-            print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
-            #err=np.array(results).astype(bool)
-        else:
-            print "multiprocessing=False" 
-            con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        if load_db: 
+            print 'beginning load of %d rows' % nrows
             cursor = con.cursor()
-            for i in range(0, nrows):
-                upload_a_row(i, cursor=cursor,\
-                                args=args,tables=tables,keys=keys,cand=cand,decam=decam,aper=aper,wise=wise)
-            if args.load_db: 
-                con.commit()
-        print 'finished %s load' % table
-        if args.overw_schema:
-            print 'Load/insert queries are:'    
+            for i in range(nrows):
+                # Get insert string and execute
+                query_cand= insert_query(schema,tables[0],i,cand,keys[0],returning=True)
+                cursor.execute(query_cand) 
+                id = cursor.fetchone()[0]
+                query_decam= insert_query(schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
+                query_aper= insert_query(schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
+                query_wise= insert_query(schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
+                cursor.execute(query_decam)
+                cursor.execute(query_aper) 
+                cursor.execute(query_wise)
+            con.commit()
+            print 'finished load of %d rows' % nrows
+        # Or dry run
+        else: 
+            i=0
+            query_cand= insert_query(schema,tables[0],i,cand,keys[0],returning=True)
+            id=np.nan #junk b/c just sanity check
+            query_decam= insert_query(schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
+            query_aper= insert_query(schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
+            query_wise= insert_query(schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
+            print 'insert queries for row=%d:' % i    
             print 'query_cand= \n',query_cand    
             print 'query_decam= \n',query_decam 
             print 'query_aper= \n',query_aper   
@@ -361,18 +339,18 @@ def main(args):
         sql_dtype= get_sql_dtype(keys)
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % table]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0,nrows):
-            query= insert_query(args.schema,table,i,data,keys)
-            if args.load_db: cursor.execute(query) 
+            query= insert_query(schema,table,i,data,keys)
+            if load_db: cursor.execute(query) 
         print 'finished loading files into %s' % table
         print 'query looks like this: \n',query    
-        if args.load_db: 
+        if load_db: 
             con.commit()
         print 'done'
     elif table.startswith('vipers'):
@@ -399,17 +377,17 @@ def main(args):
         sql_dtype= get_sql_dtype(keys)
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0, nrows):
-            query= insert_query(args.schema,table,i,data,keys)
-            if args.load_db: 
+            query= insert_query(schema,table,i,data,keys)
+            if load_db: 
                 cursor.execute(query) 
-        if args.load_db:
+        if load_db:
             con.commit()
             print 'finished %s load' %table
         print 'query= \n'    
@@ -425,17 +403,17 @@ def main(args):
         sql_dtype['OBJNO']= 'bigint'
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0, nrows):
-            query= insert_query(args.schema,table,i,data,keys,returning=False)
-            if args.load_db: 
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
                 cursor.execute(query) 
-        if args.load_db:
+        if load_db:
             con.commit()
             print 'finished %s load' %table
         print 'query= \n'    
@@ -444,17 +422,17 @@ def main(args):
         sql_dtype= get_sql_dtype(keys)
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0, nrows):
-            query= insert_query(args.schema,table,i,data,keys,returning=False)
-            if args.load_db: 
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
                 cursor.execute(query) 
-        if args.load_db:
+        if load_db:
             con.commit()
             print 'finished %s load' %table
         print 'query= '    
@@ -465,17 +443,17 @@ def main(args):
         print 'WARNING: cosmos-acs.fits if 300+ MB file, this will take a few min!'
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0, nrows):
-            query= insert_query(args.schema,table,i,data,keys,returning=False)
-            if args.load_db: 
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
                 cursor.execute(query) 
-        if args.load_db:
+        if load_db:
             con.commit()
             print 'finished %s load' %table
         print 'query='    
@@ -489,17 +467,17 @@ def main(args):
         sql_dtype= get_sql_dtype(keys)
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0, nrows):
-            query1= insert_query(args.schema,table,i,data,keys,returning=False)
-            if args.load_db: 
+            query1= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
                 cursor.execute(query1) 
-        if args.load_db:
+        if load_db:
             con.commit()
             print 'finished %s load' %table
         print 'finished %s load' %table
@@ -514,34 +492,71 @@ def main(args):
         sql_dtype= get_sql_dtype(keys)
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if args.overw_schema:
-            write_schema(args.schema,table,keys,sql_dtype,addrows=more_rows)
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if args.load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
         for i in range(0, nrows):
-            query= insert_query(args.schema,table,i,data,keys,returning=False)
-            if args.load_db: 
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
                 cursor.execute(query) 
-        if args.load_db:
+        if load_db:
             con.commit()
             print 'finished %s load' %table
         print 'query= '    
         print query 
     else: raise ValueError
+    
+    # Print cat name so know whether finished
+    if load_db: print '%s finishedload' % tractor_cat 
 
-    print 'done'
-
+def main(args,table):
+    fits_files= read_lines(args.list_of_cats)
+    if len(fits_files) == 1: assert(args.cores == 1)
+   
+    # Index and cluster file for once everything loaded in
+    if args.make_index_file:
+        write_index_cluster_files(args.schema)
+ 
+    # One connection per core
+    cons= [psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi') for cnt in range(args.cores)]
+ 
+    if len(fits_files) == 1:
+        tractor_into_db(fits_files[0], cons=cons, schema=args.schema,table=table,\
+                                       overw_schema=args.overw_schema,load_db=args.load_db)
+    else:
+        # Multiprocess, each worker uploads a row
+        print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
+        pool = multiprocessing.Pool(args.cores)
+        # The iterable is fits_files
+        results=pool.map(partial(tractor_into_db, cons=cons, schema=args.schema,table=table,\
+                                                  overw_schema=args.overw_schema,load_db=args.load_db), \
+                         fits_files)
+        pool.close()
+        pool.join()
+        del pool
+        print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
+    if args.load_db:
+        print "finished loading these cats"
+        for cat in fits_files: print cat
+ 
 if __name__ == '__main__':
     parser = ArgumentParser(description="test")
-    parser.add_argument("--cores",type=int,action="store",help='',required=False)
-    parser.add_argument("--fits_file",action="store",help='',required=True)
+    parser.add_argument("--cores",type=int,action="store",help='',required=True)
+    parser.add_argument("--list_of_cats",action="store",help='',required=True)
     parser.add_argument("--schema",choices=['dr2','dr3','truth'],action="store",help='',required=True)
-    parser.add_argument("--overw_schema",action="store",help='set to anything to write schema to file, overwritting the previous file',required=False)
-    parser.add_argument("--load_db",action="store",help='set to anything to load and write to db',required=False)
-    parser.add_argument("--index_cluster",action="store",help='set to anything to write index and cluster files',required=False)
+    parser.add_argument("--overw_schema",action="store_true",help='set to write schema to file, overwritting the previous file',required=False)
+    parser.add_argument("--load_db",action="store_true",help='set to load and write to db',required=False)
+    parser.add_argument("--make_index_file",action="store_true",help='set to write index and cluster files',required=False)
     parser.add_argument("--special_table",choices=['bricks','stripe82','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=False)
     args = parser.parse_args()
-        
-    main(args)
+   
+    if args.schema == 'truth':
+        assert(args.special_table)
+        table= args.special_table
+    else:
+        table= 'decam'
+    
+    main(args,table)
