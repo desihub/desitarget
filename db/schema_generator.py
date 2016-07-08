@@ -1,6 +1,7 @@
 import multiprocessing 
 import resource
 from functools import partial
+from mpi4py import MPI
 
 from astropy.io import fits
 from astropy.table import vstack, Table, Column
@@ -22,6 +23,8 @@ def current_mem_usage():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.**2
 
 def rem_if_exists(name):
+    print "exiting rem_if_exists if called so can see what func called it!"
+    sys.exit()
     if os.path.exists(name):
         if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
 
@@ -227,23 +230,15 @@ def get_cand_keys(trac_keys):
 
 
    
-def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
+def tractor_into_db(tractor_cat, schema=None,table=None,\
                                  overw_schema=False,load_db=False):
     
-    '''load a single Tractor Catalouge or fits truth table into the DB
-    cons -- list of connection objects to database'''
-    assert(cons is not None)
+    '''load a single Tractor Catalouge or fits truth table into the DB'''
     assert(schema is not None)
     assert(table is not None)
     # Print cat name so know whether finished
     if load_db: print '%s preload' % tractor_cat 
-
-    if len(cons) == 1: con= cons[0]
-    else:
-        iworker = int(multiprocessing.current_process().name[-1]) -1 # 0 indexed
-        print "######## iworker=%d, len(cons)=" % iworker,len(cons)
-        con= cons[iworker] 
-    
+ 
     # Read fits table
     tractor = Table(fits.getdata(tractor_cat, 1))
     nrows = len(tractor) 
@@ -299,7 +294,7 @@ def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
         more_wise= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[3]),\
                         "cand_id bigint REFERENCES %s (id)" % (tables[0])]
         # Write schema format file
-        if write_schema:
+        if overw_schema:
             write_schema(schema,tables[0],np.sort(keys[0]),sql_dtype[0],addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
             write_schema(schema,tables[1],np.sort(keys[1]),sql_dtype[1],addrows=more_decam)
             write_schema(schema,tables[2],np.sort(keys[2]),sql_dtype[2],addrows=more_aper)
@@ -307,6 +302,7 @@ def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
         # Load data into db
         if load_db: 
             print 'beginning load of %d rows' % nrows
+            con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
             cursor = con.cursor()
             for i in range(nrows):
                 # Get insert string and execute
@@ -320,6 +316,7 @@ def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
                 cursor.execute(query_aper) 
                 cursor.execute(query_wise)
             con.commit()
+            con.close()
             print 'finished load of %d rows' % nrows
         # Or dry run
         else: 
@@ -375,32 +372,6 @@ def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
         update_keys(keys,['ZFLG_1','ZFLG_2'],'ZFLG')
         #drop keys, add new ones 
         sql_dtype= get_sql_dtype(keys)
-        #schema
-        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
-        if overw_schema:
-            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
-        #db
-        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
-        cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
-        for i in range(0, nrows):
-            query= insert_query(schema,table,i,data,keys)
-            if load_db: 
-                cursor.execute(query) 
-        if load_db:
-            con.commit()
-            print 'finished %s load' %table
-        print 'query= \n'    
-        print query  
-    elif table.startswith('deep2'):
-        '''http://deep.ps.uci.edu/DR4/photo.extended.html'''
-        #rename ra_deep,dec_deep to ra,dec
-        replace_key(data,'RA','RA_DEEP') 
-        update_keys(keys,['RA'],'RA_DEEP')
-        replace_key(data,'DEC','DEC_DEEP') 
-        update_keys(keys,['DEC'],'DEC_DEEP')
-        sql_dtype= get_sql_dtype(keys)
-        sql_dtype['OBJNO']= 'bigint'
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
         if overw_schema:
@@ -514,37 +485,55 @@ def tractor_into_db(tractor_cat, cons=None, schema=None,table=None,\
 
 def main(args,table):
     fits_files= read_lines(args.list_of_cats)
-    if len(fits_files) == 1: assert(args.cores == 1)
    
     # Index and cluster file for once everything loaded in
     if args.make_index_file:
         write_index_cluster_files(args.schema)
- 
-    # One connection per core
-    cons= [psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi') for cnt in range(args.cores)]
- 
-    if len(fits_files) == 1:
-        tractor_into_db(fits_files[0], cons=cons, schema=args.schema,table=table,\
-                                       overw_schema=args.overw_schema,load_db=args.load_db)
+
+    # serial 
+    if args.serial:
+        print 'running serial, cores= %d, should be 0' % args.cores
+        for fil in fits_files:
+            tractor_into_db(fil, schema=args.schema,table=table,\
+                                 overw_schema=args.overw_schema,load_db=args.load_db)
+    # parallel
     else:
-        # Multiprocess, each worker uploads a row
-        print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
-        pool = multiprocessing.Pool(args.cores)
-        # The iterable is fits_files
-        results=pool.map(partial(tractor_into_db, cons=cons, schema=args.schema,table=table,\
-                                                  overw_schema=args.overw_schema,load_db=args.load_db), \
-                         fits_files)
-        pool.close()
-        pool.join()
-        del pool
-        print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
+        if args.mpi:
+            comm = MPI.COMM_WORLD
+            if comm.rank == 0: print 'running mpi, cores= %d' % comm.size
+            cnt=0
+            i=comm.rank+cnt*comm.size
+            while i < len(fits_files):
+                tractor_into_db(fits_files[i], schema=args.schema,table=table,\
+                                               overw_schema=args.overw_schema,load_db=args.load_db)
+                print "rank %d in its %dth iteration and loading %dth cat = %s" % (comm.rank, cnt,i,fits_files[i])
+                cnt+=1
+                i=comm.rank+cnt*comm.size
+        else:
+            print 'running multiprocessing, cores= %d' % args.cores
+            print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
+            pool = multiprocessing.Pool(args.cores)
+            # The iterable is fits_files
+            results=pool.map(partial(tractor_into_db, schema=args.schema,table=table,\
+                                                      overw_schema=args.overw_schema,load_db=args.load_db), \
+                             fits_files)
+            pool.close()
+            pool.join()
+            del pool
+            print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
     if args.load_db:
-        print "finished loading these cats"
-        for cat in fits_files: print cat
+        if args.mpi == False: 
+            print "finished loading these cats"
+            for cat in fits_files: print cat
+        elif args.mpi and comm.rank == 0:
+            print "finished loading these cats"
+            for cat in fits_files: print cat
  
 if __name__ == '__main__':
     parser = ArgumentParser(description="test")
-    parser.add_argument("--cores",type=int,action="store",help='',required=True)
+    parser.add_argument("--mpi",action="store_true",help='set to use mpi, otherwise multiprocessing for parallelism',required=False)
+    parser.add_argument("--serial",action="store_true",help='run on 1 tractor cat only',required=False)
+    parser.add_argument("--cores",type=int,action="store",default=0,help='',required=False)
     parser.add_argument("--list_of_cats",action="store",help='',required=True)
     parser.add_argument("--schema",choices=['dr2','dr3','truth'],action="store",help='',required=True)
     parser.add_argument("--overw_schema",action="store_true",help='set to write schema to file, overwritting the previous file',required=False)
@@ -552,7 +541,17 @@ if __name__ == '__main__':
     parser.add_argument("--make_index_file",action="store_true",help='set to write index and cluster files',required=False)
     parser.add_argument("--special_table",choices=['bricks','stripe82','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=False)
     args = parser.parse_args()
-   
+
+    if args.mpi:
+        assert(args.overw_schema == False)
+        assert(args.make_index_file == False)
+    if args.cores > 0:
+        assert(args.mpi == False)
+        assert(args.serial == False)
+    if args.serial:
+        assert(args.mpi == False)
+        assert(args.cores == 0)
+
     if args.schema == 'truth':
         assert(args.special_table)
         table= args.special_table
