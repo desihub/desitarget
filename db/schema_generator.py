@@ -1,7 +1,7 @@
 import multiprocessing 
 import resource
 from functools import partial
-from mpi4py import MPI
+#from mpi4py import MPI
 
 from astropy.io import fits
 from astropy.table import vstack, Table, Column
@@ -23,8 +23,6 @@ def current_mem_usage():
     return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.**2
 
 def rem_if_exists(name):
-    print "exiting rem_if_exists if called so can see what func called it!"
-    sys.exit()
     if os.path.exists(name):
         if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
 
@@ -236,13 +234,14 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
     '''load a single Tractor Catalouge or fits truth table into the DB'''
     assert(schema is not None)
     assert(table is not None)
-    # Print cat name so know whether finished
-    if load_db: print '%s preload' % tractor_cat 
  
     # Read fits table
     tractor = Table(fits.getdata(tractor_cat, 1))
     nrows = len(tractor) 
 
+    # Print cat name so know whether finished
+    if load_db: print 'preload, nrows=%d, %s' % (nrows,tractor_cat) 
+    
     # Load data to appropriate schema file
     if table == 'decam':
         # Store as 4 tables in db
@@ -301,7 +300,6 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
             write_schema(schema,tables[3],np.sort(keys[3]),sql_dtype[3],addrows=more_wise)
         # Load data into db
         if load_db: 
-            print 'beginning load of %d rows' % nrows
             con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
             cursor = con.cursor()
             for i in range(nrows):
@@ -317,7 +315,6 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
                 cursor.execute(query_wise)
             con.commit()
             con.close()
-            print 'finished load of %d rows' % nrows
         # Or dry run
         else: 
             i=0
@@ -481,7 +478,7 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
     else: raise ValueError
     
     # Print cat name so know whether finished
-    if load_db: print '%s finishedload' % tractor_cat 
+    if load_db: print 'finishedload %s' % tractor_cat 
 
 def main(args,table):
     fits_files= read_lines(args.list_of_cats)
@@ -493,7 +490,7 @@ def main(args,table):
     # serial 
     if args.serial:
         print 'running serial, cores= %d, should be 0' % args.cores
-        for fil in fits_files:
+        for fil in [fits_files[0]]:
             tractor_into_db(fil, schema=args.schema,table=table,\
                                  overw_schema=args.overw_schema,load_db=args.load_db)
     # parallel
