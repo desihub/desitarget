@@ -21,19 +21,19 @@ fi
 
 ##mpi
 #date
-#srun -n 24 python-mpi ./schema_generator.py --mpi --list_of_cats cats_24.txt --schema dr3 --load_db
+#srun -n 24 python-mpi ./tractor_load.py --mpi --list_of_cats dr3_tractor_cats_qso.txt --schema dr3 --load_db
 #date
 
 ##multi
 export OMP_NUM_THREADS=${CORES_ON_NODE}
 echo cores=${OMP_NUM_THREADS}
 date
-srun -n 1 -c ${OMP_NUM_THREADS} python schema_generator.py --cores ${OMP_NUM_THREADS} --list_of_cats dr3_cats_qso.txt --schema dr3 --load_db
+srun -n 1 -c ${OMP_NUM_THREADS} python tractor_load.py --cores ${OMP_NUM_THREADS} --list_of_cats dr3_tractor_cats_qso.txt --schema dr3 --load_db
 date
 
 ##serial
 #date
-#srun -n 1 -c ${OMP_NUM_THREADS} python schema_generator.py --serial --list_of_cats cats_1.txt --schema dr3 --load_db
+#srun -n 1 -c ${OMP_NUM_THREADS} python tractor_load.py --serial --list_of_cats dr3_tractor_cats_qso.txt --schema dr3 --load_db
 #date
 
 echo DONE
