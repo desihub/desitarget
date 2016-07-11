@@ -5,6 +5,8 @@ CREATE TABLE candidate (
     brickid integer,
     objid integer,
     blob integer,
+    ninblob integer,
+    tycho2inblob boolean,
     "type" text,
     ra double precision,
     ra_ivar real,
@@ -21,6 +23,7 @@ CREATE TABLE candidate (
     DCHISQ2 real,
     DCHISQ3 real,
     DCHISQ4 real,
+    DCHISQ5 real,
     FRACDEV real,
     FRACDEV_IVAR real,
     SHAPEEXP_R real,
@@ -37,6 +40,3 @@ CREATE TABLE candidate (
     SHAPEDEV_E2_IVAR real
 );
 
-CREATE INDEX cand_q3c_candidate_idx ON candidate (q3c_ang2ipix(ra,dec));
-CLUSTER cand_q3c_candidate_idx on candidate;
-CREATE INDEX cand_brickid_idx ON candidate (brickid);

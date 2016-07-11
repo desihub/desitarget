@@ -13,9 +13,12 @@ CREATE TABLE bricks (
     dec1 double precision,
     ra2 double precision,
     dec2 double precision,
-    has_g boolean,
-    has_r boolean,
-    has_z boolean,
+    nobs_med_g integer,
+    nobs_med_r integer,
+    nobs_med_z integer,
+    nobs_max_g integer,
+    nobs_max_r integer,
+    nobs_max_z integer,
     filename text default null,
     tractorvr text default null,
     loaded boolean default 'false'
@@ -24,7 +27,10 @@ CREATE TABLE bricks (
 CREATE INDEX bricks_q3c_idx ON bricks (q3c_ang2ipix(ra,dec));
 CLUSTER bricks_q3c_idx on bricks;
 CREATE INDEX bricks_brickid_idx ON bricks (brickid);
-CREATE INDEX bricks_hasg_idx ON bricks (has_g);
-CREATE INDEX bricks_hasr_idx ON bricks (has_r);
-CREATE INDEX bricks_hasz_idx ON bricks (has_z);
+CREATE INDEX bricks_medg_idx ON bricks (nobs_med_g);
+CREATE INDEX bricks_medr_idx ON bricks (nobs_med_r);
+CREATE INDEX bricks_medz_idx ON bricks (nobs_med_z);
+CREATE INDEX bricks_maxg_idx ON bricks (nobs_max_g);
+CREATE INDEX bricks_maxr_idx ON bricks (nobs_max_r);
+CREATE INDEX bricks_maxz_idx ON bricks (nobs_max_z);
 

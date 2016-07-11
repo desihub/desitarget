@@ -149,4 +149,3 @@ CREATE TABLE decam_aper (
     yapflux_ivar_8 real
 );
 
-CREATE INDEX decam_aper_candid_idx ON decam_aper (cand_id);
