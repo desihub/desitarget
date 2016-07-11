@@ -43,6 +43,8 @@ for key in ans.keys():
     print 'tractor cat: ',ans[key]
     print 'postgres   : ',sql[key][0]
 
+# Nothing should be commited to the db since this is a test, so
+# LEAVE THE FOLLOWING COMMENTED OUT: 
 #con.commit()
 print 'done'
 
