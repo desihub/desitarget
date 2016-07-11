@@ -1,8 +1,8 @@
 #!/bin/bash -l
 
-#SBATCH -p debug 
+#SBATCH -p regular 
 #SBATCH -N 1
-#SBATCH -t 00:05:00
+#SBATCH -t 25:00:00
 #SBATCH -J loaddb
 #SBATCH -o loaddb.o%j
 #SBATCH --mail-user=kburleigh@lbl.gov

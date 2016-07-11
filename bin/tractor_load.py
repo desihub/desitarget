@@ -256,9 +256,6 @@ def tractor_into_db2(tractor_cat, schema=None,table=None,\
     tractor = Table(fits.getdata(tractor_cat, 1))
     nrows = len(tractor) 
 
-    # Print cat name so know whether finished
-    if load_db: print_flush('preload, nrows=%d, %s' % (nrows,tractor_cat))
-    
     # Load data to appropriate schema file
     if table == 'decam':
         # Store as 4 tables in db
@@ -337,7 +334,7 @@ def tractor_into_db2(tractor_cat, schema=None,table=None,\
                         print_flush('NaN in %s' % tractor_cat)
                         printed_nans = True
             # If successfully loaded all rows, commit and print that finished
-            print_flush('commitedload %s' % tractor_cat) 
+            print_flush('commitedload nrows=%d of %s' % (nrows,tractor_cat)) 
             con.commit()
             con.close()
         # Or dry run
