@@ -2,7 +2,7 @@
 
 #SBATCH -p debug 
 #SBATCH -N 1
-#SBATCH -t 00:30:00
+#SBATCH -t 00:05:00
 #SBATCH -J loaddb
 #SBATCH -o loaddb.o%j
 #SBATCH --mail-user=kburleigh@lbl.gov
@@ -21,14 +21,14 @@ fi
 
 ##mpi
 #date
-#srun -n 24 python-mpi ./tractor_load.py --mpi --list_of_cats dr3_tractor_cats_qso.txt --schema dr3 --load_db
+#srun -n ${CORES_ON_NODE} python-mpi ./tractor_load.py --mpi --list_of_cats dr3_cats_qso.txt --schema dr3 --load_db
 #date
 
 ##multi
 export OMP_NUM_THREADS=${CORES_ON_NODE}
 echo cores=${OMP_NUM_THREADS}
 date
-srun -n 1 -c ${OMP_NUM_THREADS} python tractor_load.py --cores ${OMP_NUM_THREADS} --list_of_cats dr3_tractor_cats_qso.txt --schema dr3 --load_db
+srun -n 1 -c ${OMP_NUM_THREADS} python tractor_load.py --cores ${OMP_NUM_THREADS} --list_of_cats dr3_cats_qso.txt --schema dr3 --load_db
 date
 
 ##serial

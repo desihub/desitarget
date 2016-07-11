@@ -10,7 +10,12 @@ import numpy as np
 import os
 import psycopg2
 import sys
+import traceback
 from subprocess import check_output
+
+def print_flush(words):
+    print words
+    sys.stdout.flush()
 
 def read_lines(fn):
     fin=open(fn,'r')
@@ -77,11 +82,12 @@ def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newva
     for nv in newvals:
         query+= '%s, ' % str(nv)
     for key in keys:
-        if np.issubdtype(data[key][ith_row].dtype, str): #put strings in quotes 
+        # Put strings in quotes
+        if np.issubdtype(data[key][ith_row].dtype, str):  
             query+= "'%s'" % data[key][ith_row].strip()
-        elif np.any((np.isnan(data[key][ith_row]),np.isinf(data[key][ith_row])),axis=0): #NaN
+        # Handle NaNs
+        elif np.any((np.isnan(data[key][ith_row]),np.isinf(data[key][ith_row])),axis=0): 
             query+= "'NaN'"
-            print "<<<<<<<< WARNING: %s is NaN in row %d >>>>>>>>>>" % (key,ith_row)
         else: query+= "%s" % str(data[key][ith_row])
         if key != keys[-1]: query+= ', '
     if returning: query+= ' ) RETURNING id'
@@ -227,8 +233,19 @@ def get_cand_keys(trac_keys):
     return list(keys)
 
 
-   
 def tractor_into_db(tractor_cat, schema=None,table=None,\
+                                 overw_schema=False,load_db=False):
+    '''wrapper around actual function so get traceback for processes'''
+    try:
+        tractor_into_db2(tractor_cat, schema=schema,table=table,\
+                                     overw_schema=overw_schema,load_db=load_db) 
+    except: 
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        print_flush("Error loading %s" % tractor_cat)
+        traceback.print_tb(exc_traceback, file=sys.stdout)
+
+   
+def tractor_into_db2(tractor_cat, schema=None,table=None,\
                                  overw_schema=False,load_db=False):
     
     '''load a single Tractor Catalouge or fits truth table into the DB'''
@@ -240,7 +257,7 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
     nrows = len(tractor) 
 
     # Print cat name so know whether finished
-    if load_db: print 'preload, nrows=%d, %s' % (nrows,tractor_cat) 
+    if load_db: print_flush('preload, nrows=%d, %s' % (nrows,tractor_cat))
     
     # Load data to appropriate schema file
     if table == 'decam':
@@ -302,6 +319,7 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         if load_db: 
             con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
             cursor = con.cursor()
+            printed_nans=False
             for i in range(nrows):
                 # Get insert string and execute
                 query_cand= insert_query(schema,tables[0],i,cand,keys[0],returning=True)
@@ -313,6 +331,13 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
                 cursor.execute(query_decam)
                 cursor.execute(query_aper) 
                 cursor.execute(query_wise)
+                # Print if NaNs in catalogue, print only once
+                if printed_nans == False:
+                    if 'NaN' in query_cand+query_decam+query_aper+query_wise:
+                        print_flush('NaN in %s' % tractor_cat)
+                        printed_nans = True
+            # If successfully loaded all rows, commit and print that finished
+            print_flush('commitedload %s' % tractor_cat) 
             con.commit()
             con.close()
         # Or dry run
@@ -323,11 +348,11 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
             query_decam= insert_query(schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
             query_aper= insert_query(schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
             query_wise= insert_query(schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
-            print 'insert queries for row=%d:' % i    
-            print 'query_cand= \n',query_cand    
-            print 'query_decam= \n',query_decam 
-            print 'query_aper= \n',query_aper   
-            print 'query_wise= \n',query_wise   
+            print_flush('insert queries for row=%d:' % i)    
+            print_flush('query_cand= \n',query_cand)
+            print_flush('query_decam= \n',query_decam) 
+            print_flush('query_aper= \n',query_aper)   
+            print_flush('query_wise= \n',query_wise)   
     elif table == 'bricks':
         #dtype for each key using as column name
         sql_dtype= get_sql_dtype(keys)
@@ -477,9 +502,6 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         print query 
     else: raise ValueError
     
-    # Print cat name so know whether finished
-    if load_db: print 'finishedload %s' % tractor_cat 
-
 def main(args,table):
     fits_files= read_lines(args.list_of_cats)
    
@@ -503,7 +525,7 @@ def main(args,table):
             while i < len(fits_files):
                 tractor_into_db(fits_files[i], schema=args.schema,table=table,\
                                                overw_schema=args.overw_schema,load_db=args.load_db)
-                print "rank %d in its %dth iteration and loading %dth cat = %s" % (comm.rank, cnt,i,fits_files[i])
+                print_flush("rank %d in its %dth iteration and loading %dth cat = %s" % (comm.rank, cnt,i,fits_files[i]))
                 cnt+=1
                 i=comm.rank+cnt*comm.size
         else:
