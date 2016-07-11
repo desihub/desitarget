@@ -21,7 +21,7 @@ def read_lines(fn):
     fin=open(fn,'r')
     lines=fin.readlines()
     fin.close()
-    return list(np.char.strip(lines))
+    return np.sort(np.array( list(np.char.strip(lines)) ))
 
 def current_mem_usage():
     '''return mem usage in MB'''
