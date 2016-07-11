@@ -1,139 +1,558 @@
-#----------------------------------------------------------------------#
-# filename: astropy+psycopg2_ex.py 
-# author: Peter Nugent
-# date: 1/29/2016
-# ---------------------------------------------------------------------#
-# Function: DR2, Read in a Dustin's fits tractor binary table from standard 
-# in and load it into the desi candidate pg table database with psycopg2.
-# ---------------------------------------------------------------------#
+import multiprocessing 
+import resource
+from functools import partial
+#from mpi4py import MPI
 
-# First, we'll load up the dependencies:
-
-# psycopg2 is an open-source postgres client for python. 
-# We may want db access at some point and, of course, fits & sys
-
-import psycopg2 
-
-import astropy
 from astropy.io import fits
-
-import sys, os, re, glob
+from astropy.table import vstack, Table, Column
+from argparse import ArgumentParser
 import numpy as np
+import os
+import psycopg2
+import sys
+from subprocess import check_output
 
-# Read in the image name (ooi) and create the mask (ood) and weight (oow) names
+def read_lines(fn):
+    fin=open(fn,'r')
+    lines=fin.readlines()
+    fin.close()
+    return list(np.char.strip(lines))
 
-fitsbin = str(sys.argv[1])
+def current_mem_usage():
+    '''return mem usage in MB'''
+    return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.**2
 
-fimage = os.path.abspath(sys.argv[1])
+def rem_if_exists(name):
+    if os.path.exists(name):
+        if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
 
-# First, open the table using pyfits:
-
-table = fits.open( fitsbin )
-
-#
-# Fire up the db
-#
-con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
-
-cursor = con.cursor()
-
-prihdr=table[0].header
-
-tractver = prihdr['LEGPIPEV']
-hdrbrickid = prihdr['brickid']
-
-##
-cursor.execute( "SELECT loaded from bricks where brickid = %s", (hdrbrickid,)  )
-loaded = cursor.fetchone()[0]
-
-if loaded:
-  print 'SKIPPING ',fimage,'ALREADY loaded it'
-  sys.exit(0)
-
-##
-cursor.execute( "UPDATE bricks set filename = %s, loaded = 'true', tractorvr = %s where brickid = %s", (fimage, tractver, hdrbrickid,)  )
-
-# Access the data part of the table.
-
-tbdata = table[1].data
-tbdata = np.asarray(tbdata)
-
-# determine the number of elements 
-
-nrows = tbdata.shape[0] 
-
-newdata_cand = []
-newdata_decam = []
-newdata_wise = []
-newdata_decap = []
+def write_index_cluster_files(schema):
+    indexes= indexes_for_tables(args.schema)
+    # Write index
+    outname= 'index.'+args.schema
+    rem_if_exists(outname)
+    fin=open(outname,'w')
+    for key in indexes.keys(): 
+        for coln in indexes[key]: 
+            if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra, dec));\n' % (key,key))
+            else: fin.write('CREATE INDEX %s_%s_idx ON %s (%s);\n' % (key,coln,key,coln)) 
+    fin.close()   
+    print "wrote index file: %s " % outname 
+    # Write cluster
+    outname= 'cluster.'+args.schema
+    rem_if_exists(outname)
+    fin=open(outname,'w')
+    for key in indexes.keys():
+        if 'radec' in indexes[key]:
+            fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (key,key))
+            fin.write('ANALYZE %s;\n' % key)
+    print "wrote cluster file: %s " % outname 
 
 
-for i in range(0, nrows):
+def write_schema(schema,table,keys,sql_dtype,addrows=[]):
+    outname= table+'.table.%s' % schema
+    rem_if_exists(outname)
+    fin=open(outname,'w')
+    fin.write('CREATE SEQUENCE %s_id_seq;' % table)
+    fin.write('\n\n'+'CREATE TABLE %s (' % table)
+    #add indexing names
+    for row in addrows: fin.write('\n'+'\t'+row+',')
+    #add catalogue's names
+    for key in keys:
+        stri= '\n'+'\t'+key.lower()+' '+sql_dtype[key]
+        if key != keys[-1]: stri+= ','
+        fin.write(stri)
+    fin.write('\n'+');'+'\n')
+    fin.close()
 
-   if  tbdata['brick_primary'][i] == 84:
+def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
+    query = 'INSERT INTO %s ( ' % table   
+    #column names 
+    for nk in newkeys: query+= '%s, ' % nk
+    for key in keys:
+        query+= key.lower()
+        if key != keys[-1]: query+= ', '
+    query+= ' ) VALUES ( '
+    #catalogue numeric or string entries
+    for nv in newvals:
+        query+= '%s, ' % str(nv)
+    for key in keys:
+        if np.issubdtype(data[key][ith_row].dtype, str): #put strings in quotes 
+            query+= "'%s'" % data[key][ith_row].strip()
+        elif np.any((np.isnan(data[key][ith_row]),np.isinf(data[key][ith_row])),axis=0): #NaN
+            query+= "'NaN'"
+            print "<<<<<<<< WARNING: %s is NaN in row %d >>>>>>>>>>" % (key,ith_row)
+        else: query+= "%s" % str(data[key][ith_row])
+        if key != keys[-1]: query+= ', '
+    if returning: query+= ' ) RETURNING id'
+    else: query+= ' )'
+    return query
 
-      if tbdata['left_blob'][i] == 70:
-         lb = 0
-      else:
-         lb = 1
+def update_keys(keys,newkeys,oldkey):
+    for k in newkeys:
+        keys.insert(keys.index(oldkey), k) #insert newkey so will have same index as oldkey
+    keys.pop(keys.index(oldkey)) #remove oldkey from ordered keys
+        
+def replace_key(data,newkey,oldkey):
+    '''data is dict of np arrays'''
+    data[newkey]= data[oldkey].copy()
+    del data[oldkey]
 
-      if tbdata['out_of_bounds'][i] == 70:
-         oob = 0
-      else:
-         oob = 1
-      
-      if tbdata['tycho2inblob'][i] == 70:
-         tib = 0
-      else:
-         tib = 1 
+def get_sql_dtype(data):
+    sql_dtype={}
+    for key in data.keys():
+        if key.startswith('RA') or key.startswith('ra') or key.startswith('DEC') or key.startswith('dec'): sql_dtype[key]= 'double precision' 
+        elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
+        elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
+        elif np.issubdtype(data[key].dtype, float): sql_dtype[key]= 'real'
+        elif np.issubdtype(data[key].dtype, np.uint8): sql_dtype[key]= 'integer' #binary, store as int for now
+        elif np.issubdtype(data[key].dtype, bool): sql_dtype[key]= 'boolean'
+        else: 
+            print('key, type= ',key,data[key].dtype)
+            raise ValueError
+    return sql_dtype
+
+def get_table_colnames(fname):
+    f=open(fname,'r')
+    lines= f.readlines()
+    f.close()
+    colnams=[]
+    for i in range(len(lines)):
+        if 'CREATE TABLE' in lines[i]:
+            i+=1
+            while ');' not in lines[i]:
+                li_arr= lines[i].strip().split()
+                i+=1
+                if 'id' == li_arr[0]: continue
+                else: colnams.append(li_arr[0])
+    return colnams
+
+def indexes_for_tables(schema):
+    '''keywords from args.table choices where "keywords" are dict(keywords)'''
+    if schema == 'truth':
+        return dict(bricks=['brickid','radec'],\
+                    stripe82=['id','radec','z'],\
+                    vipers_w4=['id','radec','zflag','zspec'],\
+                    deep2_f2=['id','radec','zhelio'],\
+                    cfhtls_d2_i=['id','radec','brickid'],\
+                    cfhtls_d2_r=['id','radec','brickid'],\
+                    cosmos_acs=['id','radec'],\
+                    cosmos_zphot=['id','radec']
+                    )
+    elif schema in 'dr2dr3':
+        return dict(decam_cand=['id','brickid','radec'],\
+                    decam_decam=['cand_id','gflux','rflux','zflux'],\
+                    decam_aper=['cand_id'],\
+                    decam_wise=['cand_id','w1flux','w2flux'])
+    else:
+        raise ValueError
+
+def get_decam_keys():
+    '''return zipped tuple for iteration of
+    db,decam keys'''
+    pre='decam'
+    trac_keys=[pre+'_flux',\
+               pre+'_flux_ivar',\
+               pre+'_fracflux',\
+               pre+'_fracmasked',\
+               pre+'_fracin',\
+               pre+'_rchi2',\
+               pre+'_nobs',\
+               pre+'_anymask',\
+               pre+'_allmask',\
+               pre+'_psfsize',\
+               pre+'_mw_transmission'] #'decam_depth','decam_galdepth'
+    db_keys=['flux',\
+             'flux_ivar',\
+             'fracflux',\
+             'fracmasked',\
+             'fracin',\
+             '_rchi2',\
+             'nobs',\
+             '_anymask',\
+             '_allmask',\
+             '_psfsize',\
+             '_ext']
+    return [tuple(db_keys),tuple(trac_keys)]
+
+def get_wise_keys():
+    '''return zipped tuple for iteration of
+    db,decam keys'''
+    pre='wise'
+    trac_keys=[pre+'_flux',\
+               pre+'_flux_ivar',\
+               pre+'_fracflux',\
+               pre+'_rchi2',\
+               pre+'_nobs',\
+               pre+'_mw_transmission',\
+               pre+'_lc_flux',\
+               pre+'_lc_flux_ivar',\
+               pre+'_lc_nobs',\
+               pre+'_lc_fracflux',\
+               pre+'_lc_rchi2',\
+               pre+'_lc_mjd']
+    db_keys=['flux',\
+             'flux_ivar',\
+             'fracflux',\
+             '_rchi2',\
+             'nobs',\
+             '_ext',\
+             '_lc_flux_',\
+             '_lc_flux_ivar_',\
+             '_lc_nobs_',\
+             '_lc_fracflux_',\
+             '_lc_rchi2_',\
+             '_lc_mjd_']
+    return [tuple(db_keys),tuple(trac_keys)]
  
+def get_aper_keys():
+    '''return zipped tuple for iteration of
+    db,decam keys'''
+    pre='decam'
+    trac_keys=[pre+'_apflux',\
+               pre+'_apflux_ivar',\
+               pre+'_apflux_resid']
+    db_keys=['apflux_',\
+             'apflux_ivar_',\
+             'apflux_resid_']
+    return [tuple(db_keys),tuple(trac_keys)]
+
+
+def get_cand_keys(trac_keys):
+    '''return difference between all tractor cat keys and decam,wise,aper keys'''
+    keys= set(trac_keys).difference(\
+                set(get_decam_keys()[1]+\
+                    get_wise_keys()[1]+\
+                    get_aper_keys()[1]))
+    return list(keys)
+
+
    
-      line_cand = [ tbdata['brickid'][i], tbdata['objid'][i], tbdata['blob'][i], tbdata['ninblob'][i], bool(tib), tbdata['type'][i], tbdata['ra'][i], tbdata['ra_ivar'][i], tbdata['dec'][i], tbdata['dec_ivar'][i], tbdata['bx'][i], tbdata['by'][i], tbdata['bx0'][i], tbdata['by0'][i], bool(lb), bool(oob), tbdata['ebv'][i], tbdata['dchisq'][i][0], tbdata['dchisq'][i][1], tbdata['dchisq'][i][2], tbdata['dchisq'][i][3], tbdata['dchisq'][i][4], tbdata['fracDev'][i], tbdata['fracDev_ivar'][i], tbdata['shapeExp_r'][i], tbdata['shapeExp_r_ivar'][i], tbdata['shapeExp_e1'][i], tbdata['shapeExp_e1_ivar'][i], tbdata['shapeExp_e2'][i], tbdata['shapeExp_e2_ivar'][i], tbdata['shapeDev_r'][i], tbdata['shapeDev_r_ivar'][i], tbdata['shapeDev_e1'][i], tbdata['shapeDev_e1_ivar'][i], tbdata['shapeDev_e2'][i], tbdata['shapeDev_e2_ivar'][i] ]
+def tractor_into_db(tractor_cat, schema=None,table=None,\
+                                 overw_schema=False,load_db=False):
+    
+    '''load a single Tractor Catalouge or fits truth table into the DB'''
+    assert(schema is not None)
+    assert(table is not None)
+ 
+    # Read fits table
+    tractor = Table(fits.getdata(tractor_cat, 1))
+    nrows = len(tractor) 
 
-      line_decam = [ tbdata['decam_flux'][i][0], tbdata['decam_flux_ivar'][i][0], tbdata['decam_fracflux'][i][0], tbdata['decam_fracmasked'][i][0], tbdata['decam_fracin'][i][0], tbdata['decam_rchi2'][i][0], tbdata['decam_nobs'][i][0], tbdata['decam_anymask'][i][0], tbdata['decam_allmask'][i][0],tbdata['decam_psfsize'][i][0], tbdata['decam_mw_transmission'][i][0], tbdata['decam_depth'][i][0], tbdata['decam_galdepth'][i][0], tbdata['decam_flux'][i][1], tbdata['decam_flux_ivar'][i][1], tbdata['decam_fracflux'][i][1], tbdata['decam_fracmasked'][i][1], tbdata['decam_fracin'][i][1], tbdata['decam_rchi2'][i][1], tbdata['decam_nobs'][i][1], tbdata['decam_anymask'][i][1], tbdata['decam_allmask'][i][1], tbdata['decam_psfsize'][i][1], tbdata['decam_mw_transmission'][i][1],tbdata['decam_depth'][i][1],tbdata['decam_galdepth'][i][1], tbdata['decam_flux'][i][2], tbdata['decam_flux_ivar'][i][2], tbdata['decam_fracflux'][i][2], tbdata['decam_fracmasked'][i][2], tbdata['decam_fracin'][i][2], tbdata['decam_rchi2'][i][2], tbdata['decam_nobs'][i][2], tbdata['decam_anymask'][i][2], tbdata['decam_allmask'][i][2], tbdata['decam_psfsize'][i][2], tbdata['decam_mw_transmission'][i][2], tbdata['decam_depth'][i][2],tbdata['decam_galdepth'][i][2], tbdata['decam_flux'][i][3], tbdata['decam_flux_ivar'][i][3], tbdata['decam_fracflux'][i][3], tbdata['decam_fracmasked'][i][3], tbdata['decam_fracin'][i][3], tbdata['decam_rchi2'][i][3], tbdata['decam_nobs'][i][3], tbdata['decam_anymask'][i][3], tbdata['decam_allmask'][i][3], tbdata['decam_psfsize'][i][3], tbdata['decam_mw_transmission'][i][3], tbdata['decam_depth'][i][3],tbdata['decam_galdepth'][i][3], tbdata['decam_flux'][i][4], tbdata['decam_flux_ivar'][i][4], tbdata['decam_fracflux'][i][4], tbdata['decam_fracmasked'][i][4], tbdata['decam_fracin'][i][4], tbdata['decam_rchi2'][i][4], tbdata['decam_nobs'][i][4], tbdata['decam_anymask'][i][4], tbdata['decam_allmask'][i][4], tbdata['decam_psfsize'][i][4], tbdata['decam_mw_transmission'][i][4], tbdata['decam_depth'][i][4],tbdata['decam_galdepth'][i][4], tbdata['decam_flux'][i][5], tbdata['decam_flux_ivar'][i][5], tbdata['decam_fracflux'][i][5], tbdata['decam_fracmasked'][i][5], tbdata['decam_fracin'][i][5], tbdata['decam_rchi2'][i][5], tbdata['decam_nobs'][i][5], tbdata['decam_anymask'][i][5], tbdata['decam_allmask'][i][5], tbdata['decam_psfsize'][i][5], tbdata['decam_mw_transmission'][i][5], tbdata['decam_depth'][i][5],tbdata['decam_galdepth'][i][5] ]
+    # Print cat name so know whether finished
+    if load_db: print 'preload, nrows=%d, %s' % (nrows,tractor_cat) 
+    
+    # Load data to appropriate schema file
+    if table == 'decam':
+        # Store as 4 tables in db
+        cand,decam,aper,wise= {},{},{},{}            
+        # Decam table
+        for db_key,trac_key in zip(*get_decam_keys()):
+            for cnt,band in enumerate(['u','g','r','i','z','Y']): 
+                decam[band+db_key]= tractor[trac_key][:,cnt].data
+        # Aperature table
+        for db_key,trac_key in zip(*get_aper_keys()):
+            for cnt,band in enumerate(['u','g','r','i','z','Y']): 
+                for ap in range(8):
+                    aper[band+db_key+str(ap+1)]= tractor[trac_key][:,cnt,ap].data
+        # Wise table
+        for db_key,trac_key in zip(*get_wise_keys()):
+            # If light curve, w1,w2 only
+            if '_lc_' in trac_key: 
+                for cnt,band in enumerate(['w1','w2']):
+                    for iepoch,epoch in enumerate(['1','2','3','4','5']):
+                        wise[band+db_key+epoch]= tractor[trac_key][:,cnt,iepoch].data
+            else:
+                for cnt,band in enumerate(['w1','w2','w3','w4']):
+                    wise[band+db_key]=tractor[trac_key][:,cnt].data
+        # Candidate table
+        for trac_key in get_cand_keys(tractor.keys()):
+            if trac_key == 'dchisq':
+                for i in range(5): 
+                    cand[trac_key+str(i)]= tractor[trac_key][:,i].data
+            else:
+                cand[trac_key]= tractor[trac_key].data 
+        # Extracted all info
+        del tractor
+        # Match each key with its db data type
+        sql_dtype= [get_sql_dtype(cand),\
+                    get_sql_dtype(decam),\
+                    get_sql_dtype(aper),\
+                    get_sql_dtype(wise)]
+        # Schema
+        tables=[table+name for name in ['_cand','_decam','_aper','_wise']]
+        keys=[cand.keys(),\
+              decam.keys(),\
+              aper.keys(),\
+              wise.keys()]
+        more_cand= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[0])]
+        more_decam= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[1]),\
+                        "cand_id bigint REFERENCES %s (id)" % (tables[0])]
+        more_aper= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[2]),\
+                        "cand_id bigint REFERENCES %s (id)" % (tables[0])]
+        more_wise= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[3]),\
+                        "cand_id bigint REFERENCES %s (id)" % (tables[0])]
+        # Write schema format file
+        if overw_schema:
+            write_schema(schema,tables[0],np.sort(keys[0]),sql_dtype[0],addrows=more_cand) #np.array(k_cand)[np.lexsort(k_cand)]
+            write_schema(schema,tables[1],np.sort(keys[1]),sql_dtype[1],addrows=more_decam)
+            write_schema(schema,tables[2],np.sort(keys[2]),sql_dtype[2],addrows=more_aper)
+            write_schema(schema,tables[3],np.sort(keys[3]),sql_dtype[3],addrows=more_wise)
+        # Load data into db
+        if load_db: 
+            con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+            cursor = con.cursor()
+            for i in range(nrows):
+                # Get insert string and execute
+                query_cand= insert_query(schema,tables[0],i,cand,keys[0],returning=True)
+                cursor.execute(query_cand) 
+                id = cursor.fetchone()[0]
+                query_decam= insert_query(schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
+                query_aper= insert_query(schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
+                query_wise= insert_query(schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
+                cursor.execute(query_decam)
+                cursor.execute(query_aper) 
+                cursor.execute(query_wise)
+            con.commit()
+            con.close()
+        # Or dry run
+        else: 
+            i=0
+            query_cand= insert_query(schema,tables[0],i,cand,keys[0],returning=True)
+            id=np.nan #junk b/c just sanity check
+            query_decam= insert_query(schema,tables[1],i,decam,keys[1],newkeys=['cand_id'],newvals=[id])
+            query_aper= insert_query(schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
+            query_wise= insert_query(schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
+            print 'insert queries for row=%d:' % i    
+            print 'query_cand= \n',query_cand    
+            print 'query_decam= \n',query_decam 
+            print 'query_aper= \n',query_aper   
+            print 'query_wise= \n',query_wise   
+    elif table == 'bricks':
+        #dtype for each key using as column name
+        sql_dtype= get_sql_dtype(keys)
+        #schema
+        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % table]
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
+        #db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        cursor = con.cursor()
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        for i in range(0,nrows):
+            query= insert_query(schema,table,i,data,keys)
+            if load_db: cursor.execute(query) 
+        print 'finished loading files into %s' % table
+        print 'query looks like this: \n',query    
+        if load_db: 
+            con.commit()
+        print 'done'
+    elif table.startswith('vipers'):
+        '''http://vipers.inaf.it/data/pdr1/catalogs/README_VIPERS_SPECTRO_PDR1.txt'''
+        #rename ra_deep,dec_deep to ra,dec
+        replace_key(data,'RA','ALPHA') 
+        update_keys(keys,['RA'],'ALPHA')
+        replace_key(data,'DEC','DELTA') 
+        update_keys(keys,['DEC'],'DELTA')
+        replace_key(data,'IAU_ID','ID_IAU')
+        update_keys(keys,['IAU_ID'],'ID_IAU')
+        #ZFLG contains info in two integers separated by decimal, split this up
+        one= np.zeros(data['ZFLG'].shape[0]).astype(np.int32)-1
+        two= one.copy()
+        for cnt in range(one.shape[0]):
+            both=str(data['ZFLG'][cnt]).split(".")
+            one[cnt]= int(both[0])
+            two[cnt]= int(both[1])
+        data['ZFLG_1']= one 
+        data['ZFLG_2']= two 
+        del data['ZFLG']
+        update_keys(keys,['ZFLG_1','ZFLG_2'],'ZFLG')
+        #drop keys, add new ones 
+        sql_dtype= get_sql_dtype(keys)
+        #schema
+        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
+        #db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        cursor = con.cursor()
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        for i in range(0, nrows):
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
+                cursor.execute(query) 
+        if load_db:
+            con.commit()
+            print 'finished %s load' %table
+        print 'query= \n'    
+        print query    
+    elif table.startswith('cfhtls_d2_'):
+        sql_dtype= get_sql_dtype(keys)
+        #schema
+        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
+        #db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        cursor = con.cursor()
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        for i in range(0, nrows):
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
+                cursor.execute(query) 
+        if load_db:
+            con.commit()
+            print 'finished %s load' %table
+        print 'query= '    
+        print query    
+    elif table == 'cosmos_acs':
+        '''description of columns: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_acs_colDescriptions.html'''
+        sql_dtype= get_sql_dtype(keys)
+        print 'WARNING: cosmos-acs.fits if 300+ MB file, this will take a few min!'
+        #schema
+        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
+        #db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        cursor = con.cursor()
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        for i in range(0, nrows):
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
+                cursor.execute(query) 
+        if load_db:
+            con.commit()
+            print 'finished %s load' %table
+        print 'query='    
+        print query    
+    elif table == 'cosmos_zphot':
+        '''http://irsa.ipac.caltech.edu/data/COSMOS/datasets.html
+        col descriptoin: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
+        #rename any 'id' or 'ID' keys to 'catid' since 'id'is reserved for column name of seqeunce in db
+        replace_key(data,'catID','ID') 
+        update_keys(keys,['catID'],'ID')
+        sql_dtype= get_sql_dtype(keys)
+        #schema
+        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
+        #db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        cursor = con.cursor()
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        for i in range(0, nrows):
+            query1= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
+                cursor.execute(query1) 
+        if load_db:
+            con.commit()
+            print 'finished %s load' %table
+        print 'finished %s load' %table
+        print 'query= '    
+        print query1   
+    elif table == 'stripe82':
+        print 'WARNING: stripe82_specz is 300+ MB file, this will take a few min!'
+        replace_key(data,'RA','PLUG_RA') 
+        update_keys(keys,['RA'],'PLUG_RA')
+        replace_key(data,'DEC','PLUG_DEC') 
+        update_keys(keys,['DEC'],'PLUG_DEC')
+        sql_dtype= get_sql_dtype(keys)
+        #schema
+        more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
+        if overw_schema:
+            write_schema(schema,table,keys,sql_dtype,addrows=more_rows)
+        #db
+        con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+        cursor = con.cursor()
+        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        for i in range(0, nrows):
+            query= insert_query(schema,table,i,data,keys,returning=False)
+            if load_db: 
+                cursor.execute(query) 
+        if load_db:
+            con.commit()
+            print 'finished %s load' %table
+        print 'query= '    
+        print query 
+    else: raise ValueError
+    
+    # Print cat name so know whether finished
+    if load_db: print 'finishedload %s' % tractor_cat 
 
-      line_wise = [ tbdata['wise_flux'][i][0], tbdata['wise_flux_ivar'][i][0], tbdata['wise_fracflux'][i][0], tbdata['wise_rchi2'][i][0], tbdata['wise_nobs'][i][0], tbdata['wise_mw_transmission'][i][0], tbdata['wise_flux'][i][1], tbdata['wise_flux_ivar'][i][1], tbdata['wise_fracflux'][i][1], tbdata['wise_rchi2'][i][1], tbdata['wise_nobs'][i][1], tbdata['wise_mw_transmission'][i][1], tbdata['wise_flux'][i][2], tbdata['wise_flux_ivar'][i][2], tbdata['wise_fracflux'][i][2], tbdata['wise_rchi2'][i][2], tbdata['wise_nobs'][i][2], tbdata['wise_mw_transmission'][i][2], tbdata['wise_flux'][i][3], tbdata['wise_flux_ivar'][i][3], tbdata['wise_fracflux'][i][3], tbdata['wise_rchi2'][i][3], tbdata['wise_nobs'][i][3], tbdata['wise_mw_transmission'][i][3] ]
+def main(args,table):
+    fits_files= read_lines(args.list_of_cats)
+   
+    # Index and cluster file for once everything loaded in
+    if args.make_index_file:
+        write_index_cluster_files(args.schema)
 
-      line_decap=[]
-      for band in range(len('ugrizy')): #indices 0->5 are ugrizy in u->y order
-        line_decap+= [ tbdata['decam_apflux'][i][band][0], tbdata['decam_apflux'][i][band][1], tbdata['decam_apflux'][i][band][2], tbdata['decam_apflux'][i][band][3], tbdata['decam_apflux'][i][band][4], tbdata['decam_apflux'][i][band][5], tbdata['decam_apflux'][i][band][6], tbdata['decam_apflux'][i][band][7], tbdata['decam_apflux_resid'][i][band][0], tbdata['decam_apflux_resid'][i][band][1], tbdata['decam_apflux_resid'][i][band][2], tbdata['decam_apflux_resid'][i][band][3], tbdata['decam_apflux_resid'][i][band][4], tbdata['decam_apflux_resid'][i][band][5], tbdata['decam_apflux_resid'][i][band][6], tbdata['decam_apflux_resid'][i][band][7], tbdata['decam_apflux_ivar'][i][band][0], tbdata['decam_apflux_ivar'][i][band][1], tbdata['decam_apflux_ivar'][i][band][2], tbdata['decam_apflux_ivar'][i][band][3], tbdata['decam_apflux_ivar'][i][band][4], tbdata['decam_apflux_ivar'][i][band][5], tbdata['decam_apflux_ivar'][i][band][6], tbdata['decam_apflux_ivar'][i][band][7] ] 
+    # serial 
+    if args.serial:
+        print 'running serial, cores= %d, should be 0' % args.cores
+        for fil in [fits_files[0]]:
+            tractor_into_db(fil, schema=args.schema,table=table,\
+                                 overw_schema=args.overw_schema,load_db=args.load_db)
+    # parallel
+    else:
+        if args.mpi:
+            comm = MPI.COMM_WORLD
+            if comm.rank == 0: print 'running mpi, cores= %d' % comm.size
+            cnt=0
+            i=comm.rank+cnt*comm.size
+            while i < len(fits_files):
+                tractor_into_db(fits_files[i], schema=args.schema,table=table,\
+                                               overw_schema=args.overw_schema,load_db=args.load_db)
+                print "rank %d in its %dth iteration and loading %dth cat = %s" % (comm.rank, cnt,i,fits_files[i])
+                cnt+=1
+                i=comm.rank+cnt*comm.size
+        else:
+            print 'running multiprocessing, cores= %d' % args.cores
+            print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
+            pool = multiprocessing.Pool(args.cores)
+            # The iterable is fits_files
+            results=pool.map(partial(tractor_into_db, schema=args.schema,table=table,\
+                                                      overw_schema=args.overw_schema,load_db=args.load_db), \
+                             fits_files)
+            pool.close()
+            pool.join()
+            del pool
+            print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
+    if args.load_db:
+        if args.mpi == False: 
+            print "finished loading these cats"
+            for cat in fits_files: print cat
+        elif args.mpi and comm.rank == 0:
+            print "finished loading these cats"
+            for cat in fits_files: print cat
+ 
+if __name__ == '__main__':
+    parser = ArgumentParser(description="test")
+    parser.add_argument("--mpi",action="store_true",help='set to use mpi, otherwise multiprocessing for parallelism',required=False)
+    parser.add_argument("--serial",action="store_true",help='run on 1 tractor cat only',required=False)
+    parser.add_argument("--cores",type=int,action="store",default=0,help='',required=False)
+    parser.add_argument("--list_of_cats",action="store",help='',required=True)
+    parser.add_argument("--schema",choices=['dr2','dr3','truth'],action="store",help='',required=True)
+    parser.add_argument("--overw_schema",action="store_true",help='set to write schema to file, overwritting the previous file',required=False)
+    parser.add_argument("--load_db",action="store_true",help='set to load and write to db',required=False)
+    parser.add_argument("--make_index_file",action="store_true",help='set to write index and cluster files',required=False)
+    parser.add_argument("--special_table",choices=['bricks','stripe82','vipers_w4','deep2_f2','deep2_f3','deep2_f4','cfhtls_d2_r','cfhtls_d2_i','cosmos_acs','cosmos_zphot'],action="store",help='',required=False)
+    args = parser.parse_args()
 
-      newdata_cand.append(line_cand)
-      newdata_decam.append(line_decam)
-      newdata_wise.append(line_wise)
-      newdata_decap.append(line_decap)
+    if args.mpi:
+        assert(args.overw_schema == False)
+        assert(args.make_index_file == False)
+    if args.cores > 0:
+        assert(args.mpi == False)
+        assert(args.serial == False)
+    if args.serial:
+        assert(args.mpi == False)
+        assert(args.cores == 0)
 
-#
-#
-## Re-cast as strings so the load is easy 
-#
-for i, f in enumerate(newdata_cand):
-###
-   query = 'INSERT INTO candidate ( brickid, objid, blob, ninblob, tycho2inblob, type, ra, ra_ivar, dec, dec_ivar, bx, by, bx0, by0, left_blob, out_of_bounds, ebv, dchisq1, dchisq2, dchisq3, dchisq4, dchisq5, fracdev, fracdev_ivar, shapeexp_r, shapeexp_r_ivar, shapeexp_e1, shapeexp_e1_ivar, shapeexp_e2, shapeexp_e2_ivar, shapedev_r, shapedev_r_ivar, shapedev_e1, shapedev_e1_ivar, shapedev_e2, shapedev_e2_ivar ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s ) RETURNING id' 
-###
-   cursor.execute( query, tuple( [str(elem) for elem in newdata_cand[i]] ) ) 
-   id = cursor.fetchone()[0]
-###
-   query = 'INSERT INTO decam ( cand_id, uflux, uflux_ivar, ufracflux, ufracmasked, ufracin, u_rchi2, unobs, u_anymask, u_allmask, u_psfsize, u_ext, u_depth, u_galdepth, gflux, gflux_ivar, gfracflux, gfracmasked, gfracin, g_rchi2, gnobs, g_anymask, g_allmask, g_psfsize, g_ext, g_depth, g_galdepth, rflux, rflux_ivar, rfracflux, rfracmasked, rfracin, r_rchi2, rnobs, r_anymask, r_allmask, r_psfsize, r_ext, r_depth, r_galdepth, iflux, iflux_ivar, ifracflux, ifracmasked, ifracin, i_rchi2, inobs, i_anymask, i_allmask, i_psfsize, i_ext, i_depth, i_galdepth, zflux, zflux_ivar, zfracflux, zfracmasked, zfracin, z_rchi2, znobs, z_anymask, z_allmask, z_psfsize, z_ext, z_depth, z_galdepth, yflux, yflux_ivar, yfracflux, yfracmasked, yfracin, y_rchi2, ynobs, y_anymask, y_allmask, y_psfsize, y_ext, y_depth, y_galdepth) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )' 
-###
-   cursor.execute( query, tuple( [str(elem) for elem in [ id ] + newdata_decam[i]] ) )
-###
-###
-   query = 'INSERT INTO wise (cand_id, w1flux, w1flux_ivar, w1fracflux, w1_rchi2, w1nobs, w1_ext, w2flux, w2flux_ivar, w2fracflux, w2_rchi2, w2nobs, w2_ext, w3flux, w3flux_ivar, w3fracflux, w3_rchi2, w3nobs, w3_ext, w4flux, w4flux_ivar, w4fracflux, w4_rchi2, w4nobs, w4_ext ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )' 
-###
-   cursor.execute( query, tuple( [str(elem) for elem in [ id ] + newdata_wise[i]] ) )
-##
-###
-   query = 'INSERT INTO decam_aper ( cand_id, uapflux_1, uapflux_2, uapflux_3, uapflux_4, uapflux_5, uapflux_6, uapflux_7, uapflux_8, uapflux_resid_1, uapflux_resid_2, uapflux_resid_3, uapflux_resid_4, uapflux_resid_5, uapflux_resid_6, uapflux_resid_7, uapflux_resid_8, uapflux_ivar_1, uapflux_ivar_2, uapflux_ivar_3, uapflux_ivar_4, uapflux_ivar_5, uapflux_ivar_6, uapflux_ivar_7, uapflux_ivar_8, gapflux_1, gapflux_2, gapflux_3, gapflux_4, gapflux_5, gapflux_6, gapflux_7, gapflux_8, gapflux_resid_1, gapflux_resid_2, gapflux_resid_3, gapflux_resid_4, gapflux_resid_5, gapflux_resid_6, gapflux_resid_7, gapflux_resid_8, gapflux_ivar_1, gapflux_ivar_2, gapflux_ivar_3, gapflux_ivar_4, gapflux_ivar_5, gapflux_ivar_6, gapflux_ivar_7, gapflux_ivar_8, rapflux_1, rapflux_2, rapflux_3, rapflux_4, rapflux_5, rapflux_6, rapflux_7, rapflux_8, rapflux_resid_1, rapflux_resid_2, rapflux_resid_3, rapflux_resid_4, rapflux_resid_5, rapflux_resid_6, rapflux_resid_7, rapflux_resid_8, rapflux_ivar_1, rapflux_ivar_2, rapflux_ivar_3, rapflux_ivar_4, rapflux_ivar_5, rapflux_ivar_6, rapflux_ivar_7, rapflux_ivar_8, iapflux_1, iapflux_2, iapflux_3, iapflux_4, iapflux_5, iapflux_6, iapflux_7, iapflux_8, iapflux_resid_1, iapflux_resid_2, iapflux_resid_3, iapflux_resid_4, iapflux_resid_5, iapflux_resid_6, iapflux_resid_7, iapflux_resid_8, iapflux_ivar_1, iapflux_ivar_2, iapflux_ivar_3, iapflux_ivar_4, iapflux_ivar_5, iapflux_ivar_6, iapflux_ivar_7, iapflux_ivar_8, zapflux_1, zapflux_2, zapflux_3, zapflux_4, zapflux_5, zapflux_6, zapflux_7, zapflux_8, zapflux_resid_1, zapflux_resid_2, zapflux_resid_3, zapflux_resid_4, zapflux_resid_5, zapflux_resid_6, zapflux_resid_7, zapflux_resid_8, zapflux_ivar_1, zapflux_ivar_2, zapflux_ivar_3, zapflux_ivar_4, zapflux_ivar_5, zapflux_ivar_6, zapflux_ivar_7, zapflux_ivar_8, yapflux_1, yapflux_2, yapflux_3, yapflux_4, yapflux_5, yapflux_6, yapflux_7, yapflux_8, yapflux_resid_1, yapflux_resid_2, yapflux_resid_3, yapflux_resid_4, yapflux_resid_5, yapflux_resid_6, yapflux_resid_7, yapflux_resid_8, yapflux_ivar_1, yapflux_ivar_2, yapflux_ivar_3, yapflux_ivar_4, yapflux_ivar_5, yapflux_ivar_6, yapflux_ivar_7, yapflux_ivar_8 ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )'  
-###
-   cursor.execute( query, tuple( [str(elem) for elem in [ id ] + newdata_decap[i]] ) )
-###
-#    
-##
-##
-con.commit()
-
-print fimage, 'has been loaded'
-
-# That's it!
-
+    if args.schema == 'truth':
+        assert(args.special_table)
+        table= args.special_table
+    else:
+        table= 'decam'
+    
+    main(args,table)
