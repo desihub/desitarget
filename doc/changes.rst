@@ -2,12 +2,19 @@
 desitarget Change Log
 =====================
 
-0.4.0 (unreleased)
+0.5.0 (unreleased)
 ------------------
 
+* Template
 * Move data into Python package to aid pip installs.
-* Many other changes to support the above.
 * Support for Travis, Coveralls and ReadTheDocs.
+
+
+0.4.0 (2016-07-12)
+------------------
+
+* Updated code from DECaLS DR1 to load DR2 tractor catalaogues to psql db.
+* Basic unit test script for checking that db rows match tractor catalogues.
 
 0.3.3 (2016-03-08)
 ------------------
