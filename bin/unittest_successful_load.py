@@ -2,14 +2,34 @@ import psycopg2
 import argparse
 import astropy
 from astropy.io import fits
+from astropy.table import vstack, Table
 
 import sys, os, re, glob, distutils
 from distutils.util import strtobool
 import numpy as np
 
+from tractor_load import read_lines
+
 parser = argparse.ArgumentParser(description="test")
-parser.add_argument("--tractor_catalog",action="store",help='fits table',default='/project/projectdirs/desiproc/dr2/tractor/000/tractor-0006p035.fits',required=False)
+parser.add_argument("--list_of_cats",action="store",help='list of tractor cats',default='dr3_cats_qso.txt',required=False)
 args = parser.parse_args()
+
+# choose 10 cats randomly
+fits_files= read_lines(args.list_of_cats)
+rand = np.random.RandomState(seed)
+ndraws=10
+keep= rand.uniform(1, len(fits_files), ndraws).astype(int)-1
+fits_files= fits_files[keep]
+# for each, choose a random objid and get corresponding row from DB
+for fn in [fits_files[0]]:
+    t=Table(fits.getdata(fn, 1))
+    ndraws=1
+    keep= rand.uniform(1, len(t), ndraws).astype(int)-1
+    t= t[keep]
+    #grab from DB
+    query="select * from decam_cand as c JOIN decam_decam as d ON d.cand_id=c.id JOIN decam_aper as a ON a.cand_id=c.id JOIN decam_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%d" % (t['brickname'],t['objid'])  
+    
+
 
 print "args.tractor_catalog= ",args.tractor_catalog
 

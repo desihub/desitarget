@@ -3,13 +3,13 @@
 #SBATCH -p regular 
 #SBATCH -N 1
 #SBATCH -t 25:00:00
-#SBATCH -J loaddb
-#SBATCH -o loaddb.o%j
+#SBATCH -J prodload
+#SBATCH -o prodload.o%j
 #SBATCH --mail-user=kburleigh@lbl.gov
 #SBATCH --mail-type=END,FAIL
 #SBATCH -L SCRATCH
 cd $SLURM_SUBMIT_DIR
-sanity="jobids_loaddb.txt"
+sanity="prodload_jobids.txt"
 echo "SLURM_JOBID="$SLURM_JOBID >> ${sanity}
 
 export NERSC_HOST=`/usr/common/usg/bin/nersc_host`
