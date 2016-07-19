@@ -14,6 +14,7 @@ import fitsio
 import os, re
 import desitarget.io
 
+############################################################
 def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
@@ -40,18 +41,20 @@ def _load_mock_mws_file(filename):
     """
     C_LIGHT = 300000.0
     desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,columns=
-                       ['RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
-    ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec  = data['DEC'].astype('f8')
-    v_helio   = data[  'v_helio'].astype('f8')
-    SDSSr_true   = data['SDSSr_true'].astype('f8')
+    data = fitsio.read(filename,
+                       columns= ['RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
+
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    v_helio     = data['v_helio'].astype('f8')
+    SDSSr_true  = data['SDSSr_true'].astype('f8')
     SDSSr_obs   = data['SDSSr_obs'].astype('f8')
 
     return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
             'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
 
-def read_mock_mws_brighttime(root_mock_mws_dir=''):
+############################################################
+def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix=''):
     """ Reads and concatenates the MWS mock files stored below the root directory.
 
     Parameters:
@@ -75,16 +78,18 @@ def read_mock_mws_brighttime(root_mock_mws_dir=''):
              Apparent magnitudes in SDSS bands, including extinction.
     
     """
-    # build iterator of all desi_galfast files
-    iter_mws = desitarget.io.iter_files(root_mock_mws_dir, "desi_galfast", ext="fits")
+    # Build iterator of all desi_galfast files
+    iter_mws = desitarget.io.iter_files(root_mock_mws_dir, mock_mws_prefix, ext="fits")
 
-    # read each file
+    # Read each file
+    print('Reading individual mock files')
     target_list = []
     for mws_file in iter_mws:
-        print(mws_file)
+        # print(mws_file) # Don't necessarily want to do this
         target_list.append(_load_mock_mws_file(mws_file))
 
-    #concatenate all the dictionaries into a single dictionary
+    # Concatenate all the dictionaries into a single dictionary
+    print('Combining mock files')
     full_data = dict()
     if len(target_list):
         for k in target_list[0].keys():
@@ -93,7 +98,8 @@ def read_mock_mws_brighttime(root_mock_mws_dir=''):
                 full_data[k] = np.append(full_data[k] ,target_item[k])
 
     return full_data
-    
+
+############################################################
 def read_mock_dark_time(filename, read_z=True):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
