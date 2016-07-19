@@ -14,12 +14,11 @@ import fitsio
 import os, re
 import desitarget.mock.io 
 import desitarget.io
-from desitarget import desi_mask
-from desitarget import mws_mask
+from   desitarget import desi_mask
+from   desitarget import mws_mask
 import os
-from astropy.table import Table, Column
+from   astropy.table import Table, Column
 import desispec.brick
-
 
 
 def build_mock_target(root_mock_mws_dir='', output_dir='', 
