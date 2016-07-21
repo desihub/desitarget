@@ -153,76 +153,154 @@ def indexes_for_tables(schema):
     else:
         raise ValueError
 
-def get_decam_keys():
+def decam_table_keys(return_early=False):
     '''return zipped tuple for iteration of
     db,decam keys'''
+    db,trac,trac_i= [],[],[]
+    # Keys that are fixed
     pre='decam'
-    trac_keys=[pre+'_flux',\
-               pre+'_flux_ivar',\
-               pre+'_fracflux',\
-               pre+'_fracmasked',\
-               pre+'_fracin',\
-               pre+'_rchi2',\
-               pre+'_nobs',\
-               pre+'_anymask',\
-               pre+'_allmask',\
-               pre+'_psfsize',\
-               pre+'_mw_transmission'] #'decam_depth','decam_galdepth'
-    db_keys=['flux',\
-             'flux_ivar',\
-             'fracflux',\
-             'fracmasked',\
-             'fracin',\
-             '_rchi2',\
-             'nobs',\
-             '_anymask',\
-             '_allmask',\
-             '_psfsize',\
-             '_ext']
-    return [tuple(db_keys),tuple(trac_keys)]
+    trac_keys= [pre+'_flux',\
+                pre+'_flux_ivar',\
+                pre+'_fracflux',\
+                pre+'_fracmasked',\
+                pre+'_fracin',\
+                pre+'_rchi2',\
+                pre+'_nobs',\
+                pre+'_anymask',\
+                pre+'_allmask',\
+                pre+'_psfsize',\
+                pre+'_mw_transmission'] #'decam_depth','decam_galdepth'
+    if return_early: return trac_keys
+    db_keys= ['flux',\
+              'flux_ivar',\
+              'fracflux',\
+              'fracmasked',\
+              'fracin',\
+              '_rchi2',\
+              'nobs',\
+              '_anymask',\
+              '_allmask',\
+              '_psfsize',\
+              '_ext']
+    # Fill in
+    for iband,band in enumerate(['u','g','r','i','z','Y']): 
+        trac+= track_keys
+        trac_i+= [iband]*len(track_keys)
+        db+= [band+key for key in db_keys]
+    return [tuple(db),tuple(trac),tuple(trac_i)]
 
-def get_wise_keys():
+def aper_table_keys(return_early=False):
     '''return zipped tuple for iteration of
     db,decam keys'''
+    db,trac,trac_i,ap_i= [],[],[],[]
+    # Keys that are fixed
+    pre='decam'
+    trac_keys=[pre+'_apflux',\
+               pre+'_apflux_ivar',\
+               pre+'_apflux_resid']
+    if return_early: return trac_keys
+    db_keys=['apflux_',\
+             'apflux_ivar_',\
+             'apflux_resid_']
+    # Fill in 
+    for iband,band in enumerate(['u','g','r','i','z','Y']): 
+        for ap in range(8):
+            db+= [band+key+str(ap) for key in db_keys]
+            trac+= trac_keys
+            trac_i+= [iband]*len(trac_keys)
+            ap_i+= [ap]*len(trac_keys)
+    return [tuple(db),tuple(trac),tuple(trac_i),tuple(ap_i)]
+
+def wise_default_keys(return_early=False):
+    '''non lightcurve keys'''
+    db,trac,trac_i= [],[],[]
+    # Keys that are fixed
     pre='wise'
     trac_keys=[pre+'_flux',\
                pre+'_flux_ivar',\
                pre+'_fracflux',\
                pre+'_rchi2',\
                pre+'_nobs',\
-               pre+'_mw_transmission',\
-               pre+'_lc_flux',\
-               pre+'_lc_flux_ivar',\
-               pre+'_lc_nobs',\
-               pre+'_lc_fracflux',\
-               pre+'_lc_rchi2',\
-               pre+'_lc_mjd']
+               pre+'_mw_transmission']
+    if return_early: return trac_keys
     db_keys=['flux',\
              'flux_ivar',\
              'fracflux',\
              '_rchi2',\
              'nobs',\
-             '_ext',\
-             '_lc_flux_',\
+             '_ext']
+    # Fill in
+    for iband,band in enumerate(['w1','w2','w3','w4']):
+        db+= [band+key for key in db_keys]
+        trac+= trac_keys
+        trac_i+= [iband]*len(trac_keys)
+    return [tuple(db),tuple(trac),tuple(trac_i)]
+     
+ 
+def wise_lc_keys(return_early=False):
+    '''only lightcurve keys'''
+    db,trac,trac_i,epoch_i= [],[],[],[]
+    # Keys that are fixed
+    pre='wise'
+    trac_keys=  [pre+'_lc_flux',\
+               pre+'_lc_flux_ivar',\
+               pre+'_lc_nobs',\
+               pre+'_lc_fracflux',\
+               pre+'_lc_rchi2',\
+               pre+'_lc_mjd']
+    if return_early: return trac_keys
+    db_keys=['_lc_flux_',\
              '_lc_flux_ivar_',\
              '_lc_nobs_',\
              '_lc_fracflux_',\
              '_lc_rchi2_',\
              '_lc_mjd_']
-    return [tuple(db_keys),tuple(trac_keys)]
- 
-def get_aper_keys():
-    '''return zipped tuple for iteration of
-    db,decam keys'''
-    pre='decam'
-    trac_keys=[pre+'_apflux',\
-               pre+'_apflux_ivar',\
-               pre+'_apflux_resid']
-    db_keys=['apflux_',\
-             'apflux_ivar_',\
-             'apflux_resid_']
-    return [tuple(db_keys),tuple(trac_keys)]
+    # Fill in
+    for iband,band in enumerate(['w1','w2']):
+        for epoch in range(5):
+            db+= [band+key+str(epoch) for key in db_keys]
+            trac+= trac_keys
+            trac_i+= [iband]*len(trac_keys)
+            epoch_i+= [epoch]*len(trac_keys)
+    return [tuple(db),tuple(trac),tuple(trac_i),tuple(epoch_i)]
 
+
+def cand_keys_yield_arrays():
+    '''cand keys that return an array'''
+    return ['dchisq']
+
+def cand_default_keys(all_keys)
+    '''all_keys -- all keys in tractor catalogue'''
+    # Keys that are fixed
+    trac_keys= all_keys
+    # Remove some keys
+    # Those in other tables
+    rm_keys= decam_table_keys(return_early=True)+\
+             aper_table_keys(return_early=True)+\
+             wise_default_keys(return_early=True)+\
+             wise_lc_keys(return_early=True) 
+    # Those remaining with assocated with arrays
+    rm_keys+= cand_keys_yield_arrays(): 
+    for key in rm_keys:
+        try: trac_keys.remove(key)
+        except ValueError: print "WARNING: key=%s not in tractor catalogue" % key
+    # Fill in
+    trac= trac_keys
+    db= trac_keys
+    return [tuple(db),tuple(trac)] 
+
+def cand_array_keys():
+    '''all_keys -- all keys in tractor catalogue'''
+    db,trac,trac_i= [],[],[]
+    # Keys that are fixed
+    trac_keys= cand_keys_yield_arrays()
+    db_keys= [key+'_' for key in trac_keys]
+    # Fill in 
+    for model in range(5):
+        db+= [key+str(model) for key in db_keys]
+        trac+= trac_keys
+        trac_i+= [model]*len(trac_keys)
+    return [tuple(db),tuple(trac),tuple(trac_i)]
 
 def get_cand_keys(trac_keys):
     '''return difference between all tractor cat keys and decam,wise,aper keys'''
@@ -232,6 +310,17 @@ def get_cand_keys(trac_keys):
                     get_aper_keys()[1]))
     return list(keys)
 
+def all_db_keys(all_tractor_keys):
+    db_keys= []
+    db_keys+= list(decam_table_keys()[0])
+    db_keys+= list(aper_table_keys()[0])
+    db_keys+= list(wise_default_keys()[0])
+    if 'wise_lc_flux' in all_tractor_keys:
+        db_keys+= list(wise_lc_keys()[0])
+    db_keys+= list(cand_default_keys()[0])
+    db_keys+= list(cand_array_keys()[0])
+    return db_keys
+         
 
 def tractor_into_db(tractor_cat, schema=None,table=None,\
                                  overw_schema=False,load_db=False):
@@ -243,6 +332,9 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         exc_type, exc_value, exc_traceback = sys.exc_info()
         print_flush("Error loading %s" % tractor_cat)
         traceback.print_tb(exc_traceback, file=sys.stdout)
+
+
+
 
    
 def tractor_into_db2(tractor_cat, schema=None,table=None,\
@@ -261,31 +353,22 @@ def tractor_into_db2(tractor_cat, schema=None,table=None,\
         # Store as 4 tables in db
         cand,decam,aper,wise= {},{},{},{}            
         # Decam table
-        for db_key,trac_key in zip(*get_decam_keys()):
-            for cnt,band in enumerate(['u','g','r','i','z','Y']): 
-                decam[band+db_key]= tractor[trac_key][:,cnt].data
+        for db_key,trac_key,trac_i in zip(*decam_table_keys()):
+            decam[db_key]= tractor[trac_key][:,trac_i].data
         # Aperature table
-        for db_key,trac_key in zip(*get_aper_keys()):
-            for cnt,band in enumerate(['u','g','r','i','z','Y']): 
-                for ap in range(8):
-                    aper[band+db_key+str(ap+1)]= tractor[trac_key][:,cnt,ap].data
+        for db_key,trac_key,trac_i,ap_i in zip(*aper_table_keys()):
+            aper[db_key]= tractor[trac_key][:,trac_i,ap_i].data
         # Wise table
-        for db_key,trac_key in zip(*get_wise_keys()):
-            # If light curve, w1,w2 only
-            if '_lc_' in trac_key: 
-                for cnt,band in enumerate(['w1','w2']):
-                    for iepoch,epoch in enumerate(['1','2','3','4','5']):
-                        wise[band+db_key+epoch]= tractor[trac_key][:,cnt,iepoch].data
-            else:
-                for cnt,band in enumerate(['w1','w2','w3','w4']):
-                    wise[band+db_key]=tractor[trac_key][:,cnt].data
+        for db_key,trac_key,trac_i in zip(*wise_default_keys()):
+            wise[db_key]= tractor[trac_key][:,trac_i].data
+        if 'wise_lc_flux' in tractor.colnames:
+            for db_key,trac_key,trac_i,epoch_i in zip(*wise_lc_keys()):
+                wise[db_key]= tractor[trac_key][:,trac_i,epoch_i].data
         # Candidate table
-        for trac_key in get_cand_keys(tractor.keys()):
-            if trac_key == 'dchisq':
-                for i in range(5): 
-                    cand[trac_key+str(i)]= tractor[trac_key][:,i].data
-            else:
-                cand[trac_key]= tractor[trac_key].data 
+        for db_key,trac_key in zip(*cand_default_keys()):
+            cand[db_key]= tractor[trac_key].data 
+        for db_key,trac_key,trac_i in zip(*cand_array_keys()):
+            cand[db_key]= tractor[trac_key][:,trac_i].data
         # Extracted all info
         del tractor
         # Match each key with its db data type
