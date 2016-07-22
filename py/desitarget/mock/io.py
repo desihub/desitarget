@@ -42,19 +42,103 @@ def _load_mock_mws_file(filename):
     C_LIGHT = 300000.0
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
+                       columns= ['objid','brickid',
+                                 'RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
 
+    objid       = data['objid'].astype('i8')
+    brickid     = data['brickid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f8')
     SDSSr_true  = data['SDSSr_true'].astype('f8')
     SDSSr_obs   = data['SDSSr_obs'].astype('f8')
 
-    return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
+    return {'objid':objid,'brickid':brickid,
+            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
             'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
 
 ############################################################
-def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix=''):
+def _load_mock_wd100pc_file(filename):
+    """
+    Reads mock information for MWS bright time survey.
+   
+    WD/100pc mock, all sky in one file.
+
+    Parameters: 
+    ----------
+    filename: :class:`str`
+        Name of a single MWS mock file.
+    
+    Returns:
+    -------
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+        'magg': :class: `numpy.ndarray`
+            Apparent magnitudes in Gaia G band.
+        'WD': :class: `numpt.ndarray'
+            1 == WD, 0 == Not a WD 
+    """
+    C_LIGHT = 300000.0
+    desitarget.io.check_fitsio_version()
+    data = fitsio.read(filename,
+                       columns= ['objid','brickid',
+                                 'RA','DEC','radialvelocity','magg','WD'])
+
+    objid       = data['objid'].astype('i8')
+    brickid     = data['brickid'].astype('i8')
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    v_helio     = data['radialvelocity'].astype('f8')
+    magg        = data['magg'].astype('f8')
+    is_wd       = data['WD'].astype('i4')
+
+    return {'objid':objid,'brickid':brickid,
+            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
+            'magg': magg, 'WD':is_wd}
+
+############################################################
+def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None):
+    """ Reads a single-file GUMS-based mock that includes 'big brick'
+    bricknames as in the Galaxia and Galfast mocks.
+
+    Parameters:
+    ----------    
+    root_mock_wd100pc_dir: :class:`str`
+        Path to the mock file.
+
+    mock_wd100pc_name: :class:`str`
+        Optional name of the mock file.
+        default: 'mock_wd100pc.fits'
+
+    brickname_list:
+        Optional list of specific bricknames to read.
+        
+    Returns:
+    -------
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+        'magg': :class: `numpy.ndarray`
+            Apparent magnitudes in Gaia G band
+    """
+    if mock_wd100pc_name is None:
+        mock_wd100pc_name = 'mock_wd100pc.fits'
+    filename = os.path.join(root_mock_wd100pc_dir,mock_wd100pc_name)
+    return _load_mock_wd100pc_file(filename)
+
+############################################################
+def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_list=None):
     """ Reads and concatenates the MWS mock files stored below the root directory.
 
     Parameters:
@@ -62,6 +146,12 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix=''):
     mock_mws_dir: :class:`str`
         Path to all the 'desi_galfast' files.
 
+    mock_mws_prefix: :class:`str`
+        Start of individual file names.
+
+    brickname_list:
+        Optional list of specific bricknames to read.
+        
     Returns:
     -------
     Dictionary concatenating all the 'desi_galfast' files with the following entries.
@@ -80,13 +170,24 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix=''):
     """
     # Build iterator of all desi_galfast files
     iter_mws = desitarget.io.iter_files(root_mock_mws_dir, mock_mws_prefix, ext="fits")
-
+    
     # Read each file
     print('Reading individual mock files')
-    target_list = []
+    target_list = list()
+    nfiles      = 0
     for mws_file in iter_mws:
+        nfiles += 1
+
+        # Filter on bricknames
+        if brickname_list is not None:
+            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mws_file,prefix=mock_mws_prefix)
+            if not brickname_of_target in brickname_list:
+                continue
+        
         # print(mws_file) # Don't necessarily want to do this
         target_list.append(_load_mock_mws_file(mws_file))
+
+    print 'Found %d files, read %d after filtering'%(nfiles,len(target_list))
 
     # Concatenate all the dictionaries into a single dictionary
     print('Combining mock files')

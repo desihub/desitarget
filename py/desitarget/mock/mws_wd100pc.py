@@ -2,11 +2,12 @@
 # -*- coding: utf-8 -*-
 """
 ===========================
-desitarget.mock.mws_galaxia
+desitarget.mock.mws_wd100pc
 ===========================
 
 Builds target/truth files from already existing mock data
 """
+
 from __future__ import (absolute_import, division)
 #
 import numpy as np
@@ -19,9 +20,9 @@ from   desitarget import mws_mask
 import os
 from   astropy.table import Table, Column
 import desispec.brick
-    
+
 ############################################################
-def mws_selection(mws_data, mag_faintest=20.0, mag_faint_filler=19.0, mag_bright=15.0):
+def wd100pc_selection(mws_data, mag_faint=20.0, mag_bright=15.0):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
@@ -39,45 +40,43 @@ def mws_selection(mws_data, mag_faintest=20.0, mag_faint_filler=19.0, mag_bright
             Hard bright limit for inclusion in survey.
     """
     # Parameters
-    SELECTION_MAG_NAME = 'SDSSr_obs'
+    SELECTION_MAG_NAME = 'magg'
 
     # Will populate this array with the bitmask values of each target class
     target_class = np.zeros(len(mws_data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
 
     fainter_than_bright_limit  = mws_data[SELECTION_MAG_NAME]  >= mag_bright
-    fainter_than_filler_limit  = mws_data[SELECTION_MAG_NAME]  >= mag_faint_filler
-    brighter_than_filler_limit = mws_data[SELECTION_MAG_NAME]  <  mag_faint_filler
-    brighter_than_faint_limit  = mws_data[SELECTION_MAG_NAME]  <  mag_faintest
+    brighter_than_faint_limit  = mws_data[SELECTION_MAG_NAME]  <  mag_faint
+    is_wd                      = mws_data['WD'] == 1
 
-    # Main sample
-    select_main_sample               = (fainter_than_bright_limit) & (brighter_than_filler_limit)    
-    target_class[select_main_sample] = mws_mask.bitnum('MWS_MAIN')
+    # WD sample
+    select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (is_wd)   
+    target_class[select_wd_sample] = mws_mask.bitnum('MWS_WD')
 
-    # Faint sample
-    select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit)    
-    target_class[select_faint_filler_sample] = mws_mask.bitnum('MWS_MAIN_VERY_FAINT')
+    # Nearby ('100pc') sample -- everything in the input table that isn't a WD
+    # Expect to refine this in future
+    select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (np.invert(is_wd))
+    target_class[select_nearby_sample] = mws_mask.bitnum('MWS_NEARBY')
 
     return target_class
 
 ############################################################
-def build_mock_target(root_mock_mws_dir='', output_dir='', 
-                      mag_faintest = 20.0, mag_faint_filler=19.0, mag_bright=15.0, 
-                      rand_seed=42,brickname_list=None):
+def build_mock_target(root_mock_wd100pc_dir='', output_dir='', 
+                      mag_faint=20.0, mag_bright=15.0, 
+                      rand_seed=42):
                       
     """Builds a Target and Truth files from a series of mock files
     
     Parameters:
     ----------    
-        mock_mws_dir: string
-            Root path to a hierarchy of Galaxia mock files in arbitrary bricks
+        mock_dir: string
+            Root path to directory with GUMS-based WD and 100pc mock table
         output_dir: string
             Path to write the outputs (targets.fits and truth.fits).
         mag_bright: float
-            Upper limit cut in SDSSr observed magnitude. Default = 15.0.
-        mag_faint_filler: float
-            Step between filler targets and main sample. Default = 19.0
-        mag_faintest: float
-            Lower limit cut in SDSSr observed magnitude. Default = 20.0.
+            Upper limit cut in Gaia G observed magnitude. Default = 15.0.
+        mag_faint: float
+            Lower limit cut in Gaia G observed magnitude. Default = 20.0.
         rand_seed: int
             seed for random number generator. 
     """
@@ -85,16 +84,14 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
 
     # Read the mocks on disk. This returns a dict.
     # FIXME should just use table here too?
-    mws_data = desitarget.mock.io.read_mock_mws_brighttime(root_mock_mws_dir=root_mock_mws_dir,
-                                                brickname_list=brickname_list)
+    mws_data = desitarget.mock.io.read_mock_wd100pc_brighttime(root_mock_wd100pc_dir=root_mock_wd100pc_dir)
     mws_keys = list(mws_data.keys())
     n        = len(mws_data[mws_keys[0]])
     
     # Allocate target classes
-    target_class   = mws_selection(mws_data,
-                                   mag_faintest     = mag_faintest,
-                                   mag_faint_filler = mag_faint_filler,
-                                   mag_bright       = mag_bright)
+    target_class   = wd100pc_selection(mws_data,
+                                       mag_faint  = mag_faint,
+                                       mag_bright = mag_bright)
     # Identify all targets
     in_target_list = target_class >= 0
     ii             = np.where(in_target_list)[0]
@@ -104,7 +101,7 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
     print("n_items in full catalog: {}".format(n))
 
     print 'Selection criteria:'
-    for criterion in ['mag_faintest','mag_faint_filler','mag_bright']:
+    for criterion in ['mag_faint','mag_bright']:
         print(" -- {:30s} {}".format(criterion,locals().get(criterion)))
 
     print("n_items after selection: {}".format(n_selected))
@@ -168,5 +165,6 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
     truth['TRUETYPE']  = true_type_pop
     truth.write(truth_filename, overwrite=True)
 
-    return targets, truth
+    # return targets, truth
+    return
     
