@@ -184,8 +184,8 @@ def decam_table_keys(return_early=False):
               '_ext']
     # Fill in
     for iband,band in enumerate(['u','g','r','i','z','Y']): 
-        trac+= track_keys
-        trac_i+= [iband]*len(track_keys)
+        trac+= trac_keys
+        trac_i+= [iband]*len(trac_keys)
         db+= [band+key for key in db_keys]
     return [tuple(db),tuple(trac),tuple(trac_i)]
 
@@ -269,7 +269,7 @@ def cand_keys_yield_arrays():
     '''cand keys that return an array'''
     return ['dchisq']
 
-def cand_default_keys(all_keys)
+def cand_default_keys(all_keys):
     '''all_keys -- all keys in tractor catalogue'''
     # Keys that are fixed
     trac_keys= all_keys
@@ -280,7 +280,7 @@ def cand_default_keys(all_keys)
              wise_default_keys(return_early=True)+\
              wise_lc_keys(return_early=True) 
     # Those remaining with assocated with arrays
-    rm_keys+= cand_keys_yield_arrays(): 
+    rm_keys+= cand_keys_yield_arrays() 
     for key in rm_keys:
         try: trac_keys.remove(key)
         except ValueError: print "WARNING: key=%s not in tractor catalogue" % key
@@ -317,16 +317,16 @@ def all_db_keys(all_tractor_keys):
     db_keys+= list(wise_default_keys()[0])
     if 'wise_lc_flux' in all_tractor_keys:
         db_keys+= list(wise_lc_keys()[0])
-    db_keys+= list(cand_default_keys()[0])
+    db_keys+= list(cand_default_keys(all_tractor_keys)[0])
     db_keys+= list(cand_array_keys()[0])
     return db_keys
          
 
-def tractor_into_db(tractor_cat, schema=None,table=None,\
+def tractor_into_db_wrapper(tractor_cat, schema=None,table=None,\
                                  overw_schema=False,load_db=False):
     '''wrapper around actual function so get traceback for processes'''
     try:
-        tractor_into_db2(tractor_cat, schema=schema,table=table,\
+        tractor_into_db(tractor_cat, schema=schema,table=table,\
                                      overw_schema=overw_schema,load_db=load_db) 
     except: 
         exc_type, exc_value, exc_traceback = sys.exc_info()
@@ -337,7 +337,7 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
 
 
    
-def tractor_into_db2(tractor_cat, schema=None,table=None,\
+def tractor_into_db(tractor_cat, schema=None,table=None,\
                                  overw_schema=False,load_db=False):
     
     '''load a single Tractor Catalouge or fits truth table into the DB'''
@@ -365,7 +365,7 @@ def tractor_into_db2(tractor_cat, schema=None,table=None,\
             for db_key,trac_key,trac_i,epoch_i in zip(*wise_lc_keys()):
                 wise[db_key]= tractor[trac_key][:,trac_i,epoch_i].data
         # Candidate table
-        for db_key,trac_key in zip(*cand_default_keys()):
+        for db_key,trac_key in zip(*cand_default_keys(tractor.colnames)):
             cand[db_key]= tractor[trac_key].data 
         for db_key,trac_key,trac_i in zip(*cand_array_keys()):
             cand[db_key]= tractor[trac_key][:,trac_i].data
@@ -429,10 +429,10 @@ def tractor_into_db2(tractor_cat, schema=None,table=None,\
             query_aper= insert_query(schema,tables[2],i,aper,keys[2],newkeys=['cand_id'],newvals=[id])
             query_wise= insert_query(schema,tables[3],i,wise,keys[3],newkeys=['cand_id'],newvals=[id])
             print_flush('insert queries for row=%d:' % i)    
-            print_flush('query_cand= \n',query_cand)
-            print_flush('query_decam= \n',query_decam) 
-            print_flush('query_aper= \n',query_aper)   
-            print_flush('query_wise= \n',query_wise)   
+            print_flush('query_cand= \n%s' % query_cand)
+            print_flush('query_decam= \n%s' % query_decam) 
+            print_flush('query_aper= \n%s' % query_aper)   
+            print_flush('query_wise= \n%s' % query_wise)   
     elif table == 'bricks':
         #dtype for each key using as column name
         sql_dtype= get_sql_dtype(keys)
@@ -603,7 +603,7 @@ def main(args,table):
             cnt=0
             i=comm.rank+cnt*comm.size
             while i < len(fits_files):
-                tractor_into_db(fits_files[i], schema=args.schema,table=table,\
+                tractor_into_db_wrapper(fits_files[i], schema=args.schema,table=table,\
                                                overw_schema=args.overw_schema,load_db=args.load_db)
                 print_flush("rank %d in its %dth iteration and loading %dth cat = %s" % (comm.rank, cnt,i,fits_files[i]))
                 cnt+=1
@@ -613,7 +613,7 @@ def main(args,table):
             print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
             pool = multiprocessing.Pool(args.cores)
             # The iterable is fits_files
-            results=pool.map(partial(tractor_into_db, schema=args.schema,table=table,\
+            results=pool.map(partial(tractor_into_db_wrapper, schema=args.schema,table=table,\
                                                       overw_schema=args.overw_schema,load_db=args.load_db), \
                              fits_files)
             pool.close()
