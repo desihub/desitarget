@@ -43,22 +43,26 @@ args = parser.parse_args()
 # choose 10 cats randomly
 fits_files= dbload.read_lines(args.list_of_cats)
 rand = np.random.RandomState(args.seed)
-ndraws=10
-keep= rand.uniform(1, len(fits_files), ndraws).astype(int)-1
-fits_files= fits_files[keep]
+if len(fits_files) > 10:
+    ndraws=10
+    keep= rand.uniform(1, len(fits_files), ndraws).astype(int)-1
+    fits_files= fits_files[keep]
+else: fits_files= [fits_files[0]]
 # for each, choose a random objid and get corresponding row from DB
-for fn in [fits_files[0]]:
+for fn in fits_files:
     t=Table(fits.getdata(fn, 1))
     ndraws=1
     keep= rand.uniform(1, len(t), ndraws).astype(int)-1
-    t= t[keep]
-    #grab from DB
-    cmd="select * from decam_cand as c JOIN decam_decam as d ON d.cand_id=c.id JOIN decam_aper as a ON a.cand_id=c.id JOIN decam_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%d" % (t['brickname'].data[0],t['objid'].data[0])  
-    name='auto.txt'
-    my_psql.select(cmd,name,outdir=args.outdir)
+    for row in keep:
+        # grab this row from DB
+        print "matching to brickname,objid=",t[row]['brickname'].data[0],t[row]['objid'].data[0]
+        cmd="select * from decam_table_cand as c JOIN decam_table_flux as f ON f.cand_id=c.id JOIN decam_table_aper as a ON a.cand_id=c.id JOIN decam_table_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%d" % (t[row]['brickname'].data[0],t[row]['objid'].data[0])  
+        name='auto.txt'
+        #my_psql.select(cmd,name,outdir=args.outdir)
 # read in psql output
-db= my_psql.read_from_psql_file(os.path.join(args.outdir,name))
+#db= my_psql.read_from_psql_file(os.path.join(args.outdir,name))
 # compare tractor cat row to DB row
-diff_rows(t,db)
+#print "psql info= ",db
+#diff_rows(t,db)
     
 print 'done'
