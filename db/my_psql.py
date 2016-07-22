@@ -6,9 +6,9 @@ def select(cmd,outname,outdir='/project/projectdirs/desi/users/burleigh'):
     '''use "cmd" to select data, save output to file "outname"'''
     con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
     cursor = con.cursor()
-    cursor.execute('\o %s' % os.path.join(outdir,outname)) 
+    cursor.execute('%so %s' % ("\\",os.path.join(outdir,outname)))
     cursor.execute(cmd) 
-    cursor.execute('\o') 
+    cursor.execute('%so' % "\\") 
     con.close()
     print "selected with:\n",cmd
     print "saved result to %s" % os.path.join(outdir,outname)

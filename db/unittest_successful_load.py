@@ -55,14 +55,18 @@ for fn in fits_files:
     keep= rand.uniform(1, len(t), ndraws).astype(int)-1
     for row in keep:
         # grab this row from DB
-        print "matching to brickname,objid=",t[row]['brickname'].data[0],t[row]['objid'].data[0]
-        cmd="select * from decam_table_cand as c JOIN decam_table_flux as f ON f.cand_id=c.id JOIN decam_table_aper as a ON a.cand_id=c.id JOIN decam_table_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%d" % (t[row]['brickname'].data[0],t[row]['objid'].data[0])  
-        name='auto.txt'
-        #my_psql.select(cmd,name,outdir=args.outdir)
-# read in psql output
-#db= my_psql.read_from_psql_file(os.path.join(args.outdir,name))
-# compare tractor cat row to DB row
-#print "psql info= ",db
+        brickname= '%s' % t[row]['brickname']
+        objid= '%d' % t[row]['objid']
+        cmd="select * from decam_table_cand as c JOIN decam_table_flux as f ON f.cand_id=c.id JOIN decam_table_aper as a ON a.cand_id=c.id JOIN decam_table_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%s" % (brickname,objid) 
+        name='db_row_%d.txt' % row
+        print "selecting row %d from db with cmd:\n%s\nand saving output as %s" % \
+                (row,cmd,os.path.join(args.outdir,name))
+        my_psql.select(cmd,name,outdir=args.outdir)
+# Compare Tractor Catalogue data to db
+print 'reading in %s' % os.path.join(args.outdir,name)
+db= my_psql.read_from_psql_file(os.path.join(args.outdir,name))
+print "db= ",db
+print 'comparing to Tractor catalogue'
 #diff_rows(t,db)
     
 print 'done'
