@@ -32,3 +32,10 @@ def read_from_psql_file(fn,use_cols=range(14),str_cols=['type']):
         if col in str_cols: data[col]= np.char.strip( arr[:,i].astype(str) )
         else: data[col]= arr[:,i].astype(float)
     return data
+
+def read_psql_csv(fn):
+    lines=np.loadtxt(fn,delimiter=',',dtype=str)
+    d={}
+    for key,val in zip(a[0],a[1]):
+        d[key]=val
+    return d

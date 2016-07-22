@@ -11,28 +11,25 @@ import numpy as np
 from desitarget.db import my_psql
 import desitarget.bin.tractor_load as dbload 
 
+def usetype(var,flag):
+    if flag == 's': return str(var)
+    elif flag == 'i': return int(var)
+    elif flag == 'f': return float(var)
+    else: raise ValueError
+
 def diff_rows(trac_at,db_dict):
     '''trac_at -- tractor astropy table
     db_dict -- dict with psql text file columns as keys'''
-    # There are 4 tables in the db
-    # Decam table
-    for db_key,trac_key,trac_i in zip(*dbload.decam_table_keys()):
-        assert(decam[db_key] == tractor[trac_key][:,trac_i].data)
-    ## Aperature table
-    #for db_key,trac_key,trac_i,ap_i in zip(*dbload.aper_table_keys()):
-    #    aper[db_key]= tractor[trac_key][:,trac_i,ap_i].data
-    ## Wise table
-    #for db_key,trac_key,trac_i in zip(*dbload.wise_default_keys()):
-    #    wise[db_key]= tractor[trac_key][:,trac_i].data
-    #if 'wise_lc_flux' in tractor.colnames:
-    #    for db_key,trac_key,trac_i,epoch_i in zip(*dbload.wise_lc_keys()):
-    #        wise[db_key]= tractor[trac_key][:,trac_i,epoch_i].data
-    ## Candidate table
-    #for db_key,trac_key in zip(*dbload.cand_default_keys()):
-    #    cand[db_key]= tractor[trac_key].data 
-    #for db_key,trac_key,trac_i in zip(*dbload.cand_array_keys()):
-    #    cand[db_key]= tractor[trac_key][:,trac_i].data
-    
+    # DB keys
+    db_keys= ['brickname','objid'] + [b+'flux' for b in ['g','r','z']]
+    dtypes= ['s']+['i'] + ['f']*3
+    # Tractor keys
+    trac_keys= ['brickname','objid'] + ['decam_flux']*3
+    trac_i= [None]*2 + [1,2,4]
+    # Difference
+    for db_key,typ,trac_key,i in zip(db_keys,dtypes,trac_keys,trac_i):
+        print 'db key,val=',db_key, usetype(db_dict[db_key]), \
+              'trac key,i,val=', trac_key,i,trac_at[trac_key][i]
 
 parser = argparse.ArgumentParser(description="test")
 parser.add_argument("--list_of_cats",action="store",help='list of tractor cats',default='dr3_cats_qso.txt',required=True)
@@ -58,15 +55,16 @@ for fn in fits_files:
         brickname= '%s' % t[row]['brickname']
         objid= '%d' % t[row]['objid']
         cmd="select * from decam_table_cand as c JOIN decam_table_flux as f ON f.cand_id=c.id JOIN decam_table_aper as a ON a.cand_id=c.id JOIN decam_table_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%s" % (brickname,objid) 
-        name='db_row_%d.txt' % row
+        name='db_row_%d.csv' % row
         print "selecting row %d from db with cmd:\n%s\nand saving output as %s" % \
                 (row,cmd,os.path.join(args.outdir,name))
         my_psql.select(cmd,name,outdir=args.outdir)
 # Compare Tractor Catalogue data to db
 print 'reading in %s' % os.path.join(args.outdir,name)
-db= my_psql.read_from_psql_file(os.path.join(args.outdir,name))
-print "db= ",db
+db=  my_psql.read_psql_csv(os.path.join(args.outdir,name))
 print 'comparing to Tractor catalogue'
-#diff_rows(t,db)
+print 'trac=',trac[row]
+print 'db=',db
+diff_rows(t[row],db)
     
 print 'done'
