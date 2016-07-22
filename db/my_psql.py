@@ -5,13 +5,15 @@ import numpy as np
 def select(cmd,outname,outdir='/project/projectdirs/desi/users/burleigh'):
     '''use "cmd" to select data, save output to file "outname"'''
     con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
-    cursor = con.cursor()
-    cursor.execute('%so %s' % ("\\",os.path.join(outdir,outname)))
-    cursor.execute(cmd) 
-    cursor.execute('%so' % "\\") 
+    cur = con.cursor()
+    # Special psycopg2 function when exporting results of a query 
+    cmd_wrapper = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(cmd)
+    saveto= os.path.join(outdir,outname)
+    if os.path.exists(saveto): os.remove(saveto)
+    with open(saveto, 'w') as f:
+        cur.copy_expert(cmd_wrapper, f)
+    # Logout
     con.close()
-    print "selected with:\n",cmd
-    print "saved result to %s" % os.path.join(outdir,outname)
 
 def read_from_psql_file(fn,use_cols=range(14),str_cols=['type']):
     '''return data dict for DECaLS()
