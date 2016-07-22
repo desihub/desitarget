@@ -31,10 +31,11 @@ def rem_if_exists(name):
     if os.path.exists(name):
         if os.system(' '.join(['rm','%s' % name]) ): raise ValueError
 
-def write_index_cluster_files(schema):
+def write_index_cluster_files(schema,table=None):
+    assert(table is not None)
     indexes= indexes_for_tables(args.schema)
     # Write index
-    outname= 'index.'+args.schema
+    outname= '%s.index' % table
     rem_if_exists(outname)
     fin=open(outname,'w')
     for key in indexes.keys(): 
@@ -44,7 +45,7 @@ def write_index_cluster_files(schema):
     fin.close()   
     print "wrote index file: %s " % outname 
     # Write cluster
-    outname= 'cluster.'+args.schema
+    outname= '%s.cluster' % table
     rem_if_exists(outname)
     fin=open(outname,'w')
     for key in indexes.keys():
@@ -54,12 +55,12 @@ def write_index_cluster_files(schema):
     print "wrote cluster file: %s " % outname 
 
 
-def write_schema(schema,table,keys,sql_dtype,addrows=[]):
-    outname= table+'.table.%s' % schema
+def write_schema(schema,table_name,keys,sql_dtype,addrows=[]):
+    outname= table_name
     rem_if_exists(outname)
     fin=open(outname,'w')
-    fin.write('CREATE SEQUENCE %s_id_seq;' % table)
-    fin.write('\n\n'+'CREATE TABLE %s (' % table)
+    fin.write('CREATE SEQUENCE %s_id_seq;' % table_name)
+    fin.write('\n\n'+'CREATE TABLE %s (' % table_name)
     #add indexing names
     for row in addrows: fin.write('\n'+'\t'+row+',')
     #add catalogue's names
@@ -70,8 +71,8 @@ def write_schema(schema,table,keys,sql_dtype,addrows=[]):
     fin.write('\n'+');'+'\n')
     fin.close()
 
-def insert_query(schema,table,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
-    query = 'INSERT INTO %s ( ' % table   
+def insert_query(schema,table_name,ith_row,data,keys,returning=False,newkeys=[],newvals=[]):
+    query = 'INSERT INTO %s ( ' % table_name   
     #column names 
     for nk in newkeys: query+= '%s, ' % nk
     for key in keys:
@@ -377,7 +378,7 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
                     get_sql_dtype(aper),\
                     get_sql_dtype(wise)]
         # Schema
-        tables=[table+name for name in ['_cand','_decam','_aper','_wise']]
+        tables=[table+'.table.'+name for name in ['cand','flux','aper','wise']]
         keys=[cand.keys(),\
               decam.keys(),\
               aper.keys(),\
@@ -587,7 +588,7 @@ def main(args,table):
    
     # Index and cluster file for once everything loaded in
     if args.make_index_file:
-        write_index_cluster_files(args.schema)
+        write_index_cluster_files(args.schema,table=table)
 
     # serial 
     if args.serial:
