@@ -303,14 +303,6 @@ def cand_array_keys():
         trac_i+= [model]*len(trac_keys)
     return [tuple(db),tuple(trac),tuple(trac_i)]
 
-def get_cand_keys(trac_keys):
-    '''return difference between all tractor cat keys and decam,wise,aper keys'''
-    keys= set(trac_keys).difference(\
-                set(get_decam_keys()[1]+\
-                    get_wise_keys()[1]+\
-                    get_aper_keys()[1]))
-    return list(keys)
-
 def all_db_keys(all_tractor_keys):
     db_keys= []
     db_keys+= list(decam_table_keys()[0])
