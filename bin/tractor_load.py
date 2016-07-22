@@ -35,7 +35,7 @@ def write_index_cluster_files(schema,table=None):
     assert(table is not None)
     indexes= indexes_for_tables(args.schema)
     # Write index
-    outname= '%s.index' % table
+    outname= '%s_index' % table
     rem_if_exists(outname)
     fin=open(outname,'w')
     for key in indexes.keys(): 
@@ -45,7 +45,7 @@ def write_index_cluster_files(schema,table=None):
     fin.close()   
     print "wrote index file: %s " % outname 
     # Write cluster
-    outname= '%s.cluster' % table
+    outname= '%s_cluster' % table
     rem_if_exists(outname)
     fin=open(outname,'w')
     for key in indexes.keys():
@@ -378,7 +378,7 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
                     get_sql_dtype(aper),\
                     get_sql_dtype(wise)]
         # Schema
-        tables=[table+'.table.'+name for name in ['cand','flux','aper','wise']]
+        tables=[table+'_table_'+name for name in ['cand','flux','aper','wise']]
         keys=[cand.keys(),\
               decam.keys(),\
               aper.keys(),\

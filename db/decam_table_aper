@@ -1,8 +1,8 @@
-CREATE SEQUENCE decam.table.aper_id_seq;
+CREATE SEQUENCE decam_table_aper_id_seq;
 
-CREATE TABLE decam.table.aper (
-	id bigint primary key not null default nextval('decam.table.aper_id_seq'::regclass),
-	cand_id bigint REFERENCES decam.table.cand (id),
+CREATE TABLE decam_table_aper (
+	id bigint primary key not null default nextval('decam_table_aper_id_seq'::regclass),
+	cand_id bigint REFERENCES decam_table_cand (id),
 	yapflux_0 real,
 	yapflux_1 real,
 	yapflux_2 real,

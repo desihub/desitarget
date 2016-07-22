@@ -1,7 +1,7 @@
-CREATE SEQUENCE decam.table.cand_id_seq;
+CREATE SEQUENCE decam_table_cand_id_seq;
 
-CREATE TABLE decam.table.cand (
-	id bigint primary key not null default nextval('decam.table.cand_id_seq'::regclass),
+CREATE TABLE decam_table_cand (
+	id bigint primary key not null default nextval('decam_table_cand_id_seq'::regclass),
 	blob integer,
 	blob_height integer,
 	blob_nimages integer,
