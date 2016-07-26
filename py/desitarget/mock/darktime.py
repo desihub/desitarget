@@ -100,6 +100,8 @@ def select_population(ra, dec, z, **kwargs):
             Maximum redshift to select from the input z.
         true_type = string
             Desired label for this population.
+        true_subtype = string
+            Desired label for this population.
         desi_target_flag = 64bit mask
             Kind of DESI target following desitarget.desi_mask
         bgs_target_flag = 64bit mask
@@ -143,9 +145,11 @@ def select_population(ra, dec, z, **kwargs):
     bgs_target_pop = np.zeros(n, dtype='i8'); bgs_target_pop[:] = kwargs['bgs_target_flag']
     mws_target_pop = np.zeros(n, dtype='i8'); mws_target_pop[:] = kwargs['mws_target_flag']
     true_type_pop = np.zeros(n, dtype='S10'); true_type_pop[:] = kwargs['true_type']
+    true_subtype_pop = np.zeros(n, dtype='S10'); true_subtype_pop[:] = kwargs['true_subtype']
 
     return {'RA':ra_pop, 'DEC':dec_pop, 'Z':z_pop, 
-            'DESI_TARGET':desi_target_pop, 'BGS_TARGET': bgs_target_pop, 'MWS_TARGET':mws_target_pop, 'TRUE_TYPE':true_type_pop}
+            'DESI_TARGET':desi_target_pop, 'BGS_TARGET': bgs_target_pop, 'MWS_TARGET':mws_target_pop, 
+            'TRUE_TYPE':true_type_pop, 'TRUE_SUBTYPE': true_subtype_pop}
 
 def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lrg_dens=0.0, lrg_fake_dens=0.0, elg_dens=0.0, elg_fake_dens=0.0,
                       mock_qso_file='', mock_lrg_file='', mock_elg_file='',mock_contaminant_file='', output_dir='', rand_seed=42):
@@ -195,6 +199,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     max_z_list  = [1000.0, 2.1, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
     goal_list = [qsolya_dens, qsotracer_dens, qso_fake_dens, lrg_dens, lrg_fake_dens, elg_dens, elg_fake_dens]
     true_type_list = ['QSO', 'QSO', 'STAR', 'GALAXY', 'UNKNOWN', 'GALAXY', 'UNKNOWN']
+    true_subtype_list = ['QSO', 'QSO', 'STAR', 'LRG', 'UNKNOWN', 'ELG', 'UNKNOWN']
     desi_tf_list = [desi_mask.QSO, desi_mask.QSO, desi_mask.QSO, desi_mask.LRG, desi_mask.LRG, desi_mask.ELG, desi_mask.ELG]
     bgs_tf_list = [0,0,0,0,0,0,0]
     mws_tf_list = [0,0,0,0,0,0,0]
@@ -207,21 +212,23 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     bgs_target_total = np.empty(0, dtype='i8')
     mws_target_total = np.empty(0, dtype='i8')
     true_type_total = np.empty(0, dtype='S10')
+    true_subtype_total = np.empty(0, dtype='S10')
 
     # loop over the populations
-    for ra, dec, z, min_z, max_z, goal, true_type, desi_tf, bgs_tf, mws_tf in\
+    for ra, dec, z, min_z, max_z, goal, true_type, true_subtype, desi_tf, bgs_tf, mws_tf in\
             zip(ra_list, dec_list, z_list, min_z_list, max_z_list, goal_list,\
-                    true_type_list, desi_tf_list, bgs_tf_list, mws_tf_list):
+                    true_type_list, true_subtype_list, desi_tf_list, bgs_tf_list, mws_tf_list):
 
         # select subpopulation
         pop_dict =   select_population(ra, dec, z,\
-                                           min_z=min_z,\
-                                           max_z=max_z,\
-                                           goal_density=goal,\
-                                           true_type=true_type,\
-                                           desi_target_flag = desi_tf,\
-                                           bgs_target_flag = bgs_tf,\
-                                           mws_target_flag = mws_tf)
+                                       min_z=min_z,\
+                                       max_z=max_z,\
+                                       goal_density=goal,\
+                                       true_type=true_type,\
+                                       true_subtype=true_subtype,\
+                                       desi_target_flag = desi_tf,\
+                                       bgs_target_flag = bgs_tf,\
+                                       mws_target_flag = mws_tf)
         
         # append to the full list
         ra_total = np.append(ra_total, pop_dict['RA'])
@@ -231,6 +238,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
         bgs_target_total = np.append(bgs_target_total, pop_dict['BGS_TARGET'])
         mws_target_total = np.append(mws_target_total, pop_dict['MWS_TARGET'])
         true_type_total = np.append(true_type_total, pop_dict['TRUE_TYPE'])
+        true_subtype_total = np.append(true_subtype_total, pop_dict['TRUE_SUBTYPE'])
 
     # make up the IDs, subpriorities and bricknames
     n = len(ra_total)
@@ -270,6 +278,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     truth['DEC'] = dec_total
     truth['TRUEZ'] = z_total
     truth['TRUETYPE'] = true_type_total
+    truth['TRUESUBTYPE'] = true_subtype_total
     truth.write(truth_filename, overwrite=True)
 
     return
@@ -303,7 +312,7 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
     true_type_list = ['STAR', 'SKY']
     goal_density_list = [goal_density_std_star, goal_density_sky]
     desi_target_list  = [desi_mask.STD_FSTAR, desi_mask.SKY]
-    filename_list = ['stdstar.fits', 'sky.fits']
+    filename_list = ['stdstars.fits', 'sky.fits']
 
     for true_type, goal_density, desi_target_flag, filename in\
             zip(true_type_list, goal_density_list, desi_target_list, filename_list):
