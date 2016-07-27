@@ -317,20 +317,25 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
     random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(mock_random_file, read_z=False)
 
     true_type_list = ['STAR', 'SKY']
+    true_subtype_list = ['FSTD', 'CALIB']
     goal_density_list = [goal_density_std_star, goal_density_sky]
     desi_target_list  = [desi_mask.STD_FSTAR, desi_mask.SKY]
     filename_list = ['stdstars.fits', 'sky.fits']
+    obscond_list = [obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT,\
+                    obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT]
 
-    for true_type, goal_density, desi_target_flag, filename in\
-            zip(true_type_list, goal_density_list, desi_target_list, filename_list):
+    for true_type, true_subtype, goal_density, desi_target_flag, filename, obscond in\
+            zip(true_type_list, true_subtype_list, goal_density_list, desi_target_list, filename_list, obscond_list):
         pop_dict = select_population(random_mock_ra, random_mock_dec, random_mock_z,\
-                                         min_z=-1.0,\
-                                         max_z=100,\
-                                         goal_density=goal_density,\
-                                         true_type=true_type,\
-                                         desi_target_flag = desi_target_flag,\
-                                         bgs_target_flag = 0,\
-                                         mws_target_flag = 0)
+                                     min_z=-1.0,\
+                                     max_z=100,\
+                                     goal_density=goal_density,\
+                                     true_type=true_type,\
+                                     true_subtype=true_subtype,\
+                                     desi_target_flag = desi_target_flag,\
+                                     bgs_target_flag = 0,\
+                                     mws_target_flag = 0,\
+                                     obsconditions_flag = obscond)
         
         # make up the IDs, subpriorities and bricknames
         n = len(pop_dict['RA'])
@@ -350,6 +355,7 @@ def build_mock_sky_star(std_star_dens=0.0, sky_calib_dens=0.0, mock_random_file=
         targets['DESI_TARGET'] = pop_dict['DESI_TARGET']
         targets['BGS_TARGET'] = pop_dict['BGS_TARGET']
         targets['MWS_TARGET'] = pop_dict['MWS_TARGET']
+        targets['OBSCONDITIONS'] = pop_dict['OBSCONDITIONS']
         targets['SUBPRIORITY'] = subprior
         targets.write(targets_filename, overwrite=True)
     return
