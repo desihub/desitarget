@@ -193,12 +193,13 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
     random_mock_ra, random_mock_dec, random_mock_z = desitarget.mock.io.read_mock_dark_time(mock_contaminant_file, read_z=False)
 
     # build lists for the different population types
-    ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra, elg_mock_ra]
-    dec_list = [qso_mock_dec, qso_mock_dec, random_mock_dec, lrg_mock_dec, random_mock_dec, elg_mock_dec, elg_mock_dec]
-    z_list = [qso_mock_z, qso_mock_z, random_mock_z, lrg_mock_z, random_mock_z, elg_mock_z, elg_mock_z]
+    ra_list = [qso_mock_ra, qso_mock_ra, random_mock_ra, lrg_mock_ra, random_mock_ra, elg_mock_ra, random_mock_ra]
+    dec_list = [qso_mock_dec, qso_mock_dec, random_mock_dec, lrg_mock_dec, random_mock_dec, elg_mock_dec, random_mock_dec]
+    z_list = [qso_mock_z, qso_mock_z, random_mock_z, lrg_mock_z, random_mock_z, elg_mock_z, random_mock_z]
     min_z_list  = [2.1, -1.0, -1.0, -1.0, -1.0, -1.0, -1.0]
     max_z_list  = [1000.0, 2.1, 1000.0, 1000.0, 1000.0, 1000.0, 1000.0]
     goal_list = [qsolya_dens, qsotracer_dens, qso_fake_dens, lrg_dens, lrg_fake_dens, elg_dens, elg_fake_dens]
+    print(lrg_dens, elg_dens)
     true_type_list = ['QSO', 'QSO', 'STAR', 'GALAXY', 'STAR', 'GALAXY', 'STAR']
     true_subtype_list = ['QSO', 'QSO', 'FAKE_QSO', 'LRG', 'FAKE_LRG', 'ELG', 'FAKE_ELG']
     desi_tf_list = [desi_mask.QSO, desi_mask.QSO, desi_mask.QSO, desi_mask.LRG, desi_mask.LRG, desi_mask.ELG, desi_mask.ELG]
@@ -245,6 +246,7 @@ def build_mock_target(qsolya_dens=0.0, qsotracer_dens=0.0, qso_fake_dens=0.0, lr
         true_type_total = np.append(true_type_total, pop_dict['TRUE_TYPE'])
         true_subtype_total = np.append(true_subtype_total, pop_dict['TRUE_SUBTYPE'])
         obsconditions_total = np.append(obsconditions_total, pop_dict['OBSCONDITIONS'])
+        print("truesubtype", true_subtype, " N=", len(pop_dict['TRUE_SUBTYPE']))
 
     # make up the IDs, subpriorities and bricknames
     n = len(ra_total)
