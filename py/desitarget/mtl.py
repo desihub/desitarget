@@ -4,7 +4,7 @@ from astropy.table import Table, join
 from .targetmask import desi_mask, obsmask
 from .targets import calc_numobs, calc_priority
 
-def make_mtl(targets, zcat=None, trim=True):
+def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and GRAYLAYER columns to a targets table.
 
     Parameters
@@ -15,8 +15,8 @@ def make_mtl(targets, zcat=None, trim=True):
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
     trim : :class:`bool`, optional
-        If ``True`` (default), don't include targets that don't need
-        any more observations.  If ``False``, include every input target.
+        If ``True``, don't include targets that don't need
+        any more observations.  If ``False`` (default), include every input target.
 
     Returns
     -------
