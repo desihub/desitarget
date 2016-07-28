@@ -18,12 +18,12 @@ A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
 
-def isLRG(rflux, zflux, w1flux, primary=None):
+def isLRG(gflux, rflux, zflux, w1flux, w2flux, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
-        rflux, zflux, w1flux : array_like
-            The flux in nano-maggies of r, z, and w1 band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -47,12 +47,12 @@ def isLRG(rflux, zflux, w1flux, primary=None):
 
     return lrg
 
-def isELG(gflux, rflux, zflux, primary=None):
+def isELG(gflux, rflux, zflux, w1flux, w2flux, primary=None):
     """Target Definition of ELG. Returning a boolean array.
 
     Args:
-        gflux, rflux, zflux : array_like
-            The flux in nano-maggies of g, r, and z band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -77,12 +77,12 @@ def isELG(gflux, rflux, zflux, primary=None):
 
     return elg
 
-def isFSTD_colors(gflux, rflux, zflux, primary=None):
+def isFSTD_colors(gflux, rflux, zflux, w1flux, w2flux, primary=None):
     """Select FSTD targets just based on color cuts. Returns a boolean array. 
 
     Args:
-        gflux, rflux, zflux : array_like
-            Flux in nano-maggies of g, r, and z band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -108,12 +108,12 @@ def isFSTD_colors(gflux, rflux, zflux, primary=None):
 
     return fstd
 
-def isMWSSTAR_colors(gflux, rflux, primary=None):
+def isMWSSTAR_colors(gflux, rflux, zflux, w1flux, w2flux, primary=None):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array. 
 
     Args:
-        gflux, rflux, : array_like
-            Flux in nano-maggies of g and r bands.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -148,12 +148,12 @@ def psflike(psftype):
     psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
     return psflike
 
-def isBGS(rflux, objtype=None, primary=None):
+def isBGS(gflux, rflux, zflux, w1flux, w2flux, objtype=None, primary=None):
     """Target Definition of BGS. Returning a boolean array.
 
     Args:
-        rflux: array_like
-            The flux in nano-maggies of r band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
