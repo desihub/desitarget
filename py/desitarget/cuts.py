@@ -18,7 +18,7 @@ A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
 
-def isLRG(gflux, rflux, zflux, w1flux, w2flux, primary=None):
+def isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
@@ -47,7 +47,7 @@ def isLRG(gflux, rflux, zflux, w1flux, w2flux, primary=None):
 
     return lrg
 
-def isELG(gflux, rflux, zflux, w1flux, w2flux, primary=None):
+def isELG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, primary=None):
     """Target Definition of ELG. Returning a boolean array.
 
     Args:
@@ -77,7 +77,7 @@ def isELG(gflux, rflux, zflux, w1flux, w2flux, primary=None):
 
     return elg
 
-def isFSTD_colors(gflux, rflux, zflux, w1flux, w2flux, primary=None):
+def isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, primary=None):
     """Select FSTD targets just based on color cuts. Returns a boolean array. 
 
     Args:
@@ -108,7 +108,7 @@ def isFSTD_colors(gflux, rflux, zflux, w1flux, w2flux, primary=None):
 
     return fstd
 
-def isMWSSTAR_colors(gflux, rflux, zflux, w1flux, w2flux, primary=None):
+def isMWSSTAR_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, primary=None):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array. 
 
     Args:
@@ -148,7 +148,7 @@ def psflike(psftype):
     psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
     return psflike
 
-def isBGS(gflux, rflux, zflux, w1flux, w2flux, objtype=None, primary=None):
+def isBGS(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, objtype=None, primary=None):
     """Target Definition of BGS. Returning a boolean array.
 
     Args:
@@ -173,7 +173,7 @@ def isBGS(gflux, rflux, zflux, w1flux, w2flux, objtype=None, primary=None):
         bgs &= ~psflike(objtype)
     return bgs
 
-def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
+def isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, objtype=None,
           wise_snr=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
