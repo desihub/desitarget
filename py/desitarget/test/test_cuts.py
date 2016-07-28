@@ -63,27 +63,27 @@ class TestCuts(unittest.TestCase):
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
         primary = targets['BRICK_PRIMARY']
-        lrg1 = cuts.isLRG(rflux, zflux, w1flux, primary=None)
-        lrg2 = cuts.isLRG(rflux, zflux, w1flux, primary=primary)
+        lrg1 = cuts.isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux, primary=None)
+        lrg2 = cuts.isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux, primary=primary)
         self.assertTrue(np.all(lrg1==lrg2))
 
-        elg1 = cuts.isELG(gflux, rflux, zflux, primary=primary)
-        elg2 = cuts.isELG(gflux, rflux, zflux, primary=None)
+        elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
+        elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         self.assertTrue(np.all(elg1==elg2))
 
         psftype = targets['TYPE']
-        bgs1 = cuts.isBGS(rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS(rflux, objtype=None, primary=None)
+        bgs1 = cuts.isBGS(rflux=rflux, objtype=psftype, primary=primary)
+        bgs2 = cuts.isBGS(rflux=rflux, objtype=None, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
-        qso1 = cuts.isQSO(gflux, rflux, zflux, w1flux, w2flux,
+        qso1 = cuts.isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                           objtype=psftype, primary=primary)
-        qso2 = cuts.isQSO(gflux, rflux, zflux, w1flux, w2flux,
+        qso2 = cuts.isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                           objtype=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
 
-        fstd1 = cuts.isFSTD_colors(gflux, rflux, zflux, primary=None)
-        fstd2 = cuts.isFSTD_colors(gflux, rflux, zflux, primary=primary)
+        fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
+        fstd2 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
         self.assertTrue(np.all(fstd1==fstd2))
 
     #- cuts should work with tables from several I/O libraries
