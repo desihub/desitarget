@@ -15,6 +15,45 @@ import os, re
 import desitarget.io
 
 ############################################################
+def _load_mock_bgs_mxxl_file(filename):
+    """
+    Reads mock information for MXXL bright time survey galaxies.
+    
+    Parameters: 
+    ----------
+    filename: :class:`str`
+        Name of a single mock file.
+    
+    Returns:
+    -------
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+        'SDSSr_true': :class: `numpy.ndarray`
+            Apparent magnitudes in SDSS r band
+    """
+    desitarget.io.check_fitsio_version()
+    data = fitsio.read(filename,
+                       columns= ['objid','brickid',
+                                 'RA','DEC','Z', 'R'])
+
+    objid       = data['objid'].astype('i8')
+    brickid     = data['brickid'].astype('i8')
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    SDSSr_true  = data['R'].astype('f8')
+    zred        = data['Z'].astype('f8')
+
+    return {'objid':objid,'brickid':brickid,
+            'RA':ra, 'DEC':dec, 'Z': zred ,
+            'SDSSr_true':SDSSr_true}
+
+############################################################
 def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
@@ -103,6 +142,21 @@ def _load_mock_wd100pc_file(filename):
             'magg': magg, 'WD':is_wd}
 
 ############################################################
+def _read_mock_add_file_and_row_number(target_list,full_data):
+    """
+    Called from mock reader functions to add row and file number to dict of
+    properties. This modified full_data in place.
+    """
+    full_data['rownum']  = np.empty(0)
+    full_data['filenum'] = np.empty(0)
+    fiducial_key = target_list[0].keys()[0]
+    for ifile,target_item in enumerate(target_list):
+        nrows                = len(target_item[fiducial_key])
+        full_data['rownum']  = np.append(full_data['rownum'],  np.arange(0,nrows))
+        full_data['filenum'] = np.append(full_data['filenum'], np.repeat(ifile,nrows))
+    return 
+
+############################################################
 def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
@@ -134,8 +188,18 @@ def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None
     """
     if mock_wd100pc_name is None:
         mock_wd100pc_name = 'mock_wd100pc.fits'
-    filename = os.path.join(root_mock_wd100pc_dir,mock_wd100pc_name)
-    return _load_mock_wd100pc_file(filename)
+    filename  = os.path.join(root_mock_wd100pc_dir,mock_wd100pc_name)
+    full_data = _load_mock_wd100pc_file(filename)
+
+    # Add file and row number
+    fiducial_key         = full_data.keys()[0]
+    nrows                = len(full_data[fiducial_key])
+    full_data['rownum']  = np.arange(0,nrows)
+    full_data['filenum'] = np.zeros(nrows,dtype=np.int)
+
+    file_list = [filename]
+
+    return full_data, file_list
 
 ############################################################
 def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_list=None):
@@ -169,36 +233,110 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_l
     
     """
     # Build iterator of all desi_galfast files
-    iter_mws = desitarget.io.iter_files(root_mock_mws_dir, mock_mws_prefix, ext="fits")
+    iter_mock_files = desitarget.io.iter_files(root_mock_mws_dir, mock_mws_prefix, ext="fits")
     
     # Read each file
     print('Reading individual mock files')
     target_list = list()
+    file_list   = list()
     nfiles      = 0
-    for mws_file in iter_mws:
+    for mock_file in iter_mock_files:
         nfiles += 1
 
         # Filter on bricknames
         if brickname_list is not None:
-            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mws_file,prefix=mock_mws_prefix)
+            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mock_file,prefix=mock_mws_prefix)
             if not brickname_of_target in brickname_list:
                 continue
         
-        # print(mws_file) # Don't necessarily want to do this
-        target_list.append(_load_mock_mws_file(mws_file))
+        # print(mock_file) # Don't necessarily want to do this
+        target_list.append(_load_mock_mws_file(mock_file))
+        file_list.append(mock_file)
 
     print 'Found %d files, read %d after filtering'%(nfiles,len(target_list))
 
     # Concatenate all the dictionaries into a single dictionary
     print('Combining mock files')
     full_data = dict()
-    if len(target_list):
+    if len(target_list) > 0:
         for k in target_list[0].keys():
             full_data[k] = np.empty(0)
             for target_item in target_list:                
                 full_data[k] = np.append(full_data[k] ,target_item[k])
 
-    return full_data
+        # Add file and row number
+        _read_mock_add_file_and_row_number(target_list,full_data)
+    
+    return full_data,file_list
+
+############################################################
+def read_mock_bgs_mxxl_brighttime(root_mock_bgs_mxxl_dir='',mock_prefix='',brickname_list=None):
+    """ Reads and concatenates the brick-style BGS MXXL mock files stored below the root directory.
+
+    Parameters:
+    ----------    
+    mock_mws_dir: :class:`str`
+        Path to all the 'mock_mxxl' files.
+
+    mock_prefix: :class:`str`
+        Start of individual file names.
+
+    brickname_list:
+        Optional list of specific bricknames to read.
+        
+    Returns:
+    -------
+    Dictionary concatenating all the 'mock_mxxl' files with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+        'SDSSr_true': :class: `numpy.ndarray`
+            Apparent magnitudes in SDSS bands, including extinction.
+        'SDSSr_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS bands, including extinction.
+    
+    """
+    # Build iterator of all mock brick files
+    iter_mock_files = desitarget.io.iter_files(root_mock_bgs_mxxl_dir, mock_prefix, ext="fits")
+    
+    # Read each file
+    print('Reading individual mock files')
+    target_list = list()
+    file_list   = list()
+    nfiles      = 0
+    for mock_file in iter_mock_files:
+        nfiles += 1
+
+        # Filter on bricknames
+        if brickname_list is not None:
+            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mock_file,prefix=mock_prefix)
+            if not brickname_of_target in brickname_list:
+                continue
+        
+        # print(mock_file) # Don't necessarily want to do this
+        target_list.append(_load_mock_bgs_mxxl_file(mock_file))
+        file_list.append(mock_file)
+
+    print 'Found %d files, read %d after filtering'%(nfiles,len(target_list))
+
+    # Concatenate all the dictionaries into a single dictionary
+    print('Combining mock files')
+    full_data = dict()
+    if len(target_list) > 0:
+        for k in target_list[0].keys():
+            full_data[k] = np.empty(0)
+            for target_item in target_list:
+                full_data[k] = np.append(full_data[k] ,target_item[k])
+
+        # Add file and row number
+        _read_mock_add_file_and_row_number(target_list,full_data)
+    
+    return full_data,file_list
+
 
 ############################################################
 def read_mock_dark_time(filename, read_z=True):
