@@ -100,7 +100,7 @@ def build_mock_target(mock_dir='', output_dir='',
     print("Properties read from mock: {}".format(data.keys()))
     print("n_items in full catalog: {}".format(n))
 
-    print 'Selection criteria:'
+    print('Selection criteria:')
     for criterion in ['mag_faintest','mag_priority_split','mag_bright']:
         print(" -- {:30s} {}".format(criterion,locals().get(criterion)))
 

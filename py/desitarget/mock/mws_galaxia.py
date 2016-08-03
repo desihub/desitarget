@@ -110,7 +110,7 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
     print("Properties read from mock: {}".format(mws_data.keys()))
     print("n_items in full catalog: {}".format(n))
 
-    print 'Selection criteria:'
+    print('Selection criteria:')
     for criterion in ['mag_faintest','mag_faint_filler','mag_bright']:
         print(" -- {:30s} {}".format(criterion,locals().get(criterion)))
 

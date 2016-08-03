@@ -253,7 +253,7 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_l
         target_list.append(_load_mock_mws_file(mock_file))
         file_list.append(mock_file)
 
-    print 'Found %d files, read %d after filtering'%(nfiles,len(target_list))
+    print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
 
     # Concatenate all the dictionaries into a single dictionary
     print('Combining mock files')
@@ -321,7 +321,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_bgs_mxxl_dir='',mock_prefix='',brick
         target_list.append(_load_mock_bgs_mxxl_file(mock_file))
         file_list.append(mock_file)
 
-    print 'Found %d files, read %d after filtering'%(nfiles,len(target_list))
+    print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
 
     # Concatenate all the dictionaries into a single dictionary
     print('Combining mock files')
