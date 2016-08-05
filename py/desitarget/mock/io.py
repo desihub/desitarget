@@ -14,28 +14,29 @@ import fitsio
 import os, re
 import desitarget.io
 
+MOCK_ENCODE_FILENUM_OFFSET = int(1e9)
+"""
+Used to generate target IDs as combination of input file and row in input
+ile. Sets the maximum number of rows per input file for mocks using this
+scheme to generate target IDs
+"""
+
 ############################################################
 def _load_mock_bgs_mxxl_file(filename):
-    """
-    Reads mock information for MXXL bright time survey galaxies.
+    """ Reads mock information for MXXL bright time survey galaxies.
     
-    Parameters: 
-    ----------
-    filename: :class:`str`
-        Name of a single mock file.
+    Args:
+        filename (str): Name of a single mock file.
     
     Returns:
-    -------
-    Dictionary with the following entries.
+        dict with the following entries (all ndarrays):
 
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'SDSSr_true': :class: `numpy.ndarray`
-            Apparent magnitudes in SDSS r band
+        objid       : Mock object ID
+        brickid     : Mock brick ID
+        RA          : RA positions for the objects in the mock.
+        DEC         : DEC positions for the objects in the mock.
+        Z           : Heliocentric radial velocity divided by the speed of light.
+        SDSSr_true  : Apparent magnitudes in SDSS r band.
     """
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
@@ -143,18 +144,47 @@ def _load_mock_wd100pc_file(filename):
 
 ############################################################
 def _read_mock_add_file_and_row_number(target_list,full_data):
-    """
-    Called from mock reader functions to add row and file number to dict of
-    properties. This modified full_data in place.
+    """Adds row and file number to dict of properties. 
+    
+    Parameters:
+        target_list (list of dicts):
+            Each dict in the list contains data for one file, list is in same
+            order as files are read.
+
+        full_data (dict): 
+            dict returned by any of the mock-reading routines.
+
+    Side effects:
+        Modifies full_data.
     """
     full_data['rownum']  = np.empty(0)
     full_data['filenum'] = np.empty(0)
+
     fiducial_key = target_list[0].keys()[0]
     for ifile,target_item in enumerate(target_list):
         nrows                = len(target_item[fiducial_key])
         full_data['rownum']  = np.append(full_data['rownum'],  np.arange(0,nrows))
         full_data['filenum'] = np.append(full_data['filenum'], np.repeat(ifile,nrows))
     return 
+
+############################################################
+def encode_rownum_filenum(rownum, filenum):
+    """
+    Parameters:
+        rownum (int): Row in input file 
+        filenum (int): File number in input file set
+
+    Return:
+        encoded value(s) (int64 ndarray):
+            MOCK_ENCODE_FILENUM_OFFSET*filenum + rownum
+    """
+    assert(np.shape(rownum) == np.shape(filenum))
+    assert(np.all(rownum < MOCK_ENCODE_FILENUM_OFFSET))
+    assert(np.all(rownum > 0))
+    assert(np.all(filenum > 0))
+
+    encoded_value = MOCK_ENCODE_FILENUM_OFFSET*filenum + rownum
+    return np.asarray(encoded_value,dtype=np.int64)
 
 ############################################################
 def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None):

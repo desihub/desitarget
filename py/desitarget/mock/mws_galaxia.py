@@ -71,10 +71,9 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
                       mag_faintest = 20.0, mag_faint_filler=19.0, mag_bright=15.0, 
                       rand_seed=42,brickname_list=None):
                       
-    """Builds a Target and Truth files from a series of mock files
+    """Builds Target and Truth files from a series of mock files.
     
     Parameters:
-    ----------    
         mock_mws_dir: string
             Root path to a hierarchy of Galaxia mock files in arbitrary bricks
         output_dir: string
@@ -86,7 +85,12 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
         mag_faintest: float
             Lower limit cut in SDSSr observed magnitude. Default = 20.0.
         rand_seed: int
-            seed for random number generator. 
+            seed for random number generator.
+
+    Note:
+        This routine assigns targetIDs that encode the mapping of each row in the
+        target outputfile to a filenumber and row in the set of mock input files.
+        This targetID will be further modified when all target lists are merged.
     """
     np.random.seed(seed=rand_seed)
 
@@ -116,30 +120,26 @@ def build_mock_target(root_mock_mws_dir='', output_dir='',
 
     print("n_items after selection: {}".format(n_selected))
         
-    # targetid  = np.random.randint(2**62, size=n_selected)
-
-    # Targetids are row numbers in original input
-    # targetid  = np.arange(0,n)[ii]
-
-    # Targetids are brick/object combos from original input
-    BRICKID_FACTOR           = 1e10 # Max 10^10 objects per brick
-    combined_brick_object_id = mws_data['brickid'][ii]*BRICKID_FACTOR + mws_data['objid'][ii]
-    targetid                 = np.asarray(combined_brick_object_id,dtype=np.int64)
-
+    # This routine assigns targetIDs that encode the mapping of each row in the
+    # target outputfile to a filenumber and row in the set of mock input files.
+    # This targetID will be further modified when all target lists are merged.
+    targetid = encode_rownum_filenum(mws_data['rownum'][ii],mws_data['filenum'][ii])
+ 
     # Assign random subpriorities for now
-    subprior  = np.random.uniform(0., 1., size=n_selected)
+    subprior = np.random.uniform(0., 1., size=n_selected)
 
     # Assign DESI-standard bricknames
     # CAREFUL: These are not the bricknames used by the input catalog!
     brickname = desispec.brick.brickname(mws_data['RA'][ii], mws_data['DEC'][ii])
 
-    # assign target flags and true types
+    # Assign target flags and true types
     desi_target_pop   = np.zeros(n_selected, dtype='i8')
     bgs_target_pop    = np.zeros(n_selected, dtype='i8') 
     mws_target_pop    = np.zeros(n_selected, dtype='i8')
     mws_target_pop[:] = target_class[ii]
 
-    # APC This is a string? FIXME
+    # Write target class a a string.
+    # FIXME how is this supposed to work for combinations of bitmasks?
     true_type_pop         = np.zeros(n_selected, dtype='S10')
     unique_target_classes = np.unique(target_class[ii])
     for tc in unique_target_classes:
