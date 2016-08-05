@@ -279,7 +279,6 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_l
             if not brickname_of_target in brickname_list:
                 continue
         
-        # print(mock_file) # Don't necessarily want to do this
         target_list.append(_load_mock_mws_file(mock_file))
         file_list.append(mock_file)
 
@@ -353,20 +352,23 @@ def read_mock_bgs_mxxl_brighttime(root_mock_bgs_mxxl_dir='',mock_prefix='',brick
 
     print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
 
-    # Concatenate all the dictionaries into a single dictionary
+    # Concatenate all the dictionaries into a single dictionary, in an order
+    # determined by the file_list passed to np.argsort
+    file_order = np.argsort(file_list)
+
     print('Combining mock files')
     full_data = dict()
     if len(target_list) > 0:
         for k in target_list[0].keys():
             full_data[k] = np.empty(0)
-            for target_item in target_list:
+            for itarget in file_order:
+                target_item  = target_list[itarget]
                 full_data[k] = np.append(full_data[k] ,target_item[k])
 
         # Add file and row number
         _read_mock_add_file_and_row_number(target_list,full_data)
     
-    return full_data,file_list
-
+    return full_data, np.array(file_list)[file_order]
 
 ############################################################
 def read_mock_dark_time(filename, read_z=True):
