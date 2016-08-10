@@ -13,13 +13,23 @@ import numpy as np
 import fitsio
 import os, re
 import desitarget.io
+import desitarget.targets
 
-MOCK_ENCODE_FILENUM_OFFSET = int(1e9)
 """
-Used to generate target IDs as combination of input file and row in input
-ile. Sets the maximum number of rows per input file for mocks using this
-scheme to generate target IDs
+How to distribute 52 user bits of targetid.
+
+Used to generate target IDs as combination of input file and row in input file.
+Sets the maximum number of rows per input file for mocks using this scheme to
+generate target IDs
 """
+# First 32 bits are row
+ENCODE_ROW_END     = 32
+ENCODE_ROW_MASK    = 2**ENCODE_ROW_END - 2**0
+ENCODE_ROW_MAX     = ENCODE_ROW_MASK
+# Next 20 bits are file
+ENCODE_FILE_END    = 52
+ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
+ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
 ############################################################
 def _load_mock_bgs_mxxl_file(filename):
@@ -146,7 +156,8 @@ def _load_mock_wd100pc_file(filename):
 def _read_mock_add_file_and_row_number(target_list,full_data):
     """Adds row and file number to dict of properties. 
     
-    Parameters:
+    Parameters
+    ----------
         target_list (list of dicts):
             Each dict in the list contains data for one file, list is in same
             order as files are read.
@@ -154,49 +165,71 @@ def _read_mock_add_file_and_row_number(target_list,full_data):
         full_data (dict): 
             dict returned by any of the mock-reading routines.
 
-    Side effects:
+    Side effects
+    ------------
         Modifies full_data.
     """
-    full_data['rownum']  = np.empty(0)
-    full_data['filenum'] = np.empty(0)
-
     fiducial_key = target_list[0].keys()[0]
+    all_rownum   = list()
+    all_filenum  = list()
     for ifile,target_item in enumerate(target_list):
-        nrows                = len(target_item[fiducial_key])
-        full_data['rownum']  = np.append(full_data['rownum'],  np.arange(0,nrows))
-        full_data['filenum'] = np.append(full_data['filenum'], np.repeat(ifile,nrows))
+        nrows                = int(len(target_item[fiducial_key]))
+        all_rownum.append(np.arange(0,nrows,dtype=np.int64))
+        all_filenum.append(np.repeat(int(ifile),nrows))
+
+    full_data['rownum']  = np.array(np.concatenate(all_rownum),dtype=np.int64)
+    full_data['filenum'] = np.array(np.concatenate(all_filenum),dtype=np.int64)
     return 
 
 ############################################################
 def encode_rownum_filenum(rownum, filenum):
-    """
+    """Encodes row and file number in 52 packed bits.
+
     Parameters:
         rownum (int): Row in input file 
         filenum (int): File number in input file set
 
     Return:
         encoded value(s) (int64 ndarray):
-            MOCK_ENCODE_FILENUM_OFFSET*filenum + rownum
+            52 packed bits encoding row and file number
     """
     assert(np.shape(rownum) == np.shape(filenum))
-    assert(np.all(rownum < MOCK_ENCODE_FILENUM_OFFSET))
-    assert(np.all(rownum > 0))
-    assert(np.all(filenum > 0))
+    assert(np.all(rownum  >= 0))
+    assert(np.all(rownum  <= int(ENCODE_ROW_MAX)))
+    assert(np.all(filenum >= 0))
+    assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
 
-    encoded_value = MOCK_ENCODE_FILENUM_OFFSET*filenum + rownum
+    # This should be a 64 bit integer.
+    encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum,dtype=np.uint64)
+    
+    # Note return signed
     return np.asarray(encoded_value,dtype=np.int64)
 
 ############################################################
-def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None):
+def decode_rownum_filenum(encoded_values):
+    """Inverts encode_rownum_filenum to obtain row number and file number.
+
+    Parameters:
+        encoded_values(s) (int64 ndarray)
+
+    Return:
+        (filenum, rownum) (int)
+    """
+    filenum = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_FILE_MASK) >> ENCODE_ROW_END
+    rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
+    return rownum,filenum
+
+############################################################
+def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
 
     Parameters:
     ----------    
-    root_mock_wd100pc_dir: :class:`str`
+    root_mock_dir: :class:`str`
         Path to the mock file.
 
-    mock_wd100pc_name: :class:`str`
+    mock_name: :class:`str`
         Optional name of the mock file.
         default: 'mock_wd100pc.fits'
 
@@ -216,9 +249,9 @@ def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None
         'magg': :class: `numpy.ndarray`
             Apparent magnitudes in Gaia G band
     """
-    if mock_wd100pc_name is None:
-        mock_wd100pc_name = 'mock_wd100pc.fits'
-    filename  = os.path.join(root_mock_wd100pc_dir,mock_wd100pc_name)
+    if mock_name is None:
+        mock_name = 'mock_wd100pc.fits'
+    filename  = os.path.join(root_mock_dir,mock_name)
     full_data = _load_mock_wd100pc_file(filename)
 
     # Add file and row number
@@ -232,15 +265,15 @@ def read_mock_wd100pc_brighttime(root_mock_wd100pc_dir='',mock_wd100pc_name=None
     return full_data, file_list
 
 ############################################################
-def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_list=None):
-    """ Reads and concatenates the MWS mock files stored below the root directory.
+def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None):
+    """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
     ----------    
-    mock_mws_dir: :class:`str`
+    root_mock_dir: :class:`str`
         Path to all the 'desi_galfast' files.
 
-    mock_mws_prefix: :class:`str`
+    mock_prefix: :class:`str`
         Start of individual file names.
 
     brickname_list:
@@ -263,7 +296,7 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_l
     
     """
     # Build iterator of all desi_galfast files
-    iter_mock_files = desitarget.io.iter_files(root_mock_mws_dir, mock_mws_prefix, ext="fits")
+    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
     
     # Read each file
     print('Reading individual mock files')
@@ -275,7 +308,7 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_l
 
         # Filter on bricknames
         if brickname_list is not None:
-            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mock_file,prefix=mock_mws_prefix)
+            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mock_file,prefix=mock_prefix)
             if not brickname_of_target in brickname_list:
                 continue
         
@@ -284,27 +317,34 @@ def read_mock_mws_brighttime(root_mock_mws_dir='',mock_mws_prefix='',brickname_l
 
     print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
 
-    # Concatenate all the dictionaries into a single dictionary
+    # Concatenate all the dictionaries into a single dictionary, in an order
+    # determined by np.argsort applied to the base name of each path in
+    # file_list.
+    file_order = np.argsort([os.path.basename(x) for x in file_list])
+
     print('Combining mock files')
     full_data = dict()
     if len(target_list) > 0:
         for k in target_list[0].keys():
-            full_data[k] = np.empty(0)
-            for target_item in target_list:                
-                full_data[k] = np.append(full_data[k] ,target_item[k])
+            print(' -- {}'.format(k))
+            data_list_this_key = list()
+            for itarget in file_order:
+                data_list_this_key.append(target_list[itarget][k])
+            full_data[k] = np.concatenate(data_list_this_key)
 
         # Add file and row number
+        print('Adding file and row number')
         _read_mock_add_file_and_row_number(target_list,full_data)
-    
-    return full_data,file_list
+   
+    return full_data, np.array(file_list)[file_order]
 
 ############################################################
-def read_mock_bgs_mxxl_brighttime(root_mock_bgs_mxxl_dir='',mock_prefix='',brickname_list=None):
+def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None):
     """ Reads and concatenates the brick-style BGS MXXL mock files stored below the root directory.
 
     Parameters:
     ----------    
-    mock_mws_dir: :class:`str`
+    root_mock_dir: :class:`str`
         Path to all the 'mock_mxxl' files.
 
     mock_prefix: :class:`str`
@@ -330,7 +370,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_bgs_mxxl_dir='',mock_prefix='',brick
     
     """
     # Build iterator of all mock brick files
-    iter_mock_files = desitarget.io.iter_files(root_mock_bgs_mxxl_dir, mock_prefix, ext="fits")
+    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
     
     # Read each file
     print('Reading individual mock files')
@@ -353,21 +393,24 @@ def read_mock_bgs_mxxl_brighttime(root_mock_bgs_mxxl_dir='',mock_prefix='',brick
     print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
 
     # Concatenate all the dictionaries into a single dictionary, in an order
-    # determined by the file_list passed to np.argsort
-    file_order = np.argsort(file_list)
+    # determined by np.argsort applied to the base name of each path in
+    # file_list.
+    file_order = np.argsort([os.path.basename(x) for x in file_list])
 
     print('Combining mock files')
     full_data = dict()
     if len(target_list) > 0:
         for k in target_list[0].keys():
-            full_data[k] = np.empty(0)
+            print(' -- {}'.format(k))
+            data_list_this_key = list()
             for itarget in file_order:
-                target_item  = target_list[itarget]
-                full_data[k] = np.append(full_data[k] ,target_item[k])
+                data_list_this_key.append(target_list[itarget][k])
+            full_data[k] = np.concatenate(data_list_this_key)
 
         # Add file and row number
+        print('Adding file and row number')
         _read_mock_add_file_and_row_number(target_list,full_data)
-    
+   
     return full_data, np.array(file_list)[file_order]
 
 ############################################################
