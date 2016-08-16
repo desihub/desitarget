@@ -2,12 +2,19 @@
 desitarget Change Log
 =====================
 
-0.5.0 (unreleased)
+0.5.1 (unreleased)
 ------------------
 
-* Template
-* Move data into Python package to aid pip installs.
-* Support for Travis, Coveralls and ReadTheDocs.
+* No changes yet
+
+0.5.0 (2016-08-16)
+------------------
+
+* Added obscondition and truesubtype to mocks (PR #55; JFR).
+* refactored cut functions to take all fluxes so that they have same call
+  signature (PR #56; JM).
+* Move data into Python package to aid pip installs (PR #47; BAW).
+* Support for Travis, Coveralls and ReadTheDocs (BAW).
 
 
 0.4.0 (2016-07-12)
