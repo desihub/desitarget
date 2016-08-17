@@ -2,10 +2,14 @@
 desitarget Change Log
 =====================
 
-0.5.1 (unreleased)
+0.6.0 (2016-08-17)
 ------------------
 
-* No changes yet
+* Big upgrade for how Tractor Catalogues are loaded to DB. Only the mapping
+  between Catalogue and DB naming is hardcoded. Compatible DR2
+* Python parallelism. Can choose mulprocessing OR mpi4py
+* Unit test script that compares random rows from random Catalogues with 
+  what is in the DB
 
 0.5.0 (2016-08-16)
 ------------------
