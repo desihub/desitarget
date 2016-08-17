@@ -1,0 +1,41 @@
+import psycopg2
+import os
+import numpy as np
+
+def select(cmd,outname,outdir='/project/projectdirs/desi/users/burleigh'):
+    '''use "cmd" to select data, save output to file "outname"'''
+    con= psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
+    cur = con.cursor()
+    # Special psycopg2 function when exporting results of a query 
+    cmd_wrapper = "COPY ({0}) TO STDOUT WITH CSV HEADER".format(cmd)
+    saveto= os.path.join(outdir,outname)
+    if os.path.exists(saveto): os.remove(saveto)
+    with open(saveto, 'w') as f:
+        cur.copy_expert(cmd_wrapper, f)
+    # Logout
+    con.close()
+
+def read_from_psql_file(fn,use_cols=range(14),str_cols=['type']):
+    '''return data dict for DECaLS()
+    fn -- file name of psql db txt file
+    use_cols -- list of column indices to get, first column is 0
+    str_cols -- list of column names that should have type str not float'''
+    #get column names
+    fin=open(fn,'r')
+    cols=fin.readline()
+    fin.close()
+    cols= np.char.strip( np.array(cols.split('|'))[use_cols] )
+    #get data
+    arr=np.loadtxt(fn,dtype='str',comments='(',delimiter='|',skiprows=2,usecols=use_cols)
+    data={}
+    for i,col in enumerate(cols):
+        if col in str_cols: data[col]= np.char.strip( arr[:,i].astype(str) )
+        else: data[col]= arr[:,i].astype(float)
+    return data
+
+def read_psql_csv(fn):
+    lines=np.loadtxt(fn,delimiter=',',dtype=str)
+    d={}
+    for key,val in zip(a[0],a[1]):
+        d[key]=val
+    return d

@@ -1,0 +1,50 @@
+--q3c index tables with ra,dec
+--decam
+CREATE INDEX q3c_decam_cand_idx ON decam_cand (q3c_ang2ipix(ra, dec));
+CLUSTER q3c_decam_cand_idx ON decam_cand;
+ANALYZE decam_cand;
+--bok_mzls
+CREATE INDEX q3c_bok_mzls_cand_idx ON bok_mzls_cand (q3c_ang2ipix(ra, dec));
+CLUSTER q3c_bok_mzls_cand_idx ON bok_mzls_cand;
+ANALYZE bok_mzls_cand;
+--matching
+--decam near bok_mzls 
+create table lookup_decam ( decam integer, matching_bok_mzls integer default -1, nrep integer default -1);
+insert into lookup_decam (decam) select id from decam_cand order by id;
+update lookup_decam set matching_bok_mzls=bok_mzls_cand.id from decam_cand, bok_mzls_cand where lookup_decam.decam=decam_cand.id and q3c_join(decam_cand.ra,decam_cand.dec,bok_mzls_cand.ra,bok_mzls_cand.dec,0.000278);
+create table cnt ( matching_bok_mzls integer, nrep integer);
+insert into cnt (matching_bok_mzls,nrep) select matching_bok_mzls,count(*) from lookup_decam where matching_bok_mzls > -1 group by matching_bok_mzls order by count(*) desc;
+update lookup_decam set nrep=cnt.nrep from cnt where lookup_decam.matching_bok_mzls=cnt.matching_bok_mzls;
+drop table cnt;
+--decam near bok_mzls 
+create table lookup_bok_mzls ( bok_mzls integer, matching_decam integer default -1, nrep integer default -1);
+insert into lookup_bok_mzls (bok_mzls) select id from bok_mzls_cand order by id;
+update lookup_bok_mzls set matching_decam=decam_cand.id from decam_cand, bok_mzls_cand where lookup_bok_mzls.bok_mzls=bok_mzls_cand.id and q3c_join(bok_mzls_cand.ra,bok_mzls_cand.dec,decam_cand.ra,decam_cand.dec,0.000278);
+create table cnt ( matching_decam integer, nrep integer);
+insert into cnt (matching_decam,nrep) select matching_decam,count(*) from lookup_bok_mzls where matching_decam > -1 group by matching_decam order by count(*) desc;
+update lookup_bok_mzls set nrep=cnt.nrep from cnt where lookup_bok_mzls.matching_decam=cnt.matching_decam;
+drop table cnt;
+--query data
+--bok_mzls sources that fall in 1'' of decam
+\o decam_with_matching_bokmos.txt
+select decam_cand.ra,decam_cand.dec,decam_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext, bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,d.gflux,d.rflux,d.zflux,d.gflux_ivar,d.rflux_ivar,d.zflux_ivar,d.g_ext,d.r_ext,d.z_ext,d_wise.w1flux,d_wise.w1flux_ivar,d_wise.w1_ext from lookup_decam join decam_cand on decam_cand.id=lookup_decam.decam join decam_decam as b on b.cand_id=lookup_decam.decam join decam_wise as b_wise on b_wise.cand_id=lookup_decam.decam  join bok_mzls_cand on bok_mzls_cand.id=lookup_decam.matching_bok_mzls join bok_mzls_decam as d on d.cand_id=lookup_decam.matching_bok_mzls join bok_mzls_wise as d_wise on d_wise.cand_id=lookup_decam.matching_bok_mzls where lookup_decam.nrep=1;
+\o
+--decam sources that fall in 1'' of bok_mzls
+\o bokmos_with_matching_decam.txt
+select bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext, decam_cand.ra,decam_cand.dec,decam_cand.type,d.gflux,d.rflux,d.zflux,d.gflux_ivar,d.rflux_ivar,d.zflux_ivar,d.g_ext,d.r_ext,d.z_ext,d_wise.w1flux,d_wise.w1flux_ivar,d_wise.w1_ext from lookup_bok_mzls join bok_mzls_cand on bok_mzls_cand.id=lookup_bok_mzls.bok_mzls join bok_mzls_decam as b on b.cand_id=lookup_bok_mzls.bok_mzls join bok_mzls_wise as b_wise on b_wise.cand_id=lookup_bok_mzls.bok_mzls  join decam_cand on decam_cand.id=lookup_bok_mzls.matching_decam join decam_decam as d on d.cand_id=lookup_bok_mzls.matching_decam join decam_wise as d_wise on d_wise.cand_id=lookup_bok_mzls.matching_decam where lookup_bok_mzls.nrep=1;
+\o
+--unmatched sources
+--decam without match in bokmos
+\o decam_wout_match_in_bokmos.txt
+select decam_cand.ra,decam_cand.dec,decam_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext from lookup_decam join decam_cand on decam_cand.id=lookup_decam.decam join decam_decam as b on b.cand_id=lookup_decam.decam join decam_wise as b_wise on b_wise.cand_id=lookup_decam.decam where lookup_decam.nrep<0;
+\o
+--bokmos without match in decam
+\o bokmos_wout_match_in_decam.txt
+select bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext from lookup_bok_mzls join bok_mzls_cand on bok_mzls_cand.id=lookup_bok_mzls.bok_mzls join bok_mzls_decam as b on b.cand_id=lookup_bok_mzls.bok_mzls join bok_mzls_wise as b_wise on b_wise.cand_id=lookup_bok_mzls.bok_mzls where lookup_bok_mzls.nrep<0;
+\o
+\o bokmos_all.txt
+select bok_mzls_cand.ra,bok_mzls_cand.dec,bok_mzls_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext from bok_mzls_cand join bok_mzls_decam as b on b.cand_id=bok_mzls_cand.id join bok_mzls_wise as b_wise on b_wise.cand_id=bok_mzls_cand.id;
+\o
+\o decam_all.txt
+select decam_cand.ra,decam_cand.dec,decam_cand.type,b.gflux,b.rflux,b.zflux,b.gflux_ivar,b.rflux_ivar,b.zflux_ivar,b.g_ext,b.r_ext,b.z_ext,b_wise.w1flux,b_wise.w1flux_ivar,b_wise.w1_ext from decam_cand join decam_decam as b on b.cand_id=decam_cand.id join decam_wise as b_wise on b_wise.cand_id=decam_cand.id;
+\o
