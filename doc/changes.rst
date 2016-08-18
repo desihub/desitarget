@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.6.1 (unreleased)
+0.6.2 (unreleased)
+------------------
+
+* No changes yet
+
+0.6.1 (2016-08-18
 ------------------
 
 * PR#59: fix LRG selection (z < 20.46 not 22.46)
