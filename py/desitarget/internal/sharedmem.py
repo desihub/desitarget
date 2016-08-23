@@ -118,7 +118,10 @@ __all__ = ['set_debug', 'get_debug',
 import os
 import multiprocessing
 import threading
-import queue
+try:
+    import Queue as queue
+except ImportError:
+    import queue
 
 from collections import deque
 import traceback
