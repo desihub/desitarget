@@ -1,4 +1,3 @@
-from __future__ import absolute_import, division, print_function
 import warnings
 from time import time
 import os.path
@@ -295,13 +294,13 @@ def apply_cuts(objects):
     See desitarget.targetmask for the definition of each bit
     """
     #- Check if objects is a filename instead of the actual data
-    if isinstance(objects, (str, unicode)):
+    if isinstance(objects, str):
         from desitarget import io
         objects = io.read_tractor(objects)
     
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
-        for col in objects.columns.itervalues():
+        for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
@@ -402,7 +401,7 @@ def select_targets(infiles, numproc=4, verbose=False):
         if numproc==1, use serial code instead of parallel
     """
     #- Convert single file to list of files
-    if isinstance(infiles, (str, unicode)):
+    if isinstance(infiles,str):
         infiles = [infiles,]
 
     #- Sanity check that files exist before going further
@@ -442,7 +441,7 @@ def select_targets(infiles, numproc=4, verbose=False):
             that occurs on the main parallel process '''
         if verbose and nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            print('{} files; {:.1f} files/sec'.format(nbrick, rate))
+            print(('{} files; {:.1f} files/sec'.format(nbrick, rate)))
 
         nbrick[...] += 1    # this is an in-place modification
         return result

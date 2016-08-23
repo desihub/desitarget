@@ -118,10 +118,7 @@ __all__ = ['set_debug', 'get_debug',
 import os
 import multiprocessing
 import threading
-try:
-    import Queue as queue
-except ImportError:
-    import queue
+import queue
 
 from collections import deque
 import traceback
@@ -130,11 +127,7 @@ import gc
 import threading
 import heapq
 import os
-
-try:
-    import cPickle as pickle
-except ImportError:
-    import pickle
+import pickle
 
 import numpy
 from multiprocessing import RawArray

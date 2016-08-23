@@ -20,8 +20,8 @@ def read_schema_table(fn,cand=False):
     return np.char.replace(a,',','')
         
 def read_decam_tables(table_dir='/project/projectdirs/desi/users/burleigh'):
-    print "reading tables from %s" % table_dir
-    print "reading %s" % os.path.join(table_dir,'decam_table_cand')
+    print(("reading tables from %s" % table_dir))
+    print(("reading %s" % os.path.join(table_dir,'decam_table_cand')))
     cand=read_schema_table(os.path.join(table_dir,'decam_table_cand'),cand=True)
     flux=read_schema_table(os.path.join(table_dir,'decam_table_flux'))
     aper=read_schema_table(os.path.join(table_dir,'decam_table_aper'))
@@ -36,7 +36,7 @@ def name2type(var, psql_type):
     elif psql_type == 'boolean': return bool(var)
     elif psql_type == 'text': return str(var)
     else:
-        print "psql_type=%s,NOT supported, crash" % psql_type
+        print(("psql_type=%s,NOT supported, crash" % psql_type))
         sys.exit()
 
 
@@ -51,8 +51,8 @@ def diff_rows(trac_at,db_dict):
     trac_i= [None]*2 + [1,2,4]
     # Difference
     for db_key,typ,trac_key,i in zip(db_keys,dtypes,trac_keys,trac_i):
-        print 'db key,val=',db_key, usetype(db_dict[db_key]), \
-              'trac key,i,val=', trac_key,i,trac_at[trac_key][i]
+        print(('db key,val=',db_key, usetype(db_dict[db_key]), \
+              'trac key,i,val=', trac_key,i,trac_at[trac_key][i]))
 
 parser = argparse.ArgumentParser(description="test")
 parser.add_argument("--list_of_cats",action="store",help='list of tractor cats',default='dr3_cats_qso.txt',required=True)
@@ -83,7 +83,7 @@ for fn in fits_files:
         brickname= '%s' % t[row]['brickname']
         objid= '%d' % t[row]['objid']
         cmd="select * from decam_table_cand as c JOIN decam_table_flux as f ON f.cand_id=c.id JOIN decam_table_aper as a ON a.cand_id=c.id JOIN decam_table_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%s" % (brickname,objid) 
-        print "selecting row %d from db with cmd:\n%s\n" % (row,cmd) #and saving output as %s" % \
+        print(("selecting row %d from db with cmd:\n%s\n" % (row,cmd))) #and saving output as %s" % \
         #cmd="select "
         #for db_key in db_keys: cmd+= "%s " % db_key
         #cmd+= "from decam_table_cand as c JOIN decam_table_flux as f ON f.cand_id=c.id JOIN decam_table_aper as a ON a.cand_id=c.id JOIN decam_table_wise as w ON w.cand_id=c.id WHERE c.brickname like '%s' and c.objid=%s" % (brickname,objid) 
@@ -103,10 +103,10 @@ for fn in fits_files:
             db_vals[db_key]= name2type(val, db_type)
             #print "db_type=%s,db_key=%s,db_vals[db_key]=%s,val=%s" % (db_type,db_key,str(db_vals[db_key]),str(val))
         ####### Final check
-        print "FINAL comparison"
+        print("FINAL comparison")
         # Decam table
         for db_key,trac_key,trac_i in zip(*dbload.decam_table_keys()):
-            print "trac_key=%s, trac_cat=%s, db=%s" % (trac_key,str(t[row][trac_key][trac_i]),str(db_vals[db_key]))
+            print(("trac_key=%s, trac_cat=%s, db=%s" % (trac_key,str(t[row][trac_key][trac_i]),str(db_vals[db_key]))))
         # Aperature table
         #for db_key,trac_key,trac_i,ap_i in zip(*dbload.aper_table_keys()):
         #    aper[db_key]= tractor[trac_key][:,trac_i,ap_i].data
@@ -131,4 +131,4 @@ for fn in fits_files:
 #print 'db=',db
 #diff_rows(t[row],db)
     
-print 'done'
+print('done')
