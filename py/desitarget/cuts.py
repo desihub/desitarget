@@ -144,7 +144,10 @@ def psflike(psftype):
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #- this could be fixed in the IO routine too.
     psftype = np.asarray(psftype)
-    psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
+    #ADM in Python3 these string literals become byte-like
+    #ADM still ultimately better to fix in IO, I'd think
+    #psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
+    psflike = ((psftype == 'PSF') | (psftype == 'PSF ') |(psftype == b'PSF') | (psftype == b'PSF '))
     return psflike
 
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
@@ -441,7 +444,7 @@ def select_targets(infiles, numproc=4, verbose=False):
             that occurs on the main parallel process '''
         if verbose and nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            print(('{} files; {:.1f} files/sec'.format(nbrick, rate)))
+            print('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result

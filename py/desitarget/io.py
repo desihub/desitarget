@@ -104,7 +104,7 @@ def write_targets(filename, data, indir=None):
     hdr['DEPNAM00'] = 'desitarget'
     hdr.add_record(dict(name='DEPVER00', value=desitarget_version, comment='desitarget version'))
     hdr['DEPNAM01'] = 'desitarget-git'
-    hdr.add_record(dict(name='DEPVER01', value=gitversion(), comment='git revision'))
+    hdr.add_record(dict(name='DEPVER01', value=gitversion().decode('utf-8'), comment='git revision'))
 
     if indir is not None:
         hdr['DEPNAM02'] = 'tractor-files'

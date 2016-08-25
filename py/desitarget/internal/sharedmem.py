@@ -116,12 +116,15 @@ __all__ = ['set_debug', 'get_debug',
         ]
 
 import os
+import sys
 import multiprocessing
 import threading
-try:
-    import Queue as queue
-except ImportError:
+
+if sys.version_info.major == 3:
     import queue
+elif sys.version_info.major == 2:
+    import Queue as queue
+
 
 from collections import deque
 import traceback

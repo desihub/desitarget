@@ -11,7 +11,7 @@ with open(_filepath) as fx:
 
 #- priorities are defined in the yaml file, but they aren't a bitmask
 #- and they require some extra processing
-for maskname, priorities in list(_bitdefs['priorities'].items()):
+for maskname, priorities in _bitdefs['priorities'].items():
     for bitname in priorities:
         #- "SAME_AS_XXX" enables one bit to inherit priorities from another
         if isinstance(priorities[bitname], str) and \

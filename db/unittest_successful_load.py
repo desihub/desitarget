@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser(description="test")
 parser.add_argument("--tractor_catalog",action="store",help='fits table',default='/project/projectdirs/desiproc/dr2/tractor/000/tractor-0006p035.fits',required=False)
 args = parser.parse_args()
 
-print(("args.tractor_catalog= ",args.tractor_catalog))
+print("args.tractor_catalog= ",args.tractor_catalog)
 
 fitsbin = args.tractor_catalog
 table = fits.open( fitsbin )
@@ -38,10 +38,10 @@ sql['decam']= output(cur,"SELECT gnobs,gflux,rflux,zflux from dr2.decam where ca
 sql['decam_aper']= output(cur,"SELECT gapflux_1,rapflux_1,zapflux_1,zapflux_8 from dr2.decam_aper where cand_id=884")
 sql['wise']= output(cur,"SELECT w1flux,w2flux,w3flux,w4flux,w4flux_ivar from dr2.wise where cand_id=884")
 
-for key in list(ans.keys()):
-    print(('----',key.upper(),'----'))
-    print(('tractor cat: ',ans[key]))
-    print(('postgres   : ',sql[key][0]))
+for key in ans:
+    print('----',key.upper(),'----')
+    print('tractor cat: ',ans[key])
+    print('postgres   : ',sql[key][0])
 
 # Nothing should be commited to the db since this is a test, so
 # LEAVE THE FOLLOWING COMMENTED OUT: 
