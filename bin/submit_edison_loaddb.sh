@@ -21,7 +21,7 @@ echo "SLURM_JOBID="$SLURM_JOBID >> ${sanity}
 export OMP_NUM_THREADS=24
 echo cores=${OMP_NUM_THREADS}
 date
-srun -n 1 -c ${OMP_NUM_THREADS} python tractor_load.py --cores ${OMP_NUM_THREADS} --list_of_cats remaining_dr3_cats.out --schema dr3 --load_db
+srun -n 1 -c ${OMP_NUM_THREADS} python tractor_load.py --cores ${OMP_NUM_THREADS} --list_of_cats remaining_cats.txt --schema dr3 --load_db
 date
 
 ##serial
