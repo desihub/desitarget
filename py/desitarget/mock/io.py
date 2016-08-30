@@ -260,9 +260,10 @@ def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
     full_data['rownum']  = np.arange(0,nrows)
     full_data['filenum'] = np.zeros(nrows,dtype=np.int)
 
-    file_list = [filename]
+    # Source list is trivial in the case of a single file.
+    sources = [(filename, nrows)]
 
-    return full_data, file_list
+    return full_data, sources
 
 ############################################################
 def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None):
@@ -312,7 +313,8 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
             if not brickname_of_target in brickname_list:
                 continue
         
-        target_list.append(_load_mock_mws_file(mock_file))
+        data_this_file = _load_mock_mws_file(mock_file)
+        target_list.append(data_this_file)
         file_list.append(mock_file)
 
     print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
@@ -323,7 +325,8 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     file_order = np.argsort([os.path.basename(x) for x in file_list])
 
     print('Combining mock files')
-    full_data = dict()
+    n_per_file  = list()
+    full_data   = dict()
     if len(target_list) > 0:
         for k in target_list[0].keys():
             print(' -- {}'.format(k))
@@ -335,8 +338,17 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
         # Add file and row number
         print('Adding file and row number')
         _read_mock_add_file_and_row_number(target_list,full_data)
-   
-    return full_data, np.array(file_list)[file_order]
+        
+        # Count number per file
+        k          = target_list[0].keys()[0]
+        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
+  
+    # Return source list as ordered list of (file, n_row) tuples
+    sources = list()
+    for ifile in file_order:
+        sources.append((file_list[ifile],n_per_file[ifile]))
+
+    return full_data, sources
 
 ############################################################
 def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None):
@@ -386,8 +398,9 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
             if not brickname_of_target in brickname_list:
                 continue
         
-        # print(mock_file) # Don't necessarily want to do this
-        target_list.append(_load_mock_bgs_mxxl_file(mock_file))
+        # print(mock_file)
+        data_this_file = _load_mock_bgs_mxxl_file(mock_file)
+        target_list.append(data_this_file)
         file_list.append(mock_file)
 
     print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
@@ -398,7 +411,8 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
     file_order = np.argsort([os.path.basename(x) for x in file_list])
 
     print('Combining mock files')
-    full_data = dict()
+    full_data   = dict()
+    n_per_file  = list()
     if len(target_list) > 0:
         for k in target_list[0].keys():
             print(' -- {}'.format(k))
@@ -410,8 +424,17 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
         # Add file and row number
         print('Adding file and row number')
         _read_mock_add_file_and_row_number(target_list,full_data)
-   
-    return full_data, np.array(file_list)[file_order]
+  
+        # Count number per file
+        k          = target_list[0].keys()[0]
+        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
+  
+    # Return source list as ordered list of (file, n_row) tuples
+    sources = list()
+    for ifile in file_order:
+        sources.append((file_list[ifile],n_per_file[ifile]))
+
+    return full_data, sources
 
 ############################################################
 def read_mock_dark_time(filename, read_z=True):
