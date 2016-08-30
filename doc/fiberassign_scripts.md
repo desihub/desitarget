@@ -2,6 +2,8 @@ Scripts to help with running fiberassign on mock catalogs
 =========================================================
 (n.b. summary of jargon at end)
 
+Rough notes, also see example files in docs/fiberassign_examples.
+
 Basic idea
 ----------
 
@@ -57,33 +59,33 @@ each stage.
 
 1. *Set up the run.*
 
-- Create `$FA_RUN_DIR`
-- Create an `fa_run.yaml` file in `$FA_RUN_DIR`
-- Make sure the subdirectories specified in `fa_run.yaml` exist.
-  (`./bin/setup_fa_run_dir.py` does this)
+    - Create `$FA_RUN_DIR`
+    - Create an `fa_run.yaml` file in `$FA_RUN_DIR`
+    - Edit `sources` in `fa_run.yaml` to point to the mocks and set the selection parameters.
+    - Make sure the subdirectories specified in `fa_run.yaml` exist. (`./bin/setup_fa_run_dir.py` does this)
 
 2. *Read the mocks, select targets and make and MTL file.*
 
-- `./bin/mocks_to_fa_input $FA_RUN_DIR`
+    - `./bin/mocks_to_fa_input $FA_RUN_DIR`
 
-This creates files under `$FA_RUN_DIR/$TARGET_DIR`, including the MTL and truth.
-Uses modules in desitarget.mock to read and target-select each mock.
+    This creates files under `$FA_RUN_DIR/$TARGET_DIR`, including the MTL and truth.
+    Uses modules in desitarget.mock to read and target-select each mock.
 
 3. *Run `fiberassign`.*
 
-How this is done is up to you. Requires a features file.  
+    How this is done is up to you. Requires a features file.  
 
 4. *Create a description of the fiber assignment row-matched to the mocks.*
 
-- `./bin/fa_output_to_mocks $FA_RUN_DIR`
+    - `./bin/fa_output_to_mocks $FA_RUN_DIR`
 
-This step is optional. The normal survey simulation pipeline will carry on
-independently from stage 3 by making a redshift catalog etc.
-
-The objective is to understand the target selection and
-fiber assignment in terms of the original mock. The approach is to create tables
-in which assigned targets are partitioned and orderd in the same way as they are
-in the original mock files, with unassigned targets interleaved as 'null' rows.
+    This step is optional. The normal survey simulation pipeline will carry on 
+    independently from stage 3 by making a redshift catalog etc.
+ 
+    The objective is to understand the target selection and
+    fiber assignment in terms of the original mock. The approach is to create tables
+    in which assigned targets are partitioned and orderd in the same way as they are
+    in the original mock files, with unassigned targets interleaved as 'null' rows.
 
 Assumptions
 -----------
