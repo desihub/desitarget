@@ -5,8 +5,8 @@ from .targetmask import desi_mask, obsmask
 from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
 
 ############################################################
-def make_mtl(targets, zcat=None, trim=True, truth=None):
-    """Adds NUMOBS, PRIORITY, and GRAYLAYER columns to a targets table.
+def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
+    """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
     ----------
@@ -18,15 +18,19 @@ def make_mtl(targets, zcat=None, trim=True, truth=None):
     trim : :class:`bool`, optional
         If ``True`` (default), don't include targets that don't need
         any more observations.  If ``False``, include every input target.
-
+    truth: optional
+        Truth table
+    truth_meta : :class:`dict`,optional
+        Dictionary to add as metadata to the truth table.
+    
     Returns
     -------
     :class:`~astropy.table.Table`
         MTL Table with targets columns plus
 
-        * NUMOBS_MORE - number of additional observations requested
-        * PRIORITY    - target priority (larger number = higher priority)
-        * GRAYLAYER   - can this be observed during gray time?
+        * NUMOBS_MORE    - number of additional observations requested
+        * PRIORITY       - target priority (larger number = higher priority)
+        * OBSCONDITIONS  - replaces old GRAYLAYER
 
     Notes
     -----
@@ -77,13 +81,17 @@ def make_mtl(targets, zcat=None, trim=True, truth=None):
     # FIXME (APC): special-case fixes and use of GRAYLAYER seem awkward here.
     #              Will replace this with calc_obsconditions?
 
-    # ELGs can be observed during gray time
-    graylayer        = np.zeros(n, dtype='i4')
-    iselg            = (mtl['DESI_TARGET'] & desi_mask.ELG) != 0
-    graylayer[iselg] = 1
-    mtl['GRAYLAYER'] = graylayer
+    mtl['OBSCONDITIONS'] = np.ones(n,dtype='i4')
 
-    # Filter out any targets marked as done
+    # ELGs can be observed during gray time
+    #graylayer        = np.zeros(n, dtype='i4')
+    #iselg            = (mtl['DESI_TARGET'] & desi_mask.ELG) != 0
+    #graylayer[iselg] = 1
+    #mtl['GRAYLAYER'] = graylayer
+
+    # Filter out any targets marked as done.
+    # APC: vital for the logic that comes later that this filtering preserves
+    # the input order.
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
         print('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
@@ -105,15 +113,23 @@ def make_mtl(targets, zcat=None, trim=True, truth=None):
 
     # mtl['TARGETID'] = encode_mtl_targetid(mtl)
     # Not ideal, just use row number for fast inverse from tile maps, and unpack
-    # back to original targetids when making the catalog. Could also dump the
-    # original or 'souped up' target id in the truth table.
+    # back to original targetids when making the catalog. 
 
+    # Dump the *original* target id in the truth table alongside the targetid
+    # assigned by this routine below.
+    if truth is not None: 
+        mtl_truth['ORIGINAL_TARGETID'] = ztargets['TARGETID']
+
+    # Compute a new targetid
     mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
 
     if truth is not None:
+        # Store the new targetid in truth
         mtl_truth['TARGETID'] = mtl['TARGETID']
 
-    if truth is None:
-        return mtl
-    else:
+        # Propagate any additional data passed for the truth header.
+        if truth_meta is not None:
+            truth.meta.update(truth_meta)
         return mtl, mtl_truth
+    else:
+        return mtl
