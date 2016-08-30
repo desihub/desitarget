@@ -28,6 +28,21 @@ which lives in `$FA_RUN_DIR`. This is a YAML file.
 `target_dir = $TARGET_DIR`
 	Location for the MTL file and intermediate files used to create it.
 
+`target_mtl_name, truth_name`
+	Names for the MTL and truth files.
+
+`fa_output_dir`
+	Directory where FA writes fiber maps (set in features).
+
+`catalog_dir`
+	Directory where FA results are re-written in MTL and mock order.
+
+`catalog_name`
+	Name for the file in which FA results are written in MTL order.
+
+`features`
+	Path to the features file used for FA.
+
 `sources`
 	A dict. Each key corresponds the exact name of a module under
 	desitarget.mock that can read and select targets from a particular mock via a
