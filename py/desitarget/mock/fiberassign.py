@@ -255,7 +255,7 @@ def make_catalogs_for_source_files(fa_output_dir,
     if reset or not(os.path.exists(catalog_path)):
         print('Gathering fiber maps to MTL order...')
         t = reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,catalog_path,tilefile=tilefile)
-        t.write(catalog_path)
+        t.write(catalog_path,overwrite=True)
     else:
         print('Reading fiber map in MTL order...')
         t = Table.read(catalog_path)
@@ -483,7 +483,9 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
     t = Table()
     t.add_column(Column(np.repeat(-1,nrows_mtl),  dtype=np.int64, name='TARGETID')) 
     
+    # FIXME relies on TARGETID being an index
     # Assume we can use targetid as an index
+    print('reduce_fiber_maps_to_mtl(): WARNING: ASSUMING TARGETID IN FIBER MAP IS MTL ROWNUMBER')
     row_in_input = fa_output['TARGETID']
 
     # Copy data for assigned targets. This would be trivial if targets were
@@ -496,10 +498,13 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
     
     # Copy primary rows for the potential targetid list. Beware that this list
     # still contains non-science targets that originate outside the target MTL.
-    potential_row_in_input = fa_potential['POTENTIALTARGETID']
-    is_row_in_mtl          = np.where(potential_row_in_input < nrows_mtl)[0] # HACK FIXME relies on TARGETID being an index
+    # FIXME relies on TARGETID being an index to filter these out
+    print('reduce_fiber_maps_to_mtl(): WARNING: ASSUMING TARGETID IN FIBER MAP IS MTL ROWNUMBER')
+    potential_row_in_input = fa_potential['POTENTIALTARGETID']    
+    is_row_in_mtl          = np.where(potential_row_in_input < nrows_mtl)[0] 
     unique_potential_rows, potential_primary_row, npotential_primary = np.unique(potential_row_in_input[is_row_in_mtl],
                                                                                  return_index=True,return_counts=True)
+
     # Many targets will be in the possible list but not the assigned list, so
     # need to set their target numbers. Do this only for potential targets that
     # orginate from the mtl.
@@ -547,15 +552,26 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
         t[colname][row_in_input[primary_row[tiles_this_pass]]] = fa_output['NUMTARGET'][primary_row[tiles_this_pass]]
 
         # Which potential targets have tiles in this pass?
-        tiles_potential_this_pass = np.where(fa_potential['PASS'][is_row_in_mtl[potential_primary_row]] == ipass)[0]
+        # Don't just use primary rows for this, since the primary row will only
+        # be assocaited with one pass. We want the duplicates on other passes.
+        # tiles_potential_this_pass = np.where(fa_potential['PASS'][is_row_in_mtl[potential_primary_row]] == ipass)[0]
+        tiles_potential_this_pass = np.where(fa_potential['PASS'][is_row_in_mtl] == ipass)[0]
         assert(len(tiles_potential_this_pass) > 0)
 
         # Store tile if target was considered on corresponding pass or -1 if
         # not considered. Many fibres can consider the same target.
         colname = 'TILEID_POSSIBLE_P{:d}'.format(ipass)
-        tileid_potential_this_pass = fa_potential['TILEID'][potential_primary_row[tiles_potential_this_pass]]
+        #tileid_potential_this_pass = fa_potential['TILEID'][is_row_in_mtl[potential_primary_row[tiles_potential_this_pass]]]
+        tileid_potential_this_pass = fa_potential['TILEID'][is_row_in_mtl[tiles_potential_this_pass]]
         t.add_column(Column(np.zeros(len(t),dtype=np.int32)-1,name=colname))
-        t[colname][potential_row_in_input[is_row_in_mtl[potential_primary_row[tiles_potential_this_pass]]]] = tileid_potential_this_pass
+        t[colname][potential_row_in_input[is_row_in_mtl[tiles_potential_this_pass]]] = tileid_potential_this_pass
+
+        # Any target assigned on this pass should be a potenital target in this
+        # pass.
+        is_assigned_this_pass  = t['TILEID_P{:d}'.format(ipass)][row_in_input[primary_row[tiles_this_pass]]]  >= 0
+        is_potential_this_pass = t['TILEID_POSSIBLE_P{:d}'.format(ipass)][row_in_input[primary_row[tiles_this_pass]]]  >= 0
+        if np.any(is_assigned_this_pass & (~is_potential_this_pass)):
+            raise Exception('Targets are assigned but not possible!')
 
         # Not implemented yet
         # NFIBSCANREACH   Number of fibres that could have assigned each target on this pass
