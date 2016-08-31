@@ -62,7 +62,7 @@ if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument('fa_run_dir')
-    parser.add_argument('--reset','-r',default=False,type=bool)
+    parser.add_argument('--reset','-r',action='store_true')
     parser.add_argument('--config','-c',default='fa_run.yaml')
     args = parser.parse_args()
 
