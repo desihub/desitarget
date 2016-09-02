@@ -65,6 +65,6 @@ for i, f in enumerate(newdata):
 #
 
 con.commit()
-print 'done'
+print('done')
 # That's it!
 

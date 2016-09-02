@@ -18,7 +18,7 @@ class TestMTL(unittest.TestCase):
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
-        self.targets['TARGETID'] = range(n)
+        self.targets['TARGETID'] = list(range(n))
         
         #- reverse the order for zcat to make sure joins work
         self.zcat = Table()

@@ -14,7 +14,7 @@ import traceback
 from subprocess import check_output
 
 def print_flush(words):
-    print words
+    print(words)
     sys.stdout.flush()
 
 def read_lines(fn):
@@ -38,21 +38,21 @@ def write_index_cluster_files(schema,table=None):
     outname= '%s_index' % table
     rem_if_exists(outname)
     fin=open(outname,'w')
-    for key in indexes.keys(): 
+    for key in indexes: 
         for coln in indexes[key]: 
             if coln == 'radec': fin.write('CREATE INDEX q3c_%s_idx ON %s (q3c_ang2ipix(ra, dec));\n' % (key,key))
             else: fin.write('CREATE INDEX %s_%s_idx ON %s (%s);\n' % (key,coln,key,coln)) 
     fin.close()   
-    print "wrote index file: %s " % outname 
+    print("wrote index file: %s " % outname)
     # Write cluster
     outname= '%s_cluster' % table
     rem_if_exists(outname)
     fin=open(outname,'w')
-    for key in indexes.keys():
+    for key in indexes:
         if 'radec' in indexes[key]:
             fin.write('CLUSTER q3c_%s_idx ON %s;\n' % (key,key))
             fin.write('ANALYZE %s;\n' % key)
-    print "wrote cluster file: %s " % outname 
+    print("wrote cluster file: %s " % outname)
 
 
 def write_schema(schema,table_name,keys,sql_dtype,addrows=[]):
@@ -107,7 +107,7 @@ def replace_key(data,newkey,oldkey):
 
 def get_sql_dtype(data):
     sql_dtype={}
-    for key in data.keys():
+    for key in data:
         if key.startswith('RA') or key.startswith('ra') or key.startswith('DEC') or key.startswith('dec'): sql_dtype[key]= 'double precision' 
         elif np.issubdtype(data[key].dtype, str): sql_dtype[key]= 'text' 
         elif np.issubdtype(data[key].dtype, int): sql_dtype[key]= 'integer'
@@ -284,7 +284,7 @@ def cand_default_keys(all_keys):
     rm_keys+= cand_keys_yield_arrays() 
     for key in rm_keys:
         try: trac_keys.remove(key)
-        except ValueError: print "WARNING: key=%s not in tractor catalogue" % key
+        except ValueError: print("WARNING: key=%s not in tractor catalogue" % key)
     # Fill in
     trac= trac_keys
     db= trac_keys
@@ -371,10 +371,10 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
                     get_sql_dtype(wise)]
         # Schema
         tables=[table+'_table_'+name for name in ['cand','flux','aper','wise']]
-        keys=[cand.keys(),\
-              decam.keys(),\
-              aper.keys(),\
-              wise.keys()]
+        keys=[list(cand.keys()),\
+              list(decam.keys()),\
+              list(aper.keys()),\
+              list(wise.keys())]
         more_cand= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[0])]
         more_decam= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (tables[1]),\
                         "cand_id bigint REFERENCES %s (id)" % (tables[0])]
@@ -436,15 +436,15 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print('loading %d rows into %s table' % (nrows,table))
         for i in range(0,nrows):
             query= insert_query(schema,table,i,data,keys)
             if load_db: cursor.execute(query) 
-        print 'finished loading files into %s' % table
-        print 'query looks like this: \n',query    
+        print('finished loading files into %s' % table)
+        print('query looks like this: \n',query)
         if load_db: 
             con.commit()
-        print 'done'
+        print('done')
     elif table.startswith('vipers'):
         '''http://vipers.inaf.it/data/pdr1/catalogs/README_VIPERS_SPECTRO_PDR1.txt'''
         #rename ra_deep,dec_deep to ra,dec
@@ -474,16 +474,16 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print('loading %d rows into %s table' % (nrows,table))
         for i in range(0, nrows):
             query= insert_query(schema,table,i,data,keys,returning=False)
             if load_db: 
                 cursor.execute(query) 
         if load_db:
             con.commit()
-            print 'finished %s load' %table
-        print 'query= \n'    
-        print query    
+            print('finished %s load' %table)
+        print('query= \n')
+        print(query)
     elif table.startswith('cfhtls_d2_'):
         sql_dtype= get_sql_dtype(keys)
         #schema
@@ -493,20 +493,20 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print('loading %d rows into %s table' % (nrows,table))
         for i in range(0, nrows):
             query= insert_query(schema,table,i,data,keys,returning=False)
             if load_db: 
                 cursor.execute(query) 
         if load_db:
             con.commit()
-            print 'finished %s load' %table
-        print 'query= '    
-        print query    
+            print('finished %s load' %table)
+        print('query= ')
+        print(query)
     elif table == 'cosmos_acs':
         '''description of columns: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_acs_colDescriptions.html'''
         sql_dtype= get_sql_dtype(keys)
-        print 'WARNING: cosmos-acs.fits if 300+ MB file, this will take a few min!'
+        print('WARNING: cosmos-acs.fits if 300+ MB file, this will take a few min!')
         #schema
         more_rows= ["id bigint primary key not null default nextval('%s_id_seq'::regclass)" % (table)]
         if overw_schema:
@@ -514,16 +514,16 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print('loading %d rows into %s table' % (nrows,table))
         for i in range(0, nrows):
             query= insert_query(schema,table,i,data,keys,returning=False)
             if load_db: 
                 cursor.execute(query) 
         if load_db:
             con.commit()
-            print 'finished %s load' %table
-        print 'query='    
-        print query    
+            print('finished %s load' %table)
+        print('query=')
+        print(query)
     elif table == 'cosmos_zphot':
         '''http://irsa.ipac.caltech.edu/data/COSMOS/datasets.html
         col descriptoin: http://irsa.ipac.caltech.edu/data/COSMOS/gator_docs/cosmos_zphot_mag25_colDescriptions.html'''
@@ -538,19 +538,19 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print('loading %d rows into %s table' % (nrows,table))
         for i in range(0, nrows):
             query1= insert_query(schema,table,i,data,keys,returning=False)
             if load_db: 
                 cursor.execute(query1) 
         if load_db:
             con.commit()
-            print 'finished %s load' %table
-        print 'finished %s load' %table
-        print 'query= '    
-        print query1   
+            print('finished %s load' %table)
+        print('finished %s load' %table)
+        print('query= ')
+        print(query1)
     elif table == 'stripe82':
-        print 'WARNING: stripe82_specz is 300+ MB file, this will take a few min!'
+        print('WARNING: stripe82_specz is 300+ MB file, this will take a few min!')
         replace_key(data,'RA','PLUG_RA') 
         update_keys(keys,['RA'],'PLUG_RA')
         replace_key(data,'DEC','PLUG_DEC') 
@@ -563,16 +563,16 @@ def tractor_into_db(tractor_cat, schema=None,table=None,\
         #db
         con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
         cursor = con.cursor()
-        if load_db: print 'loading %d rows into %s table' % (nrows,table)
+        if load_db: print('loading %d rows into %s table' % (nrows,table))
         for i in range(0, nrows):
             query= insert_query(schema,table,i,data,keys,returning=False)
             if load_db: 
                 cursor.execute(query) 
         if load_db:
             con.commit()
-            print 'finished %s load' %table
-        print 'query= '    
-        print query 
+            print('finished %s load' %table)
+        print('query= ')
+        print(query)
     else: raise ValueError
     
 def main(args,table):
@@ -584,7 +584,7 @@ def main(args,table):
 
     # serial 
     if args.serial:
-        print 'running serial, cores= %d, should be 0' % args.cores
+        print('running serial, cores= %d, should be 0' % args.cores)
         for fil in [fits_files[0]]:
             tractor_into_db(fil, schema=args.schema,table=table,\
                                  overw_schema=args.overw_schema,load_db=args.load_db)
@@ -592,7 +592,7 @@ def main(args,table):
     else:
         if args.mpi:
             comm = MPI.COMM_WORLD
-            if comm.rank == 0: print 'running mpi, cores= %d' % comm.size
+            if comm.rank == 0: print('running mpi, cores= %d' % comm.size)
             cnt=0
             i=comm.rank+cnt*comm.size
             while i < len(fits_files):
@@ -602,8 +602,8 @@ def main(args,table):
                 cnt+=1
                 i=comm.rank+cnt*comm.size
         else:
-            print 'running multiprocessing, cores= %d' % args.cores
-            print 'Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage()
+            print('running multiprocessing, cores= %d' % args.cores)
+            print('Global maximum memory usage b4 multiprocessing: %.2f (mb)' % current_mem_usage())
             pool = multiprocessing.Pool(args.cores)
             # The iterable is fits_files
             results=pool.map(partial(tractor_into_db_wrapper, schema=args.schema,table=table,\
@@ -612,14 +612,14 @@ def main(args,table):
             pool.close()
             pool.join()
             del pool
-            print 'Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage()
+            print('Global maximum memory usage after multiprocessing: %.2f (mb)' % current_mem_usage())
     if args.load_db:
         if args.mpi == False: 
-            print "finished loading these cats"
-            for cat in fits_files: print cat
+            print("finished loading these cats")
+            for cat in fits_files: print(cat)
         elif args.mpi and comm.rank == 0:
-            print "finished loading these cats"
-            for cat in fits_files: print cat
+            print("finished loading these cats")
+            for cat in fits_files: print(cat)
  
 if __name__ == '__main__':
     parser = ArgumentParser(description="test")

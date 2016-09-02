@@ -15,7 +15,7 @@ def select(cmd,outname,outdir='/project/projectdirs/desi/users/burleigh'):
     # Logout
     con.close()
 
-def read_from_psql_file(fn,use_cols=range(14),str_cols=['type']):
+def read_from_psql_file(fn,use_cols=list(range(14)),str_cols=['type']):
     '''return data dict for DECaLS()
     fn -- file name of psql db txt file
     use_cols -- list of column indices to get, first column is 0

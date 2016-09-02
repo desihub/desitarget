@@ -1,4 +1,3 @@
-from __future__ import absolute_import, division, print_function
 import warnings
 from time import time
 import os.path
@@ -145,7 +144,10 @@ def psflike(psftype):
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #- this could be fixed in the IO routine too.
     psftype = np.asarray(psftype)
-    psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
+    #ADM in Python3 these string literals become byte-like
+    #ADM still ultimately better to fix in IO, I'd think
+    #psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
+    psflike = ((psftype == 'PSF') | (psftype == 'PSF ') |(psftype == b'PSF') | (psftype == b'PSF '))
     return psflike
 
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
@@ -295,13 +297,13 @@ def apply_cuts(objects):
     See desitarget.targetmask for the definition of each bit
     """
     #- Check if objects is a filename instead of the actual data
-    if isinstance(objects, (str, unicode)):
+    if isinstance(objects, str):
         from desitarget import io
         objects = io.read_tractor(objects)
     
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
-        for col in objects.columns.itervalues():
+        for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
@@ -402,7 +404,7 @@ def select_targets(infiles, numproc=4, verbose=False):
         if numproc==1, use serial code instead of parallel
     """
     #- Convert single file to list of files
-    if isinstance(infiles, (str, unicode)):
+    if isinstance(infiles,str):
         infiles = [infiles,]
 
     #- Sanity check that files exist before going further
