@@ -2,6 +2,8 @@ import unittest
 from pkg_resources import resource_filename
 import os.path
 from uuid import uuid4
+import numbers
+
 from astropy.io import fits
 from astropy.table import Table
 import fitsio
@@ -97,9 +99,9 @@ class TestCuts(unittest.TestCase):
         self.assertEqual(len(mws), len(targets))
 
         desi, bgs, mws = cuts.apply_cuts(targets[0])
-        self.assertTrue(isinstance(desi, int), 'DESI_TARGET mask not an int')
-        self.assertTrue(isinstance(bgs, int), 'BGS_TARGET mask not an int')
-        self.assertTrue(isinstance(mws, int), 'MWS_TARGET mask not an int')
+        self.assertTrue(isinstance(desi, numbers.Integral), 'DESI_TARGET mask not an int')
+        self.assertTrue(isinstance(bgs, numbers.Integral), 'BGS_TARGET mask not an int')
+        self.assertTrue(isinstance(mws, numbers.Integral), 'MWS_TARGET mask not an int')
 
     def test_astropy_fits(self):
         targets = fits.getdata(self.tractorfiles[0])

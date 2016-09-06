@@ -1,6 +1,8 @@
 import warnings
 from time import time
 import os.path
+import numbers
+
 import numpy as np
 from astropy.table import Table, Row
 
@@ -372,7 +374,7 @@ def apply_cuts(objects):
     bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
 
     #- nothing for MWS yet; will be GAIA-based
-    if isinstance(bgs_target, int):
+    if isinstance(bgs_target, numbers.Integral):
         mws_target = 0
     else:
         mws_target = np.zeros_like(bgs_target)
