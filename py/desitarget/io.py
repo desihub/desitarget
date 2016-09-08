@@ -22,7 +22,7 @@ tscolumns = [
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R',
+    'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
     ]
 
 def read_tractor(filename, header=False, columns=None):
