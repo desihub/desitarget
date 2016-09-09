@@ -3,6 +3,8 @@ from time import time
 import os.path
 import numpy as np
 from astropy.table import Table, Row
+from pkg_resources import resource_filename
+from sklearn.externals import joblib
 
 from desitarget.internal import sharedmem
 import desitarget.targets
@@ -236,6 +238,89 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
         
     return qso
 
+
+def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
+         deltaChi2=None, primary=None):
+    """Target Definition of QSO using a BDT. Returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        deltaChi2: array_like or None
+             If given, difference of chi2 bteween PSF and SIMP morphology
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    """
+    #----- Quasars
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+
+    # build variables for BDT    
+    nfeatures=11 # number of variables in BDT
+    nbEntries=len(rflux)
+    colors, r = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
+  
+    #Load BDT
+    pathToBDT = resource_filename('desitarget', "data/bdt_model_dr3/bdt.pkl") 
+    # Compute BDT probability
+    bdt = joblib.load(pathToBDT) 
+    objects_bdt = bdt.predict_proba(colors)
+    prob = objects_bdt[:,1]
+
+    #define pcut, relaxed cut for faint objects
+    pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
+
+    qso = primary.copy()
+    qso &= r<22.7    # r<22.7
+  
+    if objtype is not None:
+        qso &= psflike(objtype)
+
+    if deltaChi2 is not None:
+        qso &= deltaChi2>40.
+
+    qso &= prob>pcut
+        
+    return qso
+
+
+def getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux):
+ 
+    limitInf=1.e-04
+    gflux = gflux.clip(limitInf)
+    rflux = rflux.clip(limitInf)
+    zflux = zflux.clip(limitInf)
+    w1flux = w1flux.clip(limitInf)
+    w2flux = w2flux.clip(limitInf)
+
+    g=np.where( gflux>limitInf,22.5-2.5*np.log10(gflux), 0.)
+    r=np.where( rflux>limitInf,22.5-2.5*np.log10(rflux), 0.)
+    z=np.where( zflux>limitInf,22.5-2.5*np.log10(zflux), 0.)
+    W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
+    W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
+
+    colors  = np.zeros((nbEntries,nfeatures))
+    colors[:,0]=g-r
+    colors[:,1]=r-z
+    colors[:,2]=g-z
+    colors[:,3]=g-W1
+    colors[:,4]=r-W1
+    colors[:,5]=z-W1
+    colors[:,6]=g-W2
+    colors[:,7]=r-W2
+    colors[:,8]=z-W2
+    colors[:,9]=W1-W2
+    colors[:,10]=r
+
+    return colors, r
+
 def _is_row(table):
     '''Return True/False if this is a row of a table instead of a full table
     
@@ -342,8 +427,13 @@ def apply_cuts(objects):
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
-
-    qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+    
+    useBDT = True
+    if useBDT :
+         qso = isQSO_BDT(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
+    else :
+        qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
 
