@@ -184,6 +184,8 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
+        deltaChi2: array_like or None
+            If given, chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         wise_snr: array_like or None
             If given, the S/N in the W1 and W2 bands.
         primary: array_like or None
@@ -228,6 +230,8 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
 
     if objtype is not None:
         qso &= psflike(objtype)
+
+    if deltaChi2 is not None:
         qso &= deltaChi2>40.
         
     return qso
