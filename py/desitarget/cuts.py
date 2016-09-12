@@ -265,26 +265,44 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     # build variables for BDT    
     nfeatures=11 # number of variables in BDT
     nbEntries=len(rflux)
-    colors, r = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
+    colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
+
+    #Preselection to speed up the process, store the indexes
+    rMax = 22.7  # r<22.7
+    preSelection = (r<rMax) &  psflike(objtype) & DECaLSOK 
+    colorsCopy = colors.copy()
+    colorsReduced = colorsCopy[preSelection]
+    colorsIndex =  np.arange(0,nbEntries,dtype=np.int)
+    colorsReducedIndex =  colorsIndex[preSelection]
   
     #Load BDT
     pathToBDT = resource_filename('desitarget', "data/bdt_model_dr3/bdt.pkl") 
     # Compute BDT probability
     bdt = joblib.load(pathToBDT) 
-    objects_bdt = bdt.predict_proba(colors)
-    prob = objects_bdt[:,1]
+#    objects_bdt = bdt.predict_proba(colors)
+    if (len(colorsReduced)>0) :
+        objects_bdt = bdt.predict_proba(colorsReduced)
+    
+    # add BDT probability
+    prob = np.zeros(nbEntries)
+    j=0
+    for i in colorsReducedIndex :
+         prob[i]=objects_bdt[j,1]
+         j += 1
+#    prob = objects_bdt[:,1]
 
     #define pcut, relaxed cut for faint objects
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
 
     qso = primary.copy()
-    qso &= r<22.7    # r<22.7
-  
+    qso &= r<rMax  
+    qso &= DECaLSOK  
+      
     if objtype is not None:
         qso &= psflike(objtype)
 
     if deltaChi2 is not None:
-        qso &= deltaChi2>40.
+        qso &= deltaChi2>30.
 
     qso &= prob>pcut
         
@@ -306,6 +324,8 @@ def getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux):
     W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
     W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
 
+    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+
     colors  = np.zeros((nbEntries,nfeatures))
     colors[:,0]=g-r
     colors[:,1]=r-z
@@ -319,7 +339,7 @@ def getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux):
     colors[:,9]=W1-W2
     colors[:,10]=r
 
-    return colors, r
+    return colors, r, DECaLSOK
 
 def _is_row(table):
     '''Return True/False if this is a row of a table instead of a full table
