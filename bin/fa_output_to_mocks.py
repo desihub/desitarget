@@ -5,6 +5,8 @@ Process output of FA and write out catalogue in same order as original MTL.
 Assumes targetids encode the row in the input MTL. If this isn't the case, need
 to do more matching
 """
+from __future__ import (absolute_import, division)
+
 import os
 import yaml
 import desitarget.mock.fiberassign as fiberassign

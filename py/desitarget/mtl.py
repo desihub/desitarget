@@ -4,6 +4,9 @@ from astropy.table import Table, join
 from .targetmask import desi_mask, obsmask
 from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
 
+MTL_RESERVED_TARGETID_MIN_SKY = np.int(1e11)
+MTL_RESERVED_TARGETID_MIN_STD = np.int(1e13)
+
 ############################################################
 def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
@@ -121,7 +124,12 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
         mtl_truth['ORIGINAL_TARGETID'] = ztargets['TARGETID']
 
     # Compute a new targetid
+    # Just use the rownumber in the MTL file, but reserve some space at the top
+    # for standards and skys.
     mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
+
+    # Assume no more than 100*10^9 rows
+    assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_SKY))
 
     if truth is not None:
         # Store the new targetid in truth

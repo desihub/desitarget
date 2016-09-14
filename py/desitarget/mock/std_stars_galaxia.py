@@ -1,11 +1,14 @@
-# Licensed under a 4-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 ===========================
-desitarget.mock.mws_galaxia
+desitarget.mock.std_stars_galaxia
 ===========================
 
-Builds target/truth files from already existing mock data
+Builds target/truth files from already existing mock data.
+
+Uses the MWS galaxia mocks to construct a list of stdstar targets, which are
+treated separately by fibreassign.
 """
 from __future__ import (absolute_import, division)
 #
@@ -13,65 +16,81 @@ import numpy as np
 import os, re
 import desitarget.mock.io 
 import desitarget.io
-from   desitarget import mws_mask
+from   desitarget import desi_mask
 import os
 from   astropy.table import Table, Column
 import astropy.io.fits as fitsio
 import astropy.io.fits.convenience
 import desispec.brick
-    
+
+from   desitarget.mtl import MTL_RESERVED_TARGETID_MIN_SKY, MTL_RESERVED_TARGETID_MIN_STD
+
+
 ############################################################
-def mws_selection(mws_data, mag_faintest=20.0, mag_faint_filler=19.0, mag_bright=15.0):
+def std_star_selection(mws_data, mag_faint=19.0, mag_bright=16.0, grcolor=0.32, rzcolor=0.13, colortol=0.06):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
 
+    This implements standard F-star cuts from:
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
+
+    Optical colors near BD+17 4708
+    (GRCOLOR - 0.32)^2 + (RZCOLOR - 0.13)^2 < 0.06^2
+
+    To do:
+        - Isolation criterion
+        - DECam magnitudes rather than SDSS
+    
     Parameters:
     -----------
         mws_data: dict
             Data required for selection
-        mag_faintest:    float
-            Hard faint limit for inclusion in survey.
-        mag_faint_filler:  float
-            Magintude fainter than which stars are considered filler, rather
-            than part of the main sample.
-        mag_bright:      float 
-            Hard bright limit for inclusion in survey.
+        mag_bright: float
+            Upper limit cut in SDSSr observed magnitude. 
+        mag_faint: float
+            Lower limit cut in SDSSr observed magnitude. 
+        grcolor: float
+            Standard star ideal color, g-r. [mag]
+        rzcolor: float
+            Standard star ideal color, r-z. [mag]
+        colortol:
+            Acceptable distance in (g-r,r-z) space from ideal color. [mag]
     """
     # Parameters
     SELECTION_MAG_NAME = 'SDSSr_obs'
 
+    COLOR_G_NAME       = 'SDSSg_obs'
+    COLOR_R_NAME       = 'SDSSr_obs'
+    COLOR_Z_NAME       = 'SDSSz_obs'
+
     # Will populate this array with the bitmask values of each target class
     target_class = np.zeros(len(mws_data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
-    #priority     = np.zeros(len(mws_data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
 
     fainter_than_bright_limit  = mws_data[SELECTION_MAG_NAME]  >= mag_bright
-    fainter_than_filler_limit  = mws_data[SELECTION_MAG_NAME]  >= mag_faint_filler
-    brighter_than_filler_limit = mws_data[SELECTION_MAG_NAME]  <  mag_faint_filler
-    brighter_than_faint_limit  = mws_data[SELECTION_MAG_NAME]  <  mag_faintest
+    brighter_than_faint_limit  = mws_data[SELECTION_MAG_NAME]  <  mag_faint
 
-    # Main sample
-    select_main_sample               = (fainter_than_bright_limit) & (brighter_than_filler_limit)    
-    target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
-    #priority[select_main_sample]     = mws_mask['MWS_MAIN'].priorities['UNOBS']
+    gmr            = mws_data[COLOR_G_NAME] - mws_data[COLOR_R_NAME]
+    rmz            = mws_data[COLOR_R_NAME] - mws_data[COLOR_Z_NAME]
 
-    # Faint sample
-    select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit)    
-    target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
-    #priority[select_faint_filler_sample]     = mws_mask['MWS_MAIN_VERY_FAINT'].priorities['UNOBS']
+    select_color     = (gmr - grcolor)**2 + (rmz - rzcolor)**2 < colortol**2
+    select_mag       = (fainter_than_bright_limit) & (brighter_than_faint_limit)
+    select_std_stars = (select_color) & (select_mag)
+    target_class[select_std_stars] = desi_mask.mask('STD_FSTAR')
 
-    return target_class#, priority
+    return target_class
 
 ############################################################
 def build_mock_target(root_mock_dir='', output_dir='',
-                      targets_name='mws_galaxia_targets.fits',
-                      truth_name='mws_galaxia_truth.fits',
-                      mag_faintest = 20.0, mag_faint_filler=19.0, mag_bright=15.0, 
+                      targets_name='std_star_galaxia_targets.fits',
+                      truth_name='std_star_galaxia_truth.fits',
+                      mag_faint=19.0, mag_bright=16.0, 
+                      grcolor=0.32, rzcolor=0.13, colortol=0.06,
                       remake_cached_targets=False,
                       write_cached_targets=True,
                       rand_seed=42,brickname_list=None):                  
     """Builds Target and Truth files from a series of mock files.
-    
+
     Stores the resulting target and truth tables to disk.
 
     Parameters:
@@ -80,11 +99,15 @@ def build_mock_target(root_mock_dir='', output_dir='',
         output_dir: string
             Path to write the outputs (targets.fits and truth.fits).
         mag_bright: float
-            Upper limit cut in SDSSr observed magnitude. Default = 15.0.
-        mag_faint_filler: float
-            Step between filler targets and main sample. Default = 19.0
-        mag_faintest: float
-            Lower limit cut in SDSSr observed magnitude. Default = 20.0.
+            Upper limit cut in SDSSr observed magnitude. 
+        mag_faint: float
+            Lower limit cut in SDSSr observed magnitude. 
+        grcolor: float
+            Standard star ideal color, g-r. [mag]
+        rzcolor: float
+            Standard star ideal color, r-z. [mag]
+        colortol:
+            Acceptable distance in (g-r,r-z) space from ideal color. [mag]
         remake_cached_targets: bool (default=False)
             If True, re-reads the mock files and generates new targets and
             truth, which are then saved to disk (replacing those that already
@@ -94,12 +117,14 @@ def build_mock_target(root_mock_dir='', output_dir='',
             seed for random number generator.
 
     Note:
-        This routine assigns targetIDs that encode the mapping of each row in the
-        target outputfile to a filenumber and row in the set of mock input files.
-        This targetID will be further modified when all target lists are merged.
+        Sets targetids differently to other mock-making routines, because in
+        the current setup, the std star targetids are not re-written as part of
+        making MTL. These IDs therefore need to be kept in some reserved range.
 
-        NUMOBS, PRIORITY also not set in this routine, hence output targets and
-        truth are not directly usable as MTLs.
+        Adds an OBSCONDITIONS column to targets. For conventional targets this
+        is done by desitarget.mtl.make_mtl, but since standards are not
+        included in the MTL this has to be done elsewhere. Currently this is
+        done in a hacky way wihtout using the targetmask.yaml.
     """
     np.random.seed(seed=rand_seed)
 
@@ -130,15 +155,18 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # Read the mocks on disk. This returns a dict.
         # fitsio rather than Table used for speed.
         data, file_list = desitarget.mock.io.read_mock_mws_brighttime(root_mock_dir=root_mock_dir,
-                                                                          brickname_list=brickname_list)
+                                                                      brickname_list=brickname_list,
+                                                                      selection='fstar_standards')
         data_keys = list(data.keys())
         n          = len(data[data_keys[0]])
         
         # Allocate target classes but NOT priorities
-        target_class  = mws_selection(data,
-                                      mag_faintest     = mag_faintest,
-                                      mag_faint_filler = mag_faint_filler,
-                                      mag_bright       = mag_bright)
+        target_class  = std_star_selection(data,
+                                           mag_faint    = mag_faint,
+                                           mag_bright   = mag_bright,
+                                           grcolor  = grcolor,
+                                           rzcolor  = rzcolor,
+                                           colortol = colortol)
         # Identify all targets
         
         # The default null value of target_class is -1, A value of 0 is valid
@@ -151,7 +179,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
         print("n_items in full catalog: {}".format(n))
 
         print('Selection criteria:')
-        for criterion in ['mag_faintest','mag_faint_filler','mag_bright']:
+        for criterion in ['mag_faint','mag_bright','grcolor','rzcolor','colortol']:
             print(" -- {:30s} {}".format(criterion,locals().get(criterion)))
 
         print("n_items after selection: {}".format(n_selected))
@@ -159,9 +187,12 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # This routine assigns targetIDs that encode the mapping of each row in the
         # target outputfile to a filenumber and row in the set of mock input files.
         # This targetID will be further modified when all target lists are merged.
-        targetid = desitarget.mock.io.encode_rownum_filenum(data['rownum'][ii],
-                                                            data['filenum'][ii])
-     
+        rowfile_id = desitarget.mock.io.encode_rownum_filenum(data['rownum'][ii],
+                                                              data['filenum'][ii])
+       
+        # Ensure unique targetides in the range specified by desitarget.mtl
+        targetid = MTL_RESERVED_TARGETID_MIN_STD + np.arange(0,len(ii))
+
         # Assign random subpriorities for now
         subprior = np.random.uniform(0., 1., size=n_selected)
 
@@ -176,26 +207,25 @@ def build_mock_target(root_mock_dir='', output_dir='',
         mws_target_pop[:] = target_class[ii]
 
         # APC This is a string? 
-        # FIXME (APC) This looks totally wrong, especially if the target class
-        # encodes a combination of bits such that mask.names() returns a list.
-        # The 'true type' should be something totally separate (an LRG is an
-        # LRG, regardless of whether it's in the North or South, etc.).
-        true_type_pop     = np.asarray(desitarget.targets.target_bitmask_to_string(target_class[ii],mws_mask),dtype='S10')
+        true_type_pop     = np.asarray(desitarget.targets.target_bitmask_to_string(target_class[ii],desi_mask),dtype='S10')
 
-        # Create targets table
+        # Create targets table. Note this includes OBSCONDITIONS
+        # FIXME assuming that OBSCONDITIONS are the same for all standards and never
+        # change. 
+
         targets = Table()
-        targets['TARGETID']    = targetid
-        targets['BRICKNAME']   = brickname
-        targets['RA']          = data['RA'][ii]
-        targets['DEC']         = data['DEC'][ii]
-        targets['DESI_TARGET'] = desi_target_pop
-        targets['BGS_TARGET']  = bgs_target_pop
-        targets['MWS_TARGET']  = mws_target_pop
-        targets['SUBPRIORITY'] = subprior
+        targets['TARGETID']      = targetid
+        targets['BRICKNAME']     = brickname
+        targets['RA']            = data['RA'][ii]
+        targets['DEC']           = data['DEC'][ii]
+        targets['DESI_TARGET']   = desi_target_pop
+        targets['BGS_TARGET']    = bgs_target_pop
+        targets['MWS_TARGET']    = mws_target_pop
+        targets['SUBPRIORITY']   = subprior
+        targets['OBSCONDITIONS'] = 1 # FIXME A hack, should be done properly.
 
-        # FIXME should not be setting priority here
-        #targets['NUMOBS_MORE'] = 1
-        #targets['PRIORITY']    = priority[ii]
+        #targets['MUDELTA']     = data['pm_RA'][ii]
+        #targets['MUALPHASTAR'] = data['pm_DEC'][ii]
 
         # Create Truth table
         truth = Table()
@@ -204,6 +234,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
         truth['RA']        = data['RA'][ii]
         truth['DEC']       = data['DEC'][ii]
         truth['TRUEZ']     = data['Z'][ii]
+        truth['ROWFILEID'] = rowfile_id
 
         # True type is just targeted type for now.
         truth['TRUETYPE']  = true_type_pop

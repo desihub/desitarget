@@ -65,6 +65,58 @@ def _load_mock_bgs_mxxl_file(filename):
             'SDSSr_true':SDSSr_true}
 
 ############################################################
+def _load_mock_mws_file_fstar_standards(filename):
+    """
+    Reads mock information for MWS bright time survey required to select F-Star
+    standards.
+    
+    Parameters: 
+    ----------
+    filename: :class:`str`
+        Name of a single MWS mock file.
+    
+    Returns:
+    -------
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+        'SDSSr_true': :class: `numpy.ndarray`
+            Apparent magnitudes in SDSS bands, including extinction.
+        'SDSSr_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS bands, including extinction.
+        'SDSSg_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS bands, including extinction.
+        'SDSSz_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS bands, including extinction.
+    """
+    C_LIGHT = 300000.0
+    desitarget.io.check_fitsio_version()
+    data = fitsio.read(filename,
+                       columns= ['objid','brickid',
+                                 'RA','DEC','v_helio','SDSSr_true',
+                                 'SDSSr_obs','SDSSg_obs','SDSSz_obs'])
+
+    objid       = data['objid'].astype('i8')
+    brickid     = data['brickid'].astype('i8')
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    v_helio     = data['v_helio'].astype('f8')
+    SDSSr_true  = data['SDSSr_true'].astype('f8')
+    SDSSg_obs   = data['SDSSg_obs'].astype('f8')
+    SDSSr_obs   = data['SDSSr_obs'].astype('f8')
+    SDSSz_obs   = data['SDSSz_obs'].astype('f8')
+
+    return {'objid':objid,'brickid':brickid,
+            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
+            'SDSSr_true': SDSSr_true,'SDSSr_obs': SDSSr_obs,
+            'SDSSg_obs':SDSSg_obs,'SDSSz_obs':SDSSz_obs}
+
+############################################################
 def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
@@ -266,7 +318,8 @@ def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
     return full_data, sources
 
 ############################################################
-def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None):
+def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None,
+                         selection=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -298,7 +351,16 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     """
     # Build iterator of all desi_galfast files
     iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
-    
+   
+    print 'Selection specified: %s'%(selection)
+
+    if selection is None:
+        loadfunc = _load_mock_mws_file
+    elif selection == 'fstar_standards':
+        loadfunc = _load_mock_mws_file_fstar_standards
+    else:
+        raise Exception('Unknown selection function specified!')
+
     # Read each file
     print('Reading individual mock files')
     target_list = list()
@@ -313,7 +375,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
             if not brickname_of_target in brickname_list:
                 continue
         
-        data_this_file = _load_mock_mws_file(mock_file)
+        data_this_file = loadfunc(mock_file)
         target_list.append(data_this_file)
         file_list.append(mock_file)
 
