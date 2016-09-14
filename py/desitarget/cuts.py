@@ -388,7 +388,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects):
+def apply_cuts(objects,QSOSelection):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -448,14 +448,13 @@ def apply_cuts(objects):
 
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
     
-    useBDT = True
-    if useBDT :
-         qso = isQSO_BDT(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
-    else :
+    if QSOSelection==0 :
         qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
+    else :    
+        qso = isQSO_BDT(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
 
     #----- Standard stars
     fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
@@ -503,7 +502,7 @@ def apply_cuts(objects):
 
     return desi_target, bgs_target, mws_target
 
-def select_targets(infiles, numproc=4, verbose=False):
+def select_targets(infiles, numproc=4, verbose=False, QSOSelection=1):
     """
     Process input files in parallel to select targets
     
@@ -537,7 +536,7 @@ def select_targets(infiles, numproc=4, verbose=False):
         '''Returns targets in filename that pass the cuts'''
         from desitarget import io
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,QSOSelection)
         
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         #- on desi_target != 0
