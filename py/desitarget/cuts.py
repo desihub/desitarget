@@ -4,7 +4,6 @@ import os.path
 import numpy as np
 from astropy.table import Table, Row
 from pkg_resources import resource_filename
-from sklearn.externals import joblib
 
 from desitarget.internal import sharedmem
 import desitarget.targets
@@ -278,6 +277,7 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     #Load BDT
     pathToBDT = resource_filename('desitarget', "data/bdt_model_dr3/bdt.pkl") 
     # Compute BDT probability
+    from sklearn.externals import joblib
     bdt = joblib.load(pathToBDT) 
 #    objects_bdt = bdt.predict_proba(colors)
     if (len(colorsReduced)>0) :
