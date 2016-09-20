@@ -14,7 +14,7 @@ from __future__ import (absolute_import, division)
 #
 import numpy as np
 import os, re
-import desitarget.mock.io 
+import desitarget.mock.io
 import desitarget.io
 from   desitarget import desi_mask
 import os
@@ -41,15 +41,15 @@ def std_star_selection(mws_data, mag_faint=19.0, mag_bright=16.0, grcolor=0.32, 
     To do:
         - Isolation criterion
         - DECam magnitudes rather than SDSS
-    
+
     Parameters:
     -----------
         mws_data: dict
             Data required for selection
         mag_bright: float
-            Upper limit cut in SDSSr observed magnitude. 
+            Upper limit cut in SDSSr observed magnitude.
         mag_faint: float
-            Lower limit cut in SDSSr observed magnitude. 
+            Lower limit cut in SDSSr observed magnitude.
         grcolor: float
             Standard star ideal color, g-r. [mag]
         rzcolor: float
@@ -84,11 +84,11 @@ def std_star_selection(mws_data, mag_faint=19.0, mag_bright=16.0, grcolor=0.32, 
 def build_mock_target(root_mock_dir='', output_dir='',
                       targets_name='std_star_galaxia_targets.fits',
                       truth_name='std_star_galaxia_truth.fits',
-                      mag_faint=19.0, mag_bright=16.0, 
+                      mag_faint=19.0, mag_bright=16.0,
                       grcolor=0.32, rzcolor=0.13, colortol=0.06,
                       remake_cached_targets=False,
                       write_cached_targets=True,
-                      rand_seed=42,brickname_list=None):                  
+                      rand_seed=42,brickname_list=None):
     """Builds Target and Truth files from a series of mock files.
 
     Stores the resulting target and truth tables to disk.
@@ -99,9 +99,9 @@ def build_mock_target(root_mock_dir='', output_dir='',
         output_dir: string
             Path to write the outputs (targets.fits and truth.fits).
         mag_bright: float
-            Upper limit cut in SDSSr observed magnitude. 
+            Upper limit cut in SDSSr observed magnitude.
         mag_faint: float
-            Lower limit cut in SDSSr observed magnitude. 
+            Lower limit cut in SDSSr observed magnitude.
         grcolor: float
             Standard star ideal color, g-r. [mag]
         rzcolor: float
@@ -159,7 +159,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
                                                                       selection='fstar_standards')
         data_keys = list(data.keys())
         n          = len(data[data_keys[0]])
-        
+
         # Allocate target classes but NOT priorities
         target_class  = std_star_selection(data,
                                            mag_faint    = mag_faint,
@@ -168,7 +168,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
                                            rzcolor  = rzcolor,
                                            colortol = colortol)
         # Identify all targets
-        
+
         # The default null value of target_class is -1, A value of 0 is valid
         # as a target class in the yaml schema.
         in_target_list = target_class >= 0
@@ -183,13 +183,13 @@ def build_mock_target(root_mock_dir='', output_dir='',
             print(" -- {:30s} {}".format(criterion,locals().get(criterion)))
 
         print("n_items after selection: {}".format(n_selected))
-            
+
         # This routine assigns targetIDs that encode the mapping of each row in the
         # target outputfile to a filenumber and row in the set of mock input files.
         # This targetID will be further modified when all target lists are merged.
         rowfile_id = desitarget.mock.io.encode_rownum_filenum(data['rownum'][ii],
                                                               data['filenum'][ii])
-       
+
         # Ensure unique targetides in the range specified by desitarget.mtl
         targetid = MTL_RESERVED_TARGETID_MIN_STD + np.arange(0,len(ii))
 
@@ -202,16 +202,16 @@ def build_mock_target(root_mock_dir='', output_dir='',
 
         # Assign target flags and true types
         desi_target_pop   = np.zeros(n_selected, dtype='i8')
-        bgs_target_pop    = np.zeros(n_selected, dtype='i8') 
+        bgs_target_pop    = np.zeros(n_selected, dtype='i8')
         mws_target_pop    = np.zeros(n_selected, dtype='i8')
         mws_target_pop[:] = target_class[ii]
 
-        # APC This is a string? 
+        # APC This is a string?
         true_type_pop     = np.asarray(desitarget.targets.target_bitmask_to_string(target_class[ii],desi_mask),dtype='S10')
 
         # Create targets table. Note this includes OBSCONDITIONS
         # FIXME assuming that OBSCONDITIONS are the same for all standards and never
-        # change. 
+        # change.
 
         targets = Table()
         targets['TARGETID']      = targetid
@@ -239,10 +239,10 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # True type is just targeted type for now.
         truth['TRUETYPE']  = true_type_pop
 
-        # Write Targets and Truth 
+        # Write Targets and Truth
         if write_cached_targets:
             fitsio.writeto(targets_filename, targets.as_array(),clobber=True)
-        
+
         # Write truth, slightly convoluted because we write two tables
         #fitsio.writeto(truth_filename, truth.as_array(),clobber=True)
         prihdr    = fitsio.Header()
@@ -257,9 +257,9 @@ def build_mock_target(root_mock_dir='', output_dir='',
         assert(np.all([len(x[0]) < 500 for x in file_list]))
         file_list = np.array(file_list,dtype=[('FILE','|S500'),('NROWS','i8')])
         sourcehdu = fitsio.BinTableHDU.from_columns(file_list,header=sourcehdr)
-        
+
         truth_hdu = fitsio.HDUList([prihdu, mainhdu, sourcehdu])
-    
+
         if write_cached_targets:
             truth_hdu.writeto(truth_filename,clobber=True)
 
@@ -267,4 +267,4 @@ def build_mock_target(root_mock_dir='', output_dir='',
             print("    Targets: {}".format(targets_filename))
             print("    Truth:   {}".format(truth_filename))
 
-    return targets, truth, Table(file_list) 
+    return targets, truth, Table(file_list)
