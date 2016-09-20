@@ -12,8 +12,8 @@ from __future__ import (absolute_import, division)
 import numpy as np
 import fitsio
 import os, re
-#from . import __version__ as desitarget_version
-#from . import gitversion
+from . import __version__ as desitarget_version
+from . import gitversion
 
 tscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',

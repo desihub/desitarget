@@ -79,7 +79,8 @@ class TestIO(unittest.TestCase):
 
         io.write_targets(self.testfile, data, indir=self.datadir)
         ### d2, h2 = fits.getdata(self.testfile, header=True)
-        d2, h2 = fitsio.read(self.testfile, header=True)
+        #ADM use fits read wrapper in io to correctly handle whitespace
+        d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
         #
         # Disabling this test because self.datadir may be too long to fit
         # into a single FITS header line.
