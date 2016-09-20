@@ -1,7 +1,8 @@
-from __future__ import absolute_import, division, print_function
 import warnings
 from time import time
 import os.path
+import numbers
+
 import numpy as np
 from astropy.table import Table, Row
 
@@ -18,12 +19,12 @@ A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (e.g. LRG, ELG or QSO).
 """
 
-def isLRG(rflux, zflux, w1flux, primary=None):
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
-        rflux, zflux, w1flux : array_like
-            The flux in nano-maggies of r, z, and w1 band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -37,7 +38,7 @@ def isLRG(rflux, zflux, w1flux, primary=None):
         primary = np.ones_like(rflux, dtype='?')
 
     lrg = primary.copy()
-    lrg &= zflux > 10**((22.5-22.46)/2.5)  # z<20.46
+    lrg &= zflux > 10**((22.5-20.46)/2.5)  # z<20.46
     lrg &= zflux > rflux * 10**(1.5/2.5)   # (r-z)>1.5
     lrg &= w1flux > 0                      # W1flux>0
     #- clip to avoid warnings from negative numbers raised to fractional powers
@@ -47,12 +48,12 @@ def isLRG(rflux, zflux, w1flux, primary=None):
 
     return lrg
 
-def isELG(gflux, rflux, zflux, primary=None):
+def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of ELG. Returning a boolean array.
 
     Args:
-        gflux, rflux, zflux : array_like
-            The flux in nano-maggies of g, r, and z band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -77,12 +78,12 @@ def isELG(gflux, rflux, zflux, primary=None):
 
     return elg
 
-def isFSTD_colors(gflux, rflux, zflux, primary=None):
+def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select FSTD targets just based on color cuts. Returns a boolean array. 
 
     Args:
-        gflux, rflux, zflux : array_like
-            Flux in nano-maggies of g, r, and z band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -108,12 +109,12 @@ def isFSTD_colors(gflux, rflux, zflux, primary=None):
 
     return fstd
 
-def isMWSSTAR_colors(gflux, rflux, primary=None):
+def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array. 
 
     Args:
-        gflux, rflux, : array_like
-            Flux in nano-maggies of g and r bands.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -145,15 +146,18 @@ def psflike(psftype):
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #- this could be fixed in the IO routine too.
     psftype = np.asarray(psftype)
-    psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
+    #ADM in Python3 these string literals become byte-like
+    #ADM still ultimately better to fix in IO, I'd think
+    #psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
+    psflike = ((psftype == 'PSF') | (psftype == 'PSF ') |(psftype == b'PSF') | (psftype == b'PSF '))
     return psflike
 
-def isBGS(rflux, objtype=None, primary=None):
+def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
     """Target Definition of BGS. Returning a boolean array.
 
     Args:
-        rflux: array_like
-            The flux in nano-maggies of r band.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
@@ -173,7 +177,7 @@ def isBGS(rflux, objtype=None, primary=None):
         bgs &= ~psflike(objtype)
     return bgs
 
-def isQSO(gflux, rflux, zflux, w1flux, w2flux, objtype=None,
+def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
           wise_snr=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
@@ -295,13 +299,13 @@ def apply_cuts(objects):
     See desitarget.targetmask for the definition of each bit
     """
     #- Check if objects is a filename instead of the actual data
-    if isinstance(objects, (str, unicode)):
+    if isinstance(objects, str):
         from desitarget import io
         objects = io.read_tractor(objects)
     
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
-        for col in objects.columns.itervalues():
+        for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
@@ -370,7 +374,7 @@ def apply_cuts(objects):
     bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
 
     #- nothing for MWS yet; will be GAIA-based
-    if isinstance(bgs_target, int):
+    if isinstance(bgs_target, numbers.Integral):
         mws_target = 0
     else:
         mws_target = np.zeros_like(bgs_target)
@@ -402,7 +406,7 @@ def select_targets(infiles, numproc=4, verbose=False):
         if numproc==1, use serial code instead of parallel
     """
     #- Convert single file to list of files
-    if isinstance(infiles, (str, unicode)):
+    if isinstance(infiles,str):
         infiles = [infiles,]
 
     #- Sanity check that files exist before going further

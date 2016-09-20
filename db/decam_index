@@ -1,0 +1,11 @@
+CREATE INDEX decam_aper_cand_id_idx ON decam_aper (cand_id);
+CREATE INDEX decam_decam_cand_id_idx ON decam_decam (cand_id);
+CREATE INDEX decam_decam_gflux_idx ON decam_decam (gflux);
+CREATE INDEX decam_decam_rflux_idx ON decam_decam (rflux);
+CREATE INDEX decam_decam_zflux_idx ON decam_decam (zflux);
+CREATE INDEX decam_cand_id_idx ON decam_cand (id);
+CREATE INDEX decam_cand_brickid_idx ON decam_cand (brickid);
+CREATE INDEX q3c_decam_cand_idx ON decam_cand (q3c_ang2ipix(ra, dec));
+CREATE INDEX decam_wise_cand_id_idx ON decam_wise (cand_id);
+CREATE INDEX decam_wise_w1flux_idx ON decam_wise (w1flux);
+CREATE INDEX decam_wise_w2flux_idx ON decam_wise (w2flux);

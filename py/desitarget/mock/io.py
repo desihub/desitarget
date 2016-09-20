@@ -522,12 +522,12 @@ def read_mock_dark_time(filename, read_z=True):
     desitarget.io.check_fitsio_version()
 
     if read_z :
-        data = fitsio.read(filename,columns=['RA','DEC','Z'])
+        data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
         zz   = data[  'Z'].astype('f8')
     else:
-        data = fitsio.read(filename,columns=['RA','DEC'])
+        data = fitsio.read(filename,columns=['RA','DEC'], upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
         zz   = np.zeros(len(ra))

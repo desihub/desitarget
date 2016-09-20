@@ -1,0 +1,2 @@
+CLUSTER q3c_decam_cand_idx ON decam_cand;
+ANALYZE decam_cand;

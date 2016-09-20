@@ -58,6 +58,13 @@ def read_tractor(filename, header=False, columns=None):
         readcolumns.append('BRICK_PRIMARY')
 
     data = fx[1].read(columns=readcolumns)
+
+    #ADM To circumvent whitespace bugs on I/O from fitsio
+    #ADM need to enforce that the TYPE column is 4 characters
+    #ADM only other string column is BRICKNAME, but its length is consistent
+    if 'TYPE' in readcolumns:
+        data["TYPE"] = np.char.ljust(data["TYPE"],4)
+
     if header:
         hdr = fx[1].read_header()
         fx.close()
@@ -104,7 +111,7 @@ def write_targets(filename, data, indir=None):
     hdr['DEPNAM00'] = 'desitarget'
     hdr.add_record(dict(name='DEPVER00', value=desitarget_version, comment='desitarget version'))
     hdr['DEPNAM01'] = 'desitarget-git'
-    hdr.add_record(dict(name='DEPVER01', value=gitversion(), comment='git revision'))
+    hdr.add_record(dict(name='DEPVER01', value=gitversion().decode('utf-8'), comment='git revision'))
 
     if indir is not None:
         hdr['DEPNAM02'] = 'tractor-files'

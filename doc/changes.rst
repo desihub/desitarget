@@ -2,12 +2,40 @@
 desitarget Change Log
 =====================
 
-0.4.0 (unreleased)
+0.6.2 (unreleased)
 ------------------
 
-* Move data into Python package to aid pip installs.
-* Many other changes to support the above.
-* Support for Travis, Coveralls and ReadTheDocs.
+* No changes yet
+
+0.6.1 (2016-08-18
+------------------
+
+* PR#59: fix LRG selection (z < 20.46 not 22.46)
+
+0.6.0 (2016-08-17)
+------------------
+
+* Big upgrade for how Tractor Catalogues are loaded to DB. Only the mapping
+  between Catalogue and DB naming is hardcoded. Compatible DR2
+* Python parallelism. Can choose mulprocessing OR mpi4py
+* Unit test script that compares random rows from random Catalogues with 
+  what is in the DB
+
+0.5.0 (2016-08-16)
+------------------
+
+* Added obscondition and truesubtype to mocks (PR #55; JFR).
+* refactored cut functions to take all fluxes so that they have same call
+  signature (PR #56; JM).
+* Move data into Python package to aid pip installs (PR #47; BAW).
+* Support for Travis, Coveralls and ReadTheDocs (BAW).
+
+
+0.4.0 (2016-07-12)
+------------------
+
+* Updated code from DECaLS DR1 to load DR2 tractor catalaogues to psql db.
+* Basic unit test script for checking that db rows match tractor catalogues.
 
 0.3.3 (2016-03-08)
 ------------------

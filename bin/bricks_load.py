@@ -1,9 +1,9 @@
 #----------------------------------------------------------------------#
 # filename: pyfits+psycopg2_ex.py 
 # author: Peter Nugent
-# date: 10/30/2014
+# date: 1/29/2016
 # ---------------------------------------------------------------------#
-# Function: Read in a Arjun fits binary table from standard in and load it
+# Function: DR2, Read in a Arjun fits binary table from standard in and load it
 # into the desi calib pg table database with psycopg2.
 # ---------------------------------------------------------------------#
 
@@ -43,29 +43,14 @@ newdata = []
 
 # Fire up the db
 
-con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', password='L00cy-1959', database='desi')
+con = psycopg2.connect(host='scidb2.nersc.gov', user='desi_admin', database='desi')
 cursor = con.cursor()
 
 # Re-cast as strings so the load is easy 
 
 for i in range(0, nrows):
 
-    if tbdata['has_g'][i] == 70:
-        g = 0
-    else:
-	g = 1
-
-    if tbdata['has_r'][i] == 70:
-        r = 0
-    else:
-	r = 1
-
-    if tbdata['has_z'][i] == 70:
-        z = 0
-    else:
-	z = 1
-
-    line = [ tbdata['brickname'][i], tbdata['brickid'][i], tbdata['brickrow'][i], tbdata['brickcol'][i], tbdata['brickq'][i], tbdata['ra'][i], tbdata['dec'][i], tbdata['ra1'][i], tbdata['dec1'][i], tbdata['ra2'][i], tbdata['dec2'][i], bool(g), bool(r), bool(z) ]
+    line = [ tbdata['brickname'][i], tbdata['brickid'][i], tbdata['brickrow'][i], tbdata['brickcol'][i], tbdata['brickq'][i], tbdata['ra'][i], tbdata['dec'][i], tbdata['ra1'][i], tbdata['dec1'][i], tbdata['ra2'][i], tbdata['dec2'][i], tbdata['nobs_med_g'][i], tbdata['nobs_med_r'][i], tbdata['nobs_med_z'][i], tbdata['nobs_max_g'][i], tbdata['nobs_max_r'][i], tbdata['nobs_max_z'][i] ]
 
     newdata.append(line) 
 
@@ -73,13 +58,13 @@ for i in range(0, nrows):
 #
 for i, f in enumerate(newdata):
 ##
-   query = 'INSERT INTO bricks ( brickname, brickid, brickrow, brickcol, brickq, ra, dec, ra1, dec1, ra2, dec2, has_g, has_r, has_z) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )' 
+   query = 'INSERT INTO bricks ( brickname, brickid, brickrow, brickcol, brickq, ra, dec, ra1, dec1, ra2, dec2, nobs_med_g, nobs_med_r, nobs_med_z, nobs_max_g, nobs_max_r, nobs_max_z) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )' 
 ##
    cursor.execute( query, tuple( [str(elem) for elem in newdata[i]] ) ) 
 #
 #
 
 con.commit()
-
+print('done')
 # That's it!
 

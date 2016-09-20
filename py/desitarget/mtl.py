@@ -4,13 +4,13 @@ from astropy.table import Table, join
 from .targetmask import desi_mask, obsmask
 from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
 
+
 MTL_RESERVED_TARGETID_MIN_SKY = np.int(1e11)
 MTL_RESERVED_TARGETID_MIN_STD = np.int(1e13)
 
 ############################################################
 def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
-
     Parameters
     ----------
     targets : :class:`~astropy.table.Table`
@@ -26,6 +26,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     truth_meta : :class:`dict`,optional
         Dictionary to add as metadata to the truth table.
     
+
     Returns
     -------
     :class:`~astropy.table.Table`
