@@ -49,10 +49,66 @@ bgs_mask:
 
 #- Milky Way Survey
 mws_mask:
-    - [MWS_WD,              0, "Milky Way Survey White Dwarf", {obsconditions: BRIGHT}]
-    - [MWS_PLX,             1, "Milky Way Survey Parallax selected", {obsconditions: BRIGHT}]
-    
 
+    # First layer defines main samples -- these are expected to have distinct
+    # input catalogues. 
+   
+    # Bits 0-3 (7 ids)
+    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+
+    # Second layer flags additional subclasses that could apply to any
+    # of the main classes. These sort targets in each input catalog into
+    # distinct groups for the purpose of assigning priorities and observing
+    # conditions.
+    
+    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS 
+     
+    # => A main sample star at low galactic latitude, faint enough to be
+    # considered filler but with parallax factored into the subpriority and
+    # targeted for reobservation if possible.
+    
+    # Since the current structure doesn't support implicit combinations, this
+    # would have to be generated separately and pasted in here. The following
+    # is just a sketch at one level deep. Don't read anything deep into the
+    # choices here.
+
+    # 8: Low galactic latitude
+    - [MWS_MAIN_LOW_GAL_B,       8, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
+    #- [MWS_WD_LOW_GAL_B,         9, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
+    #- [MWS_NEARBY_LOW_GAL_B,    10, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
+
+    # 16: Very faint
+    - [MWS_MAIN_VERY_FAINT,     16, "Milky Way Survey additional faint filler targets",       {obsconditions: BRIGHT|GRAY|DARK}]
+    #- [MWS_WD_VERY_FAINT,       17, "Milky Way Survey additional faint filler targets",       {obsconditions: BRIGHT|GRAY|DARK}]
+    #- [MWS_NEARBY_VERY_FAINT,   18, "Milky Way Survey additional faint filler targets",       {obsconditions: BRIGHT|GRAY|DARK}]
+
+    # 32: Very bright
+    #- [MWS_MAIN_VERY_BRIGHT,    32, "Milky Way Survey additional very bright targets",        {obsconditions: BRIGHT|POOR|TWILIGHT12}]
+    #- [MWS_WD_VERY_BRIGHT,      33, "Milky Way Survey additional very bright targets",        {obsconditions: BRIGHT|POOR|TWILIGHT12}]
+    #- [MWS_NEARBY_VERY_BRIGHT,  34, "Milky Way Survey additional very bright targets",        {obsconditions: BRIGHT|POOR|TWILIGHT12}]
+
+    # 64: Parallex selected
+    #- [MWS_MAIN_PLX,            64, "Milky Way Survey parallax selected",                     {obsconditions: BRIGHT}]
+    #- [MWS_WD_PLX,              65, "Milky Way Survey parallax selected",                     {obsconditions: BRIGHT}]
+    #- [MWS_NEARBY_PLX,          66, "Milky Way Survey parallax selected",                     {obsconditions: BRIGHT}]
+
+    # 128: Reobserve
+    #- [MWS_MAIN_REOBS,         128, "Milky Way Survey targets to reobserve",                  {obsconditions: BRIGHT}]
+    #- [MWS_WD_REOBS,           129, "Milky Way Survey targets to reobserve",                  {obsconditions: BRIGHT}]
+    #- [MWS_NEARBY_REOBS,       130, "Milky Way Survey targets to reobserve",                  {obsconditions: BRIGHT}]
+
+    # 256: Very metal poor
+    #- [MWS_MAIN_VMP,           256, "Milky Way Survey possible metal poor targets",           {obsconditions: BRIGHT}]
+    #- [MWS_WD_VMP,             257, "Milky Way Survey possible metal poor targets",           {obsconditions: BRIGHT}]
+    #- [MWS_NEARBY_VMP,         258, "Milky Way Survey possible metal poor targets",           {obsconditions: BRIGHT}]
+    
+    # 512: In an overdensity
+    #- [MWS_MAIN_OVERDENSITY,   512, "Milky Way Survey targets in streams and satellites",     {obsconditions: BRIGHT}]
+    #- [MWS_WD_OVERDENSITY,     513, "Milky Way Survey targets in streams and satellites",     {obsconditions: BRIGHT}]
+    #- [MWS_NEARBY_OVERDENSITY, 514, "Milky Way Survey targets in streams and satellites",     {obsconditions: BRIGHT}]
+   
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
 #- in which they are allowed to be observed.
@@ -127,5 +183,9 @@ priorities:
 
     #- Milky Way Survey: priorities 1000-1999
     mws_mask:
-        MWS_WD: {UNOBS: 1500}
-        MWS_PLX: {UNOBS: 1500}
+        MWS_MAIN:            {UNOBS: 1500}
+        MWS_WD:              {UNOBS: 1600}
+        MWS_NEARBY:          {UNOBS: 1600}
+        MWS_MAIN_LOW_GAL_B:  SAME_AS_MWS_MAIN
+        MWS_MAIN_VERY_FAINT: {UNOBS: 1400}
+

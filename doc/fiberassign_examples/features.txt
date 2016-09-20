@@ -1,0 +1,97 @@
+galFile    /dev/null
+tileFile   /gpfs/data/DESI/shared/milkyway/fa_runs/support/tilesets/JT2P4Y/schedule_2pass_redesign5c.apc.fits
+fibFile    /gpfs/data/DESI/shared/milkyway/fa_runs/support/fiberpos.txt
+surveyFile /gpfs/data/DESI/shared/milkyway/fa_runs/support/tilesets/JT2P4Y/alltiles_2p4y_bt_survey.par
+SStarsfile /gpfs/data/DESI/shared/milkyway/fa_runs/support/mtl/v2/stdstars.obsconditions.fits
+SkyFfile   /gpfs/data/DESI/shared/milkyway/fa_runs/support/mtl/v2/sky.obsconditions.fits
+
+outDir     ./output/
+
+PrintAscii false
+PrintFits  true
+Targfile   ./input/combined_mtl.fits
+Secretfile ./input/combined_mtl_truth.fits
+diagnose true
+
+Output true
+kind kinda kindb SS SF
+type typea typeb SS SF
+prio 1 2 0 1
+goalpost 1 2 0 1
+goal 1 2 5 5
+lastpass 1 1 1 1
+pass_intervals 0 500 1000 2000 
+Randomize false
+Pacman false
+Npass 5
+MaxSS 10
+MaxSF 40
+PlateRadius 1.65
+InterPlate 0
+Analysis 0
+InfDens false
+
+TotalArea 15789.0
+invFibArea 700
+moduloGal 1
+moduloFiber 1
+
+Collision false
+Exact true
+AvCollide 3.2
+Collide 1.98
+NoCollide 7.0
+PatrolRad 5.8
+NeighborRad 14.05
+
+PlotObsTime false
+PlotHistLya false
+PlotDistLya false
+PlotFreeFibHist false
+PlotFreeFibTime false
+PlotSeenDens false
+
+Verif false
+Ascii false
+PrintGalObs false
+BrightTime true
+-------------------------------------------------
+
+-galFile : input file of objects
+-tileFile : input file of tiles
+-fibFile : input file of centers of locations of fiber positioners
+-outDir : output directory
+-Output : whether you want to output the assignment at the end
+
+-kind : kinds of objects
+-type : type of objects, in the same order
+-prio : corresponding priorities
+-priopost : corresponding priorities when one knows the real kind
+-goal : number of times we want to observe them
+
+-Randomize : whether the order of tiles is randomized in making plans
+-Pacman : pacman version with reduced number of petals
+-Npass : number of passes
+-MaxSS : number of standard stars in each petals
+-MaxSF : number of sky fibers in each petals
+-PlateRadius : radius of the plate
+-InterPlate : minimal distance (in number of tiles) between 2 observations of the same object (if they are QSO or LRG)
+-Analysis : number of tiles (time) between the observation of a tile and results on its analysis, which tells if for instance a QSO is a Ly-a or a fake, so that we can update the plan further such that we don't observe a fake again
+-InfDens : instead of assigning SS and SF, just release MaxSS+MaxSF unused fibers per petal, to simulate an infinite density of SS and SF
+
+-TotalArea : area of the sky observed
+-invFibArea : inverse of the reachable area (sqd) by a single fiber
+-moduloGal : if 2 for instance, reads only one object over two in galFile
+-moduloFiber : same for fibFile
+
+-Collision : whether we allow collisions
+-Exact : whether we use the exact shape of fiber holder and central body of positioners
+-AvCollide : (experimentaly calibrated) distance between 2 galaxies beyond which we consider there isn't a collision for the positioners, and before which we consider that there is (in case of Exact=false)
+-Collide : min distance between 2 galaxies so that positioners always collide
+-NoCollide : (experimental) max distance between 2 galaxies so that positioners never collide
+-PatrolRad : radius the disk of reachable objects around a location of a positioner, on the plate
+-NeighborRad : max distance between 2 positioner locations for possible collision
+
+-PlotObsTime PlotHistLya PlotDistLya PlotFreeFibHist PlotFreeFibTime PlotSeenDens : whether we compute and stock those information (takes around 5mn altogether)
+
+-Verif : whether we verificate that the assignment is sane (no collision, sane mapping, etc...)

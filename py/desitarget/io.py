@@ -205,6 +205,40 @@ def brickname_from_filename(filename):
         raise ValueError("Invalid tractor brick file: {}!".format(filename))
     return match.group(1)
 
+############################################################
+def brickname_from_filename_with_prefix(filename,prefix=''):
+    """Parse `filename` to check if this is a brick file with a given prefix.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Full name of a brick file.
+    prefix : :class:`str`
+        Optional part of filename immediately preceding the brickname
+
+    Returns
+    -------
+    :class:`str`
+        Name of the brick in the file name.
+
+    Raises
+    ------
+    ValueError
+        If the filename does not appear to be a valid brick file.
+    """
+    if not filename.endswith('.fits'):
+        raise ValueError("Invalid galaxia mock brick file: {}!".format(filename))
+    #
+    # Match filename tractor-0003p027.fits -> brickname 0003p027.
+    # Also match tractor-00003p0027.fits, just in case.
+    #
+    match = re.search('%s_(\d{4,5}[pm]\d{3,4})\.fits'%(prefix),
+                      os.path.basename(filename))
+
+    if match is None:
+        raise ValueError("Invalid galaxia mock brick file: {}!".format(filename))
+    return match.group(1)
+
 
 def check_fitsio_version(version='0.9.8'):
     """fitsio_ prior to 0.9.8rc1 has a bug parsing boolean columns.
