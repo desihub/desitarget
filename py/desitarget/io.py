@@ -60,10 +60,11 @@ def read_tractor(filename, header=False, columns=None):
     data = fx[1].read(columns=readcolumns)
 
     #ADM To circumvent whitespace bugs on I/O from fitsio
-    #ADM need to enforce that the TYPE column is 4 characters
-    #ADM only other string column is BRICKNAME, but its length is consistent
-    if 'TYPE' in readcolumns:
-        data["TYPE"] = np.char.ljust(data["TYPE"],4)
+    #ADM need to strip any white space from string columns
+    for colname in data.dtype.names:
+        kind = data[colname].dtype.kind
+        if kind == 'U' or kind == 'S':
+            data[colname] = np.char.rstrip(data[colname])
 
     if header:
         hdr = fx[1].read_header()
