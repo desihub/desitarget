@@ -19,7 +19,8 @@ ap = ArgumentParser()
 ap.add_argument("src", help="Tractor file or root directory with tractor files")
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
-ap.add_argument('--QSOSelection',type=int,help="- 0 Color Cut Selection - 1 BDT Selection")
+ap.add_argument('--qsoselection',choices=['colorcuts','bdt'],
+                help=" Color Cut Selection or BDT Selection")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int,
     help='number of concurrent processes to use [{}]'.format(nproc),
@@ -34,7 +35,7 @@ if len(infiles) == 0:
     sys.exit(1)
 
 targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose, 
-                         QSOSelection=ns.QSOSelection)
+                         qso_selection=ns.qsoselection)
 
 io.write_targets(ns.dest, targets, indir=ns.src)
 

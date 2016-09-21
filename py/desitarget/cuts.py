@@ -234,7 +234,7 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
 
     if deltaChi2 is not None:
         qso &= deltaChi2>40.
-        
+
     return qso
 
 
@@ -263,7 +263,9 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
 
     # build variables for BDT    
     nfeatures=11 # number of variables in BDT
-    nbEntries=len(rflux)
+#    nbEntries=len(rflux)
+    nbEntries=rflux.size
+#    print 'length =',len(rflux),' v2 =',rflux.size
     colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
 
     #Preselection to speed up the process, store the indexes
@@ -271,25 +273,24 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     preSelection = (r<rMax) &  psflike(objtype) & DECaLSOK 
     colorsCopy = colors.copy()
     colorsReduced = colorsCopy[preSelection]
-    colorsIndex =  np.arange(0,nbEntries,dtype=np.int)
+    colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
     colorsReducedIndex =  colorsIndex[preSelection]
-  
+
     #Load BDT
     pathToBDT = resource_filename('desitarget', "data/bdt_model_dr3/bdt.pkl") 
     # Compute BDT probability
     from sklearn.externals import joblib
     bdt = joblib.load(pathToBDT) 
-#    objects_bdt = bdt.predict_proba(colors)
-    if (len(colorsReduced)>0) :
+    prob = np.zeros(nbEntries)     
+
+    if (colorsReducedIndex.any()) :
         objects_bdt = bdt.predict_proba(colorsReduced)
-    
-    # add BDT probability
-    prob = np.zeros(nbEntries)
-    j=0
-    for i in colorsReducedIndex :
-         prob[i]=objects_bdt[j,1]
-         j += 1
-#    prob = objects_bdt[:,1]
+        # add BDT probability to preselected objects
+        j=0
+        for i in colorsReducedIndex :
+            prob[i]=objects_bdt[j,1]
+            j += 1
+
 
     #define pcut, relaxed cut for faint objects
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
@@ -304,7 +305,10 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     if deltaChi2 is not None:
         qso &= deltaChi2>30.
 
-    qso &= prob>pcut
+    if nbEntries==1 : #to pass one test...
+        qso &= prob[0]>pcut
+    else :
+        qso &= prob>pcut        
         
     return qso
 
@@ -388,7 +392,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects,QSOSelection):
+def apply_cuts(objects,qso_selection='bdt'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -448,7 +452,7 @@ def apply_cuts(objects,QSOSelection):
 
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
     
-    if QSOSelection==0 :
+    if qso_selection=='colorcuts' :
         qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
@@ -502,10 +506,11 @@ def apply_cuts(objects,QSOSelection):
 
     return desi_target, bgs_target, mws_target
 
-def select_targets(infiles, numproc=4, verbose=False, QSOSelection=1):
+def select_targets(infiles, numproc=4, verbose=False, qso_selection='bdt'):
     """
     Process input files in parallel to select targets
     
+
     Args:
         infiles: list of input filenames (tractor or sweep files),
             OR a single filename
@@ -536,7 +541,7 @@ def select_targets(infiles, numproc=4, verbose=False, QSOSelection=1):
         '''Returns targets in filename that pass the cuts'''
         from desitarget import io
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects,QSOSelection)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection)
         
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         #- on desi_target != 0
