@@ -4,6 +4,7 @@ import numpy as np
 from astropy.table import Table
 
 from desitarget import desi_mask as Mx
+from desitarget import obsconditions
 from desitarget.mtl import make_mtl
 
 class TestMTL(unittest.TestCase):
@@ -16,6 +17,8 @@ class TestMTL(unittest.TestCase):
         self.post_prio[0] = 0  #- ELG
         self.post_prio[2] = 0  #- low-z QSO
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
+        self.targets['BGS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
+        self.targets['MWS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
@@ -29,19 +32,19 @@ class TestMTL(unittest.TestCase):
             
     def test_mtl(self):
         mtl = make_mtl(self.targets)
-        goodkeys = set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'GRAYLAYER'])
-        self.assertTrue(set(mtl.dtype.names) == goodkeys, \
-                        'colname mismatch: {} vs. {}'.format( \
-                            mtl.dtype.names, goodkeys))
+        goodkeys = sorted(set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
+        mtlkeys = sorted(mtl.dtype.names)
+        self.assertEqual(mtlkeys, goodkeys)
                     
     def test_numobs(self):
         mtl = make_mtl(self.targets)
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
+        #- Check that ELGs can be observed in gray conditions but not others
         iselg = (self.types == 'ELG')
-        self.assertTrue(np.all(mtl['GRAYLAYER'][iselg] != 0))
-        self.assertTrue(np.all(mtl['GRAYLAYER'][~iselg] == 0))
+        self.assertTrue(np.all((mtl['OBSCONDITIONS'][iselg] & obsconditions.GRAY) != 0))
+        self.assertTrue(np.all((mtl['OBSCONDITIONS'][~iselg] & obsconditions.GRAY) == 0))
 
     def test_zcat(self):
         mtl = make_mtl(self.targets, self.zcat, trim=False)

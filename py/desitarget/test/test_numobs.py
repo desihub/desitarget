@@ -10,6 +10,8 @@ class TestNumObs(unittest.TestCase):
     def setUp(self):
         dtype = [
             ('DESI_TARGET',np.int64),
+            ('BGS_TARGET',np.int64),
+            ('MWS_TARGET',np.int64),
             ('DECAM_FLUX', '>f4', (6,)),
             ('DECAM_MW_TRANSMISSION', '>f4', (6,)),
         ]
@@ -19,8 +21,10 @@ class TestNumObs(unittest.TestCase):
             
     def test_numobs(self):
         t = self.targets
-        #- default DESI_TARGET=0 should be no observations
-        self.assertTrue(np.all(calc_numobs(t) == 0))
+
+        #- No target bits set is an error
+        with self.assertRaises(ValueError):
+            calc_numobs(t)
         
         #- ELGs and QSOs get one observation
         t['DESI_TARGET'] = desi_mask.ELG
