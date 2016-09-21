@@ -1,4 +1,4 @@
-from __future__ import (absolute_import, division)
+from __future__ import (absolute_import, division, print_function)
 
 import os
 import importlib
@@ -75,7 +75,7 @@ def make_mtls_for_sources(source_defs,output_dir,reset=False):
     
     print('The following mock catalog sources are specified:')
     for source_name in sorted(source_defs.keys()):
-        print '{}'.format(source_name)        
+        print('{}'.format(source_name))
 
     # Iterate over sources in predictable order to genereate data (or read from
     # cached files)
