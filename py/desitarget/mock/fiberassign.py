@@ -60,7 +60,7 @@ def make_mtls_for_sources(source_defs,output_dir,reset=False):
 
     The keys in sources must correspond to the names of modules in
     desitarget.mock. These modules must define a function build_mock_target
-    that can generate target and truth files for that mock. 
+    that can generate target and truth files for that mock.
 
     These intermediate TLs contain all targets from a mock in one file and have
     a format similar to the final fiberassign MTL, but they are not suitable
@@ -72,10 +72,10 @@ def make_mtls_for_sources(source_defs,output_dir,reset=False):
     targets_all     = list()
     truth_all       = list()
     sourcefiles_all = list()
-    
+
     print('The following mock catalog sources are specified:')
     for source_name in sorted(source_defs.keys()):
-        print '{}'.format(source_name)        
+        print('{}'.format(source_name))
 
     # Iterate over sources in predictable order to genereate data (or read from
     # cached files)

@@ -352,7 +352,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     # Build iterator of all desi_galfast files
     iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
    
-    print 'Selection specified: %s'%(selection)
+    print('Selection specified: %s'%(selection))
 
     if selection is None:
         loadfunc = _load_mock_mws_file
