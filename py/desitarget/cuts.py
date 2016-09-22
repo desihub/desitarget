@@ -144,12 +144,12 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 def psflike(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    #- this could be fixed in the IO routine too.
+    #ADM fixed this in I/O.
     psftype = np.asarray(psftype)
     #ADM in Python3 these string literals become byte-like
-    #ADM still ultimately better to fix in IO, I'd think
-    #psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
-    psflike = ((psftype == 'PSF') | (psftype == 'PSF ') |(psftype == b'PSF') | (psftype == b'PSF '))
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
     return psflike
 
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
