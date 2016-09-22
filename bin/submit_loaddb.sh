@@ -7,7 +7,7 @@
 #SBATCH -o loaddb.o%j
 #SBATCH --mail-user=kburleigh@lbl.gov
 #SBATCH --mail-type=END,FAIL
-#SBATCH -L SCRATCH
+#SBATCH -L project
 cd $SLURM_SUBMIT_DIR
 sanity="jobids_loaddb.txt"
 echo "SLURM_JOBID="$SLURM_JOBID >> ${sanity}
