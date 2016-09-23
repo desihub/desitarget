@@ -1,5 +1,5 @@
 # Fiberassign run configuration
-# All paths are realtive to this file
+# All paths are relative to this file
 
 run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
 
@@ -18,16 +18,16 @@ sources:
         mag_bright: 15.0,
         mag_faintest: 20.0,
         mag_priority_split: 19.5,
-        root_mock_dir: /gpfs/data/DESI/shared/milkyway/fiducial_galaxies/mxxl/bricks
+        root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint
     }
     mws_galaxia: {
         mag_bright: 15.0, 
         mag_faint_filler: 19.0, 
         mag_faintest: 20.0, 
-        root_mock_dir: /gpfs/data/DESI/shared/milkyway/galaxia/alpha/0.0.1/bricks
+        root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks
     }
     mws_wd100pc: {
         mag_bright: 15.0, 
         mag_faint: 20.0, 
-        root_mock_dir: /gpfs/data/DESI/shared/milkyway/wd100pc
+        root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc
     }
