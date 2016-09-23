@@ -4,6 +4,7 @@ import os.path
 from uuid import uuid4
 from astropy.io import fits
 import numpy as np
+import fitsio
 
 from desitarget import io
 
@@ -77,7 +78,9 @@ class TestIO(unittest.TestCase):
         self.assertEqual(len(data), 6)  #- test data has 6 objects per file
 
         io.write_targets(self.testfile, data, indir=self.datadir)
-        d2, h2 = fits.getdata(self.testfile, header=True)
+        ### d2, h2 = fits.getdata(self.testfile, header=True)
+        #ADM use fits read wrapper in io to correctly handle whitespace
+        d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
         #
         # Disabling this test because self.datadir may be too long to fit
         # into a single FITS header line.

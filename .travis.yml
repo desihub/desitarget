@@ -44,7 +44,7 @@ env:
         - DESIUTIL_VERSION=1.4.0
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
-        - CONDA_DEPENDENCIES='pyyaml'
+        - CONDA_DEPENDENCIES='pyyaml qt=4'
         # These packages will only be installed if we really need them.
         - CONDA_ALL_DEPENDENCIES='pyyaml h5py coverage==3.7.1 requests'
         # These packages will always be installed.
@@ -75,9 +75,14 @@ matrix:
           env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
           # -w is an astropy extension
 
-        # Try all python versions with the latest numpy
+        # Try several python versions with the latest numpy
         - os: linux
           env: PYTHON_VERSION=2.7 SETUP_CMD='test --coverage'
+               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+
+        - os: linux
+          env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 

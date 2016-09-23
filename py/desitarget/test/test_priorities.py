@@ -37,7 +37,7 @@ class TestPriorities(unittest.TestCase):
         t['NUMOBS'] = [0, 1, 1]
         t['ZWARN'] = [1, 1, 0]
         p = calc_priority(t)
-                
+
         self.assertEqual(p[0], bgs_mask.BGS_FAINT.priorities['UNOBS'])
         self.assertEqual(p[1], bgs_mask.BGS_FAINT.priorities['MORE_ZWARN'])
         self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['MORE_ZGOOD'])

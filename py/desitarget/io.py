@@ -58,6 +58,14 @@ def read_tractor(filename, header=False, columns=None):
         readcolumns.append('BRICK_PRIMARY')
 
     data = fx[1].read(columns=readcolumns)
+
+    #ADM To circumvent whitespace bugs on I/O from fitsio
+    #ADM need to strip any white space from string columns
+    for colname in data.dtype.names:
+        kind = data[colname].dtype.kind
+        if kind == 'U' or kind == 'S':
+            data[colname] = np.char.rstrip(data[colname])
+
     if header:
         hdr = fx[1].read_header()
         fx.close()
@@ -198,6 +206,40 @@ def brickname_from_filename(filename):
         raise ValueError("Invalid tractor brick file: {}!".format(filename))
     return match.group(1)
 
+############################################################
+def brickname_from_filename_with_prefix(filename,prefix=''):
+    """Parse `filename` to check if this is a brick file with a given prefix.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Full name of a brick file.
+    prefix : :class:`str`
+        Optional part of filename immediately preceding the brickname
+
+    Returns
+    -------
+    :class:`str`
+        Name of the brick in the file name.
+
+    Raises
+    ------
+    ValueError
+        If the filename does not appear to be a valid brick file.
+    """
+    if not filename.endswith('.fits'):
+        raise ValueError("Invalid galaxia mock brick file: {}!".format(filename))
+    #
+    # Match filename tractor-0003p027.fits -> brickname 0003p027.
+    # Also match tractor-00003p0027.fits, just in case.
+    #
+    match = re.search('%s_(\d{4,5}[pm]\d{3,4})\.fits'%(prefix),
+                      os.path.basename(filename))
+
+    if match is None:
+        raise ValueError("Invalid galaxia mock brick file: {}!".format(filename))
+    return match.group(1)
+
 
 def check_fitsio_version(version='0.9.8'):
     """fitsio_ prior to 0.9.8rc1 has a bug parsing boolean columns.
@@ -223,3 +265,34 @@ def check_fitsio_version(version='0.9.8'):
         not fitsio.__version__.startswith(version)):
         raise ImportError(('ERROR: fitsio >{0}rc1 required ' +
                            '(not {1})!').format(version, fitsio.__version__))
+
+def whitespace_fits_read(filename, **kwargs):
+    """Use fitsio_ to read in a file and strip whitespace from all string columns
+
+    .. _fitsio: https://pypi.python.org/pypi/fitsio
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Name of the file to be read in by fitsio
+    kwargs: arguments that will be passed directly to fitsio
+    """
+    fitout = fitsio.read(filename, **kwargs)
+    #ADM if the header=True option was passed then
+    #ADM the output is the header and the data
+    data = fitout
+    if len(fitout) == 2:
+        data, header = fitout
+
+    #ADM guard against the zero-th extension being read by fitsio
+    if data is not None:
+        #ADM strip any whitespace from string columns
+        for colname in data.dtype.names:
+            kind = data[colname].dtype.kind
+            if kind == 'U' or kind == 'S':
+                data[colname] = np.char.rstrip(data[colname])
+
+    if len(fitout) == 2:
+        return data, header
+
+    return data

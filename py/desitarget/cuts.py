@@ -1,6 +1,8 @@
 import warnings
 from time import time
 import os.path
+import numbers
+
 import numpy as np
 from astropy.table import Table, Row
 
@@ -142,12 +144,12 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 def psflike(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    #- this could be fixed in the IO routine too.
+    #ADM fixed this in I/O.
     psftype = np.asarray(psftype)
     #ADM in Python3 these string literals become byte-like
-    #ADM still ultimately better to fix in IO, I'd think
-    #psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
-    psflike = ((psftype == 'PSF') | (psftype == 'PSF ') |(psftype == b'PSF') | (psftype == b'PSF '))
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
     return psflike
 
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
@@ -382,7 +384,7 @@ def apply_cuts(objects):
     bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
 
     #- nothing for MWS yet; will be GAIA-based
-    if isinstance(bgs_target, int):
+    if isinstance(bgs_target, numbers.Integral):
         mws_target = 0
     else:
         mws_target = np.zeros_like(bgs_target)

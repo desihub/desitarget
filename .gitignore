@@ -56,3 +56,7 @@ target/
 
 # Emacs stuff:
 *~
+
+# VIM stuff
+*.swo
+*.swp
