@@ -13,6 +13,7 @@ import numpy as np
 import fitsio
 import os, re
 import desitarget.io
+import h5py
 import desitarget.targets
 
 """
@@ -41,28 +42,21 @@ def _load_mock_bgs_mxxl_file(filename):
     Returns:
         dict with the following entries (all ndarrays):
 
-        objid       : Mock object ID
-        brickid     : Mock brick ID
         RA          : RA positions for the objects in the mock.
         DEC         : DEC positions for the objects in the mock.
         Z           : Heliocentric radial velocity divided by the speed of light.
         SDSSr_true  : Apparent magnitudes in SDSS r band.
     """
-    desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,
-                       columns= ['objid','brickid',
-                                 'RA','DEC','Z', 'R'])
+    f = h5py.File(filename)
+    ra  = f["Data/ra"][...].astype('f8') % 360.0
+    dec = f["Data/dec"][...].astype('f8')
+    SDSSr_true   = f["Data/app_mag"][...].astype('f8')
+    zred   = f["Data/z_obs"][...].astype('f8')
+    f.close()
 
-    objid       = data['objid'].astype('i8')
-    brickid     = data['brickid'].astype('i8')
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    SDSSr_true  = data['R'].astype('f8')
-    zred        = data['Z'].astype('f8')
-
-    return {'objid':objid,'brickid':brickid,
-            'RA':ra, 'DEC':dec, 'Z': zred ,
+    return {'RA':ra, 'DEC':dec, 'Z': zred ,
             'SDSSr_true':SDSSr_true}
+
 
 ############################################################
 def _load_mock_mws_file_fstar_standards(filename):
@@ -444,7 +438,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
     
     """
     # Build iterator of all mock brick files
-    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
+    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="hdf5")
     
     # Read each file
     print('Reading individual mock files')
