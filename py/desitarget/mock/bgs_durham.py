@@ -195,7 +195,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # fitsio.writeto(truth_filename, truth.as_array(),clobber=True)
         prihdr    = fitsio.Header()
         prihdu    = fitsio.PrimaryHDU(header=prihdr)
-        
+
         mainhdr   = fitsio.Header()
         mainhdr['EXTNAME'] = 'TRUTH'
         mainhdu   = fitsio.BinTableHDU.from_columns(truth.as_array(),header=mainhdr)

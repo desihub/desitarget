@@ -207,21 +207,21 @@ def _load_mock_wd100pc_file(filename):
 ############################################################
 def _read_mock_add_file_and_row_number(target_list,full_data):
     """Adds row and file number to dict of properties. 
-    
+
     Parameters
     ----------
         target_list (list of dicts):
             Each dict in the list contains data for one file, list is in same
             order as files are read.
 
-        full_data (dict): 
+        full_data (dict):
             dict returned by any of the mock-reading routines.
 
     Side effects
     ------------
         Modifies full_data.
     """
-    fiducial_key = target_list[0].keys()[0]
+    fiducial_key = list(target_list[0])[0]
     all_rownum   = list()
     all_filenum  = list()
     for ifile,target_item in enumerate(target_list):
@@ -231,7 +231,7 @@ def _read_mock_add_file_and_row_number(target_list,full_data):
 
     full_data['rownum']  = np.array(np.concatenate(all_rownum),dtype=np.int64)
     full_data['filenum'] = np.array(np.concatenate(all_filenum),dtype=np.int64)
-    return 
+    return
 
 ############################################################
 def encode_rownum_filenum(rownum, filenum):
@@ -307,7 +307,7 @@ def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
     full_data = _load_mock_wd100pc_file(filename)
 
     # Add file and row number
-    fiducial_key         = full_data.keys()[0]
+    fiducial_key         = list(full_data)[0]
     nrows                = len(full_data[fiducial_key])
     full_data['rownum']  = np.arange(0,nrows)
     full_data['filenum'] = np.zeros(nrows,dtype=np.int)
@@ -390,7 +390,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     n_per_file  = list()
     full_data   = dict()
     if len(target_list) > 0:
-        for k in target_list[0].keys():
+        for k in list(target_list[0]):
             print(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order:
@@ -402,7 +402,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
         _read_mock_add_file_and_row_number(target_list,full_data)
         
         # Count number per file
-        k          = target_list[0].keys()[0]
+        k          = list(target_list[0])[0]
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
   
     # Return source list as ordered list of (file, n_row) tuples
@@ -476,7 +476,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
     full_data   = dict()
     n_per_file  = list()
     if len(target_list) > 0:
-        for k in target_list[0].keys():
+        for k in list(target_list[0]):
             print(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order:
@@ -488,7 +488,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
         _read_mock_add_file_and_row_number(target_list,full_data)
   
         # Count number per file
-        k          = target_list[0].keys()[0]
+        k          = list(target_list[0])[0]
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
   
     # Return source list as ordered list of (file, n_row) tuples

@@ -9,7 +9,6 @@ Process is as follows:
     - The intermediate files are concatenated (in memory).
     - The concatenated table is fed to desitarget.mtl to create the final MTL
       and truth table that can be passed to fiberassign.
-    
 
 """
 import os
@@ -17,8 +16,9 @@ import importlib
 import time
 import yaml
 
-import astropy.io.fits as fitsio
-
+import astropy
+import astropy.io.fits as fits
+from   astropy.table import Table, Column
 from   desitarget import mtl
 import desitarget.mock
 import desitarget.mock.fiberassign as fiberassign
@@ -28,7 +28,7 @@ def mocks_to_fa_input(fa_run_dir,yaml_name='fa_run.yaml', reset=False):
     """
     Args:
        fa_run_dir   Top level directory for FA run.
-       yaml_name    [optional] alternative name for configuration file 
+       yaml_name    [optional] alternative name for configuration file
                     (must be found in fa_run_dir)
        reset        If True, remake all cached files on disk.
     """
@@ -47,12 +47,12 @@ def mocks_to_fa_input(fa_run_dir,yaml_name='fa_run.yaml', reset=False):
     original_dir = os.getcwd()
     try:
         os.chdir(fa_run_dir)
-        
+
         # Read parameters from yaml
         with open(yaml_name,'r') as pfile:
             params = yaml.load(pfile)
         assert(os.path.exists(params['target_dir']))
-        assert(params.has_key('sources'))
+        assert('sources' in params)
 
         # Construct intermediate MTLs for each soruce
         targets_all, truth_all, sources_all = fiberassign.make_mtls_for_sources(params['sources'],
@@ -62,7 +62,7 @@ def mocks_to_fa_input(fa_run_dir,yaml_name='fa_run.yaml', reset=False):
         combined = fiberassign.combine_targets_truth(targets_all,truth_all, input_sources=sources_all)
 
         print('{:d} targets in combined list'.format(len(combined['targets'])))
-        
+
         # Produce the final MTL and truth; trim = False is important!
         combined_mtl, combined_mtl_truth = mtl.make_mtl(combined['targets'],
                                                         truth = combined['truth'],
@@ -72,31 +72,31 @@ def mocks_to_fa_input(fa_run_dir,yaml_name='fa_run.yaml', reset=False):
         # Write MTL targets
         output_mtl_path   = os.path.join(params['target_dir'],params['target_mtl_name'])
         print('Writing output to {}'.format(os.path.abspath(output_mtl_path)))
-        fitsio.writeto(output_mtl_path, combined_mtl.as_array(),clobber=True)
+        fits.writeto(output_mtl_path,combined_mtl.as_array(),clobber=True)
 
         # Write MTL truth
         output_truth_path = os.path.join(params['target_dir'],params['truth_name'])
         print('Writing output to {}'.format(os.path.abspath(output_truth_path)))
 
         # Truth slightly convoluted, store sources as 2nd extension. Can't
-        # write multiple extensions with fitsio.writeto?
-        prihdr    = fitsio.Header()
-        prihdu    = fitsio.PrimaryHDU(header=prihdr)
+        # write multiple extensions with fits.writeto?
+        prihdr    = fits.Header()
+        prihdu    = fits.PrimaryHDU(header=prihdr)
 
-        mainhdr   = fitsio.Header()
+        mainhdr   = fits.Header()
         mainhdr['EXTNAME'] = 'TRUTH'
-        mainhdu   = fitsio.BinTableHDU.from_columns(combined_mtl_truth.as_array(),
+        mainhdu   = fits.BinTableHDU.from_columns(combined_mtl_truth.as_array(),
                                                     header=mainhdr)
-        sourcehdr = fitsio.Header()
+        sourcehdr = fits.Header()
         sourcehdr['EXTNAME'] = 'SOURCES'
-        sourcehdu = fitsio.BinTableHDU.from_columns(combined['sources'].as_array(),
+        sourcehdu = fits.BinTableHDU.from_columns(combined['sources'].as_array(),
                                                     header=sourcehdr)
-        sourcemetahdr = fitsio.Header()
+        sourcemetahdr = fits.Header()
         sourcemetahdr['EXTNAME'] = 'SOURCEMETA'
-        sourcemetahdu = fitsio.BinTableHDU.from_columns(combined['sources_meta'].as_array(),
+        sourcemetahdu = fits.BinTableHDU.from_columns(combined['sources_meta'].as_array(),
                                                         header=sourcemetahdr)
 
-        truth_hdu = fitsio.HDUList([prihdu, mainhdu, sourcehdu, sourcemetahdu])
+        truth_hdu = fits.HDUList([prihdu, mainhdu, sourcehdu, sourcemetahdu])
         truth_hdu.writeto(output_truth_path,clobber=True)
     finally:
         # Change back to original directory
