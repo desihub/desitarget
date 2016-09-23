@@ -265,7 +265,7 @@ def calc_numobs(targets):
 
     n_no_target_class = np.sum(no_target_class)
     if n_no_target_class > 0:
-        raise Exception('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
+        raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
 
     #- LRGs get 1, 2, or 3 observations depending upon magnitude
     zflux = None
@@ -293,10 +293,12 @@ def calc_numobs(targets):
 
     # FIXME (APC): Better not to hardcode all this here? Took out the following
     # for compatibility with earlier MWS tests
+    # SJB: better to not hardcode (for BGS and LRGs too), but until that is
+    # refactored we still need to request 2 observations for BGS_FAINT
     #- TBD: BGS Faint = 2 observations
-    #if 'BGS_TARGET' in targets.dtype.names:
-    #    ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
-    #    nobs[ii] = np.maximum(nobs[ii], 2)
+    if 'BGS_TARGET' in targets.dtype.names:
+       ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
+       nobs[ii] = np.maximum(nobs[ii], 2)
 
     return nobs
 

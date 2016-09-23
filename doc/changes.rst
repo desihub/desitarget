@@ -2,10 +2,11 @@
 desitarget Change Log
 =====================
 
-0.6.2 (unreleased)
+0.7.0 (unreleased)
 ------------------
 
-* No changes yet
+* Updates to be compatible with python 3.5
+* refactor of merged target list (mtl) code
 
 0.6.1 (2016-08-18
 ------------------

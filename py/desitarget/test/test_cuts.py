@@ -64,7 +64,11 @@ class TestCuts(unittest.TestCase):
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
+        wise_snr = targets['WISE_FLUX'] * np.sqrt(targets['WISE_FLUX_IVAR'])
+        dchisq = targets['DCHISQ'] 
+        deltaChi2 = dchisq[...,0] - dchisq[...,1]
         primary = targets['BRICK_PRIMARY']
+
         lrg1 = cuts.isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux, primary=None)
         lrg2 = cuts.isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux, primary=primary)
         self.assertTrue(np.all(lrg1==lrg2))
@@ -79,9 +83,9 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(np.all(bgs1==bgs2))
 
         qso1 = cuts.isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          objtype=psftype, primary=primary)
+                          objtype=psftype, primary=primary, deltaChi2=deltaChi2, wise_snr=wise_snr)
         qso2 = cuts.isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          objtype=None, primary=None)
+                          objtype=None, primary=None, deltaChi2=None, wise_snr=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)

@@ -1,7 +1,7 @@
 import numpy as np
 from astropy.table import Table, join
 
-from .targetmask import desi_mask, obsmask
+from .targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
 
 
@@ -80,16 +80,18 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     for name in ['NUMOBS', 'Z', 'ZWARN']:
         mtl.remove_column(name)
 
-    # FIXME (APC): special-case fixes and use of GRAYLAYER seem awkward here.
-    #              Will replace this with calc_obsconditions?
-
-    mtl['OBSCONDITIONS'] = np.ones(n,dtype='i4')
-
-    # ELGs can be observed during gray time
-    #graylayer        = np.zeros(n, dtype='i4')
-    #iselg            = (mtl['DESI_TARGET'] & desi_mask.ELG) != 0
-    #graylayer[iselg] = 1
-    #mtl['GRAYLAYER'] = graylayer
+    #- Set the OBSCONDITIONS mask for each target bit
+    mtl['OBSCONDITIONS'] = np.zeros(n, dtype='i4')
+    for mask, xxx_target in [
+        (desi_mask, 'DESI_TARGET'),
+        (mws_mask, 'MWS_TARGET'),
+        (bgs_mask, 'BGS_TARGET') ]:
+        for name in mask.names():
+            #- which targets have this bit for this mask set?
+            ii = (mtl[xxx_target] & mask[name]) != 0
+            #- under what conditions can that bit be observed?
+            if np.any(ii):
+                mtl['OBSCONDITIONS'][ii] |= obsconditions.mask(mask[name].obsconditions)
 
     # Filter out any targets marked as done.
     # APC: vital for the logic that comes later that this filtering preserves

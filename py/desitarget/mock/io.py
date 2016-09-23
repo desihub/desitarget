@@ -7,7 +7,7 @@ desitarget.mock.io
 
 Handles mock data to build target catalogs.
 """
-from __future__ import (absolute_import, division)
+from __future__ import (absolute_import, division, print_function)
 #
 import numpy as np
 import fitsio

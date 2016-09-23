@@ -144,12 +144,12 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 def psflike(psftype):
     """ If the object is PSF """
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    #- this could be fixed in the IO routine too.
+    #ADM fixed this in I/O.
     psftype = np.asarray(psftype)
     #ADM in Python3 these string literals become byte-like
-    #ADM still ultimately better to fix in IO, I'd think
-    #psflike = ((psftype == 'PSF') | (psftype == 'PSF '))
-    psflike = ((psftype == 'PSF') | (psftype == 'PSF ') |(psftype == b'PSF') | (psftype == b'PSF '))
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
     return psflike
 
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
@@ -178,7 +178,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
     return bgs
 
 def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
-          wise_snr=None, primary=None):
+          wise_snr=None, deltaChi2=None, primary=None):
     """Target Definition of QSO. Returning a boolean array.
 
     Args:
@@ -186,6 +186,8 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
+        deltaChi2: array_like or None
+            If given, chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         wise_snr: array_like or None
             If given, the S/N in the W1 and W2 bands.
         primary: array_like or None
@@ -202,10 +204,10 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
 
     # Create some composite fluxes.
     wflux = 0.75* w1flux + 0.25*w2flux
-    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.4
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
     qso = primary.copy()
-    qso &= rflux > 10**((22.5-23.0)/2.5)    # r<23
+    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
     qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
@@ -214,13 +216,13 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
     qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
 
     # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.25/2.5)
+    mainseq = rflux > gflux * 10**(0.20/2.5)
 
     # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
 
@@ -230,6 +232,9 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
 
     if objtype is not None:
         qso &= psflike(objtype)
+
+    if deltaChi2 is not None:
+        qso &= deltaChi2>40.
         
     return qso
 
@@ -320,6 +325,11 @@ def apply_cuts(objects):
     
     wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
 
+
+    # Delta chi2 between PSF and SIMP morphologies; note the sign....
+    dchisq = objects['DCHISQ'] 
+    deltaChi2 = dchisq[...,0] - dchisq[...,1]
+
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
         primary = objects['BRICK_PRIMARY']
@@ -336,7 +346,7 @@ def apply_cuts(objects):
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
 
     qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux, objtype=objtype,
+                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
 
     #----- Standard stars
