@@ -73,6 +73,7 @@ matrix:
         # runs for a long time
         - os: linux
           env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
+               CONDA_DEPENDENCIES="$CONDA_DEPENDENCIES pyqt=4.11.4=py27_3"
           # -w is an astropy extension
 
         # Try several python versions with the latest numpy
