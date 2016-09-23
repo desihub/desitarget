@@ -255,7 +255,6 @@ def calc_numobs(targets):
 
     # If it wasn't selected by any target class, it gets 0 observations
     # Normally these would have already been removed, but just in case...
-
     no_target_class = np.ones(len(targets), dtype=bool)
     if 'DESI_TARGET' in targets.dtype.names:
         no_target_class &=  targets['DESI_TARGET'] == 0
