@@ -68,11 +68,11 @@ matrix:
         - os: osx
 
     include:
-
         # Check for sphinx doc build warnings - we do this first because it
         # runs for a long time
         - os: linux
           env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
+               CONDA_DEPENDENCIES='pyyaml qt=4 pyqt=4.11.4=py27_3'
           # -w is an astropy extension
 
         # Try several python versions with the latest numpy
