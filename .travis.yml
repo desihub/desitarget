@@ -68,7 +68,6 @@ matrix:
         - os: osx
 
     include:
-
         # Check for sphinx doc build warnings - we do this first because it
         # runs for a long time
         - os: linux
