@@ -9,8 +9,8 @@ import numpy as np
 from   copy import copy
 
 import astropy.io.fits as astropy_fitsio
-import astropy.table
 from   astropy.table import Table, Column
+import astropy.table
 
 from   desitarget.targetmask import desi_mask
 from   desitarget.mock.io    import decode_rownum_filenum
@@ -60,7 +60,7 @@ def make_mtls_for_sources(source_defs,output_dir,reset=False):
 
     The keys in sources must correspond to the names of modules in
     desitarget.mock. These modules must define a function build_mock_target
-    that can generate target and truth files for that mock. 
+    that can generate target and truth files for that mock.
 
     These intermediate TLs contain all targets from a mock in one file and have
     a format similar to the final fiberassign MTL, but they are not suitable
@@ -72,7 +72,7 @@ def make_mtls_for_sources(source_defs,output_dir,reset=False):
     targets_all     = list()
     truth_all       = list()
     sourcefiles_all = list()
-    
+
     print('The following mock catalog sources are specified:')
     for source_name in sorted(source_defs.keys()):
         print('{}'.format(source_name))
@@ -87,7 +87,7 @@ def make_mtls_for_sources(source_defs,output_dir,reset=False):
 
         M = importlib.import_module(module_name)
         t0 = time.time()
- 
+
         mock_kwargs                          = copy(source_defs[source_name])
         mock_kwargs['output_dir']            = output_dir
         mock_kwargs['write_cached_targets']  = True
@@ -120,7 +120,7 @@ def combine_targets_truth(input_target_data, input_truth_data, input_sources=Non
     Returns:
         combination_dict   : dict with the following keys:
             targets: concatenation of input target tables
-            truth: concatenation of input truth tables    
+            truth: concatenation of input truth tables
             (and the following only if sources != None)
             sources: concatenation of input source lists
             sources_meta: concatenation of input source lists
@@ -139,12 +139,18 @@ def combine_targets_truth(input_target_data, input_truth_data, input_sources=Non
         print('  -- {:4d} : {:12d} rows'.format(i,len(t)))
 
     # Combine TARGET tables
+    #if len(input_target_data) > 1:
     master_target_table = astropy.table.vstack(input_target_data)
+    #else:
+    #    master_target_table = input_target_data[0]
     total_targets       = len(master_target_table)
     print('Total : {:12d} rows'.format(total_targets))
 
     # Combine TRUTH tables
+    #if len(input_truth_data) > 1:
     master_truth_table = astropy.table.vstack(input_truth_data)
+    #else:
+    #    master_truth_table = input_truth_data[0]
     if (len(master_truth_table) != total_targets):
         raise Exception('%d rows in final target table but %d rows in final truth table'%(total_targets,len(master_truth_table)))
 
@@ -157,13 +163,16 @@ def combine_targets_truth(input_target_data, input_truth_data, input_sources=Non
 
     # Propagate source lists from SOURCE extension of input truth tables.
     if input_sources is not None:
+    #    if len(input_sources) > 1:
         master_source_table = astropy.table.vstack(input_sources)
+    #    else:
+    #        master_source_table = input_sources[0]
         total_rows_in_source_table = np.sum(master_source_table['NROWS'],dtype=np.int64)
 
         sources_meta = dict()
         sources_meta['NSELECTED'] = list()
         sources_meta['NSOURCES']  = list()
-        for i in xrange(0,len(input_sources)):
+        for i in range(0,len(input_sources)):
             sources_meta['NSELECTED'].append(len(input_target_data[i]))
             sources_meta['NSOURCES'].append(len(input_sources[i]))
         sources_meta = Table(sources_meta)
@@ -193,7 +202,7 @@ def make_catalogs_for_source_files(fa_output_dir,
         catalog_path    :   Path to a fiber_to_mtl.fits catalog.
         fa_output_dir   :   fiberassign output directory
         fa_output_base  :   optional, basename of fiberassign output files
-    
+
     The output recreates the full directory structure under the directory of
     catalog_path. So if a mock file is found under /path/to/mock/file_1.fits,
     the corresponding assignment catalog will appear under
@@ -214,7 +223,7 @@ def make_catalogs_for_source_files(fa_output_dir,
          |   v (fiberassign)
          |   D. FA tilemap files (assignments and potential assignments)
          |___|
-        
+
         The idea of this script (E) is to map D back to A, using information
         propaged through C and B.
 
@@ -241,7 +250,7 @@ def make_catalogs_for_source_files(fa_output_dir,
             The TARGETIDs in B are stored for rows in C as ORIGINAL_TARGETID in
             the truth table. This covers the possibility that MTL TARGETIDS
             encode something else.
- 
+
     """
     # Pattern to extract tile number from file name, not strictly required to
     # do this sice tile number is stored in header of tile file.
@@ -261,11 +270,11 @@ def make_catalogs_for_source_files(fa_output_dir,
         t = Table.read(catalog_path)
 
     nrows_mtl = len(t)
-    
+
     # Now expand the MTL-like fiber map out to many files row-matched to the
     # individual mock input files, including rows corresponding to targets that
     # were not selected or were selected but not assigned fibers.
-    
+
     # First read the original target ids from the MTL input files, then use
     # those to recreate the mock brick order.
     truth_fits        = astropy_fitsio.open(input_truth)
@@ -275,11 +284,11 @@ def make_catalogs_for_source_files(fa_output_dir,
     # Read the TRUTH source list from the header
     source_list = Table.read(input_truth,hdu='SOURCES')
     source_meta = Table.read(input_truth,hdu='SOURCEMETA')
-    
+
     # Select blocks of rows corresponding to each sorce file
     n_mtl_rows_processed = 0
     n_sources_processed  = 0
-    for iinput in xrange(0,len(source_meta)):
+    for iinput in range(0,len(source_meta)):
         n_sources_this_input  = source_meta['NSOURCES'][iinput]
         n_mtl_rows_this_input = source_meta['NSELECTED'][iinput]
 
@@ -297,7 +306,7 @@ def make_catalogs_for_source_files(fa_output_dir,
 
         # Loop over orginal mock files.
         print('Looping over {:d} original mock files'.format(l_s))
-        for ioriginal,original_file in enumerate(sources_this_input['FILE']): 
+        for ioriginal,original_file in enumerate(sources_this_input['FILE']):
             # print('Original file: %s'%(original_file))
             # FIXME having to use 1 for the extension here, no extname
             original_nrows = astropy_fitsio.getheader(original_file,1)['NAXIS2']
@@ -313,7 +322,7 @@ def make_catalogs_for_source_files(fa_output_dir,
             column_name_remap = {'TARGETID': 'MTL_TARGETID'}
             for colname in t.colnames:
                 c = t[colname]
-                column_name = column_name_remap.get(c.name,c.name) 
+                column_name = column_name_remap.get(c.name,c.name)
                 source_table.add_column(Column(np.repeat(-1,original_nrows),
                                                name  = column_name,
                                                dtype = c.dtype))
@@ -352,8 +361,8 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
 
     Args:
         input_mtl       : location of MTL file fed to FA
-        output_dir      : directory to write the catalog output    
-    """    
+        output_dir      : directory to write the catalog output
+    """
     # Get number of rows in original MTL
     mtl_header = astropy_fitsio.getheader(input_mtl,ext=1)
     nrows_mtl  = mtl_header['NAXIS2']
@@ -376,7 +385,7 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
         fa_potential_this_tile            = astropy_fitsio.getdata(fa_file,
                                                                    memmap = False,
                                                                    ext    =('POTENTIAL_ASSIGNMENTS',1))
-   
+
         tileid                 = fa_header_this_tile['TILEID']
         n_this_tile            = len(fa_this_tile['TARGETID'])
         n_potential_this_tile  = len(fa_potential_this_tile)
@@ -384,10 +393,10 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
         tileids_in_read_order.append(tileid)
         n_per_tile_all.append(n_this_tile)
         n_potential_per_tile_all.append(n_potential_this_tile)
-    
+
         fa_output_all.append(fa_this_tile)
         fa_potential_all.append(fa_potential_this_tile)
-        
+
     # Sanity checks
     unique_tile_ids = np.unique(tileids_in_read_order)
     assert(len(unique_tile_ids) == len(tileids_in_read_order))
@@ -414,7 +423,7 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
     for tileid in tileids_in_read_order:
         i = np.where(tile_data['TILEID'] == tileid)[0]
         pass_of_tile.append(tile_data['PASS'][i])
-    
+
     pass_of_tile = np.array(pass_of_tile)
     unique_pass  = np.unique(pass_of_tile)
     npass        = len(unique_pass)
@@ -459,7 +468,7 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
     # Same again for potential assignments -- remove those whose 'parent'
     # fibres (i.e. the fibres assigned to the targets for which they were the
     # other candidates) are skys and standards, or free fibres (since free
-    # fibres can still have potential targets). 
+    # fibres can still have potential targets).
     is_free_fiber = fa_potential['PARENT_TARGETID'] < 0
     is_sky        = (fa_potential['PARENT_DESI_TARGET'] & desi_mask.SKY)        != 0
     is_std_fstar  = (fa_potential['PARENT_DESI_TARGET'] & desi_mask.STD_FSTAR)  != 0
@@ -481,8 +490,8 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
 
     # Use targetids as indices to reorder the merged list
     t = Table()
-    t.add_column(Column(np.repeat(-1,nrows_mtl),  dtype=np.int64, name='TARGETID')) 
-    
+    t.add_column(Column(np.repeat(-1,nrows_mtl),  dtype=np.int64, name='TARGETID'))
+
     # FIXME relies on TARGETID being an index
     # Assume we can use targetid as an index
     print('reduce_fiber_maps_to_mtl(): WARNING: ASSUMING TARGETID IN FIBER MAP IS MTL ROWNUMBER')
@@ -531,7 +540,7 @@ def reduce_fiber_maps_to_mtl(fa_output_files,input_mtl,output_dir,tilefile=None)
     t['NPOSSIBLE'][potential_row_in_input[is_row_in_mtl[potential_primary_row]]] = npotential_primary
 
     # Add columns per-pass
-    for i in xrange(0,npass):
+    for i in range(0,npass):
         ipass = unique_pass[i]
         assert(ipass >= 0)
 

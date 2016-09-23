@@ -188,29 +188,37 @@ def build_mock_target(root_mock_dir='', output_dir='',
 
         # True type is just targeted type for now.
         truth['TRUETYPE']  = true_type_pop
+        
+        # File list
+        file_list = np.array(file_list,dtype=[('FILE','|S500'),('NROWS','i8')])
 
         # Write Targets and Truth 
         if write_cached_targets:
-            fitsio.writeto(targets_filename, targets.as_array(),clobber=True)
-        
-        # Write truth, slightly convoluted because we write two tables
-        #fitsio.writeto(truth_filename, truth.as_array(),clobber=True)
-        prihdr    = fitsio.Header()
-        prihdu    = fitsio.PrimaryHDU(header=prihdr)
-        
-        mainhdr   = fitsio.Header()
-        mainhdr['EXTNAME'] = 'TRUTH'
-        mainhdu   = fitsio.BinTableHDU.from_columns(truth.as_array(),header=mainhdr)
 
-        sourcehdr = fitsio.Header()
-        sourcehdr['EXTNAME'] = 'SOURCES'
-        assert(np.all([len(x[0]) < 500 for x in file_list]))
-        file_list = np.array(file_list,dtype=[('FILE','|S500'),('NROWS','i8')])
-        sourcehdu = fitsio.BinTableHDU.from_columns(file_list,header=sourcehdr)
+            # In Py3, no obvious advantage in using astropy.io.fits here and a
+            # huge potential slowdown over Py2 when writing brickname column.
+            # Symmetry with how the truth table is written would be nice, but
+            # have to forego that until this is understood.
+            # fitsio.writeto(targets_filename, targets.as_array(),clobber=True)
+            targets.write(targets_filename,overwrite=True)
 
-        truth_hdu = fitsio.HDUList([prihdu, mainhdu, sourcehdu])
-        if write_cached_targets:
-            truth_hdu.writeto(truth_filename,clobber=True)
+            # Write truth, slightly convoluted because we write two tables
+            #fitsio.writeto(truth_filename, truth.as_array(),clobber=True)
+            prihdr    = fitsio.Header()
+            prihdu    = fitsio.PrimaryHDU(header=prihdr)
+            
+            mainhdr   = fitsio.Header()
+            mainhdr['EXTNAME'] = 'TRUTH'
+            mainhdu   = fitsio.BinTableHDU.from_columns(truth.as_array(),header=mainhdr)
+
+            sourcehdr = fitsio.Header()
+            sourcehdr['EXTNAME'] = 'SOURCES'
+            assert(np.all([len(x[0]) < 500 for x in file_list]))
+            sourcehdu = fitsio.BinTableHDU.from_columns(file_list,header=sourcehdr)
+
+            truth_hdu = fitsio.HDUList([prihdu, mainhdu, sourcehdu])
+            if write_cached_targets:
+                truth_hdu.writeto(truth_filename,clobber=True)
 
             print("Wrote new files:")
             print("    Targets: {}".format(targets_filename))

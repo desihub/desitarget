@@ -13,6 +13,7 @@ import numpy as np
 import fitsio
 import os, re
 import desitarget.io
+import h5py
 import desitarget.targets
 
 """
@@ -41,28 +42,21 @@ def _load_mock_bgs_mxxl_file(filename):
     Returns:
         dict with the following entries (all ndarrays):
 
-        objid       : Mock object ID
-        brickid     : Mock brick ID
         RA          : RA positions for the objects in the mock.
         DEC         : DEC positions for the objects in the mock.
         Z           : Heliocentric radial velocity divided by the speed of light.
         SDSSr_true  : Apparent magnitudes in SDSS r band.
     """
-    desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,
-                       columns= ['objid','brickid',
-                                 'RA','DEC','Z', 'R'])
+    f = h5py.File(filename)
+    ra  = f["Data/ra"][...].astype('f8') % 360.0
+    dec = f["Data/dec"][...].astype('f8')
+    SDSSr_true   = f["Data/app_mag"][...].astype('f8')
+    zred   = f["Data/z_obs"][...].astype('f8')
+    f.close()
 
-    objid       = data['objid'].astype('i8')
-    brickid     = data['brickid'].astype('i8')
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    SDSSr_true  = data['R'].astype('f8')
-    zred        = data['Z'].astype('f8')
-
-    return {'objid':objid,'brickid':brickid,
-            'RA':ra, 'DEC':dec, 'Z': zred ,
+    return {'RA':ra, 'DEC':dec, 'Z': zred ,
             'SDSSr_true':SDSSr_true}
+
 
 ############################################################
 def _load_mock_mws_file_fstar_standards(filename):
@@ -207,21 +201,21 @@ def _load_mock_wd100pc_file(filename):
 ############################################################
 def _read_mock_add_file_and_row_number(target_list,full_data):
     """Adds row and file number to dict of properties. 
-    
+
     Parameters
     ----------
         target_list (list of dicts):
             Each dict in the list contains data for one file, list is in same
             order as files are read.
 
-        full_data (dict): 
+        full_data (dict):
             dict returned by any of the mock-reading routines.
 
     Side effects
     ------------
         Modifies full_data.
     """
-    fiducial_key = target_list[0].keys()[0]
+    fiducial_key = list(target_list[0])[0]
     all_rownum   = list()
     all_filenum  = list()
     for ifile,target_item in enumerate(target_list):
@@ -231,7 +225,7 @@ def _read_mock_add_file_and_row_number(target_list,full_data):
 
     full_data['rownum']  = np.array(np.concatenate(all_rownum),dtype=np.int64)
     full_data['filenum'] = np.array(np.concatenate(all_filenum),dtype=np.int64)
-    return 
+    return
 
 ############################################################
 def encode_rownum_filenum(rownum, filenum):
@@ -307,7 +301,7 @@ def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
     full_data = _load_mock_wd100pc_file(filename)
 
     # Add file and row number
-    fiducial_key         = full_data.keys()[0]
+    fiducial_key         = list(full_data)[0]
     nrows                = len(full_data[fiducial_key])
     full_data['rownum']  = np.arange(0,nrows)
     full_data['filenum'] = np.zeros(nrows,dtype=np.int)
@@ -390,7 +384,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     n_per_file  = list()
     full_data   = dict()
     if len(target_list) > 0:
-        for k in target_list[0].keys():
+        for k in list(target_list[0]):
             print(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order:
@@ -402,7 +396,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
         _read_mock_add_file_and_row_number(target_list,full_data)
         
         # Count number per file
-        k          = target_list[0].keys()[0]
+        k          = list(target_list[0])[0]
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
   
     # Return source list as ordered list of (file, n_row) tuples
@@ -444,7 +438,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
     
     """
     # Build iterator of all mock brick files
-    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
+    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="hdf5")
     
     # Read each file
     print('Reading individual mock files')
@@ -476,7 +470,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
     full_data   = dict()
     n_per_file  = list()
     if len(target_list) > 0:
-        for k in target_list[0].keys():
+        for k in list(target_list[0]):
             print(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order:
@@ -488,7 +482,7 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
         _read_mock_add_file_and_row_number(target_list,full_data)
   
         # Count number per file
-        k          = target_list[0].keys()[0]
+        k          = list(target_list[0])[0]
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
   
     # Return source list as ordered list of (file, n_row) tuples

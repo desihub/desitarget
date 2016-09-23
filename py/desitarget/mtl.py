@@ -23,9 +23,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
         any more observations.  If ``False``, include every input target.
     truth: optional
         Truth table
-    truth_meta : :class:`dict`,optional
-        Dictionary to add as metadata to the truth table.
-    
+    truth_table: optional to propagate into header
 
     Returns
     -------
