@@ -281,7 +281,7 @@ def whitespace_fits_read(filename, **kwargs):
     #ADM if the header=True option was passed then
     #ADM the output is the header and the data
     data = fitout
-    if len(fitout) == 2:
+    if 'header' in kwargs:
         data, header = fitout
 
     #ADM guard against the zero-th extension being read by fitsio
@@ -292,7 +292,7 @@ def whitespace_fits_read(filename, **kwargs):
             if kind == 'U' or kind == 'S':
                 data[colname] = np.char.rstrip(data[colname])
 
-    if len(fitout) == 2:
+    if 'header' in kwargs:
         return data, header
 
     return data
