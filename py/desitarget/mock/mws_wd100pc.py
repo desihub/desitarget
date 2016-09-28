@@ -17,8 +17,8 @@ import desitarget.io
 from   desitarget import mws_mask
 import os
 from   astropy.table import Table, Column
-import astropy.io.fits as fitsio
-import astropy.io.fits.convenience
+import fitsio
+import desiutil.io
 import desispec.brick
 
 ############################################################
@@ -85,6 +85,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
         rand_seed: int
             seed for random number generator.
     """
+    desitarget.io.check_fitsio_version()
     np.random.seed(seed=rand_seed)
 
     targets_filename = os.path.join(output_dir, targets_name)
@@ -105,10 +106,10 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # table for consistency of return types.
         print("Reading existing files:")
         print("    Targets: {} ({:4.3f} Gb)".format(targets_filename,targets_filesize))
-        targets   = Table(fitsio.getdata(targets_filename))
+        targets   = Table(desitarget.io.whitespace_fits_read(targets_filename,ext='TARGETS'))
         print("    Truth:   {} ({:4.3f} Gb)".format(truth_filename,truth_filesize))
-        truth     = Table(fitsio.getdata(truth_filename,extname='TRUTH'))
-        file_list = Table(fitsio.getdata(truth_filename,extname='SOURCES'))
+        truth     = Table(desitarget.io.whitespace_fits_read(truth_filename,ext='TRUTH'))
+        file_list = Table(desitarget.io.whitespace_fits_read(truth_filename,ext='SOURCES'))
     else:
         # Read the mocks on disk. This returns a dict.
         # FIXME should just use table here too?
@@ -191,55 +192,20 @@ def build_mock_target(root_mock_dir='', output_dir='',
         
         # File list
         file_list = np.array(file_list,dtype=[('FILE','|S500'),('NROWS','i8')])
+        assert(np.all([len(x[0]) < 500 for x in file_list]))
 
         # Write Targets and Truth 
         if write_cached_targets:
-
-            # In Py3, no obvious advantage in using astropy.io.fits here and a
-            # huge potential slowdown over Py2 when writing brickname column.
-            # Symmetry with how the truth table is written would be nice, but
-            # have to forego that until this is understood.
-            # fitsio.writeto(targets_filename, targets.as_array(),clobber=True)
-            targets.write(targets_filename,overwrite=True)
+            with fitsio.FITS(targets_filename,'rw',clobber=True) as fits:
+                fits.write(desiutil.io.encode_table(targets).as_array(),extname='TARGETS',clobber=True)
 
             # Write truth, slightly convoluted because we write two tables
-            #fitsio.writeto(truth_filename, truth.as_array(),clobber=True)
-            prihdr    = fitsio.Header()
-            prihdu    = fitsio.PrimaryHDU(header=prihdr)
+            with fitsio.FITS(truth_filename,'rw',clobber=True) as fits:
+                fits.write(desiutil.io.encode_table(truth).as_array(), extname='TRUTH')
+                fits.write(file_list,        extname='SOURCES')                
             
-            mainhdr   = fitsio.Header()
-            mainhdr['EXTNAME'] = 'TRUTH'
-            mainhdu   = fitsio.BinTableHDU.from_columns(truth.as_array(),header=mainhdr)
-
-            sourcehdr = fitsio.Header()
-            sourcehdr['EXTNAME'] = 'SOURCES'
-            assert(np.all([len(x[0]) < 500 for x in file_list]))
-            sourcehdu = fitsio.BinTableHDU.from_columns(file_list,header=sourcehdr)
-
-            truth_hdu = fitsio.HDUList([prihdu, mainhdu, sourcehdu])
-            if write_cached_targets:
-                truth_hdu.writeto(truth_filename,clobber=True)
-
             print("Wrote new files:")
             print("    Targets: {}".format(targets_filename))
             print("    Truth:   {}".format(truth_filename))
 
     return targets, truth, Table(file_list)
-    
-        # Write the selection data to disk
-        #selection_filename = os.path.join(output_dir, selection_name)
-        #selection          = Table()
-        #selection['ROW']   = mws_data['rownum'][ii]
-        #selection['FILE']  = mws_data['filenum'][ii]
-        #selection.write(selection_filename, overwrite=True)
-        ## Append an extension to the selection file with the file list
-        #hdulist            = astropy.io.fits.open(selection_filename,mode='append')
-        #file_list_table    = Table()
-        #file_list_table['FILENAME'] = file_list
-        #file_list_hdu               = astropy.io.fits.BinTableHDU.from_columns(np.array(file_list_table))
-        ##file_list_hdu              = astropy.io.fits.convenience.table_to_hdu(file_list_table)
-        #hdulist.append(file_list_hdu)
-        #hdulist.writeto(selection_filename,clobber=True)
-
-    return
-    

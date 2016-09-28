@@ -17,11 +17,12 @@ import time
 import yaml
 
 import astropy
-import astropy.io.fits as fits
+import fitsio
 from   astropy.table import Table, Column
 from   desitarget import mtl
 import desitarget.mock
 import desitarget.mock.fiberassign as fiberassign
+import desiutil
 
 ############################################################
 def mocks_to_fa_input(fa_run_dir,yaml_name='fa_run.yaml', reset=False):
@@ -72,32 +73,16 @@ def mocks_to_fa_input(fa_run_dir,yaml_name='fa_run.yaml', reset=False):
         # Write MTL targets
         output_mtl_path   = os.path.join(params['target_dir'],params['target_mtl_name'])
         print('Writing output to {}'.format(os.path.abspath(output_mtl_path)))
-        fits.writeto(output_mtl_path,combined_mtl.as_array(),clobber=True)
+        fitsio.write(output_mtl_path,desiutil.io.encode_table(combined_mtl).as_array(),clobber=True)
 
         # Write MTL truth
         output_truth_path = os.path.join(params['target_dir'],params['truth_name'])
         print('Writing output to {}'.format(os.path.abspath(output_truth_path)))
 
-        # Truth slightly convoluted, store sources as 2nd extension. Can't
-        # write multiple extensions with fits.writeto?
-        prihdr    = fits.Header()
-        prihdu    = fits.PrimaryHDU(header=prihdr)
-
-        mainhdr   = fits.Header()
-        mainhdr['EXTNAME'] = 'TRUTH'
-        mainhdu   = fits.BinTableHDU.from_columns(combined_mtl_truth.as_array(),
-                                                    header=mainhdr)
-        sourcehdr = fits.Header()
-        sourcehdr['EXTNAME'] = 'SOURCES'
-        sourcehdu = fits.BinTableHDU.from_columns(combined['sources'].as_array(),
-                                                    header=sourcehdr)
-        sourcemetahdr = fits.Header()
-        sourcemetahdr['EXTNAME'] = 'SOURCEMETA'
-        sourcemetahdu = fits.BinTableHDU.from_columns(combined['sources_meta'].as_array(),
-                                                        header=sourcemetahdr)
-
-        truth_hdu = fits.HDUList([prihdu, mainhdu, sourcehdu, sourcemetahdu])
-        truth_hdu.writeto(output_truth_path,clobber=True)
+        with fitsio.FITS(output_truth_path,'rw',clobber=True) as fits:
+            fits.write(desiutil.io.encode_table(combined_mtl_truth).as_array(),      extname='TRUTH')
+            fits.write(combined['sources'].as_array(),      extname='SOURCES')                
+            fits.write(combined['sources_meta'].as_array(), extname='SOURCEMETA')                
     finally:
         # Change back to original directory
         os.chdir(original_dir)

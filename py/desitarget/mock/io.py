@@ -33,7 +33,7 @@ ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
 ############################################################
-def _load_mock_bgs_mxxl_file(filename):
+def _load_mock_bgs_mxxl_file_hdf5(filename):
     """ Reads mock information for MXXL bright time survey galaxies.
     
     Args:
@@ -57,6 +57,36 @@ def _load_mock_bgs_mxxl_file(filename):
     return {'RA':ra, 'DEC':dec, 'Z': zred ,
             'SDSSr_true':SDSSr_true}
 
+############################################################
+def _load_mock_bgs_mxxl_file_fits(filename):
+    """ Reads mock information for MXXL bright time survey galaxies.
+    
+    Args:
+        filename (str): Name of a single mock file.
+    
+    Returns:
+        dict with the following entries (all ndarrays):
+
+        RA          : RA positions for the objects in the mock.
+        DEC         : DEC positions for the objects in the mock.
+        Z           : Heliocentric radial velocity divided by the speed of light.
+        SDSSr_true  : Apparent magnitudes in SDSS r band.
+    """
+    desitarget.io.check_fitsio_version()
+    data = fitsio.read(filename,
+                       columns= ['objid','brickid',
+                                 'RA','DEC','Z', 'R'])
+
+    objid       = data['objid'].astype('i8')
+    brickid     = data['brickid'].astype('i8')
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    SDSSr_true  = data['R'].astype('f8')
+    zred        = data['Z'].astype('f8')
+
+    return {'objid':objid,'brickid':brickid,
+            'RA':ra, 'DEC':dec, 'Z': zred , 
+            'SDSSr_true':SDSSr_true}
 
 ############################################################
 def _load_mock_mws_file_fstar_standards(filename):
@@ -407,7 +437,8 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     return full_data, sources
 
 ############################################################
-def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None):
+def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',
+                                  mock_ext='hdf5',brickname_list=None):
     """ Reads and concatenates the brick-style BGS MXXL mock files stored below the root directory.
 
     Parameters:
@@ -438,8 +469,16 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
     
     """
     # Build iterator of all mock brick files
-    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="hdf5")
+    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext=mock_ext)
     
+    # Might have different file types for this mock
+    if mock_ext == 'hdf5':
+        _load_mock_routine = _load_mock_bgs_mxxl_file_hdf5
+    elif mock_ext == 'fits':
+        _load_mock_routine = _load_mock_bgs_mxxl_file_fits
+    else:
+        raise Exception("No data read routine for mock file extension %s"%(mock_ext))
+
     # Read each file
     print('Reading individual mock files')
     target_list = list()
@@ -455,9 +494,12 @@ def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',brickname_list
                 continue
         
         # print(mock_file)
-        data_this_file = _load_mock_bgs_mxxl_file(mock_file)
+        data_this_file = _load_mock_routine(mock_file)
         target_list.append(data_this_file)
         file_list.append(mock_file)
+
+    # Should have found some files
+    assert(nfiles > 0)
 
     print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
 

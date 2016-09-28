@@ -16,8 +16,8 @@ import desitarget.io
 from   desitarget import mws_mask
 import os
 from   astropy.table import Table, Column
-import astropy.io.fits as fitsio
-import astropy.io.fits.convenience
+import fitsio
+import desiutil.io
 import desispec.brick
     
 ############################################################
@@ -42,7 +42,7 @@ def mws_selection(mws_data, mag_faintest=20.0, mag_faint_filler=19.0, mag_bright
     SELECTION_MAG_NAME = 'SDSSr_obs'
 
     # Will populate this array with the bitmask values of each target class
-    target_class = np.zeros(len(mws_data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+    target_class = np.zeros(len(mws_data[SELECTION_MAG_NAME]),dtype=np.int64) - 1 
     #priority     = np.zeros(len(mws_data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
 
     fainter_than_bright_limit  = mws_data[SELECTION_MAG_NAME]  >= mag_bright
@@ -121,11 +121,10 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # table for consistency of return types.
         print("Reading existing files:")
         print("    Targets: {} ({:4.3f} Gb)".format(targets_filename,targets_filesize))
-        targets   = Table(fitsio.getdata(targets_filename))
+        targets   = Table(desitarget.io.whitespace_fits_read(targets_filename,ext='TARGETS'))
         print("    Truth:   {} ({:4.3f} Gb)".format(truth_filename,truth_filesize))
-        truth     = Table(fitsio.getdata(truth_filename,extname='TRUTH'))
-        file_list = Table(fitsio.getdata(truth_filename,extname='SOURCES'))
-
+        truth     = Table(desitarget.io.whitespace_fits_read(truth_filename,ext='TRUTH'))
+        file_list = Table(desitarget.io.whitespace_fits_read(truth_filename,ext='SOURCES'))
     else:
         # Read the mocks on disk. This returns a dict.
         # fitsio rather than Table used for speed.
@@ -208,30 +207,20 @@ def build_mock_target(root_mock_dir='', output_dir='',
         # True type is just targeted type for now.
         truth['TRUETYPE']  = true_type_pop
 
+        # File list
+        file_list = np.array(file_list,dtype=[('FILE','|S500'),('NROWS','i8')])
+        assert(np.all([len(x[0]) < 500 for x in file_list]))
+
         # Write Targets and Truth 
         if write_cached_targets:
-            fitsio.writeto(targets_filename, targets.as_array(),clobber=True)
-        
-        # Write truth, slightly convoluted because we write two tables
-        #fitsio.writeto(truth_filename, truth.as_array(),clobber=True)
-        prihdr    = fitsio.Header()
-        prihdu    = fitsio.PrimaryHDU(header=prihdr)
+            with fitsio.FITS(targets_filename,'rw',clobber=True) as fits:
+                fits.write(desiutil.io.encode_table(targets).as_array(),extname='TARGETS',clobber=True)
 
-        mainhdr   = fitsio.Header()
-        mainhdr['EXTNAME'] = 'TRUTH'
-        mainhdu   = fitsio.BinTableHDU.from_columns(truth.as_array(),header=mainhdr)
-
-        sourcehdr = fitsio.Header()
-        sourcehdr['EXTNAME'] = 'SOURCES'
-        assert(np.all([len(x[0]) < 500 for x in file_list]))
-        file_list = np.array(file_list,dtype=[('FILE','|S500'),('NROWS','i8')])
-        sourcehdu = fitsio.BinTableHDU.from_columns(file_list,header=sourcehdr)
-        
-        truth_hdu = fitsio.HDUList([prihdu, mainhdu, sourcehdu])
-    
-        if write_cached_targets:
-            truth_hdu.writeto(truth_filename,clobber=True)
-
+            # Write truth, slightly convoluted because we write two tables
+            with fitsio.FITS(truth_filename,'rw',clobber=True) as fits:
+                fits.write(desiutil.io.encode_table(truth).as_array(), extname='TRUTH')
+                fits.write(file_list, extname='SOURCES')                
+ 
             print("Wrote new files:")
             print("    Targets: {}".format(targets_filename))
             print("    Truth:   {}".format(truth_filename))
