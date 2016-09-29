@@ -1,6 +1,7 @@
 import warnings
 from time import time
 import os.path
+import sys
 import numpy as np
 from astropy.table import Table, Row
 from pkg_resources import resource_filename
@@ -238,9 +239,9 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
     return qso
 
 
-def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
+def isQSO_MVA(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
          deltaChi2=None, primary=None):
-    """Target Definition of QSO using a BDT. Returning a boolean array.
+    """Target Definition of QSO using a MultiVariate Analysis (MVA). Returning a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -261,11 +262,9 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
 
-    # build variables for BDT    
-    nfeatures=11 # number of variables in BDT
-#    nbEntries=len(rflux)
+    # build variables for MVA    
+    nfeatures=11 # number of variables in MVA
     nbEntries=rflux.size
-#    print 'length =',len(rflux),' v2 =',rflux.size
     colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
 
     #Preselection to speed up the process, store the indexes
@@ -276,21 +275,24 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
     colorsReducedIndex =  colorsIndex[preSelection]
 
-    #Load BDT
-    pathToBDT = resource_filename('desitarget', "data/bdt_model_dr3/bdt.pkl") 
-    # Compute BDT probability
-    from sklearn.externals import joblib
-    bdt = joblib.load(pathToBDT) 
-    prob = np.zeros(nbEntries)     
+    #Load multivariate algorithm according python version
+    if (sys.version_info[0]==2) :
+        pathToMVA = resource_filename('desitarget', "data/rf_model_dr3_py2.pkl.gz") 
+    elif (sys.version_info[0]==3) :
+        pathToMVA = resource_filename('desitarget', "data/rf_model_dr3_py3.pkl.gz") 
 
+    # Compute MVA probability
+    from sklearn.externals import joblib
+    mva = joblib.load(pathToMVA)
+  
+    prob = np.zeros(nbEntries)     
     if (colorsReducedIndex.any()) :
-        objects_bdt = bdt.predict_proba(colorsReduced)
-        # add BDT probability to preselected objects
+        objects_mva = mva.predict_proba(colorsReduced)
+        # add MVA probability to preselected objects
         j=0
         for i in colorsReducedIndex :
-            prob[i]=objects_bdt[j,1]
+            prob[i]=objects_mva[j,1]
             j += 1
-
 
     #define pcut, relaxed cut for faint objects
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
@@ -305,7 +307,7 @@ def isQSO_BDT(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     if deltaChi2 is not None:
         qso &= deltaChi2>30.
 
-    if nbEntries==1 : #to pass one test...
+    if nbEntries==1 : # for call of a single object
         qso &= prob[0]>pcut
     else :
         qso &= prob>pcut        
@@ -396,7 +398,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects,qso_selection='bdt'):
+def apply_cuts(objects,qso_selection='mva'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -461,7 +463,7 @@ def apply_cuts(objects,qso_selection='bdt'):
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
     else :    
-        qso = isQSO_BDT(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        qso = isQSO_MVA(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
 
     #----- Standard stars
@@ -510,7 +512,7 @@ def apply_cuts(objects,qso_selection='bdt'):
 
     return desi_target, bgs_target, mws_target
 
-def select_targets(infiles, numproc=4, verbose=False, qso_selection='bdt'):
+def select_targets(infiles, numproc=4, verbose=False, qso_selection='mva'):
     """
     Process input files in parallel to select targets
     
