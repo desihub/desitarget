@@ -41,7 +41,7 @@ env:
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
         - ASTROPY_VERSION=1.1.1
-        - DESIUTIL_VERSION=1.4.0
+        - DESIUTIL_VERSION=1.8.0
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
         - CONDA_DEPENDENCIES='pyyaml qt=4'
