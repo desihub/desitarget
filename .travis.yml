@@ -46,7 +46,7 @@ env:
         # These packages will always be installed.
         - CONDA_DEPENDENCIES='pyyaml qt=4'
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES='pyyaml h5py coverage==3.7.1 requests scikit-learn=0.17.1'
+        - CONDA_ALL_DEPENDENCIES='pyyaml h5py coverage==3.7.1 requests scikit-learn'
         # These packages will always be installed.
         - PIP_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
