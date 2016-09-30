@@ -1,6 +1,7 @@
 import warnings
 from time import time
 import os.path
+
 import numbers
 import sys
 
@@ -241,9 +242,9 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
     return qso
 
 
-def isQSO_MVA(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
          deltaChi2=None, primary=None):
-    """Target Definition of QSO using a MultiVariate Analysis (MVA). Returning a boolean array.
+    """Target Definition of QSO using a random forest returning a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -264,8 +265,8 @@ def isQSO_MVA(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
 
-    # build variables for MVA    
-    nfeatures=11 # number of variables in MVA
+    # build variables for random forest    
+    nfeatures=11 # number of variables in random forest
     nbEntries=rflux.size
     colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
 
@@ -279,21 +280,21 @@ def isQSO_MVA(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objt
 
     #Load multivariate algorithm according python version
     if (sys.version_info[0]==2) :
-        pathToMVA = resource_filename('desitarget', "data/rf_model_dr3_py2.pkl.gz") 
+        pathToRF = resource_filename('desitarget', "data/rf_model_dr3_py2.pkl.gz") 
     elif (sys.version_info[0]==3) :
-        pathToMVA = resource_filename('desitarget', "data/rf_model_dr3_py3.pkl.gz") 
+        pathToRF = resource_filename('desitarget', "data/rf_model_dr3_py3.pkl.gz") 
 
-    # Compute MVA probability
+    # Compute random forest probability
     from sklearn.externals import joblib
-    mva = joblib.load(pathToMVA)
+    rf = joblib.load(pathToRF)
   
     prob = np.zeros(nbEntries)     
     if (colorsReducedIndex.any()) :
-        objects_mva = mva.predict_proba(colorsReduced)
-        # add MVA probability to preselected objects
+        objects_rf = rf.predict_proba(colorsReduced)
+        # add random forest probability to preselected objects
         j=0
         for i in colorsReducedIndex :
-            prob[i]=objects_mva[j,1]
+            prob[i]=objects_rf[j,1]
             j += 1
 
     #define pcut, relaxed cut for faint objects
@@ -400,12 +401,16 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects,qso_selection='mva'):
+def apply_cuts(objects,qso_selection='randomforest'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
         objects: numpy structured array with UPPERCASE columns needed for
             target selection, OR a string tractor/sweep filename
+
+    Options:
+        qso_selection : algorithm to use for QSO selection; valid options
+            are 'colorcuts' and 'randomforest'
             
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -464,9 +469,11 @@ def apply_cuts(objects,qso_selection='mva'):
         qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
-    else :    
-        qso = isQSO_MVA(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+    elif qso_selection == 'randomforest':
+        qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
+    else:
+        raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection, qso_selection_options))
 
     #----- Standard stars
     fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
@@ -514,7 +521,9 @@ def apply_cuts(objects,qso_selection='mva'):
 
     return desi_target, bgs_target, mws_target
 
-def select_targets(infiles, numproc=4, verbose=False, qso_selection='mva'):
+qso_selection_options = ['colorcuts', 'randomforest']
+
+def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest'):
     """
     Process input files in parallel to select targets
     
@@ -526,6 +535,8 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='mva'):
     Optional:
         numproc: number of parallel processes to use
         verbose: if True, print progress messages
+        qso_selection : algorithm to use for QSO selection; valid options
+            are 'colorcuts' and 'randomforest'
         
     Returns:
         targets numpy structured array: the subset of input targets which
