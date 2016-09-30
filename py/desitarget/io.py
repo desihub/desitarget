@@ -97,7 +97,7 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
-def write_targets(filename, data, indir=None):
+def write_targets(filename, data, indir=None, qso_selection=None):
     """Write a target catalogue.
 
     Args:
@@ -117,6 +117,11 @@ def write_targets(filename, data, indir=None):
     if indir is not None:
         hdr['DEPNAM02'] = 'tractor-files'
         hdr['DEPVER02'] = indir
+
+    if indir is not None:
+        hdr['DEPNAM03'] = 'qso-selection'
+        hdr['DEPVER03'] = qso_selection
+    
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
