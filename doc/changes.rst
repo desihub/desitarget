@@ -7,6 +7,7 @@ desitarget Change Log
 
 * Updates to be compatible with python 3.5
 * refactor of merged target list (mtl) code
+* Update template module file to DESI+Anaconda standard.
 
 0.6.1 (2016-08-18
 ------------------
@@ -19,7 +20,7 @@ desitarget Change Log
 * Big upgrade for how Tractor Catalogues are loaded to DB. Only the mapping
   between Catalogue and DB naming is hardcoded. Compatible DR2
 * Python parallelism. Can choose mulprocessing OR mpi4py
-* Unit test script that compares random rows from random Catalogues with 
+* Unit test script that compares random rows from random Catalogues with
   what is in the DB
 
 0.5.0 (2016-08-16)
