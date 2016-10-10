@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from astropy.table import Table, join
 
 from .targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
@@ -50,6 +51,8 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
         if ztargets.masked:
             unobs = ztargets['NUMOBS'].mask
             ztargets['NUMOBS'][unobs] = 0
+        #import IPython
+        #IPython.embed()
     else:
         ztargets           = targets.copy()
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
@@ -59,9 +62,16 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
 
     # Create MTL
+
+    # DEBUG
+    print('DEBUG: max targets before copy: %d'%(max(targets['TARGETID'])))
+    #print('DEBUG: max ztargets after copy: %d'%(max(ztargets['TARGETID'])))
     print('DEBUG: ztargets before copy: %d'%(len(ztargets)))
+    sys.stdout.flush()
     mtl = ztargets.copy()
     print('DEBUG: mtl after copy: %d'%(len(mtl)))
+    #print('DEBUG: max mtl after copy: %d'%(max(mtl['TARGETID'])))
+    sys.stdout.flush()
 
     if truth is not None:
         mtl_truth = truth.copy()
@@ -73,6 +83,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (mtl['PRIORITY'] == 0)
     print('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
+    sys.stdout.flush()
     mtl['NUMOBS_MORE'][ii] = 0
 
     # Remove extra zcat columns from join(targets, zcat) that are not needed
@@ -127,10 +138,11 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     # Compute a new targetid
     # Just use the rownumber in the MTL file, but reserve some space at the top
     # for standards and skys.
-    mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
+    # don't change TARGETIT
+    #mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
 
-    # Assume no more than 100*10^9 rows
-    assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_MIN_SKY))
+    # Assume no more than 100*10^9 rows  NO, DONT
+    #assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_MIN_SKY))
 
     if truth is not None:
         # Store the new targetid in truth
