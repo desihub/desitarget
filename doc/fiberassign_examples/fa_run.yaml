@@ -3,31 +3,44 @@
 
 run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
 
-target_dir:      ./input
-target_mtl_name: combined_mtl.fits
-truth_name:      combined_mtl_truth.fits
-
-fa_output_dir:  ./output
-features:       features.txt
-
-catalog_dir:     ./catalog
-catalog_name:    fibers_to_mtl.fits
-
 sources:
-    bgs_durham: {
+    bgs: {
         mag_bright: 15.0,
         mag_faintest: 20.0,
         mag_priority_split: 19.5,
-        root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint
+        root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint,
+        format: durham
     }
-    mws_galaxia: {
+    mws_star: {
         mag_bright: 15.0, 
         mag_faint_filler: 19.0, 
         mag_faintest: 20.0, 
-        root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks
+        root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks,
+        format: galaxia
     }
-    mws_wd100pc: {
+    mws_wd: {
         mag_bright: 15.0, 
         mag_faint: 20.0, 
-        root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc
+        root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc,
+        format: wd100pc
     }
+    elg: {
+        number_density: 2400.0,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/2048,
+        format: gaussianfield
+    }
+    lrg: {
+        number_density: 300.0,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/2048,
+        format: gaussianfield
+    }
+    tracerqso: {
+        number_density: 120.0,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/2048,
+        format: gaussianfield
+    }
+    lyaqso: {
+        root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0,
+        format: simple,
+    }
+
