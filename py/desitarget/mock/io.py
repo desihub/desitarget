@@ -33,29 +33,6 @@ ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
 ############################################################
-def _load_mock_bgs_mxxl_file_hdf5(filename):
-    """ Reads mock information for MXXL bright time survey galaxies.
-    
-    Args:
-        filename (str): Name of a single mock file.
-    
-    Returns:
-        dict with the following entries (all ndarrays):
-
-        RA          : RA positions for the objects in the mock.
-        DEC         : DEC positions for the objects in the mock.
-        Z           : Heliocentric radial velocity divided by the speed of light.
-        SDSSr_true  : Apparent magnitudes in SDSS r band.
-    """
-    f = h5py.File(filename)
-    ra  = f["Data/ra"][...].astype('f8') % 360.0
-    dec = f["Data/dec"][...].astype('f8')
-    SDSSr_true   = f["Data/app_mag"][...].astype('f8')
-    zred   = f["Data/z_obs"][...].astype('f8')
-    f.close()
-
-    return {'RA':ra, 'DEC':dec, 'Z': zred ,
-            'SDSSr_true':SDSSr_true}
 
 ############################################################
 def _load_mock_bgs_mxxl_file_fits(filename):
@@ -437,105 +414,7 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     return full_data, sources
 
 ############################################################
-def read_mock_bgs_mxxl_brighttime(root_mock_dir='',mock_prefix='',
-                                  mock_ext='hdf5',brickname_list=None):
-    """ Reads and concatenates the brick-style BGS MXXL mock files stored below the root directory.
-
-    Parameters:
-    ----------    
-    root_mock_dir: :class:`str`
-        Path to all the 'mock_mxxl' files.
-
-    mock_prefix: :class:`str`
-        Start of individual file names.
-
-    brickname_list:
-        Optional list of specific bricknames to read.
-        
-    Returns:
-    -------
-    Dictionary concatenating all the 'mock_mxxl' files with the following entries.
-
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'SDSSr_true': :class: `numpy.ndarray`
-            Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSr_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS bands, including extinction.
-    
-    """
-    # Build iterator of all mock brick files
-    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext=mock_ext)
-    
-    # Might have different file types for this mock
-    if mock_ext == 'hdf5':
-        _load_mock_routine = _load_mock_bgs_mxxl_file_hdf5
-    elif mock_ext == 'fits':
-        _load_mock_routine = _load_mock_bgs_mxxl_file_fits
-    else:
-        raise Exception("No data read routine for mock file extension %s"%(mock_ext))
-
-    # Read each file
-    print('Reading individual mock files')
-    target_list = list()
-    file_list   = list()
-    nfiles      = 0
-    for mock_file in iter_mock_files:
-        nfiles += 1
-
-        # Filter on bricknames
-        if brickname_list is not None:
-            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mock_file,prefix=mock_prefix)
-            if not brickname_of_target in brickname_list:
-                continue
-        
-        # print(mock_file)
-        data_this_file = _load_mock_routine(mock_file)
-        target_list.append(data_this_file)
-        file_list.append(mock_file)
-
-    # Should have found some files
-    assert(nfiles > 0)
-
-    print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
-
-    # Concatenate all the dictionaries into a single dictionary, in an order
-    # determined by np.argsort applied to the base name of each path in
-    # file_list.
-    file_order = np.argsort([os.path.basename(x) for x in file_list])
-
-    print('Combining mock files')
-    full_data   = dict()
-    n_per_file  = list()
-    if len(target_list) > 0:
-        for k in list(target_list[0]):
-            print(' -- {}'.format(k))
-            data_list_this_key = list()
-            for itarget in file_order:
-                data_list_this_key.append(target_list[itarget][k])
-            full_data[k] = np.concatenate(data_list_this_key)
-
-        # Add file and row number
-        print('Adding file and row number')
-        _read_mock_add_file_and_row_number(target_list,full_data)
-  
-        # Count number per file
-        k          = list(target_list[0])[0]
-        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-  
-    # Return source list as ordered list of (file, n_row) tuples
-    sources = list()
-    for ifile in file_order:
-        sources.append((file_list[ifile],n_per_file[ifile]))
-
-    return full_data, sources
-
-############################################################
-def read_mock_dark_time(filename, read_z=True):
+def read_gaussianfield(mock_dir, source):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
     Parameters:
@@ -557,21 +436,43 @@ def read_mock_dark_time(filename, read_z=True):
     """
     desitarget.io.check_fitsio_version()
 
-    if read_z :
-        data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
-        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-        dec  = data['DEC'].astype('f8')
-        zz   = data[  'Z'].astype('f8')
-    else:
-        data = fitsio.read(filename,columns=['RA','DEC'], upper=True)
-        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-        dec  = data['DEC'].astype('f8')
-        zz   = np.zeros(len(ra))
-
+    filename = os.path.join(mock_dir, source+'.fits')
+    
+    data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
+    ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec  = data['DEC'].astype('f8')
+    zz   = data[  'Z'].astype('f8')
+    print('read {} lines from {}'.format(len(data), filename))
     del data
 
-    return ( (ra,dec,zz))
+    return {'RA':ra, 'DEC':dec, 'Z':zz}
 
+def read_durham_mxxl_hdf5(mock_dir, source):
+    """ Reads mock information for MXXL bright time survey galaxies.
+    
+    Args:
+        filename (str): Name of a single mock file.
+    
+    Returns:
+        dict with the following entries (all ndarrays):
+
+        RA          : RA positions for the objects in the mock.
+        DEC         : DEC positions for the objects in the mock.
+        Z           : Heliocentric radial velocity divided by the speed of light.
+        SDSSr_true  : Apparent magnitudes in SDSS r band.
+    """
+
+    filename = os.path.join(mock_dir, source+'.hdf5')
+    f = h5py.File(filename)
+    ra  = f["Data/ra"][...].astype('f8') % 360.0
+    dec = f["Data/dec"][...].astype('f8')
+    SDSSr_true   = f["Data/app_mag"][...].astype('f8')
+    zred   = f["Data/z_obs"][...].astype('f8')
+    f.close()
+
+    print('read {} lines from {}'.format(len(ra), filename))
+    return {'RA':ra, 'DEC':dec, 'Z': zred ,
+            'SDSSr_true':SDSSr_true}
     
                                                                                                                              
 

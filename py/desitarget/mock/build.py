@@ -17,7 +17,7 @@ from   desitarget.mock.io    import decode_rownum_filenum
 import desitarget.mock.io as mockio
 
 ############################################################
-def targets_truth(source_defs,output_dir):
+def targets_truth(params):
     """
     Write
 
@@ -35,9 +35,13 @@ def targets_truth(source_defs,output_dir):
     truth_all       = list()
     sourcefiles_all = list()
 
+    source_defs = params['sources']
     print('The following populations are specified:')
     for source_name in sorted(source_defs.keys()):
-        print('{}'.format(source_name))
+        source_format = params['sources'][source_name]['format']
+        source_path = params['sources'][source_name]['root_mock_dir']
+        print('type: {} format: {}'.format(source_name, source_format))
+        result = getattr(mockio, 'read_'+source_format)(source_path, source_name)
 
 #    for source_name in sorted(source_defs.keys()):
 #        module_name = 'desitarget.mock.{}'.format(source_name)
