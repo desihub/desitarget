@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.7.0 (unreleased)
+0.7.0 (2016-10-12)
 ------------------
 
 * Updates to be compatible with python 3.5
