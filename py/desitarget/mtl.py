@@ -53,9 +53,9 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
             unobs = ztargets['NUMOBS'].mask
             ztargets['NUMOBS'][unobs] = 0
             unobsz = ztargets['Z'].mask
-            ztargets['Z'][unobsz] = 0
+            ztargets['Z'][unobsz] = -1
             unobszw = ztargets['ZWARN'].mask
-            ztargets['ZWARN'][unobszw] = 0        
+            ztargets['ZWARN'][unobszw] = -1        
 
 
     else:
@@ -78,7 +78,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (mtl['PRIORITY'] == 0)
     print('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
-    sys.stdout.flush()
+
     mtl['NUMOBS_MORE'][ii] = 0
 
     # Remove extra zcat columns from join(targets, zcat) that are not needed
