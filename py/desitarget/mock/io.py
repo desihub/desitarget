@@ -319,8 +319,7 @@ def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
     return full_data, sources
 
 ############################################################
-def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None,
-                         selection=None):
+def read_galaxia(mock_dir, target_type):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -351,17 +350,8 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     
     """
     # Build iterator of all desi_galfast files
-    iter_mock_files = desitarget.io.iter_files(root_mock_dir, mock_prefix, ext="fits")
+    iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits")
    
-    print('Selection specified: %s'%(selection))
-
-    if selection is None:
-        loadfunc = _load_mock_mws_file
-    elif selection == 'fstar_standards':
-        loadfunc = _load_mock_mws_file_fstar_standards
-    else:
-        raise Exception('Unknown selection function specified!')
-
     # Read each file
     print('Reading individual mock files')
     target_list = list()
@@ -369,18 +359,12 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     nfiles      = 0
     for mock_file in iter_mock_files:
         nfiles += 1
-
-        # Filter on bricknames
-        if brickname_list is not None:
-            brickname_of_target = desitarget.io.brickname_from_filename_with_prefix(mock_file,prefix=mock_prefix)
-            if not brickname_of_target in brickname_list:
-                continue
-        
-        data_this_file = loadfunc(mock_file)
+        data_this_file = _load_mock_mws_file(mock_file)
         target_list.append(data_this_file)
         file_list.append(mock_file)
+        print('read file {} {}'.format(nfiles, mock_file))
 
-    print('Found %d files, read %d after filtering'%(nfiles,len(target_list)))
+    print('Read {} files'.format(nfiles))
 
     # Concatenate all the dictionaries into a single dictionary, in an order
     # determined by np.argsort applied to the base name of each path in
@@ -388,33 +372,32 @@ def read_mock_mws_brighttime(root_mock_dir='',mock_prefix='',brickname_list=None
     file_order = np.argsort([os.path.basename(x) for x in file_list])
 
     print('Combining mock files')
+    ordered_file_list = list()
     n_per_file  = list()
     full_data   = dict()
     if len(target_list) > 0:
-        for k in list(target_list[0]):
+        for k in list(target_list[0]): #iterate over keys
             print(' -- {}'.format(k))
             data_list_this_key = list()
-            for itarget in file_order:
+            for itarget in file_order: #append all the arrays corresponding to a given key
                 data_list_this_key.append(target_list[itarget][k])
-            full_data[k] = np.concatenate(data_list_this_key)
 
-        # Add file and row number
-        print('Adding file and row number')
-        _read_mock_add_file_and_row_number(target_list,full_data)
-        
-        # Count number per file
-        k          = list(target_list[0])[0]
+            full_data[k] = np.concatenate(data_list_this_key) #consolidate data dictionary
+
+        # Count number of points per file
+        k          = list(target_list[0])[0] # pick the first available column
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-  
-    # Return source list as ordered list of (file, n_row) tuples
-    sources = list()
-    for ifile in file_order:
-        sources.append((file_list[ifile],n_per_file[ifile]))
+        odered_file_list = [file_list[itarget] for itarget in file_order]
+    
+    
+    print('Read {} objects'.format(np.sum(n_per_file)))
 
-    return full_data, sources
+    full_data['FILES'] = ordered_file_list
+    full_data['N_PER_FILE'] = n_per_file
+    return full_data
 
 ############################################################
-def read_gaussianfield(mock_dir, source):
+def read_gaussianfield(mock_dir, target_type):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
     Parameters:
@@ -436,7 +419,7 @@ def read_gaussianfield(mock_dir, source):
     """
     desitarget.io.check_fitsio_version()
 
-    filename = os.path.join(mock_dir, source+'.fits')
+    filename = os.path.join(mock_dir, target_type+'.fits')
     
     data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
     ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
@@ -445,9 +428,9 @@ def read_gaussianfield(mock_dir, source):
     print('read {} lines from {}'.format(len(data), filename))
     del data
 
-    return {'RA':ra, 'DEC':dec, 'Z':zz}
+    return {'RA':ra, 'DEC':dec, 'Z':zz, 'FILES': filename}
 
-def read_durham_mxxl_hdf5(mock_dir, source):
+def read_durham_mxxl_hdf5(mock_dir, target_type):
     """ Reads mock information for MXXL bright time survey galaxies.
     
     Args:
@@ -462,7 +445,7 @@ def read_durham_mxxl_hdf5(mock_dir, source):
         SDSSr_true  : Apparent magnitudes in SDSS r band.
     """
 
-    filename = os.path.join(mock_dir, source+'.hdf5')
+    filename = os.path.join(mock_dir, target_type+'.hdf5')
     f = h5py.File(filename)
     ra  = f["Data/ra"][...].astype('f8') % 360.0
     dec = f["Data/dec"][...].astype('f8')
@@ -472,7 +455,7 @@ def read_durham_mxxl_hdf5(mock_dir, source):
 
     print('read {} lines from {}'.format(len(ra), filename))
     return {'RA':ra, 'DEC':dec, 'Z': zred ,
-            'SDSSr_true':SDSSr_true}
+            'SDSSr_true':SDSSr_true, 'FILES': filename}
     
                                                                                                                              
 
