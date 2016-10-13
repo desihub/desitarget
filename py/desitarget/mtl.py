@@ -46,13 +46,18 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
     # Create redshift catalog
     if zcat is not None:
+        
         ztargets = join(targets, zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'],
                             keys='TARGETID', join_type='outer')
         if ztargets.masked:
             unobs = ztargets['NUMOBS'].mask
             ztargets['NUMOBS'][unobs] = 0
-        #import IPython
-        #IPython.embed()
+            unobsz = ztargets['Z'].mask
+            ztargets['Z'][unobsz] = 0
+            unobszw = ztargets['ZWARN'].mask
+            ztargets['ZWARN'][unobszw] = 0        
+
+
     else:
         ztargets           = targets.copy()
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
@@ -62,20 +67,10 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
 
     # Create MTL
-
-    # DEBUG
-    print('DEBUG: max targets before copy: %d'%(max(targets['TARGETID'])))
-    #print('DEBUG: max ztargets after copy: %d'%(max(ztargets['TARGETID'])))
-    print('DEBUG: ztargets before copy: %d'%(len(ztargets)))
-    sys.stdout.flush()
     mtl = ztargets.copy()
-    print('DEBUG: mtl after copy: %d'%(len(mtl)))
-    #print('DEBUG: max mtl after copy: %d'%(max(mtl['TARGETID'])))
-    sys.stdout.flush()
-
     if truth is not None:
         mtl_truth = truth.copy()
-
+ 
     # Assign priorities
     mtl['PRIORITY'] = calc_priority(ztargets)
 
@@ -93,6 +88,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
     #- Set the OBSCONDITIONS mask for each target bit
     mtl['OBSCONDITIONS'] = np.zeros(n, dtype='i4')
+
     for mask, xxx_target in [
         (desi_mask, 'DESI_TARGET'),
         (mws_mask, 'MWS_TARGET'),
@@ -107,6 +103,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     # Filter out any targets marked as done.
     # APC: vital for the logic that comes later that this filtering preserves
     # the input order.
+           
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
         print('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
@@ -115,6 +112,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
         # Filter truth in the same way
         if truth is not None:
+
             mtl_truth = mtl_truth[notdone]
 
     # Filtering can reset the fill_value, which is just wrong wrong wrong
