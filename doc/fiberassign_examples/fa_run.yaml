@@ -28,18 +28,18 @@ sources:
         root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint,
         format: durham_mxxl_hdf5
     }
-    MWS_STAR: {
+    MWS_MAIN: {
         mag_bright: 15.0, 
         mag_faint_filler: 19.0, 
         mag_faintest: 20.0, 
         root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks,
         format: galaxia
     }
-#    mws_wd: {
-#        mag_bright: 15.0, 
-#        mag_faint: 20.0, 
-#        root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc,
-#        format: wd100pc
-#    }
+    MWS_WD: {
+        mag_bright: 15.0, 
+        mag_faint: 20.0, 
+        root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc,
+        format: wd100pc
+    }
 
 

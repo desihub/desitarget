@@ -32,38 +32,6 @@ ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
-############################################################
-
-############################################################
-def _load_mock_bgs_mxxl_file_fits(filename):
-    """ Reads mock information for MXXL bright time survey galaxies.
-    
-    Args:
-        filename (str): Name of a single mock file.
-    
-    Returns:
-        dict with the following entries (all ndarrays):
-
-        RA          : RA positions for the objects in the mock.
-        DEC         : DEC positions for the objects in the mock.
-        Z           : Heliocentric radial velocity divided by the speed of light.
-        SDSSr_true  : Apparent magnitudes in SDSS r band.
-    """
-    desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,
-                       columns= ['objid','brickid',
-                                 'RA','DEC','Z', 'R'])
-
-    objid       = data['objid'].astype('i8')
-    brickid     = data['brickid'].astype('i8')
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    SDSSr_true  = data['R'].astype('f8')
-    zred        = data['Z'].astype('f8')
-
-    return {'objid':objid,'brickid':brickid,
-            'RA':ra, 'DEC':dec, 'Z': zred , 
-            'SDSSr_true':SDSSr_true}
 
 ############################################################
 def _load_mock_mws_file_fstar_standards(filename):
@@ -95,7 +63,7 @@ def _load_mock_mws_file_fstar_standards(filename):
         'SDSSz_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
     """
-    C_LIGHT = 300000.0
+    C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
                        columns= ['objid','brickid',
@@ -142,97 +110,23 @@ def _load_mock_mws_file(filename):
         'SDSSr_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
     """
-    C_LIGHT = 300000.0
+
+    C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['objid','brickid',
-                                 'RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
+                       columns= ['objid','RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
 
     objid       = data['objid'].astype('i8')
-    brickid     = data['brickid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f8')
     SDSSr_true  = data['SDSSr_true'].astype('f8')
     SDSSr_obs   = data['SDSSr_obs'].astype('f8')
 
-    return {'objid':objid,'brickid':brickid,
+    return {'objid':objid,
             'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
             'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
 
-############################################################
-def _load_mock_wd100pc_file(filename):
-    """
-    Reads mock information for MWS bright time survey.
-   
-    WD/100pc mock, all sky in one file.
-
-    Parameters: 
-    ----------
-    filename: :class:`str`
-        Name of a single MWS mock file.
-    
-    Returns:
-    -------
-    Dictionary with the following entries.
-
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'magg': :class: `numpy.ndarray`
-            Apparent magnitudes in Gaia G band.
-        'WD': :class: `numpt.ndarray'
-            1 == WD, 0 == Not a WD 
-    """
-    C_LIGHT = 300000.0
-    desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,
-                       columns= ['objid','brickid',
-                                 'RA','DEC','radialvelocity','magg','WD'])
-
-    objid       = data['objid'].astype('i8')
-    brickid     = data['brickid'].astype('i8')
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    v_helio     = data['radialvelocity'].astype('f8')
-    magg        = data['magg'].astype('f8')
-    is_wd       = data['WD'].astype('i4')
-
-    return {'objid':objid,'brickid':brickid,
-            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
-            'magg': magg, 'WD':is_wd}
-
-############################################################
-def _read_mock_add_file_and_row_number(target_list,full_data):
-    """Adds row and file number to dict of properties. 
-
-    Parameters
-    ----------
-        target_list (list of dicts):
-            Each dict in the list contains data for one file, list is in same
-            order as files are read.
-
-        full_data (dict):
-            dict returned by any of the mock-reading routines.
-
-    Side effects
-    ------------
-        Modifies full_data.
-    """
-    fiducial_key = list(target_list[0])[0]
-    all_rownum   = list()
-    all_filenum  = list()
-    for ifile,target_item in enumerate(target_list):
-        nrows                = int(len(target_item[fiducial_key]))
-        all_rownum.append(np.arange(0,nrows,dtype=np.int64))
-        all_filenum.append(np.repeat(int(ifile),nrows))
-
-    full_data['rownum']  = np.array(np.concatenate(all_rownum),dtype=np.int64)
-    full_data['filenum'] = np.array(np.concatenate(all_filenum),dtype=np.int64)
-    return
 
 ############################################################
 def encode_rownum_filenum(rownum, filenum):
@@ -273,7 +167,7 @@ def decode_rownum_filenum(encoded_values):
     return rownum,filenum
 
 ############################################################
-def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
+def read_wd100pc(mock_dir, target_type):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
 
@@ -302,21 +196,31 @@ def read_mock_wd100pc_brighttime(root_mock_dir='',mock_name=None):
         'magg': :class: `numpy.ndarray`
             Apparent magnitudes in Gaia G band
     """
-    if mock_name is None:
-        mock_name = 'mock_wd100pc.fits'
-    filename  = os.path.join(root_mock_dir,mock_name)
-    full_data = _load_mock_wd100pc_file(filename)
+    desitarget.io.check_fitsio_version()
+    C_LIGHT = 299792.458
 
-    # Add file and row number
-    fiducial_key         = list(full_data)[0]
-    nrows                = len(full_data[fiducial_key])
-    full_data['rownum']  = np.arange(0,nrows)
-    full_data['filenum'] = np.zeros(nrows,dtype=np.int)
+    mock_name = 'mock_wd100pc.fits'
+    filename  = os.path.join(mock_dir,mock_name)
+    data = fitsio.read(filename,
+                       columns= ['RA','DEC','radialvelocity','magg','WD','objid'])
+                                 
 
-    # Source list is trivial in the case of a single file.
-    sources = [(filename, nrows)]
+    objid       = data['objid'].astype('i8')
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    v_helio     = data['radialvelocity'].astype('f8')
+    magg        = data['magg'].astype('f8')
+    is_wd       = data['WD'].astype('i4')
 
-    return full_data, sources
+
+    files = list()
+    files.append(filename)
+    n_per_file = list()
+    n_per_file.append(len(ra))
+
+    print('read {} objects'.format(n_per_file[0]))
+    return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
+            'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
 def read_galaxia(mock_dir, target_type):
@@ -392,6 +296,7 @@ def read_galaxia(mock_dir, target_type):
     
     print('Read {} objects'.format(np.sum(n_per_file)))
 
+
     full_data['FILES'] = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
     return full_data
@@ -427,8 +332,11 @@ def read_gaussianfield(mock_dir, target_type):
     zz   = data[  'Z'].astype('f8')
     print('read {} lines from {}'.format(len(data), filename))
     del data
-
-    return {'RA':ra, 'DEC':dec, 'Z':zz, 'FILES': filename}
+    files = list()
+    files.append(filename)
+    n_per_file = list()
+    n_per_file.append(len(ra))
+    return {'RA':ra, 'DEC':dec, 'Z':zz, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_durham_mxxl_hdf5(mock_dir, target_type):
     """ Reads mock information for MXXL bright time survey galaxies.
@@ -454,8 +362,14 @@ def read_durham_mxxl_hdf5(mock_dir, target_type):
     f.close()
 
     print('read {} lines from {}'.format(len(ra), filename))
+
+    files = list()
+    files.append(filename)
+    n_per_file = list()
+    n_per_file.append(len(ra))
+
     return {'RA':ra, 'DEC':dec, 'Z': zred ,
-            'SDSSr_true':SDSSr_true, 'FILES': filename}
+            'SDSSr_true':SDSSr_true, 'FILES': files, 'N_PER_FILE': n_per_file}
     
                                                                                                                              
 
@@ -560,7 +474,3 @@ def read_mock_durham(core_filename, photo_filename):
     data['SHAPEDEV_R'] = shapedev_r
 
     return data
-
-
-
-

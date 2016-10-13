@@ -35,14 +35,16 @@ def targets_truth(params):
     truth_all       = list()
     sourcefiles_all = list()
 
+    # load all the mocks
     source_defs = params['sources']
+
     print('The following populations are specified:')
     for source_name in sorted(source_defs.keys()):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
         print('type: {} format: {}'.format(source_name, source_format))
         result = getattr(mockio, 'read_'+source_format)(source_path, source_name)
-
+        
 #    for source_name in sorted(source_defs.keys()):
 #        module_name = 'desitarget.mock.{}'.format(source_name)
 #        print('')
