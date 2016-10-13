@@ -21,7 +21,7 @@ import desiutil.io
 import desispec.brick
     
 ############################################################
-def mws_selection(mws_data, mag_faintest=20.0, mag_faint_filler=19.0, mag_bright=15.0):
+def mws_main_selection(mws_data, mag_faintest=20.0, mag_faint_filler=19.0, mag_bright=15.0):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
