@@ -59,6 +59,13 @@ def read_tractor(filename, header=False, columns=None):
 
     data = fx[1].read(columns=readcolumns)
 
+    #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
+    if len(data) == 0:
+        print('WARNING: Empty file>', filename)
+        dt = data.dtype.descr
+        dt[1] = ('BRICKNAME', 'S8')
+        data = data.astype(np.dtype(dt))
+
     #ADM To circumvent whitespace bugs on I/O from fitsio
     #ADM need to strip any white space from string columns
     for colname in data.dtype.names:
