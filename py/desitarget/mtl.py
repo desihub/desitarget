@@ -140,6 +140,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     #mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
 
     # Assume no more than 100*10^9 rows  NO, DONT
+    # DOESN'T WORK BECAUSE TARGETIDs are not <len(mtl)
     #assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_MIN_SKY))
 
     if truth is not None:
