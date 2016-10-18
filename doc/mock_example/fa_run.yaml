@@ -4,13 +4,13 @@ run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
 sources:
     ELG: {
         number_density: 2400.0,
-        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/2048,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
         format: gaussianfield,
         selection: ndens
     }
     LRG: {
        number_density: 300.0,
-        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/2048,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
         format: gaussianfield,
         selection: ndens
     }
@@ -18,7 +18,7 @@ sources:
        number_density: 50.0,
        min_z : 0.0,
        max_x : 2.1,
-       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/2048,
+       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
        format: gaussianfield,
        selection : ndens
     }
