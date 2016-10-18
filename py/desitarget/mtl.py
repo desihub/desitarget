@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from astropy.table import Table, join
 
 from .targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
@@ -45,11 +46,18 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
     # Create redshift catalog
     if zcat is not None:
+        
         ztargets = join(targets, zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'],
                             keys='TARGETID', join_type='outer')
         if ztargets.masked:
             unobs = ztargets['NUMOBS'].mask
             ztargets['NUMOBS'][unobs] = 0
+            unobsz = ztargets['Z'].mask
+            ztargets['Z'][unobsz] = -1
+            unobszw = ztargets['ZWARN'].mask
+            ztargets['ZWARN'][unobszw] = -1        
+
+
     else:
         ztargets           = targets.copy()
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
@@ -59,13 +67,10 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
 
     # Create MTL
-    print('DEBUG: ztargets before copy: %d'%(len(ztargets)))
     mtl = ztargets.copy()
-    print('DEBUG: mtl after copy: %d'%(len(mtl)))
-
     if truth is not None:
         mtl_truth = truth.copy()
-
+ 
     # Assign priorities
     mtl['PRIORITY'] = calc_priority(ztargets)
 
@@ -73,6 +78,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (mtl['PRIORITY'] == 0)
     print('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
+
     mtl['NUMOBS_MORE'][ii] = 0
 
     # Remove extra zcat columns from join(targets, zcat) that are not needed
@@ -82,6 +88,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
     #- Set the OBSCONDITIONS mask for each target bit
     mtl['OBSCONDITIONS'] = np.zeros(n, dtype='i4')
+
     for mask, xxx_target in [
         (desi_mask, 'DESI_TARGET'),
         (mws_mask, 'MWS_TARGET'),
@@ -96,6 +103,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     # Filter out any targets marked as done.
     # APC: vital for the logic that comes later that this filtering preserves
     # the input order.
+           
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
         print('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
@@ -104,6 +112,7 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
         # Filter truth in the same way
         if truth is not None:
+
             mtl_truth = mtl_truth[notdone]
 
     # Filtering can reset the fill_value, which is just wrong wrong wrong
@@ -127,10 +136,12 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     # Compute a new targetid
     # Just use the rownumber in the MTL file, but reserve some space at the top
     # for standards and skys.
-    mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
+    # don't change TARGETIT
+    #mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
 
-    # Assume no more than 100*10^9 rows
-    assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_MIN_SKY))
+    # Assume no more than 100*10^9 rows  NO, DONT
+    # DOESN'T WORK BECAUSE TARGETIDs are not <len(mtl)
+    #assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_MIN_SKY))
 
     if truth is not None:
         # Store the new targetid in truth
