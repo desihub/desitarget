@@ -13,7 +13,6 @@ class myRF :
 
     def loadTree(self,treeFile,answerFile):
     # loads one tree and checks that the recursion limit is enough
-        print(self.treeInfo)
         self.treeInfo   = np.load(treeFile)
         self.treeAnswer = np.load(answerFile)
         if len(self.treeAnswer)>sys.getrecursionlimit() :
