@@ -7,13 +7,15 @@ desitarget.io
 
 This file knows how to write a TS catalogue.
 """
-from __future__ import (absolute_import, division)
+from __future__ import (absolute_import, division, print_function)
 #
 import numpy as np
 import fitsio
 import os, re
 from . import __version__ as desitarget_version
 from . import gitversion
+
+from desiutil import depend
 
 tscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
@@ -104,7 +106,7 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
-def write_targets(filename, data, indir=None):
+def write_targets(filename, data, indir=None, qso_selection=None):
     """Write a target catalogue.
 
     Args:
@@ -116,14 +118,16 @@ def write_targets(filename, data, indir=None):
 
     #- Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
-    hdr['DEPNAM00'] = 'desitarget'
-    hdr.add_record(dict(name='DEPVER00', value=desitarget_version, comment='desitarget version'))
-    hdr['DEPNAM01'] = 'desitarget-git'
-    hdr.add_record(dict(name='DEPVER01', value=gitversion().decode('utf-8'), comment='git revision'))
-
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion().decode('utf-8'))
     if indir is not None:
-        hdr['DEPNAM02'] = 'tractor-files'
-        hdr['DEPVER02'] = indir
+        depend.setdep(hdr, 'tractor-files', indir)
+
+    if qso_selection is None:
+        print('ERROR: qso_selection method not specified for output file')
+        depend.setdep(hdr, 'qso-selection', 'unknown')
+    else:
+        depend.setdep(hdr, 'qso-selection', qso_selection)
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 

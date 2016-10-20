@@ -1,10 +1,13 @@
 import warnings
 from time import time
 import os.path
+
 import numbers
+import sys
 
 import numpy as np
 from astropy.table import Table, Row
+from pkg_resources import resource_filename
 
 from desitarget.internal import sharedmem
 import desitarget.targets
@@ -235,8 +238,117 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
 
     if deltaChi2 is not None:
         qso &= deltaChi2>40.
+
+    return qso
+
+
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
+         deltaChi2=None, primary=None):
+    """Target Definition of QSO using a random forest returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        deltaChi2: array_like or None
+             If given, difference of chi2 bteween PSF and SIMP morphology
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    """
+    #----- Quasars
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+
+    # build variables for random forest    
+    nfeatures=11 # number of variables in random forest
+    nbEntries=rflux.size
+    colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
+
+    #Preselection to speed up the process, store the indexes
+    rMax = 22.7  # r<22.7
+    preSelection = (r<rMax) &  psflike(objtype) & DECaLSOK 
+    colorsCopy = colors.copy()
+    colorsReduced = colorsCopy[preSelection]
+    colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
+    colorsReducedIndex =  colorsIndex[preSelection]
+
+    #Load multivariate algorithm according python version
+    if (sys.version_info[0]==2) :
+        pathToRF = resource_filename('desitarget', "data/rf_model_dr3_py2.pkl.gz") 
+    elif (sys.version_info[0]==3) :
+        pathToRF = resource_filename('desitarget', "data/rf_model_dr3_py3.pkl.gz") 
+
+    # Compute random forest probability
+    from sklearn.externals import joblib
+    rf = joblib.load(pathToRF)
+  
+    prob = np.zeros(nbEntries)     
+    if (colorsReducedIndex.any()) :
+        objects_rf = rf.predict_proba(colorsReduced)
+        # add random forest probability to preselected objects
+        j=0
+        for i in colorsReducedIndex :
+            prob[i]=objects_rf[j,1]
+            j += 1
+
+    #define pcut, relaxed cut for faint objects
+    pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
+
+    qso = primary.copy()
+    qso &= r<rMax  
+    qso &= DECaLSOK  
+      
+    if objtype is not None:
+        qso &= psflike(objtype)
+
+    if deltaChi2 is not None:
+        qso &= deltaChi2>30.
+
+    if nbEntries==1 : # for call of a single object
+        qso &= prob[0]>pcut
+    else :
+        qso &= prob>pcut        
         
     return qso
+
+
+def getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux):
+ 
+    limitInf=1.e-04
+    gflux = gflux.clip(limitInf)
+    rflux = rflux.clip(limitInf)
+    zflux = zflux.clip(limitInf)
+    w1flux = w1flux.clip(limitInf)
+    w2flux = w2flux.clip(limitInf)
+
+    g=np.where( gflux>limitInf,22.5-2.5*np.log10(gflux), 0.)
+    r=np.where( rflux>limitInf,22.5-2.5*np.log10(rflux), 0.)
+    z=np.where( zflux>limitInf,22.5-2.5*np.log10(zflux), 0.)
+    W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
+    W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
+
+    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+
+    colors  = np.zeros((nbEntries,nfeatures))
+    colors[:,0]=g-r
+    colors[:,1]=r-z
+    colors[:,2]=g-z
+    colors[:,3]=g-W1
+    colors[:,4]=r-W1
+    colors[:,5]=z-W1
+    colors[:,6]=g-W2
+    colors[:,7]=r-W2
+    colors[:,8]=z-W2
+    colors[:,9]=W1-W2
+    colors[:,10]=r
+
+    return colors, r, DECaLSOK
 
 def _is_row(table):
     '''Return True/False if this is a row of a table instead of a full table
@@ -271,12 +383,16 @@ def unextinct_fluxes(objects):
     else:
         result = np.zeros(len(objects), dtype=dtype)
 
-    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
+#    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
+    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'], 
+                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
     result['GFLUX'] = dered_decam_flux[..., 1]
     result['RFLUX'] = dered_decam_flux[..., 2]
     result['ZFLUX'] = dered_decam_flux[..., 4]
 
-    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
+#    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
+    dered_wise_flux =  np.divide(objects['WISE_FLUX'] , objects['WISE_MW_TRANSMISSION'],
+                                 where=objects['WISE_MW_TRANSMISSION']!=0)
     result['W1FLUX'] = dered_wise_flux[..., 0]
     result['W2FLUX'] = dered_wise_flux[..., 1]
 
@@ -285,12 +401,16 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects):
+def apply_cuts(objects,qso_selection='randomforest'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
         objects: numpy structured array with UPPERCASE columns needed for
             target selection, OR a string tractor/sweep filename
+
+    Options:
+        qso_selection : algorithm to use for QSO selection; valid options
+            are 'colorcuts' and 'randomforest'
             
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -344,10 +464,16 @@ def apply_cuts(objects):
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
-
-    qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+    
+    if qso_selection=='colorcuts' :
+        qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
+    elif qso_selection == 'randomforest':
+        qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
+    else:
+        raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection, qso_selection_options))
 
     #----- Standard stars
     fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
@@ -395,10 +521,13 @@ def apply_cuts(objects):
 
     return desi_target, bgs_target, mws_target
 
-def select_targets(infiles, numproc=4, verbose=False):
+qso_selection_options = ['colorcuts', 'randomforest']
+
+def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest'):
     """
     Process input files in parallel to select targets
     
+
     Args:
         infiles: list of input filenames (tractor or sweep files),
             OR a single filename
@@ -406,6 +535,8 @@ def select_targets(infiles, numproc=4, verbose=False):
     Optional:
         numproc: number of parallel processes to use
         verbose: if True, print progress messages
+        qso_selection : algorithm to use for QSO selection; valid options
+            are 'colorcuts' and 'randomforest'
         
     Returns:
         targets numpy structured array: the subset of input targets which
@@ -429,7 +560,7 @@ def select_targets(infiles, numproc=4, verbose=False):
         '''Returns targets in filename that pass the cuts'''
         from desitarget import io
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection)
         
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         #- on desi_target != 0

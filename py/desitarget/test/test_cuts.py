@@ -133,6 +133,14 @@ class TestCuts(unittest.TestCase):
 
                 self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
 
+    def test_qso_selection_options(self):
+        targetfile = self.tractorfiles[0]
+        for qso_selection in cuts.qso_selection_options:
+            results = cuts.select_targets(targetfile, qso_selection=qso_selection)
+            
+        with self.assertRaises(ValueError):
+            results = cuts.select_targets(targetfile, numproc=1, qso_selection='blatfoo')
+
     def test_missing_files(self):
         with self.assertRaises(ValueError):
             targets = cuts.select_targets(['blat.foo1234',], numproc=1)
