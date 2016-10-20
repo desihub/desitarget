@@ -1,67 +1,124 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 4-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 ===========================
-desitarget.mock.bgs_durham
+desitarget.mock.mws_galaxia
 ===========================
 
 Builds target/truth files from already existing mock data
 """
-
 from __future__ import (absolute_import, division)
 #
 import numpy as np
 import os, re
-import desitarget.mock.io
+import desitarget.mock.io 
 import desitarget.io
-from   desitarget import bgs_mask
+from   desitarget import mws_mask, desi_mask, bgs_mask
 import os
 from   astropy.table import Table, Column
 import fitsio
-import desiutil.io
-import desispec.brick
 
+
+    
 ############################################################
-def bgs_selection(data, mag_faintest=20.0, mag_priority_split=19.5, mag_bright=15.0):
+def mag_select(data, source_name, **kwargs):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
 
     Parameters:
     -----------
-        data: dict
+        mws_data: dict
             Data required for selection
-        mag_faintest:    float
-            Hard faint limit for inclusion in survey.
-        mag_priority_split:  float
-            Magintude fainter than which galaxies have lower priority
-        mag_bright:      float
-            Hard bright limit for inclusion in survey.
+        kwargs: dict
+            Data required to make a sample selection. 
+            Should include:
+            mag_faintest:    float
+                Hard faint limit for inclusion in survey.
+            mag_faint_filler:  float
+                Magintude fainter than which stars are considered filler, rather
+                than part of the main sample.
+            mag_bright:      float 
+                Hard bright limit for inclusion in survey.
     """
-    # Parameters
-    SELECTION_MAG_NAME = 'SDSSr_true'
 
-    # Will populate this array with the bitmask values of each target class
-    target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
-    #priority     = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+    target_class = -1
 
-    fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
-    brighter_than_split_mag    = data[SELECTION_MAG_NAME]   < mag_priority_split
-    fainter_than_split_mag     = data[SELECTION_MAG_NAME]  >= mag_priority_split
-    brighter_than_faint_limit  = data[SELECTION_MAG_NAME]   < mag_faintest
+    if(source_name == 'MWS_MAIN'):
+        mag_bright = kwargs['mag_bright']
+        mag_faintest = kwargs['mag_faintest']
+        mag_faint_filler = kwargs['mag_faint_filler']
 
-    # Bright sample
-    select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag)
-    target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
-    #priority[select_bright_sample]     = bgs_mask['BGS_BRIGHT'].priorities['UNOBS']
 
-    # Nearby ('100pc') sample -- everything in the input table that isn't a WD
-    # Expect to refine this in future
-    select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit)
-    target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
-    #priority[select_faint_sample]     = bgs_mask['BGS_FAINT'].priorities['UNOBS']
+        # Parameters
+        SELECTION_MAG_NAME = 'SDSSr_obs'
 
-    return target_class#, priority
+        # Will populate this array with the bitmask values of each target class
+        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1 
+                
+        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
+        fainter_than_filler_limit  = data[SELECTION_MAG_NAME]  >= mag_faint_filler
+        brighter_than_filler_limit = data[SELECTION_MAG_NAME]  <  mag_faint_filler
+        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faintest
+
+        # Main sample
+        select_main_sample               = (fainter_than_bright_limit) & (brighter_than_filler_limit)    
+        target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
+                
+        # Faint sample
+        select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit)    
+        target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
+        
+    if(source_name == 'MWS_WD'):
+        mag_bright = kwargs['mag_bright']
+        mag_faint = kwargs['mag_faint']
+        # Parameters
+        SELECTION_MAG_NAME = 'magg'
+        
+        # Will populate this array with the bitmask values of each target class
+        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+        
+        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
+        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
+        is_wd                      = data['WD'] == 1
+        
+        # WD sample
+        select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (is_wd)   
+        target_class[select_wd_sample] = mws_mask.mask('MWS_WD')
+        
+        
+        # Nearby ('100pc') sample -- everything in the input table that isn't a WD
+        # Expect to refine this in future
+        select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (np.invert(is_wd))
+        target_class[select_nearby_sample] = mws_mask.mask('MWS_NEARBY')
+
+
+    if(source_name == 'BGS'):
+        mag_bright = kwargs['mag_bright']
+        mag_faintest = kwargs['mag_faintest']
+        mag_priority_split = kwargs['mag_priority_split']
+
+        # Parameters
+        SELECTION_MAG_NAME = 'SDSSr_true'
+        
+        # Will populate this array with the bitmask values of each target class
+        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+        
+        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
+        brighter_than_split_mag    = data[SELECTION_MAG_NAME]   < mag_priority_split
+        fainter_than_split_mag     = data[SELECTION_MAG_NAME]  >= mag_priority_split
+        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]   < mag_faintest
+
+        # Bright sample
+        select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag)
+        target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
+
+        # Fxsaint sample
+        select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit)
+        target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
+
+
+    return target_class
 
 ############################################################
 def build_mock_target(root_mock_dir='', output_dir='',
@@ -209,3 +266,65 @@ def build_mock_target(root_mock_dir='', output_dir='',
             print("    Truth:   {}".format(truth_filename))
 
     return targets, truth, Table(file_list)
+    
+
+    return target_class
+
+
+
+def estimate_density(ra, dec):
+    """Estimate the number density from a small patch
+    
+    Args:
+        ra: array_like
+            An array with RA positions.
+        dec: array_like
+            An array with Dec positions.
+
+    Returns:
+        density: float
+           Object number density computed over a small patch.
+    """
+    density = 0.0 
+
+    footprint_area = 20. * 35.* np.sin(35. * np.pi/180.)/(35. * np.pi/180.)
+    smalldata = ra[(ra>170.) & (ra<190.) & (dec>0.) & (dec<35.)]
+    n_in = len(smalldata)
+    density = n_in/footprint_area
+    if(n_in==0):
+        density = 1E-6
+    return density
+
+
+def ndens_select(data, source_name, **kwargs):
+
+    """Apply selection function based only on number density and redshift criteria.
+
+    """
+
+    ra = data['RA']
+    dec = data['DEC']
+    z = data['Z']
+    
+    if ('min_z' in data) & ('max_z' in data):
+        in_z = ((z>=kwargs['min_z']) & (z<=kwargs['max_z']))
+    else:
+        in_z = z>0.0
+
+    mock_dens = estimate_density(ra[in_z], dec[in_z])
+    frac_keep = min(kwargs['number_density']/mock_dens , 1.0)
+    if mock_dens < kwargs['number_density']:
+        print("WARNING: mock cannot achieve the goal density for source {} Goal {}. Mock {}".format(source_name, kwargs['number_density'], mock_dens))
+
+
+    n = len(ra)
+    keepornot = np.random.uniform(0.,1.,n)
+    limit = np.zeros(n) + frac_keep
+    kept = keepornot < limit
+    select_sample = (in_z) & (kept)
+
+    target_class = np.zeros(n,dtype=np.int64) - 1
+    target_class[select_sample] = desi_mask.mask(source_name)
+
+    return target_class
+

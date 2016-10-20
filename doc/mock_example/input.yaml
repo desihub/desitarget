@@ -1,0 +1,47 @@
+#mock target configuration file
+output_dir: /tmp
+run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
+sources:
+    ELG: {
+        number_density: 2400.0,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
+        format: gaussianfield,
+        selection: ndens
+    }
+    LRG: {
+       number_density: 300.0,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
+        format: gaussianfield,
+        selection: ndens
+    }
+    QSO: {
+       number_density: 50.0,
+       min_z : 0.0,
+       max_x : 2.1,
+       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
+       format: gaussianfield,
+       selection : ndens
+    }
+    BGS: {
+       mag_bright: 15.0,
+       mag_faintest: 20.0,
+       mag_priority_split: 19.5,
+       root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint,
+       format: durham_mxxl_hdf5,
+       selection: mag
+    }
+    MWS_MAIN: {
+       mag_bright: 15.0, 
+       mag_faint_filler: 19.0, 
+       mag_faintest: 20.0, 
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks,
+       format: galaxia,
+       selection: mag
+    }
+    MWS_WD: {
+        mag_bright: 15.0, 
+        mag_faint: 20.0, 
+        root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc,
+        format: wd100pc,
+        selection: mag
+    }
