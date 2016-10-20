@@ -34,58 +34,6 @@ ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
 
 ############################################################
-def _load_mock_mws_file_fstar_standards(filename):
-    """
-    Reads mock information for MWS bright time survey required to select F-Star
-    standards.
-    
-    Parameters: 
-    ----------
-    filename: :class:`str`
-        Name of a single MWS mock file.
-    
-    Returns:
-    -------
-    Dictionary with the following entries.
-
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'SDSSr_true': :class: `numpy.ndarray`
-            Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSr_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSg_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSz_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS bands, including extinction.
-    """
-    C_LIGHT = 299792.458
-    desitarget.io.check_fitsio_version()
-    data = fitsio.read(filename,
-                       columns= ['objid','brickid',
-                                 'RA','DEC','v_helio','SDSSr_true',
-                                 'SDSSr_obs','SDSSg_obs','SDSSz_obs'])
-
-    objid       = data['objid'].astype('i8')
-    brickid     = data['brickid'].astype('i8')
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    v_helio     = data['v_helio'].astype('f8')
-    SDSSr_true  = data['SDSSr_true'].astype('f8')
-    SDSSg_obs   = data['SDSSg_obs'].astype('f8')
-    SDSSr_obs   = data['SDSSr_obs'].astype('f8')
-    SDSSz_obs   = data['SDSSz_obs'].astype('f8')
-
-    return {'objid':objid,'brickid':brickid,
-            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
-            'SDSSr_true': SDSSr_true,'SDSSr_obs': SDSSr_obs,
-            'SDSSg_obs':SDSSg_obs,'SDSSz_obs':SDSSz_obs}
-
-############################################################
 def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
@@ -114,18 +62,23 @@ def _load_mock_mws_file(filename):
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['objid','RA','DEC','v_helio','SDSSr_true', 'SDSSr_obs'])
+                       columns= ['objid','RA','DEC','v_helio','SDSSr_true', 
+                                 'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
 
     objid       = data['objid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f8')
     SDSSr_true  = data['SDSSr_true'].astype('f8')
+    SDSSg_obs   = data['SDSSg_obs'].astype('f8')
     SDSSr_obs   = data['SDSSr_obs'].astype('f8')
+    SDSSz_obs   = data['SDSSz_obs'].astype('f8')
+
 
     return {'objid':objid,
             'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
-            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs}
+            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs, 
+            'SDSSg_obs' : SDSSg_obs, 'SDSSz_obs' : SDSSz_obs}
 
 
 ############################################################
@@ -167,7 +120,7 @@ def decode_rownum_filenum(encoded_values):
     return rownum,filenum
 
 ############################################################
-def read_wd100pc(mock_dir, target_type):
+def read_wd100pc(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
 
@@ -223,7 +176,7 @@ def read_wd100pc(mock_dir, target_type):
             'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
-def read_galaxia(mock_dir, target_type):
+def read_galaxia(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -302,7 +255,7 @@ def read_galaxia(mock_dir, target_type):
     return full_data
 
 ############################################################
-def read_gaussianfield(mock_dir, target_type):
+def read_gaussianfield(mock_dir, target_type, mock_name=None):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
     Parameters:
@@ -323,13 +276,22 @@ def read_gaussianfield(mock_dir, target_type):
         Zeros if read_z = False
     """
     desitarget.io.check_fitsio_version()
+    if mock_name is None:
+        filename = os.path.join(mock_dir, target_type+'.fits')
+    else:
+        filename = os.path.join(mock_dir, mock_name+'.fits')
 
-    filename = os.path.join(mock_dir, target_type+'.fits')
-    
-    data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
-    ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec  = data['DEC'].astype('f8')
-    zz   = data[  'Z'].astype('f8')
+    try:
+        data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
+        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+        dec  = data['DEC'].astype('f8')
+        zz   = data[  'Z'].astype('f8')
+    except:
+        data = fitsio.read(filename,columns=['RA','DEC'], upper=True)
+        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+        dec  = data['DEC'].astype('f8')
+        zz = np.random.uniform(0.0, 1.0, size=len(ra))
+
     print('read {} lines from {}'.format(len(data), filename))
     del data
     files = list()
@@ -338,7 +300,7 @@ def read_gaussianfield(mock_dir, target_type):
     n_per_file.append(len(ra))
     return {'RA':ra, 'DEC':dec, 'Z':zz, 'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_durham_mxxl_hdf5(mock_dir, target_type):
+def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     """ Reads mock information for MXXL bright time survey galaxies.
     
     Args:

@@ -44,6 +44,49 @@ def mag_select(data, source_name, **kwargs):
 
     target_class = -1
 
+############################################################
+
+    if(source_name == 'STD_FSTAR'):
+        """
+        Apply the selection function to determine the target class of each entry in
+        the input catalog.
+        
+        This implements standard F-star cuts from:
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
+        
+        Optical colors near BD+17 4708
+        (GRCOLOR - 0.32)^2 + (RZCOLOR - 0.13)^2 < 0.06^2
+        
+        To do:
+        - Isolation criterion
+        - DECam magnitudes rather than SDSS
+        """
+        # Parameters
+        mag_faint = kwargs['mag_faint']
+        mag_bright = kwargs['mag_bright']
+        grcolor = kwargs['grcolor']
+        rzcolor = kwargs['rzcolor']
+        colortol = kwargs['colortol']
+
+        SELECTION_MAG_NAME = 'SDSSr_obs'
+        COLOR_G_NAME       = 'SDSSg_obs'
+        COLOR_R_NAME       = 'SDSSr_obs'
+        COLOR_Z_NAME       = 'SDSSz_obs'
+
+       # Will populate this array with the bitmask values of each target class
+        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+
+        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
+        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
+        
+        gmr            = data[COLOR_G_NAME] - data[COLOR_R_NAME]
+        rmz            = data[COLOR_R_NAME] - data[COLOR_Z_NAME]
+        
+        select_color     = (gmr - grcolor)**2 + (rmz - rzcolor)**2 < colortol**2
+        select_mag       = (fainter_than_bright_limit) & (brighter_than_faint_limit)
+        select_std_stars = (select_color) & (select_mag)
+        target_class[select_std_stars] = desi_mask.mask('STD_FSTAR')
+    
     if(source_name == 'MWS_MAIN'):
         mag_bright = kwargs['mag_bright']
         mag_faintest = kwargs['mag_faintest']

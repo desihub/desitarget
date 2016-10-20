@@ -51,10 +51,16 @@ def targets_truth(params):
     for source_name in sorted(source_defs.keys()):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
+        source_dict = params['sources'][source_name]
+
 
         print('type: {} format: {}'.format(source_name, source_format))
         function = 'read_'+source_format
-        result = getattr(mockio, function)(source_path, source_name)
+        if 'mock_name' in source_dict.keys():
+            mock_name = source_dict['mock_name']
+        else:
+            mock_name = None
+        result = getattr(mockio, function)(source_path, source_name, mock_name=mock_name)
         source_data_all[source_name] = result
 
     print('loaded {} mock sources'.format(len(source_data_all)))
@@ -94,7 +100,7 @@ def targets_truth(params):
         desi_target = 0 * target_mask[ii]
         bgs_target = 0 * target_mask[ii] 
         mws_target = 0 * target_mask[ii]
-        if source_name in ['ELG', 'LRG', 'QSO']:
+        if source_name in ['ELG', 'LRG', 'QSO', 'STD_FSTAR', 'SKY']:
             desi_target = target_mask[ii]
         if source_name in ['BGS']:
             bgs_target = target_mask[ii]
@@ -104,9 +110,11 @@ def targets_truth(params):
 
         # define names that go into Truth
         n = len(source_data['RA'][ii])
-        true_type = np.zeros(n, dtype='S10'); true_type[:] = source_name
-        true_subtype = np.zeros(n, dtype='S10'); true_subtype[:] = source_name
+        if source_name not in ['STD_FSTAR', 'SKY']:
+            true_type = np.zeros(n, dtype='S10'); true_type[:] = source_name
+            true_subtype = np.zeros(n, dtype='S10');true_subtype[:] = source_name
 
+                
         #define obsconditions
         source_obsconditions = np.ones(n,dtype='uint16')
         if source_name in ['ELG', 'LRG', 'QSO']:
@@ -115,54 +123,127 @@ def targets_truth(params):
             source_obsconditions[:] = obsconditions.BRIGHT
         if source_name in ['MWS_MAIN', 'MWS_WD']:
             source_obsconditions[:] = obsconditions.BRIGHT
+        if source_name in ['STD_FSTAR', 'SKY']:
+            source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
 
         #append to the arrays that will go into Targets
-        ra_total = np.append(ra_total, source_data['RA'][ii])
-        dec_total = np.append(dec_total, source_data['DEC'][ii])
-        z_total = np.append(z_total, source_data['Z'][ii])
-        desi_target_total = np.append(desi_target_total, desi_target)
-        bgs_target_total = np.append(bgs_target_total, bgs_target)
-        mws_target_total = np.append(mws_target_total, mws_target)
-        true_type_total = np.append(true_type_total, true_type)
-        true_subtype_total = np.append(true_subtype_total, true_subtype)
-        obsconditions_total = np.append(obsconditions_total, source_obsconditions)
+        if source_name in ['STD_FSTAR']:
+            ra_stars = source_data['RA'][ii].copy()
+            dec_stars = source_data['DEC'][ii].copy()
+            desi_target_stars = desi_target.copy()
+            bgs_target_stars = bgs_target.copy()
+            mws_target_stars = mws_target.copy()
+            obsconditions_stars = source_obsconditions.copy()
+        if source_name in ['SKY']:
+            ra_sky = source_data['RA'][ii].copy()
+            dec_sky = source_data['DEC'][ii].copy()
+            desi_target_sky = desi_target.copy()
+            bgs_target_sky = bgs_target.copy()
+            mws_target_sky = mws_target.copy()
+            obsconditions_sky = source_obsconditions.copy()
+        if source_name not in ['SKY', 'STD_FSTAR']:
+            ra_total = np.append(ra_total, source_data['RA'][ii])
+            dec_total = np.append(dec_total, source_data['DEC'][ii])
+            z_total = np.append(z_total, source_data['Z'][ii])
+            desi_target_total = np.append(desi_target_total, desi_target)
+            bgs_target_total = np.append(bgs_target_total, bgs_target)
+            mws_target_total = np.append(mws_target_total, mws_target)
+            true_type_total = np.append(true_type_total, true_type)
+            true_subtype_total = np.append(true_subtype_total, true_subtype)
+            obsconditions_total = np.append(obsconditions_total, source_obsconditions)
 
-        print('sub', len(source_data['RA'][ii]), len(source_data['RA']))
+            
+
+        print('{}: selected {} out of {}'.format(source_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
     # create unique IDs, subpriorities and bricknames across all mock files
-    n = len(ra_total)
-    print('Great total of {} targets'.format(n))
-    targetid = np.random.randint(2**62, size=n)
-    subprior = np.random.uniform(0., 1., size=n)
-    brickname = desispec.brick.brickname(ra_total, dec_total)
 
+    n_target = len(ra_total)     
+    n_star = 0
+    n_sky = 0
+    n  = n_target    
+    if 'STD_FSTAR' in source_defs.keys():
+        n_star = len(ra_stars)
+        n += n_star
+    if 'SKY' in source_defs.keys():
+        n_sky = len(ra_sky)
+        n += n_sky
+
+    print('Great total of {} targets {} stdstars {} sky pos'.format(n_target, n_star, n_sky))
+    targetid = np.random.randint(2**62, size=n)
+
+
+    if 'STD_FSTAR' in source_defs.keys():
+        subprior = np.random.uniform(0., 1., size=n_star)
+        brickname = desispec.brick.brickname(ra_stars, dec_stars)
+        #write the Std Stars to disk
+        print('Started writing StdStars file')
+        stars_filename = os.path.join(params['output_dir'], 'stdstars.fits')
+        stars = Table()
+        stars['TARGETID'] = targetid[n_target:n_target+n_star]
+        stars['BRICKNAME'] = brickname
+        stars['RA'] = ra_stars
+        stars['DEC'] = dec_stars
+        stars['DESI_TARGET'] = desi_target_stars
+        stars['BGS_TARGET'] = bgs_target_stars
+        stars['MWS_TARGET'] = mws_target_stars
+        stars['SUBPRIORITY'] = subprior
+        stars['OBSCONDITIONS'] = obsconditions_stars
+        stars.write(stars_filename, overwrite=True)
+        print('Finished writing stdstars file')
+
+    if 'SKY' in source_defs.keys():
+        subprior = np.random.uniform(0., 1., size=n_sky)
+        brickname = desispec.brick.brickname(ra_sky, dec_sky)
+        #write the Std Stars to disk
+        print('Started writing sky to file')
+        sky_filename = os.path.join(params['output_dir'], 'sky.fits')
+        sky = Table()
+        sky['TARGETID'] = targetid[n_target+n_star:n_target+n_star+n_sky]
+        sky['BRICKNAME'] = brickname
+        sky['RA'] = ra_sky
+        sky['DEC'] = dec_sky
+        sky['DESI_TARGET'] = desi_target_sky
+        sky['BGS_TARGET'] = bgs_target_sky
+        sky['MWS_TARGET'] = mws_target_sky
+        sky['SUBPRIORITY'] = subprior
+        sky['OBSCONDITIONS'] = obsconditions_sky
+        sky.write(sky_filename, overwrite=True)
+        print('Finished writing sky file')
+
+    if n_target > 0:
+        subprior = np.random.uniform(0., 1., size=n_target)
+        brickname = desispec.brick.brickname(ra_total, dec_total)
 
     # write the Targets to disk
-    print('Started writing Targets file')
-    targets_filename = os.path.join(params['output_dir'], 'targets.fits')
-    targets = Table()
-    targets['TARGETID'] = targetid
-    targets['BRICKNAME'] = brickname
-    targets['RA'] = ra_total
-    targets['DEC'] = dec_total
-    targets['DESI_TARGET'] = desi_target_total
-    targets['BGS_TARGET'] = bgs_target_total
-    targets['MWS_TARGET'] = mws_target_total
-    targets['SUBPRIORITY'] = subprior
-    targets['OBSCONDITIONS'] = obsconditions_total
-    targets.write(targets_filename, overwrite=True)
-    print('Finished writing Targets file')
+        print('Started writing Targets file')
+        targets_filename = os.path.join(params['output_dir'], 'targets.fits')
+        targets = Table()
+        targets['TARGETID'] = targetid[0:n_target]
+        targets['BRICKNAME'] = brickname
+        targets['RA'] = ra_total
+        targets['DEC'] = dec_total
+        targets['DESI_TARGET'] = desi_target_total
+        targets['BGS_TARGET'] = bgs_target_total
+        targets['MWS_TARGET'] = mws_target_total
+        targets['SUBPRIORITY'] = subprior
+        targets['OBSCONDITIONS'] = obsconditions_total
+        targets.write(targets_filename, overwrite=True)
+        print('Finished writing Targets file')
 
     # write the Truth to disk
-    print('Started writing Truth file')
-    truth_filename = os.path.join(params['output_dir'], 'truth.fits')
-    truth = Table()
-    truth['TARGETID'] = targetid
-    truth['BRICKNAME'] = brickname
-    truth['RA'] = ra_total
-    truth['DEC'] = dec_total
-    truth['TRUEZ'] = z_total
-    truth['TRUETYPE'] = true_type_total
-    truth['TRUESUBTYPE'] = true_subtype_total
-    truth.write(truth_filename, overwrite=True)
-    print('Finished writing Truth file')
+        print('Started writing Truth file')
+        truth_filename = os.path.join(params['output_dir'], 'truth.fits')
+        truth = Table()
+        truth['TARGETID'] = targetid[0:n_target]
+        truth['BRICKNAME'] = brickname
+        truth['RA'] = ra_total
+        truth['DEC'] = dec_total
+        truth['TRUEZ'] = z_total
+        truth['TRUETYPE'] = true_type_total
+        truth['TRUESUBTYPE'] = true_subtype_total
+        truth.write(truth_filename, overwrite=True)
+        print('Finished writing Truth file')
+        
+        
+
