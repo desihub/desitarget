@@ -5,6 +5,7 @@ desitarget Change Log
 0.7.0 (2016-10-12)
 ------------------
 
+* Added functionality for Random Forest into quasar selection
 * Updates to be compatible with python 3.5
 * refactor of merged target list (mtl) code
 * Update template module file to DESI+Anaconda standard.
