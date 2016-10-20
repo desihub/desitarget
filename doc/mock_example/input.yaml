@@ -2,6 +2,23 @@
 output_dir: /tmp
 run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
 sources:
+    SKY: {
+        number_density: 1400.0,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
+        mock_name: random,
+        format: gaussianfield,
+        selection: ndens
+    }
+    STD_FSTAR: {
+       mag_bright: 16.0, 
+       grcolor : 0.32,
+       rzcolor : 0.13,
+       colortol : 0.16,
+       mag_faint: 19.0, 
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks,
+       format: galaxia,
+       selection: mag
+    }
     ELG: {
         number_density: 2400.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
@@ -9,7 +26,7 @@ sources:
         selection: ndens
     }
     LRG: {
-       number_density: 300.0,
+        number_density: 300.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
         format: gaussianfield,
         selection: ndens
@@ -17,7 +34,7 @@ sources:
     QSO: {
        number_density: 50.0,
        min_z : 0.0,
-       max_x : 2.1,
+       max_z : 2.1,
        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
        format: gaussianfield,
        selection : ndens
