@@ -117,8 +117,10 @@ def targets_truth(params):
                 
         #define obsconditions
         source_obsconditions = np.ones(n,dtype='uint16')
-        if source_name in ['ELG', 'LRG', 'QSO']:
+        if source_name in ['LRG', 'QSO']:
             source_obsconditions[:] = obsconditions.DARK
+        if source_name in ['ELG']:
+            source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
         if source_name in ['BGS']:
             source_obsconditions[:] = obsconditions.BRIGHT
         if source_name in ['MWS_MAIN', 'MWS_WD']:
