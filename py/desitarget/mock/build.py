@@ -17,6 +17,7 @@ from   desitarget.mock.io    import decode_rownum_filenum
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
+from desitarget import mtl
 import desispec.brick
 
 ############################################################
@@ -233,6 +234,16 @@ def targets_truth(params):
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
 
+        # started computing mtl file for the targets
+        print('Started computing the MTL file')
+        mtl_table = mtl.make_mtl(targets)        
+        # writing the MTL file to disk
+        print('Started writing the first MTL file')
+        mtl_filename = os.path.join(params['output_dir'], 'mtl.fits')
+        mtl_table.write(mtl_filename, overwrite=True)
+        print('Finished writing mtl file')
+
+
     # write the Truth to disk
         print('Started writing Truth file')
         truth_filename = os.path.join(params['output_dir'], 'truth.fits')
@@ -246,6 +257,8 @@ def targets_truth(params):
         truth['TRUESUBTYPE'] = true_subtype_total
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')
+
+
         
         
 
