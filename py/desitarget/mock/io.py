@@ -66,7 +66,7 @@ def _load_mock_mws_file(filename):
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['objid','RA','DEC','v_helio','SDSSr_true',
+                       columns= ['objid','RA','DEC','v_helio','d_helio', 'SDSSr_true',
                                  'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
 
 
