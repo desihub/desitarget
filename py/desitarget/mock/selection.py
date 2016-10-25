@@ -11,15 +11,13 @@ from __future__ import (absolute_import, division)
 #
 import numpy as np
 import os, re
-import desitarget.mock.io 
+import desitarget.mock.io
 import desitarget.io
 from   desitarget import mws_mask, desi_mask, bgs_mask
 import os
 from   astropy.table import Table, Column
 import fitsio
 
-
-    
 ############################################################
 def mag_select(data, source_name, **kwargs):
     """
@@ -28,113 +26,119 @@ def mag_select(data, source_name, **kwargs):
 
     Parameters:
     -----------
-        mws_data: dict
+        data: dict
             Data required for selection
+
         kwargs: dict
-            Data required to make a sample selection. 
+            Parameters of sample selection. The requirements will be different
+            for different values of source name.
+
             Should include:
+
             mag_faintest:    float
                 Hard faint limit for inclusion in survey.
             mag_faint_filler:  float
                 Magintude fainter than which stars are considered filler, rather
                 than part of the main sample.
-            mag_bright:      float 
+            mag_bright:      float
                 Hard bright limit for inclusion in survey.
     """
-
     target_class = -1
-
-############################################################
 
     if(source_name == 'STD_FSTAR'):
         """
         Apply the selection function to determine the target class of each entry in
         the input catalog.
-        
+
         This implements standard F-star cuts from:
         https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
-        
+
         Optical colors near BD+17 4708
         (GRCOLOR - 0.32)^2 + (RZCOLOR - 0.13)^2 < 0.06^2
-        
+
         To do:
         - Isolation criterion
         - DECam magnitudes rather than SDSS
         """
         # Parameters
-        mag_faint = kwargs['mag_faint']
+        mag_faint  = kwargs['mag_faint']
         mag_bright = kwargs['mag_bright']
-        grcolor = kwargs['grcolor']
-        rzcolor = kwargs['rzcolor']
-        colortol = kwargs['colortol']
+        grcolor    = kwargs['grcolor']
+        rzcolor    = kwargs['rzcolor']
+        colortol   = kwargs['colortol']
 
         SELECTION_MAG_NAME = 'SDSSr_obs'
         COLOR_G_NAME       = 'SDSSg_obs'
         COLOR_R_NAME       = 'SDSSr_obs'
         COLOR_Z_NAME       = 'SDSSz_obs'
 
-       # Will populate this array with the bitmask values of each target class
+        # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
 
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
-        
+
         gmr            = data[COLOR_G_NAME] - data[COLOR_R_NAME]
         rmz            = data[COLOR_R_NAME] - data[COLOR_Z_NAME]
-        
+
         select_color     = (gmr - grcolor)**2 + (rmz - rzcolor)**2 < colortol**2
         select_mag       = (fainter_than_bright_limit) & (brighter_than_faint_limit)
         select_std_stars = (select_color) & (select_mag)
         target_class[select_std_stars] = desi_mask.mask('STD_FSTAR')
-    
-    if(source_name == 'MWS_MAIN'):
-        mag_bright = kwargs['mag_bright']
-        mag_faintest = kwargs['mag_faintest']
-        mag_faint_filler = kwargs['mag_faint_filler']
 
+    if(source_name == 'MWS_MAIN'):
+        mag_bright       = kwargs['mag_bright']
+        mag_faintest     = kwargs['mag_faintest']
+        mag_faint_filler = kwargs['mag_faint_filler']
 
         # Parameters
         SELECTION_MAG_NAME = 'SDSSr_obs'
 
         # Will populate this array with the bitmask values of each target class
-        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1 
-                
+        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         fainter_than_filler_limit  = data[SELECTION_MAG_NAME]  >= mag_faint_filler
         brighter_than_filler_limit = data[SELECTION_MAG_NAME]  <  mag_faint_filler
         brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faintest
 
+        # MWS mocks enforce a 'hole' of radius 100pc around the sun to avoid
+        # overlap with the WD100pc sample.
+        DISTANCE_FROM_SUN_NAME         = 'd_helio'
+        DISTANCE_FROM_SUN_TO_PC_FACTOR = 1000.0 # In Galaxia mocks, d_helio is in kpc
+        DISTANCE_FROM_SUN_CUT          = 100.0/DISTANCE_FROM_SUN_TO_PC_FACTOR
+        further_than_100pc             = data[DISTANCE_FROM_SUN_NAME] > DISTANCE_FROM_SUN_CUT
+
         # Main sample
-        select_main_sample               = (fainter_than_bright_limit) & (brighter_than_filler_limit)    
+        select_main_sample               = (fainter_than_bright_limit) & (brighter_than_filler_limit) & (further_than_100pc)
         target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
-                
+
         # Faint sample
-        select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit)    
+        select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit) & (further_than_100pc)
         target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
-        
+
     if(source_name == 'MWS_WD'):
         mag_bright = kwargs['mag_bright']
-        mag_faint = kwargs['mag_faint']
+        mag_faint  = kwargs['mag_faint']
+
         # Parameters
         SELECTION_MAG_NAME = 'magg'
-        
+
         # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
-        
+
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
         is_wd                      = data['WD'] == 1
-        
+
         # WD sample
-        select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (is_wd)   
+        select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (is_wd)
         target_class[select_wd_sample] = mws_mask.mask('MWS_WD')
-        
-        
+
         # Nearby ('100pc') sample -- everything in the input table that isn't a WD
         # Expect to refine this in future
         select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (np.invert(is_wd))
         target_class[select_nearby_sample] = mws_mask.mask('MWS_NEARBY')
-
 
     if(source_name == 'BGS'):
         mag_bright = kwargs['mag_bright']
@@ -143,10 +147,10 @@ def mag_select(data, source_name, **kwargs):
 
         # Parameters
         SELECTION_MAG_NAME = 'SDSSr_true'
-        
+
         # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
-        
+
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         brighter_than_split_mag    = data[SELECTION_MAG_NAME]   < mag_priority_split
         fainter_than_split_mag     = data[SELECTION_MAG_NAME]  >= mag_priority_split
@@ -156,10 +160,9 @@ def mag_select(data, source_name, **kwargs):
         select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag)
         target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
 
-        # Fxsaint sample
+        # Faint sample
         select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit)
         target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
-
 
     return target_class
 
@@ -169,7 +172,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
                       targets_name='bgs_durahm_mxxl_targets.fits',
                       truth_name='bgs_durahm_mxxl_truth.fits',
                       selection_name='bgs_durahm_mxxl_selection.fits',
-                      mag_faintest=20.0, mag_priority_split=19.5, mag_bright=15.0, 
+                      mag_faintest=20.0, mag_priority_split=19.5, mag_bright=15.0,
                       remake_cached_targets=False,
                       write_cached_targets=True,
                       rand_seed=42):
@@ -212,7 +215,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
         data, file_list = desitarget.mock.io.read_mock_bgs_mxxl_brighttime(root_mock_dir=root_mock_dir,mock_ext=mock_ext)
         data_keys       = list(data.keys())
         n               = len(data[data_keys[0]])
-        
+
         # Allocate target classes and priorities
         target_class = bgs_selection(data,
                                      mag_faintest       = mag_faintest,
@@ -231,7 +234,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
             print(" -- {:30s} {}".format(criterion,locals().get(criterion)))
 
         print("n_items after selection: {}".format(n_selected))
-            
+
         # targetid  = np.random.randint(2**62, size=n_selected)
 
         # Targetids are row numbers in original input
@@ -256,11 +259,11 @@ def build_mock_target(root_mock_dir='', output_dir='',
 
         # assign target flags and true types
         desi_target_pop   = np.zeros(n_selected, dtype='i8')
-        bgs_target_pop    = np.zeros(n_selected, dtype='i8') 
-        mws_target_pop    = np.zeros(n_selected, dtype='i8') 
+        bgs_target_pop    = np.zeros(n_selected, dtype='i8')
+        mws_target_pop    = np.zeros(n_selected, dtype='i8')
         bgs_target_pop[:] = target_class[ii]
 
-        # APC This is a string? 
+        # APC This is a string?
         # FIXME (APC) This looks totally wrong, especially if the target class
         # encodes a combination of bits such that mask.names() returns a list.
         # The 'true type' should be something totally separate (an LRG is an
@@ -302,8 +305,8 @@ def build_mock_target(root_mock_dir='', output_dir='',
             # Write truth, slightly convoluted because we write two tables
             with fitsio.FITS(truth_filename,'rw',clobber=True) as fits:
                 fits.write(desiutil.io.encode_table(truth).as_array(), extname='TRUTH')
-                fits.write(file_list, extname='SOURCES')                
- 
+                fits.write(file_list, extname='SOURCES')
+
             print("Wrote new files:")
             print("    Targets: {}".format(targets_filename))
             print("    Truth:   {}".format(truth_filename))
