@@ -522,6 +522,118 @@ def apply_cuts(objects,qso_selection='randomforest'):
 
     return desi_target, bgs_target, mws_target
 
+
+def check_input_files(infiles, numproc=4, verbose=False):
+    """
+    Process input files in parallel to check whether they have
+    any bugs that will prevent select_targets from completing,
+    or whether files are corrupted.
+    Useful to run before a full run of select_targets.
+
+    Args:
+        infiles: list of input filenames (tractor or sweep files),
+            OR a single filename
+
+    Optional:
+        numproc: number of parallel processes to use
+        verbose: if True, print progress messages
+
+    Returns:
+        Nothing, but prints any problematic files to screen
+        together with information on the problem
+
+    Notes:
+        if numproc==1, use serial code instead of parallel
+    """
+    #- Convert single file to list of files
+    if isinstance(infiles,str):
+        infiles = [infiles,]
+
+    #- Sanity check that files exist before going further
+    for filename in infiles:
+        if not os.path.exists(filename):
+            raise ValueError("{} doesn't exist".format(filename))
+
+    #- function to run on every brick/sweep file
+    def _check_input_files(filename):
+        '''Check for corrupted values in a file'''
+        from desitarget import io
+        from functools import partial
+        from os.path import getsize
+
+        #ADM read in Tractor or sweeps files
+        objects = io.read_tractor(filename)
+        #ADM if everything is OK the default meassage will be "OK"
+        filemessageroot = 'OK'
+        filemessageend = ''
+        #ADM columns that shouldn't have zero values
+        cols = [
+            'BRICKID',
+#            'RA_IVAR', 'DEC_IVAR',
+            'DECAM_MW_TRANSMISSION',
+#            'WISE_FLUX',
+#            'WISE_MW_TRANSMISSION','DCHISQ'
+            ]
+        #ADM for each of these columnes that shouldn't have zero values,
+        #ADM loop through and look for zero values
+        for colname in cols:
+            if np.min(objects[colname]) == 0:
+                filemessageroot = "WARNING...some values are zero for"
+                filemessageend += " "+colname
+
+        #ADM now, loop through entires in file and search for 512-byte
+        #ADM blocks that are all zeros (a sign of corruption in file-writing)
+        #ADM Note that fits files are padded by 2880 bytes, so we only want to
+        #ADM process the file length (in bytes) - 2880
+        #ADM So, first determine the total file size in bytes - 2880
+        bytestop = getsize(filename) -2880
+
+         with open(filename, 'rb') as f:
+             for block_number, data in enumerate(iter(partial(f.read, 512), b'')):
+                 if not any(data):
+                     if block_number*512 < bytestop:
+                         filemessageroot = "WARNING...some values are zero for"
+                         filemessageend += " 512-byte block", block_number
+
+         return [filename,filemessageroot+filemessageend]
+
+    # Counter for number of bricks processed;
+    # a numpy scalar allows updating nbrick in python 2
+    # c.f https://www.python.org/dev/peps/pep-3104/
+    nbrick = np.zeros((), dtype='i8')
+
+    t0 = time()
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+        if verbose and nbrick%25 == 0 and nbrick>0:
+            elapsed = time() - t0
+            rate = nbrick / elapsed
+            print('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
+        nbrick[...] += 1    # this is an in-place modification
+        return result
+
+    #- Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            fileinfo = pool.map(_check_input_files, infiles, reduce=_update_status)
+    else:
+        fileinfo = list()
+        for fil in infiles:
+            fileinfo.append(_update_status(_check_input_files(fil)))
+
+    fileinfo = np.array(fileinfo)
+    w = np.where(fileinfo[...,1] != 'OK')
+    if len(w[0]) == 0:
+        print('ALL FILES ARE OK')
+    else:
+        for fil in fileinfo[w]:
+            print(fil[0],fil[1])
+
+            return
+
+
 qso_selection_options = ['colorcuts', 'randomforest']
 
 def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest'):
