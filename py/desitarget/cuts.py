@@ -588,14 +588,14 @@ def check_input_files(infiles, numproc=4, verbose=False):
         #ADM So, first determine the total file size in bytes - 2880
         bytestop = getsize(filename) -2880
 
-         with open(filename, 'rb') as f:
-             for block_number, data in enumerate(iter(partial(f.read, 512), b'')):
-                 if not any(data):
-                     if block_number*512 < bytestop:
-                         filemessageroot = "WARNING...some values are zero for"
-                         filemessageend += " 512-byte block", block_number
+        with open(filename, 'rb') as f:
+            for block_number, data in enumerate(iter(partial(f.read, 512), b'')):
+                if not any(data):
+                    if block_number*512 < bytestop:
+                        filemessageroot = "WARNING...some values are zero for"
+                        filemessageend += " 512-byte block", block_number
 
-         return [filename,filemessageroot+filemessageend]
+        return [filename,filemessageroot+filemessageend]
 
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
