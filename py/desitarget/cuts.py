@@ -625,13 +625,14 @@ def check_input_files(infiles, numproc=4, verbose=False):
 
     fileinfo = np.array(fileinfo)
     w = np.where(fileinfo[...,1] != 'OK')
+
     if len(w[0]) == 0:
         print('ALL FILES ARE OK')
     else:
         for fil in fileinfo[w]:
             print(fil[0],fil[1])
 
-            return
+    return
 
 
 qso_selection_options = ['colorcuts', 'randomforest']
