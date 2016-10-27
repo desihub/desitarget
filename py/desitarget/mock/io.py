@@ -37,12 +37,12 @@ ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
-    
-    Parameters: 
+
+    Parameters:
     ----------
     filename: :class:`str`
         Name of a single MWS mock file.
-    
+
     Returns:
     -------
     Dictionary with the following entries.
@@ -53,40 +53,45 @@ def _load_mock_mws_file(filename):
             DEC positions for the objects in the mock.
         'Z': :class: `numpy.ndarray`
             Heliocentric radial velocity divided by the speed of light.
+
+        'd_helio': :class `numpy.ndarray'
+            Heliocentric distance in kpc, required only to avoid overlap
+            with 100pc sample.
         'SDSSr_true': :class: `numpy.ndarray`
-            Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSr_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS bands, including extinction.
+            Apparent magnitude in SDSS bands r, before extinction.
+        'SDSS[grz]_obs': :class: `numpy.ndarray`
+             Apparent magnitudes in SDSS grz bands, including extinction.
     """
 
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['objid','RA','DEC','v_helio','SDSSr_true', 
+                       columns= ['objid','RA','DEC','v_helio','d_helio', 'SDSSr_true',
                                  'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
+
 
     objid       = data['objid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f8')
+    d_helio     = data['d_helio'].astype('f8')
     SDSSr_true  = data['SDSSr_true'].astype('f8')
     SDSSg_obs   = data['SDSSg_obs'].astype('f8')
     SDSSr_obs   = data['SDSSr_obs'].astype('f8')
     SDSSz_obs   = data['SDSSz_obs'].astype('f8')
 
-
     return {'objid':objid,
-            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
-            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs, 
+            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
+            'd_helio': d_helio,
+            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs,
             'SDSSg_obs' : SDSSg_obs, 'SDSSz_obs' : SDSSz_obs}
-
 
 ############################################################
 def encode_rownum_filenum(rownum, filenum):
     """Encodes row and file number in 52 packed bits.
 
     Parameters:
-        rownum (int): Row in input file 
+        rownum (int): Row in input file
         filenum (int): File number in input file set
 
     Return:
@@ -101,7 +106,7 @@ def encode_rownum_filenum(rownum, filenum):
 
     # This should be a 64 bit integer.
     encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum,dtype=np.uint64)
-    
+
     # Note return signed
     return np.asarray(encoded_value,dtype=np.int64)
 
@@ -125,7 +130,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     bricknames as in the Galaxia and Galfast mocks.
 
     Parameters:
-    ----------    
+    ----------
     root_mock_dir: :class:`str`
         Path to the mock file.
 
@@ -135,7 +140,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
 
     brickname_list:
         Optional list of specific bricknames to read.
-        
+
     Returns:
     -------
     Dictionary with the following entries.
@@ -156,7 +161,6 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     filename  = os.path.join(mock_dir,mock_name)
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','magg','WD','objid'])
-                                 
 
     objid       = data['objid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
@@ -165,14 +169,13 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     magg        = data['magg'].astype('f8')
     is_wd       = data['WD'].astype('i4')
 
-
     files = list()
     files.append(filename)
     n_per_file = list()
     n_per_file.append(len(ra))
 
     print('read {} objects'.format(n_per_file[0]))
-    return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT, 
+    return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
@@ -180,7 +183,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
-    ----------    
+    ----------
     root_mock_dir: :class:`str`
         Path to all the 'desi_galfast' files.
 
@@ -189,7 +192,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
     brickname_list:
         Optional list of specific bricknames to read.
-        
+
     Returns:
     -------
     Dictionary concatenating all the 'desi_galfast' files with the following entries.
@@ -204,11 +207,10 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
             Apparent magnitudes in SDSS bands, including extinction.
         'SDSSr_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
-    
     """
     # Build iterator of all desi_galfast files
     iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits")
-   
+
     # Read each file
     print('Reading individual mock files')
     target_list = list()
@@ -245,12 +247,10 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         k          = list(target_list[0])[0] # pick the first available column
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
         odered_file_list = [file_list[itarget] for itarget in file_order]
-    
-    
+
     print('Read {} objects'.format(np.sum(n_per_file)))
 
-
-    full_data['FILES'] = ordered_file_list
+    full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
     return full_data
 
@@ -266,7 +266,7 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
         Option to read the redshift column.
 
     Returns:
-    --------    
+    --------
     ra: :class: `numpy.ndarray`
         Array with the RA positions for the objects in the mock.
     dec: :class: `numpy.ndarray`
@@ -300,12 +300,13 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
     n_per_file.append(len(ra))
     return {'RA':ra, 'DEC':dec, 'Z':zz, 'FILES': files, 'N_PER_FILE': n_per_file}
 
+############################################################
 def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     """ Reads mock information for MXXL bright time survey galaxies.
-    
+
     Args:
         filename (str): Name of a single mock file.
-    
+
     Returns:
         dict with the following entries (all ndarrays):
 
@@ -332,9 +333,8 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
 
     return {'RA':ra, 'DEC':dec, 'Z': zred ,
             'SDSSr_true':SDSSr_true, 'FILES': files, 'N_PER_FILE': n_per_file}
-    
-                                                                                                                             
 
+############################################################
 def read_mock_durham(core_filename, photo_filename):
     """
     Args:

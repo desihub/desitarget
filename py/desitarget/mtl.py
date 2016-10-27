@@ -6,11 +6,8 @@ from .targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
 
 
-MTL_RESERVED_TARGETID_MIN_SKY = np.int(1e11)
-MTL_RESERVED_TARGETID_MIN_STD = np.int(1e13)
-
 ############################################################
-def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
+def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
     Parameters
     ----------
@@ -22,9 +19,6 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     trim : :class:`bool`, optional
         If ``True`` (default), don't include targets that don't need
         any more observations.  If ``False``, include every input target.
-    truth: optional
-        Truth table
-    truth_table: optional to propagate into header
 
     Returns
     -------
@@ -41,8 +35,6 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
     """
     n       = len(targets)
     targets = Table(targets)
-
-    # FIXME (APC): NUMOBS vs. NUMOBS_MORE?
 
     # Create redshift catalog
     if zcat is not None:
@@ -68,8 +60,6 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
 
     # Create MTL
     mtl = ztargets.copy()
-    if truth is not None:
-        mtl_truth = truth.copy()
  
     # Assign priorities
     mtl['PRIORITY'] = calc_priority(ztargets)
@@ -101,55 +91,17 @@ def make_mtl(targets, zcat=None, trim=False, truth=None, truth_meta=None):
                 mtl['OBSCONDITIONS'][ii] |= obsconditions.mask(mask[name].obsconditions)
 
     # Filter out any targets marked as done.
-    # APC: vital for the logic that comes later that this filtering preserves
-    # the input order.
-           
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
         print('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
                                                                      len(mtl)))
         mtl     = mtl[notdone]
 
-        # Filter truth in the same way
-        if truth is not None:
-
-            mtl_truth = mtl_truth[notdone]
 
     # Filtering can reset the fill_value, which is just wrong wrong wrong
     # See https://github.com/astropy/astropy/issues/4707
     # and https://github.com/astropy/astropy/issues/4708
     mtl['NUMOBS_MORE'].fill_value = -1
 
-    # FIXME (APC): is this the place to do this?
-    # Assign targetids last and use mtl; might encode some ordering info that
-    # would be affected by filtering.
 
-    # mtl['TARGETID'] = encode_mtl_targetid(mtl)
-    # Not ideal, just use row number for fast inverse from tile maps, and unpack
-    # back to original targetids when making the catalog. 
-
-    # Dump the *original* target id in the truth table alongside the targetid
-    # assigned by this routine below.
-    if truth is not None: 
-        mtl_truth['ORIGINAL_TARGETID'] = ztargets['TARGETID']
-
-    # Compute a new targetid
-    # Just use the rownumber in the MTL file, but reserve some space at the top
-    # for standards and skys.
-    # don't change TARGETIT
-    #mtl['TARGETID'] = np.arange(0,len(mtl),dtype=np.int64)
-
-    # Assume no more than 100*10^9 rows  NO, DONT
-    # DOESN'T WORK BECAUSE TARGETIDs are not <len(mtl)
-    #assert(np.all(mtl['TARGETID'] < MTL_RESERVED_TARGETID_MIN_SKY))
-
-    if truth is not None:
-        # Store the new targetid in truth
-        mtl_truth['TARGETID'] = mtl['TARGETID']
-
-        # Propagate any additional data passed for the truth header.
-        if truth_meta is not None:
-            truth.meta.update(truth_meta)
-        return mtl, mtl_truth
-    else:
-        return mtl
+    return mtl

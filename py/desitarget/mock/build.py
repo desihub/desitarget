@@ -17,6 +17,7 @@ from   desitarget.mock.io    import decode_rownum_filenum
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
+from desitarget import mtl
 import desispec.brick
 
 ############################################################
@@ -159,7 +160,6 @@ def targets_truth(params):
         print('{}: selected {} out of {}'.format(source_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
     # create unique IDs, subpriorities and bricknames across all mock files
-
     n_target = len(ra_total)     
     n_star = 0
     n_sky = 0
@@ -170,11 +170,22 @@ def targets_truth(params):
     if 'SKY' in source_defs.keys():
         n_sky = len(ra_sky)
         n += n_sky
-
     print('Great total of {} targets {} stdstars {} sky pos'.format(n_target, n_star, n_sky))
     targetid = np.random.randint(2**62, size=n)
 
+    # make a subselection in 
+    if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+        ii_stars = (ra_stars > params['subset']['min_ra']) & (ra_stars< params['subset']['max_ra'])
+        ii_stars &= (dec_stars > params['subset']['min_dec']) & (dec_stars< params['subset']['max_dec'])
+        
+        ii_sky = (ra_sky > params['subset']['min_ra']) & (ra_sky< params['subset']['max_ra'])
+        ii_sky &= (dec_sky > params['subset']['min_dec']) & (dec_sky< params['subset']['max_dec'])
+        
+        ii_targets = (ra_total > params['subset']['min_ra']) & (ra_total < params['subset']['max_ra'])
+        ii_targets &= (dec_total > params['subset']['min_dec']) & (dec_total < params['subset']['max_dec'])
+        print('IDs to select subset ready')
 
+    #write to disk
     if 'STD_FSTAR' in source_defs.keys():
         subprior = np.random.uniform(0., 1., size=n_star)
         brickname = desispec.brick.brickname(ra_stars, dec_stars)
@@ -191,6 +202,9 @@ def targets_truth(params):
         stars['MWS_TARGET'] = mws_target_stars
         stars['SUBPRIORITY'] = subprior
         stars['OBSCONDITIONS'] = obsconditions_stars
+        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            stars = stars[ii_stars]
+            print('subsetting in std_stars data done')
         stars.write(stars_filename, overwrite=True)
         print('Finished writing stdstars file')
 
@@ -210,6 +224,9 @@ def targets_truth(params):
         sky['MWS_TARGET'] = mws_target_sky
         sky['SUBPRIORITY'] = subprior
         sky['OBSCONDITIONS'] = obsconditions_sky
+        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            sky = sky[ii_sky]
+            print('subsetting in sky data done')
         sky.write(sky_filename, overwrite=True)
         print('Finished writing sky file')
 
@@ -230,8 +247,21 @@ def targets_truth(params):
         targets['MWS_TARGET'] = mws_target_total
         targets['SUBPRIORITY'] = subprior
         targets['OBSCONDITIONS'] = obsconditions_total
+        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            targets = targets[ii_targets]
+            print('subsetting in targets data done')
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
+
+        # started computing mtl file for the targets
+        print('Started computing the MTL file')
+        mtl_table = mtl.make_mtl(targets)        
+        # writing the MTL file to disk
+        print('Started writing the first MTL file')
+        mtl_filename = os.path.join(params['output_dir'], 'mtl.fits')
+        mtl_table.write(mtl_filename, overwrite=True)
+        print('Finished writing mtl file')
+
 
     # write the Truth to disk
         print('Started writing Truth file')
@@ -244,8 +274,13 @@ def targets_truth(params):
         truth['TRUEZ'] = z_total
         truth['TRUETYPE'] = true_type_total
         truth['TRUESUBTYPE'] = true_subtype_total
+        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            truth = truth[ii_targets]
+            print('subsetting in truth data done')
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')
+
+
         
         
 
