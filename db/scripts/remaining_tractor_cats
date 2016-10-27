@@ -1,0 +1,83 @@
+#!/usr/bin/env python
+
+'''
+tractor_load.py loads tractor cats listed in "all_dr3_cats.out" to psql db
+    it appends each batch job id to "jobids_loaddb.txt" and
+    prints "commitedload ... path/to/tractor-cat.fits" each time a tractor cat 
+    is successfully loaded
+
+This script finds the tractor cats already loaded using the jobids in "jobids_loaddb.txt"
+    to get the stdout files, greping for "commitedload", and combining results for 
+    all jobids, then set differences set(all) - set(loaded) and writes this list
+    of remaining cats to file "remaining_cats.txt"
+'''
+
+
+import numpy as np
+import subprocess
+from argparse import ArgumentParser
+import os
+import sys
+import glob
+
+def read_lines(fn):
+	fin=open(fn,'r')
+	lines=fin.readlines()
+	fin.close()
+	return lines
+
+def bash_result(cmd):
+    res= subprocess.check_output(cmd,\
+                        stderr=subprocess.STDOUT,\
+                        shell=True)
+    return res.strip()
+
+parser = ArgumentParser(description="test")
+parser.add_argument("--jobids",action="store",default="jobids_loaddb.txt",help="jobids file",required=False)
+parser.add_argument("--all_cats",action="store",default="all_dr3_cats.out",help="file listing all DR catalogues",required=False)
+parser.add_argument("--remain",action="store",default="remaining_cats.txt",help="list of remaining tractor cats to load to db",required=False)
+args = parser.parse_args()
+
+# Cats already loaded by each jobid
+jobids= read_lines(args.jobids) 
+for i in range(len(jobids)):
+	jobids[i]= jobids[i].strip().split('=')[-1]
+fnames=[]
+for id in jobids:
+    fn=glob.glob('*%s*' % id)
+    # stdout.out%j and stdout.out%j_cat are allowed
+    assert(len(fn) <= 2)
+    if len(fn) > 1:
+        if '_cat' in fn[0]: fn=fn[1]
+        elif '_cat' in fn[1]: fn=fn[0]
+        else: raise ValueError
+    else: 
+        fn= fn[0]
+    newfn= fn+'_cats'
+    if os.path.exists(newfn):
+        print("previously wrote: %s" % newfn)
+    else:
+        jnk= bash_result("grep commitedload %s | cut -d ' ' -f 4 > %s" % (fn,newfn))
+        print("wrote: %s" % newfn)
+    fnames+= [newfn]
+# Union of loaded cats
+loaded=[]
+for fn in fnames:
+    fin=open(fn,'r')
+    lines=fin.readlines()
+    fin.close()
+    loaded+= lines
+loaded=np.array(loaded)
+# Set difference
+fin=open(args.all_cats,'r')
+all= np.array(fin.readlines())
+fin.close()
+remain= np.array(list( set(all)-set(loaded) ))
+print("all=%d, loaded=%d, remain=%d" % (all.size,loaded.size,remain.size))
+# Remaining cats
+if os.path.exists(args.remain):
+    os.remove(args.remain)
+# Remove trailing new line char
+remain= np.char.strip(remain)
+np.savetxt(args.remain,remain,fmt='%s')
+print('wrote: %s' % args.remain)

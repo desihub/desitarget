@@ -1,0 +1,25 @@
+update tractor set g=NULL where decam_nobs_2=0;
+update tractor set r=NULL where decam_nobs_3=0;
+update tractor set z=NULL where decam_nobs_5=0;
+update wise set w1=NULL where wise_nobs_1=0;
+update wise set w2=NULL where wise_nobs_2=0;
+update wise set w3=NULL where wise_nobs_3=0;
+update wise set w4=NULL where wise_nobs_4=0;
+update tractor set w1=wise.w1 from wise where wise.id=tractor.id;
+update tractor set w2=wise.w2 from wise where wise.id=tractor.id;
+update tractor set w3=wise.w3 from wise where wise.id=tractor.id;
+update tractor set w4=wise.w4 from wise where wise.id=tractor.id;
+
+ALTER TABLE tractor ADD COLUMN z_w1 double precision;
+ALTER TABLE tractor ADD COLUMN r_z double precision;
+update tractor set r_z = r - z;
+update tractor set z_w1 = z - w1;
+
+update tractor set g_r=NULL where g=NULL;
+update tractor set g_r=NULL where r=NULL;
+
+update tractor set r_z=NULL where r=NULL;
+update tractor set r_z=NULL where g=NULL;
+
+update tractor set z_w1=NULL where z=NULL;
+update tractor set z_w1=NULL where w1=NULL;

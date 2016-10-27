@@ -5,8 +5,6 @@
 #SBATCH -t 25:00:00
 #SBATCH -J prodload
 #SBATCH -o prodload.o%j
-#SBATCH --mail-user=kburleigh@lbl.gov
-#SBATCH --mail-type=END,FAIL
 #SBATCH -L SCRATCH
 cd $SLURM_SUBMIT_DIR
 sanity="prodload_jobids.txt"

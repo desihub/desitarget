@@ -1,0 +1,16 @@
+CREATE TABLE target (
+    id bigint,
+    ra double precision,
+    "dec" double precision,
+    type text,
+    priority int default 1,
+    nobs int,
+    version text
+);
+
+insert into target (id, ra, dec, type, nobs, version) select T.id, ra, dec, 'LRG', T.decam_nobs_2+T.decam_nobs_3+T.decam_nobs_5, '2016-03-24' from tractor as T, wise as W where T.id=W.id and (W.wise_flux_1/W.wise_mw_transmission_1)*((T.decam_flux_3/T.decam_mw_transmission_3)^(1.33-1.0)) > ((T.decam_flux_5/T.decam_mw_transmission_5)^1.33) * 10.0^(-0.33/2.5) and (T.decam_flux_3/T.decam_mw_transmission_3) > 10^((22.5-23.0)/2.5) and (T.decam_flux_5/T.decam_mw_transmission_5) > 10^((22.5-20.56)/2.5) and (W.wise_flux_1/W.wise_mw_transmission_1) > 10^((22.5-19.5)/2.5) and (T.decam_flux_5/T.decam_mw_transmission_5) > (T.decam_flux_3/T.decam_mw_transmission_3)*10^(1.6/2.5) and T.decam_nobs_3 > 1 and T.decam_nobs_5 > 1 and T.decam_anymask_5=0 and T.decam_anymask_3=0 and W.wise_nobs_1 > 1 ;
+
+insert into target (id, ra, dec, type, nobs, version) select T.id, ra, dec, 'ELG', T.decam_nobs_2+T.decam_nobs_3+T.decam_nobs_5, '2016-03-24'  from tractor as T where (T.decam_flux_3/T.decam_mw_transmission_3) > 10^((22.5-23.4)/2.5) and (T.decam_flux_5/T.decam_mw_transmission_5) > (T.decam_flux_3/T.decam_mw_transmission_3) * 10^(0.3/2.5)  and (T.decam_flux_5/T.decam_mw_transmission_5) < (T.decam_flux_3/T.decam_mw_transmission_3) * 10^(1.5/2.5) and (T.decam_flux_3/T.decam_mw_transmission_3*T.decam_flux_3/T.decam_mw_transmission_3) < (T.decam_flux_2/T.decam_mw_transmission_2) * (T.decam_flux_5/T.decam_mw_transmission_5) * 10^(-0.2/2.5) and (T.decam_flux_5/T.decam_mw_transmission_5) > (T.decam_flux_2/T.decam_mw_transmission_2) * 10 ^(1.2/2.5) and T.decam_nobs_3 > 1 and T.decam_nobs_2 > 1 and T.decam_nobs_5 > 1 and T.decam_anymask_5=0 and T.decam_anymask_3=0 and T.decam_anymask_2=0;
+
+insert into target (id, ra, dec, type, nobs, version) select T.id, ra, dec, 'QSO', T.decam_nobs_2+T.decam_nobs_3+T.decam_nobs_5, '2016-07-28'  from tractor as T, wise as W where T.id=W.id and (T.decam_flux_3/T.decam_mw_transmission_3) > 10^((22.5-23.0)/2.5) and (T.decam_flux_3/T.decam_mw_transmission_3) < (T.decam_flux_2/T.decam_mw_transmission_2) * 10^(1.0/2.5) and (T.decam_flux_5/T.decam_mw_transmission_5) > (T.decam_flux_3/T.decam_mw_transmission_3) *  10^(-0.3/2.5) and (T.decam_flux_5/T.decam_mw_transmission_5) < (T.decam_flux_3/T.decam_mw_transmission_3) *  10^(1.1/2.5) and (0.75*W.wise_flux_1/W.wise_mw_transmission_1 + 0.25*W.wise_flux_2/W.wise_mw_transmission_2) * (greatest(T.decam_flux_2/T.decam_mw_transmission_2,0.0))^1.2 > (greatest(T.decam_flux_3/T.decam_mw_transmission_3,0.0))^(1.0+1.2) * 10^(2.0/2.5) and T.decam_nobs_3 > 1 and T.decam_nobs_2 > 1 and T.decam_nobs_5 > 1 and T.decam_anymask_5=0 and T.decam_anymask_3=0 and T.decam_anymask_2=0 and W.wise_nobs_1 > 1 and W.wise_nobs_2 > 1;
+
