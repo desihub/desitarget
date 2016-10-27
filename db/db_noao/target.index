@@ -1,0 +1,7 @@
+CREATE INDEX q3c_target_idx ON target (q3c_ang2ipix(ra,dec));
+CLUSTER q3c_target_idx on target;
+CREATE INDEX target_id_idx ON target (id);
+CREATE INDEX target_type_idx ON target (type);
+CLUSTER target_type_idx on target;
+CREATE INDEX target_nobs_idx ON target (nobs);
+CREATE INDEX target_priority_idx ON target (priority);

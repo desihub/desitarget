@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 '''
 tractor_load.py loads tractor cats listed in "all_dr3_cats.out" to psql db
     it appends each batch job id to "jobids_loaddb.txt" and
@@ -18,6 +20,12 @@ import os
 import sys
 import glob
 
+def read_lines(fn):
+	fin=open(fn,'r')
+	lines=fin.readlines()
+	fin.close()
+	return lines
+
 def bash_result(cmd):
     res= subprocess.check_output(cmd,\
                         stderr=subprocess.STDOUT,\
@@ -31,7 +39,9 @@ parser.add_argument("--remain",action="store",default="remaining_cats.txt",help=
 args = parser.parse_args()
 
 # Cats already loaded by each jobid
-jobids= np.loadtxt(args.jobids,delimiter='=',usecols=(1,),unpack=True,dtype=str)
+jobids= read_lines(args.jobids) 
+for i in range(len(jobids)):
+	jobids[i]= jobids[i].strip().split('=')[-1]
 fnames=[]
 for id in jobids:
     fn=glob.glob('*%s*' % id)
@@ -45,10 +55,10 @@ for id in jobids:
         fn= fn[0]
     newfn= fn+'_cats'
     if os.path.exists(newfn):
-        print "previously wrote: %s" % newfn
+        print("previously wrote: %s" % newfn)
     else:
         jnk= bash_result("grep commitedload %s | cut -d ' ' -f 4 > %s" % (fn,newfn))
-        print "wrote: %s" % newfn
+        print("wrote: %s" % newfn)
     fnames+= [newfn]
 # Union of loaded cats
 loaded=[]
@@ -63,11 +73,11 @@ fin=open(args.all_cats,'r')
 all= np.array(fin.readlines())
 fin.close()
 remain= np.array(list( set(all)-set(loaded) ))
-print "all=%d, loaded=%d, remain=%d" % (all.size,loaded.size,remain.size)
+print("all=%d, loaded=%d, remain=%d" % (all.size,loaded.size,remain.size))
 # Remaining cats
 if os.path.exists(args.remain):
     os.remove(args.remain)
 # Remove trailing new line char
 remain= np.char.strip(remain)
 np.savetxt(args.remain,remain,fmt='%s')
-print 'wrote: %s' % args.remain
+print('wrote: %s' % args.remain)

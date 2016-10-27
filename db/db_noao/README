@@ -1,0 +1,17 @@
+set search_path to lsdr3_test;
+alter table tractor set schema public;
+alter table wise set schema public;
+alter table apflux set schema public;
+set search_path to public;
+\i noao_db.index
+\i noao_db.update
+\i noao_db.index2
+\i target.dr3
+\i target.index
+create schema dr3_test;
+alter table tractor set schema dr3_test;
+alter table wise set schema dr3_test;
+alter table apflux set schema dr3_test;
+alter table target set schema dr3_test;
+grant usage ON SCHEMA dr3_test TO desi_user;
+grant select ON ALL TABLES IN SCHEMA dr3_test TO desi_user;

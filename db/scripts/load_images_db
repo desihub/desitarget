@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 #----------------------------------------------------------------------#
 # filename: pyfits+psycopg2_ex.py 
 # author: Peter Nugent
@@ -50,7 +52,7 @@ cursor = con.cursor()
 for i in range(0, nrows):
    
 
-    line = [ tbdata['EXPNUM'][i], tbdata['CCDNUM'][i], tbdata['CCDZPT'][i], tbdata['CCDPHRMS'][i], tbdata['CCDSKYRMS'][i], tbdata['CCDNSTAR'][i], tbdata['CCDNMATCH'][i], tbdata['CCDMDNCOL'][i] ]
+    line = [ tbdata['filter'][i], tbdata['ra'][i], tbdata['dec'][i], tbdata['airmass'][i], tbdata['date_obs'][i], tbdata['exptime'][i], tbdata['expnum'][i], tbdata['mjd_obs'][i], tbdata['propid'][i], tbdata['guider'][i], tbdata['object'][i], tbdata['avsky'][i], tbdata['arawgain'][i], tbdata['fwhm'][i], tbdata['crpix1'][i], tbdata['crpix2'][i], tbdata['crval1'][i], tbdata['crval2'][i], tbdata['cd1_1'][i], tbdata['cd1_2'][i], tbdata['cd2_1'][i], tbdata['cd2_2'][i], tbdata['extname'][i], tbdata['ccdnum'][i], tbdata['cpimage'][i], tbdata['cpimage_hdu'][i], tbdata['calname'][i], tbdata['height'][i], tbdata['width'][i], tbdata['ra_bore'][i], tbdata['dec_bore'][i], tbdata['dr1'][i] ]
 
     newdata.append(line) 
 
@@ -58,7 +60,7 @@ for i in range(0, nrows):
 #
 for i, f in enumerate(newdata):
 ##
-   query = 'INSERT INTO zp ( EXPNUM, CCDNUM, CCDZPT, CCDPHRMS, CCDSKYRMS, CCDNSTAR, CCDNMATCH, CCDMDNCOL ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s )' 
+   query = 'INSERT INTO images ( filter, ra, dec, airmass, date_obs, exptime, expnum, mjd_obs, propid, guider, object, avsky, arawgain, fwhm, crpix1, crpix2, crval1, crval2, cd1_1, cd1_2, cd2_1, cd2_2, extname, ccdnum, cpimage, cpimage_hdu, calname, height, width, ra_bore, dec_bore, dr1 ) VALUES ( %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s )' 
 ##
    cursor.execute( query, tuple( [str(elem) for elem in newdata[i]] ) ) 
 #
