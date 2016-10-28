@@ -631,7 +631,7 @@ def check_input_files(infiles, numproc=4, verbose=False):
         for fil in fileinfo[w]:
             print(fil[0],fil[1])
 
-    return
+    return len(w[0])
 
 
 qso_selection_options = ['colorcuts', 'randomforest']
