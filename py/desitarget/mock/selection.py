@@ -318,7 +318,7 @@ def build_mock_target(root_mock_dir='', output_dir='',
 
 
 
-def estimate_density(ra, dec):
+def estimate_density(ra, dec, bounds=(170, 190, 0, 35)):
     """Estimate the number density from a small patch
     
     Args:
@@ -327,15 +327,20 @@ def estimate_density(ra, dec):
         dec: array_like
             An array with Dec positions.
 
+    Options:
+        bounds: (min_ra, max_ra, min_dec, max_dec) to use for density
+            estimation, assuming complete coverage within those bounds [deg]
+
     Returns:
         density: float
            Object number density computed over a small patch.
     """
     density = 0.0 
 
-    footprint_area = 20. * 35.* np.sin(35. * np.pi/180.)/(35. * np.pi/180.)
-    smalldata = ra[(ra>170.) & (ra<190.) & (dec>0.) & (dec<35.)]
-    n_in = len(smalldata)
+    min_ra, max_ra, min_dec, max_dec = bounds
+    footprint_area = (max_ra-min_ra) * (np.sin(max_dec*np.pi/180.) - np.sin(min_dec*np.pi/180.)) * 180 / np.pi
+
+    n_in = np.count_nonzero((ra>=min_ra) & (ra<max_ra) & (dec>=min_dec) & (dec<max_dec))
     density = n_in/footprint_area
     if(n_in==0):
         density = 1E-6
@@ -352,12 +357,17 @@ def ndens_select(data, source_name, **kwargs):
     dec = data['DEC']
     z = data['Z']
     
-    if ('min_z' in data) & ('max_z' in data):
+    if ('min_z' in kwargs) & ('max_z' in kwargs):
         in_z = ((z>=kwargs['min_z']) & (z<=kwargs['max_z']))
     else:
         in_z = z>0.0
 
-    mock_dens = estimate_density(ra[in_z], dec[in_z])
+    try:
+        bounds = kwargs['min_ra'], kwargs['max_ra'], kwargs['min_dec'], kwargs['max_dec']
+        mock_dens = estimate_density(ra[in_z], dec[in_z], bounds=bounds)
+    except KeyError:
+        mock_dens = estimate_density(ra[in_z], dec[in_z])
+
     frac_keep = min(kwargs['number_density']/mock_dens , 1.0)
     if mock_dens < kwargs['number_density']:
         print("WARNING: mock cannot achieve the goal density for source {} Goal {}. Mock {}".format(source_name, kwargs['number_density'], mock_dens))

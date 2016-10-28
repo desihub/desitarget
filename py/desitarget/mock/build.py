@@ -54,7 +54,6 @@ def targets_truth(params):
         source_path = params['sources'][source_name]['root_mock_dir']
         source_dict = params['sources'][source_name]
 
-
         print('type: {} format: {}'.format(source_name, source_format))
         function = 'read_'+source_format
         if 'mock_name' in source_dict.keys():
@@ -62,6 +61,26 @@ def targets_truth(params):
         else:
             mock_name = None
         result = getattr(mockio, function)(source_path, source_name, mock_name=mock_name)
+
+        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            print('Trimming {} to RA,dec subselection'.format(source_name))
+            ii  = (result['RA']  >= params['subset']['min_ra']) & \
+                  (result['RA']  <= params['subset']['max_ra']) & \
+                  (result['DEC'] >= params['subset']['min_dec']) & \
+                  (result['DEC'] <= params['subset']['max_dec'])
+
+            #- Trim RA,DEC,Z, ... columns to subselection
+            #- Different types of mocks have different metadata, so assume
+            #- that any ndarray of the same length as number of targets should
+            #- be trimmed.
+            ntargets = len(result['RA'])
+            for key in result:
+                if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
+                    result[key] = result[key][ii]
+
+            #- Add min/max ra/dec to source_dict for use in density estimates
+            source_dict.update(params['subset'])
+
         source_data_all[source_name] = result
 
     print('loaded {} mock sources'.format(len(source_data_all)))
@@ -86,7 +105,7 @@ def targets_truth(params):
     bgs_target_total = np.empty(0, dtype='i8')
     mws_target_total = np.empty(0, dtype='i8')
     true_type_total = np.empty(0, dtype='S10')
-    true_subtype_total = np.empty(0, dtype='S10')
+    source_type_total = np.empty(0, dtype='S10')
     obsconditions_total = np.empty(0, dtype='uint16')
 
 
@@ -112,8 +131,20 @@ def targets_truth(params):
         # define names that go into Truth
         n = len(source_data['RA'][ii])
         if source_name not in ['STD_FSTAR', 'SKY']:
-            true_type = np.zeros(n, dtype='S10'); true_type[:] = source_name
-            true_subtype = np.zeros(n, dtype='S10');true_subtype[:] = source_name
+            true_type_map = {
+                'ELG': 'GALAXY',
+                'LRG': 'GALAXY',
+                'BGS': 'GALAXY',
+                'QSO': 'QSO',
+                'STD_FSTAR': 'STAR',
+                'MWS_MAIN': 'STAR',
+                'MWS_WD': 'STAR',
+                'SKY': 'SKY',
+            }
+            source_type = np.zeros(n, dtype='S10')
+            source_type[:] = source_name
+            true_type = np.zeros(n, dtype='S10')
+            true_type[:] = true_type_map[source_name]
 
                 
         #define obsconditions
@@ -152,7 +183,7 @@ def targets_truth(params):
             bgs_target_total = np.append(bgs_target_total, bgs_target)
             mws_target_total = np.append(mws_target_total, mws_target)
             true_type_total = np.append(true_type_total, true_type)
-            true_subtype_total = np.append(true_subtype_total, true_subtype)
+            source_type_total = np.append(source_type_total, source_type)
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
 
             
@@ -173,28 +204,14 @@ def targets_truth(params):
     print('Great total of {} targets {} stdstars {} sky pos'.format(n_target, n_star, n_sky))
     targetid = np.random.randint(2**62, size=n)
 
-    # make a subselection in 
-    if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-        ii_stars = (ra_stars > params['subset']['min_ra']) & (ra_stars< params['subset']['max_ra'])
-        ii_stars &= (dec_stars > params['subset']['min_dec']) & (dec_stars< params['subset']['max_dec'])
-        
-        ii_sky = (ra_sky > params['subset']['min_ra']) & (ra_sky< params['subset']['max_ra'])
-        ii_sky &= (dec_sky > params['subset']['min_dec']) & (dec_sky< params['subset']['max_dec'])
-        
-        ii_targets = (ra_total > params['subset']['min_ra']) & (ra_total < params['subset']['max_ra'])
-        ii_targets &= (dec_total > params['subset']['min_dec']) & (dec_total < params['subset']['max_dec'])
-        print('IDs to select subset ready')
-
-    #write to disk
+    # write to disk
     if 'STD_FSTAR' in source_defs.keys():
         subprior = np.random.uniform(0., 1., size=n_star)
-        brickname = desispec.brick.brickname(ra_stars, dec_stars)
         #write the Std Stars to disk
         print('Started writing StdStars file')
         stars_filename = os.path.join(params['output_dir'], 'stdstars.fits')
         stars = Table()
         stars['TARGETID'] = targetid[n_target:n_target+n_star]
-        stars['BRICKNAME'] = brickname
         stars['RA'] = ra_stars
         stars['DEC'] = dec_stars
         stars['DESI_TARGET'] = desi_target_stars
@@ -202,21 +219,21 @@ def targets_truth(params):
         stars['MWS_TARGET'] = mws_target_stars
         stars['SUBPRIORITY'] = subprior
         stars['OBSCONDITIONS'] = obsconditions_stars
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            stars = stars[ii_stars]
-            print('subsetting in std_stars data done')
+        # if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+        #     stars = stars[ii_stars]
+        #     print('subsetting in std_stars data done')
+        brickname = desispec.brick.brickname(stars['RA'], stars['DEC'])
+        stars['BRICKNAME'] = brickname
         stars.write(stars_filename, overwrite=True)
         print('Finished writing stdstars file')
 
     if 'SKY' in source_defs.keys():
         subprior = np.random.uniform(0., 1., size=n_sky)
-        brickname = desispec.brick.brickname(ra_sky, dec_sky)
         #write the Std Stars to disk
         print('Started writing sky to file')
         sky_filename = os.path.join(params['output_dir'], 'sky.fits')
         sky = Table()
         sky['TARGETID'] = targetid[n_target+n_star:n_target+n_star+n_sky]
-        sky['BRICKNAME'] = brickname
         sky['RA'] = ra_sky
         sky['DEC'] = dec_sky
         sky['DESI_TARGET'] = desi_target_sky
@@ -224,22 +241,18 @@ def targets_truth(params):
         sky['MWS_TARGET'] = mws_target_sky
         sky['SUBPRIORITY'] = subprior
         sky['OBSCONDITIONS'] = obsconditions_sky
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            sky = sky[ii_sky]
-            print('subsetting in sky data done')
+        brickname = desispec.brick.brickname(sky['RA'], sky['DEC'])
+        sky['BRICKNAME'] = brickname
         sky.write(sky_filename, overwrite=True)
         print('Finished writing sky file')
 
     if n_target > 0:
         subprior = np.random.uniform(0., 1., size=n_target)
-        brickname = desispec.brick.brickname(ra_total, dec_total)
-
-    # write the Targets to disk
+        # write the Targets to disk
         print('Started writing Targets file')
         targets_filename = os.path.join(params['output_dir'], 'targets.fits')
         targets = Table()
         targets['TARGETID'] = targetid[0:n_target]
-        targets['BRICKNAME'] = brickname
         targets['RA'] = ra_total
         targets['DEC'] = dec_total
         targets['DESI_TARGET'] = desi_target_total
@@ -247,9 +260,8 @@ def targets_truth(params):
         targets['MWS_TARGET'] = mws_target_total
         targets['SUBPRIORITY'] = subprior
         targets['OBSCONDITIONS'] = obsconditions_total
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            targets = targets[ii_targets]
-            print('subsetting in targets data done')
+        brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
+        targets['BRICKNAME'] = brickname
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
 
@@ -262,21 +274,17 @@ def targets_truth(params):
         mtl_table.write(mtl_filename, overwrite=True)
         print('Finished writing mtl file')
 
-
-    # write the Truth to disk
+        # write the Truth to disk
         print('Started writing Truth file')
         truth_filename = os.path.join(params['output_dir'], 'truth.fits')
         truth = Table()
         truth['TARGETID'] = targetid[0:n_target]
-        truth['BRICKNAME'] = brickname
         truth['RA'] = ra_total
         truth['DEC'] = dec_total
         truth['TRUEZ'] = z_total
         truth['TRUETYPE'] = true_type_total
-        truth['TRUESUBTYPE'] = true_subtype_total
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            truth = truth[ii_targets]
-            print('subsetting in truth data done')
+        truth['SOURCETYPE'] = source_type_total
+        truth['BRICKNAME'] = brickname
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')
 

@@ -62,7 +62,7 @@ def _load_mock_mws_file(filename):
         'SDSS[grz]_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS grz bands, including extinction.
     """
-
+    print('Reading '+filename)
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
@@ -213,15 +213,23 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
     # Read each file
     print('Reading individual mock files')
-    target_list = list()
-    file_list   = list()
-    nfiles      = 0
-    for mock_file in iter_mock_files:
-        nfiles += 1
-        data_this_file = _load_mock_mws_file(mock_file)
-        target_list.append(data_this_file)
-        file_list.append(mock_file)
-        print('read file {} {}'.format(nfiles, mock_file))
+    # target_list = list()
+    # file_list   = list()
+    # nfiles      = 0
+    # for mock_file in iter_mock_files:
+    #     nfiles += 1
+    #     data_this_file = _load_mock_mws_file(mock_file)
+    #     target_list.append(data_this_file)
+    #     file_list.append(mock_file)
+    #     print('read file {} {}'.format(nfiles, mock_file))
+
+    file_list = list(iter_mock_files)
+    nfiles = len(file_list)
+    import multiprocessing
+    ncpu = max(1, multiprocessing.cpu_count() // 2)
+    print('using {} parallel readers'.format(ncpu))
+    p = multiprocessing.Pool(ncpu)
+    target_list = p.map(_load_mock_mws_file, file_list)
 
     print('Read {} files'.format(nfiles))
 

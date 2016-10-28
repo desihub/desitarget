@@ -1,6 +1,12 @@
 #mock target configuration file
 output_dir: /tmp
 run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
+subset:
+    ra_dec_cut: False
+    min_ra: 200
+    max_ra: 220
+    min_dec: 0
+    max_dec: 20
 sources:
     SKY: {
         number_density: 1400.0,
