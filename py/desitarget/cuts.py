@@ -581,18 +581,18 @@ def check_input_files(infiles, numproc=4, verbose=False):
                 filemessageroot = "WARNING...some values are zero for"
                 filemessageend += " "+colname
 
-        #ADM now, loop through entires in file and search for 512-byte
+        #ADM now, loop through entries in the file and search for 4096-byte
         #ADM blocks that are all zeros (a sign of corruption in file-writing)
         #ADM Note that fits files are padded by 2880 bytes, so we only want to
         #ADM process the file length (in bytes) - 2880
         bytestop = getsize(filename) -2880
 
         with open(filename, 'rb') as f:
-            for block_number, data in enumerate(iter(partial(f.read, 512), b'')):
+            for block_number, data in enumerate(iter(partial(f.read, 4096), b'')):
                 if not any(data):
-                    if block_number*512 < bytestop:
+                    if block_number*4096 < bytestop:
                         filemessageroot = "WARNING...some values are zero for"
-                        filemessageend += ' 512-byte-block-#{0}'.format(block_number)
+                        filemessageend += ' 4096-byte-block-#{0}'.format(block_number)
 
         return [filename,filemessageroot+filemessageend]
 
