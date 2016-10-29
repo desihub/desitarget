@@ -7,8 +7,8 @@ import numpy as np
 from desitarget.train.train_mva_decals import train_mva_decals
 
 from argparse import ArgumentParser
-ap = ArgumentParser()
-ap.add_argument('--step',choices={'test','train','extract_myRF'},help="Training or test of qso TS algorithm")
+ap = ArgumentParser(usage='Compute four MultiVariate Analyses based on scikit-learn.\n Training and test samples are available on nersc at :\n /global/project/projectdirs/desi/target/qso_training/')
+ap.add_argument('--step',choices={'test','train','extract_myRF'},help="Test or train qso TS algorithm. Store the Random Forest with a DESI persistency in a compressed numpy array")
 ap.add_argument('--debug', action='store_true')
 
 ns = ap.parse_args()

@@ -1,8 +1,49 @@
 """
 Training code developed by E. Burtin
-Update to run with DR3 by Ch. Yeche.
+Update to run with DR3 by Ch. Yeche
+
+This example can be run with the module desitarget/bin/qso_training
+
+Three actions controlled by "step" flag: train - test - extract_myRF 
+
 Two examples of random forest (with and without r_mag)
 Two examples of adaboost (with and without r_mag)
+
+Inputs:
+======
+The training samples and the test sample  are available on nesrc at:
+/global/project/projectdirs/desi/target/qso_training/
+
+The qso  training sample qso_dr3_nora36-42.fits is obtained
+with QSOs from the fat stripe 82 and bright QSOs (sigma(r)<0.02) of the
+rest of the footprint. Note that the 36<ra<42 region was exluded of 
+the training sample to allow independant test over this 36<ra<42 region
+
+The star  training sample qso_dr3_nora36-42_normalized.fits is obtained
+with PSF objects of stripe 82, which are not variable (NNVariability<0.3)
+and not known QSOs. "normalized" means that the r_mag distribution of the
+stars is exactly the same as that of qsos.
+
+The test sample Stripe82_dr3_decals is the stripe 82. Note this file 
+contains the results of the four algorithm for seed 0. The new probabilities
+should be _strictly_ identical
+
+Outputs:
+=======
+train:
+Four compressed files are produced. Each file corresponds to one algorithm 
+(ie adaboost/random forest, with/withour rmag).
+
+test:
+Produce the probabilities for the four algorithms, the results are stored in
+Stripe82_dr3_decals_newTraining.fits
+
+extract_myRF:
+Use the file rf_model_dr3.pkl.gz produced in step "train" and convert it
+in a numpy array that can be read by desitarget.myRF class. 
+The results is the compressed numpy array rf_model_dr3.npz 
+
+
 """
 
 import astropy.io.fits as pyfits
