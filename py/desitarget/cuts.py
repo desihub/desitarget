@@ -535,7 +535,7 @@ def check_input_files(infiles, numproc=4, verbose=False):
             OR a single filename
 
     Optional:
-        numproc: number of parallel processes to use
+        numproc: number of parallel processes
         verbose: if True, print progress messages
 
     Returns:
