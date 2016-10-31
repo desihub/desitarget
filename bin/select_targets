@@ -6,7 +6,7 @@ import os, sys
 import numpy as np
 
 from desitarget import io
-from desitarget.cuts import select_targets, qso_selection_options
+from desitarget.cuts import select_targets, check_input_files, qso_selection_options
 
 import warnings
 warnings.simplefilter('error')
@@ -16,9 +16,10 @@ nproc = multiprocessing.cpu_count() // 2
 
 from argparse import ArgumentParser
 ap = ArgumentParser()
-ap.add_argument("src", help="Tractor file or root directory with tractor files")
+ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
+ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
@@ -34,10 +35,15 @@ if len(infiles) == 0:
     print('FATAL: no sweep or tractor files found')
     sys.exit(1)
 
-targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose, 
-                         qso_selection=ns.qsoselection)
+if ns.check:
+    print('Check input files...')
+    nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
+    print('{} potentially corrupt files'.format(nbadfiles))
+else:
+    targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose, 
+                             qso_selection=ns.qsoselection)
 
-io.write_targets(ns.dest, targets, indir=ns.src, qso_selection=ns.qsoselection)
+    io.write_targets(ns.dest, targets, indir=ns.src, qso_selection=ns.qsoselection)
 
-print('{} targets written to {}'.format(len(targets), ns.dest))
+    print('{} targets written to {}'.format(len(targets), ns.dest))
 

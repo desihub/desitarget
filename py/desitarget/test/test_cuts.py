@@ -133,6 +133,12 @@ class TestCuts(unittest.TestCase):
 
                 self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
 
+    def test_check_targets(self):
+        for filelist in self.tractorfiles:
+            nbadfiles = cuts.check_input_files(filelist, numproc=1)
+
+            self.assertTrue(nbadfiles==0)
+
     def test_qso_selection_options(self):
         targetfile = self.tractorfiles[0]
         for qso_selection in cuts.qso_selection_options:
