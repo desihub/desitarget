@@ -25,6 +25,14 @@ desi_mask:
     - [STD_BRIGHT,  35, "F-type standard for BRIGHT conditions",
         {obsconditions: BRIGHT}]
 
+    #- Related to bright object masking
+    - [BRIGHT_OBJECT,       50, "Known bright object to avoid", {obsconditions: APOCALYPSE}]
+    - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE", {obsconditions: APOCALYPSE}]
+    - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
+            {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [SAFE,                53, "Safe location near bright object to be used if needed",
+            {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
@@ -157,6 +165,8 @@ priorities:
         LRG_SOUTH: SAME_AS_LRG
         ELG_SOUTH: SAME_AS_ELG
         QSO_SOUTH: SAME_AS_QSO
+        #- Lowest positive priority of all
+        SAFE: {UNOBS: 1, OBS: 1, DONE: 1, MORE_ZWARN: 1, MORE_ZGOOD: 1}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FSTAR:  -1
         STD_WD:     -1
@@ -164,6 +174,9 @@ priorities:
         STD_BRIGHT: -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities
+        BRIGHT_OBJECT: -1
+        IN_BRIGHT_OBJECT: -1
+        NEAR_BRIGHT_OBJECT: -1
         BGS_ANY: -1
         MWS_ANY: -1
         ANCILLARY_ANY: -1
