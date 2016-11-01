@@ -21,7 +21,7 @@ sources:
        rzcolor : 0.13,
        colortol : 0.16,
        mag_faint: 19.0, 
-       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks,
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.2/bricks,
        format: galaxia,
        selection: mag
     }
@@ -57,7 +57,7 @@ sources:
        mag_bright: 15.0, 
        mag_faint_filler: 19.0, 
        mag_faintest: 20.0, 
-       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.1/bricks,
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/0.0.2/bricks,
        format: galaxia,
        selection: mag
     }
