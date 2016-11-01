@@ -151,7 +151,7 @@ obsmask:
 #- -1 means the concept of priority doesn't really apply to this target class
 #- Every target bit must define priority for "UNOBS"
 #- Default priority for "MORE_ZGOOD" is same as "UNOBS"
-#- Other states are default 0 unless specified here
+#- Other states are default 1 unless specified here
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
@@ -165,8 +165,7 @@ priorities:
         LRG_SOUTH: SAME_AS_LRG
         ELG_SOUTH: SAME_AS_ELG
         QSO_SOUTH: SAME_AS_QSO
-        #- Lowest positive priority of all
-        SAFE: {UNOBS: 1, OBS: 1, DONE: 1, MORE_ZWARN: 1, MORE_ZGOOD: 1}
+        SAFE: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FSTAR:  -1
         STD_WD:     -1
