@@ -46,6 +46,7 @@ def targets_truth(params):
     for source_name in sorted(source_defs.keys()):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
+        target_name = params['sources'][source_name]['target_name']
         print('type: {}\n format: {} \n path: {}'.format(source_name, source_format, source_path))
 
     # load all the mocks
@@ -53,6 +54,7 @@ def targets_truth(params):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
         source_dict = params['sources'][source_name]
+        target_name = params['sources'][source_name]['target_name']
 
         print('type: {} format: {}'.format(source_name, source_format))
         function = 'read_'+source_format
@@ -60,7 +62,7 @@ def targets_truth(params):
             mock_name = source_dict['mock_name']
         else:
             mock_name = None
-        result = getattr(mockio, function)(source_path, source_name, mock_name=mock_name)
+        result = getattr(mockio, function)(source_path, target_name, mock_name=mock_name)
 
         if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
             print('Trimming {} to RA,dec subselection'.format(source_name))
@@ -88,13 +90,14 @@ def targets_truth(params):
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
+        target_name = params['sources'][source_name]['target_name']
         source_selection = params['sources'][source_name]['selection']
         source_dict = params['sources'][source_name]
         source_data = source_data_all[source_name]
 
         print('type: {} select: {}'.format(source_name, source_selection))
         selection_function = source_selection + '_select'
-        result = getattr(mockselect, selection_function.lower())(source_data, source_name, **source_dict)
+        result = getattr(mockselect, selection_function.lower())(source_data, target_name, **source_dict)
         target_mask_all[source_name] = result
         
     # consolidates all relevant arrays across mocks
@@ -111,6 +114,7 @@ def targets_truth(params):
 
     print('Collects information across mock files')
     for source_name in sorted(source_defs.keys()):
+        target_name = params['sources'][source_name]['target_name']
         source_data = source_data_all[source_name]
         target_mask = target_mask_all[source_name]
 
@@ -120,17 +124,17 @@ def targets_truth(params):
         desi_target = 0 * target_mask[ii]
         bgs_target = 0 * target_mask[ii] 
         mws_target = 0 * target_mask[ii]
-        if source_name in ['ELG', 'LRG', 'QSO', 'STD_FSTAR', 'SKY']:
+        if target_name in ['ELG', 'LRG', 'QSO', 'STD_FSTAR', 'SKY']:
             desi_target = target_mask[ii]
-        if source_name in ['BGS']:
+        if target_name in ['BGS']:
             bgs_target = target_mask[ii]
-        if source_name in ['MWS_MAIN', 'MWS_WD']:
+        if target_name in ['MWS_MAIN', 'MWS_WD']:
             mws_target = target_mask[ii]
 
 
         # define names that go into Truth
         n = len(source_data['RA'][ii])
-        if source_name not in ['STD_FSTAR', 'SKY']:
+        if target_name not in ['STD_FSTAR', 'SKY']:
             true_type_map = {
                 'ELG': 'GALAXY',
                 'LRG': 'GALAXY',
@@ -142,40 +146,40 @@ def targets_truth(params):
                 'SKY': 'SKY',
             }
             source_type = np.zeros(n, dtype='S10')
-            source_type[:] = source_name
+            source_type[:] = target_name
             true_type = np.zeros(n, dtype='S10')
-            true_type[:] = true_type_map[source_name]
+            true_type[:] = true_type_map[target_name]
 
                 
         #define obsconditions
         source_obsconditions = np.ones(n,dtype='uint16')
-        if source_name in ['LRG', 'QSO']:
+        if target_name in ['LRG', 'QSO']:
             source_obsconditions[:] = obsconditions.DARK
-        if source_name in ['ELG']:
+        if target_name in ['ELG']:
             source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
-        if source_name in ['BGS']:
+        if target_name in ['BGS']:
             source_obsconditions[:] = obsconditions.BRIGHT
-        if source_name in ['MWS_MAIN', 'MWS_WD']:
+        if target_name in ['MWS_MAIN', 'MWS_WD']:
             source_obsconditions[:] = obsconditions.BRIGHT
-        if source_name in ['STD_FSTAR', 'SKY']:
+        if target_name in ['STD_FSTAR', 'SKY']:
             source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
 
         #append to the arrays that will go into Targets
-        if source_name in ['STD_FSTAR']:
+        if target_name in ['STD_FSTAR']:
             ra_stars = source_data['RA'][ii].copy()
             dec_stars = source_data['DEC'][ii].copy()
             desi_target_stars = desi_target.copy()
             bgs_target_stars = bgs_target.copy()
             mws_target_stars = mws_target.copy()
             obsconditions_stars = source_obsconditions.copy()
-        if source_name in ['SKY']:
+        if target_name in ['SKY']:
             ra_sky = source_data['RA'][ii].copy()
             dec_sky = source_data['DEC'][ii].copy()
             desi_target_sky = desi_target.copy()
             bgs_target_sky = bgs_target.copy()
             mws_target_sky = mws_target.copy()
             obsconditions_sky = source_obsconditions.copy()
-        if source_name not in ['SKY', 'STD_FSTAR']:
+        if target_name not in ['SKY', 'STD_FSTAR']:
             ra_total = np.append(ra_total, source_data['RA'][ii])
             dec_total = np.append(dec_total, source_data['DEC'][ii])
             z_total = np.append(z_total, source_data['Z'][ii])
@@ -188,7 +192,7 @@ def targets_truth(params):
 
             
 
-        print('{}: selected {} out of {}'.format(source_name, len(source_data['RA'][ii]), len(source_data['RA'])))
+        print('{} {}: selected {} out of {}'.format(source_name, target_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     

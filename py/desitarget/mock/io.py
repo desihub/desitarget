@@ -70,7 +70,7 @@ def _load_mock_mws_file(filename):
                                  'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
 
 
-    objid       = data['objid'].astype('i8')
+    objid       = data['objid'].astype('i8') 
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f8')
@@ -128,6 +128,8 @@ def _load_mock_lyaqso_file(filename):
 
     n = len(ra)
     objid = np.arange(n, dtype='i8')
+    ra = ra * 180.0 / np.pi
+    dec = dec * 180.0 / np.pi
     ra          = ra % 360.0 #enforce 0 < ra < 360
 
     return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z': z}
@@ -209,7 +211,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','magg','WD','objid'])
 
-    objid       = data['objid'].astype('i8')
+    obijd       = data['objid'].astype('i8') 
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['radialvelocity'].astype('f8')
@@ -220,6 +222,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     files.append(filename)
     n_per_file = list()
     n_per_file.append(len(ra))
+
 
     print('read {} objects'.format(n_per_file[0]))
     return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
@@ -259,14 +262,29 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
     iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits")
 
     # Read each file
+
+
+
+# multiprocessing is failing with v.0.0.2 mocks: multiprocessing.pool.MaybeEncodingError: Error sending result:
+# Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
+#    import multiprocessing
+#   print('Reading individual mock files')
+#   file_list = list(iter_mock_files)
+#   nfiles = len(file_list)
+#    ncpu = max(1, multiprocessing.cpu_count() // 2)
+#    print('using {} parallel readers'.format(ncpu))
+#    p = multiprocessing.Pool(ncpu)
+#    target_list = p.map(_load_mock_mws_file, file_list)
     print('Reading individual mock files')
-    file_list = list(iter_mock_files)
-    nfiles = len(file_list)
-    import multiprocessing
-    ncpu = max(1, multiprocessing.cpu_count() // 2)
-    print('using {} parallel readers'.format(ncpu))
-    p = multiprocessing.Pool(ncpu)
-    target_list = p.map(_load_mock_mws_file, file_list)
+    target_list = list()
+    file_list   = list()
+    nfiles      = 0
+    for mock_file in iter_mock_files:
+        nfiles += 1
+        data_this_file = _load_mock_mws_file(mock_file)
+        target_list.append(data_this_file)
+        file_list.append(mock_file)
+        print('read file {} {}'.format(nfiles, mock_file))
 
     print('Read {} files'.format(nfiles))
 
