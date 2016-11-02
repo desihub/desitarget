@@ -11,7 +11,7 @@ Two examples of adaboost (with and without r_mag)
 
 Inputs:
 ======
-The training samples and the test sample  are available on nesrc at:
+The training samples and the test sample are available on nesrc at:
 /global/project/projectdirs/desi/target/qso_training/
 
 The qso  training sample qso_dr3_nora36-42.fits is obtained
