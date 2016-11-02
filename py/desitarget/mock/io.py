@@ -70,7 +70,7 @@ def _load_mock_mws_file(filename):
                                  'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
 
 
-    objid       = data['objid'].astype('i8') 
+    objid       = data['objid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f8')
@@ -263,18 +263,22 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
     # Read each file
 
+    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks
+    # due to python issue https://bugs.python.org/issue17560 where
+    # Pool.map can't return objects with more then 2**32-1 bytes:
+    # multiprocessing.pool.MaybeEncodingError: Error sending result:
+    # Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
+    # Leaving this code here for the moment in case we fine a workaround
 
+    # import multiprocessing
+    # print('Reading individual mock files')
+    # file_list = list(iter_mock_files)
+    # nfiles = len(file_list)
+    # ncpu = max(1, multiprocessing.cpu_count() // 2)
+    # print('using {} parallel readers'.format(ncpu))
+    # p = multiprocessing.Pool(ncpu)
+    # target_list = p.map(_load_mock_mws_file, file_list)
 
-# multiprocessing is failing with v.0.0.2 mocks: multiprocessing.pool.MaybeEncodingError: Error sending result:
-# Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
-#    import multiprocessing
-#   print('Reading individual mock files')
-#   file_list = list(iter_mock_files)
-#   nfiles = len(file_list)
-#    ncpu = max(1, multiprocessing.cpu_count() // 2)
-#    print('using {} parallel readers'.format(ncpu))
-#    p = multiprocessing.Pool(ncpu)
-#    target_list = p.map(_load_mock_mws_file, file_list)
     print('Reading individual mock files')
     target_list = list()
     file_list   = list()
