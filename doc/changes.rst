@@ -2,6 +2,12 @@
 desitarget Change Log
 =====================
 
+0.7.1 (unreleased)
+------------------
+
+* Adds DESI_TARGET bits for bright object masking
+* MTL sets priority=-1 for any target with IN_BRIGHT_OBJECT set
+
 0.7.0 (2016-10-12)
 ------------------
 
