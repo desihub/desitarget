@@ -2,10 +2,10 @@
 # -*- coding: utf-8 -*-
 """
 ===========================
-desitarget.mock.mws_galaxia
+desitarget.mock.selection
 ===========================
 
-Builds target/truth files from already existing mock data
+Applies selection criteria on mock target catalogs.
 """
 from __future__ import (absolute_import, division)
 #
