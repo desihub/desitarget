@@ -86,6 +86,55 @@ def _load_mock_mws_file(filename):
             'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs,
             'SDSSg_obs' : SDSSg_obs, 'SDSSz_obs' : SDSSz_obs}
 
+
+
+############################################################
+def _load_mock_lyaqso_file(filename):
+    """
+    Reads mock information for 
+
+    Parameters:
+    ----------
+    filename: :class:`str`
+        Name of a single MWS mock file.
+
+    Returns:
+    -------
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Redshift
+    """
+
+    desitarget.io.check_fitsio_version()
+
+    h = fitsio.FITS(filename)
+
+    heads = [head.read_header() for head in h]
+
+    n = len(heads) - 1 # the first item in heads is empty
+    z = np.zeros(n)
+    ra = np.zeros(n)
+    dec = np.zeros(n)
+    
+    for i in range(n):
+        z[i]  = heads[i+1]["ZQSO"]
+        ra[i]  = heads[i+1]["RA"]
+        dec[i]  = heads[i+1]["DEC"]
+
+    n = len(ra)
+    objid = np.arange(n, dtype='i8')
+    ra = ra * 180.0 / np.pi
+    dec = dec * 180.0 / np.pi
+    ra          = ra % 360.0 #enforce 0 < ra < 360
+
+    return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z': z}
+
+
 ############################################################
 def encode_rownum_filenum(rownum, filenum):
     """Encodes row and file number in 52 packed bits.
@@ -162,7 +211,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','magg','WD','objid'])
 
-    objid       = data['objid'].astype('i8')
+    obijd       = data['objid'].astype('i8') 
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['radialvelocity'].astype('f8')
@@ -173,6 +222,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     files.append(filename)
     n_per_file = list()
     n_per_file.append(len(ra))
+
 
     print('read {} objects'.format(n_per_file[0]))
     return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
@@ -212,14 +262,105 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
     iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits")
 
     # Read each file
+
+    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks
+    # due to python issue https://bugs.python.org/issue17560 where
+    # Pool.map can't return objects with more then 2**32-1 bytes:
+    # multiprocessing.pool.MaybeEncodingError: Error sending result:
+    # Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
+    # Leaving this code here for the moment in case we fine a workaround
+
+    # import multiprocessing
+    # print('Reading individual mock files')
+    # file_list = list(iter_mock_files)
+    # nfiles = len(file_list)
+    # ncpu = max(1, multiprocessing.cpu_count() // 2)
+    # print('using {} parallel readers'.format(ncpu))
+    # p = multiprocessing.Pool(ncpu)
+    # target_list = p.map(_load_mock_mws_file, file_list)
+
+    print('Reading individual mock files')
+    target_list = list()
+    file_list   = list()
+    nfiles      = 0
+    for mock_file in iter_mock_files:
+        nfiles += 1
+        data_this_file = _load_mock_mws_file(mock_file)
+        target_list.append(data_this_file)
+        file_list.append(mock_file)
+        print('read file {} {}'.format(nfiles, mock_file))
+
+    print('Read {} files'.format(nfiles))
+
+    # Concatenate all the dictionaries into a single dictionary, in an order
+    # determined by np.argsort applied to the base name of each path in
+    # file_list.
+    file_order = np.argsort([os.path.basename(x) for x in file_list])
+
+    print('Combining mock files')
+    ordered_file_list = list()
+    n_per_file  = list()
+    full_data   = dict()
+    if len(target_list) > 0:
+        for k in list(target_list[0]): #iterate over keys
+            print(' -- {}'.format(k))
+            data_list_this_key = list()
+            for itarget in file_order: #append all the arrays corresponding to a given key
+                data_list_this_key.append(target_list[itarget][k])
+
+            full_data[k] = np.concatenate(data_list_this_key) #consolidate data dictionary
+
+        # Count number of points per file
+        k          = list(target_list[0])[0] # pick the first available column
+        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
+        odered_file_list = [file_list[itarget] for itarget in file_order]
+
+    print('Read {} objects'.format(np.sum(n_per_file)))
+
+    full_data['FILES']      = ordered_file_list
+    full_data['N_PER_FILE'] = n_per_file
+    return full_data
+
+
+############################################################
+def read_lyaqso(mock_dir, target_type, mock_name=None):
+    """ Reads and concatenates MWS mock files stored below the root directory.
+
+    Parameters:
+    ----------
+    root_mock_dir: :class:`str`
+        Path to all the 'desi_galfast' files.
+
+    mock_prefix: :class:`str`
+        Start of individual file names.
+
+    brickname_list:
+        Optional list of specific bricknames to read.
+
+    Returns:
+    -------
+    Dictionary concatenating all the 'desi_galfast' files with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+    """
+    # Build iterator of all desi_galfast files
+    iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits.gz")
+
+    # Read each file
     print('Reading individual mock files')
     file_list = list(iter_mock_files)
     nfiles = len(file_list)
+
     import multiprocessing
     ncpu = max(1, multiprocessing.cpu_count() // 2)
     print('using {} parallel readers'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
-    target_list = p.map(_load_mock_mws_file, file_list)
+    target_list = p.map(_load_mock_lyaqso_file, file_list)
 
     print('Read {} files'.format(nfiles))
 
