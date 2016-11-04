@@ -9,10 +9,11 @@ Module dealing with Quality Assurance tests for Target Selection
 """
 from __future__ import (absolute_import, division)
 #
+from time import time
 import numpy as np
 import fitsio
 import os, re
-from collections import Counter, defaultdict
+from collections import defaultdict
 from glob import glob
 
 from . import __version__ as desitarget_version
@@ -142,21 +143,26 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     galdepth_z = []
     areas = []
 
-    #ADM build a per-brick weighted depth. Also determine max area of brick.
+    #ADM build a per-brick weighted depth. Also determine pixel-based area of brick.
     #ADM the per-brick depth file is histogram of 50 bins
     for i in range(0,len(depthdata),50):
-        pix = np.sum(depthdata['COUNTS_PTSRC_G'][i:i+50])
-        depth_g.append(np.sum(depthdata['COUNTS_PTSRC_G'][i:i+50]*magbins)/pix)
-        depth_r.append(np.sum(depthdata['COUNTS_PTSRC_R'][i:i+50]*magbins)/pix)
-        depth_z.append(np.sum(depthdata['COUNTS_PTSRC_Z'][i:i+50]*magbins)/pix)
-        galdepth_g.append(np.sum(depthdata['COUNTS_GAL_G'][i:i+50]*magbins)/pix)
-        galdepth_r.append(np.sum(depthdata['COUNTS_GAL_R'][i:i+50]*magbins)/pix)
-        galdepth_z.append(np.sum(depthdata['COUNTS_GAL_Z'][i:i+50]*magbins)/pix)
+        #ADM there must be pixels in one band
+        totpix = max(sum(depthdata[i:i+50]['COUNTS_GAL_G']),sum(depthdata[i:i+50]['COUNTS_GAL_R']),sum(depthdata[i:i+50]['COUNTS_GAL_Z']))
+        #ADM pixel-weighted depth
+        depth_g.append(np.sum(depthdata['COUNTS_PTSRC_G'][i:i+50]*magbins)/totpix)
+        depth_r.append(np.sum(depthdata['COUNTS_PTSRC_R'][i:i+50]*magbins)/totpix)
+        depth_z.append(np.sum(depthdata['COUNTS_PTSRC_Z'][i:i+50]*magbins)/totpix)
+        galdepth_g.append(np.sum(depthdata['COUNTS_GAL_G'][i:i+50]*magbins)/totpix)
+        galdepth_r.append(np.sum(depthdata['COUNTS_GAL_R'][i:i+50]*magbins)/totpix)
+        galdepth_z.append(np.sum(depthdata['COUNTS_GAL_Z'][i:i+50]*magbins)/totpix)
+        #ADM name and pixel based area of the brick
         names.append(depthdata['BRICKNAME'][i])
-        areas.append(pix*pixtodeg)
+        areas.append(totpix*pixtodeg)
 
+    #ADM HACK HACK HACK
     #ADM first find bricks that are not in the depth file and populate them
     #ADM with nonsense. This is a hack as I'm not sure why such bricks exist
+    #ADM HACK HACK HACK
     orderedbricknames = instruc["BRICKNAME"]
     badbricks = np.ones(len(orderedbricknames))
     dd = defaultdict(list)
@@ -194,7 +200,7 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     instruc['GALDEPTH_Z'] = np.array(galdepth_z)[matches]
 
     return instruc
-    return names
+
 
 def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',outfilename='brick-info-dr3.fits'):
     """
@@ -215,43 +221,51 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
          numpy structured array of brick information with columns as in construct_QA_file
     """
 
+    start = time()
+
     #ADM read in target file
+    print('Reading in target file...t = {:.1f}s'.format(time()-start))
     fx = fitsio.FITS(targetfilename, upper=True)
     targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET'])
-    
+
+    print('Determining unique bricks...t = {:.1f}s'.format(time()-start))
     #ADM determine number of unique bricks and their integer IDs
     brickids = np.array(list(set(targetdata['BRICKID'])))
     brickids.sort()
 
+    print('Creating output brick structure...t = {:.1f}s'.format(time()-start))
     #ADM set up an output structure of size of the number of unique bricks
     nbricks = len(brickids)
     outstruc = construct_QA_file(nbricks)
 
+    print('Adding brick information...t = {:.1f}s'.format(time()-start))
     #ADM add brick-specific information based on the brickids
     outstruc = populate_brick_info(outstruc,brickids,rootdirname)
 
+    print('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
     outstruc = populate_depths(outstruc,rootdirname)
    
+    print('Adding target density information...t = {:.1f}s'.format(time()-start))
     #ADM bits and names of interest for desitarget
     #ADM -1 as a bit will return all values
-    bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG","DENSITY_QSO","DENSITY_BGS","DENSITY_MWS"]
+    bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG",
+                "DENSITY_QSO","DENSITY_BGS","DENSITY_MWS"]
     bitvals = [-1]+list(2**np.array([0,1,2,60,61]))
 
     #ADM loop through bits and populate target densities for each class
     for i, bitval in enumerate(bitvals):
         w = np.where(targetdata["DESI_TARGET"] & bitval)
         if len(w[0]):
-            targsperbrick = Counter(targetdata[w]['BRICKID'])
-            med = np.median(list(targsperbrick.values()))
-            density = list(targsperbrick.values())/med
-            print(bitnames[i],np.percentile(density, percs, axis=0))
-        else:
-            print(bitnames[i],"None")
+            targsperbrick = np.bincount(targetdata[w]['BRICKID'])
+            outstruc[bitnames[i]] = targsperbrick[outstruc['BRICKID']]/outstruc['BRICKAREA']
 
+    print('Writing output file...t = {:.1f}s'.format(time()-start))
+    #ADM everything should be populated, just write it out
+    fitsio.write(outfilename, outstruc, extname='BRICKINFO', clobber=True)
 
-
-    return None
+    print('Done...t = {:.1f}s'.format(time()-start))
+    return outstruc
 
 
 
