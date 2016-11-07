@@ -21,6 +21,66 @@ from . import gitversion
 
 from desiutil import depend
 
+def mag_histogram(targetfilename,binsize,outfile):
+    """
+
+    Parameters
+    ----------
+    targetfilename : :class:`str`
+        File name of a list of targets created by select_targets
+    binsize : :class:`float`
+        bin size of the output histogram
+    outfilename: :class:`str`
+        Output file name for the magnitude histograms, which will be written as ASCII
+
+    Returns
+    -------
+    :class:`Nonetype`
+        No return...but prints a raw N(m) to screen for each target type
+    """
+
+    #ADM read in target file
+    print('Reading in targets file')
+    fx = fitsio.FITS(targetfilename, upper=True)
+    targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET','DECAM_FLUX'])
+
+    #ADM open output file for writing
+    file = open(outfile, "w")
+
+    #ADM calculate the magnitudes of interest
+    print('Calculating magnitudes')
+    gfluxes = targetdata["DECAM_FLUX"][...,1]
+    gmags = 22.5-2.5*np.log10(gfluxes*(gfluxes  > 1e-5) + 1e-5*(gfluxes < 1e-5))
+    rfluxes = targetdata["DECAM_FLUX"][...,2]
+    rmags = 22.5-2.5*np.log10(rfluxes*(rfluxes  > 1e-5) + 1e-5*(rfluxes < 1e-5))
+    zfluxes = targetdata["DECAM_FLUX"][...,4]
+    zmags = 22.5-2.5*np.log10(zfluxes*(zfluxes  > 1e-5) + 1e-5*(zfluxes < 1e-5))
+
+    bitnames = ["ALL","LRG","ELG","QSO","BGS","MWS"]
+    bitvals = [-1]+list(2**np.array([0,1,2,60,61]))
+
+    #ADM set up bin edges in magnitude from 15 to 25 at resolution of binsize
+    binedges = np.arange(((25.-15.)/binsize)+1)*binsize + 15
+
+    #ADM loop through bits and print histogram of raw target numbers per magnitude
+    for i, bitval in enumerate(bitvals):
+        print('Doing',bitnames[i]) 
+        w = np.where(targetdata["DESI_TARGET"] & bitval)
+        if len(w[0]):
+            ghist,dum = np.histogram(gmags[w],bins=binedges)
+            rhist,dum = np.histogram(rmags[w],bins=binedges)
+            zhist,dum = np.histogram(zmags[w],bins=binedges)
+            file.write('{}    {}     {}     {}\n'.format(bitnames[i],'g','r','z'))
+            for i in range(len(binedges)-1):
+                outs = '{:.1f} {} {} {}\n'.format(0.5*(binedges[i]+binedges[i+1]),ghist[i],rhist[i],zhist[i])
+                print(outs)
+                file.write(outs)
+
+    file.close()
+
+    return None
+
+
 def construct_QA_file(nrows):
     """Create a recarray to be populated with QA information
 
@@ -44,6 +104,9 @@ def construct_QA_file(nrows):
             ('EBV','>f4'),
             ('DEPTH_G','>f4'),('DEPTH_R','>f4'),('DEPTH_Z','>f4'),
             ('GALDEPTH_G','>f4'),('GALDEPTH_R','>f4'),('GALDEPTH_Z','>f4'),
+            ('DEPTH_G_PERCENTILES','f4',(5)), ('DEPTH_R_PERCENTILES','f4',(5)),
+            ('DEPTH_Z_PERCENTILES','f4',(5)), ('GALDEPTH_G_PERCENTILES','f4',(5)),
+            ('GALDEPTH_R_PERCENTILES','f4',(5)), ('GALDEPTH_Z_PERCENTILES','f4',(5)),
             ('DENSITY_ALL','>f4'),
             ('DENSITY_ELG','>f4'),('DENSITY_LRG','>f4'),
             ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'), 
@@ -110,8 +173,10 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     ----------
     instruc : :class:`recarray`
         numpy structured array containing at least
-        ['BRICKNAME','BRICKAREA''DEPTH_G','DEPTH_R','DEPTH_Z',
-        'GALDEPTH_G','GALDEPTH_R','GALDEPTH_Z']
+        ['BRICKNAME','BRICKAREA','DEPTH_G','DEPTH_R','DEPTH_Z',
+        'GALDEPTH_G','GALDEPTH_R','GALDEPTH_Z','DEPTH_G_PERCENTILES',
+        'DEPTH_R_PERCENTILES','DEPTH_Z_PERCENTILES','GALDEPTH_G_PERCENTILES',
+        'GALDEPTH_R_PERCENTILES','GALDEPTH_Z_PERCENTILES']
         to populate with depths and areas
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory for a data release...e.g. for dr3 this would be
@@ -132,32 +197,62 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     #ADM construct the magnitude bin centers for the per-brick depth
     #ADM file, which is expressed as a histogram of 50 bins of 0.1mag
     magbins = np.arange(50)*0.1+20.05
+    magbins[0] = 0
 
-    #ADM a list to contain the brick names and for the depths and areas
-    names = []
-    depth_g = []
-    depth_r = []
-    depth_z = []
-    galdepth_g = []
-    galdepth_r = []
-    galdepth_z = []
-    areas = []
+    #ADM percentiles at which to assess the depth
+    percs = np.array([10,25,50,75,90])/100.
+
+    #ADM lists to contain the brick names and for the depths, areas, percentiles
+    names, areas = [], []
+    depth_g, depth_r, depth_z = [], [], []
+    galdepth_g, galdepth_r, galdepth_z= [], [], []
+    perc_g, perc_r, perc_z = [], [], []
+    galperc_g, galperc_r, galperc_z = [], [], []
 
     #ADM build a per-brick weighted depth. Also determine pixel-based area of brick.
     #ADM the per-brick depth file is histogram of 50 bins
+    #ADM this grew organically, could make it more compact
     for i in range(0,len(depthdata),50):
-        #ADM there must be pixels in one band
-        totpix = max(sum(depthdata[i:i+50]['COUNTS_GAL_G']),sum(depthdata[i:i+50]['COUNTS_GAL_R']),sum(depthdata[i:i+50]['COUNTS_GAL_Z']))
-        #ADM pixel-weighted depth
-        depth_g.append(np.sum(depthdata['COUNTS_PTSRC_G'][i:i+50]*magbins)/totpix)
-        depth_r.append(np.sum(depthdata['COUNTS_PTSRC_R'][i:i+50]*magbins)/totpix)
-        depth_z.append(np.sum(depthdata['COUNTS_PTSRC_Z'][i:i+50]*magbins)/totpix)
-        galdepth_g.append(np.sum(depthdata['COUNTS_GAL_G'][i:i+50]*magbins)/totpix)
-        galdepth_r.append(np.sum(depthdata['COUNTS_GAL_R'][i:i+50]*magbins)/totpix)
-        galdepth_z.append(np.sum(depthdata['COUNTS_GAL_Z'][i:i+50]*magbins)/totpix)
-        #ADM name and pixel based area of the brick
+        #ADM there must be measurements for all of the pixels in one band
+        d = depthdata[i:i+50]
+        totpix = sum(d['COUNTS_GAL_G']),sum(d['COUNTS_GAL_R']),sum(d['COUNTS_GAL_Z'])
+        maxpix = max(totpix)
+        #ADM percentiles in terms of pixel counts
+        pixpercs = np.array(percs)*maxpix
+        #ADM add pixel-weighted mean depth
+        depth_g.append(np.sum(d['COUNTS_PTSRC_G']*magbins)/maxpix)
+        depth_r.append(np.sum(d['COUNTS_PTSRC_R']*magbins)/maxpix)
+        depth_z.append(np.sum(d['COUNTS_PTSRC_Z']*magbins)/maxpix)
+        galdepth_g.append(np.sum(d['COUNTS_GAL_G']*magbins)/maxpix)
+        galdepth_r.append(np.sum(d['COUNTS_GAL_R']*magbins)/maxpix)
+        galdepth_z.append(np.sum(d['COUNTS_GAL_Z']*magbins)/maxpix)
+        #ADM add name and pixel based area of the brick
         names.append(depthdata['BRICKNAME'][i])
-        areas.append(totpix*pixtodeg)
+        areas.append(maxpix*pixtodeg)
+        #ADM add percentiles for depth...using a
+        #ADM list comprehension, which is fast because the pixel numbers are ordered and
+        #ADM says "give me the first magbin where we exceed a certain pixel percentile"        
+        if totpix[0]:
+            perc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_G']) > p )[0][0]] for p in pixpercs ])
+            galperc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_G']) > p )[0][0]] for p in pixpercs ])
+        else:
+            perc_g.append([0]*5)
+            galperc_g.append([0]*5)
+
+        if totpix[1]:
+            perc_r.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_R']) > p )[0][0]] for p in pixpercs ])
+
+            galperc_r.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_R']) > p )[0][0]] for p in pixpercs ])
+        else:
+            perc_r.append([0]*5)
+            galperc_r.append([0]*5)
+
+        if totpix[2]:
+            perc_z.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_Z']) > p )[0][0]] for p in pixpercs ])
+            galperc_z.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_Z']) > p )[0][0]] for p in pixpercs ])
+        else:
+            perc_z.append([0]*5)
+            galperc_z.append([0]*5)
 
     #ADM HACK HACK HACK
     #ADM first find bricks that are not in the depth file and populate them
@@ -181,6 +276,12 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
         galdepth_g.append(-99.)
         galdepth_r.append(-99.)
         galdepth_z.append(-99.)
+        perc_g.append([-99.]*5)
+        perc_r.append([-99.]*5)
+        perc_z.append([-99.]*5)
+        galperc_g.append([-99.]*5)
+        galperc_r.append([-99.]*5)
+        galperc_z.append([-99.]*5)
 
     #ADM, now order the brickname to match the input structure using
     #ADM a look-up dictionary to match indices via a list comprehension
@@ -190,7 +291,7 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
         dd[item].append(index)
     matches = [index for item in orderedbricknames for index in dd[item] if item in dd]
 
-    #ADM populate the depths
+    #ADM populate the depths and area
     instruc['BRICKAREA'] = np.array(areas)[matches]
     instruc['DEPTH_G'] = np.array(depth_g)[matches]
     instruc['DEPTH_R'] = np.array(depth_r)[matches]
@@ -198,6 +299,12 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     instruc['GALDEPTH_G'] = np.array(galdepth_g)[matches]
     instruc['GALDEPTH_R'] = np.array(galdepth_r)[matches]
     instruc['GALDEPTH_Z'] = np.array(galdepth_z)[matches]
+    instruc['DEPTH_G_PERCENTILES'] = np.array(perc_g)[matches]
+    instruc['DEPTH_R_PERCENTILES'] = np.array(perc_r)[matches]
+    instruc['DEPTH_Z_PERCENTILES'] = np.array(perc_z)[matches]
+    instruc['GALDEPTH_G_PERCENTILES'] = np.array(galperc_g)[matches]
+    instruc['GALDEPTH_R_PERCENTILES'] = np.array(galperc_r)[matches]
+    instruc['GALDEPTH_Z_PERCENTILES'] = np.array(galperc_z)[matches]
 
     return instruc
 
