@@ -107,6 +107,7 @@ def construct_QA_file(nrows):
             ('DEPTH_G_PERCENTILES','f4',(5)), ('DEPTH_R_PERCENTILES','f4',(5)),
             ('DEPTH_Z_PERCENTILES','f4',(5)), ('GALDEPTH_G_PERCENTILES','f4',(5)),
             ('GALDEPTH_R_PERCENTILES','f4',(5)), ('GALDEPTH_Z_PERCENTILES','f4',(5)),
+            ('NEXP_G','i2'),('NEXP_R','i2'),('NEXP_Z','i2'),
             ('DENSITY_ALL','>f4'),
             ('DENSITY_ELG','>f4'),('DENSITY_LRG','>f4'),
             ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'), 
@@ -124,7 +125,8 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
     ----------
     instruc : :class:`recarray`
         numpy structured array containing at least
-        ['BRICKNAME','BRICKID','RA','DEC','RA1','RA2','DEC1','DEC2','EBV']) to populate
+        ['BRICKNAME','BRICKID','RA','DEC','RA1','RA2','DEC1','DEC2',
+        'NEXP_G','NEXP_R', NEXP_Z','EBV']) to populate
     brickids : :class:`recarray`
         numpy structured array (single list) of BRICKID integers
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -137,7 +139,7 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
          instruc with the brick information columns now populated
     """
 
-    #ADM columns to be populated (could change to an input for more sophistication)
+    #ADM columns to be read in from brick file
     cols = ['BRICKNAME','BRICKID','RA','DEC','RA1','RA2','DEC1','DEC2']
 
     #ADM read in the brick information file
@@ -150,7 +152,7 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
     #ADM read in the data-release specific
     #ADM read in the brick information file
     fx = fitsio.FITS(glob(rootdirname+'/survey-bricks-dr*.fits.gz')[0], upper=True)
-    ebvdata = fx[1].read(columns=['BRICKNAME','EBV'])
+    ebvdata = fx[1].read(columns=['BRICKNAME','NEXP_G','NEXP_R','NEXP_Z','EBV'])
 
     #ADM as the BRICKID isn't in the dr-specific file, create
     #ADM a look-up dictionary to match indices via a list comprehension
@@ -160,7 +162,10 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
         dd[item].append(index)
     matches = [index for item in orderedbricknames for index in dd[item] if item in dd]
 
-    #ADM populate E(B-V)
+    #ADM populate E(B-V) and NEXP
+    instruc['NEXP_G'] = ebvdata[matches]['NEXP_G']
+    instruc['NEXP_R'] = ebvdata[matches]['NEXP_R']
+    instruc['NEXP_Z'] = ebvdata[matches]['NEXP_Z']
     instruc['EBV'] = ebvdata[matches]['EBV']
 
     return instruc
