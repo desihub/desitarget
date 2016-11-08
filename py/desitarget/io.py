@@ -24,7 +24,8 @@ tscolumns = [
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR',
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R', 'SHAPEDEV_E1', 'DCHISQ',
+    'SHAPEDEV_R', 'SHAPEEXP_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2',
+    'SHAPEEXP_E1', 'SHAPEEXP_E2', 'DCHISQ',
     ]
 
 def read_tractor(filename, header=False, columns=None):
