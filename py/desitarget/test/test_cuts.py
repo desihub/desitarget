@@ -88,7 +88,7 @@ class TestCuts(unittest.TestCase):
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                           deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
-        
+
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         fstd2 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
         self.assertTrue(np.all(fstd1==fstd2))
