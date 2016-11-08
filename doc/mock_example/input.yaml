@@ -30,14 +30,14 @@ sources:
     ELG: {
         target_name: ELG,
         number_density: 2400.0,
-        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.3,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
     LRG: {
         target_name: LRG,
         number_density: 300.0,
-        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.3,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
@@ -45,14 +45,14 @@ sources:
        target_name: QSO,
        min_z : 0.0,
        max_z : 2.1,
-       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.3,
+       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
        format: gaussianfield,
        selection : ndens,
        number_density: 120.0
     }
     LYAQSO: {
        target_name: QSO,
-       root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.1,
+       root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.2,
        format: lyaqso,
        selection : ndens,
        number_density : 50.0
