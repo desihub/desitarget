@@ -180,36 +180,22 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
         bgs &= ~psflike(objtype)
     return bgs
 
-def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
-          wise_snr=None, deltaChi2=None, primary=None):
-    """Target Definition of QSO. Returning a boolean array.
+def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
+    """Tests if objects have QSO-like colors, i.e. a subset of the QSO cuts.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        deltaChi2: array_like or None
-            If given, chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        wise_snr: array_like or None
-            If given, the S/N in the W1 and W2 bands.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a QSO
-            target.
-
+        mask : array_like. True if the object has QSO-like colors.
     """
     #----- Quasars
-    if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
-
     # Create some composite fluxes.
     wflux = 0.75* w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
-    qso = primary.copy()
+    qso = np.ones(len(gflux), dtype='?')
     qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
@@ -228,16 +214,49 @@ def isQSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=
     mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
+    
+    return qso
 
-    if wise_snr is not None:
-        qso &= wise_snr[..., 0] > 4
-        qso &= wise_snr[..., 1] > 2
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
+               objtype=None, primary=None):
+    """Cuts based QSO target selection
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        deltaChi2: array_like
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+        wise_snr: array_like[ntargets, 2]
+            S/N in the W1 and W2 bands.
+
+    Options:
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    Notes:
+        Uses isQSO_colors() to make color cuts first, then applies
+            wise_snr, deltaChi2, and optionally primary and objtype cuts
+
+    """
+    qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                       w1flux=w1flux, w2flux=w2flux)
+
+    qso &= wise_snr[..., 0] > 4
+    qso &= wise_snr[..., 1] > 2
+
+    qso &= deltaChi2>40.
+
+    if primary is not None:
+        qso &= primary
 
     if objtype is not None:
         qso &= psflike(objtype)
-
-    if deltaChi2 is not None:
-        qso &= deltaChi2>40.
 
     return qso
 
@@ -467,7 +486,7 @@ def apply_cuts(objects,qso_selection='randomforest'):
     bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
     
     if qso_selection=='colorcuts' :
-        qso = isQSO(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
                 wise_snr=wise_snr)
     elif qso_selection == 'randomforest':
