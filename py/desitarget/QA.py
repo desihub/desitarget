@@ -65,7 +65,7 @@ def fit_quad(x,y,plot=False):
     return params
 
 
-def model_map(brickfilename):
+def fluc_map(brickfilename):
     """
 
     Parameters
@@ -83,7 +83,6 @@ def model_map(brickfilename):
     """
 
     #ADM reading in brick_info file
-    print('Reading in brick info file')
     fx = fitsio.FITS(brickfilename, upper=True)
     alldata = fx[1].read()
 
@@ -92,14 +91,30 @@ def model_map(brickfilename):
     w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) & (alldata['DEPTH_G'] > -90) & (alldata['DEPTH_R'] > -90) & (alldata['DEPTH_Z'] > -90))
     alldata = alldata[w]
 
-    #ADM choose some necessary columns
-    data = alldata[[
+    #ADM choose some necessary columns and rename density columns,
+    #ADM which we'll now base on fluctuations around the median
+    cols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
-            'DEPTH_G','DEPTH_R','DEPTH_Z', 
+            'DEPTH_G','DEPTH_R','DEPTH_Z',
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
-            'DENSITY_ALL', 'DENSITY_ELG', 'DENSITY_LRG', 
+            'DENSITY_ALL', 'DENSITY_ELG', 'DENSITY_LRG',
             'DENSITY_QSO', 'DENSITY_LYA', 'DENSITY_BGS', 'DENSITY_MWS'
-            ]]
+            ]
+    data = alldata[cols]
+    newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+    data.dtype.names = newcols
+    
+    #ADM for each of the density columns loop through and replace
+    #ADM density by value relative to median
+    for col in newcols:
+        if re.search("FLUC",col):
+            med = np.median(data[col])
+            if med > 0:
+                data[col] = data[col]/med
+            else:
+                data[col] = 1.
+    
+    return data
 
 
 def mag_histogram(targetfilename,binsize,outfile):
