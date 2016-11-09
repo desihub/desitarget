@@ -15,11 +15,92 @@ import fitsio
 import os, re
 from collections import defaultdict
 from glob import glob
+from scipy.optimize import leastsq
+import matplotlib.pyplot as plt
 
 from . import __version__ as desitarget_version
 from . import gitversion
 
 from desiutil import depend
+
+def fit_quad(x,y,plot=False):
+    """
+
+    Parameters
+    ----------
+    x : :class:`float`
+        x-values of data (for typical x/y plot definition)
+    y : :class:`float`
+        y-values of data (for typical x/y plot definition)
+    plot : :class:`boolean`
+        generate a plot of the data and the model if True
+
+    Returns
+    -------
+    params : :class: `3-float`
+        The values of a, b, c in the typical quadratic equation
+        y = ax^2 + bx + c
+    """
+
+    #ADM standard equation for a quadratic
+    funcQuad = lambda params,x : params[0]*x**2+params[1]*x+params[2]    
+    #ADM difference between model and data
+    Offset = lambda params,x,y: funcQuad(params,x)-y
+    #ADM initial guesses at params
+    initparams = (1.,1.,1.)
+    #ADM loop to get least squares fit
+    params,ok = leastsq(Offset,initparams[:],args=(x,y))
+
+    if plot:
+        #ADM generate a model
+        step = 0.01*(max(x)-min(x))
+        xmod = step*np.arange(100)+min(x)
+        ymod = xmod*xmod*params[0] + xmod*params[1] + params[2]
+        #ADM axes that clip extreme outliers
+        plt.axis([np.percentile(x,0.1),np.percentile(x,99.9),
+                  np.percentile(y,0.1),np.percentile(y,99.9)])
+        plt.plot(x,y,'k.',xmod,ymod,'b-')
+        plt.show()
+
+    return params
+
+
+def model_map(brickfilename):
+    """
+
+    Parameters
+    ----------
+    brickfilename : :class:`str`
+        File name of a list of a brick info file made by QA.brick_info.
+
+    Returns
+    -------
+    :class:`recarray`
+        numpy structured array of number of times median target density
+        for each brick for which NEXP is 3 in each band in all of G/R/Z. 
+        Contains EBV and pixel-weighted mean depth for building models
+        of how target density fluctuates.
+    """
+
+    #ADM reading in brick_info file
+    print('Reading in brick info file')
+    fx = fitsio.FITS(brickfilename, upper=True)
+    alldata = fx[1].read()
+
+    #ADM limit to just things with NEXP=3 in every band
+    #ADM and that have reasonable depth values from the depth maps
+    w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) & (alldata['DEPTH_G'] > -90) & (alldata['DEPTH_R'] > -90) & (alldata['DEPTH_Z'] > -90))
+    alldata = alldata[w]
+
+    #ADM choose some necessary columns
+    data = alldata[[
+            'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
+            'DEPTH_G','DEPTH_R','DEPTH_Z', 
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
+            'DENSITY_ALL', 'DENSITY_ELG', 'DENSITY_LRG', 
+            'DENSITY_QSO', 'DENSITY_LYA', 'DENSITY_BGS', 'DENSITY_MWS'
+            ]]
+
 
 def mag_histogram(targetfilename,binsize,outfile):
     """
