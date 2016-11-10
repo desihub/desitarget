@@ -1,6 +1,4 @@
 #mock target configuration file
-output_dir: /tmp
-run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
 subset:
     ra_dec_cut: True
     min_ra: 200
@@ -62,7 +60,7 @@ sources:
        mag_bright: 15.0,
        mag_faintest: 20.0,
        mag_priority_split: 19.5,
-       root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint/v0.0.2,
+       root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint/v0.0.3,
        format: durham_mxxl_hdf5,
        selection: mag
     }

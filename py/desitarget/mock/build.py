@@ -21,15 +21,13 @@ from desitarget import mtl
 import desispec.brick
 
 ############################################################
-def targets_truth(params):
+def targets_truth(params, output_dir):
     """
     Write
 
     Args:
-        sources:    dict of source definitions.
+        params: dict of source definitions.
         output_dir: location for intermediate mtl files.
-        reset:      If True, force all intermediate TL files to be remade.
-
     Returns:
         targets:    
         truth:      
@@ -213,7 +211,7 @@ def targets_truth(params):
         subprior = np.random.uniform(0., 1., size=n_star)
         #write the Std Stars to disk
         print('Started writing StdStars file')
-        stars_filename = os.path.join(params['output_dir'], 'stdstars.fits')
+        stars_filename = os.path.join(output_dir, 'stdstars.fits')
         stars = Table()
         stars['TARGETID'] = targetid[n_target:n_target+n_star]
         stars['RA'] = ra_stars
@@ -235,7 +233,7 @@ def targets_truth(params):
         subprior = np.random.uniform(0., 1., size=n_sky)
         #write the Std Stars to disk
         print('Started writing sky to file')
-        sky_filename = os.path.join(params['output_dir'], 'sky.fits')
+        sky_filename = os.path.join(output_dir, 'sky.fits')
         sky = Table()
         sky['TARGETID'] = targetid[n_target+n_star:n_target+n_star+n_sky]
         sky['RA'] = ra_sky
@@ -254,7 +252,7 @@ def targets_truth(params):
         subprior = np.random.uniform(0., 1., size=n_target)
         # write the Targets to disk
         print('Started writing Targets file')
-        targets_filename = os.path.join(params['output_dir'], 'targets.fits')
+        targets_filename = os.path.join(output_dir, 'targets.fits')
         targets = Table()
         targets['TARGETID'] = targetid[0:n_target]
         targets['RA'] = ra_total
@@ -274,13 +272,13 @@ def targets_truth(params):
         mtl_table = mtl.make_mtl(targets)        
         # writing the MTL file to disk
         print('Started writing the first MTL file')
-        mtl_filename = os.path.join(params['output_dir'], 'mtl.fits')
+        mtl_filename = os.path.join(output_dir, 'mtl.fits')
         mtl_table.write(mtl_filename, overwrite=True)
         print('Finished writing mtl file')
 
         # write the Truth to disk
         print('Started writing Truth file')
-        truth_filename = os.path.join(params['output_dir'], 'truth.fits')
+        truth_filename = os.path.join(output_dir, 'truth.fits')
         truth = Table()
         truth['TARGETID'] = targetid[0:n_target]
         truth['RA'] = ra_total

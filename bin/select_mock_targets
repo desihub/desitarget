@@ -8,6 +8,7 @@ import yaml
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config','-c',default='input.yaml')
+parser.add_argument("--output_dir", "-O", help="Path to write the outputs", type=str, default="./")
 args = parser.parse_args()
 
 if not os.path.exists(args.config):
@@ -21,7 +22,7 @@ with open(args.config,'r') as pfile:
     params = yaml.load(pfile)
 
 # Construct Targets and Truth files
-desitarget.mock.build.targets_truth(params)
+desitarget.mock.build.targets_truth(params, args.output_dir)
 
 print('done!')
 
