@@ -24,7 +24,7 @@ from . import gitversion
 from desiutil import depend
 
 
-def model_map(flucmap):
+def model_map(flucmap,plot=False):
     """Find 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
 
     Parameters
@@ -33,6 +33,8 @@ def model_map(flucmap):
         map of per-brick depth and target densities made
         by the fluc_map function in this code, i.e.:
         flucmap = QA.fluc_map(brickfilename)
+    plot : :class:`boolean`, optional
+        generate a plot of the data and the model if True
 
     Returns
     -------
@@ -49,49 +51,24 @@ def model_map(flucmap):
     cols = flucmap.dtype.names
     for col in cols:
         #ADM loop through each of the depth columns (PSF and GAL) and EBV
-        if re.search("DEPTH",col):
+        if re.search("DEPTH",col) or re.search("EBV",col):
             outstring = '{:<11}'.format(col)
             outstring += " ".join(
                 [ '{:.4f}'.format(i) for i in np.percentile(flucmap[col],percs) ]
                 )
-            #ADM fit quadratic models to target density fluctuation vs. EBV and
-            #ADM target density fluctuation vs. depth (in sense y vs. x)...in 
-            #ADM each case fit to a percentile value along y, so, e.g., for perc
-            #ADM of 50% you'd fit in equal-bins in x to the moving median in y
-            eqbinedges = np.percentile(flucmap[col],np.arange(21)*5)
-            #ADM set up 20 bins with equal numbers in each bin and determine
-            #ADM which indices for the DEPTH or EBV are in which bin
-            x = []
-            wbin = []
-            for bin in range(20):
-                bmin = eqbinedges[bin]
-                bmax = eqbinedges[bin+1]
-                #ADM the middle of the depth bin
-                x.append(0.5*(bmin+bmax))
-                #ADM the array indices in the depth bin
-                w = np.where( (flucmap[col] >= bmin) 
-                              & (flucmap[col] < bmax) )
-                wbin.append(list(w[0]))
-                #ADM construct the target density fluctuation 
-                #ADM in that bin at each percentile
-            for fcol in cols:
-                if re.search("FLUC",fcol):
-                    #ADM this list comprehension just creates an array of
-                    #ADM the percentiles for the fcol in each bin of x
-                    y = [ list(np.percentile(flucmap[wbin[i]][fluc],percs)) for i in range(20) ]
-                    y = np.transpose(np.array(y).reshape(20,3))
-
-            return wbin
-                       
 
             print(outstring)
-
+            #ADM fit quadratic models to target density fluctuation vs. EBV and
+            #ADM target density fluctuation vs. depth
+            for fcol in cols:
+                if re.search("FLUC",fcol):
+                    print(fcol,fit_quad(flucmap[col],flucmap[fcol],plot=plot))
 
     return
 
 
 def fit_quad(x,y,plot=False):
-    """Fit a quadratic model to (x,y) ordered data
+    """Fit a quadratic model to (x,y) ordered data.
 
     Parameters
     ----------
@@ -99,37 +76,64 @@ def fit_quad(x,y,plot=False):
         x-values of data (for typical x/y plot definition)
     y : :class:`float`
         y-values of data (for typical x/y plot definition)
-    plot : :class:`boolean`
+    plot : :class:`boolean`, optional
         generate a plot of the data and the model if True
 
     Returns
     -------
-    :class:`3-float`
+    params :class:`3-float`
         The values of a, b, c in the typical quadratic equation
         y = ax^2 + bx + c
+    errs :class:`3-float`
+        The error on the fit of each parameter
     """
 
     #ADM standard equation for a quadratic
     funcQuad = lambda params,x : params[0]*x**2+params[1]*x+params[2]    
     #ADM difference between model and data
-    Offset = lambda params,x,y: funcQuad(params,x)-y
+    errfunc = lambda params,x,y: funcQuad(params,x)-y
     #ADM initial guesses at params
     initparams = (1.,1.,1.)
     #ADM loop to get least squares fit
-    params,ok = leastsq(Offset,initparams[:],args=(x,y))
+    params,ok = leastsq(errfunc,initparams[:],args=(x,y))
 
+    params, cov, infodict, errmsg, ok = leastsq(errfunc, initparams[:], args=(x, y),
+                                               full_output=1, epsfcn=0.0001)
+
+    #ADM turn the covariance matrix into something chi-sq like
+    #ADM via degrees of freedom
+    if (len(y) > len(initparams)) and cov is not None:
+        s_sq = (errfunc(params, x, y)**2).sum()/(len(y)-len(initparams))
+        cov = cov * s_sq
+    else:
+        cov = np.inf
+
+    #ADM estimate the error on the fit from the diagonal of the covariance matrix
+    err = [] 
+    for i in range(len(params)):
+        try:
+          err.append(np.absolute(cov[i][i])**0.5)
+        except:
+          err.append(0.)
+    err = np.array(err)
+          
     if plot:
         #ADM generate a model
         step = 0.01*(max(x)-min(x))
         xmod = step*np.arange(100)+min(x)
         ymod = xmod*xmod*params[0] + xmod*params[1] + params[2]
+        #ADM rough upper and lower bounds from the errors
+#        ymodhi = xmod*xmod*(params[0]+err[0]) + xmod*(params[1]+err[1]) + (params[2]+err[2])
+#        ymodlo = xmod*xmod*(params[0]-err[0]) + xmod*(params[1]-err[1]) + (params[2]-err[2])
+        ymodhi = xmod*xmod*params[0] + xmod*params[1] + (params[2]+err[2])
+        ymodlo = xmod*xmod*params[0] + xmod*params[1] + (params[2]-err[2])
         #ADM axes that clip extreme outliers
         plt.axis([np.percentile(x,0.1),np.percentile(x,99.9),
                   np.percentile(y,0.1),np.percentile(y,99.9)])
-        plt.plot(x,y,'k.',xmod,ymod,'b-')
+        plt.plot(x,y,'k.',xmod,ymod,'b-',xmod,ymodhi,'b.',xmod,ymodlo,'b.')
         plt.show()
 
-    return params
+    return params, err
 
 
 def fluc_map(brickfilename):
@@ -173,15 +177,16 @@ def fluc_map(brickfilename):
     
     #ADM for each of the density columns loop through and replace
     #ADM density by value relative to median
+    outdata = data.copy()
     for col in newcols:
         if re.search("FLUC",col):
             med = np.median(data[col])
             if med > 0:
-                data[col] = data[col]/med
+                outdata[col] = data[col]/med
             else:
-                data[col] = 1.
+                outdata[col] = 1.
     
-    return data
+    return outdata
 
 
 def mag_histogram(targetfilename,binsize,outfile):
