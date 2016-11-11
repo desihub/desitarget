@@ -23,8 +23,75 @@ from . import gitversion
 
 from desiutil import depend
 
-def fit_quad(x,y,plot=False):
+
+def model_map(flucmap):
+    """Find 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
+
+    Parameters
+    ----------
+    flucmap : :class:`recarray`
+        map of per-brick depth and target densities made
+        by the fluc_map function in this code, i.e.:
+        flucmap = QA.fluc_map(brickfilename)
+
+    Returns
+    -------
+    :class:`list`
+        model of brick fluctuations, median, 16%, 84% for overall 
+        brick depth variations and variation of target density with 
+        depth and EBV (per band). Listed outputs are in the same order 
+        as the large print block near the end of this function
     """
+
+    #ADM the percentiles to consider for "mean" and "sigma
+    percs = [16,50,84]
+
+    cols = flucmap.dtype.names
+    for col in cols:
+        #ADM loop through each of the depth columns (PSF and GAL) and EBV
+        if re.search("DEPTH",col):
+            outstring = '{:<11}'.format(col)
+            outstring += " ".join(
+                [ '{:.4f}'.format(i) for i in np.percentile(flucmap[col],percs) ]
+                )
+            #ADM fit quadratic models to target density fluctuation vs. EBV and
+            #ADM target density fluctuation vs. depth (in sense y vs. x)...in 
+            #ADM each case fit to a percentile value along y, so, e.g., for perc
+            #ADM of 50% you'd fit in equal-bins in x to the moving median in y
+            eqbinedges = np.percentile(flucmap[col],np.arange(21)*5)
+            #ADM set up 20 bins with equal numbers in each bin and determine
+            #ADM which indices for the DEPTH or EBV are in which bin
+            x = []
+            wbin = []
+            for bin in range(20):
+                bmin = eqbinedges[bin]
+                bmax = eqbinedges[bin+1]
+                #ADM the middle of the depth bin
+                x.append(0.5*(bmin+bmax))
+                #ADM the array indices in the depth bin
+                w = np.where( (flucmap[col] >= bmin) 
+                              & (flucmap[col] < bmax) )
+                wbin.append(list(w[0]))
+                #ADM construct the target density fluctuation 
+                #ADM in that bin at each percentile
+            for fcol in cols:
+                if re.search("FLUC",fcol):
+                    #ADM this list comprehension just creates an array of
+                    #ADM the percentiles for the fcol in each bin of x
+                    y = [ list(np.percentile(flucmap[wbin[i]][fluc],percs)) for i in range(20) ]
+                    y = np.transpose(np.array(y).reshape(20,3))
+
+            return wbin
+                       
+
+            print(outstring)
+
+
+    return
+
+
+def fit_quad(x,y,plot=False):
+    """Fit a quadratic model to (x,y) ordered data
 
     Parameters
     ----------
@@ -37,7 +104,7 @@ def fit_quad(x,y,plot=False):
 
     Returns
     -------
-    params : :class: `3-float`
+    :class:`3-float`
         The values of a, b, c in the typical quadratic equation
         y = ax^2 + bx + c
     """
@@ -66,7 +133,7 @@ def fit_quad(x,y,plot=False):
 
 
 def fluc_map(brickfilename):
-    """
+    """From a brick info file (as in construct_QA_file) create a file of target fluctuations
 
     Parameters
     ----------
@@ -77,7 +144,7 @@ def fluc_map(brickfilename):
     -------
     :class:`recarray`
         numpy structured array of number of times median target density
-        for each brick for which NEXP is 3 in each band in all of G/R/Z. 
+        for each brick for which NEXP is at least 3 in all of g/r/z bands. 
         Contains EBV and pixel-weighted mean depth for building models
         of how target density fluctuates.
     """
@@ -118,7 +185,7 @@ def fluc_map(brickfilename):
 
 
 def mag_histogram(targetfilename,binsize,outfile):
-    """
+    """Detemine the magnitude distribution of targets
 
     Parameters
     ----------
@@ -411,7 +478,7 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
 
 
 def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',outfilename='brick-info-dr3.fits'):
-    """
+    """Create a file containing brick information (depth, ebv, etc. as in construct_QA_file)
 
     Parameters
     ----------
