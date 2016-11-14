@@ -18,8 +18,8 @@ class TestCuts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.datadir = resource_filename('desitarget.test', 't')
-        cls.tractorfiles = io.list_tractorfiles(cls.datadir)
-        cls.sweepfiles = io.list_sweepfiles(cls.datadir)
+        cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
+        cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
 
     def test_unextinct_fluxes(self):
         targets = io.read_tractor(self.tractorfiles[0])
@@ -82,10 +82,11 @@ class TestCuts(unittest.TestCase):
         bgs2 = cuts.isBGS(rflux=rflux, objtype=None, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
-        qso1 = cuts.isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          objtype=psftype, primary=primary, deltaChi2=deltaChi2, wise_snr=wise_snr)
-        qso2 = cuts.isQSO(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          objtype=None, primary=None, deltaChi2=None, wise_snr=None)
+        #- Test that objtype and primary are optional
+        qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                          deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=psftype, primary=primary)
+        qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                          deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
