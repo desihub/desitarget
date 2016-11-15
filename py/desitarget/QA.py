@@ -38,33 +38,51 @@ def model_map(flucmap,plot=False):
 
     Returns
     -------
-    :class:`list`
+    :class:`dictionary`
         model of brick fluctuations, median, 16%, 84% for overall 
         brick depth variations and variation of target density with 
-        depth and EBV (per band). Listed outputs are in the same order 
-        as the large print block near the end of this function
+        depth and EBV (per band). The first level of the nested
+        dictionary are the keys DEPTH_G, DEPTH_R, DEPTH_Z, GALDEPTH_G, 
+        GALDEPTH_R, GALDEPTH_Z, EBV. The second level are the keys PERC,
+        which contains a list of values corresponding to the 16,50,84%
+        fluctuations in that value of DEPTH or EBV per brick and the
+        keys corresponding to each target_class, which contain a list
+        of values [a,b,c,da,db,dc] which correspond to a quadratic model
+        for the fluctuation of that target class in the form y = ax^2 +bx + c
+        together with the errors on a, b and c. Here, y would be the
+        target density fluctuations and x would be the DEPTH or EBV value.
+
     """
 
     #ADM the percentiles to consider for "mean" and "sigma
     percs = [16,50,84]
 
+    firstcol = 1
     cols = flucmap.dtype.names
     for col in cols:
         #ADM loop through each of the depth columns (PSF and GAL) and EBV
         if re.search("DEPTH",col) or re.search("EBV",col):
-            outstring = '{:<11}'.format(col)
-            outstring += " ".join(
-                [ '{:.4f}'.format(i) for i in np.percentile(flucmap[col],percs) ]
-                )
-
-            print(outstring)
+            #ADM the percentiles for this DEPTH/EBV across the brick
+            coldict = {"PERCS": np.percentile(flucmap[col],percs)}
             #ADM fit quadratic models to target density fluctuation vs. EBV and
             #ADM target density fluctuation vs. depth
             for fcol in cols:
                 if re.search("FLUC",fcol):
-                    print(fcol,fit_quad(flucmap[col],flucmap[fcol],plot=plot))
+                    quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
+                    #ADD this to the dictionary
+                    coldict = dict({fcol:quadparams},**coldict)
+            #ADM nest the information in an overall dictionary corresponding to
+            #ADM this column name
+            flucdict = {col:coldict}
+            #ADM first time through set up the dictionary and
+            #ADM on subsequent loops add to it
+            if firstcol:
+                outdict = flucdict
+                firstcol = 0
+            else:
+                outdict = dict(flucdict,**outdict)
 
-    return
+    return outdict
 
 
 def fit_quad(x,y,plot=False):
