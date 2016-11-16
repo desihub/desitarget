@@ -23,16 +23,79 @@ from . import gitversion
 
 from desiutil import depend
 
-
-def model_map(flucmap,plot=False):
-    """Find 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
+def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
+    """Based on depth or E(B-V) values for a brick, generate target fluctuations
 
     Parameters
     ----------
-    flucmap : :class:`recarray`
-        map of per-brick depth and target densities made
-        by the fluc_map function in this code, i.e.:
-        flucmap = QA.fluc_map(brickfilename)
+    brickfilename : :class:`str`
+        File name of a list of a brick info file made by QA.brick_info.
+    targettype : :class: `str`
+        Name of the target type for which to generate fluctuations
+        options are "ALL", "LYA", "MWS", "BGS", "QSO", "ELG", "LRG"
+    depthtype : :class: `str`
+        Name of the type of depth-and-band (or E(B-V)) for which to generate fluctuations
+        options are "DEPTH_G", "GALDEPTH_G", "DEPTH_R", "GALDEPTH_R", "DEPTH_Z", "GALDEPTH_Z"
+        or pass "EBV" to generate fluctuations based off E(B-V) values
+    depthorebvarray : :class:`float array`
+        An array of brick depths (i.e. for N bricks, N realistic values of depth) or
+        an array of E(B-V) values if EBV is passed
+
+    Returns
+    -------
+    :class:`float`
+        An array of the same length as depthorebvarray with per-brick fluctuations 
+        generated from actual DECaLS data
+    """
+
+    #ADM check some impacts are as expected
+    tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
+    if not targettype in tts:
+        raise ValueError("targettype must be one of {}".format(" ".join(tts)))
+
+    dts = ["DEPTH_G","GALDEPTH_G","DEPTH_R","GALDEPTH_R","DEPTH_Z","GALDEPTH_Z","EBV"]
+    if not depthtype in dts:
+        raise ValueError("depthtype must be one of {}".format(" ".join(dts)))
+
+    if depthtype == "EBV":
+        print("generating per-brick fluctuations for E(B-V) values")
+    else:
+        print("generating per-brick fluctuations for depth values")
+
+    if not type(depthorebvarray) == np.ndarray:
+        raise ValueError("depthorebvarray must be a numpy array not type {}".format(type(depthorebvarray)))
+
+    #ADM the number of bricks
+    nbricks = len(depthorebvarray)
+
+    #ADM the target fluctuations are actually called FLUC_* in the model dictionary
+    targettype = "FLUC_"+targettype
+
+    #ADM generate/retrieve the model map dictionary
+    modelmap = model_map(brickfilename)
+
+    #ADM retrive the quadratic model
+    means, sigmas = modelmap[depthtype][targettype]
+
+    #ADM sample the distribution for each parameter in the quadratic
+    #ADM fit for each of the total number of bricks
+    asamp = np.random.normal(means[0],sigmas[0],nbricks)
+    bsamp = np.random.normal(means[1],sigmas[1],nbricks)
+    csamp = np.random.normal(means[2],sigmas[2],nbricks)
+
+    #ADM grab the fluctuation in each brick
+    fluc = asamp*depthorebvarray**2. + bsamp*depthorebvarray + csamp
+
+    return fluc
+
+
+def model_map(brickfilename,plot=False):
+    """Make a model map of how 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
+
+    Parameters
+    ----------
+    brickfilename : :class:`str`
+        File name of a list of a brick info file made by QA.brick_info.
     plot : :class:`boolean`, optional
         generate a plot of the data and the model if True
 
@@ -53,6 +116,7 @@ def model_map(flucmap,plot=False):
         target density fluctuations and x would be the DEPTH or EBV value.
 
     """
+    flucmap = fluc_map(brickfilename)
 
     #ADM the percentiles to consider for "mean" and "sigma
     percs = [16,50,84]
@@ -68,6 +132,8 @@ def model_map(flucmap,plot=False):
             #ADM target density fluctuation vs. depth
             for fcol in cols:
                 if re.search("FLUC",fcol):
+                    if plot:
+                        print("doing",col,fcol)
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
