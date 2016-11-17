@@ -19,6 +19,70 @@ import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
 from desitarget import mtl
 import desispec.brick
+from desispec.brick import Bricks
+
+def gather_brick_info(ra, dec, target_names):
+    B = Bricks()
+
+    brick_info = {}
+    names = list(set(target_names))
+    print('total of {} target types: {}'.format(len(names), names))
+
+
+    # compute brick information for each target
+    irow = ((dec+90.0+B._bricksize/2)/B._bricksize).astype(int)
+    jcol = (ra/360 * B._ncol_per_row[irow]).astype(int)
+
+    xra =  np.array([B._center_ra[i][j] for i,j in zip(irow, jcol)])
+    xdec = B._center_dec[irow]
+
+    ra1 =  np.array([B._edges_ra[i][j] for i,j in zip(irow, jcol)])
+    dec1 = B._edges_dec[irow]
+
+    ra2 =  np.array([B._edges_ra[i][j+1] for i,j in zip(irow, jcol)])
+    dec2 = B._edges_dec[irow+1]
+    
+    names = list()
+    for i in range(len(ra)):
+        ncol = B._ncol_per_row[irow[i]]
+        j = int(ra[i]/360 * ncol)
+        names.append(B._brickname[irow[i]][j])
+    names  = np.array(names)
+
+    # summarize brick info
+    brick_names = np.array(list(set(names)))
+    n_brick = len(brick_names)
+    brick_xra = np.ones(n_brick)
+    brick_ra1 = np.ones(n_brick)
+    brick_ra2 = np.ones(n_brick)
+    brick_xdec = np.ones(n_brick)
+    brick_dec1 = np.ones(n_brick)
+    brick_dec2 = np.ones(n_brick)
+    brick_area = np.ones(n_brick)
+    for i in range(len(brick_names)):
+        ii = (brick_names[i] == names)        
+        print('{} in brick'.format(np.count_nonzero(ii)))
+
+        brick_xra[i] = xra[ii][0]
+        brick_xdec[i] = xdec[ii][0]
+
+        brick_ra1[i] = ra1[ii][0]
+        brick_ra2[i] = ra2[ii][0]
+
+        brick_dec1[i] = dec1[ii][0]
+        brick_dec2[i] = dec2[ii][0]
+
+        brick_area[i] = (brick_ra2[i] - brick_ra1[i]) 
+        brick_area[i] *= (np.sin(brick_dec2[i]*np.pi/180.) - np.sin(brick_dec1[i]*np.pi/180.)) * 180 / np.pi
+
+        print('center ra, dec {} {}'.format(brick_xra[i], brick_xdec[i]))
+        print('center ra1 ra2 {} {}'.format(brick_ra1[i], brick_ra2[i]))
+        print('center dec1 dec2 {} {}'.format(brick_dec1[i], brick_dec2[i]))
+        print(' brick area {}'.format(brick_area[i]))
+        if(brick_area[i]<0.0):
+            exit(1)
+
+    return brick_info
 
 ############################################################
 def targets_truth(params, output_dir):
@@ -191,6 +255,10 @@ def targets_truth(params, output_dir):
             
 
         print('{} {}: selected {} out of {}'.format(source_name, target_name, len(source_data['RA'][ii]), len(source_data['RA'])))
+
+
+    brick_info = gather_brick_info(ra_total, dec_total, source_type_total)
+
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     
