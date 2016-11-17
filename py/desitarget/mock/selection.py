@@ -17,7 +17,7 @@ from   desitarget import mws_mask, desi_mask, bgs_mask
 import os
 from   astropy.table import Table, Column
 import fitsio
-from scipy.interpolate import interp1d
+
 
 def sample_depths(ra, dec):
     """
@@ -67,12 +67,10 @@ def sample_depths(ra, dec):
     fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
 
     names = ['EBV', 'DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
-    functions = {}
     depths = {}
     for name in names:
-        functions[name] = interp1d(fractions[name], points[name])
         fracs = np.random.random(n_to_generate)
-        depths[name] = functions[name](fracs)
+        depths[name] = np.interp(fracs, fractions[name], points[name])
         if(name != 'EBV'):
             depth_minus_galdepth = np.random.normal(
                                     loc=differences[name][0], 
