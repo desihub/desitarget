@@ -18,6 +18,69 @@ import os
 from   astropy.table import Table, Column
 import fitsio
 
+
+def sample_depths(ra, dec):
+    """
+    Generates a sample of magnitud dephts and E(B-V) for a set of input positions.
+
+    This model was built from the Data Release 3 of DECaLS.
+    Pending: generating the E(B-V) values from its map.
+    
+
+    Parameters:
+    -----------
+        ra (float): numpy array of RA positions
+        dec (float): numpy array of Dec positions
+
+    Return:
+    ------
+        depths (dictionary). keys include
+            'DEPTH_G', 'DEPTH_R', 'DEPTH_Z', 'EBV'
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
+            The values ofr each key ar numpy arrays (float) with size equal to 
+            the input ra, dec arrays.
+    """
+
+    n_to_generate = len(ra)
+    #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
+    differences = {}
+    differences['DEPTH_G'] = [0.22263251, 0.059752077]
+    differences['DEPTH_R'] = [0.26939404, 0.091162138]
+    differences['DEPTH_Z'] = [0.34058815, 0.056099825]
+    
+    # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
+    
+    points = {}
+    points['EBV'] = np.array([ 0.008758,  0.01870997,  0.02296527,  0.02915531,  0.03742408,
+                       0.05848215, 0.07245968,  0.10044503,  0.13744652,  0.25484765])
+    points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+                  24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
+    points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+                  24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
+    points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+                  23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
+
+    fractions = {}
+    fractions['EBV'] = np.array([0.0, 0.02, 0.1, 0.3, 0.5, 0.8, 0.9, 0.97, 0.99, 1.0])
+    fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+    fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+    fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+
+    names = ['EBV', 'DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
+    depths = {}
+    for name in names:
+        fracs = np.random.random(n_to_generate)
+        depths[name] = np.interp(fracs, fractions[name], points[name])
+        if(name != 'EBV'):
+            depth_minus_galdepth = np.random.normal(
+                                    loc=differences[name][0], 
+                                    scale=differences[name][1], size=n_to_generate)
+            depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
+    
+            depths['GAL'+name] = depths[name] - depth_minus_galdepth
+    
+    return depths
+
 ############################################################
 def mag_select(data, source_name, **kwargs):
     """
