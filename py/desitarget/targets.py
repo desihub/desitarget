@@ -229,6 +229,10 @@ def calc_priority(targets):
             priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
 
+    # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
+    ii = (targets['DESI_TARGET'] & desi_mask.IN_BRIGHT_OBJECT) != 0
+    priority[ii] = -1
+
     return priority
 
 ############################################################
