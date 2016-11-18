@@ -21,12 +21,18 @@ from desitarget import mtl
 import desispec.brick
 from desispec.brick import Bricks
 
+
 def gather_brick_info(ra, dec, target_names):
+    from desitarget.mock import sfdmap
+    """
+    Gathers information about all the targets on the scale of a brick.
+    """
     B = Bricks()
 
     brick_info = {}
-    names = list(set(target_names))
-    print('total of {} target types: {}'.format(len(names), names))
+    tnames = list(set(target_names))
+    n_names = len(tnames)
+    print('total of {} target types: {}'.format(len(tnames), tnames))
 
 
     # compute brick information for each target
@@ -59,6 +65,7 @@ def gather_brick_info(ra, dec, target_names):
     brick_dec1 = np.ones(n_brick)
     brick_dec2 = np.ones(n_brick)
     brick_area = np.ones(n_brick)
+    densities = np.ones([n_brick, n_names])
     for i in range(len(brick_names)):
         ii = (brick_names[i] == names)        
         print('{} in brick'.format(np.count_nonzero(ii)))
@@ -81,7 +88,25 @@ def gather_brick_info(ra, dec, target_names):
         print(' brick area {}'.format(brick_area[i]))
         if(brick_area[i]<0.0):
             exit(1)
+        for j in range(n_names):
+            jj = (target_names == tnames[j])        
+            densities[i,j] = np.count_nonzero(ii & jj)/brick_area[i]
+            print('name {} in names {}. density: {}'.format(tnames[j], tnames, densities[i,j]))
 
+    brick_info['BRICKNAMES'] = brick_names
+    brick_info['RA'] = brick_xra
+    brick_info['DEC'] = brick_xdec
+    brick_info['RA1'] = brick_ra1
+    brick_info['RA2'] = brick_ra2
+    brick_info['DEC1'] = brick_dec1
+    brick_info['DEC2'] = brick_dec2
+    brick_info['BRICKAREA'] = brick_area
+    brick_info['DENSITY'] = {}
+    for j in range(n_names):
+        brick_info['DENSITY'][tnames[j]] = densities[:,j]
+    
+
+    brick_info['EBV'] = sfdmap.ebv(brick_xra, brick_xdec, mapdir='/project/projectdirs/desi/software/edison/dust/v0_1/maps/')
     return brick_info
 
 ############################################################
