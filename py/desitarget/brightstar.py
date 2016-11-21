@@ -12,11 +12,9 @@ from __future__ import (absolute_import, division)
 from time import time
 import numpy as np
 import fitsio
-import os, re, sys
-from collections import defaultdict
 from glob import glob
-from scipy.optimize import leastsq
-import matplotlib.pyplot as plt
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 from . import __version__ as desitarget_version
 from . import gitversion
@@ -115,4 +113,94 @@ def collect_bright_stars(band,maglim,numproc=4,rootdirname='/global/project/proj
         fitsio.write(outfilename, starstruc, clobber=True)
 
     return starstruc
+
+
+def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/'):
+
+    """Build a dictionary of the fraction of bricks containing a star of a given 
+    magnitude in a given band as function of Galactic l and b
+
+    Parameters
+    ----------
+    band : :class:`str`
+        A magnitude band from the sweeps, e.g., "G", "R", "Z"
+    instarfile : :class:`str`
+        File of bright objects in (e.g.) sweeps, created by collect_bright_stars
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory for a data release...e.g. for dr3 this would be
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/
+
+    Returns
+    -------
+    :class:`recarray`
+        dictionary of the fraction of bricks containing a star of a given
+        magnitude in a given band as function of Galactic l Keys are mag
+        bin CENTERS, values are arrays running from 0->1 to 359->360
+    :class:`recarray`
+        dictionary of the fraction of bricks containing a star of a given
+        magnitude in a given band as function of Galactic b. Keys are mag
+        bin CENTERS, values are arrays running from -90->-89 to 89->90
+
+    Notes
+    -----
+    converts using coordinates of the brick center, so is an approximation
+
+    """
+    #ADM histogram bin edges in Galactic coordinates at resolution of 1 degree
+    lbinedges = np.arange(361)
+    bbinedges = np.arange(-90,91)
+
+    #ADM set band to uppercase if passed as lower case
+    band = band.upper()
+    #ADM the band as an integer location
+    bandint = "UGRIZY".find(band)
+
+    #ADM read in the bright object file
+    fx = fitsio.FITS(instarfile)
+    objs = fx[1].read()
+    #ADM convert fluxes in band of interest for each object to magnitudes
+    mags = 22.5-2.5*np.log10(objs["DECAM_FLUX"][...,bandint])
+    #ADM Galactic l and b for each object of interest
+    c = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree, frame='icrs')
+    lobjs = c.galactic.l.degree
+    bobjs = c.galactic.b.degree
+
+    #ADM construct histogram bin edges in magnitude in passed band
+    magstep = 0.1
+    magmin = -1.5 #ADM magnitude of Sirius to 1 d.p.
+    magmax = np.max(mags)
+    magbinedges = np.arange(np.rint((magmax-magmin)/magstep))*magstep+magmin
+
+    #ADM read in the data-release specific brick information file
+    fx = fitsio.FITS(glob(rootdirname+'/survey-bricks-dr*.fits.gz')[0], upper=True)
+    bricks = fx[1].read(columns=['RA','DEC'])
+
+    #ADM convert RA/Dec of the brick center to Galatic coordinates and
+    #ADM build a histogram of the number of bins at each coordinate...
+    #ADM using the center is imperfect, so this is approximate at best
+    c = SkyCoord(bricks["RA"]*u.degree, bricks["DEC"]*u.degree, frame='icrs')
+    lhistobrick = (np.histogram(c.galactic.l.degree,bins=lbinedges))[0]
+    bhistobrick = (np.histogram(c.galactic.b.degree,bins=bbinedges))[0]
+
+    #ADM loop through the magnitude bins and populate a dictionary
+    #ADM of the number of stars in this magnitude range per brick
+    ldict = {}
+    bdict = {}
+    for mag in magbinedges:
+        key = "{:.2f}".format(mag+(0.5*magstep))
+        #ADM range in magnitude
+        w = np.where( (mags >= mag) & (mags < mag+magstep) )
+        if len(w[0]):
+            #ADM histograms of numbers of objects in l, b
+            lhisto = (np.histogram(lobjs[w],bins=lbinedges))[0]
+            bhisto = (np.histogram(bobjs[w],bins=bbinedges))[0]
+            #ADM fractions of objects in l, b per brick
+            #ADM use a where so that 0/0 results in 0
+            lfrac = np.where(lhistobrick > 0, lhisto/lhistobrick, 0)
+            bfrac = np.where(bhistobrick > 0, bhisto/bhistobrick, 0)
+            #ADM populate the dictionaries
+            ldict[key], bdict[key] = lfrac, bfrac
+
+    return ldict, bdict
+
 
