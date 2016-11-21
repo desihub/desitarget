@@ -20,17 +20,111 @@ from desitarget import obsconditions
 from desitarget import mtl
 import desispec.brick
 from desispec.brick import Bricks
+import desitarget.QA as targetQA
 
+
+def fluctuations_across_bricks(brick_info, decals_brick_info):
+    depth_available = ['DEPTH_G']
+
+    for depth in depth_available:        
+        brick_info['FLUC_'+depth] = {}
+        print('KEYS'.format(brick_info['DENSITY'].keys()))
+        for target_type in brick_info['DENSITY'].keys():
+            if isinstance(target_type, bytes):
+                ttype = target_type.decode()
+            else:
+                ttype = target_type
+            print(' depth {} target {}'.format(depth, ttype))
+            brick_info['FLUC_'+depth][ttype]  = targetQA.generate_fluctuations(decals_brick_info, ttype, depth, brick_info[depth])    
+
+
+def depths_across_bricks(brick_info):
+    """
+    Generates a sample of magnitud dephts for a set of bricks.
+
+    This model was built from the Data Release 3 of DECaLS.
+
+    Parameters:
+    -----------
+        brick_info(Dictionary). Containts at least the following keys:
+            RA (float): numpy array of RA positions
+            DEC (float): numpy array of Dec positions
+
+    Return:
+    ------
+        depths (dictionary). keys include
+            'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
+            The values ofr each key ar numpy arrays (float) with size equal to 
+            the input ra, dec arrays.
+    """
+    ra = brick_info['RA']
+    dec = brick_info['DEC']
+
+    n_to_generate = len(ra)
+    #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
+    differences = {}
+    differences['DEPTH_G'] = [0.22263251, 0.059752077]
+    differences['DEPTH_R'] = [0.26939404, 0.091162138]
+    differences['DEPTH_Z'] = [0.34058815, 0.056099825]
+    
+    # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
+    
+    points = {}
+    points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+                  24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
+    points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+                  24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
+    points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+                  23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
+
+    fractions = {}
+    fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+    fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+    fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+
+    names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
+    depths = {}
+    for name in names:
+        fracs = np.random.random(n_to_generate)
+        brick_info[name] = np.interp(fracs, fractions[name], points[name])
+
+        depth_minus_galdepth = np.random.normal(
+            loc=differences[name][0], 
+            scale=differences[name][1], size=n_to_generate)
+        depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
+        
+        brick_info['GAL'+name] = brick_info[name] - depth_minus_galdepth
+    
+
+def extinction_across_bricks(brick_info, dust_dir):
+    """
+    Estimates E(B-V) across bricks.
+
+    Args:
+         brick_info : dictionary gathering brick information. It must have at least two keys 'RA' and 'DEC'.
+         dust_dir : path where the E(B-V) maps are storesd
+    """
+    from desitarget.mock import sfdmap
+    brick_info['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=dust_dir)
+    return
+    
 
 def gather_brick_info(ra, dec, target_names):
-    from desitarget.mock import sfdmap
     """
     Gathers information about all the targets on the scale of a brick.
     """
     B = Bricks()
 
     brick_info = {}
-    tnames = list(set(target_names))
+    names = list(set(target_names))
+    tnames = []
+    for i in range(len(names)):
+        if isinstance(names[i], bytes):
+            tnames.append(names[i].decode())
+        else:
+            tnames.append(names[i])
+
     n_names = len(tnames)
     print('total of {} target types: {}'.format(len(tnames), tnames))
 
@@ -68,7 +162,7 @@ def gather_brick_info(ra, dec, target_names):
     densities = np.ones([n_brick, n_names])
     for i in range(len(brick_names)):
         ii = (brick_names[i] == names)        
-        print('{} in brick'.format(np.count_nonzero(ii)))
+ #       print('{} in brick'.format(np.count_nonzero(ii)))
 
         brick_xra[i] = xra[ii][0]
         brick_xdec[i] = xdec[ii][0]
@@ -82,16 +176,16 @@ def gather_brick_info(ra, dec, target_names):
         brick_area[i] = (brick_ra2[i] - brick_ra1[i]) 
         brick_area[i] *= (np.sin(brick_dec2[i]*np.pi/180.) - np.sin(brick_dec1[i]*np.pi/180.)) * 180 / np.pi
 
-        print('center ra, dec {} {}'.format(brick_xra[i], brick_xdec[i]))
-        print('center ra1 ra2 {} {}'.format(brick_ra1[i], brick_ra2[i]))
-        print('center dec1 dec2 {} {}'.format(brick_dec1[i], brick_dec2[i]))
-        print(' brick area {}'.format(brick_area[i]))
+#        print('center ra, dec {} {}'.format(brick_xra[i], brick_xdec[i]))
+#        print('center ra1 ra2 {} {}'.format(brick_ra1[i], brick_ra2[i]))
+#        print('center dec1 dec2 {} {}'.format(brick_dec1[i], brick_dec2[i]))
+#        print(' brick area {}'.format(brick_area[i]))
         if(brick_area[i]<0.0):
             exit(1)
         for j in range(n_names):
             jj = (target_names == tnames[j])        
             densities[i,j] = np.count_nonzero(ii & jj)/brick_area[i]
-            print('name {} in names {}. density: {}'.format(tnames[j], tnames, densities[i,j]))
+#            print('name {} in names {}. density: {}'.format(tnames[j], tnames, densities[i,j]))
 
     brick_info['BRICKNAMES'] = brick_names
     brick_info['RA'] = brick_xra
@@ -104,10 +198,8 @@ def gather_brick_info(ra, dec, target_names):
     brick_info['DENSITY'] = {}
     for j in range(n_names):
         brick_info['DENSITY'][tnames[j]] = densities[:,j]
-    
-
-    brick_info['EBV'] = sfdmap.ebv(brick_xra, brick_xdec, mapdir='/project/projectdirs/desi/software/edison/dust/v0_1/maps/')
     return brick_info
+
 
 ############################################################
 def targets_truth(params, output_dir):
@@ -122,7 +214,7 @@ def targets_truth(params, output_dir):
         truth:      
 
     """
-
+    print  ( params['dust_dir'])
     truth_all       = list()
     source_data_all = dict()
     target_mask_all = dict()
@@ -282,8 +374,17 @@ def targets_truth(params, output_dir):
         print('{} {}: selected {} out of {}'.format(source_name, target_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
 
+    #summarizes target density information across bricks
     brick_info = gather_brick_info(ra_total, dec_total, source_type_total)
 
+    #computes magnitude depths across bricks
+    depths_across_bricks(brick_info)
+
+    #computes extinction across bricks
+    extinction_across_bricks(brick_info, params['dust_dir'])    
+
+    #computes density fluctuations across bricks
+    fluctuations_across_bricks(brick_info, params['decals_brick_info'])
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     

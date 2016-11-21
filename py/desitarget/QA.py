@@ -22,6 +22,7 @@ from . import __version__ as desitarget_version
 from . import gitversion
 
 from desiutil import depend
+import warnings
 
 def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
     """Based on depth or E(B-V) values for a brick, generate target fluctuations
@@ -48,11 +49,9 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
         generated from actual DECaLS data
     """
 
-    #ADM check some impacts are as expected
-    tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
-    if not targettype in tts:
-        raise ValueError("targettype must be one of {}".format(" ".join(tts)))
 
+
+    #ADM check some impacts are as expected
     dts = ["DEPTH_G","GALDEPTH_G","DEPTH_R","GALDEPTH_R","DEPTH_Z","GALDEPTH_Z","EBV"]
     if not depthtype in dts:
         raise ValueError("depthtype must be one of {}".format(" ".join(dts)))
@@ -67,6 +66,14 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
 
     #ADM the number of bricks
     nbricks = len(depthorebvarray)
+    tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
+    if not targettype in tts:
+        fluc = np.ones(nbricks)
+        mess = "fluctuations for targettype {} are set to one".format(targettype)
+        warnings.warn(mess,RuntimeWarning)
+        return fluc
+
+
 
     #ADM the target fluctuations are actually called FLUC_* in the model dictionary
     targettype = "FLUC_"+targettype
