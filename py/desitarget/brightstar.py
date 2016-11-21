@@ -179,13 +179,14 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
     #ADM build a histogram of the number of bins at each coordinate...
     #ADM using the center is imperfect, so this is approximate at best
     c = SkyCoord(bricks["RA"]*u.degree, bricks["DEC"]*u.degree, frame='icrs')
-    lhistobrick = (np.histogram(c.galactic.l.degree,bins=lbinedges))[0]
-    bhistobrick = (np.histogram(c.galactic.b.degree,bins=bbinedges))[0]
+    lbrick = c.galactic.l.degree
+    bbrick = c.galactic.b.degree
+    lhistobrick = (np.histogram(lbrick,bins=lbinedges))[0]
+    bhistobrick = (np.histogram(bbrick,bins=bbinedges))[0]
 
     #ADM loop through the magnitude bins and populate a dictionary
     #ADM of the number of stars in this magnitude range per brick
-    ldict = {}
-    bdict = {}
+    ldict, bdict = {}, {}
     for mag in magbinedges:
         key = "{:.2f}".format(mag+(0.5*magstep))
         #ADM range in magnitude
@@ -195,7 +196,7 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
             lhisto = (np.histogram(lobjs[w],bins=lbinedges))[0]
             bhisto = (np.histogram(bobjs[w],bins=bbinedges))[0]
             #ADM fractions of objects in l, b per brick
-            #ADM use a where so that 0/0 results in 0
+            #ADM use a sneaky where so that 0/0 results in 0
             lfrac = np.where(lhistobrick > 0, lhisto/lhistobrick, 0)
             bfrac = np.where(bhistobrick > 0, bhisto/bhistobrick, 0)
             #ADM populate the dictionaries
