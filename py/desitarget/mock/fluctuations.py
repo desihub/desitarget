@@ -12,6 +12,7 @@ Generates density and depth fluctuations
 import numpy as np
 import desispec.brick
 
+
 def density_across_brick(ra, dec, mean_density):    
     """
     Computes the number density for mocks across bricks.

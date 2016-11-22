@@ -24,19 +24,39 @@ import desitarget.QA as targetQA
 
 
 def fluctuations_across_bricks(brick_info, decals_brick_info):
-    depth_available = ['DEPTH_G']
+    """
+    Generates number density fluctuations.
+
+
+    Parameters:
+    -----------
+
+        decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS. 
+        brick_info(Dictionary). Containts at least the following keys:
+            DEPTH_G(float) : array of depth magnitudes in the G band.
+
+    Return:
+    ------
+       fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
+       corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
+       i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion 
+        is a dictionary with keys corresponding to the different galaxy types.
+    """
+    fluctuation = {}
+    tts = ['ALL','LYA','MWS','BGS','QSO','ELG','LRG']
+    
+    depth_available = []
+    for k in brick_info.keys():        
+        if('DEPTH' in k or 'EBV' in k):
+            depth_available.append(k)
+            
 
     for depth in depth_available:        
-        brick_info['FLUC_'+depth] = {}
-        print('KEYS'.format(brick_info['DENSITY'].keys()))
-        for target_type in brick_info['DENSITY'].keys():
-            if isinstance(target_type, bytes):
-                ttype = target_type.decode()
-            else:
-                ttype = target_type
-            print(' depth {} target {}'.format(depth, ttype))
-            brick_info['FLUC_'+depth][ttype]  = targetQA.generate_fluctuations(decals_brick_info, ttype, depth, brick_info[depth])    
-
+        fluctuation['FLUC_'+depth] = {}
+        for ttype in tts:
+            fluctuation['FLUC_'+depth][ttype] = targetQA.generate_fluctuations(decals_brick_info, ttype, depth, brick_info[depth])    
+            print('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+    return fluctuation
 
 def depths_across_bricks(brick_info):
     """
@@ -58,6 +78,7 @@ def depths_across_bricks(brick_info):
             The values ofr each key ar numpy arrays (float) with size equal to 
             the input ra, dec arrays.
     """
+
     ra = brick_info['RA']
     dec = brick_info['DEC']
 
@@ -87,15 +108,16 @@ def depths_across_bricks(brick_info):
     depths = {}
     for name in names:
         fracs = np.random.random(n_to_generate)
-        brick_info[name] = np.interp(fracs, fractions[name], points[name])
+        depths[name] = np.interp(fracs, fractions[name], points[name])
 
         depth_minus_galdepth = np.random.normal(
             loc=differences[name][0], 
             scale=differences[name][1], size=n_to_generate)
         depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
         
-        brick_info['GAL'+name] = brick_info[name] - depth_minus_galdepth
-    
+        depths['GAL'+name] = depths[name] - depth_minus_galdepth
+        print('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
+    return depths
 
 def extinction_across_bricks(brick_info, dust_dir):
     """
@@ -106,101 +128,57 @@ def extinction_across_bricks(brick_info, dust_dir):
          dust_dir : path where the E(B-V) maps are storesd
     """
     from desitarget.mock import sfdmap
-    brick_info['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=dust_dir)
-    return
-    
+    a = {}
+    a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=dust_dir)
+    print('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
+    return a
 
-def gather_brick_info(ra, dec, target_names):
+
+def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
     """
-    Gathers information about all the targets on the scale of a brick.
+    Generates brick dictionary in the ragion (min_ra, max_ra, min_dec, max_dec)
+    
     """
+    min_ra, max_ra, min_dec, max_dec = bounds
+
     B = Bricks()
-
     brick_info = {}
-    names = list(set(target_names))
-    tnames = []
-    for i in range(len(names)):
-        if isinstance(names[i], bytes):
-            tnames.append(names[i].decode())
-        else:
-            tnames.append(names[i])
-
-    n_names = len(tnames)
-    print('total of {} target types: {}'.format(len(tnames), tnames))
-
-
-    # compute brick information for each target
-    irow = ((dec+90.0+B._bricksize/2)/B._bricksize).astype(int)
-    jcol = (ra/360 * B._ncol_per_row[irow]).astype(int)
-
-    xra =  np.array([B._center_ra[i][j] for i,j in zip(irow, jcol)])
-    xdec = B._center_dec[irow]
-
-    ra1 =  np.array([B._edges_ra[i][j] for i,j in zip(irow, jcol)])
-    dec1 = B._edges_dec[irow]
-
-    ra2 =  np.array([B._edges_ra[i][j+1] for i,j in zip(irow, jcol)])
-    dec2 = B._edges_dec[irow+1]
+    brick_info['BRICKNAME'] = []
+    brick_info['RA'] = []
+    brick_info['DEC'] =  []
+    brick_info['RA1'] =  []
+    brick_info['RA2'] =  []
+    brick_info['DEC1'] =  []
+    brick_info['DEC2'] =   []
+    brick_info['BRICKAREA'] =  [] 
     
-    names = list()
-    for i in range(len(ra)):
-        ncol = B._ncol_per_row[irow[i]]
-        j = int(ra[i]/360 * ncol)
-        names.append(B._brickname[irow[i]][j])
-    names  = np.array(names)
+    i_rows = np.where((B._edges_dec < max_dec) & (B._edges_dec > min_dec))
+    i_rows = i_rows[0]
 
-    # summarize brick info
-    brick_names = np.array(list(set(names)))
-    n_brick = len(brick_names)
-    brick_xra = np.ones(n_brick)
-    brick_ra1 = np.ones(n_brick)
-    brick_ra2 = np.ones(n_brick)
-    brick_xdec = np.ones(n_brick)
-    brick_dec1 = np.ones(n_brick)
-    brick_dec2 = np.ones(n_brick)
-    brick_area = np.ones(n_brick)
-    densities = np.ones([n_brick, n_names])
-    for i in range(len(brick_names)):
-        ii = (brick_names[i] == names)        
- #       print('{} in brick'.format(np.count_nonzero(ii)))
+    for i_row in i_rows:
+        j_col_min = (min_ra/360 * B._ncol_per_row[i_row]).astype(int)
+        j_col_max = (max_ra/360 * B._ncol_per_row[i_row]).astype(int)
+        for j_col in range(j_col_min, j_col_max+1):
+            brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
+            
+            brick_info['RA'].append(B._center_ra[i_row][j_col])
+            brick_info['DEC'].append(B._center_dec[i_row])
 
-        brick_xra[i] = xra[ii][0]
-        brick_xdec[i] = xdec[ii][0]
+            brick_info['RA1'].append(B._edges_ra[i_row][j_col])
+            brick_info['DEC1'].append(B._edges_dec[i_row])
+            
+            brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
+            brick_info['DEC2'].append(B._edges_dec[i_row+1])
 
-        brick_ra1[i] = ra1[ii][0]
-        brick_ra2[i] = ra2[ii][0]
 
-        brick_dec1[i] = dec1[ii][0]
-        brick_dec2[i] = dec2[ii][0]
+            brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1]) 
+            brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) - np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
+            brick_info['BRICKAREA'].append(brick_area)
 
-        brick_area[i] = (brick_ra2[i] - brick_ra1[i]) 
-        brick_area[i] *= (np.sin(brick_dec2[i]*np.pi/180.) - np.sin(brick_dec1[i]*np.pi/180.)) * 180 / np.pi
-
-#        print('center ra, dec {} {}'.format(brick_xra[i], brick_xdec[i]))
-#        print('center ra1 ra2 {} {}'.format(brick_ra1[i], brick_ra2[i]))
-#        print('center dec1 dec2 {} {}'.format(brick_dec1[i], brick_dec2[i]))
-#        print(' brick area {}'.format(brick_area[i]))
-        if(brick_area[i]<0.0):
-            exit(1)
-        for j in range(n_names):
-            jj = (target_names == tnames[j])        
-            densities[i,j] = np.count_nonzero(ii & jj)/brick_area[i]
-#            print('name {} in names {}. density: {}'.format(tnames[j], tnames, densities[i,j]))
-
-    brick_info['BRICKNAMES'] = brick_names
-    brick_info['RA'] = brick_xra
-    brick_info['DEC'] = brick_xdec
-    brick_info['RA1'] = brick_ra1
-    brick_info['RA2'] = brick_ra2
-    brick_info['DEC1'] = brick_dec1
-    brick_info['DEC2'] = brick_dec2
-    brick_info['BRICKAREA'] = brick_area
-    brick_info['DENSITY'] = {}
-    for j in range(n_names):
-        brick_info['DENSITY'][tnames[j]] = densities[:,j]
+    print('Generated basic brick info for {} bricks'.format(len(brick_info['BRICKNAME'])))
     return brick_info
 
-
+            
 ############################################################
 def targets_truth(params, output_dir):
     """
@@ -214,10 +192,24 @@ def targets_truth(params, output_dir):
         truth:      
 
     """
-    print  ( params['dust_dir'])
+
     truth_all       = list()
     source_data_all = dict()
     target_mask_all = dict()
+
+    # brick information
+    if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+        brick_info = generate_brick_info(bounds=(params['subset']['min_ra'],
+                                                 params['subset']['max_ra'],
+                                                 params['subset']['min_dec'],
+                                                 params['subset']['max_dec']))
+    else:
+        brick_info = generate_brick_info()
+
+    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir'])) #add extinction
+    brick_info.update(depths_across_bricks(brick_info)) #add depths
+    #a = depths_across_bricks(brick_info)) #add depths
+    brick_info.update(fluctuations_across_bricks(brick_info, params['decals_brick_info']))
 
     # prints info about what we will be loading
     source_defs = params['sources']
@@ -263,21 +255,44 @@ def targets_truth(params, output_dir):
             source_dict.update(params['subset'])
 
         source_data_all[source_name] = result
-
     print('loaded {} mock sources'.format(len(source_data_all)))
+
+
+    
 
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
-        target_name = params['sources'][source_name]['target_name']
-        source_selection = params['sources'][source_name]['selection']
-        source_dict = params['sources'][source_name]
-        source_data = source_data_all[source_name]
+        target_name = params['sources'][source_name]['target_name'] #Targets names
+        source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
+        source_dict = params['sources'][source_name] # filename with the sources
+        source_data = source_data_all[source_name]  # data 
 
         print('type: {} select: {}'.format(source_name, source_selection))
         selection_function = source_selection + '_select'
         result = getattr(mockselect, selection_function.lower())(source_data, target_name, **source_dict)
         target_mask_all[source_name] = result
+
+
+
+    #summarizes target density information across bricks
+#    brick_info = gather_brick_info(ra_total, dec_total, source_type_total)
+
+    #computes magnitude depths across bricks
+#    depths_across_bricks(brick_info)
+
+    #computes extinction across bricks
+ #   extinction_across_bricks(brick_info, params['dust_dir'])    
+
+    #computes density fluctuations across bricks
+  #  fluctuations_across_bricks(brick_info, params['decals_brick_info'])
+
+    #select targets according to density fluctuations
+   # ii_inside = cut_density_fluctuations(ra_total, dec_total, source_type_total, brick_info)
+
+
+
+
         
     # consolidates all relevant arrays across mocks
     ra_total = np.empty(0)
@@ -374,17 +389,7 @@ def targets_truth(params, output_dir):
         print('{} {}: selected {} out of {}'.format(source_name, target_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
 
-    #summarizes target density information across bricks
-    brick_info = gather_brick_info(ra_total, dec_total, source_type_total)
-
-    #computes magnitude depths across bricks
-    depths_across_bricks(brick_info)
-
-    #computes extinction across bricks
-    extinction_across_bricks(brick_info, params['dust_dir'])    
-
-    #computes density fluctuations across bricks
-    fluctuations_across_bricks(brick_info, params['decals_brick_info'])
+    
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     
