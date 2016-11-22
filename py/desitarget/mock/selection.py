@@ -17,11 +17,11 @@ from   desitarget import mws_mask, desi_mask, bgs_mask
 import os
 from   astropy.table import Table, Column
 import fitsio
-
+import desispec.brick
 
 
 ############################################################
-def mag_select(data, source_name, **kwargs):
+def mag_select(data, source_name, brick_info=None, **kwargs):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
@@ -30,7 +30,8 @@ def mag_select(data, source_name, **kwargs):
     -----------
         data: dict
             Data required for selection
-
+        brick_info: 
+            Summary of depths and target fluctuations
         kwargs: dict
             Parameters of sample selection. The requirements will be different
             for different values of source name.
@@ -45,6 +46,22 @@ def mag_select(data, source_name, **kwargs):
             mag_bright:      float
                 Hard bright limit for inclusion in survey.
     """
+    extinctions = {
+        'SDSSu': 4.239,
+        'SDSSg': 3.30,
+        'SDSSr': 2.31,
+        'SDSSz': 1.29,
+        'DESu': 3.995,
+        'DESg': 3.214,
+        'DESr': 2.165,
+        'DESi': 1.592,
+        'DESz': 1.211,
+        'DESY': 1.064,
+        'WISEW1': 0.184,
+        'WISEW2': 0.113,
+        'WISEW3': 0.0241,
+        'WISEW4': 0.00910,
+        }
     target_class = -1
 
     if(source_name == 'STD_FSTAR'):
@@ -146,25 +163,51 @@ def mag_select(data, source_name, **kwargs):
         mag_bright = kwargs['mag_bright']
         mag_faintest = kwargs['mag_faintest']
         mag_priority_split = kwargs['mag_priority_split']
+        ra = data['RA']
+        dec = data['DEC']
 
         # Parameters
         SELECTION_MAG_NAME = 'SDSSr_true'
+        DEPTH_MAG_NAME = 'GALDEPTH_R'
 
         # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+        
+        #now have to loop over all bricks with some data
 
-        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
-        brighter_than_split_mag    = data[SELECTION_MAG_NAME]   < mag_priority_split
-        fainter_than_split_mag     = data[SELECTION_MAG_NAME]  >= mag_priority_split
-        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]   < mag_faintest
+        bricks = desispec.brick.brickname(ra, dec)
+        unique_bricks = list(set(bricks))
 
+        for brickname in unique_bricks:
+            in_brick = (brickname == bricks)
+            print('brickname {} len {}'.format(brickname, np.count_nonzero(in_brick)))
+
+            id_binfo  = np.where(brick_info['BRICKNAME'] == brickname)
+            id_binfo = id_binfo[0]
+            if len(id_binfo) != 1:
+                raise ValueError("brickname not found in brick_info")
+
+            depth = brick_info[DEPTH_MAG_NAME][id_binfo]
+            extinction = brick_info['EBV'][id_binfo] * extinctions['SDSSr']
+            print('DEPTH {} Ext {}'.format(depth, extinction))
+            
+            brighter_than_depth        = (data[SELECTION_MAG_NAME] + extinction) < depth
+            fainter_than_bright_limit  = (data[SELECTION_MAG_NAME] + extinction) >= mag_bright
+            brighter_than_split_mag    = (data[SELECTION_MAG_NAME] + extinction) < mag_priority_split
+            fainter_than_split_mag     = (data[SELECTION_MAG_NAME] + extinction) >= mag_priority_split
+            brighter_than_faint_limit  = (data[SELECTION_MAG_NAME] + extinction)  < mag_faintest
+            
         # Bright sample
-        select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag)
-        target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
-
+            select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag) 
+            select_bright_sample               &= (brighter_than_depth) & (in_brick)
+            target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
+            
         # Faint sample
-        select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit)
-        target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
+            select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit) 
+            select_faint_sample              &= (brighter_than_depth) & (in_brick)
+            print('bright len after selection {}'.format(np.count_nonzero(select_bright_sample)))
+            print('faint len after selection {}'.format(np.count_nonzero(select_faint_sample)))
+            target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
 
     return target_class
 
@@ -200,7 +243,7 @@ def estimate_density(ra, dec, bounds=(170, 190, 0, 35)):
     return density
 
 
-def ndens_select(data, source_name, **kwargs):
+def ndens_select(data, source_name, brick_info=None, **kwargs):
 
     """Apply selection function based only on number density and redshift criteria.
 
