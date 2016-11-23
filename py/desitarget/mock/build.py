@@ -156,8 +156,8 @@ def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
     i_rows = i_rows[0]
 
     for i_row in i_rows:
-        j_col_min = ((min_ra )/360 * B._ncol_per_row[i_row]).astype(int)
-        j_col_max = ((max_ra )/360 * B._ncol_per_row[i_row]).astype(int)
+        j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
+        j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
         for j_col in range(j_col_min, j_col_max+1):
             brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
             
