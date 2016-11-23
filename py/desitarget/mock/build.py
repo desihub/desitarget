@@ -4,9 +4,9 @@ import os
 import importlib
 import time
 import glob
-import numpy as np
-
 from   copy import copy
+
+import numpy as np
 
 import astropy.io.fits as astropy_fitsio
 from   astropy.table import Table, Column
@@ -182,17 +182,68 @@ def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
 
             
 ############################################################
-def targets_truth(params, output_dir):
+def add_mock_shapes_and_fluxes(mocktargets, realtargets):
+    '''
+    Add DECAM_FLUX, SHAPEDEV_R, and SHAPEEXP_R from a real target catalog
+    
+    Modifies mocktargets by adding columns
+    '''
+    n = len(mocktargets)
+    if 'DECAM_FLUX' not in mocktargets.dtype.names:
+        mocktargets['DECAM_FLUX'] = np.zeros((n, 6), dtype='f4')
+    
+    if 'SHAPEDEV_R' not in mocktargets.dtype.names:
+        mocktargets['SHAPEDEV_R'] = np.zeros(n, dtype='f4')
+
+    if 'SHAPEEXP_R' not in mocktargets.dtype.names:
+        mocktargets['SHAPEEXP_R'] = np.zeros(n, dtype='f4')
+        
+    from desitarget import desi_mask
+    for objtype in ('ELG', 'LRG', 'QSO'):
+        mask = desi_mask.mask(objtype)
+        #- indices where mock (ii) and real (jj) match the mask
+        ii = np.where((mocktargets['DESI_TARGET'] & mask) != 0)[0]
+        jj = np.where((realtargets['DESI_TARGET'] & mask) != 0)[0]
+        if len(jj) == 0:
+            raise ValueError("Real target catalog missing {}".format(objtype))
+        
+        #- Which random jj should be used to fill in values for ii?
+        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        
+        mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
+        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
+        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+    from desitarget import bgs_mask
+    for objtype in ('BGS_FAINT', 'BGS_BRIGHT'):
+        mask = bgs_mask.mask(objtype)
+        #- indices where mock (ii) and real (jj) match the mask
+        ii = np.where((mocktargets['BGS_TARGET'] & mask) != 0)[0]
+        jj = np.where((realtargets['BGS_TARGET'] & mask) != 0)[0]
+        if len(jj) == 0:
+            raise ValueError("Real target catalog missing {}".format(objtype))
+        
+        #- Which jj should be used to fill in values for ii?
+        #- NOTE: not filling in BGS or MWS fluxes, only shapes
+        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        # mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
+        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
+        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+def targets_truth(params, output_dir, realtargets=None):
     """
     Write
 
     Args:
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
-    Returns:
-        targets:    
-        truth:      
 
+    Options:
+        realtargets: real target catalog table, e.g. from DR3
+
+    Returns:
+        targets:
+        truth:
     """
 
     truth_all       = list()
@@ -420,6 +471,10 @@ def targets_truth(params, output_dir):
         targets['OBSCONDITIONS'] = obsconditions_total
         brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
         targets['BRICKNAME'] = brickname
+        
+        if realtargets is not None:
+            add_mock_shapes_and_fluxes(targets, realtargets)
+        
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
 
