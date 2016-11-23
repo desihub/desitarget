@@ -23,7 +23,7 @@ from desispec.brick import Bricks
 import desitarget.QA as targetQA
 import yaml
 
-def fluctuations_across_bricks(brick_info, decals_brick_info):
+def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     """
     Generates number density fluctuations.
 
@@ -43,19 +43,17 @@ def fluctuations_across_bricks(brick_info, decals_brick_info):
         is a dictionary with keys corresponding to the different galaxy types.
     """
     fluctuation = {}
-    # tts = ['ALL','LYA','MWS','BGS','QSO','ELG','LRG']
-    tts = ['BGS', 'ELG', 'QSO', 'LYA', 'LRG']
     
     depth_available = []
 #    for k in brick_info.keys():        
-    for k in ['GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z', 'EBV']:        
+    for k in ['GALDEPTH_R', 'EBV']:        
         if('DEPTH' in k or 'EBV' in k):
             depth_available.append(k)
             
 
     for depth in depth_available:        
         fluctuation['FLUC_'+depth] = {}
-        for ttype in tts:
+        for ttype in target_names:
             fluctuation['FLUC_'+depth][ttype] = targetQA.generate_fluctuations(decals_brick_info, ttype, depth, brick_info[depth])    
             print('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
     return fluctuation
@@ -201,6 +199,7 @@ def targets_truth(params, output_dir):
     source_data_all = dict()
     target_mask_all = dict()
 
+    print(params['density_fluctuations'])
     #reads target info from DESIMODEL + changing all the keys to upper case
     filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
     td = yaml.load(filein)
@@ -220,7 +219,7 @@ def targets_truth(params, output_dir):
 
     brick_info.update(extinction_across_bricks(brick_info, params['dust_dir'])) #add extinction
     brick_info.update(depths_across_bricks(brick_info)) #add depths
-    brick_info.update(fluctuations_across_bricks(brick_info, params['decals_brick_info'])) # add number density fluctuations
+    brick_info.update(fluctuations_across_bricks(brick_info, list(params['sources'].keys()), params['decals_brick_info'])) # add number density fluctuations
 
     # appends DESIMODEL info into brick_info
     brick_info.update(target_desimodel)
@@ -232,7 +231,7 @@ def targets_truth(params, output_dir):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
         target_name = params['sources'][source_name]['target_name']
-        print('type: {}\n format: {} \n path: {}'.format(source_name, source_format, source_path))
+        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name, source_format, target_name, source_path))
 
     # load all the mocks
     for source_name in sorted(source_defs.keys()):
@@ -277,36 +276,17 @@ def targets_truth(params, output_dir):
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
-        target_name = params['sources'][source_name]['target_name'] #Targets names
+        target_name = params['sources'][source_name]['target_name'] #Target names
         source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
-        source_dict = params['sources'][source_name] # filename with the sources
+        source_dict = params['sources'][source_name] # dictionary with sources info
         source_data = source_data_all[source_name]  # data 
 
-        print('type: {} select: {}'.format(source_name, source_selection))
+        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
         selection_function = source_selection + '_select'
-        result = getattr(mockselect, selection_function.lower())(source_data, target_name, brick_info, 
+        result = getattr(mockselect, selection_function.lower())(source_data, target_name, source_name, brick_info = brick_info, 
+                                                                 density_fluctuations = params['density_fluctuations'],
                                                                  **source_dict)
         target_mask_all[source_name] = result
-
-
-
-    #summarizes target density information across bricks
-#    brick_info = gather_brick_info(ra_total, dec_total, source_type_total)
-
-    #computes magnitude depths across bricks
-#    depths_across_bricks(brick_info)
-
-    #computes extinction across bricks
- #   extinction_across_bricks(brick_info, params['dust_dir'])    
-
-    #computes density fluctuations across bricks
-  #  fluctuations_across_bricks(brick_info, params['decals_brick_info'])
-
-    #select targets according to density fluctuations
-   # ii_inside = cut_density_fluctuations(ra_total, dec_total, source_type_total, brick_info)
-
-
-
 
         
     # consolidates all relevant arrays across mocks

@@ -21,7 +21,7 @@ import desispec.brick
 import warnings
 
 ############################################################
-def mag_select(data, source_name, brick_info=None, **kwargs):
+def mag_select(data, targetname, sourcename, brick_info=None, density_fluctuations=False, **kwargs):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
@@ -67,7 +67,7 @@ def mag_select(data, source_name, brick_info=None, **kwargs):
 
     target_class = -1
 
-    if(source_name == 'STD_FSTAR'):
+    if(sourcename == 'STD_FSTAR'):
         """
         Apply the selection function to determine the target class of each entry in
         the input catalog.
@@ -108,7 +108,7 @@ def mag_select(data, source_name, brick_info=None, **kwargs):
         select_std_stars = (select_color) & (select_mag)
         target_class[select_std_stars] = desi_mask.mask('STD_FSTAR')
 
-    if(source_name == 'MWS_MAIN'):
+    if(sourcename == 'MWS_MAIN'):
         mag_bright       = kwargs['mag_bright']
         mag_faintest     = kwargs['mag_faintest']
         mag_faint_filler = kwargs['mag_faint_filler']
@@ -139,7 +139,7 @@ def mag_select(data, source_name, brick_info=None, **kwargs):
         select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit) & (further_than_100pc)
         target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
 
-    if(source_name == 'MWS_WD'):
+    if(sourcename == 'MWS_WD'):
         mag_bright = kwargs['mag_bright']
         mag_faint  = kwargs['mag_faint']
 
@@ -162,7 +162,7 @@ def mag_select(data, source_name, brick_info=None, **kwargs):
         select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (np.invert(is_wd))
         target_class[select_nearby_sample] = mws_mask.mask('MWS_NEARBY')
 
-    if(source_name == 'BGS'):
+    if(sourcename == 'BGS'):
         mag_bright = kwargs['mag_bright']
         mag_faintest = kwargs['mag_faintest']
         mag_priority_split = kwargs['mag_priority_split']
@@ -176,41 +176,52 @@ def mag_select(data, source_name, brick_info=None, **kwargs):
         # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
         
+        if density_fluctuations:
         #now have to loop over all bricks with some data
-
-        bricks = desispec.brick.brickname(ra, dec)
-        unique_bricks = list(set(bricks))
-
-        for brickname in unique_bricks:
-            in_brick = (brickname == bricks)
-#            print('brickname {} len {}'.format(brickname, np.count_nonzero(in_brick)))
-            id_binfo  = np.where(brick_info['BRICKNAME'] == brickname)
-            id_binfo = id_binfo[0]
-            if len(id_binfo) != 1:
-                depth = 0.0
-                extinction = 99.0
-                warnings.warn("Tile is on the border. Extinction = 99.0. Depth = 0.0", RuntimeWarning)
-            else:
-                depth = brick_info[DEPTH_MAG_NAME][id_binfo]
-                extinction = brick_info['EBV'][id_binfo] * extinctions['SDSSr']
-
+            bricks = desispec.brick.brickname(ra, dec)
+            unique_bricks = list(set(bricks))
             
+            for brickname in unique_bricks:
+                in_brick = (brickname == bricks)
+            #            print('brickname {} len {}'.format(brickname, np.count_nonzero(in_brick)))
+                id_binfo  = np.where(brick_info['BRICKNAME'] == brickname)
+                id_binfo = id_binfo[0]
+                if len(id_binfo) != 1:
+                    depth = 0.0
+                    extinction = 99.0
+                    warnings.warn("Tile is on the border. Extinction = 99.0. Depth = 0.0", RuntimeWarning)
+                else:
+                    depth = brick_info[DEPTH_MAG_NAME][id_binfo]
+                    extinction = brick_info['EBV'][id_binfo] * extinctions['SDSSr']            
             # print('DEPTH {} Ext {}'.format(depth, extinction))
             
-            brighter_than_depth        = (data[SELECTION_MAG_NAME] + extinction) < depth
-            fainter_than_bright_limit  = (data[SELECTION_MAG_NAME] + extinction) >= mag_bright
-            brighter_than_split_mag    = (data[SELECTION_MAG_NAME] + extinction) < mag_priority_split
-            fainter_than_split_mag     = (data[SELECTION_MAG_NAME] + extinction) >= mag_priority_split
-            brighter_than_faint_limit  = (data[SELECTION_MAG_NAME] + extinction)  < mag_faintest
-            
-        # Bright sample
-            select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag) 
-            select_bright_sample               &= (brighter_than_depth) & (in_brick)
-            target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
+                brighter_than_depth        = (data[SELECTION_MAG_NAME] + extinction) < depth
+                fainter_than_bright_limit  = (data[SELECTION_MAG_NAME] + extinction) >= mag_bright
+                brighter_than_split_mag    = (data[SELECTION_MAG_NAME] + extinction) < mag_priority_split
+                fainter_than_split_mag     = (data[SELECTION_MAG_NAME] + extinction) >= mag_priority_split
+                brighter_than_faint_limit  = (data[SELECTION_MAG_NAME] + extinction)  < mag_faintest
+                
+            # Bright sample
+                select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag) 
+                select_bright_sample               &= (brighter_than_depth) & (in_brick)
+                target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
             
         # Faint sample
-            select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit) 
-            select_faint_sample              &= (brighter_than_depth) & (in_brick)
+                select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit) 
+                select_faint_sample              &= (brighter_than_depth) & (in_brick)
+                target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
+        else:
+            fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
+            brighter_than_split_mag    = data[SELECTION_MAG_NAME]   < mag_priority_split
+            fainter_than_split_mag     = data[SELECTION_MAG_NAME]  >= mag_priority_split
+            brighter_than_faint_limit  = data[SELECTION_MAG_NAME]   < mag_faintest
+
+        # Bright sample
+            select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag)
+            target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
+
+        # Faint sample
+            select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit)
             target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
 
     return target_class
@@ -247,7 +258,7 @@ def estimate_density(ra, dec, bounds=(170, 190, 0, 35)):
     return density
 
 
-def ndens_select(data, source_name, brick_info = None, **kwargs):
+def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctuations = False, **kwargs):
 
     """Apply selection function based only on number density and redshift criteria.
 
@@ -268,14 +279,14 @@ def ndens_select(data, source_name, brick_info = None, **kwargs):
     target_class = np.zeros(n,dtype=np.int64) - 1
     keepornot = np.random.uniform(0.,1.,n)
 
-    if kwargs['density_fluctuations']:
+    if density_fluctuations:
         bricks = desispec.brick.brickname(ra, dec)
         unique_bricks = list(set(bricks))
     
         for brickname in unique_bricks:
             in_brick = (brickname == bricks)
             n_in_brick = np.count_nonzero(in_brick)
-            print('brickname {} len {}'.format(brickname, n_in_brick))
+   #         print('brickname {} len {}'.format(brickname, n_in_brick))
         
             #locate the brick info we need
             id_binfo  = np.where(brick_info['BRICKNAME'] == brickname)
@@ -287,20 +298,20 @@ def ndens_select(data, source_name, brick_info = None, **kwargs):
                 warnings.warn("Tile is on the border. NumDensity= 0.0", RuntimeWarning)
             else:
                 brick_area = brick_info['BRICKAREA'][id_binfo]
-                num_density = brick_info['FLUC_EBV'][source_name][id_binfo]  * brick_info['NTARGET_'+source_name] 
+                num_density = brick_info['FLUC_EBV'][sourcename][id_binfo]  * brick_info['NTARGET_'+sourcename] 
                 
                 
             mock_dens = n_in_brick/brick_area
                 
             frac_keep = num_density/mock_dens
-            print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
+  #          print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_dens, frac_keep))
             
             kept = keepornot < (limit + frac_keep)
             
             select_sample = (in_z) & (kept) & (in_brick)
             
-            print('len kept {}'.format(np.count_nonzero(select_sample)))
-            target_class[select_sample] = desi_mask.mask(source_name)
+ #           print('len kept {}'.format(np.count_nonzero(select_sample)))
+            target_class[select_sample] = desi_mask.mask(targetname)
     else:
         try:
             bounds = kwargs['min_ra'], kwargs['max_ra'], kwargs['min_dec'], kwargs['max_dec']
@@ -308,14 +319,14 @@ def ndens_select(data, source_name, brick_info = None, **kwargs):
         except KeyError:
             mock_dens = estimate_density(ra[in_z], dec[in_z])
 
-        num_density = brick_info['NTARGET_'+source_name] 
+        num_density = brick_info['NTARGET_'+sourcename] 
         frac_keep = num_density/mock_dens
-        print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
+#        print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
         kept = keepornot < (limit + frac_keep)
             
         select_sample = (in_z) & (kept) 
             
-        target_class[select_sample] = desi_mask.mask(source_name)
+        target_class[select_sample] = desi_mask.mask(targetname)
 
     return target_class
 
