@@ -21,7 +21,7 @@ from desitarget import mtl
 import desispec.brick
 from desispec.brick import Bricks
 import desitarget.QA as targetQA
-
+import yaml
 
 def fluctuations_across_bricks(brick_info, decals_brick_info):
     """
@@ -44,11 +44,11 @@ def fluctuations_across_bricks(brick_info, decals_brick_info):
     """
     fluctuation = {}
     # tts = ['ALL','LYA','MWS','BGS','QSO','ELG','LRG']
-    tts = ['BGS', 'ELG']
+    tts = ['BGS', 'ELG', 'QSO', 'LYA', 'LRG']
     
     depth_available = []
 #    for k in brick_info.keys():        
-    for k in ['GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']:        
+    for k in ['GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z', 'EBV']:        
         if('DEPTH' in k or 'EBV' in k):
             depth_available.append(k)
             
@@ -154,12 +154,12 @@ def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
     brick_info['DEC2'] =   []
     brick_info['BRICKAREA'] =  [] 
     
-    i_rows = np.where((B._edges_dec < max_dec + B._bricksize) & (B._edges_dec > min_dec-B._bricksize))
+    i_rows = np.where((B._edges_dec < max_dec ) & (B._edges_dec > min_dec))
     i_rows = i_rows[0]
 
     for i_row in i_rows:
-        j_col_min = ((min_ra - B._bricksize)/360 * B._ncol_per_row[i_row]).astype(int)
-        j_col_max = ((max_ra + B._bricksize)/360 * B._ncol_per_row[i_row]).astype(int)
+        j_col_min = ((min_ra )/360 * B._ncol_per_row[i_row]).astype(int)
+        j_col_max = ((max_ra )/360 * B._ncol_per_row[i_row]).astype(int)
         for j_col in range(j_col_min, j_col_max+1):
             brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
             
@@ -201,6 +201,14 @@ def targets_truth(params, output_dir):
     source_data_all = dict()
     target_mask_all = dict()
 
+    #reads target info from DESIMODEL + changing all the keys to upper case
+    filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
+    td = yaml.load(filein)
+    target_desimodel = {}
+    for t in td.keys():
+        target_desimodel[t.upper()] = td[t]
+
+
     # compiles brick information
     if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
         brick_info = generate_brick_info(bounds=(params['subset']['min_ra'],
@@ -213,6 +221,9 @@ def targets_truth(params, output_dir):
     brick_info.update(extinction_across_bricks(brick_info, params['dust_dir'])) #add extinction
     brick_info.update(depths_across_bricks(brick_info)) #add depths
     brick_info.update(fluctuations_across_bricks(brick_info, params['decals_brick_info'])) # add number density fluctuations
+
+    # appends DESIMODEL info into brick_info
+    brick_info.update(target_desimodel)
 
     # prints info about what we will be loading
     source_defs = params['sources']
@@ -273,7 +284,8 @@ def targets_truth(params, output_dir):
 
         print('type: {} select: {}'.format(source_name, source_selection))
         selection_function = source_selection + '_select'
-        result = getattr(mockselect, selection_function.lower())(source_data, target_name, brick_info, **source_dict)
+        result = getattr(mockselect, selection_function.lower())(source_data, target_name, brick_info, 
+                                                                 **source_dict)
         target_mask_all[source_name] = result
 
 
