@@ -274,8 +274,6 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
         in_z = z>0.0
 
     n = len(ra)
-
-    limit = np.zeros(n) 
     target_class = np.zeros(n,dtype=np.int64) - 1
     keepornot = np.random.uniform(0.,1.,n)
 
@@ -304,9 +302,11 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
             mock_dens = n_in_brick/brick_area
                 
             frac_keep = num_density/mock_dens
-  #          print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_dens, frac_keep))
+            if(frac_keep>1.0):
+                warnings.warn("target {}: frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
+#                print('num density desired {}, num density in mock {}, frac_keep {} - {}'.format(num_density, mock_dens, frac_keep, n_in_brick))
             
-            kept = keepornot < (limit + frac_keep)
+            kept = keepornot < frac_keep
             
             select_sample = (in_z) & (kept) & (in_brick)
             
@@ -321,11 +321,13 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
 
         num_density = brick_info['NTARGET_'+sourcename] 
         frac_keep = num_density/mock_dens
+        if(frac_keep>1.0):
+            warnings.warn("frac_keep>1.0.: frac_keep={} ".format(frac_keep), RuntimeWarning)
 #        print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
-        kept = keepornot < (limit + frac_keep)
+        kept = keepornot < frac_keep
+
             
-        select_sample = (in_z) & (kept) 
-            
+        select_sample = (in_z) & (kept)             
         target_class[select_sample] = desi_mask.mask(targetname)
 
     return target_class
