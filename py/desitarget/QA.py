@@ -16,7 +16,6 @@ import os, re
 from collections import defaultdict
 from glob import glob
 from scipy.optimize import leastsq
-import matplotlib.pyplot as plt
 
 from . import __version__ as desitarget_version
 from . import gitversion
@@ -209,6 +208,7 @@ def fit_quad(x,y,plot=False):
     err = np.array(err)
           
     if plot:
+        import matplotlib.pyplot as plt
         #ADM generate a model
         step = 0.01*(max(x)-min(x))
         xmod = step*np.arange(100)+min(x)
