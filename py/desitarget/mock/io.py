@@ -89,7 +89,7 @@ def _load_mock_mws_file(filename):
 
 
 ############################################################
-def _load_mock_lyaqso_file(filename):
+def _load_mock_lya_file(filename):
     """
     Reads mock information for 
 
@@ -323,7 +323,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
 
 ############################################################
-def read_lyaqso(mock_dir, target_type, mock_name=None):
+def read_lya(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -360,7 +360,7 @@ def read_lyaqso(mock_dir, target_type, mock_name=None):
     ncpu = max(1, multiprocessing.cpu_count() // 2)
     print('using {} parallel readers'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
-    target_list = p.map(_load_mock_lyaqso_file, file_list)
+    target_list = p.map(_load_mock_lya_file, file_list)
 
     print('Read {} files'.format(nfiles))
 

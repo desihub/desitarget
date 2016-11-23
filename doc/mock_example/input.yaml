@@ -1,17 +1,24 @@
 #mock target configuration file
+
+dust_dir: /project/projectdirs/desi/software/edison/dust/v0_1/maps
+
+decals_brick_info: /project/projectdirs/desi/target/catalogs/brick-info-dr3.v0.0.1.fits
+
+density_fluctuations: True
+
 subset:
     ra_dec_cut: True
     min_ra: 200
-    max_ra: 220
-    min_dec: 0
-    max_dec: 20
+    max_ra: 210
+    min_dec: -8
+    max_dec: 8
 sources:
     SKY: {
         target_name: SKY,
-        number_density: 1400.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
         mock_name: random,
         format: gaussianfield,
+        density: 1400.0,
         selection: ndens
     }
     STD_FSTAR: {
@@ -27,35 +34,31 @@ sources:
     }
     ELG: {
         target_name: ELG,
-        number_density: 2400.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
     LRG: {
         target_name: LRG,
-        number_density: 300.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
-    TRACERQSO: {
+    QSO: {
        target_name: QSO,
        min_z : 0.0,
        max_z : 2.1,
        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
        format: gaussianfield,
        selection : ndens,
-       number_density: 120.0
     }
-    LYAQSO: {
+    LYA: {
        target_name: QSO,
        root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.2,
-       format: lyaqso,
+       format: lya,
        selection : ndens,
-       number_density : 50.0
     }
-    BGS: {
+   BGS: {
        target_name: BGS,
        mag_bright: 15.0,
        mag_faintest: 20.0,
@@ -69,7 +72,7 @@ sources:
        mag_bright: 15.0, 
        mag_faint_filler: 19.0, 
        mag_faintest: 20.0, 
-       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
+      root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
        format: galaxia,
        selection: mag
     }
