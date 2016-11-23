@@ -1,10 +1,17 @@
 #mock target configuration file
+
+dust_dir: /project/projectdirs/desi/software/edison/dust/v0_1/maps
+
+decals_brick_info: /global/homes/a/adamyers/brick-info-dr3.fits
+
+density_fluctuations: True
+
 subset:
     ra_dec_cut: True
     min_ra: 200
-    max_ra: 220
-    min_dec: 0
-    max_dec: 20
+    max_ra: 210
+    min_dec: -8
+    max_dec: 8
 sources:
     SKY: {
         target_name: SKY,
@@ -27,33 +34,29 @@ sources:
     }
     ELG: {
         target_name: ELG,
-        number_density: 2400.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
     LRG: {
         target_name: LRG,
-        number_density: 300.0,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
-    TRACERQSO: {
+    QSO: {
        target_name: QSO,
        min_z : 0.0,
        max_z : 2.1,
        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
        format: gaussianfield,
        selection : ndens,
-       number_density: 120.0
     }
-    LYAQSO: {
+    LYA: {
        target_name: QSO,
        root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.2,
-       format: lyaqso,
+       format: lya,
        selection : ndens,
-       number_density : 50.0
     }
     BGS: {
        target_name: BGS,
