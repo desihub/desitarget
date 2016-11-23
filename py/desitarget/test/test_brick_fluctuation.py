@@ -30,16 +30,25 @@ class TestBrickFluctuation(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
-            
+
+        self.b = build.generate_brick_info(bounds=(0.0, 1.0, -1.0, 1.0))
+        self.depth = build.depths_across_bricks(self.b)
+
     def test_generate_brick(self):
-        b = build.generate_brick_info(bounds=(0.0, 1.0, -1.0, 1.0))
         keys = ['BRICKNAME', 'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2', 'BRICKAREA']
-        for k in b.keys():
-            self.assertTrue(np.all(k in keys))
-        self.assertTrue(np.all((b['RA']<b['RA2']) & (b['RA']>b['RA1'])))
-        self.assertTrue(np.all((b['DEC']<b['DEC2']) & (b['DEC']>b['DEC1'])))
+        for k in self.b.keys():
+            self.assertTrue(k in keys)
+            self.assertTrue(isinstance(self.b[k], np.ndarray))
+        self.assertTrue(np.all((self.b['RA']<self.b['RA2']) & (self.b['RA']>self.b['RA1'])))
+        self.assertTrue(np.all((self.b['DEC']<self.b['DEC2']) & (self.b['DEC']>self.b['DEC1'])))
 
-
+    def test_generate_depths(self):
+        keys = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']
+        for k in self.depth.keys():
+            self.assertTrue(k in keys)
+            self.assertTrue(isinstance(self.depth[k], np.ndarray))
+            self.assertEqual(len(self.depth[k]), len(self.b['RA']))
+            self.assertEqual(len(self.depth[k]), len(self.b['DEC']))
 
 if __name__ == '__main__':
     unittest.main()
