@@ -1,4 +1,6 @@
-# Licensed under an MIT "Expat" license - See LICENSE
+# Copyright (c) 2016 Kyle Barbary
+# Licensed under an MIT "Expat" license - See MIT_LICENSE
+# Copied on Nov/20/2016 from https://github.com/kbarbary/sfdmap/ commit: bacdbbd  
 """Get E(B-V) values from the Schlegel, Finkbeiner & Davis (1998) dust map."""
 
 import os
