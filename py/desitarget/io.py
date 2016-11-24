@@ -119,7 +119,7 @@ def write_targets(filename, data, indir=None, qso_selection=None):
     #- Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
-    depend.setdep(hdr, 'desitarget-git', gitversion().decode('utf-8'))
+    depend.setdep(hdr, 'desitarget-git', gitversion())
     if indir is not None:
         depend.setdep(hdr, 'tractor-files', indir)
 

@@ -2,10 +2,15 @@
 desitarget Change Log
 =====================
 
-0.8.1 (unreleased)
+0.8.2 (unreleased)
 ------------------
 
-* No changes yet
+* no changes yet
+
+0.8.1 (2016-11-23)
+------------------
+
+* fix select_targets and gitversion for py3
 
 0.8.0 (2016-11-23)
 ------------------
