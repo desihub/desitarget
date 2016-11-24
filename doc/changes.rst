@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.8.0 (unreleased)
+0.8.1 (unreleased)
+------------------
+
+* No changes yet
+
+0.8.0 (2016-11-23)
 ------------------
 
 * Adds DESI_TARGET bits for bright object masking
