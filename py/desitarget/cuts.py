@@ -155,8 +155,35 @@ def psflike(psftype):
     psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
     return psflike
 
-def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
-    """Target Definition of BGS. Returning a boolean array.
+def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
+    """Target Definition of BGS faint targets, returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a BGS
+            target.
+
+    """
+    #------ Bright Galaxy Survey
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
+    bgs &= rflux > 10**((22.5-20.0)/2.5)
+    bgs &= rflux <= 10**((22.5-19.5)/2.5)
+    if objtype is not None:
+        bgs &= ~psflike(objtype)
+    return bgs
+
+
+def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
+    """Target Definition of BGS bright targets, returning a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -483,7 +510,8 @@ def apply_cuts(objects,qso_selection='randomforest'):
 
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    bgs = isBGS(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint  = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype)
     
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
@@ -526,8 +554,10 @@ def apply_cuts(objects,qso_selection='randomforest'):
 
     desi_target |= fstd * desi_mask.STD_FSTAR
     
-    bgs_target = bgs * bgs_mask.BGS_BRIGHT
-    bgs_target |= bgs * bgs_mask.BGS_BRIGHT_SOUTH
+    bgs_target = bgs_bright * bgs_mask.BGS_BRIGHT
+    bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT_SOUTH
+    bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
+    bgs_target |= bgs_faint * bgs_mask.BGS_FAINT_SOUTH
 
     #- nothing for MWS yet; will be GAIA-based
     if isinstance(bgs_target, numbers.Integral):

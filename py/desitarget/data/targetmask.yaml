@@ -181,9 +181,10 @@ priorities:
         ANCILLARY_ANY: -1
 
     #- Bright Galaxy Survey: priorities 2000-2999
+    #- reobserving successes has lower priority than MWS
     bgs_mask:
-        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2200, MORE_ZGOOD: 2300}
-        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2200, MORE_ZGOOD: 2300}
+        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000}
+        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
