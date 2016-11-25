@@ -277,13 +277,14 @@ def targets_truth(params, output_dir):
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
         target_name = params['sources'][source_name]['target_name'] #Target names
+        truth_name = params['sources'][source_name]['truth_name'] #name for the truth file
         source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
         source_dict = params['sources'][source_name] # dictionary with sources info
         source_data = source_data_all[source_name]  # data 
 
         print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
         selection_function = source_selection + '_select'
-        result = getattr(mockselect, selection_function.lower())(source_data, target_name, source_name, brick_info = brick_info, 
+        result = getattr(mockselect, selection_function.lower())(source_data, source_name, target_name, truth_name, brick_info = brick_info, 
                                                                  density_fluctuations = params['density_fluctuations'],
                                                                  **source_dict)
         target_mask_all[source_name] = result
@@ -304,6 +305,7 @@ def targets_truth(params, output_dir):
     print('Collects information across mock files')
     for source_name in sorted(source_defs.keys()):
         target_name = params['sources'][source_name]['target_name']
+        truth_name = params['sources'][source_name]['truth_name']
         source_data = source_data_all[source_name]
         target_mask = target_mask_all[source_name]
 
@@ -323,8 +325,9 @@ def targets_truth(params, output_dir):
 
         # define names that go into Truth
         n = len(source_data['RA'][ii])
-        if target_name not in ['STD_FSTAR', 'SKY']:
+        if source_name not in ['STD_FSTAR', 'SKY']:
             true_type_map = {
+                'STD_FSTAR': 'STAR',
                 'ELG': 'GALAXY',
                 'LRG': 'GALAXY',
                 'BGS': 'GALAXY',
@@ -337,7 +340,7 @@ def targets_truth(params, output_dir):
             source_type = np.zeros(n, dtype='S10')
             source_type[:] = target_name
             true_type = np.zeros(n, dtype='S10')
-            true_type[:] = true_type_map[target_name]
+            true_type[:] = true_type_map[truth_name]
 
                 
         #define obsconditions
@@ -354,21 +357,21 @@ def targets_truth(params, output_dir):
             source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
 
         #append to the arrays that will go into Targets
-        if target_name in ['STD_FSTAR']:
+        if source_name in ['STD_FSTAR']:
             ra_stars = source_data['RA'][ii].copy()
             dec_stars = source_data['DEC'][ii].copy()
             desi_target_stars = desi_target.copy()
             bgs_target_stars = bgs_target.copy()
             mws_target_stars = mws_target.copy()
             obsconditions_stars = source_obsconditions.copy()
-        if target_name in ['SKY']:
+        if source_name in ['SKY']:
             ra_sky = source_data['RA'][ii].copy()
             dec_sky = source_data['DEC'][ii].copy()
             desi_target_sky = desi_target.copy()
             bgs_target_sky = bgs_target.copy()
             mws_target_sky = mws_target.copy()
             obsconditions_sky = source_obsconditions.copy()
-        if target_name not in ['SKY', 'STD_FSTAR']:
+        if source_name not in ['SKY', 'STD_FSTAR']:
             ra_total = np.append(ra_total, source_data['RA'][ii])
             dec_total = np.append(dec_total, source_data['DEC'][ii])
             z_total = np.append(z_total, source_data['Z'][ii])
@@ -381,7 +384,8 @@ def targets_truth(params, output_dir):
 
             
 
-        print('{} {}: selected {} out of {}'.format(source_name, target_name, len(source_data['RA'][ii]), len(source_data['RA'])))
+        print('source {} target {} truth {}: selected {} out of {}'.format(
+                source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
 
     

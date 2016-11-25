@@ -21,7 +21,7 @@ import desispec.brick
 import warnings
 
 ############################################################
-def mag_select(data, targetname, sourcename, brick_info=None, density_fluctuations=False, **kwargs):
+def mag_select(data, sourcename, targetname, truthname, brick_info=None, density_fluctuations=False, **kwargs):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
@@ -258,7 +258,7 @@ def estimate_density(ra, dec, bounds=(170, 190, 0, 35)):
     return density
 
 
-def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctuations = False, **kwargs):
+def ndens_select(data, sourcename, targetname, truthname, brick_info = None, density_fluctuations = False, **kwargs):
 
     """Apply selection function based only on number density and redshift criteria.
 
@@ -271,7 +271,7 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
     if ('min_z' in kwargs) & ('max_z' in kwargs):
         in_z = ((z>=kwargs['min_z']) & (z<=kwargs['max_z']))
     else:
-        in_z = z>0.0
+        in_z = z>=0.0
 
     # if we don't have a mean NTARGET in the input file, we fall back to constant mean values from the config file
     constant_density = False
@@ -283,11 +283,17 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
         mean_density = kwargs['density']
         constant_density = True
 
+
+    try:
+        global_density  = kwargs['global_density']
+    except:
+        global_density = False
+
     n = len(ra)
     target_class = np.zeros(n,dtype=np.int64) - 1
     keepornot = np.random.uniform(0.,1.,n)
 
-    if density_fluctuations and constant_density == False:
+    if density_fluctuations and constant_density == False and global_density == False:
         bricks = desispec.brick.brickname(ra, dec)
         unique_bricks = list(set(bricks))
     
@@ -310,6 +316,7 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
 
             mock_dens = n_in_brick/brick_area
                                            
+            print('in brick mock density {} - desired num density {}'.format(mock_dens, num_density))
             frac_keep = num_density/mock_dens
             if(frac_keep>1.0):
                 warnings.warn("target {}: frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
@@ -322,7 +329,7 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
  #           print('len kept {}'.format(np.count_nonzero(select_sample)))
             target_class[select_sample] = desi_mask.mask(targetname)
     else:
-        print('No Fluctuations for this target')
+        print('No Fluctuations for this target {}'.format(sourcename))
         try:
             bounds = kwargs['min_ra'], kwargs['max_ra'], kwargs['min_dec'], kwargs['max_dec']
             mock_dens = estimate_density(ra[in_z], dec[in_z], bounds=bounds)
@@ -331,9 +338,10 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
 
         num_density = mean_density
 
+        print('mock density {} - desired num density {}'.format(mock_dens, num_density))
         frac_keep = num_density/mock_dens
         if(frac_keep>1.0):
-            warnings.warn("frac_keep>1.0.: frac_keep={} ".format(frac_keep), RuntimeWarning)
+            warnings.warn("target {} frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
 #        print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
         kept = keepornot < frac_keep
 
