@@ -196,10 +196,11 @@ def targets_truth(params, output_dir):
     """
 
     truth_all       = list()
-    source_data_all = dict()
+
     target_mask_all = dict()
 
-    print(params['density_fluctuations'])
+    source_defs = params['sources']
+
     #reads target info from DESIMODEL + changing all the keys to upper case
     filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
     td = yaml.load(filein)
@@ -225,53 +226,10 @@ def targets_truth(params, output_dir):
     brick_info.update(target_desimodel)
 
     # prints info about what we will be loading
-    source_defs = params['sources']
-    print('The following populations and paths are specified:')
-    for source_name in sorted(source_defs.keys()):
-        source_format = params['sources'][source_name]['format']
-        source_path = params['sources'][source_name]['root_mock_dir']
-        target_name = params['sources'][source_name]['target_name']
-        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name, source_format, target_name, source_path))
+    mockio.print_all_mocks_info(params)
 
-    # load all the mocks
-    for source_name in sorted(source_defs.keys()):
-        source_format = params['sources'][source_name]['format']
-        source_path = params['sources'][source_name]['root_mock_dir']
-        source_dict = params['sources'][source_name]
-        target_name = params['sources'][source_name]['target_name']
-
-        print('type: {} format: {}'.format(source_name, source_format))
-        function = 'read_'+source_format
-        if 'mock_name' in source_dict.keys():
-            mock_name = source_dict['mock_name']
-        else:
-            mock_name = None
-        result = getattr(mockio, function)(source_path, target_name, mock_name=mock_name)
-
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            print('Trimming {} to RA,dec subselection'.format(source_name))
-            ii  = (result['RA']  >= params['subset']['min_ra']) & \
-                  (result['RA']  <= params['subset']['max_ra']) & \
-                  (result['DEC'] >= params['subset']['min_dec']) & \
-                  (result['DEC'] <= params['subset']['max_dec'])
-
-            #- Trim RA,DEC,Z, ... columns to subselection
-            #- Different types of mocks have different metadata, so assume
-            #- that any ndarray of the same length as number of targets should
-            #- be trimmed.
-            ntargets = len(result['RA'])
-            for key in result:
-                if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
-                    result[key] = result[key][ii]
-
-            #- Add min/max ra/dec to source_dict for use in density estimates
-            source_dict.update(params['subset'])
-
-        source_data_all[source_name] = result
-    print('loaded {} mock sources'.format(len(source_data_all)))
-
-
-    
+    # loads all the mocks
+    source_data_all = mockio.load_all_mocks(params)
 
     print('Making target selection')
     # runs target selection on every mock
