@@ -316,7 +316,7 @@ def ndens_select(data, sourcename, targetname, truthname, brick_info = None, den
 
             mock_dens = n_in_brick/brick_area
                                            
-            print('in brick mock density {} - desired num density {}'.format(mock_dens, num_density))
+#            print('in brick mock density {} - desired num density {}'.format(mock_dens, num_density))
             frac_keep = num_density/mock_dens
             if(frac_keep>1.0):
                 warnings.warn("target {}: frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
