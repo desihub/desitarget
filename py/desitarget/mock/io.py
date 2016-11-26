@@ -48,12 +48,12 @@ def print_all_mocks_info(params):
         print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name, source_format, target_name, source_path))
 
 def load_all_mocks(params):
-        """
+    """
     Prints parameters to read mock files.
     Parameters
     ----------
-        params (dictionary) The different kind of sources are stored under the 'sources' key.
-
+    params (dictionary) The different kind of sources are stored under the 'sources' key.
+    
     Returns
     -------
         source_data_all (dictionary). The keys correspond to the different input 'sources'
