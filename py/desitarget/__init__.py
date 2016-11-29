@@ -31,7 +31,8 @@ def gitversion():
     os.chdir(origdir)
     out = p.communicate()[0]
     if p.returncode == 0:
-        return out.rstrip()
+        #- avoid py3 bytes and py3 unicode; get native str in both cases
+        return str(out.rstrip().decode('ascii'))
     else:
         return 'unknown'
 

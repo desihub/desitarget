@@ -1,23 +1,30 @@
 #mock target configuration file
-output_dir: /tmp
-run_label:  GX_100PC_MXXL_JT2P4Y_JULY16_B
+
+dust_dir: /project/projectdirs/desi/software/edison/dust/v0_1/maps
+
+decals_brick_info: /project/projectdirs/desi/target/catalogs/brick-info-dr3.v0.0.1.fits
+
+density_fluctuations: True
+
 subset:
     ra_dec_cut: True
     min_ra: 200
-    max_ra: 220
-    min_dec: 0
-    max_dec: 20
+    max_ra: 210
+    min_dec: -8
+    max_dec: 8
 sources:
     SKY: {
         target_name: SKY,
-        number_density: 1400.0,
+        truth_name: SKY,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
         mock_name: random,
         format: gaussianfield,
+        density: 1400.0,
         selection: ndens
     }
     STD_FSTAR: {
        target_name: STD_FSTAR,
+       truth_name: STD_FSTAR,
        mag_bright: 16.0, 
        grcolor : 0.32,
        rzcolor : 0.13,
@@ -29,54 +36,66 @@ sources:
     }
     ELG: {
         target_name: ELG,
-        number_density: 2400.0,
-        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.3,
+        truth_name: ELG,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
     LRG: {
         target_name: LRG,
-        number_density: 300.0,
-        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.3,
+        truth_name: LRG,
+        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
-    TRACERQSO: {
+    QSO: {
        target_name: QSO,
+      truth_name: QSO,
        min_z : 0.0,
        max_z : 2.1,
-       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.3,
+       root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
        format: gaussianfield,
        selection : ndens,
-       number_density: 120.0
     }
-    LYAQSO: {
+    BADQSO: {
        target_name: QSO,
-       root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.1,
-       format: lyaqso,
-       selection : ndens,
-       number_density : 50.0
+       truth_name: STD_FSTAR,
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
+       format: galaxia,
+       global_density: True,
+       selection: ndens
+    }
+    LYA: {
+       target_name: QSO,
+       truth_name: QSO,
+       root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.2,
+       format: lya,
+       selection : ndens
     }
     BGS: {
        target_name: BGS,
+       truth_name: BGS,
        mag_bright: 15.0,
        mag_faintest: 20.0,
        mag_priority_split: 19.5,
-       root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint/v0.0.2,
+       root_mock_dir: /project/projectdirs/desi/mocks/bgs/MXXL/desi_footprint/v0.0.3,
        format: durham_mxxl_hdf5,
        selection: mag
     }
     MWS_MAIN: {
        target_name: MWS_MAIN,
+       truth_name: MWS_MAIN,
        mag_bright: 15.0, 
        mag_faint_filler: 19.0, 
        mag_faintest: 20.0, 
+       # root_mock_dir: /project/projectdirs/desi/users/forero/galaxia_small,
        root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
        format: galaxia,
        selection: mag
     }
     MWS_WD: {
         target_name: MWS_WD,
+        truth_name: MWS_WD,
         mag_bright: 15.0, 
         mag_faint: 20.0, 
         root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc/v0.0.1,
