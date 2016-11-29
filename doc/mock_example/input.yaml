@@ -88,7 +88,7 @@ sources:
        mag_bright: 15.0, 
        mag_faint_filler: 19.0, 
        mag_faintest: 20.0, 
-       root_mock_dir: /project/projectdirs/desi/users/forero/galaxia_small,
+       # root_mock_dir: /project/projectdirs/desi/users/forero/galaxia_small,
        root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
        format: galaxia,
        selection: mag

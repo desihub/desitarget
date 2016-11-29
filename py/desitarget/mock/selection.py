@@ -31,21 +31,21 @@ def make_lookup_dict(bricks):
 
     Output:
     -------
-    Lookup Dictionary. l['brickname'] returns a list with all the IDs in the
-    input array bricks where bricks=='brickname'
+    Lookup Dictionary. lookup['brickname'] returns a list with all the indices
+    in the input array bricks where bricks=='brickname'
     """
-    l = {}
+    lookup = {}
     unique_bricks = list(set(bricks))
 
     for b in unique_bricks:
-        l[b] = []
+        lookup[b] = []
 
     for i in range(len(bricks)):
         try:
-            l[bricks[i]].append(i)
+            lookup[bricks[i]].append(i)
         except:
-            l[bricks[i]] = i
-    return l
+            lookup[bricks[i]] = i
+    return lookup
 ############################################################
 def mag_select(data, sourcename, targetname, truthname, brick_info=None, density_fluctuations=False, **kwargs):
     """
