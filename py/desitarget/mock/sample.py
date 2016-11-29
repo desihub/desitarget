@@ -1,12 +1,15 @@
+"""Samples magnitudes for LRGs, ELGs and QSOs from a Gaussian mixture model.
+
+The model for each object type is fit to DR2 targets that have passed target
+selection critera.
+"""
+
+from __future__ import print_function, division
+
 import numpy as np
 import os
 from pkg_resources import resource_filename
 from astropy.io import fits
-
-
-"""This file samples magnitudes for LRGs, ELGs and QSOs from a Gaussian mixture
-model that was fit to DR2 targets that have passed target selection critera. 
-"""
 
 class GaussianMixtureModel(object):
 
@@ -16,7 +19,7 @@ class GaussianMixtureModel(object):
         self.covars = covars
         self.covtype = covtype
         self.n_components, self.n_dimensions = self.means.shape
-    
+
     @staticmethod
     def save(model, filename):
         hdus = fits.HDUList()
@@ -36,13 +39,13 @@ class GaussianMixtureModel(object):
             hdus['weights'].data, hdus['means'].data, hdus['covars'].data, covtype)
         hdus.close()
         return model
-        
+
     def sample(self, n_samples=1, random_state=None):
-        
+
         if self.covtype != 'full':
             return NotImplementedError(
                 'covariance type "{0}" not implemented yet.'.format(self.covtype))
-        
+
         # Code adapted from sklearn's GMM.sample()
         if random_state is None:
             random_state = np.random.RandomState()
@@ -64,24 +67,29 @@ class GaussianMixtureModel(object):
         return X
 
 
-def sample_magnitudes(target_type, n_targets):
+def sample_magnitudes(target_type, n_targets, random_state):
 	"""Samples magnitudes based on target type (i.e. LRG, ELG, QSO).
-	
-	Can sample multiple targets at once and needs only to be called 
+
+	Can sample multiple targets at once and needs only to be called
 	once for each target_type.
 
-	Args:
-        target_type : string
+	Parameters
+    ----------
+    target_type : str
+        One of three object types (LRG, ELG, QSO).
 	n_targets : int
-		   
+        Number of sampled magntiudes to be returned for the specified
+        target_type.
 
-	Returns:
-        sample : np.array
-		An array of shape (n_targets,3).
-		g magnitude = sample[:,0]
-		r magnitude = sample[:,1]
-		z magnitude = sample[:,2] 
-    	"""
+
+	Returns
+    -------
+        np.array
+	       An array of sampled magnitudes of shape (n_targets,3):
+           g magnitude = sample[:,0]
+           r magnitude = sample[:,1]
+           z magnitude = sample[:,2]
+    """
 
 	#Path to model .fits files
 	pathToModels = resource_filename('desitarget', "data")
@@ -93,14 +101,8 @@ def sample_magnitudes(target_type, n_targets):
         	model = GaussianMixtureModel.load(pathToModels + '/elgMag_gmm.fits')
     	elif target_type == 'QSO':
         	model = GaussianMixtureModel.load(pathToModels + '/qsoMag_gmm.fits')
-        
+
 	#Generate a sample of magnitudes of size n_targets
-	sample = model.sample(n_targets)
-    	
+	sample = model.sample(n_samples=n_targets, random_state=random_state)
+
 	return sample
-
-
-
-
-
-
