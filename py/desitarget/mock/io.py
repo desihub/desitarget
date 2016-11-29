@@ -16,6 +16,7 @@ import desitarget.io
 import h5py
 import desitarget.targets
 
+
 """
 How to distribute 52 user bits of targetid.
 
@@ -31,6 +32,74 @@ ENCODE_ROW_MAX     = ENCODE_ROW_MASK
 ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
+
+def print_all_mocks_info(params):
+    """
+    Prints parameters to read mock files.
+    Parameters
+    ----------
+        params (dictionary) The different kind of sources are stored under the 'sources' key.
+    """
+    print('The following populations and paths are specified:')
+    for source_name in sorted(params['sources'].keys()):
+        source_format = params['sources'][source_name]['format']
+        source_path = params['sources'][source_name]['root_mock_dir']
+        target_name = params['sources'][source_name]['target_name']
+        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name, source_format, target_name, source_path))
+
+def load_all_mocks(params):
+    """
+    Prints parameters to read mock files.
+    Parameters
+    ----------
+    params (dictionary) The different kind of sources are stored under the 'sources' key.
+    
+    Returns
+    -------
+        source_data_all (dictionary). The keys correspond to the different input 'sources'
+        stored under params['sources'].keys()
+    """
+    source_data_all = {}
+    # load all the mocks
+    for source_name in sorted(params['sources'].keys()):
+        source_format = params['sources'][source_name]['format']
+        source_path = params['sources'][source_name]['root_mock_dir']
+        source_dict = params['sources'][source_name]
+        target_name = params['sources'][source_name]['target_name']
+
+        print('type: {} format: {}'.format(source_name, source_format))
+        function = 'read_'+source_format
+        if 'mock_name' in source_dict.keys():
+            mock_name = source_dict['mock_name']
+        else:
+            mock_name = None
+        func = globals()[function]
+        result = func(source_path, target_name, mock_name=mock_name)
+
+        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            print('Trimming {} to RA,dec subselection'.format(source_name))
+            ii  = (result['RA']  >= params['subset']['min_ra']) & \
+                  (result['RA']  <= params['subset']['max_ra']) & \
+                  (result['DEC'] >= params['subset']['min_dec']) & \
+                  (result['DEC'] <= params['subset']['max_dec'])
+
+            #- Trim RA,DEC,Z, ... columns to subselection
+            #- Different types of mocks have different metadata, so assume
+            #- that any ndarray of the same length as number of targets should
+            #- be trimmed.
+            ntargets = len(result['RA'])
+            for key in result:
+                if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
+                    result[key] = result[key][ii]
+
+            #- Add min/max ra/dec to source_dict for use in density estimates
+            source_dict.update(params['subset'])
+
+        source_data_all[source_name] = result
+    print('loaded {} mock sources'.format(len(source_data_all)))
+    return source_data_all
+
+    
 
 
 ############################################################

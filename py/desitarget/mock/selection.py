@@ -20,8 +20,34 @@ import fitsio
 import desispec.brick
 import warnings
 
+
+def make_lookup_dict(bricks):
+    """
+    Creates lookup dictionary for a list of bricks.
+    
+    Parameters:
+    -----------
+    bricks (array): array of bricknames.
+
+    Output:
+    -------
+    Lookup Dictionary. lookup['brickname'] returns a list with all the indices
+    in the input array bricks where bricks=='brickname'
+    """
+    lookup = {}
+    unique_bricks = list(set(bricks))
+
+    for b in unique_bricks:
+        lookup[b] = []
+
+    for i in range(len(bricks)):
+        try:
+            lookup[bricks[i]].append(i)
+        except:
+            lookup[bricks[i]] = i
+    return lookup
 ############################################################
-def mag_select(data, targetname, sourcename, brick_info=None, density_fluctuations=False, **kwargs):
+def mag_select(data, sourcename, targetname, truthname, brick_info=None, density_fluctuations=False, **kwargs):
     """
     Apply the selection function to determine the target class of each entry in
     the input catalog.
@@ -181,35 +207,40 @@ def mag_select(data, targetname, sourcename, brick_info=None, density_fluctuatio
             bricks = desispec.brick.brickname(ra, dec)
             unique_bricks = list(set(bricks))
             
+            i_brick = 0 
+            n_brick = len(unique_bricks)
+
+            # create dictionary with targets per brick
+            lookup = make_lookup_dict(bricks)
             for brickname in unique_bricks:
-                in_brick = (brickname == bricks)
-            #            print('brickname {} len {}'.format(brickname, np.count_nonzero(in_brick)))
-                id_binfo  = np.where(brick_info['BRICKNAME'] == brickname)
-                id_binfo = id_binfo[0]
-                if len(id_binfo) != 1:
+                in_brick = np.array(lookup[brickname])
+                i_brick += 1
+#                print('brick {} out of {}'.format(i_brick,n_brick))                
+
+                id_binfo  = (brick_info['BRICKNAME'] == brickname)
+                if np.count_nonzero(id_binfo) != 1:
                     depth = 0.0
                     extinction = 99.0
                     warnings.warn("Tile is on the border. Extinction = 99.0. Depth = 0.0", RuntimeWarning)
                 else:
                     depth = brick_info[DEPTH_MAG_NAME][id_binfo]
                     extinction = brick_info['EBV'][id_binfo] * extinctions['SDSSr']            
-            # print('DEPTH {} Ext {}'.format(depth, extinction))
-            
-                brighter_than_depth        = (data[SELECTION_MAG_NAME] + extinction) < depth
-                fainter_than_bright_limit  = (data[SELECTION_MAG_NAME] + extinction) >= mag_bright
-                brighter_than_split_mag    = (data[SELECTION_MAG_NAME] + extinction) < mag_priority_split
-                fainter_than_split_mag     = (data[SELECTION_MAG_NAME] + extinction) >= mag_priority_split
-                brighter_than_faint_limit  = (data[SELECTION_MAG_NAME] + extinction)  < mag_faintest
+                # print('DEPTH {} Ext {}'.format(depth, extinction))
+
+                tmp  = data[SELECTION_MAG_NAME][in_brick] + extinction
+                brighter_than_depth        = tmp < depth
+                fainter_than_bright_limit  = tmp >= mag_bright
+                brighter_than_split_mag    = tmp < mag_priority_split
+                fainter_than_split_mag     = tmp >= mag_priority_split
+                brighter_than_faint_limit  = tmp  < mag_faintest
                 
-            # Bright sample
-                select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag) 
-                select_bright_sample               &= (brighter_than_depth) & (in_brick)
-                target_class[select_bright_sample] = bgs_mask.mask('BGS_BRIGHT')
+                # Bright sample
+                select_bright_sample               = (fainter_than_bright_limit) & (brighter_than_split_mag) & (brighter_than_depth)
+                target_class[in_brick[select_bright_sample]] = bgs_mask.mask('BGS_BRIGHT')
             
-        # Faint sample
-                select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit) 
-                select_faint_sample              &= (brighter_than_depth) & (in_brick)
-                target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
+                # Faint sample
+                select_faint_sample               = (fainter_than_split_mag) & (brighter_than_faint_limit) & (brighter_than_depth)
+                target_class[in_brick[select_faint_sample]] = bgs_mask.mask('BGS_FAINT')
         else:
             fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
             brighter_than_split_mag    = data[SELECTION_MAG_NAME]   < mag_priority_split
@@ -258,7 +289,7 @@ def estimate_density(ra, dec, bounds=(170, 190, 0, 35)):
     return density
 
 
-def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctuations = False, **kwargs):
+def ndens_select(data, sourcename, targetname, truthname, brick_info = None, density_fluctuations = False, **kwargs):
 
     """Apply selection function based only on number density and redshift criteria.
 
@@ -271,7 +302,7 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
     if ('min_z' in kwargs) & ('max_z' in kwargs):
         in_z = ((z>=kwargs['min_z']) & (z<=kwargs['max_z']))
     else:
-        in_z = z>0.0
+        in_z = z>=0.0
 
     # if we don't have a mean NTARGET in the input file, we fall back to constant mean values from the config file
     constant_density = False
@@ -283,46 +314,55 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
         mean_density = kwargs['density']
         constant_density = True
 
+
+    try:
+        global_density  = kwargs['global_density']
+    except:
+        global_density = False
+
     n = len(ra)
     target_class = np.zeros(n,dtype=np.int64) - 1
     keepornot = np.random.uniform(0.,1.,n)
 
-    if density_fluctuations and constant_density == False:
+    if density_fluctuations and constant_density == False and global_density == False:
         bricks = desispec.brick.brickname(ra, dec)
         unique_bricks = list(set(bricks))
-    
+        n_brick = len(unique_bricks)
+
+        i_brick = 0
+        lookup = make_lookup_dict(bricks)
         for brickname in unique_bricks:
-            in_brick = (brickname == bricks)
-            n_in_brick = np.count_nonzero(in_brick)
+            in_brick = np.array(lookup[brickname])
+            i_brick += 1
+#            print('brick {} out of {}'.format(i_brick,n_brick))                
+
+            n_in_brick = len(in_brick)
 
             #locate the brick info we need
-            id_binfo  = np.where(brick_info['BRICKNAME'] == brickname)
-            id_binfo = id_binfo[0]
+            id_binfo  = (brick_info['BRICKNAME'] == brickname)
 
-            if len(id_binfo) != 1:
+            if np.count_nonzero(id_binfo) != 1:
                 num_density = 0.0
-                brick_area = 0.25
+                brick_area = 1.0
                 warnings.warn("Tile is on the border. NumDensity= 0.0", RuntimeWarning)
             else:
                 brick_area = brick_info['BRICKAREA'][id_binfo]
                 num_density = brick_info['FLUC_EBV'][sourcename][id_binfo]  * mean_density
 
-
             mock_dens = n_in_brick/brick_area
                                            
+#            print('in brick mock density {} - desired num density {}'.format(mock_dens, num_density))
             frac_keep = num_density/mock_dens
             if(frac_keep>1.0):
                 warnings.warn("target {}: frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
 #                print('num density desired {}, num density in mock {}, frac_keep {} - {}'.format(num_density, mock_dens, frac_keep, n_in_brick))
             
-            kept = keepornot < frac_keep
-            
-            select_sample = (in_z) & (kept) & (in_brick)
+            kept = (keepornot[in_brick] < frac_keep) & (in_z[in_brick])
             
  #           print('len kept {}'.format(np.count_nonzero(select_sample)))
-            target_class[select_sample] = desi_mask.mask(targetname)
+            target_class[in_brick[kept]] = desi_mask.mask(targetname)
     else:
-        print('No Fluctuations for this target')
+        print('No Fluctuations for this target {}'.format(sourcename))
         try:
             bounds = kwargs['min_ra'], kwargs['max_ra'], kwargs['min_dec'], kwargs['max_dec']
             mock_dens = estimate_density(ra[in_z], dec[in_z], bounds=bounds)
@@ -331,9 +371,10 @@ def ndens_select(data, targetname, sourcename, brick_info = None, density_fluctu
 
         num_density = mean_density
 
+        print('mock density {} - desired num density {}'.format(mock_dens, num_density))
         frac_keep = num_density/mock_dens
         if(frac_keep>1.0):
-            warnings.warn("frac_keep>1.0.: frac_keep={} ".format(frac_keep), RuntimeWarning)
+            warnings.warn("target {} frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
 #        print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
         kept = keepornot < frac_keep
 

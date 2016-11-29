@@ -15,6 +15,7 @@ subset:
 sources:
     SKY: {
         target_name: SKY,
+        truth_name: SKY,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.1/2048,
         mock_name: random,
         format: gaussianfield,
@@ -23,6 +24,7 @@ sources:
     }
     STD_FSTAR: {
        target_name: STD_FSTAR,
+       truth_name: STD_FSTAR,
        mag_bright: 16.0, 
        grcolor : 0.32,
        rzcolor : 0.13,
@@ -34,32 +36,45 @@ sources:
     }
     ELG: {
         target_name: ELG,
+        truth_name: ELG,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
     LRG: {
         target_name: LRG,
+        truth_name: LRG,
         root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
         format: gaussianfield,
         selection: ndens
     }
     QSO: {
        target_name: QSO,
+      truth_name: QSO,
        min_z : 0.0,
        max_z : 2.1,
        root_mock_dir: /project/projectdirs/desi/mocks/GaussianRandomField/v0.0.4,
        format: gaussianfield,
        selection : ndens,
     }
+    BADQSO: {
+       target_name: QSO,
+       truth_name: STD_FSTAR,
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
+       format: galaxia,
+       global_density: True,
+       selection: ndens
+    }
     LYA: {
        target_name: QSO,
+       truth_name: QSO,
        root_mock_dir: /project/projectdirs/desi/mocks/lya_forest/v0.0.2,
        format: lya,
-       selection : ndens,
+       selection : ndens
     }
-   BGS: {
+    BGS: {
        target_name: BGS,
+       truth_name: BGS,
        mag_bright: 15.0,
        mag_faintest: 20.0,
        mag_priority_split: 19.5,
@@ -69,15 +84,18 @@ sources:
     }
     MWS_MAIN: {
        target_name: MWS_MAIN,
+       truth_name: MWS_MAIN,
        mag_bright: 15.0, 
        mag_faint_filler: 19.0, 
        mag_faintest: 20.0, 
-      root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
+       # root_mock_dir: /project/projectdirs/desi/users/forero/galaxia_small,
+       root_mock_dir: /project/projectdirs/desi/mocks/mws/galaxia/alpha/v0.0.2/bricks,
        format: galaxia,
        selection: mag
     }
     MWS_WD: {
         target_name: MWS_WD,
+        truth_name: MWS_WD,
         mag_bright: 15.0, 
         mag_faint: 20.0, 
         root_mock_dir: /project/projectdirs/desi/mocks/mws/wd100pc/v0.0.1,
