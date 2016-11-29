@@ -68,41 +68,43 @@ class GaussianMixtureModel(object):
 
 
 def sample_magnitudes(target_type, n_targets, random_state):
-	"""Samples magnitudes based on target type (i.e. LRG, ELG, QSO).
+    """Sample magnitudes based on target type (i.e. LRG, ELG, QSO).
 
-	Can sample multiple targets at once and needs only to be called
-	once for each target_type.
+    Can sample multiple targets at once and needs only to be called
+    once for each target_type.
 
-	Parameters
+    Parameters
     ----------
     target_type : str
         One of three object types (LRG, ELG, QSO).
-	n_targets : int
+    n_targets : int
         Number of sampled magntiudes to be returned for the specified
         target_type.
 
 
-	Returns
+    Returns
     -------
-        np.array
-	       An array of sampled magnitudes of shape (n_targets,3):
-           g magnitude = sample[:,0]
-           r magnitude = sample[:,1]
-           z magnitude = sample[:,2]
+    np.array
+        An array of sampled grz magnitudes of shape (n_targets,3).
     """
 
-	#Path to model .fits files
-	pathToModels = resource_filename('desitarget', "data")
+    #Path to model .fits files
+    pathToModels = resource_filename('desitarget', "mock/data")
 
-	#Load the mixture model for the specified target_type
-	if target_type == 'LRG':
-		model = GaussianMixtureModel.load(pathToModels + '/lrgMag_gmm.fits')
-	elif target_type == 'ELG':
-        	model = GaussianMixtureModel.load(pathToModels + '/elgMag_gmm.fits')
-    	elif target_type == 'QSO':
-        	model = GaussianMixtureModel.load(pathToModels + '/qsoMag_gmm.fits')
+    #Load the mixture model for the specified target_type
+    if target_type == 'LRG':
+        model = GaussianMixtureModel.load(pathToModels + '/lrgMag_gmm.fits')
+    elif target_type == 'ELG':
+        model = GaussianMixtureModel.load(pathToModels + '/elgMag_gmm.fits')
+    elif target_type == 'QSO':
+        model = GaussianMixtureModel.load(pathToModels + '/qsoMag_gmm.fits')
 
-	#Generate a sample of magnitudes of size n_targets
-	sample = model.sample(n_samples=n_targets, random_state=random_state)
+    #Generate a sample of magnitudes of size n_targets
+    mags = model.sample(n_samples=n_targets, random_state=random_state)
 
-	return sample
+    samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8')])
+    samp['g'] = mags[:,0]
+    samp['r'] = mags[:,1]
+    samp['z'] = mags[:,2]
+
+    return samp
