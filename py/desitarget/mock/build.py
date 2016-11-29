@@ -213,7 +213,7 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
 
         #- Which random jj should be used to fill in values for ii?
         kk = jj[np.random.randint(0, len(jj), size=len(ii))]
-
+        
         mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
         mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
