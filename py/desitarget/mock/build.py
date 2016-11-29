@@ -125,7 +125,7 @@ def extinction_across_bricks(brick_info, dust_dir):
 
     Args:
          brick_info : dictionary gathering brick information. It must have at least two keys 'RA' and 'DEC'.
-         dust_dir : path where the E(B-V) maps are storesd
+         dust_dir : path where the E(B-V) maps are stored
     """
     from desitarget.mock import sfdmap
     a = {}
@@ -182,7 +182,7 @@ def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
 
             
 ############################################################
-def add_mock_shapes_and_fluxes(mocktargets, realtargets):
+def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
     '''
     Add DECAM_FLUX, SHAPEDEV_R, and SHAPEEXP_R from a real target catalog
     
@@ -197,7 +197,11 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets):
 
     if 'SHAPEEXP_R' not in mocktargets.dtype.names:
         mocktargets['SHAPEEXP_R'] = np.zeros(n, dtype='f4')
-        
+
+    if realtargets is None:
+        print('WARNING: no real target catalog provided; adding columns of zeros for DECAM_FLUX, SHAPE*')
+        return
+
     from desitarget import desi_mask
     for objtype in ('ELG', 'LRG', 'QSO'):
         mask = desi_mask.mask(objtype)
@@ -206,10 +210,10 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets):
         jj = np.where((realtargets['DESI_TARGET'] & mask) != 0)[0]
         if len(jj) == 0:
             raise ValueError("Real target catalog missing {}".format(objtype))
-        
+
         #- Which random jj should be used to fill in values for ii?
         kk = jj[np.random.randint(0, len(jj), size=len(ii))]
-        
+
         mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
         mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
@@ -222,13 +226,40 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets):
         jj = np.where((realtargets['BGS_TARGET'] & mask) != 0)[0]
         if len(jj) == 0:
             raise ValueError("Real target catalog missing {}".format(objtype))
-        
+
         #- Which jj should be used to fill in values for ii?
         #- NOTE: not filling in BGS or MWS fluxes, only shapes
         kk = jj[np.random.randint(0, len(jj), size=len(ii))]
         # mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
         mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+def add_OIIflux(targets, truth):
+    '''
+    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
+    
+    Args:
+        targets: target selection catalog Table or structured array
+        truth: target selection catalog Table
+    
+    Note: Modifies truth table in place by adding OIIFLUX column
+    '''
+    assert np.all(targets['TARGETID'] == truth['TARGETID'])
+
+    from desitarget import desi_mask
+    ntargets = len(targets)
+    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
+    
+    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
+    nELG = np.count_nonzero(isELG)
+
+    #- TODO: make this a meaningful distribution
+    #- At low redshift and low flux, r-band flux sets an approximate
+    #- upper limit on [OII] flux, but no lower limit; treat as uniform
+    #- within a r-flux dependent upper limit
+    rflux = targets['DECAM_FLUX'][isELG][:,2]
+    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
+    truth['OIIFLUX'][isELG] = maxflux * np.random.uniform(0,1.0,size=nELG)
 
 def targets_truth(params, output_dir, realtargets=None):
     """
@@ -470,11 +501,8 @@ def targets_truth(params, output_dir, realtargets=None):
         targets['SUBPRIORITY'] = subprior
         targets['OBSCONDITIONS'] = obsconditions_total
         brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
-        targets['BRICKNAME'] = brickname
-        
-        if realtargets is not None:
-            add_mock_shapes_and_fluxes(targets, realtargets)
-        
+        targets['BRICKNAME'] = brickname        
+        add_mock_shapes_and_fluxes(targets, realtargets)
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
 
@@ -498,6 +526,9 @@ def targets_truth(params, output_dir, realtargets=None):
         truth['TRUETYPE'] = true_type_total
         truth['SOURCETYPE'] = source_type_total
         truth['BRICKNAME'] = brickname
+
+        add_OIIflux(targets, truth)
+        
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')
 
