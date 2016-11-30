@@ -114,11 +114,11 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         grcolor    = kwargs['grcolor']
         rzcolor    = kwargs['rzcolor']
         colortol   = kwargs['colortol']
-
-        SELECTION_MAG_NAME = 'SDSSr_obs'
-        COLOR_G_NAME       = 'SDSSg_obs'
-        COLOR_R_NAME       = 'SDSSr_obs'
-        COLOR_Z_NAME       = 'SDSSz_obs'
+ 
+        SELECTION_MAG_NAME = 'DECAMr_obs'
+        COLOR_G_NAME       = 'DECAMg_obs'
+        COLOR_R_NAME       = 'DECAMr_obs'
+        COLOR_Z_NAME       = 'DECAMz_obs'
 
         # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
@@ -140,7 +140,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         mag_faint_filler = kwargs['mag_faint_filler']
 
         # Parameters
-        SELECTION_MAG_NAME = 'SDSSr_obs'
+        SELECTION_MAG_NAME = 'DECAMr_obs'
 
         # Will populate this array with the bitmask values of each target class
         target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
@@ -196,7 +196,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         dec = data['DEC']
 
         # Parameters
-        SELECTION_MAG_NAME = 'SDSSr_true'
+        SELECTION_MAG_NAME = 'DECAMr_true'
         DEPTH_MAG_NAME = 'GALDEPTH_R'
 
         # Will populate this array with the bitmask values of each target class
@@ -224,7 +224,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
                     warnings.warn("Tile is on the border. Extinction = 99.0. Depth = 0.0", RuntimeWarning)
                 else:
                     depth = brick_info[DEPTH_MAG_NAME][id_binfo]
-                    extinction = brick_info['EBV'][id_binfo] * extinctions['SDSSr']            
+                    extinction = brick_info['EBV'][id_binfo] * extinctions['DESr']            
                 # print('DEPTH {} Ext {}'.format(depth, extinction))
 
                 tmp  = data[SELECTION_MAG_NAME][in_brick] + extinction

@@ -4,9 +4,9 @@ import os
 import importlib
 import time
 import glob
-import numpy as np
-
 from   copy import copy
+
+import numpy as np
 
 import astropy.io.fits as astropy_fitsio
 from   astropy.table import Table, Column
@@ -18,6 +18,7 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
 from desitarget import mtl
+
 import desispec.brick
 from desispec.brick import Bricks
 import desitarget.QA as targetQA
@@ -125,7 +126,7 @@ def extinction_across_bricks(brick_info, dust_dir):
 
     Args:
          brick_info : dictionary gathering brick information. It must have at least two keys 'RA' and 'DEC'.
-         dust_dir : path where the E(B-V) maps are storesd
+         dust_dir : path where the E(B-V) maps are stored
     """
     from desitarget.mock import sfdmap
     a = {}
@@ -182,17 +183,99 @@ def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
 
             
 ############################################################
-def targets_truth(params, output_dir):
+def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
+    '''
+    Add DECAM_FLUX, SHAPEDEV_R, and SHAPEEXP_R from a real target catalog
+    
+    Modifies mocktargets by adding columns
+    '''
+    n = len(mocktargets)
+    if 'DECAM_FLUX' not in mocktargets.dtype.names:
+        mocktargets['DECAM_FLUX'] = np.zeros((n, 6), dtype='f4')
+    
+    if 'SHAPEDEV_R' not in mocktargets.dtype.names:
+        mocktargets['SHAPEDEV_R'] = np.zeros(n, dtype='f4')
+
+    if 'SHAPEEXP_R' not in mocktargets.dtype.names:
+        mocktargets['SHAPEEXP_R'] = np.zeros(n, dtype='f4')
+
+    if realtargets is None:
+        print('WARNING: no real target catalog provided; adding columns of zeros for DECAM_FLUX, SHAPE*')
+        return
+
+    from desitarget import desi_mask
+    for objtype in ('ELG', 'LRG', 'QSO'):
+        mask = desi_mask.mask(objtype)
+        #- indices where mock (ii) and real (jj) match the mask
+        ii = np.where((mocktargets['DESI_TARGET'] & mask) != 0)[0]
+        jj = np.where((realtargets['DESI_TARGET'] & mask) != 0)[0]
+        if len(jj) == 0:
+            raise ValueError("Real target catalog missing {}".format(objtype))
+
+        #- Which random jj should be used to fill in values for ii?
+        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        
+        mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
+        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
+        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+    from desitarget import bgs_mask
+    for objtype in ('BGS_FAINT', 'BGS_BRIGHT'):
+        mask = bgs_mask.mask(objtype)
+        #- indices where mock (ii) and real (jj) match the mask
+        ii = np.where((mocktargets['BGS_TARGET'] & mask) != 0)[0]
+        jj = np.where((realtargets['BGS_TARGET'] & mask) != 0)[0]
+        if len(jj) == 0:
+            raise ValueError("Real target catalog missing {}".format(objtype))
+
+        #- Which jj should be used to fill in values for ii?
+        #- NOTE: not filling in BGS or MWS fluxes, only shapes
+        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        # mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
+        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
+        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+def add_OIIflux(targets, truth):
+    '''
+    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
+    
+    Args:
+        targets: target selection catalog Table or structured array
+        truth: target selection catalog Table
+    
+    Note: Modifies truth table in place by adding OIIFLUX column
+    '''
+    assert np.all(targets['TARGETID'] == truth['TARGETID'])
+
+    from desitarget import desi_mask
+    ntargets = len(targets)
+    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
+    
+    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
+    nELG = np.count_nonzero(isELG)
+
+    #- TODO: make this a meaningful distribution
+    #- At low redshift and low flux, r-band flux sets an approximate
+    #- upper limit on [OII] flux, but no lower limit; treat as uniform
+    #- within a r-flux dependent upper limit
+    rflux = targets['DECAM_FLUX'][isELG][:,2]
+    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
+    truth['OIIFLUX'][isELG] = maxflux * np.random.uniform(0,1.0,size=nELG)
+
+def targets_truth(params, output_dir, realtargets=None):
     """
     Write
 
     Args:
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
-    Returns:
-        targets:    
-        truth:      
 
+    Options:
+        realtargets: real target catalog table, e.g. from DR3
+
+    Returns:
+        targets:
+        truth:
     """
 
     truth_all       = list()
@@ -258,7 +341,7 @@ def targets_truth(params, output_dir):
     true_type_total = np.empty(0, dtype='S10')
     source_type_total = np.empty(0, dtype='S10')
     obsconditions_total = np.empty(0, dtype='uint16')
-
+    decam_flux = np.empty((0,6), dtype='f4')
 
     print('Collects information across mock files')
     for source_name in sorted(source_defs.keys()):
@@ -277,8 +360,10 @@ def targets_truth(params, output_dir):
             desi_target = target_mask[ii]
         if target_name in ['BGS']:
             bgs_target = target_mask[ii]
+            desi_target |= desi_mask.BGS_ANY
         if target_name in ['MWS_MAIN', 'MWS_WD']:
             mws_target = target_mask[ii]
+            desi_target |= desi_mask.MWS_ANY
 
 
         # define names that go into Truth
@@ -340,7 +425,27 @@ def targets_truth(params, output_dir):
             source_type_total = np.append(source_type_total, source_type)
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
 
+            #- Add fluxes, which default to 0 if the mocks don't have them
+            if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
+                from desitarget.mock import sfdmap
+                ra = source_data['RA']
+                dec = source_data['DEC']
+                ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
+                #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
+                source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
             
+            if 'DECAM_FLUX' in source_data:
+                decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
+            else:
+                n = len(desi_target)
+                tmpflux = np.zeros((n,6), dtype='f4')
+                if 'DECAMg_obs' in source_data:
+                    tmpflux[:,1] = source_data['DECAMg_obs'][ii]
+                if 'DECAMr_obs' in source_data:
+                    tmpflux[:,2] = source_data['DECAMr_obs'][ii]
+                if 'DECAMz_obs' in source_data:
+                    tmpflux[:,4] = source_data['DECAMz_obs'][ii]
+                decam_flux = np.vstack([decam_flux, tmpflux])
 
         print('source {} target {} truth {}: selected {} out of {}'.format(
                 source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
@@ -419,7 +524,10 @@ def targets_truth(params, output_dir):
         targets['SUBPRIORITY'] = subprior
         targets['OBSCONDITIONS'] = obsconditions_total
         brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
-        targets['BRICKNAME'] = brickname
+        targets['BRICKNAME'] = brickname          
+
+        targets['DECAM_FLUX'] = decam_flux
+        add_mock_shapes_and_fluxes(targets, realtargets)
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
 
@@ -443,6 +551,9 @@ def targets_truth(params, output_dir):
         truth['TRUETYPE'] = true_type_total
         truth['SOURCETYPE'] = source_type_total
         truth['BRICKNAME'] = brickname
+
+        add_OIIflux(targets, truth)
+        
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')
 

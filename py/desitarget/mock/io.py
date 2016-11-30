@@ -131,31 +131,35 @@ def _load_mock_mws_file(filename):
         'SDSS[grz]_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS grz bands, including extinction.
     """
+    import desitarget.photo
     print('Reading '+filename)
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
                        columns= ['objid','RA','DEC','v_helio','d_helio', 'SDSSr_true',
-                                 'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
-
-
+                                 'SDSSg_obs', 'SDSSr_obs', 'SDSSi_obs', 'SDSSz_obs'])
+ 
     objid       = data['objid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
-    v_helio     = data['v_helio'].astype('f8')
-    d_helio     = data['d_helio'].astype('f8')
-    SDSSr_true  = data['SDSSr_true'].astype('f8')
-    SDSSg_obs   = data['SDSSg_obs'].astype('f8')
-    SDSSr_obs   = data['SDSSr_obs'].astype('f8')
-    SDSSz_obs   = data['SDSSz_obs'].astype('f8')
+    v_helio     = data['v_helio'].astype('f4')
+    d_helio     = data['d_helio'].astype('f4')
+    SDSSr_true  = data['SDSSr_true'].astype('f4')
+    SDSSg_obs   = data['SDSSg_obs'].astype('f4')
+    SDSSr_obs   = data['SDSSr_obs'].astype('f4')
+    SDSSi_obs   = data['SDSSi_obs'].astype('f4')
+    SDSSz_obs   = data['SDSSz_obs'].astype('f4')
 
-    return {'objid':objid,
+    DECAMg_obs, DECAMr_obs, DECAMz_obs = \
+        desitarget.photo.sdss2decam(SDSSg_obs, SDSSr_obs, SDSSi_obs, SDSSz_obs)
+
+    return {'objid': objid,
             'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'd_helio': d_helio,
-            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs,
-            'SDSSg_obs' : SDSSg_obs, 'SDSSz_obs' : SDSSz_obs}
-
-
+            'SDSSr_true': DECAMr_obs,
+            'DECAMr_obs': DECAMr_obs,
+            'DECAMg_obs': DECAMg_obs,
+            'DECAMz_obs': DECAMz_obs }
 
 ############################################################
 def _load_mock_lya_file(filename):
@@ -324,7 +328,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
             Heliocentric radial velocity divided by the speed of light.
         'SDSSr_true': :class: `numpy.ndarray`
             Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSr_obs': :class: `numpy.ndarray`
+        'DECAMr_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
     """
     # Build iterator of all desi_galfast files
@@ -359,6 +363,9 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         file_list.append(mock_file)
         print('read file {} {}'.format(nfiles, mock_file))
 
+    if nfiles == 0:
+        raise ValueError('Unable to find files in {}'.format(mock_dir))
+
     print('Read {} files'.format(nfiles))
 
     # Concatenate all the dictionaries into a single dictionary, in an order
@@ -382,7 +389,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         # Count number of points per file
         k          = list(target_list[0])[0] # pick the first available column
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-        odered_file_list = [file_list[itarget] for itarget in file_order]
+        ordered_file_list = [file_list[itarget] for itarget in file_order]
 
     print('Read {} objects'.format(np.sum(n_per_file)))
 
@@ -521,7 +528,7 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
         RA          : RA positions for the objects in the mock.
         DEC         : DEC positions for the objects in the mock.
         Z           : Heliocentric radial velocity divided by the speed of light.
-        SDSSr_true  : Apparent magnitudes in SDSS r band.
+        DECAMr_true  : Apparent magnitudes in SDSS r band.
     """
 
     filename = os.path.join(mock_dir, target_type+'.hdf5')
@@ -532,6 +539,9 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     zred   = f["Data/z_obs"][...].astype('f8')
     f.close()
 
+    #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
+    DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
+
     print('read {} lines from {}'.format(len(ra), filename))
 
     files = list()
@@ -539,8 +549,9 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     n_per_file = list()
     n_per_file.append(len(ra))
 
-    return {'RA':ra, 'DEC':dec, 'Z': zred ,
-            'SDSSr_true':SDSSr_true, 'FILES': files, 'N_PER_FILE': n_per_file}
+    return {'RA':ra, 'DEC':dec, 'Z': zred,
+            'DECAMr_true': DECAMr_true,
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
 def read_mock_durham(core_filename, photo_filename):
