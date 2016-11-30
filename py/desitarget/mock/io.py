@@ -363,6 +363,9 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         file_list.append(mock_file)
         print('read file {} {}'.format(nfiles, mock_file))
 
+    if nfiles == 0:
+        raise ValueError('Unable to find files in {}'.format(mock_dir))
+
     print('Read {} files'.format(nfiles))
 
     # Concatenate all the dictionaries into a single dictionary, in an order
