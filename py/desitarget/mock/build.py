@@ -18,6 +18,7 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
 from desitarget import mtl
+
 import desispec.brick
 from desispec.brick import Bricks
 import desitarget.QA as targetQA
@@ -340,7 +341,7 @@ def targets_truth(params, output_dir, realtargets=None):
     true_type_total = np.empty(0, dtype='S10')
     source_type_total = np.empty(0, dtype='S10')
     obsconditions_total = np.empty(0, dtype='uint16')
-
+    decam_flux = np.empty((0,6), dtype='f4')
 
     print('Collects information across mock files')
     for source_name in sorted(source_defs.keys()):
@@ -359,8 +360,10 @@ def targets_truth(params, output_dir, realtargets=None):
             desi_target = target_mask[ii]
         if target_name in ['BGS']:
             bgs_target = target_mask[ii]
+            desi_target |= desi_mask.BGS_ANY
         if target_name in ['MWS_MAIN', 'MWS_WD']:
             mws_target = target_mask[ii]
+            desi_target |= desi_mask.MWS_ANY
 
 
         # define names that go into Truth
@@ -422,7 +425,27 @@ def targets_truth(params, output_dir, realtargets=None):
             source_type_total = np.append(source_type_total, source_type)
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
 
+            #- Add fluxes, which default to 0 if the mocks don't have them
+            if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
+                from desitarget.mock import sfdmap
+                ra = source_data['RA']
+                dec = source_data['DEC']
+                ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
+                #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
+                source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
             
+            if 'DECAM_FLUX' in source_data:
+                decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
+            else:
+                n = len(desi_target)
+                tmpflux = np.zeros((n,6), dtype='f4')
+                if 'DECAMg_obs' in source_data:
+                    tmpflux[:,1] = source_data['DECAMg_obs'][ii]
+                if 'DECAMr_obs' in source_data:
+                    tmpflux[:,2] = source_data['DECAMr_obs'][ii]
+                if 'DECAMz_obs' in source_data:
+                    tmpflux[:,4] = source_data['DECAMz_obs'][ii]
+                decam_flux = np.vstack([decam_flux, tmpflux])
 
         print('source {} target {} truth {}: selected {} out of {}'.format(
                 source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
@@ -501,7 +524,9 @@ def targets_truth(params, output_dir, realtargets=None):
         targets['SUBPRIORITY'] = subprior
         targets['OBSCONDITIONS'] = obsconditions_total
         brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
-        targets['BRICKNAME'] = brickname        
+        targets['BRICKNAME'] = brickname          
+
+        targets['DECAM_FLUX'] = decam_flux
         add_mock_shapes_and_fluxes(targets, realtargets)
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
