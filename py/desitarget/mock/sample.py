@@ -84,8 +84,8 @@ def sample_magnitudes(target_type, n_targets, random_state):
 
     Returns
     -------
-    np.array
-        An array of sampled grz magnitudes of shape (n_targets,3).
+    np.ndarray length n_targets
+        Structured array with columns g,r,z of sampled magnitudes
     """
 
     #Path to model .fits files
