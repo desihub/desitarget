@@ -21,8 +21,8 @@ class TestSample(unittest.TestCase):
         n_targets = 8000
         #Sampled magnitudes
         lrg_samp = sample.sample_magnitudes('LRG', n_targets=n_targets, random_state=gen)
-		elg_samp = sample.sample_magnitudes('ELG', n_targets=n_targets, random_state=gen)
-		qso_samp = sample.sample_magnitudes('QSO', n_targets=n_targets, random_state=gen)
+        elg_samp = sample.sample_magnitudes('ELG', n_targets=n_targets, random_state=gen)
+        qso_samp = sample.sample_magnitudes('QSO', n_targets=n_targets, random_state=gen)
 
         #g,r,z mean and std deviation for lrg, elg, qso data
         lrgMean = [23.66, 21.72, 19.89]
@@ -31,6 +31,7 @@ class TestSample(unittest.TestCase):
         lrgStd = [1.17, 0.77, 0.74]
         elgStd = [0.99, 0.93, 0.94]
         qsoStd = [1.39, 1.20, 1.19]
+
 
         #Test mean and standard deviation
         mean_threshold = 0.05
