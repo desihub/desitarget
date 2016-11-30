@@ -36,13 +36,13 @@ class TestSample(unittest.TestCase):
         #Test mean and standard deviation
         mean_threshold = 0.05
         std_threshold = 0.5
-        for i in range(0,3):
-            self.assertTrue(np.abs(np.mean(lrg_samp[:,i])-lrgMean[i]) < mean_threshold)
-            self.assertTrue(np.abs(np.mean(elg_samp[:,i])-elgMean[i]) < mean_threshold)
-            self.assertTrue(np.abs(np.mean(qso_samp[:,i])-qsoMean[i]) < mean_threshold)
-            self.assertTrue(np.abs(np.std(lrg_samp[:,i])-lrgStd[i]) < std_threshold)
-            self.assertTrue(np.abs(np.std(elg_samp[:,i])-elgStd[i]) < std_threshold)
-            self.assertTrue(np.abs(np.std(qso_samp[:,i])-qsoStd[i]) < std_threshold)
+        for i, index in enumerate(['g', 'r', 'z']):
+            self.assertTrue(np.abs(np.mean(lrg_samp[index])-lrgMean[i]) < mean_threshold)
+            self.assertTrue(np.abs(np.mean(elg_samp[index])-elgMean[i]) < mean_threshold)
+            self.assertTrue(np.abs(np.mean(qso_samp[index])-qsoMean[i]) < mean_threshold)
+            self.assertTrue(np.abs(np.std(lrg_samp[index])-lrgStd[i]) < std_threshold)
+            self.assertTrue(np.abs(np.std(elg_samp[index])-elgStd[i]) < std_threshold)
+            self.assertTrue(np.abs(np.std(qso_samp[index])-qsoStd[i]) < std_threshold)
 
 if __name__ == '__main__':
     unittest.main()
