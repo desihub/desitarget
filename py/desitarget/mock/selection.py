@@ -258,36 +258,6 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
     return target_class
 
 
-def estimate_density(ra, dec, bounds=(170, 190, 0, 35)):
-    """Estimate the number density from a small patch
-    
-    Args:
-        ra: array_like
-            An array with RA positions.
-        dec: array_like
-            An array with Dec positions.
-
-    Options:
-        bounds: (min_ra, max_ra, min_dec, max_dec) to use for density
-            estimation, assuming complete coverage within those bounds [deg]
-
-    Returns:
-        density: float
-           Object number density computed over a small patch.
-    """
-    print('ra max min {} {}'.format(ra.max(), ra.min()))
-    print('dec max min {} {}'.format(dec.max(), dec.min()))
-    density = 0.0 
-
-    min_ra, max_ra, min_dec, max_dec = bounds
-    footprint_area = (max_ra-min_ra) * (np.sin(max_dec*np.pi/180.) - np.sin(min_dec*np.pi/180.)) * 180 / np.pi
-
-    n_in = np.count_nonzero((ra>=min_ra) & (ra<max_ra) & (dec>=min_dec) & (dec<max_dec))
-    density = n_in/footprint_area
-    if(n_in==0):
-        density = 1E-6
-    return density
-
 
 def ndens_select(data, sourcename, targetname, truthname, brick_info = None, density_fluctuations = False, **kwargs):
 
@@ -363,21 +333,26 @@ def ndens_select(data, sourcename, targetname, truthname, brick_info = None, den
             target_class[in_brick[kept]] = desi_mask.mask(targetname)
     else:
         print('No Fluctuations for this target {}'.format(sourcename))
-        try:
-            bounds = kwargs['min_ra'], kwargs['max_ra'], kwargs['min_dec'], kwargs['max_dec']
-            mock_dens = estimate_density(ra[in_z], dec[in_z], bounds=bounds)
-        except KeyError:
-            mock_dens = estimate_density(ra[in_z], dec[in_z])
+        #compute the whole mock area
 
+        mock_area = 0.0
+        bricks = desispec.brick.brickname(ra, dec)
+        unique_bricks = list(set(bricks))
+        
+        for brickname in unique_bricks:
+            id_binfo  = (brick_info['BRICKNAME'] == brickname)
+            if np.count_nonzero(id_binfo) == 1:
+                mock_area += brick_info['BRICKAREA'][id_binfo]
+                
+        mock_dens = len(ra)/mock_area
         num_density = mean_density
 
-        print('mock density {} - desired num density {}'.format(mock_dens, num_density))
+        print('mock area {} mock density {} - desired num density {}'.format(mock_area, mock_dens, num_density))
         frac_keep = num_density/mock_dens
         if(frac_keep>1.0):
             warnings.warn("target {} frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
 #        print('num density desired {}, num density in mock {}, frac_keep {}'.format(num_density, mock_num_density, frac_keep))
         kept = keepornot < frac_keep
-
             
         select_sample = (in_z) & (kept)             
         target_class[select_sample] = desi_mask.mask(targetname)
