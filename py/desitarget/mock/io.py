@@ -60,7 +60,10 @@ def load_all_mocks(params):
         stored under params['sources'].keys()
     """
     source_data_all = {}
+
+
     # load all the mocks
+    loaded_mocks = {}
     for source_name in sorted(params['sources'].keys()):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
@@ -71,31 +74,43 @@ def load_all_mocks(params):
         function = 'read_'+source_format
         if 'mock_name' in source_dict.keys():
             mock_name = source_dict['mock_name']
+            this_name = source_path+mock_name
         else:
             mock_name = None
-        func = globals()[function]
-        result = func(source_path, target_name, mock_name=mock_name)
+            this_name = source_path
+            
+        if this_name not in loaded_mocks.keys():
+            print('reading {} for {}'.format(this_name, source_name))
+            loaded_mocks[this_name] = source_name
 
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            print('Trimming {} to RA,dec subselection'.format(source_name))
-            ii  = (result['RA']  >= params['subset']['min_ra']) & \
-                  (result['RA']  <= params['subset']['max_ra']) & \
-                  (result['DEC'] >= params['subset']['min_dec']) & \
-                  (result['DEC'] <= params['subset']['max_dec'])
+            func = globals()[function]
+            result = func(source_path, target_name, mock_name=mock_name)
 
+            if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+                print('Trimming {} to RA,dec subselection'.format(source_name))
+                ii  = (result['RA']  >= params['subset']['min_ra']) & \
+                    (result['RA']  <= params['subset']['max_ra']) & \
+                    (result['DEC'] >= params['subset']['min_dec']) & \
+                    (result['DEC'] <= params['subset']['max_dec'])
+                
             #- Trim RA,DEC,Z, ... columns to subselection
             #- Different types of mocks have different metadata, so assume
             #- that any ndarray of the same length as number of targets should
             #- be trimmed.
-            ntargets = len(result['RA'])
-            for key in result:
-                if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
-                    result[key] = result[key][ii]
+                ntargets = len(result['RA'])
+                for key in result:
+                    if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
+                        result[key] = result[key][ii]
 
             #- Add min/max ra/dec to source_dict for use in density estimates
-            source_dict.update(params['subset'])
+                source_dict.update(params['subset'])
 
-        source_data_all[source_name] = result
+
+            source_data_all[source_name] = result
+        else:
+            print('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
+            source_data_all[source_name] = source_data_all[loaded_mocks[this_name]]
+
     print('loaded {} mock sources'.format(len(source_data_all)))
     return source_data_all
 
@@ -437,6 +452,7 @@ def read_lya(mock_dir, target_type, mock_name=None):
     print('using {} parallel readers'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
     target_list = p.map(_load_mock_lya_file, file_list)
+    p.close()
 
     print('Read {} files'.format(nfiles))
 

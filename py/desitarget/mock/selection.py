@@ -121,7 +121,8 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         COLOR_Z_NAME       = 'DECAMz_obs'
 
         # Will populate this array with the bitmask values of each target class
-        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+        n = len(data[SELECTION_MAG_NAME])
+        target_class = np.zeros(n,dtype=np.int64) - 1
 
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
@@ -143,7 +144,8 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         SELECTION_MAG_NAME = 'DECAMr_obs'
 
         # Will populate this array with the bitmask values of each target class
-        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+        n = len(data[SELECTION_MAG_NAME])
+        target_class = np.zeros(n, dtype=np.int64) - 1
 
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         fainter_than_filler_limit  = data[SELECTION_MAG_NAME]  >= mag_faint_filler
@@ -157,14 +159,41 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         DISTANCE_FROM_SUN_CUT          = 100.0/DISTANCE_FROM_SUN_TO_PC_FACTOR
         further_than_100pc             = data[DISTANCE_FROM_SUN_NAME] > DISTANCE_FROM_SUN_CUT
 
-        # Main sample
+
         select_main_sample               = (fainter_than_bright_limit) & (brighter_than_filler_limit) & (further_than_100pc)
-        target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
-
-        # Faint sample
         select_faint_filler_sample               = (fainter_than_filler_limit) & (brighter_than_faint_limit) & (further_than_100pc)
-        target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
 
+        if ('density' in kwargs): #this forces downsampling on the whole sample
+            keepornot = np.random.uniform(0.,1.,n)
+
+            mock_area = 0.0
+            bricks = desispec.brick.brickname(data['RA'], data['DEC'])
+            unique_bricks = list(set(bricks))
+        
+            for brickname in unique_bricks:
+                id_binfo  = (brick_info['BRICKNAME'] == brickname)
+                if np.count_nonzero(id_binfo) == 1:
+                    mock_area += brick_info['BRICKAREA'][id_binfo]
+                
+            mock_dens = (np.count_nonzero(select_main_sample) + np.count_nonzero(select_faint_filler_sample))/mock_area
+            num_density = kwargs['density']
+
+            frac_keep = num_density/mock_dens
+            print('This mock is being downsampled')
+            print('mock area {} mock density {} - desired num density {}'.format(mock_area, mock_dens, num_density))
+
+            if(frac_keep>1.0):
+                warnings.warn("target {} frac_keep>1.0.: frac_keep={} ".format(sourcename, frac_keep), RuntimeWarning)
+
+            kept = keepornot < frac_keep
+
+            select_main_sample               &= kept
+            select_faint_filler_sample       &= kept
+
+
+        target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
+        target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
+            
     if(sourcename == 'MWS_WD'):
         mag_bright = kwargs['mag_bright']
         mag_faint  = kwargs['mag_faint']
@@ -268,6 +297,11 @@ def ndens_select(data, sourcename, targetname, truthname, brick_info = None, den
     ra = data['RA']
     dec = data['DEC']
     z = data['Z']
+
+    bricks = desispec.brick.brickname(ra, dec)
+    unique_bricks = list(set(bricks))
+    n_brick = len(unique_bricks)
+
     
     if ('min_z' in kwargs) & ('max_z' in kwargs):
         in_z = ((z>=kwargs['min_z']) & (z<=kwargs['max_z']))
@@ -295,10 +329,6 @@ def ndens_select(data, sourcename, targetname, truthname, brick_info = None, den
     keepornot = np.random.uniform(0.,1.,n)
 
     if density_fluctuations and constant_density == False and global_density == False:
-        bricks = desispec.brick.brickname(ra, dec)
-        unique_bricks = list(set(bricks))
-        n_brick = len(unique_bricks)
-
         i_brick = 0
         lookup = make_lookup_dict(bricks)
         for brickname in unique_bricks:
@@ -335,11 +365,11 @@ def ndens_select(data, sourcename, targetname, truthname, brick_info = None, den
         print('No Fluctuations for this target {}'.format(sourcename))
         #compute the whole mock area
 
-        mock_area = 0.0
-        bricks = desispec.brick.brickname(ra, dec)
-        unique_bricks = list(set(bricks))
-        
+        mock_area = 0.0        
+        i_brick = 0
         for brickname in unique_bricks:
+            i_brick += 1
+#            print('{} out of {}'.format(i_brick, n_brick))
             id_binfo  = (brick_info['BRICKNAME'] == brickname)
             if np.count_nonzero(id_binfo) == 1:
                 mock_area += brick_info['BRICKAREA'][id_binfo]
