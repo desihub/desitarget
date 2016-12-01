@@ -93,10 +93,10 @@ def load_all_mocks(params):
                     (result['DEC'] >= params['subset']['min_dec']) & \
                     (result['DEC'] <= params['subset']['max_dec'])
                 
-            #- Trim RA,DEC,Z, ... columns to subselection
-            #- Different types of mocks have different metadata, so assume
-            #- that any ndarray of the same length as number of targets should
-            #- be trimmed.
+                #- Trim RA,DEC,Z, ... columns to subselection
+                #- Different types of mocks have different metadata, so assume
+                #- that any ndarray of the same length as number of targets should
+                #- be trimmed.
                 ntargets = len(result['RA'])
                 for key in result:
                     if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
