@@ -358,19 +358,20 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
     # Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
     # Leaving this code here for the moment in case we fine a workaround
 
-    # import multiprocessing
-    # print('Reading individual mock files')
-    # file_list = list(iter_mock_files)
-    # nfiles = len(file_list)
-    # ncpu = max(1, multiprocessing.cpu_count() // 2)
-    # print('using {} parallel readers'.format(ncpu))
-    # p = multiprocessing.Pool(ncpu)
-    # target_list = p.map(_load_mock_mws_file, file_list)
-
+    import multiprocessing
     print('Reading individual mock files')
-    target_list = list()
-    file_list   = list()
-    nfiles      = 0
+    file_list = list(iter_mock_files)
+    nfiles = len(file_list)
+    ncpu = max(1, multiprocessing.cpu_count() // 2)
+    print('using {} parallel readers'.format(ncpu))
+    p = multiprocessing.Pool(ncpu)
+    target_list = p.map(_load_mock_mws_file, file_list)
+    p.close()
+#    print('Reading individual mock files')
+#    target_list = list()
+#    file_list   = list()
+#    nfiles      = 0
+
     for mock_file in iter_mock_files:
         nfiles += 1
         data_this_file = _load_mock_mws_file(mock_file)
