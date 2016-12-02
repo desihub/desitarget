@@ -532,13 +532,13 @@ def targets_truth(params, output_dir, realtargets=None):
         print('Finished writing Targets file')
 
         # started computing mtl file for the targets
-        print('Started computing the MTL file')
-        mtl_table = mtl.make_mtl(targets)        
-        # writing the MTL file to disk
-        print('Started writing the first MTL file')
-        mtl_filename = os.path.join(output_dir, 'mtl.fits')
-        mtl_table.write(mtl_filename, overwrite=True)
-        print('Finished writing mtl file')
+#        print('Started computing the MTL file')
+#        mtl_table = mtl.make_mtl(targets)        
+#        # writing the MTL file to disk
+#        print('Started writing the first MTL file')
+#        mtl_filename = os.path.join(output_dir, 'mtl.fits')
+#        mtl_table.write(mtl_filename, overwrite=True)
+#        print('Finished writing mtl file')
 
         # write the Truth to disk
         print('Started writing Truth file')
