@@ -2,10 +2,15 @@
 desitarget Change Log
 =====================
 
-0.8.2 (unreleased)
+0.8.3 (unreleased)
 ------------------
 
 * no changes yet
+
+0.8.2 (2016-12-03)
+------------------
+
+* updates for mocks integrated with quicksurvey
 
 0.8.1 (2016-11-23)
 ------------------
