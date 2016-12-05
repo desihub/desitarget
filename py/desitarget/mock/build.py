@@ -24,7 +24,7 @@ from desispec.brick import Bricks
 import desitarget.QA as targetQA
 import desitarget.mock.selection 
 import yaml
-import warnings
+
 
 def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     """
@@ -213,7 +213,7 @@ def add_galdepths(mocktargets, brickinfo):
             mocktargets['DEPTH_R'][in_brick] = brickinfo['DEPTH_R'][id_binfo]
             mocktargets['GALDEPTH_R'][in_brick] = brickinfo['GALDEPTH_R'][id_binfo]
         else:
-            warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 0.0", RuntimeWarning)
+            warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
 
 
 ############################################################
