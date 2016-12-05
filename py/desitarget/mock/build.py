@@ -22,7 +22,9 @@ from desitarget import mtl
 import desispec.brick
 from desispec.brick import Bricks
 import desitarget.QA as targetQA
+import desitarget.mock.selection 
 import yaml
+
 
 def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     """
@@ -181,7 +183,39 @@ def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
     print('Generated basic brick info for {} bricks'.format(len(brick_info['BRICKNAME'])))
     return brick_info
 
-            
+
+def add_galdepths(mocktargets, brickinfo):
+    '''
+    Add GALDEPTH_R and DEPTH_R.
+    Modifies mocktargets by adding columns.
+    DEPTHS are constant across bricks.
+    '''
+    n = len(mocktargets)
+    if 'DEPTH_R' not in mocktargets.dtype.names:
+        mocktargets['DEPTH_R'] = 99.0*np.ones(n, dtype='f4')
+
+    if 'GALDEPTH_R' not in mocktargets.dtype.names:
+        mocktargets['GALDEPTH_R'] = 99.0*np.ones(n, dtype='f4')
+
+    # create dictionary with targets per brick
+    
+    bricks = desispec.brick.brickname(mocktargets['RA'], mocktargets['DEC'])
+    unique_bricks = list(set(bricks))
+    lookup = desitarget.mock.selection.make_lookup_dict(bricks)
+    n_brick = len(unique_bricks)
+    i_brick = 0
+    for brickname in unique_bricks:
+        in_brick = np.array(lookup[brickname])
+        i_brick += 1
+#        print('brick {} out of {}'.format(i_brick,n_brick))                
+        id_binfo  = (brickinfo['BRICKNAME'] == brickname)
+        if np.count_nonzero(id_binfo) == 1:
+            mocktargets['DEPTH_R'][in_brick] = brickinfo['DEPTH_R'][id_binfo]
+            mocktargets['GALDEPTH_R'][in_brick] = brickinfo['GALDEPTH_R'][id_binfo]
+        else:
+            warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
+
+
 ############################################################
 def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
     '''
@@ -528,17 +562,9 @@ def targets_truth(params, output_dir, realtargets=None):
 
         targets['DECAM_FLUX'] = decam_flux
         add_mock_shapes_and_fluxes(targets, realtargets)
+        add_galdepths(targets, brick_info)
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
-
-        # started computing mtl file for the targets
-#        print('Started computing the MTL file')
-#        mtl_table = mtl.make_mtl(targets)        
-#        # writing the MTL file to disk
-#        print('Started writing the first MTL file')
-#        mtl_filename = os.path.join(output_dir, 'mtl.fits')
-#        mtl_table.write(mtl_filename, overwrite=True)
-#        print('Finished writing mtl file')
 
         # write the Truth to disk
         print('Started writing Truth file')
