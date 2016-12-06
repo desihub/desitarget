@@ -98,6 +98,8 @@ def sample_magnitudes(target_type, n_targets, random_state):
         model = GaussianMixtureModel.load(pathToModels + '/elgMag_gmm.fits')
     elif target_type == 'QSO':
         model = GaussianMixtureModel.load(pathToModels + '/qsoMag_gmm.fits')
+    elif target_type == 'BGS':
+        model = GaussianMixtureModel.load(pathToModels + '/bgsMag_gmm.fits')
 
     #Generate a sample of magnitudes of size n_targets
     mags = model.sample(n_samples=n_targets, random_state=random_state)
