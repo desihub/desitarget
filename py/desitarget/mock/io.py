@@ -514,16 +514,19 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
         filename = os.path.join(mock_dir, mock_name+'.fits')
 
     try:
-        data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
+        columns = ['RA','DEC','Z_COSMO', 'DZ_RSD']
+        data = fitsio.read(filename,columns=columns, upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
-        zz   = data[  'Z'].astype('f8')
+        zz   = data[  'Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')
     except:
-        data = fitsio.read(filename,columns=['RA','DEC'], upper=True)
+        columns = ['RA','DEC']
+        data = fitsio.read(filename,columns=columns, upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
         zz = np.random.uniform(0.0, 1.0, size=len(ra))
 
+    print('read columns {}'.format(columns))
     print('read {} lines from {}'.format(len(data), filename))
     del data
     files = list()
