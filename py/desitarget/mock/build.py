@@ -499,11 +499,11 @@ def targets_truth(params, output_dir, realtargets=None):
                 n = len(desi_target)
                 tmpflux = np.zeros((n,6), dtype='f4')
                 if 'DECAMg_obs' in source_data:
-                    tmpflux[:,1] = source_data['DECAMg_obs'][ii]
+                    tmpflux[:,1] = 10**(0.4*(22.5-source_data['DECAMg_obs'][ii]))
                 if 'DECAMr_obs' in source_data:
-                    tmpflux[:,2] = source_data['DECAMr_obs'][ii]
+                    tmpflux[:,2] = 10**(0.4*(22.5-source_data['DECAMr_obs'][ii]))
                 if 'DECAMz_obs' in source_data:
-                    tmpflux[:,4] = source_data['DECAMz_obs'][ii]
+                    tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
                 decam_flux = np.vstack([decam_flux, tmpflux])
 
         print('source {} target {} truth {}: selected {} out of {}'.format(
