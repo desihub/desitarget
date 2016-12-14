@@ -263,22 +263,28 @@ def decode_rownum_filenum(encoded_values):
     rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
     return rownum,filenum
 
-def make_mockid(data):
-    objid = data['objid']
+def make_mockid(objid, n_per_file):
+    """
+    Computes mockid from row and file ids.
+    Parameters:
+        objid (int array): Row ID.
+        n_per_file (int list): Number of items per file that went into objid.
+    Return:
+        mockid (int array): encoded row and file ID.
+    """
+    
     n_files = len(n_per_file)
     n_obj = len(objid)
 
-    n_per_file = np.array(data['N_PER_FILE'])
-    n_per_file_cumsum = n_per_file.cumsum()
+    n_p_file = np.array(n_per_file)
+    n_per_file_cumsum = n_p_file.cumsum()
 
-    mockid = np.zeros(n_obj, dtype='int64')
+
     filenum = np.zeros(n_obj, dtype='int64')
-
     for n in range(1,n_files):
         filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
 
-    mockid = encode_rownum_filenum(objid, filenum)
-    return mockid
+    return encode_rownum_filenum(objid, filenum)
 
 ############################################################
 def read_wd100pc(mock_dir, target_type, mock_name=None):
@@ -331,8 +337,13 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     n_per_file.append(len(ra))
 
 
+
     print('read {} objects'.format(n_per_file[0]))
-    return {'objid': objid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+    
+    return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
@@ -402,7 +413,6 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         raise ValueError('Unable to find files in {}'.format(mock_dir))
 
     print('Read {} files'.format(nfiles))
-
     # Concatenate all the dictionaries into a single dictionary, in an order
     # determined by np.argsort applied to the base name of each path in
     # file_list.
@@ -428,8 +438,14 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
     print('Read {} objects'.format(np.sum(n_per_file)))
 
+
+    print('making mockid id')
+    full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
+    print('finished making mockid id')
+
     full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
+
     return full_data
 
 
@@ -501,6 +517,10 @@ def read_lya(mock_dir, target_type, mock_name=None):
 
     print('Read {} objects'.format(np.sum(n_per_file)))
 
+    print('making mockid id')
+    full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
+    print('finished making mockid id')
+
     full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
 
@@ -556,7 +576,12 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
 
     objid = np.arange(len(ra))
 
-    return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z':zz, 
+
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+
+    return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
@@ -595,7 +620,12 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
 
     objid = np.arange(len(ra))
 
-    return {'objid': objid, 'RA':ra, 'DEC':dec, 'Z': zred,
+
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+
+    return {'objid': objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z': zred,
             'DECAMr_true': DECAMr_true,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
