@@ -369,6 +369,7 @@ def targets_truth(params, output_dir, realtargets=None):
     ra_total = np.empty(0)
     dec_total = np.empty(0)
     z_total = np.empty(0)
+    mockid_total = np.empty(0, dtype='int64')
     desi_target_total = np.empty(0, dtype='i8')
     bgs_target_total = np.empty(0, dtype='i8')
     mws_target_total = np.empty(0, dtype='i8')
@@ -458,6 +459,7 @@ def targets_truth(params, output_dir, realtargets=None):
             true_type_total = np.append(true_type_total, true_type)
             source_type_total = np.append(source_type_total, source_type)
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
+            mockid_total = np.append(mockid_total, source_data['MOCKID'][ii])
 
             #- Add fluxes, which default to 0 if the mocks don't have them
             if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
@@ -577,6 +579,7 @@ def targets_truth(params, output_dir, realtargets=None):
         truth['TRUETYPE'] = true_type_total
         truth['SOURCETYPE'] = source_type_total
         truth['BRICKNAME'] = brickname
+        truth['MOCKID'] = mockid_total
 
         add_OIIflux(targets, truth)
         
