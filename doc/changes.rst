@@ -5,7 +5,7 @@ desitarget Change Log
 0.8.3 (unreleased)
 ------------------
 
-* no changes yet
+* include mapping from MOCKID -> TARGETID
 
 0.8.2 (2016-12-03)
 ------------------
