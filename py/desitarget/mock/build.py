@@ -296,6 +296,26 @@ def add_OIIflux(targets, truth):
     maxflux = np.clip(3e-16*rflux, 0, 7e-16)
     truth['OIIFLUX'][isELG] = maxflux * np.random.uniform(0,1.0,size=nELG)
 
+def fileid_filename(source_data, output_dir):
+    '''
+    Outputs text file with mapping between mock filenum and file on disk
+
+    returns mapping dictionary map[mockanme][filenum] = filepath
+    '''
+    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
+    map_id_name = {}
+    for k in source_data.keys():
+        map_id_name[k] = {}
+        data = source_data[k]
+        filenames = data['FILES']
+        n_files = len(filenames)
+        for i in range(n_files):
+            map_id_name[k][i] = filenames[i]
+            out.write('{} {} {}\n'.format(k,i, map_id_name[k][i]))
+    out.close()            
+    return map_id_name
+   
+
 def targets_truth(params, output_dir, realtargets=None):
     """
     Write
@@ -348,6 +368,9 @@ def targets_truth(params, output_dir, realtargets=None):
     # loads all the mocks
     source_data_all = mockio.load_all_mocks(params)
 
+    #maps filename to fileid
+    map_fileid_filename = fileid_filename(source_data_all, output_dir)
+
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
@@ -369,6 +392,7 @@ def targets_truth(params, output_dir, realtargets=None):
     ra_total = np.empty(0)
     dec_total = np.empty(0)
     z_total = np.empty(0)
+    mockid_total = np.empty(0, dtype='int64')
     desi_target_total = np.empty(0, dtype='i8')
     bgs_target_total = np.empty(0, dtype='i8')
     mws_target_total = np.empty(0, dtype='i8')
@@ -458,6 +482,7 @@ def targets_truth(params, output_dir, realtargets=None):
             true_type_total = np.append(true_type_total, true_type)
             source_type_total = np.append(source_type_total, source_type)
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
+            mockid_total = np.append(mockid_total, source_data['MOCKID'][ii])
 
             #- Add fluxes, which default to 0 if the mocks don't have them
             if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
@@ -577,6 +602,7 @@ def targets_truth(params, output_dir, realtargets=None):
         truth['TRUETYPE'] = true_type_total
         truth['SOURCETYPE'] = source_type_total
         truth['BRICKNAME'] = brickname
+        truth['MOCKID'] = mockid_total
 
         add_OIIflux(targets, truth)
         
