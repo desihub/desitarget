@@ -297,7 +297,12 @@ def add_OIIflux(targets, truth):
     truth['OIIFLUX'][isELG] = maxflux * np.random.uniform(0,1.0,size=nELG)
 
 def fileid_filename(source_data, output_dir):
-    out = open(output_dir+'map_id_filename.txt', 'w')
+    '''
+    Outputs text file with mapping between mock filenum and file on disk
+
+    returns mapping dictionary map[mockanme][filenum] = filepath
+    '''
+    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
     map_id_name = {}
     for k in source_data.keys():
         map_id_name[k] = {}
