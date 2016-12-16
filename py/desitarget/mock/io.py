@@ -153,10 +153,9 @@ def _load_mock_mws_file(filename):
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['objid','RA','DEC','v_helio','d_helio', 'SDSSr_true',
+                       columns= ['RA','DEC','v_helio','d_helio', 'SDSSr_true',
                                  'SDSSg_obs', 'SDSSr_obs', 'SDSSi_obs', 'SDSSz_obs'])
  
-    objid       = data['objid'].astype('i8')
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['v_helio'].astype('f4')
@@ -169,6 +168,9 @@ def _load_mock_mws_file(filename):
 
     DECAMg_obs, DECAMr_obs, DECAMz_obs = \
         desitarget.photo.sdss2decam(SDSSg_obs, SDSSr_obs, SDSSi_obs, SDSSz_obs)
+
+    n = len(ra)
+    objid = np.arange(n, dtype='i8')
 
     return {'objid': objid,
             'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
@@ -322,9 +324,9 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     mock_name = 'mock_wd100pc.fits'
     filename  = os.path.join(mock_dir,mock_name)
     data = fitsio.read(filename,
-                       columns= ['RA','DEC','radialvelocity','magg','WD','objid'])
+                       columns= ['RA','DEC','radialvelocity','magg','WD'])
 
-    objid       = data['objid'].astype('i8') 
+
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['radialvelocity'].astype('f8')
@@ -337,6 +339,8 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     n_per_file.append(len(ra))
 
 
+    n = len(ra)
+    objid = np.arange(n, dtype='i8')
 
     print('read {} objects'.format(n_per_file[0]))
     print('making mockid id')
