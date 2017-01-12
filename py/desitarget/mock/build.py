@@ -4,9 +4,9 @@ import os
 import importlib
 import time
 import glob
-import numpy as np
-
 from   copy import copy
+
+import numpy as np
 
 import astropy.io.fits as astropy_fitsio
 from   astropy.table import Table, Column
@@ -18,101 +18,393 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
 from desitarget import mtl
+
 import desispec.brick
+from desispec.brick import Bricks
+import desitarget.QA as targetQA
+import desitarget.mock.selection 
+import yaml
+import warnings
+
+def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
+    """
+    Generates number density fluctuations.
+
+
+    Parameters:
+    -----------
+
+        decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS. 
+        brick_info(Dictionary). Containts at least the following keys:
+            DEPTH_G(float) : array of depth magnitudes in the G band.
+
+    Return:
+    ------
+       fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
+       corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
+       i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion 
+        is a dictionary with keys corresponding to the different galaxy types.
+    """
+    fluctuation = {}
+    
+    depth_available = []
+#    for k in brick_info.keys():        
+    for k in ['GALDEPTH_R', 'EBV']:        
+        if('DEPTH' in k or 'EBV' in k):
+            depth_available.append(k)
+            
+
+    for depth in depth_available:        
+        fluctuation['FLUC_'+depth] = {}
+        for ttype in target_names:
+            fluctuation['FLUC_'+depth][ttype] = targetQA.generate_fluctuations(decals_brick_info, ttype, depth, brick_info[depth])    
+            print('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+    return fluctuation
+
+def depths_across_bricks(brick_info):
+    """
+    Generates a sample of magnitud dephts for a set of bricks.
+
+    This model was built from the Data Release 3 of DECaLS.
+
+    Parameters:
+    -----------
+        brick_info(Dictionary). Containts at least the following keys:
+            RA (float): numpy array of RA positions
+            DEC (float): numpy array of Dec positions
+
+    Return:
+    ------
+        depths (dictionary). keys include
+            'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
+            The values ofr each key ar numpy arrays (float) with size equal to 
+            the input ra, dec arrays.
+    """
+
+    ra = brick_info['RA']
+    dec = brick_info['DEC']
+
+    n_to_generate = len(ra)
+    #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
+    differences = {}
+    differences['DEPTH_G'] = [0.22263251, 0.059752077]
+    differences['DEPTH_R'] = [0.26939404, 0.091162138]
+    differences['DEPTH_Z'] = [0.34058815, 0.056099825]
+    
+    # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
+    
+    points = {}
+    points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+                  24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
+    points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+                  24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
+    points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+                  23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
+
+    fractions = {}
+    fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+    fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+    fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+
+    names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
+    depths = {}
+    for name in names:
+        fracs = np.random.random(n_to_generate)
+        depths[name] = np.interp(fracs, fractions[name], points[name])
+
+        depth_minus_galdepth = np.random.normal(
+            loc=differences[name][0], 
+            scale=differences[name][1], size=n_to_generate)
+        depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
+        
+        depths['GAL'+name] = depths[name] - depth_minus_galdepth
+        print('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
+    return depths
+
+def extinction_across_bricks(brick_info, dust_dir):
+    """
+    Estimates E(B-V) across bricks.
+
+    Args:
+         brick_info : dictionary gathering brick information. It must have at least two keys 'RA' and 'DEC'.
+         dust_dir : path where the E(B-V) maps are stored
+    """
+    from desitarget.mock import sfdmap
+    a = {}
+    a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=dust_dir)
+    print('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
+    return a
+
+
+def generate_brick_info(bounds=(0.0,359.99,-89.99,89.99)):
+    """
+    Generates brick dictionary in the ragion (min_ra, max_ra, min_dec, max_dec)
+    
+    """
+    min_ra, max_ra, min_dec, max_dec = bounds
+
+    B = Bricks()
+    brick_info = {}
+    brick_info['BRICKNAME'] = []
+    brick_info['RA'] = []
+    brick_info['DEC'] =  []
+    brick_info['RA1'] =  []
+    brick_info['RA2'] =  []
+    brick_info['DEC1'] =  []
+    brick_info['DEC2'] =   []
+    brick_info['BRICKAREA'] =  [] 
+    
+    i_rows = np.where((B._edges_dec < max_dec ) & (B._edges_dec > min_dec))
+    i_rows = i_rows[0]
+
+    for i_row in i_rows:
+        j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
+        j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
+        for j_col in range(j_col_min, j_col_max+1):
+            brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
+            
+            brick_info['RA'].append(B._center_ra[i_row][j_col])
+            brick_info['DEC'].append(B._center_dec[i_row])
+
+            brick_info['RA1'].append(B._edges_ra[i_row][j_col])
+            brick_info['DEC1'].append(B._edges_dec[i_row])
+            
+            brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
+            brick_info['DEC2'].append(B._edges_dec[i_row+1])
+
+
+            brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1]) 
+            brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) - np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
+            brick_info['BRICKAREA'].append(brick_area)
+
+    for k in brick_info.keys():
+        brick_info[k] = np.array(brick_info[k])
+    print('Generated basic brick info for {} bricks'.format(len(brick_info['BRICKNAME'])))
+    return brick_info
+
+
+def add_galdepths(mocktargets, brickinfo):
+    '''
+    Add GALDEPTH_R and DEPTH_R.
+    Modifies mocktargets by adding columns.
+    DEPTHS are constant across bricks.
+    '''
+    n = len(mocktargets)
+    if 'DEPTH_R' not in mocktargets.dtype.names:
+        mocktargets['DEPTH_R'] = 99.0*np.ones(n, dtype='f4')
+
+    if 'GALDEPTH_R' not in mocktargets.dtype.names:
+        mocktargets['GALDEPTH_R'] = 99.0*np.ones(n, dtype='f4')
+
+    # create dictionary with targets per brick
+    
+    bricks = desispec.brick.brickname(mocktargets['RA'], mocktargets['DEC'])
+    unique_bricks = list(set(bricks))
+    lookup = desitarget.mock.selection.make_lookup_dict(bricks)
+    n_brick = len(unique_bricks)
+    i_brick = 0
+    for brickname in unique_bricks:
+        in_brick = np.array(lookup[brickname])
+        i_brick += 1
+#        print('brick {} out of {}'.format(i_brick,n_brick))                
+        id_binfo  = (brickinfo['BRICKNAME'] == brickname)
+        if np.count_nonzero(id_binfo) == 1:
+            mocktargets['DEPTH_R'][in_brick] = brickinfo['DEPTH_R'][id_binfo]
+            mocktargets['GALDEPTH_R'][in_brick] = brickinfo['GALDEPTH_R'][id_binfo]
+        else:
+            warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
+
 
 ############################################################
-def targets_truth(params, output_dir):
+def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
+    '''
+    Add DECAM_FLUX, SHAPEDEV_R, and SHAPEEXP_R from a real target catalog
+    
+    Modifies mocktargets by adding columns
+    '''
+    n = len(mocktargets)
+    if 'DECAM_FLUX' not in mocktargets.dtype.names:
+        mocktargets['DECAM_FLUX'] = np.zeros((n, 6), dtype='f4')
+    
+    if 'SHAPEDEV_R' not in mocktargets.dtype.names:
+        mocktargets['SHAPEDEV_R'] = np.zeros(n, dtype='f4')
+
+    if 'SHAPEEXP_R' not in mocktargets.dtype.names:
+        mocktargets['SHAPEEXP_R'] = np.zeros(n, dtype='f4')
+
+    if realtargets is None:
+        print('WARNING: no real target catalog provided; adding columns of zeros for DECAM_FLUX, SHAPE*')
+        return
+
+    from desitarget import desi_mask
+    for objtype in ('ELG', 'LRG', 'QSO'):
+        mask = desi_mask.mask(objtype)
+        #- indices where mock (ii) and real (jj) match the mask
+        ii = np.where((mocktargets['DESI_TARGET'] & mask) != 0)[0]
+        jj = np.where((realtargets['DESI_TARGET'] & mask) != 0)[0]
+        if len(jj) == 0:
+            raise ValueError("Real target catalog missing {}".format(objtype))
+
+        #- Which random jj should be used to fill in values for ii?
+        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        
+        mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
+        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
+        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+    from desitarget import bgs_mask
+    for objtype in ('BGS_FAINT', 'BGS_BRIGHT'):
+        mask = bgs_mask.mask(objtype)
+        #- indices where mock (ii) and real (jj) match the mask
+        ii = np.where((mocktargets['BGS_TARGET'] & mask) != 0)[0]
+        jj = np.where((realtargets['BGS_TARGET'] & mask) != 0)[0]
+        if len(jj) == 0:
+            raise ValueError("Real target catalog missing {}".format(objtype))
+
+        #- Which jj should be used to fill in values for ii?
+        #- NOTE: not filling in BGS or MWS fluxes, only shapes
+        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        # mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
+        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
+        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
+
+def add_OIIflux(targets, truth):
+    '''
+    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
+    
+    Args:
+        targets: target selection catalog Table or structured array
+        truth: target selection catalog Table
+    
+    Note: Modifies truth table in place by adding OIIFLUX column
+    '''
+    assert np.all(targets['TARGETID'] == truth['TARGETID'])
+
+    from desitarget import desi_mask
+    ntargets = len(targets)
+    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
+    
+    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
+    nELG = np.count_nonzero(isELG)
+
+    #- TODO: make this a meaningful distribution
+    #- At low redshift and low flux, r-band flux sets an approximate
+    #- upper limit on [OII] flux, but no lower limit; treat as uniform
+    #- within a r-flux dependent upper limit
+    rflux = targets['DECAM_FLUX'][isELG][:,2]
+    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
+    truth['OIIFLUX'][isELG] = maxflux * np.random.uniform(0,1.0,size=nELG)
+
+def fileid_filename(source_data, output_dir):
+    '''
+    Outputs text file with mapping between mock filenum and file on disk
+
+    returns mapping dictionary map[mockanme][filenum] = filepath
+    '''
+    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
+    map_id_name = {}
+    for k in source_data.keys():
+        map_id_name[k] = {}
+        data = source_data[k]
+        filenames = data['FILES']
+        n_files = len(filenames)
+        for i in range(n_files):
+            map_id_name[k][i] = filenames[i]
+            out.write('{} {} {}\n'.format(k,i, map_id_name[k][i]))
+    out.close()            
+    return map_id_name
+   
+
+def targets_truth(params, output_dir, realtargets=None):
     """
     Write
 
     Args:
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
-    Returns:
-        targets:    
-        truth:      
 
+    Options:
+        realtargets: real target catalog table, e.g. from DR3
+
+    Returns:
+        targets:
+        truth:
     """
 
     truth_all       = list()
-    source_data_all = dict()
+
     target_mask_all = dict()
 
-    # prints info about what we will be loading
     source_defs = params['sources']
-    print('The following populations and paths are specified:')
-    for source_name in sorted(source_defs.keys()):
-        source_format = params['sources'][source_name]['format']
-        source_path = params['sources'][source_name]['root_mock_dir']
-        target_name = params['sources'][source_name]['target_name']
-        print('type: {}\n format: {} \n path: {}'.format(source_name, source_format, source_path))
 
-    # load all the mocks
-    for source_name in sorted(source_defs.keys()):
-        source_format = params['sources'][source_name]['format']
-        source_path = params['sources'][source_name]['root_mock_dir']
-        source_dict = params['sources'][source_name]
-        target_name = params['sources'][source_name]['target_name']
+    #reads target info from DESIMODEL + changing all the keys to upper case
+    filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
+    td = yaml.load(filein)
+    target_desimodel = {}
+    for t in td.keys():
+        target_desimodel[t.upper()] = td[t]
 
-        print('type: {} format: {}'.format(source_name, source_format))
-        function = 'read_'+source_format
-        if 'mock_name' in source_dict.keys():
-            mock_name = source_dict['mock_name']
-        else:
-            mock_name = None
-        result = getattr(mockio, function)(source_path, target_name, mock_name=mock_name)
 
-        if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-            print('Trimming {} to RA,dec subselection'.format(source_name))
-            ii  = (result['RA']  >= params['subset']['min_ra']) & \
-                  (result['RA']  <= params['subset']['max_ra']) & \
-                  (result['DEC'] >= params['subset']['min_dec']) & \
-                  (result['DEC'] <= params['subset']['max_dec'])
+    # compiles brick information
+    if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+        brick_info = generate_brick_info(bounds=(params['subset']['min_ra'],
+                                                 params['subset']['max_ra'],
+                                                 params['subset']['min_dec'],
+                                                 params['subset']['max_dec']))
+    else:
+        brick_info = generate_brick_info()
 
-            #- Trim RA,DEC,Z, ... columns to subselection
-            #- Different types of mocks have different metadata, so assume
-            #- that any ndarray of the same length as number of targets should
-            #- be trimmed.
-            ntargets = len(result['RA'])
-            for key in result:
-                if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
-                    result[key] = result[key][ii]
+    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir'])) #add extinction
+    brick_info.update(depths_across_bricks(brick_info)) #add depths
+    brick_info.update(fluctuations_across_bricks(brick_info, list(params['sources'].keys()), params['decals_brick_info'])) # add number density fluctuations
 
-            #- Add min/max ra/dec to source_dict for use in density estimates
-            source_dict.update(params['subset'])
+    # appends DESIMODEL info into brick_info
+    brick_info.update(target_desimodel)
 
-        source_data_all[source_name] = result
+    # prints info about what we will be loading
+    mockio.print_all_mocks_info(params)
 
-    print('loaded {} mock sources'.format(len(source_data_all)))
+    # loads all the mocks
+    source_data_all = mockio.load_all_mocks(params)
+
+    #maps filename to fileid
+    map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
-        target_name = params['sources'][source_name]['target_name']
-        source_selection = params['sources'][source_name]['selection']
-        source_dict = params['sources'][source_name]
-        source_data = source_data_all[source_name]
+        target_name = params['sources'][source_name]['target_name'] #Target names
+        truth_name = params['sources'][source_name]['truth_name'] #name for the truth file
+        source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
+        source_dict = params['sources'][source_name] # dictionary with sources info
+        source_data = source_data_all[source_name]  # data 
 
-        print('type: {} select: {}'.format(source_name, source_selection))
+        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
         selection_function = source_selection + '_select'
-        result = getattr(mockselect, selection_function.lower())(source_data, target_name, **source_dict)
+        result = getattr(mockselect, selection_function.lower())(source_data, source_name, target_name, truth_name, brick_info = brick_info, 
+                                                                 density_fluctuations = params['density_fluctuations'],
+                                                                 **source_dict)
         target_mask_all[source_name] = result
+
         
     # consolidates all relevant arrays across mocks
     ra_total = np.empty(0)
     dec_total = np.empty(0)
     z_total = np.empty(0)
+    mockid_total = np.empty(0, dtype='int64')
     desi_target_total = np.empty(0, dtype='i8')
     bgs_target_total = np.empty(0, dtype='i8')
     mws_target_total = np.empty(0, dtype='i8')
     true_type_total = np.empty(0, dtype='S10')
     source_type_total = np.empty(0, dtype='S10')
     obsconditions_total = np.empty(0, dtype='uint16')
-
+    decam_flux = np.empty((0,6), dtype='f4')
 
     print('Collects information across mock files')
     for source_name in sorted(source_defs.keys()):
         target_name = params['sources'][source_name]['target_name']
+        truth_name = params['sources'][source_name]['truth_name']
         source_data = source_data_all[source_name]
         target_mask = target_mask_all[source_name]
 
@@ -126,14 +418,17 @@ def targets_truth(params, output_dir):
             desi_target = target_mask[ii]
         if target_name in ['BGS']:
             bgs_target = target_mask[ii]
+            desi_target |= desi_mask.BGS_ANY
         if target_name in ['MWS_MAIN', 'MWS_WD']:
             mws_target = target_mask[ii]
+            desi_target |= desi_mask.MWS_ANY
 
 
         # define names that go into Truth
         n = len(source_data['RA'][ii])
-        if target_name not in ['STD_FSTAR', 'SKY']:
+        if source_name not in ['STD_FSTAR', 'SKY']:
             true_type_map = {
+                'STD_FSTAR': 'STAR',
                 'ELG': 'GALAXY',
                 'LRG': 'GALAXY',
                 'BGS': 'GALAXY',
@@ -146,7 +441,7 @@ def targets_truth(params, output_dir):
             source_type = np.zeros(n, dtype='S10')
             source_type[:] = target_name
             true_type = np.zeros(n, dtype='S10')
-            true_type[:] = true_type_map[target_name]
+            true_type[:] = true_type_map[truth_name]
 
                 
         #define obsconditions
@@ -163,21 +458,21 @@ def targets_truth(params, output_dir):
             source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
 
         #append to the arrays that will go into Targets
-        if target_name in ['STD_FSTAR']:
+        if source_name in ['STD_FSTAR']:
             ra_stars = source_data['RA'][ii].copy()
             dec_stars = source_data['DEC'][ii].copy()
             desi_target_stars = desi_target.copy()
             bgs_target_stars = bgs_target.copy()
             mws_target_stars = mws_target.copy()
             obsconditions_stars = source_obsconditions.copy()
-        if target_name in ['SKY']:
+        if source_name in ['SKY']:
             ra_sky = source_data['RA'][ii].copy()
             dec_sky = source_data['DEC'][ii].copy()
             desi_target_sky = desi_target.copy()
             bgs_target_sky = bgs_target.copy()
             mws_target_sky = mws_target.copy()
             obsconditions_sky = source_obsconditions.copy()
-        if target_name not in ['SKY', 'STD_FSTAR']:
+        if source_name not in ['SKY', 'STD_FSTAR']:
             ra_total = np.append(ra_total, source_data['RA'][ii])
             dec_total = np.append(dec_total, source_data['DEC'][ii])
             z_total = np.append(z_total, source_data['Z'][ii])
@@ -187,10 +482,35 @@ def targets_truth(params, output_dir):
             true_type_total = np.append(true_type_total, true_type)
             source_type_total = np.append(source_type_total, source_type)
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
+            mockid_total = np.append(mockid_total, source_data['MOCKID'][ii])
 
+            #- Add fluxes, which default to 0 if the mocks don't have them
+            if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
+                from desitarget.mock import sfdmap
+                ra = source_data['RA']
+                dec = source_data['DEC']
+                ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
+                #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
+                source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
             
+            if 'DECAM_FLUX' in source_data:
+                decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
+            else:
+                n = len(desi_target)
+                tmpflux = np.zeros((n,6), dtype='f4')
+                if 'DECAMg_obs' in source_data:
+                    tmpflux[:,1] = 10**(0.4*(22.5-source_data['DECAMg_obs'][ii]))
+                if 'DECAMr_obs' in source_data:
+                    tmpflux[:,2] = 10**(0.4*(22.5-source_data['DECAMr_obs'][ii]))
+                if 'DECAMz_obs' in source_data:
+                    tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
+                decam_flux = np.vstack([decam_flux, tmpflux])
 
-        print('{} {}: selected {} out of {}'.format(source_name, target_name, len(source_data['RA'][ii]), len(source_data['RA'])))
+        print('source {} target {} truth {}: selected {} out of {}'.format(
+                source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
+
+
+    
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     
@@ -263,18 +583,13 @@ def targets_truth(params, output_dir):
         targets['SUBPRIORITY'] = subprior
         targets['OBSCONDITIONS'] = obsconditions_total
         brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
-        targets['BRICKNAME'] = brickname
+        targets['BRICKNAME'] = brickname          
+
+        targets['DECAM_FLUX'] = decam_flux
+        add_mock_shapes_and_fluxes(targets, realtargets)
+        add_galdepths(targets, brick_info)
         targets.write(targets_filename, overwrite=True)
         print('Finished writing Targets file')
-
-        # started computing mtl file for the targets
-        print('Started computing the MTL file')
-        mtl_table = mtl.make_mtl(targets)        
-        # writing the MTL file to disk
-        print('Started writing the first MTL file')
-        mtl_filename = os.path.join(output_dir, 'mtl.fits')
-        mtl_table.write(mtl_filename, overwrite=True)
-        print('Finished writing mtl file')
 
         # write the Truth to disk
         print('Started writing Truth file')
@@ -287,6 +602,10 @@ def targets_truth(params, output_dir):
         truth['TRUETYPE'] = true_type_total
         truth['SOURCETYPE'] = source_type_total
         truth['BRICKNAME'] = brickname
+        truth['MOCKID'] = mockid_total
+
+        add_OIIflux(targets, truth)
+        
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')
 

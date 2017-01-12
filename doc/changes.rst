@@ -2,11 +2,28 @@
 desitarget Change Log
 =====================
 
-0.7.1 (unreleased)
+0.8.3 (unreleased)
+------------------
+
+* include mapping from MOCKID -> TARGETID
+
+0.8.2 (2016-12-03)
+------------------
+
+* updates for mocks integrated with quicksurvey
+
+0.8.1 (2016-11-23)
+------------------
+
+* fix select_targets and gitversion for py3
+
+0.8.0 (2016-11-23)
 ------------------
 
 * Adds DESI_TARGET bits for bright object masking
 * MTL sets priority=-1 for any target with IN_BRIGHT_OBJECT set
+* Many updates for reading and manipulating mock targets
+* Adds BGS_FAINT target selection
 
 0.7.0 (2016-10-12)
 ------------------

@@ -16,6 +16,7 @@ import desitarget.io
 import h5py
 import desitarget.targets
 
+
 """
 How to distribute 52 user bits of targetid.
 
@@ -31,6 +32,91 @@ ENCODE_ROW_MAX     = ENCODE_ROW_MASK
 ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
+
+
+
+def print_all_mocks_info(params):
+    """
+    Prints parameters to read mock files.
+    Parameters
+    ----------
+        params (dictionary) The different kind of sources are stored under the 'sources' key.
+    """
+    print('The following populations and paths are specified:')
+    for source_name in sorted(params['sources'].keys()):
+        source_format = params['sources'][source_name]['format']
+        source_path = params['sources'][source_name]['root_mock_dir']
+        target_name = params['sources'][source_name]['target_name']
+        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name, source_format, target_name, source_path))
+
+def load_all_mocks(params):
+    """
+    Prints parameters to read mock files.
+    Parameters
+    ----------
+    params (dictionary) The different kind of sources are stored under the 'sources' key.
+    
+    Returns
+    -------
+        source_data_all (dictionary). The keys correspond to the different input 'sources'
+        stored under params['sources'].keys()
+    """
+    source_data_all = {}
+
+
+    # load all the mocks
+    loaded_mocks = {}
+    for source_name in sorted(params['sources'].keys()):
+        source_format = params['sources'][source_name]['format']
+        source_path = params['sources'][source_name]['root_mock_dir']
+        source_dict = params['sources'][source_name]
+        target_name = params['sources'][source_name]['target_name']
+
+        print('type: {} format: {}'.format(source_name, source_format))
+        function = 'read_'+source_format
+        if 'mock_name' in source_dict.keys():
+            mock_name = source_dict['mock_name']
+            this_name = source_path+mock_name
+        else:
+            mock_name = None
+            this_name = source_path
+            
+        if this_name not in loaded_mocks.keys():
+            print('reading {} for {}'.format(this_name, source_name))
+            loaded_mocks[this_name] = source_name
+
+            func = globals()[function]
+            result = func(source_path, target_name, mock_name=mock_name)
+
+            if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+                print('Trimming {} to RA,dec subselection'.format(source_name))
+                ii  = (result['RA']  >= params['subset']['min_ra']) & \
+                    (result['RA']  <= params['subset']['max_ra']) & \
+                    (result['DEC'] >= params['subset']['min_dec']) & \
+                    (result['DEC'] <= params['subset']['max_dec'])
+                
+                #- Trim RA,DEC,Z, ... columns to subselection
+                #- Different types of mocks have different metadata, so assume
+                #- that any ndarray of the same length as number of targets should
+                #- be trimmed.
+                ntargets = len(result['RA'])
+                for key in result:
+                    if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
+                        result[key] = result[key][ii]
+
+            #- Add min/max ra/dec to source_dict for use in density estimates
+                source_dict.update(params['subset'])
+
+
+            source_data_all[source_name] = result
+        else:
+            print('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
+            source_data_all[source_name] = source_data_all[loaded_mocks[this_name]]
+
+    print('loaded {} mock sources'.format(len(source_data_all)))
+    return source_data_all
+
+    
 
 
 ############################################################
@@ -62,34 +148,40 @@ def _load_mock_mws_file(filename):
         'SDSS[grz]_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS grz bands, including extinction.
     """
+    import desitarget.photo
     print('Reading '+filename)
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
-                       columns= ['objid','RA','DEC','v_helio','d_helio', 'SDSSr_true',
-                                 'SDSSr_obs', 'SDSSg_obs', 'SDSSz_obs'])
-
-
-    objid       = data['objid'].astype('i8')
+                       columns= ['RA','DEC','v_helio','d_helio', 'SDSSr_true',
+                                 'SDSSg_obs', 'SDSSr_obs', 'SDSSi_obs', 'SDSSz_obs'])
+ 
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
-    v_helio     = data['v_helio'].astype('f8')
-    d_helio     = data['d_helio'].astype('f8')
-    SDSSr_true  = data['SDSSr_true'].astype('f8')
-    SDSSg_obs   = data['SDSSg_obs'].astype('f8')
-    SDSSr_obs   = data['SDSSr_obs'].astype('f8')
-    SDSSz_obs   = data['SDSSz_obs'].astype('f8')
+    v_helio     = data['v_helio'].astype('f4')
+    d_helio     = data['d_helio'].astype('f4')
+    SDSSr_true  = data['SDSSr_true'].astype('f4')
+    SDSSg_obs   = data['SDSSg_obs'].astype('f4')
+    SDSSr_obs   = data['SDSSr_obs'].astype('f4')
+    SDSSi_obs   = data['SDSSi_obs'].astype('f4')
+    SDSSz_obs   = data['SDSSz_obs'].astype('f4')
 
-    return {'objid':objid,
+    DECAMg_obs, DECAMr_obs, DECAMz_obs = \
+        desitarget.photo.sdss2decam(SDSSg_obs, SDSSr_obs, SDSSi_obs, SDSSz_obs)
+
+    n = len(ra)
+    objid = np.arange(n, dtype='i8')
+
+    return {'objid': objid,
             'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'd_helio': d_helio,
-            'SDSSr_true': SDSSr_true, 'SDSSr_obs': SDSSr_obs,
-            'SDSSg_obs' : SDSSg_obs, 'SDSSz_obs' : SDSSz_obs}
-
-
+            'SDSSr_true': DECAMr_obs,
+            'DECAMr_obs': DECAMr_obs,
+            'DECAMg_obs': DECAMg_obs,
+            'DECAMz_obs': DECAMz_obs }
 
 ############################################################
-def _load_mock_lyaqso_file(filename):
+def _load_mock_lya_file(filename):
     """
     Reads mock information for 
 
@@ -173,6 +265,29 @@ def decode_rownum_filenum(encoded_values):
     rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
     return rownum,filenum
 
+def make_mockid(objid, n_per_file):
+    """
+    Computes mockid from row and file ids.
+    Parameters:
+        objid (int array): Row ID.
+        n_per_file (int list): Number of items per file that went into objid.
+    Return:
+        mockid (int array): encoded row and file ID.
+    """
+    
+    n_files = len(n_per_file)
+    n_obj = len(objid)
+
+    n_p_file = np.array(n_per_file)
+    n_per_file_cumsum = n_p_file.cumsum()
+
+
+    filenum = np.zeros(n_obj, dtype='int64')
+    for n in range(1,n_files):
+        filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
+
+    return encode_rownum_filenum(objid, filenum)
+
 ############################################################
 def read_wd100pc(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
@@ -209,9 +324,9 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     mock_name = 'mock_wd100pc.fits'
     filename  = os.path.join(mock_dir,mock_name)
     data = fitsio.read(filename,
-                       columns= ['RA','DEC','radialvelocity','magg','WD','objid'])
+                       columns= ['RA','DEC','radialvelocity','magg','WD'])
 
-    obijd       = data['objid'].astype('i8') 
+
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['radialvelocity'].astype('f8')
@@ -224,8 +339,15 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     n_per_file.append(len(ra))
 
 
+    n = len(ra)
+    objid = np.arange(n, dtype='i8')
+
     print('read {} objects'.format(n_per_file[0]))
-    return {'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+    
+    return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
@@ -255,7 +377,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
             Heliocentric radial velocity divided by the speed of light.
         'SDSSr_true': :class: `numpy.ndarray`
             Apparent magnitudes in SDSS bands, including extinction.
-        'SDSSr_obs': :class: `numpy.ndarray`
+        'DECAMr_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
     """
     # Build iterator of all desi_galfast files
@@ -270,19 +392,20 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
     # Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
     # Leaving this code here for the moment in case we fine a workaround
 
-    # import multiprocessing
-    # print('Reading individual mock files')
-    # file_list = list(iter_mock_files)
-    # nfiles = len(file_list)
-    # ncpu = max(1, multiprocessing.cpu_count() // 2)
-    # print('using {} parallel readers'.format(ncpu))
-    # p = multiprocessing.Pool(ncpu)
-    # target_list = p.map(_load_mock_mws_file, file_list)
-
+    import multiprocessing
     print('Reading individual mock files')
-    target_list = list()
-    file_list   = list()
-    nfiles      = 0
+    file_list = list(iter_mock_files)
+    nfiles = len(file_list)
+    ncpu = max(1, multiprocessing.cpu_count() // 2)
+    print('using {} parallel readers'.format(ncpu))
+    p = multiprocessing.Pool(ncpu)
+    target_list = p.map(_load_mock_mws_file, file_list)
+    p.close()
+#    print('Reading individual mock files')
+#    target_list = list()
+#    file_list   = list()
+#    nfiles      = 0
+
     for mock_file in iter_mock_files:
         nfiles += 1
         data_this_file = _load_mock_mws_file(mock_file)
@@ -290,8 +413,10 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         file_list.append(mock_file)
         print('read file {} {}'.format(nfiles, mock_file))
 
-    print('Read {} files'.format(nfiles))
+    if nfiles == 0:
+        raise ValueError('Unable to find files in {}'.format(mock_dir))
 
+    print('Read {} files'.format(nfiles))
     # Concatenate all the dictionaries into a single dictionary, in an order
     # determined by np.argsort applied to the base name of each path in
     # file_list.
@@ -313,17 +438,23 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         # Count number of points per file
         k          = list(target_list[0])[0] # pick the first available column
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-        odered_file_list = [file_list[itarget] for itarget in file_order]
+        ordered_file_list = [file_list[itarget] for itarget in file_order]
 
     print('Read {} objects'.format(np.sum(n_per_file)))
 
+
+    print('making mockid id')
+    full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
+    print('finished making mockid id')
+
     full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
+
     return full_data
 
 
 ############################################################
-def read_lyaqso(mock_dir, target_type, mock_name=None):
+def read_lya(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -360,7 +491,8 @@ def read_lyaqso(mock_dir, target_type, mock_name=None):
     ncpu = max(1, multiprocessing.cpu_count() // 2)
     print('using {} parallel readers'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
-    target_list = p.map(_load_mock_lyaqso_file, file_list)
+    target_list = p.map(_load_mock_lya_file, file_list)
+    p.close()
 
     print('Read {} files'.format(nfiles))
 
@@ -389,8 +521,13 @@ def read_lyaqso(mock_dir, target_type, mock_name=None):
 
     print('Read {} objects'.format(np.sum(n_per_file)))
 
+    print('making mockid id')
+    full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
+    print('finished making mockid id')
+
     full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
+
     return full_data
 
 ############################################################
@@ -421,23 +558,35 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
         filename = os.path.join(mock_dir, mock_name+'.fits')
 
     try:
-        data = fitsio.read(filename,columns=['RA','DEC','Z'], upper=True)
+        columns = ['RA','DEC','Z_COSMO', 'DZ_RSD']
+        data = fitsio.read(filename,columns=columns, upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
-        zz   = data[  'Z'].astype('f8')
+        zz   = data[  'Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')
     except:
-        data = fitsio.read(filename,columns=['RA','DEC'], upper=True)
+        columns = ['RA','DEC']
+        data = fitsio.read(filename,columns=columns, upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
         zz = np.random.uniform(0.0, 1.0, size=len(ra))
 
+    print('read columns {}'.format(columns))
     print('read {} lines from {}'.format(len(data), filename))
     del data
     files = list()
     files.append(filename)
     n_per_file = list()
     n_per_file.append(len(ra))
-    return {'RA':ra, 'DEC':dec, 'Z':zz, 'FILES': files, 'N_PER_FILE': n_per_file}
+
+    objid = np.arange(len(ra))
+
+
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+
+    return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
 def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
@@ -452,7 +601,7 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
         RA          : RA positions for the objects in the mock.
         DEC         : DEC positions for the objects in the mock.
         Z           : Heliocentric radial velocity divided by the speed of light.
-        SDSSr_true  : Apparent magnitudes in SDSS r band.
+        DECAMr_true  : Apparent magnitudes in SDSS r band.
     """
 
     filename = os.path.join(mock_dir, target_type+'.hdf5')
@@ -463,6 +612,9 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     zred   = f["Data/z_obs"][...].astype('f8')
     f.close()
 
+    #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
+    DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
+
     print('read {} lines from {}'.format(len(ra), filename))
 
     files = list()
@@ -470,8 +622,16 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     n_per_file = list()
     n_per_file.append(len(ra))
 
-    return {'RA':ra, 'DEC':dec, 'Z': zred ,
-            'SDSSr_true':SDSSr_true, 'FILES': files, 'N_PER_FILE': n_per_file}
+    objid = np.arange(len(ra))
+
+
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+
+    return {'objid': objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z': zred,
+            'DECAMr_true': DECAMr_true,
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
 def read_mock_durham(core_filename, photo_filename):

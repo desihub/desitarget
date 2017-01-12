@@ -78,8 +78,12 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(np.all(elg1==elg2))
 
         psftype = targets['TYPE']
-        bgs1 = cuts.isBGS(rflux=rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS(rflux=rflux, objtype=None, primary=None)
+        bgs1 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=primary)
+        bgs2 = cuts.isBGS_bright(rflux=rflux, objtype=None, primary=None)
+        self.assertTrue(np.all(bgs1==bgs2))
+
+        bgs1 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=primary)
+        bgs2 = cuts.isBGS_faint(rflux=rflux, objtype=None, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
         #- Test that objtype and primary are optional
