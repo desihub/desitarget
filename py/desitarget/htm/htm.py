@@ -21,6 +21,47 @@ from astropy import units as u
 from .. import __version__ as desitarget_version
 from .. import gitversion
 
+def approx_area(level):
+    """Return the APPROXIMATE area of an HTM pixel at a given level of the tree
+
+    Parameters
+    ----------
+    level : :class: `int`
+       Level of the HTM quad-tree (8 initial pixels returned by initri is level 0
+       and each level below that splits the pixels into 4 children.
+
+    Returns                                                                                                                               
+    -------
+    Approximate area of a single pixel in square degrees at the input level.
+    It's approximate because child pixels are not quite equal-area
+
+    """
+
+    spharea = 4.*180.*180./np.pi
+    return (spharea/8./4.**level)
+
+
+def approx_resolution(level):
+    """Return the APPROXIMATE resolution of an HTM pixel at a given level of the tree
+
+    Parameters
+    ----------
+    level : :class: `int`
+       Level of the HTM quad-tree (8 initial pixels returned by initri is level 0
+       and each level below that splits the pixels into 4 children.
+
+    Returns                                                                                                                               
+    -------
+    Approximate resolution as the SIDE length of a single pixel in degrees at the input level. It's
+    approximate because child pixels are not quite equal-area and spherical curvature is ignored
+
+    """
+    
+    area = approx_area(level)
+    fac = 4./np.sqrt(3)
+    return np.sqrt(fac*area)
+
+
 def within(testverts,v):
     """Check whether a test point (cartesian vector) lies within a spherical triangle (3 cartesian vectors)
     
@@ -177,7 +218,16 @@ def lookup(ra,dec,level=20,charpix=True):
     :class:`char array` or `int array`
         The HTM pixels corresponding to the passed RA/Dec at the requisite level. Will be the same
         length as length of ra and dec
+
+    Notes
+    -----
+    
+    Performs about 16000 level 20 (resolution ~ 0.4 arcsec) lookups per second on a NERSC login node
+    Performs about 25000 level 13 (resolution ~ 0.8 arcmin) lookups per second on a NERSC login node
+
     """
+
+    t0 = time()
 
     #ADM convert input spherical coordinates to Cartesian
     v = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
@@ -241,6 +291,8 @@ def lookup(ra,dec,level=20,charpix=True):
 
         desig = desig + index
         count +=1
+
+    print('{} HTM lookups at level {} in {:.2f}s'.format(len(ra), level, time()-t0))
 
     return desig
 
