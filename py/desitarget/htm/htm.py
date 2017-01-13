@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division)
 #
 from time import time
 import numpy as np
+from numpy.core.umath_tests import inner1d
 import fitsio
 from glob import glob
 from astropy.coordinates import SkyCoord
@@ -25,15 +26,36 @@ def within(testverts,v):
     
     Parameters
     ----------
-    testverts : :class:`float`
-        An array of 3 numpy arrays, each of which is a Cartesian representation of the vertex of a spherical triangle
-    v : :class:`float`
-        A numpy array representing a point on the sphere (as a Cartesian vector)
+    testverts : :class:`float array`
+       An array of three 3 vectors representing the Cartesian coordinates of the vertices of an spherical triangle
+       can be N-dimensional, e.g.
+
+       array([[[x1,  y1,  z1],       Vertex 1 of first Triangle
+               [x2,  y2,  z2],       Vertex 2 of first Triangle
+               [x3,  y3,  z3]],      Vertex 3 of first Triangle
+
+              [[Nx1, Ny1,  Mz1],     Vertex 1 of Nth Triangle
+               [Nx2, Ny2,  Nz2],     Vertex 2 of Nth Triangle
+               [Nx3, Ny3,  Nz3]]])   Vertex 3 of Nth Triangle
+
+    v : :class:`float array'`
+        A numpy array representing a point on the sphere (as a Cartesian vector, e.g.
+
+       array([[[x1,  y1,  z1],       Vector 1
+
+               [xN,  yN,  zN]]])     Vector N
+
+        Note that v must have the same dimension as testverts (each point is checked row-by-row against its triangle)
 
     Returns
     -------
-    True if the point represented by v is inside of the spherical triangle represented by testverts. False otherwise
+    True if the point represented by v is inside of the spherical triangle represented by testverts. False otherwise.
+    Returns an array of Trues and Falses if testverts and v were N-dimensional
+    
     """
+
+    #ADM an array of Trues and Falses for the output. Default to True.
+    boolwithin = np.ones(len(v),dtype='bool')
 
     #ADM The algorithm is to check the direction of the projection (dot product) of the test
     #ADM vector onto each vector normal (cross product) to the geodesics (planes) that
@@ -44,23 +66,24 @@ def within(testverts,v):
     for i in range(3):
         vert1 = vertperm[i]
         vert2 = vertperm[i+1]
-        test = np.dot(np.cross(testverts[vert1],testverts[vert2]),v)
-        if test < -1.0e-15:
-            return False
+        #ADM the inner1d function performs a row-by-row dot product
+        test = inner1d(np.cross(testverts[:,vert1],testverts[:,vert2]),v)
+        w = np.where(test < 0.0)
+        boolwithin[w] = False
 
-    return True
+    return boolwithin
 
     
 def initri():
     """Initializer that returns a dictionary of the 8 initial (level 1) HTM nodes
-                                                                                                                                                      
+
     Parameters 
     ----------
     None
 
     Returns
     -------
-    A dictionary that contains the names and (cartesian) vertices of level 1 of the HTM tree
+    A dictionary that contains the names and (Cartesian) vertices of level 1 of the HTM tree
     """
 
     #ADM The six possible vertices of the initial eight HTM spherical triangles are
@@ -74,13 +97,13 @@ def initri():
     #ADM Construct a dictionary of the vertices of the eight initial nodes 
     verts = {}
 
-    verts["S0"] = B,F,C                # S0 triangle's vertices                                                                                    
-    verts["S1"] = C,F,D                # S1 triangle's vertices                                                                                    
-    verts["S2"] = D,F,E                # S2 triangle's vertices                                                                                    
-    verts["S3"] = E,F,B                # S3 triangle's vertices                                                                                    
-    verts["N0"] = B,A,E                # N0 triangle's vertices                                                                                    
-    verts["N1"] = E,A,D                # N1 triangle's vertices                                                                                    
-    verts["N2"] = D,A,C                # N2 triangle's vertices                                                                                    
+    verts["S0"] = B,F,C                # S0 triangle's vertices
+    verts["S1"] = C,F,D                # S1 triangle's vertices
+    verts["S2"] = D,F,E                # S2 triangle's vertices
+    verts["S3"] = E,F,B                # S3 triangle's vertices
+    verts["N0"] = B,A,E                # N0 triangle's vertices
+    verts["N1"] = E,A,D                # N1 triangle's vertices
+    verts["N2"] = D,A,C                # N2 triangle's vertices
     verts["N3"] = C,A,B                # N3 triangle's vertices                                                                                    
 
     return verts
@@ -88,12 +111,12 @@ def initri():
 
 def childnode(vert):
 
-    """Return the correctly ordered (anti-colockwise) four child nodes of an HTM node
+    """Return the correctly ordered (anti-clockwise) four child nodes of an HTM node
 
     Parameters
     ----------
     vert : :class:`float array`
-       An array of three 3 vectors representing the Cartesian coordinates of the vertices of an HTM node
+       An array of three 3 vectors representing the Cartesian coordinates of the vertices of an HTM triangular node
        can be N-dimensional, e.g.
 
        array([[[x1,  y1,  z1],       Vertex 1 of first Triangle
@@ -106,12 +129,14 @@ def childnode(vert):
            
     Returns
     -------
-    :class:`float`
+    :class:`float array`
        A dictionary containing the vertices of the 4 child nodes, three vertices in (x,y,z) form for each child node.
        The keys of the dictionary are the HTMid extension for that child  node ('0','1','2' or '3')
+       Each of the dictionary values has the same format as the input for vert (explained under 'Parameters')
     """
 
     childverts = {}
+    npix = len(vert)
 
     #ADM Find the midpoint vectors of the parent triangle...
     A = vert[:,1] + vert[:,2]
@@ -125,10 +150,10 @@ def childnode(vert):
     #ADM Now compile test progeny triangles from the midpoints and vertices of the parent triangle
     #ADM and put them in a dictionary where the key is the name of the node
     #ADM The reshape and hstack-ing is just to format the triangles the same as the input format
-    childverts[0] = np.hstack(np.array([vert[:,0],C,B])).reshape(2,3,3)
-    childverts[1] = np.hstack(np.array([vert[:,1],A,C])).reshape(2,3,3)
-    childverts[2] = np.hstack(np.array([vert[:,2],B,A])).reshape(2,3,3)
-    childverts[3] = np.hstack(np.array([A,B,C])).reshape(2,3,3)
+    childverts[0] = np.hstack(np.array([vert[:,0],C,B])).reshape(npix,3,3)
+    childverts[1] = np.hstack(np.array([vert[:,1],A,C])).reshape(npix,3,3)
+    childverts[2] = np.hstack(np.array([vert[:,2],B,A])).reshape(npix,3,3)
+    childverts[3] = np.hstack(np.array([A,B,C])).reshape(npix,3,3)
 
     return childverts
 
@@ -149,19 +174,19 @@ def lookup(ra,dec,level=20,charpix=True):
 
     Returns
     -------
-    :class:`char` or `int``
+    :class:`char array` or `int array`
         The HTM pixels corresponding to the passed RA/Dec at the requisite level. Will be the same
         length as length of ra and dec
     """
 
-    #ADM if inputs are single floats, convert to arrays
-    if type(ra) == type(float()):
-        ra = np.array([ra])
-        dec = np.array([dec])
-
     #ADM convert input spherical coordinates to Cartesian
     v = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
     v.representation = 'cartesian'
+
+    #ADM convert SkyCoord object to numpy array for speedier manipulation
+    #ADM .T is the transpose attribute
+    #ADM this conversion also allows either single floats or longer arrays to be passed
+    v = np.vstack(np.array([v.x.value,v.y.value,v.z.value])).T
 
     #ADM we begin to hit 64-bit floating point issues at level 25 but this is small enough for
     #ADM most applications (at level 25 a spherical triangle's longest side is ~1/100 arcsec)
@@ -176,7 +201,7 @@ def lookup(ra,dec,level=20,charpix=True):
     #ADM vx > 0 + vy >= 0 + vz >= 0 = 2^2 + 2^1 + 2^0 = 7 is parent node N3
     #ADM vx > 0 + vy < 0 + vz >=0 = 2^2 + 0*2^1 + 2^0 = 5 is parent node N0
 
-    vecnodenumber = (v.x > 0)*2**2 + (v.y > 0)*2**1 + (v.z > 0)*2**0
+    vecnodenumber = (v[:,0] > 0)*2**2 + (v[:,1] > 0)*2**1 + (v[:,2] > 0)*2**0
     nodenames = np.array(["S2","N1","S1","N2","S3","N0","S0","N3"])
 
     #ADM these are the name of the parent node and the vertices of the parent nodes
@@ -198,22 +223,25 @@ def lookup(ra,dec,level=20,charpix=True):
         
         #ADM Now we test which of these triangles our point "v" is in
 
-        for i in testverts:
-            if vec.within(testverts[i],v):
-                vert = testverts[i]
-                index = str(i)
-                break
-            if i == 2:
-                vert = testverts[3]
-                index = "3"
-                break
+        #ADM for speed-up don't test 0th triangle. If the point is not in the other
+        #ADM three then by definition it has to be in the 0th
+        index = np.chararray(len(desig),unicode=True)
+        index[:] = '0'
+        #ADM default to zeroth triangle. This will update with the actual pixel
+        #ADM that the point is in if those nodes are triangle 1, 2 or 3
+        vert = testverts[0]
+        for i in range(1,4):
+            w = np.where(within(testverts[i],v))
+            #ADM update
+            vert[w] = testverts[i][w]
+            index[w] = str(i)
 
         #ADM We check the triangles in order T0, T1, T2, T3 and break at the
         #ADM first spherical triangle that contains the point of interest
 
-        desig.append(index)
+        desig = desig + index
         count +=1
 
-    return "".join(desig), v
+    return desig
 
 
