@@ -21,16 +21,96 @@ from astropy import units as u
 from .. import __version__ as desitarget_version
 from .. import gitversion
 
+def char2int(ID):
+
+    """Convert an array of HTM IDs in character format integers
+    (see documentation below for onechar2int, the non-array version)
+
+    Parameters
+    ----------
+    ID :class:`str array` or `str`
+       An array of HTM IDs in character format (will also accept an
+       individual string to act as an overall wrapper on onechar2int)
+
+    Returns
+    -------
+    :class:`int`
+       The corresponding HTM ID(s) in integer format
+    
+    """
+    #ADM check if an individual string was passed, if so default
+    #ADM to non-array version of code
+    if isinstance(ID, str):
+        return np.array([onechar2int(ID)])
+    else:
+        return np.array([ onechar2int(i) for i in ID ])
+
+
+def onechar2int(ID):
+
+    """Convert an HTM ID in character format to a unique corresponding integer
+
+    Parameters
+    ----------
+    ID :class:`char` 
+       An HTM ID in character format,  e.g. 'N333133130'
+
+    Returns
+    -------
+    :class:`int`
+       The corresponding HTM ID in integer format, e.g. 1046492
+    
+    Caveats
+    -------
+    This is a trusting routine - it will, without flagging an
+    error, return a value for any input string but will only be
+    meaningful for HTM index-strings.
+
+    Notes
+    -----
+    Successive HTMIDs at each tree level have successive integer codes.
+    This is useful for sorting the tree, e.g.:
+
+    N333133130 --> 1046492          S00 --> 32
+    N333133131 --> 1046493          N33 --> 63
+    N333133132 --> 1046494         S000 --> 128
+    N333133133 --> 1046495         N333 --> 255
+    N333133200 --> 1046496        S0000 --> 512
+    N333133201 --> 1046497        N3333 --> 1023
+
+    """
+
+    #ADM The first digit in the binary HTM representation is always 1
+    binrep = '1'
+
+    #ADM If the first letter in the ID is 'N', then the second digit in the
+    #ADM binary representation is also a "1", otherwise it's a "0"
+    binrep += str((ID[0] == 'N')*1)
+
+    #ADM For each ID character (0,1,2 or 3) find the two digits in its binary 
+    #ADM representation, concatenate them, and append them to binrep
+    binrep += "".join([ '{:02b}'.format(int(num)) for num in ID[1:] ])
+    
+    #ADM Now we have the binary number that corresponds to the HTM ID, expressed
+    #ADM as a string. All that's left to do is to turn it into an integer
+    #ADM First turn it into a numpy array via a list...
+    binval = np.array([ int(s) for s in binrep ])
+
+    #ADM ...then x by the appropriate power of 2 and sum to get an integer
+    binexp = 2**np.arange(2*len(ID))[::-1]
+
+    return np.sum(binval*binexp)
+
 def approx_area(level):
     """Return the APPROXIMATE area of an HTM pixel at a given level of the tree
 
     Parameters
     ----------
-    level : :class: `int`
+    level : :class:`int`
        Level of the HTM quad-tree (8 initial pixels returned by initri is level 0
        and each level below that splits the pixels into 4 children.
 
-    Returns                                                                                                                               
+    Returns
     -------
     Approximate area of a single pixel in square degrees at the input level.
     It's approximate because child pixels are not quite equal-area
@@ -46,11 +126,11 @@ def approx_resolution(level):
 
     Parameters
     ----------
-    level : :class: `int`
+    level : :class:`int`
        Level of the HTM quad-tree (8 initial pixels returned by initri is level 0
        and each level below that splits the pixels into 4 children.
 
-    Returns                                                                                                                               
+    Returns
     -------
     Approximate resolution as the SIDE length of a single pixel in degrees at the input level. It's
     approximate because child pixels are not quite equal-area and spherical curvature is ignored
@@ -68,8 +148,8 @@ def within(testverts,v):
     Parameters
     ----------
     testverts : :class:`float array`
-       An array of three 3 vectors representing the Cartesian coordinates of the vertices of an spherical triangle
-       can be N-dimensional, e.g.
+       An array of three 3 vectors representing the Cartesian coordinates of the vertices of 
+       a spherical triangle can be N-dimensional, e.g.
 
        array([[[x1,  y1,  z1],       Vertex 1 of first Triangle
                [x2,  y2,  z2],       Vertex 2 of first Triangle
@@ -151,7 +231,6 @@ def initri():
 
 
 def childnode(vert):
-
     """Return the correctly ordered (anti-clockwise) four child nodes of an HTM node
 
     Parameters
@@ -219,11 +298,12 @@ def lookup(ra,dec,level=20,charpix=True):
         The HTM pixels corresponding to the passed RA/Dec at the requisite level. Will be the same
         length as length of ra and dec
 
-    Notes
-    -----
+    Timing Notes
+    ------------
     
     Performs about 16000 level 20 (resolution ~ 0.4 arcsec) lookups per second on a NERSC login node
     Performs about 25000 level 13 (resolution ~ 0.8 arcmin) lookups per second on a NERSC login node
+    Is about a factor of 3 slower for charpix = False
 
     """
 
@@ -291,6 +371,10 @@ def lookup(ra,dec,level=20,charpix=True):
 
         desig = desig + index
         count +=1
+
+    #ADM if integer format was specified for the pixels, convert to integer format
+    if not charpix:
+        desig = char2int(desig)
 
     print('{} HTM lookups at level {} in {:.2f}s'.format(len(ra), level, time()-t0))
 
