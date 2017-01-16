@@ -79,7 +79,10 @@ def onechar2int(ID):
     N333133201 --> 1046497        N3333 --> 1023
 
     """
-
+    #ADM Die if a byte string is passed, which would give an incorrect format conversion
+    if type(ID)==type(b'N'):
+        raise TypeError("input should be of Type <class 'str'> not Type <class 'bytes'>")
+    
     #ADM The first digit in the binary HTM representation is always 1
     binrep = '1'
 
@@ -100,6 +103,7 @@ def onechar2int(ID):
     binexp = 2**np.arange(2*len(ID))[::-1]
 
     return np.sum(binval*binexp)
+
 
 def approx_area(level):
     """Return the APPROXIMATE area of an HTM pixel at a given level of the tree
@@ -174,6 +178,9 @@ def within(testverts,v):
     Returns an array of Trues and Falses if testverts and v were N-dimensional
     
     """
+    #ADM recast inputs as float64 as the inner1d ufunc is not supported for higher-bit floats
+    v = v.astype('f8')
+    testverts = testverts.astype('f8')    
 
     #ADM an array of Trues and Falses for the output. Default to True.
     boolwithin = np.ones(len(v),dtype='bool')
@@ -278,7 +285,7 @@ def childnode(vert):
     return childverts
 
 
-def lookup(ra,dec,level=20,charpix=True):
+def lookup(ra,dec,level=20,charpix=True,verbose=True):
     """Return the HTM pixel for a given RA/Dec
 
     Parameters
@@ -291,6 +298,8 @@ def lookup(ra,dec,level=20,charpix=True):
         Which level of the HTM tree to pixelize down to
     charpix : :class:`bool`, optional, defaults to True
         If True, return pixels in character format, otherwise return them in integer format
+    verbose : :class:`bool`, optional, defaults to True
+        If True, print timing and warning messages to screen
 
     Returns
     -------
@@ -321,8 +330,9 @@ def lookup(ra,dec,level=20,charpix=True):
     #ADM we begin to hit 64-bit floating point issues at level 25 but this is small enough for
     #ADM most applications (at level 25 a spherical triangle's longest side is ~1/100 arcsec)
     if level > 25:
-        print("WARNING: Module htm.htm.py: pixels too small for 64-bit floats")
-        print("LEVEL WILL BE SET TO 25")
+        if verbose:
+            print("WARNING: Module htm.htm.py: pixels too small for 64-bit floats")
+            print("LEVEL WILL BE SET TO 25")
         level = 25
     
     testverts = initri()
@@ -376,7 +386,8 @@ def lookup(ra,dec,level=20,charpix=True):
     if not charpix:
         desig = char2int(desig)
 
-    print('{} HTM lookups at level {} in {:.2f}s'.format(len(ra), level, time()-t0))
+    if verbose:
+        print('{} HTM lookups at level {} in {:.2f}s'.format(len(desig), level, time()-t0))
 
     return desig
 
