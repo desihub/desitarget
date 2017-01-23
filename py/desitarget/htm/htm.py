@@ -178,7 +178,7 @@ def within(testverts,v):
     Returns an array of Trues and Falses if testverts and v were N-dimensional
     
     """
-    #ADM recast inputs as float64 as the inner1d ufunc is not supported for higher-bit floats
+    #ADM recast inputs as float64 as the inner1d ufunc does not support higher-bit floats
     v = v.astype('f8')
     testverts = testverts.astype('f8')    
 
@@ -196,7 +196,9 @@ def within(testverts,v):
         vert2 = vertperm[i+1]
         #ADM the inner1d function performs a row-by-row dot product
         test = inner1d(np.cross(testverts[:,vert1],testverts[:,vert2]),v)
-        w = np.where(test < 0.0)
+        #ADM an alternative if inner1d is deprecated: inner1d appears to be ever-so-marginally faster
+        #test = sum(a*b for a,b in zip(np.cross(testverts[:,vert1],testverts[:,vert2]).T, v.T))
+        w = np.where(test <= 0.)
         boolwithin[w] = False
 
     return boolwithin
@@ -329,11 +331,11 @@ def lookup(ra,dec,level=20,charpix=True,verbose=True):
 
     #ADM we begin to hit 64-bit floating point issues at level 25 but this is small enough for
     #ADM most applications (at level 25 a spherical triangle's longest side is ~1/100 arcsec)
-    if level > 25:
+    if level > 20:
         if verbose:
-            print("WARNING: Module htm.htm.py: pixels too small for 64-bit floats")
-            print("LEVEL WILL BE SET TO 25")
-        level = 25
+            print("WARNING: Code agrees with SDSS SQL convention to 99.98% at LEVEL 20 but has not been tested at LEVEL > 20")
+            print("LEVEL WILL BE SET TO 20")
+        level = 20
     
     testverts = initri()
 
@@ -375,9 +377,6 @@ def lookup(ra,dec,level=20,charpix=True,verbose=True):
             #ADM update
             vert[w] = testverts[i][w]
             index[w] = str(i)
-
-        #ADM We check the triangles in order T0, T1, T2, T3 and break at the
-        #ADM first spherical triangle that contains the point of interest
 
         desig = desig + index
         count +=1
