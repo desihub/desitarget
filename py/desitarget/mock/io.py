@@ -596,24 +596,31 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
         filename (str): Name of a single mock file.
 
     Returns:
-        dict with the following entries (all ndarrays):
+        dict with the following entries (all ndarrays except normfilter):
 
-        RA          : RA positions for the objects in the mock.
-        DEC         : DEC positions for the objects in the mock.
-        Z           : Heliocentric radial velocity divided by the speed of light.
-        DECAMr_true  : Apparent magnitudes in SDSS r band.
+        RA              : RA positions for the objects in the mock.
+        DEC             : DEC positions for the objects in the mock.
+        Z               : Heliocentric radial velocity divided by the speed of light.
+        SDSS_absmag_r01 : absolute SDSS r-band magnitude band-shifted to z=0.1
+        SDSS_01gr       : SDSS g-r color band-shifted to z=0.1
+        MAG             : apparent SDSS r-band magnitude (extinction-corrected)
+        FILTERNAME      : filter name corresponding to MAG
     """
 
     filename = os.path.join(mock_dir, target_type+'.hdf5')
     f = h5py.File(filename)
     ra  = f["Data/ra"][...].astype('f8') % 360.0
     dec = f["Data/dec"][...].astype('f8')
-    SDSSr_true   = f["Data/app_mag"][...].astype('f8')
-    zred   = f["Data/z_obs"][...].astype('f8')
+    rmag = f["Data/app_mag"][...].astype('f8')
+    absmag = f["Data/abs_mag"][...].astype('f8')
+    gr = f["Data/g_r"][...].astype('f8')
+    zred = f["Data/z_obs"][...].astype('f8')
     f.close()
 
+    filtername = 'sdss2010-r'
+
     #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
-    DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
+    # DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
 
     print('read {} lines from {}'.format(len(ra), filename))
 
@@ -624,13 +631,12 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
 
     objid = np.arange(len(ra))
 
-
     print('making mockid id')
     mockid = make_mockid(objid, n_per_file)
     print('finished making mockid id')
 
     return {'objid': objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z': zred,
-            'DECAMr_true': DECAMr_true,
+            'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr, 'FILTERNAME': filtername, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 ############################################################
