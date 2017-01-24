@@ -2,7 +2,7 @@ import unittest
 from pkg_resources import resource_filename
 import numpy as np
 
-from desitarget.htm import htm
+from desitarget import htm
 
 class TestHTM(unittest.TestCase):
 
