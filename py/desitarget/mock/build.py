@@ -14,6 +14,7 @@ import astropy.table
 
 from   desitarget.targetmask import desi_mask
 from   desitarget.mock.io    import decode_rownum_filenum
+from   desitarget.mock.io    import empty_truth_table
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget import obsconditions
@@ -370,7 +371,7 @@ def targets_truth(params, output_dir, realtargets=None):
 
     #maps filename to fileid
     map_fileid_filename = fileid_filename(source_data_all, output_dir)
-
+    
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
@@ -443,7 +444,6 @@ def targets_truth(params, output_dir, realtargets=None):
             true_type = np.zeros(n, dtype='S10')
             true_type[:] = true_type_map[truth_name]
 
-                
         #define obsconditions
         source_obsconditions = np.ones(n,dtype='uint16')
         if target_name in ['LRG', 'QSO']:
@@ -484,33 +484,38 @@ def targets_truth(params, output_dir, realtargets=None):
             obsconditions_total = np.append(obsconditions_total, source_obsconditions)
             mockid_total = np.append(mockid_total, source_data['MOCKID'][ii])
 
-            #- Add fluxes, which default to 0 if the mocks don't have them
-            if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
-                from desitarget.mock import sfdmap
-                ra = source_data['RA']
-                dec = source_data['DEC']
-                ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
-                #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
-                source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
-            
-            if 'DECAM_FLUX' in source_data:
-                decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
-            else:
-                n = len(desi_target)
-                tmpflux = np.zeros((n,6), dtype='f4')
-                if 'DECAMg_obs' in source_data:
-                    tmpflux[:,1] = 10**(0.4*(22.5-source_data['DECAMg_obs'][ii]))
-                if 'DECAMr_obs' in source_data:
-                    tmpflux[:,2] = 10**(0.4*(22.5-source_data['DECAMr_obs'][ii]))
-                if 'DECAMz_obs' in source_data:
-                    tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
-                decam_flux = np.vstack([decam_flux, tmpflux])
+            # --------------------------------------------------
+            # HERE!!  Need to read in more of the rest-frame properties so we can do the mapping to spectra.
 
-        import pdb ; pdb.set_trace()
+            import pdb ; pdb.set_trace()
+
+            ##- Add fluxes, which default to 0 if the mocks don't have them
+            #if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
+            #    from desitarget.mock import sfdmap
+            #    ra = source_data['RA']
+            #    dec = source_data['DEC']
+            #    ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
+            #    #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
+            #    source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
+            #
+            #if 'DECAM_FLUX' in source_data:
+            #    decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
+            #else:
+            #    n = len(desi_target)
+            #    tmpflux = np.zeros((n,6), dtype='f4')
+            #    if 'DECAMg_obs' in source_data:
+            #        tmpflux[:,1] = 10**(0.4*(22.5-source_data['DECAMg_obs'][ii]))
+            #    if 'DECAMr_obs' in source_data:
+            #        tmpflux[:,2] = 10**(0.4*(22.5-source_data['DECAMr_obs'][ii]))
+            #    if 'DECAMz_obs' in source_data:
+            #        tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
+            #    decam_flux = np.vstack([decam_flux, tmpflux])
+            ## --------------------------------------------------
 
         print('source {} target {} truth {}: selected {} out of {}'.format(
                 source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
+        import pdb ; pdb.set_trace()
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     
