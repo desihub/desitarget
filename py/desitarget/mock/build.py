@@ -506,11 +506,11 @@ def targets_truth(params, output_dir, realtargets=None):
                     tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
                 decam_flux = np.vstack([decam_flux, tmpflux])
 
+        import pdb ; pdb.set_trace()
+
         print('source {} target {} truth {}: selected {} out of {}'.format(
                 source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
 
-
-    
 
     # create unique IDs, subpriorities and bricknames across all mock files
     n_target = len(ra_total)     
