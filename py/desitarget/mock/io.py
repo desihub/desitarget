@@ -741,35 +741,3 @@ def read_mock_durham(core_filename, photo_filename):
     data['SHAPEDEV_R'] = shapedev_r
 
     return data
-
-def empty_truth_table(nobj=1):
-    """Initialize the truth table for each mock object."""
-    from astropy.table import Table, Column
-
-    truth = Table()
-    truth.add_column(Column(name='TARGETID', length=nobj, dtype='K'))
-    truth.add_column(Column(name='MOCKID', length=nobj, dtype='K'))
-    truth.add_column(Column(name='RA', length=nobj, dtype='D'))
-    truth.add_column(Column(name='DEC', length=nobj, dtype='D'))
-
-    truth.add_column(Column(name='BRICKNAME', length=nobj, dtype='8A'))
-    truth.add_column(Column(name='SOURCETYPE', length=nobj, dtype=(str, 10)))
-
-    truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUETYPE', length=nobj, dtype=(str, 10)))
-    truth.add_column(Column(name='TRUESUBTYPE', length=nobj, dtype=(str, 10)))
-
-    truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4',data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
-    truth.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
-
-    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-
-    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
-    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
-
-    return truth
