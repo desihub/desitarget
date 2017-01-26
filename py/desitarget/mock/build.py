@@ -366,17 +366,26 @@ def targets_truth(params, output_dir, realtargets=None):
     # prints info about what we will be loading
     mockio.print_all_mocks_info(params)
 
+
+
+    import pdb ; pdb.set_trace()
+
     # loads all the mocks
     source_data_all = mockio.load_all_mocks(params)
 
     #maps filename to fileid
     map_fileid_filename = fileid_filename(source_data_all, output_dir)
-    
+
     print('Making target selection')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
-        target_name = params['sources'][source_name]['target_name'] #Target names
-        truth_name = params['sources'][source_name]['truth_name'] #name for the truth file
+        target_name = params['sources'][source_name]['target_name'] # Target names
+        truth_name = params['sources'][source_name]['truth_name']   # name for the truth file
+
+        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
+
+
+
         source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
         source_dict = params['sources'][source_name] # dictionary with sources info
         source_data = source_data_all[source_name]  # data 
