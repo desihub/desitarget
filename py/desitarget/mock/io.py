@@ -16,7 +16,6 @@ import desitarget.io
 import h5py
 import desitarget.targets
 
-
 """
 How to distribute 52 user bits of targetid.
 
@@ -33,8 +32,6 @@ ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
-
-
 def print_all_mocks_info(params):
     """
     Prints parameters to read mock files.
@@ -47,7 +44,10 @@ def print_all_mocks_info(params):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
         target_name = params['sources'][source_name]['target_name']
-        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name, source_format, target_name, source_path))
+        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
+                                                                                  source_format,
+                                                                                  target_name,
+                                                                                  source_path))
 
 def load_all_mocks(params):
     """
@@ -107,7 +107,6 @@ def load_all_mocks(params):
             #- Add min/max ra/dec to source_dict for use in density estimates
                 source_dict.update(params['subset'])
 
-
             source_data_all[source_name] = result
         else:
             print('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
@@ -116,10 +115,6 @@ def load_all_mocks(params):
     print('loaded {} mock sources'.format(len(source_data_all)))
     return source_data_all
 
-    
-
-
-############################################################
 def _load_mock_mws_file(filename):
     """
     Reads mock information for MWS bright time survey.
@@ -180,7 +175,6 @@ def _load_mock_mws_file(filename):
             'DECAMg_obs': DECAMg_obs,
             'DECAMz_obs': DECAMz_obs }
 
-############################################################
 def _load_mock_lya_file(filename):
     """
     Reads mock information for 
@@ -226,8 +220,6 @@ def _load_mock_lya_file(filename):
 
     return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z': z}
 
-
-############################################################
 def encode_rownum_filenum(rownum, filenum):
     """Encodes row and file number in 52 packed bits.
 
@@ -251,7 +243,6 @@ def encode_rownum_filenum(rownum, filenum):
     # Note return signed
     return np.asarray(encoded_value,dtype=np.int64)
 
-############################################################
 def decode_rownum_filenum(encoded_values):
     """Inverts encode_rownum_filenum to obtain row number and file number.
 
@@ -288,7 +279,6 @@ def make_mockid(objid, n_per_file):
 
     return encode_rownum_filenum(objid, filenum)
 
-############################################################
 def read_wd100pc(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
@@ -350,7 +340,6 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
 
-############################################################
 def read_galaxia(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
@@ -452,8 +441,6 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
     return full_data
 
-
-############################################################
 def read_lya(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
@@ -530,7 +517,6 @@ def read_lya(mock_dir, target_type, mock_name=None):
 
     return full_data
 
-############################################################
 def read_gaussianfield(mock_dir, target_type, mock_name=None):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
@@ -588,7 +574,6 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
     return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-############################################################
 def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     """ Reads mock information for MXXL bright time survey galaxies.
 
@@ -617,6 +602,14 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     zred = f["Data/z_obs"][...].astype('f8')
     f.close()
 
+    print('HACK!!!!!!!!!!!!!!!')
+    ra = ra[:1000]
+    dec = dec[:1000]
+    rmag = rmag[:1000]
+    absmag = absmag[:1000]
+    gr = gr[:1000]
+    zred = zred[:1000]
+
     filtername = 'sdss2010-r'
 
     #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
@@ -639,7 +632,6 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
             'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr, 'FILTERNAME': filtername, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-############################################################
 def read_mock_durham(core_filename, photo_filename):
     """
     Args:

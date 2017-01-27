@@ -20,66 +20,73 @@ class TemplateKDTree(object):
     def __init__(self):
         from scipy.spatial import KDTree
 
-        self.bgs_tree = KDTree(self.bgs)
+        self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
+        self.mws_meta = read_basis_templates(objtype='STAR', onlymeta=True)
+        self.wd_meta = read_basis_templates(objtype='WD', onlymeta=True)
 
-        def bgs():
-            """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r)."""
-            meta = read_basis_templates(objtype='bgs', onlymeta=True)
-            zobj = meta['Z'].data
-            mabs = meta['SDSS_UGRIZ_ABSMAG_Z01'].data
-            rmabs = mabs[:, 2]
-            gr = mabs[:, 1] - mabs[:, 2]
-            return np.vstack((zobj, rmabs, gr)).T
+        self.bgs_tree = KDTree(self.bgs())
+        self.mws_tree = KDTree(self.mws())
+        self.wd_tree = KDTree(self.wd())
 
-        def mws():
-            """Quantities we care about: Teff, logg, and [Fe/H]."""
-            meta = read_basis_templates(objtype='star', onlymeta=True)
-            teff = meta['TEFF'].data
-            logg = meta['LOGG'].data
-            feh = meta['FEH'].data
-            return np.vstack((teff, logg, feh)).T
+    def bgs(self):
+        """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r)."""
+        zobj = self.bgs_meta['Z'].data
+        mabs = self.bgs_meta['SDSS_UGRIZ_ABSMAG_Z01'].data
+        rmabs = mabs[:, 2]
+        gr = mabs[:, 1] - mabs[:, 2]
+        return np.vstack((zobj, rmabs, gr)).T
 
-        def wd():
-            """Quantities we care about: Teff and logg.
+    def mws(self):
+        """Quantities we care about: Teff, logg, and [Fe/H].
 
-            TODO (@moustakas): deal with DA vs DB types!
+        TODO (@moustakas): need to deal with standard stars and other selections. 
+
+        """
+        teff = self.mws_meta['TEFF'].data
+        logg = self.mws_meta['LOGG'].data
+        feh = self.mws_meta['FEH'].data
+        return np.vstack((teff, logg, feh)).T
+
+    def wd(self):
+        """Quantities we care about: Teff and logg.
+
+        TODO (@moustakas): deal with DA vs DB types!
+        
+        """
+        teff = self.wd_meta['TEFF'].data
+        logg = self.wd_meta['LOGG'].data
+        return np.vstack((teff, logg)).T
+
+    def query(self, objtype, matrix):
+        """Return the nearest template number based on the KD Tree.
+
+        Args:
+          objtype (str): object type
+          matrix (numpy.ndarray): (M,N) array (M=number of properties,
+            N=number of objects) in the same format as the corresponding
+            function for each object type (e.g., self.bgs).
+
+        Returns:
+          dist: distance to nearest template
+          indx: index of nearest template
+        
+        """
+        if objtype.upper() == 'BGS':
+            dist, indx = self.bgs_tree.query(matrix)
             
-            """
-            meta = read_basis_templates(objtype='wd', onlymeta=True)
-            teff = meta['TEFF'].data
-            logg = meta['LOGG'].data
-            return np.vstack((teff, logg)).T
-
-        def query(self, objtype, matrix):
-            """Return the nearest template number based on the KD Tree.
-
-            Args:
-              objtype (str): object type
-              matrix (numpy.ndarray): (M,N) array (M=number of properties,
-                N=number of objects) in the same format as the corresponding
-                function for each object type (e.g., self.bgs).
-
-            Returns:
-              dist: distance to nearest template
-              indx: index of nearest template
+        elif objtype.upper() == 'MWS':
+            dist, indx = self.mws_tree.query(matrix)
             
-            """
-            if objtype.lower() == 'bgs':
-                dist, indx = self.bgs_tree.query(matrix)
-                
-            elif objtype.lower() == 'mws':
-                dist, indx = self.mws_tree.query(matrix)
-                
-            elif objtype.lower() == 'wd':
-                dist, indx = self.wd_tree.query(matrix)
-                
-            elif objtype.lower() == 'elg':
-                dist, indx = self.elg_tree.query(matrix)
-                
-            elif objtype.lower() == 'lrg':
-                dist, indx = self.lrg_tree.query(matrix)
-                
-            return dist, indx
+        elif objtype.upper() == 'WD':
+            dist, indx = self.wd_tree.query(matrix)
+            
+        elif objtype.upper() == 'ELG':
+            dist, indx = self.elg_tree.query(matrix)
+            
+        elif objtype.upper() == 'LRG':
+            dist, indx = self.lrg_tree.query(matrix)
+            
+        return dist, indx
 
 def empty_truth_table(nobj=1):
     """Initialize the truth table for each mock object."""
