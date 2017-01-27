@@ -1,5 +1,4 @@
 import unittest
-from pkg_resources import resource_filename
 import numpy as np
 
 from desitarget import htm
@@ -11,6 +10,9 @@ class TestHTM(unittest.TestCase):
         self.dec = np.array([ 16.22908364, -53.49629596,  24.40112077, -23.14789754])
         self.id = np.array(['N023330222213310122202','S233100021230000131322','N031100100010011323332','S131112210233032311131'],dtype='<U22')
         self.intid = np.array([14015193368226, 12043250829178, 14104942108414, 10813196528989])
+        self.racorner = np.array([0.+1e-9,0-1e-9,180+1e-9,180-1e-9])
+        self.deccorner = np.array([90-1e-9,90.-1e-9,0.+1e-9,0-1e-9])
+        self.idcorner = np.array(['N310000000000000000000','N010000000000000000000','N120000000000000000000','S120000000000000000000'],dtype='<U22')
 
     def test_htm_lookup_char(self):
         testid = htm.lookup(self.ra,self.dec,verbose=False)
@@ -27,6 +29,14 @@ class TestHTM(unittest.TestCase):
     def test_one_htm_lookup_int(self):
         testid = htm.lookup(self.ra[0],self.dec[0],charpix=False,verbose=False)
         self.assertTrue(testid == self.intid[0])
+
+    def test_corner(self):
+        #ADM test some corner cases at the level of a few-millionths of an arcsec
+        #ADM note that it is impossible to guarantee exact agreement for corner
+        #ADM cases across different implementations, but this suggests acreement
+        #ADM with the official release to at least millionths of an arcsec
+        testid = htm.lookup(self.racorner,self.deccorner,verbose=False)
+        self.assertTrue(np.all(testid == self.idcorner))
 
 if __name__ == '__main__':
     unittest.main()

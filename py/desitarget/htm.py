@@ -13,16 +13,23 @@ from __future__ import (absolute_import, division)
 from time import time
 import numpy as np
 from numpy.core.umath_tests import inner1d
-import fitsio
-from glob import glob
-from astropy.coordinates import SkyCoord
-from astropy import units as u
 
 from . import __version__ as desitarget_version
 from . import gitversion
 
-def char2int(ID):
+def sph2car(ra, dec):
+    """Convert RA and Dec to a Cartesian vector """
 
+    phi = np.radians(np.asarray(ra))
+    theta = np.radians(90.0 - np.asarray(dec))
+    r = np.sin(theta)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.cos(theta)
+
+    return np.array((x, y, z)).T
+
+def char2int(ID):
     """Convert an array of HTM IDs in character format integers
     (see documentation below for onechar2int, the non-array version)
 
@@ -38,6 +45,7 @@ def char2int(ID):
        The corresponding HTM ID(s) in integer format
     
     """
+
     #ADM check if an individual string was passed, if so default
     #ADM to non-array version of code
     if isinstance(ID, str):
@@ -47,7 +55,6 @@ def char2int(ID):
 
 
 def onechar2int(ID):
-
     """Convert an HTM ID in character format to a unique corresponding integer
 
     Parameters
@@ -79,6 +86,7 @@ def onechar2int(ID):
     N333133201 --> 1046497        N3333 --> 1023
 
     """
+
     #ADM Die if a byte string is passed, which would give an incorrect format conversion
     if type(ID)==type(b'N'):
         raise TypeError("input should be of Type <class 'str'> not Type <class 'bytes'>")
@@ -178,6 +186,7 @@ def within(testverts,v):
     Returns an array of Trues and Falses if testverts and v were N-dimensional
     
     """
+
     #ADM recast inputs as float64 as the inner1d ufunc does not support higher-bit floats
     v = v.astype('f8')
     testverts = testverts.astype('f8')    
@@ -321,13 +330,11 @@ def lookup(ra,dec,level=20,charpix=True,verbose=True):
     t0 = time()
 
     #ADM convert input spherical coordinates to Cartesian
-    v = SkyCoord(ra=ra*u.degree, dec=dec*u.degree, frame='icrs')
-    v.representation = 'cartesian'
+    v = sph2car(ra,dec)
 
-    #ADM convert SkyCoord object to numpy array for speedier manipulation
-    #ADM .T is the transpose attribute
-    #ADM this conversion also allows either single floats or longer arrays to be passed
-    v = np.vstack(np.array([v.x.value,v.y.value,v.z.value])).T
+    #ADM if a single float or integer was passed, then we need to convert this to an N > 0 array
+    if type(v[0]) != type(np.array([0])):
+        v = np.array([[v[0],v[1],v[2]]])
 
     #ADM we begin to hit 64-bit floating point issues at level 25 but this is small enough for
     #ADM most applications (at level 25 a spherical triangle's longest side is ~1/100 arcsec)
