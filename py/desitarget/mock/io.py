@@ -49,7 +49,7 @@ def print_all_mocks_info(params):
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params):
+def load_all_mocks(params, seed=None):
     """
     Prints parameters to read mock files.
     Parameters
@@ -86,7 +86,10 @@ def load_all_mocks(params):
             loaded_mocks[this_name] = source_name
 
             func = globals()[function]
-            result = func(source_path, target_name, mock_name=mock_name)
+            result = func(source_path, target_name, mock_name=mock_name, seed=seed)
+
+            # Add a random seed to each mock source (used for template-generation).
+            # result.update({'SEED': np.random.RandomState(seed).randint(2**32, size=len(result['RA']))})
 
             if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
                 print('Trimming {} to RA,dec subselection'.format(source_name))
@@ -316,7 +319,6 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','magg','WD'])
 
-
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['radialvelocity'].astype('f8')
@@ -333,9 +335,8 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     objid = np.arange(n, dtype='i8')
 
     print('read {} objects'.format(n_per_file[0]))
-    print('making mockid id')
+    print('building mockid id')
     mockid = make_mockid(objid, n_per_file)
-    print('finished making mockid id')
     
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
@@ -566,7 +567,6 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
 
     objid = np.arange(len(ra))
 
-
     print('making mockid id')
     mockid = make_mockid(objid, n_per_file)
     print('finished making mockid id')
@@ -574,7 +574,7 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
     return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
+def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
     """ Reads mock information for MXXL bright time survey galaxies.
 
     Args:
@@ -602,6 +602,8 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     zred = f["Data/z_obs"][...].astype('f8')
     f.close()
 
+    print('read {} lines from {}'.format(len(ra), filename))
+
     print('HACK!!!!!!!!!!!!!!!')
     ra = ra[:1000]
     dec = dec[:1000]
@@ -610,26 +612,31 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None):
     gr = gr[:1000]
     zred = zred[:1000]
 
-    filtername = 'sdss2010-r'
-
     #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
     # DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
-
-    print('read {} lines from {}'.format(len(ra), filename))
 
     files = list()
     files.append(filename)
     n_per_file = list()
     n_per_file.append(len(ra))
 
-    objid = np.arange(len(ra))
+    nobj = len(ra)
+    objid = np.arange(nobj)
 
-    print('making mockid id')
+    print('build mockid id')
     mockid = make_mockid(objid, n_per_file)
-    print('finished making mockid id')
+
+    # Generate a random seed for every object and assign velocity dispersions.
+    rand = np.random.RandomState(seed)
+    seed = rand.randint(2**32, size=nobj)
+    vdisp = np.zeros_like(rmag)
+    vdisp = 10**rand.normal(1.9, 0.15, nobj)
+
+    filtername = 'sdss2010-r'
 
     return {'objid': objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z': zred,
-            'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr, 'FILTERNAME': filtername, 
+            'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr,
+            'SEED': seed, 'VDISP': vdisp, 'FILTERNAME': filtername, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_mock_durham(core_filename, photo_filename):

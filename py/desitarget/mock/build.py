@@ -22,7 +22,7 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget.targetmask import desi_mask, bgs_mask
 from desitarget import obsconditions
-from desitarget.mock.spectra import empty_truth_table, TemplateKDTree
+from desitarget.mock.spectra import empty_truth_table, MockSpectra
 
 def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     """
@@ -312,7 +312,7 @@ def fileid_filename(source_data, output_dir):
 
     return map_id_name
 
-def targets_truth(params, output_dir, realtargets=None):
+def targets_truth(params, output_dir, realtargets=None, seed=None):
     """
     Write
 
@@ -355,43 +355,51 @@ def targets_truth(params, output_dir, realtargets=None):
     brick_info.update(target_desimodel)
 
     # Initialize the template KDTree for all the object classes.
-    tree = TemplateKDTree()
+    # tree = TemplateKDTree()
+    Spectra = MockSpectra()
 
     # Print info about the mocks we will be loading and then load them.
     mockio.print_all_mocks_info(params)
-    source_data_all = mockio.load_all_mocks(params)
+    source_data_all = mockio.load_all_mocks(params, seed=seed)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
-    import pdb ; pdb.set_trace()
-
-    print('Making target selection')
+    # Loop over each source / object type.
+    print('Assigning spectra and selecting targets.')
     # runs target selection on every mock
     for source_name in sorted(source_defs.keys()):
-        target_name = params['sources'][source_name]['target_name'] # Target names
-        truth_name = params['sources'][source_name]['truth_name']   # name for the truth file
+        print('Working on source {}.'.format(source_name))
+        
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
+        truth_name = params['sources'][source_name]['truth_name']   # True type (e.g., ELG, STAR)
 
-        source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
-        source_dict = params['sources'][source_name] # dictionary with sources info
-        source_data = source_data_all[source_name]  # data 
-
-        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
+        source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
+        source_data = source_data_all[source_name]   # data (ra, dec, etc.)
 
         # Parallelize by brick and assign spectra.
-        # Build the input_meta table, again by brick.
+        brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
+        for thisbrick in list(set(brickname)):
+            these = np.where(thisbrick == brickname)[0]
 
-        dist, indx = tree.query(source_name, np.vstack((source_data['Z'], source_data['SDSS_absmag_r01'], source_data['SDSS_01gr'])).T)
+            # Draw from the Gaussian mixture models to add shapes.
 
+            # Generate spctra.
+            flux, meta = getattr(Spectra, 'getspectra_'+source_params['format'].lower())(source_data, index=these)
 
+            # Perturb the photometry based on the variance on this brick.
+            decam_
+            
+            
+            import pdb ; pdb.set_trace()
 
-        
+        source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
+        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
 
-        import pdb ; pdb.set_trace()
 
         print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
         selection_function = source_selection + '_select'
         result = getattr(mockselect, selection_function.lower())(source_data, source_name, target_name, truth_name, brick_info = brick_info, 
                                                                  density_fluctuations = params['density_fluctuations'],
-                                                                 **source_dict)
+                                                                 **source_params)
         target_mask_all[source_name] = result
 
         

@@ -8,18 +8,19 @@ import yaml
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config','-c',default='input.yaml')
-parser.add_argument("--output_dir", "-O", help="Path to write the outputs", type=str, default="./")
-parser.add_argument("--realtargets", "-r", help="Path to real target catalog", type=str)
+parser.add_argument('--output_dir', '-O', help='Path to write the outputs', type=str, default='./')
+parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
+parser.add_argument('--seed', '-s', help='Seed for random number generation', type=int, default=None)
 args = parser.parse_args()
 
 if not os.path.exists(args.config):
-    raise Exception('No config file {} '.format(args.config))
+    raise Exception('No configuration file {} found.'.format(args.config))
 
-print('According to config in:    {}'.format(args.config))
+print('Using configuration file {}'.format(args.config))
 print('')
 
 # Read parameters from yaml
-with open(args.config,'r') as pfile:
+with open(args.config, 'r') as pfile:
     params = yaml.load(pfile)
 
 if args.realtargets is not None:
@@ -30,7 +31,7 @@ else:
     realtargets = None
 
 # Construct Targets and Truth files
-desitarget.mock.build.targets_truth(params, args.output_dir, realtargets=realtargets)
+desitarget.mock.build.targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed)
 
 print('done!')
 

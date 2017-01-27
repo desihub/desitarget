@@ -11,7 +11,8 @@ Functions dealing with assigning template spectra to mock targets.
 from __future__ import (absolute_import, division, print_function)
 
 import numpy as np
-from desisim.io import read_basis_templates
+from desisim.io import read_basis_templates, empty_metatable
+from desimodel.io import load_throughput
 
 class TemplateKDTree(object):
     """Build a KD Tree for each object type.
@@ -87,6 +88,53 @@ class TemplateKDTree(object):
             dist, indx = self.lrg_tree.query(matrix)
             
         return dist, indx
+
+class MockSpectra(object):
+    """Generate spectra for each type of mock.
+
+    Currently just choose the closest template; we can get fancier later.
+
+    """
+    def __init__(self, wavemin=None, wavemax=None, dw=0.2):
+        self.tree = TemplateKDTree()
+
+        # Build a default wavelength vector.
+        if wavemin is None:
+            wavemin = load_throughput('b').wavemin
+        if wavemax is None:
+            wavemax = load_throughput('z').wavemax
+        self.wave = np.arange(round(wavemin, 1), wavemax, dw)
+
+    def getspectra_durham_mxxl_hdf5(self, data, index=None):
+        """
+        data needs Z, SDSS_absmag_r01, and SDSS_01gr, which are assigned in mock.io.read_durham_mxxl_hdf5
+
+        """
+        from desisim.templates import BGS
+        objtype = 'BGS'
+
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+
+        # Get the nearest template.
+        alldata = np.vstack((data['Z'][index],
+                             data['SDSS_absmag_r01'][index],
+                             data['SDSS_01gr'][index])).T
+        dist, templateid = self.tree.query(objtype, alldata)
+
+        input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        input_meta['SEED'] = data['SEED'][index]
+        input_meta['MAG'] = data['MAG'][index]
+        input_meta['REDSHIFT'] = data['Z'][index]
+        input_meta['VDISP'] = data['VDISP'][index]
+        input_meta['TEMPLATEID'] = templateid
+
+        print('Building spectra for {}'.format(objtype))
+        bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
+        flux, _, meta = bgs.make_templates(input_meta=input_meta, nocolorcuts=True)
+
+        return flux, meta
 
 def empty_truth_table(nobj=1):
     """Initialize the truth table for each mock object."""
