@@ -22,10 +22,17 @@ def sph2car(ra, dec):
 
     phi = np.radians(np.asarray(ra))
     theta = np.radians(90.0 - np.asarray(dec))
+
     r = np.sin(theta)
     x = r * np.cos(phi)
     y = r * np.sin(phi)
     z = np.cos(theta)
+
+    #ADM treat vectors smaller than our tolerance as zero
+    tol = 1e-15
+    x = np.where(np.abs(x) > tol,x,0)
+    y = np.where(np.abs(y) > tol,y,0)
+    z = np.where(np.abs(z) > tol,z,0)
 
     return np.array((x, y, z)).T
 
@@ -172,7 +179,7 @@ def within(testverts,v):
                [Nx3, Ny3,  Nz3]]])   Vertex 3 of Nth Triangle
 
     v : :class:`float array'`
-        A numpy array representing a point on the sphere (as a Cartesian vector, e.g.
+        A numpy array representing a series of points on the sphere (as a Cartesian vector, e.g.
 
        array([[[x1,  y1,  z1],       Vector 1
 
@@ -207,7 +214,7 @@ def within(testverts,v):
         test = inner1d(np.cross(testverts[:,vert1],testverts[:,vert2]),v)
         #ADM an alternative if inner1d is deprecated: inner1d appears to be ever-so-marginally faster
         #test = sum(a*b for a,b in zip(np.cross(testverts[:,vert1],testverts[:,vert2]).T, v.T))
-        w = np.where(test <= 0.)
+        w = np.where(test < 0)
         boolwithin[w] = False
 
     return boolwithin
@@ -296,6 +303,45 @@ def childnode(vert):
     return childverts
 
 
+def basename(v):
+    """Assign Level 0 HTM pixels to vectors
+
+    Parameters
+    ----------
+    v : :class:`float array'`
+        A numpy array representing a series of points on the sphere (as a Cartesian vector, e.g.
+
+       array([[[x1,  y1,  z1],       Vector 1
+
+               [xN,  yN,  zN]]])     Vector N
+
+    Returns
+    -------
+    :class:`char array`
+        The HTM pixels corresponding to the passed vectors at the base (level 0). Will be the same
+        length as the number of rows in the passed parameter v
+
+    """
+    
+    desig = np.where((v[:,0] > 0) & (v[:,1] >= 0) & (v[:,2] >= 0),'N3','-1')
+    desig[np.where((v[:,0] > 0)   & (v[:,1] >= 0) & (v[:,2] < 0))] = 'S0'
+
+    desig[np.where((v[:,0] <= 0)  & (v[:,1] > 0)  & (v[:,2] >= 0))] = 'N2'
+    desig[np.where((v[:,0] <= 0)  & (v[:,1] > 0)  & (v[:,2] < 0))] = 'S1'
+
+    desig[np.where((v[:,0] < 0)   & (v[:,1] <= 0) & (v[:,2] >= 0))] = 'N1'
+    desig[np.where((v[:,0] < 0)   & (v[:,1] <= 0) & (v[:,2] < 0))] = 'S2'
+
+    desig[np.where((v[:,0] >= 0)  & (v[:,1] < 0)  & (v[:,2] >= 0))] = 'N0'
+    desig[np.where((v[:,0] >= 0)  & (v[:,1] < 0)  & (v[:,2] < 0))] = 'S3'
+
+    #ADM The special cases where x=0 and y=0 are the poles
+    desig[np.where((desig == '-1') & (v[:,2] >= 0))] = 'N3'
+    desig[np.where((desig == '-1') & (v[:,2] < 0))]  = 'S0'
+
+    return desig
+
+
 def lookup(ra,dec,level=20,charpix=True,verbose=True):
     """Return the HTM pixel for a given RA/Dec
 
@@ -344,17 +390,11 @@ def lookup(ra,dec,level=20,charpix=True,verbose=True):
             print("LEVEL WILL BE SET TO 20")
         level = 20
     
+    #ADM this is a dictionary of the names and vertices of the level 0 nodes
     testverts = initri()
 
-    #ADM assign the initial node using a bitmask. For example:
-    #ADM vx > 0 + vy >= 0 + vz >= 0 = 2^2 + 2^1 + 2^0 = 7 is parent node N3
-    #ADM vx > 0 + vy < 0 + vz >=0 = 2^2 + 0*2^1 + 2^0 = 5 is parent node N0
-
-    vecnodenumber = (v[:,0] > 0)*2**2 + (v[:,1] > 0)*2**1 + (v[:,2] > 0)*2**0
-    nodenames = np.array(["S2","N1","S1","N2","S3","N0","S0","N3"])
-
-    #ADM these are the name of the parent node and the vertices of the parent nodes
-    desig = np.array(nodenames[vecnodenumber])
+    #ADM the name and vertices of the level 0 node that each input coordinte lies in
+    desig = basename(v)    
     vert = np.array([ testverts[i] for i in desig ])
 
     count = 1
@@ -396,5 +436,4 @@ def lookup(ra,dec,level=20,charpix=True,verbose=True):
         print('{} HTM lookups at level {} in {:.2f}s'.format(len(desig), level, time()-t0))
 
     return desig
-
 
