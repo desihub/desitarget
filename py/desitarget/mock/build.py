@@ -207,7 +207,7 @@ def add_galdepths(mocktargets, brickinfo):
     for brickname in unique_bricks:
         in_brick = np.array(lookup[brickname])
         i_brick += 1
-#        print('brick {} out of {}'.format(i_brick,n_brick))                
+#       print('brick {} out of {}'.format(i_brick,n_brick))                
         id_binfo  = (brickinfo['BRICKNAME'] == brickname)
         if np.count_nonzero(id_binfo) == 1:
             mocktargets['DEPTH_R'][in_brick] = brickinfo['DEPTH_R'][id_binfo]
@@ -312,6 +312,78 @@ def fileid_filename(source_data, output_dir):
 
     return map_id_name
 
+def empty_truth_table(nobj=1):
+    """Initialize the truth table for each mock object.
+
+In [5]: jj[1].columns
+Out[5]: 
+ColDefs(
+    name = 'TARGETID'; format = 'K'
+    name = 'RA'; format = 'D'
+    name = 'DEC'; format = 'D'
+    name = 'TRUEZ'; format = 'D'
+    name = 'TRUETYPE'; format = '10A'
+    name = 'SOURCETYPE'; format = '10A'
+    name = 'BRICKNAME'; format = '8A'
+    name = 'MOCKID'; format = 'K'
+    name = 'OIIFLUX'; format = 'D'
+    
+    """
+    from astropy.table import Table, Column
+
+    truth = Table()
+    truth.add_column(Column(name='TARGETID', length=nobj, dtype='K'))
+    truth.add_column(Column(name='MOCKID', length=nobj, dtype='K'))
+    truth.add_column(Column(name='RA', length=nobj, dtype='D'))
+    truth.add_column(Column(name='DEC', length=nobj, dtype='D'))
+
+    truth.add_column(Column(name='BRICKNAME', length=nobj, dtype='8A'))
+    truth.add_column(Column(name='SOURCETYPE', length=nobj, dtype=(str, 10)))
+
+    truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
+    truth.add_column(Column(name='TRUETYPE', length=nobj, dtype=(str, 10)))
+    truth.add_column(Column(name='TRUESUBTYPE', length=nobj, dtype=(str, 10)))
+
+    truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4',data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
+    truth.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+
+    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+
+    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
+    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
+    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
+
+    return truth
+
+def empty_targets_table(nobj=1):
+
+"""
+In [2]: hh = fits.open('targets.fits')
+
+In [3]: hh[1].columns
+Out[3]: 
+ColDefs(
+    name = 'TARGETID'; format = 'K'
+    name = 'RA'; format = 'D'
+    name = 'DEC'; format = 'D'
+    name = 'DESI_TARGET'; format = 'K'
+    name = 'BGS_TARGET'; format = 'K'
+    name = 'MWS_TARGET'; format = 'K'
+    name = 'SUBPRIORITY'; format = 'D'
+    name = 'OBSCONDITIONS'; format = 'I'; bzero = 32768
+    name = 'BRICKNAME'; format = '8A'
+    name = 'DECAM_FLUX'; format = '6E'
+    name = 'SHAPEDEV_R'; format = 'E'
+    name = 'SHAPEEXP_R'; format = 'E'
+    name = 'DEPTH_R'; format = 'E'
+    name = 'GALDEPTH_R'; format = 'E'
+)
+"""
+
 def targets_truth(params, output_dir, realtargets=None, seed=None):
     """
     Write
@@ -375,6 +447,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
         source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
         source_data = source_data_all[source_name]   # data (ra, dec, etc.)
 
+        # Assign each source to 
+
         # Parallelize by brick and assign spectra.
         brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
         for thisbrick in list(set(brickname)):
@@ -386,7 +460,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
             flux, meta = getattr(Spectra, 'getspectra_'+source_params['format'].lower())(source_data, index=these)
 
             # Perturb the photometry based on the variance on this brick.
-            decam_
+
             
             
             import pdb ; pdb.set_trace()
