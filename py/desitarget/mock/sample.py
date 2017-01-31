@@ -67,8 +67,8 @@ class GaussianMixtureModel(object):
         return X
 
 
-def sample_magnitudes(target_type, n_targets, random_state):
-    """Sample magnitudes based on target type (i.e. LRG, ELG, QSO).
+def sample_magnitudes(target_type, n_targets, random_state=None):
+    """Sample magnitudes based on target type (i.e. LRG, ELG, QSO, BGS).
 
     Can sample multiple targets at once and needs only to be called
     once for each target_type.
@@ -76,16 +76,18 @@ def sample_magnitudes(target_type, n_targets, random_state):
     Parameters
     ----------
     target_type : str
-        One of three object types (LRG, ELG, QSO).
+        One of four object types (LRG, ELG, QSO, BGS).
     n_targets : int
         Number of sampled magntiudes to be returned for the specified
         target_type.
+    random_state: RandomState or an int seed
+        A random number generator.
 
 
     Returns
     -------
     np.ndarray length n_targets
-        Structured array with columns g,r,z of sampled magnitudes
+        Structured array with columns g,r,z,w1,w2,w3,w4 of sampled magnitudes.
     """
 
     #Path to model .fits files
@@ -104,9 +106,14 @@ def sample_magnitudes(target_type, n_targets, random_state):
     #Generate a sample of magnitudes of size n_targets
     mags = model.sample(n_samples=n_targets, random_state=random_state)
 
-    samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8')])
+    samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8'),
+    ('w1', 'f8'), ('w2', 'f8'), ('w3', 'f8'), ('w4', 'f8')])
     samp['g'] = mags[:,0]
     samp['r'] = mags[:,1]
     samp['z'] = mags[:,2]
+    samp['w1'] = mags[:,3]
+    samp['w2'] = mags[:,4]
+    samp['w3'] = mags[:,5]
+    samp['w4'] = mags[:,6]
 
     return samp
