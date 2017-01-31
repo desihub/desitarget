@@ -300,7 +300,7 @@ def read_100pc(mock_dir, target_type, mock_name=None):
 
     mock_name: :class:`str`
         Optional name of the mock file.
-        default: 'mock_wd100pc.fits'
+        default: 'mock_100pc.fits'
 
     brickname_list:
         Optional list of specific bricknames to read.
@@ -321,8 +321,11 @@ def read_100pc(mock_dir, target_type, mock_name=None):
     desitarget.io.check_fitsio_version()
     C_LIGHT = 299792.458
 
-    mock_name = 'mock_100pc.fits'
-    filename  = os.path.join(mock_dir,mock_name)
+    if mock_name is None:
+        filename  = os.path.join(mock_dir,'mock_100pc.fits')
+    else:
+        filename = os.path.join(mock_dir, mock_name+'.fits')
+
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','magg'], ext=1)
 
@@ -383,8 +386,11 @@ def read_wd(mock_dir, target_type, mock_name=None):
     desitarget.io.check_fitsio_version()
     C_LIGHT = 299792.458
 
-    mock_name = 'mock_wd.fits'
-    filename  = os.path.join(mock_dir,mock_name)
+    if mock_name is None:
+        filename  = os.path.join(mock_dir,'mock_wd.fits')
+    else:
+        filename = os.path.join(mock_dir, mock_name+'.fits')
+
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','g_sdss'], ext=1)
 
