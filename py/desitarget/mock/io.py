@@ -300,7 +300,7 @@ def read_100pc(mock_dir, target_type, mock_name=None):
 
     mock_name: :class:`str`
         Optional name of the mock file.
-        default: 'mock_100pc.fits'
+        default: 'mock_100pc'
 
     brickname_list:
         Optional list of specific bricknames to read.
@@ -324,7 +324,10 @@ def read_100pc(mock_dir, target_type, mock_name=None):
     if mock_name is None:
         filename  = os.path.join(mock_dir,'mock_100pc.fits')
     else:
-        filename = os.path.join(mock_dir, mock_name+'.fits')
+        if '.fits' in mock_name:
+            filename = os.path.join(mock_dir, mock_name)
+        else:
+            filename = os.path.join(mock_dir, mock_name+'.fits')
 
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','magg'], ext=1)
@@ -365,7 +368,7 @@ def read_wd(mock_dir, target_type, mock_name=None):
 
     mock_name: :class:`str`
         Optional name of the mock file.
-        default: 'mock_wd100pc.fits'
+        default: 'mock_wd100pc'
 
     brickname_list:
         Optional list of specific bricknames to read.
@@ -389,7 +392,10 @@ def read_wd(mock_dir, target_type, mock_name=None):
     if mock_name is None:
         filename  = os.path.join(mock_dir,'mock_wd.fits')
     else:
-        filename = os.path.join(mock_dir, mock_name+'.fits')
+        if '.fits' in mock_name:
+            filename = os.path.join(mock_dir, mock_name)
+        else:
+            filename = os.path.join(mock_dir, mock_name+'.fits')
 
     data = fitsio.read(filename,
                        columns= ['RA','DEC','radialvelocity','g_sdss'], ext=1)
