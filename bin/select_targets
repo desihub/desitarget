@@ -41,10 +41,11 @@ if ns.check:
     nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
     print('{} potentially corrupt files'.format(nbadfiles))
 else:
-    targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose, 
+    targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox)
 
-    io.write_targets(ns.dest, targets, indir=ns.src, qso_selection=ns.qsoselection)
+    io.write_targets(ns.dest, targets, indir=ns.src,
+        qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
 
     print('{} targets written to {}'.format(len(targets), ns.dest))
 
