@@ -1,10 +1,18 @@
 """
 Sandbox target selection cuts, intended for algorithms that are still in
 development.
+
 """
+import os.path
+from time import time
 
 import numpy as np
+from astropy.table import Table, Row
+
+import desitarget.targets
 from desitarget.cuts import unextinct_fluxes
+from desitarget.internal import sharedmem
+from desitarget import desi_mask, bgs_mask, mws_mask
 
 def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None): 
@@ -21,6 +29,7 @@ def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         ggood = np.ones_like(gflux, dtype='?')
 
     # Basic flux and color cuts
+    lrg = primary.copy()
     lrg &= (zflux > 10**(0.4*(22.5-20.4))) # z<20.4
     lrg &= (zflux < 10**(0.4*(22.5-18))) # z>18
     lrg &= (zflux < 10**(0.4*2.5)*rflux) # r-z<2.5
@@ -39,9 +48,9 @@ def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
 
     # Finally, a cut to exclude the z<0.4 objects while retaining the elbow at
-    # z=0.4-0.5.  r-z>1.2 || (good_data_in_g && g-r>1.7).  Note that we do not
+    # z=0.4-0.5.  r-z>1.2 || (good_data_in_g and g-r>1.7).  Note that we do not
     # require gflux>0.
-    lrg &= ( (zflux > 10**(0.4*1.2)*rflux) || (ggood && (rflux>10**(0.4*1.7)*gflux) ) )
+    lrg &= np.logical_or((zflux > 10**(0.4*1.2)*rflux), (ggood & (rflux>10**(0.4*1.7)*gflux)))
 
     return lrg
 
@@ -73,11 +82,14 @@ def isLRG_2016v3(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
     # used!).  Also note: We do not require gflux>0!  Objects can be very red.
-    lrg &= (rflux_snr > 0) && (rflux > 0) # && rallmask == 0
-    lrg &= (zflux_snr > 0) && (zflux > 0) # && zallmask == 0
+    lrg = primary.copy()
+    lrg &= (rflux_snr > 0) # and rallmask == 0
+    lrg &= (zflux_snr > 0) # and zallmask == 0
     lrg &= (w1flux_snr > 4)
+    lrg &= (rflux > 0)
+    lrg &= (zflux > 0)
 
-    ggood = (gflux_ivar > 0) # && gallmask == 0
+    ggood = (gflux_ivar > 0) # and gallmask == 0
 
     # Apply color, flux, and star-galaxy separation cuts.
     lrg &= isLRG_2016v3_colors(gflux=gflux, rflux=rflux, zflux=zflux,
@@ -124,6 +136,7 @@ def apply_sandbox_cuts(objects):
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
     
+    decam_ivar = objects['DECAM_FLUX_IVAR']
     decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
 
@@ -137,6 +150,7 @@ def apply_sandbox_cuts(objects):
             primary = np.ones_like(objects, dtype=bool)
         
     lrg = isLRG_2016v3(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                       gflux_ivar=decam_ivar[..., 1], 
                        rflux_snr=decam_snr[..., 2],
                        zflux_snr=decam_snr[..., 4],
                        w1flux_snr=wise_snr[..., 0],
