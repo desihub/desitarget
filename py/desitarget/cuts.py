@@ -762,7 +762,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
             rate = nbrick / (time() - t0)
             print('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
-        nbrick[...] += 1    # this is an in-plafuncce modification
+        nbrick[...] += 1    # this is an in-place modification
         return result
 
     #- Parallel process input files
