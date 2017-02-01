@@ -10,7 +10,7 @@ import numpy as np
 from astropy.table import Table, Row
 
 import desitarget.targets
-from desitarget.cuts import unextinct_fluxes
+from desitarget.cuts import unextinct_fluxes, _is_row
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, bgs_mask, mws_mask
 
