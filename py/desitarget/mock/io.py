@@ -282,7 +282,7 @@ def make_mockid(objid, n_per_file):
 
     return encode_rownum_filenum(objid, filenum)
 
-def read_wd100pc(mock_dir, target_type, mock_name=None):
+def read_100pc(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
 
@@ -293,7 +293,7 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
 
     mock_name: :class:`str`
         Optional name of the mock file.
-        default: 'mock_wd100pc.fits'
+        default: 'mock_100pc'
 
     brickname_list:
         Optional list of specific bricknames to read.
@@ -314,16 +314,18 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     desitarget.io.check_fitsio_version()
     C_LIGHT = 299792.458
 
-    mock_name = 'mock_wd100pc.fits'
-    filename  = os.path.join(mock_dir,mock_name)
-    data = fitsio.read(filename,
-                       columns= ['RA','DEC','radialvelocity','magg','WD'])
+    if mock_name is None:
+        filename  = os.path.join(mock_dir,'mock_100pc.fits')
+    else:
+        if '.fits' in mock_name:
+            filename = os.path.join(mock_dir, mock_name)
+        else:
+            filename = os.path.join(mock_dir, mock_name+'.fits')
 
     ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec         = data['DEC'].astype('f8')
     v_helio     = data['radialvelocity'].astype('f8')
     magg        = data['magg'].astype('f8')
-    is_wd       = data['WD'].astype('i4')
 
     files = list()
     files.append(filename)
@@ -339,7 +341,76 @@ def read_wd100pc(mock_dir, target_type, mock_name=None):
     mockid = make_mockid(objid, n_per_file)
     
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
-            'magg': magg, 'WD':is_wd, 'FILES': files, 'N_PER_FILE': n_per_file}
+            'magg': magg, 'FILES': files, 'N_PER_FILE': n_per_file}
+
+
+############################################################
+def read_wd(mock_dir, target_type, mock_name=None):
+    """ Reads a single-file GUMS-based mock that includes 'big brick'
+    bricknames as in the Galaxia and Galfast mocks.
+    It only includes white dwarfs.
+
+    Parameters:
+    ----------
+    root_mock_dir: :class:`str`
+        Path to the mock file.
+
+    mock_name: :class:`str`
+        Optional name of the mock file.
+        default: 'mock_wd100pc'
+
+    brickname_list:
+        Optional list of specific bricknames to read.
+
+    Returns:
+    -------
+    Dictionary with the following entries.
+
+        'RA': :class: `numpy.ndarray`
+            RA positions for the objects in the mock.
+        'DEC': :class: `numpy.ndarray`
+            DEC positions for the objects in the mock.
+        'Z': :class: `numpy.ndarray`
+            Heliocentric radial velocity divided by the speed of light.
+        'magg': :class: `numpy.ndarray`
+            Apparent magnitudes in Gaia G band
+    """
+    desitarget.io.check_fitsio_version()
+    C_LIGHT = 299792.458
+
+    if mock_name is None:
+        filename  = os.path.join(mock_dir,'mock_wd.fits')
+    else:
+        if '.fits' in mock_name:
+            filename = os.path.join(mock_dir, mock_name)
+        else:
+            filename = os.path.join(mock_dir, mock_name+'.fits')
+
+    data = fitsio.read(filename,
+                       columns= ['RA','DEC','radialvelocity','g_sdss'], ext=1)
+
+
+    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec         = data['DEC'].astype('f8')
+    v_helio     = data['radialvelocity'].astype('f8')
+    g_sdss        = data['g_sdss'].astype('f8')
+
+    files = list()
+    files.append(filename)
+    n_per_file = list()
+    n_per_file.append(len(ra))
+
+
+    n = len(ra)
+    objid = np.arange(n, dtype='i8')
+
+    print('read {} objects'.format(n_per_file[0]))
+    print('making mockid id')
+    mockid = make_mockid(objid, n_per_file)
+    print('finished making mockid id')
+    
+    return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
+            'g_sdss': g_sdss, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir, target_type, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.

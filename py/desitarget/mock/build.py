@@ -508,7 +508,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
         if target_name in ['BGS']:
             bgs_target = target_mask[ii]
             desi_target |= desi_mask.BGS_ANY
-        if target_name in ['MWS_MAIN', 'MWS_WD']:
+        if target_name in ['MWS_MAIN', 'MWS_WD' ,'MWS_NEARBY']:
             mws_target = target_mask[ii]
             desi_target |= desi_mask.MWS_ANY
 
@@ -525,6 +525,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
                 'STD_FSTAR': 'STAR',
                 'MWS_MAIN': 'STAR',
                 'MWS_WD': 'STAR',
+                'MWS_NEARBY': 'STAR',
                 'SKY': 'SKY',
             }
             source_type = np.zeros(n, dtype='S10')
@@ -540,7 +541,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
             source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
         if target_name in ['BGS']:
             source_obsconditions[:] = obsconditions.BRIGHT
-        if target_name in ['MWS_MAIN', 'MWS_WD']:
+        if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
             source_obsconditions[:] = obsconditions.BRIGHT
         if target_name in ['STD_FSTAR', 'SKY']:
             source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 

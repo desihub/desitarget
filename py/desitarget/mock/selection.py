@@ -199,6 +199,25 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         mag_faint  = kwargs['mag_faint']
 
         # Parameters
+        SELECTION_MAG_NAME = 'g_sdss'
+
+        # Will populate this array with the bitmask values of each target class
+        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
+
+        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
+        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
+
+
+        # WD sample
+        select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit)
+        target_class[select_wd_sample] = mws_mask.mask('MWS_WD')
+
+
+    if(sourcename == 'MWS_NEARBY'):
+        mag_bright = kwargs['mag_bright']
+        mag_faint  = kwargs['mag_faint']
+
+        # Parameters
         SELECTION_MAG_NAME = 'magg'
 
         # Will populate this array with the bitmask values of each target class
@@ -206,16 +225,10 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
 
         fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
         brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
-        is_wd                      = data['WD'] == 1
 
-        # WD sample
-        select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (is_wd)
-        target_class[select_wd_sample] = mws_mask.mask('MWS_WD')
-
-        # Nearby ('100pc') sample -- everything in the input table that isn't a WD
-        # Expect to refine this in future
-        select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit) & (np.invert(is_wd))
+        select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit)
         target_class[select_nearby_sample] = mws_mask.mask('MWS_NEARBY')
+
 
     if(sourcename == 'BGS'):
         mag_bright = kwargs['mag_bright']
