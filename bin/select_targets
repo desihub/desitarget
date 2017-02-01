@@ -41,12 +41,8 @@ if ns.check:
     nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
     print('{} potentially corrupt files'.format(nbadfiles))
 else:
-    if ns.sandbox:
-        from desitarget.sandbox.cuts import select_sandbox_targets
-        targets = select_sandbox_targets(infiles, numproc=ns.numproc, verbose=ns.verbose)
-    else:
-        targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose, 
-                                 qso_selection=ns.qsoselection)
+    targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose, 
+                             qso_selection=ns.qsoselection, sandbox=ns.sandbox)
 
     io.write_targets(ns.dest, targets, indir=ns.src, qso_selection=ns.qsoselection)
 
