@@ -149,11 +149,10 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
     if obs_rflux is None:
         obs_rflux = rflux
 
+    rbright = 16.0
     if bright:
-        rbright = 15.0
         rfaint = 18.0
     else:
-        rbright = 16.0
         rfaint = 19.0
         
     fstd &= obs_rflux < 10**((22.5 - rbright)/2.5)
@@ -253,7 +252,7 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, o
     bgs = primary.copy()
     bgs &= rflux > 10**((22.5-19.5)/2.5)
     if objtype is not None:
-        bgs &= ~psflike(objtype)
+        bgs &= ~_psflike(objtype)
     return bgs
 
 def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
@@ -332,7 +331,7 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
         qso &= primary
 
     if objtype is not None:
-        qso &= psflike(objtype)
+        qso &= _psflike(objtype)
 
     return qso
 
@@ -367,7 +366,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     #Preselection to speed up the process, store the indexes
     rMax = 22.7  # r<22.7
-    preSelection = (r<rMax) &  psflike(objtype) & DECaLSOK 
+    preSelection = (r<rMax) & _psflike(objtype) & DECaLSOK 
     colorsCopy = colors.copy()
     colorsReduced = colorsCopy[preSelection]
     colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
@@ -399,7 +398,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     qso &= DECaLSOK  
       
     if objtype is not None:
-        qso &= psflike(objtype)
+        qso &= _psflike(objtype)
 
     if deltaChi2 is not None:
         qso &= deltaChi2>30.
@@ -411,7 +410,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         
     return qso
 
-def getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux):
+def getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
  
     limitInf=1.e-04
     gflux = gflux.clip(limitInf)
@@ -611,7 +610,6 @@ def apply_cuts(objects,qso_selection='randomforest'):
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
     return desi_target, bgs_target, mws_target
-
 
 def check_input_files(infiles, numproc=4, verbose=False):
     """
