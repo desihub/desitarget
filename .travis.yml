@@ -43,6 +43,7 @@ env:
         - ASTROPY_VERSION=1.1.1
         - DESIUTIL_VERSION=1.9.0
         - DESISPEC_VERSION=0.11.0
+	- DESISIM_VERSION=0.14.0
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
         - CONDA_DEPENDENCIES='pyyaml qt=4'
@@ -54,7 +55,7 @@ env:
         - PIP_ALL_DEPENDENCIES='fitsio coveralls'
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
-        - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION}"
+        - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION}"
         # Debug the Travis install process.
         - DEBUG=False
     matrix:
