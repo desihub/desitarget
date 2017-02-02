@@ -113,7 +113,7 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
     return fstd
 
 def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None,
-           objtype=None, decam_snr=None, bright=False):
+           objtype=None, decam_snr=None, obs_rflux=None, bright=False):
     """Select FSTD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isFSTD_colors() for additional info.
 
