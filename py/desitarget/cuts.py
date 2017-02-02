@@ -192,17 +192,6 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     return mwsstar
 
-def _psflike(psftype):
-    """ If the object is PSF """
-    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    #ADM fixed this in I/O.
-    psftype = np.asarray(psftype)
-    #ADM in Python3 these string literals become byte-like
-    #ADM so to retain Python2 compatibility we need to check
-    #ADM against both bytes and unicode
-    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
-    return psflike
-
 def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
     """Target Definition of BGS faint targets, returning a boolean array.
 
@@ -227,8 +216,8 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, ob
     bgs &= rflux <= 10**((22.5-19.5)/2.5)
     if objtype is not None:
         bgs &= ~_psflike(objtype)
+        
     return bgs
-
 
 def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets, returning a boolean array.
@@ -335,7 +324,6 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
 
     return qso
 
-
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
          deltaChi2=None, primary=None):
     """Target Definition of QSO using a random forest returning a boolean array.
@@ -362,7 +350,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # build variables for random forest    
     nfeatures=11 # number of variables in random forest
     nbEntries=rflux.size
-    colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
+    colors, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
 
     #Preselection to speed up the process, store the indexes
     rMax = 22.7  # r<22.7
@@ -410,7 +398,18 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         
     return qso
 
-def getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
+def _psflike(psftype):
+    """ If the object is PSF """
+    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
+    #ADM fixed this in I/O.
+    psftype = np.asarray(psftype)
+    #ADM in Python3 these string literals become byte-like
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
+    return psflike
+
+def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
  
     limitInf=1.e-04
     gflux = gflux.clip(limitInf)
@@ -495,7 +494,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects,qso_selection='randomforest'):
+def apply_cuts(objects, qso_selection='randomforest'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
