@@ -574,9 +574,11 @@ def apply_cuts(objects, qso_selection='randomforest'):
                                                                                  qso_selection_options))
 
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  decam_fracflux=decam_fracflux, obs_rflux=obs_rflux)
+                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  obs_rflux=obs_rflux)
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  decam_fracflux=decam_fracflux, obs_rflux=obs_rflux, bright=True)
+                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  obs_rflux=obs_rflux, bright=True)
                   
     # Construct the targetflag bits; currently our only cuts are DECam based
     # (i.e. South).  This should really be refactored into a dedicated function.
