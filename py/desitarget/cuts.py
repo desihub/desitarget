@@ -9,6 +9,7 @@ import numpy as np
 from astropy.table import Table, Row
 from pkg_resources import resource_filename
 
+from desitarget import io
 from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget import desi_mask, bgs_mask, mws_mask
@@ -518,7 +519,6 @@ def apply_cuts(objects, qso_selection='randomforest'):
     """
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
-        from desitarget import io
         objects = io.read_tractor(objects)
     
     #- ensure uppercase column names if astropy Table
@@ -644,7 +644,6 @@ def check_input_files(infiles, numproc=4, verbose=False):
     #- function to run on every brick/sweep file
     def _check_input_files(filename):
         '''Check for corrupted values in a file'''
-        from desitarget import io
         from functools import partial
         from os.path import getsize
 
@@ -723,10 +722,9 @@ def check_input_files(infiles, numproc=4, verbose=False):
 
 qso_selection_options = ['colorcuts', 'randomforest']
 
-def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest'):
-    """
-    Process input files in parallel to select targets
-    
+def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest',
+                   sandbox=False):
+    """Process input files in parallel to select targets
 
     Args:
         infiles: list of input filenames (tractor or sweep files),
@@ -736,8 +734,10 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         numproc: number of parallel processes to use
         verbose: if True, print progress messages
         qso_selection : algorithm to use for QSO selection; valid options
-            are 'colorcuts' and 'randomforest'
-        
+          are 'colorcuts' and 'randomforest'
+        sandbox : if True, use the sample selection cuts in
+          desitarget.sandbox.cuts
+    
     Returns:
         targets numpy structured array: the subset of input targets which
             pass the cuts, including extra columns for DESI_TARGET,
@@ -745,6 +745,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
             
     Notes:
         if numproc==1, use serial code instead of parallel
+
     """
     #- Convert single file to list of files
     if isinstance(infiles,str):
@@ -755,13 +756,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
-    #- function to run on every brick/sweep file
-    def _select_targets_file(filename):
-        '''Returns targets in filename that pass the cuts'''
-        from desitarget import io
-        objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection)
-
+    def _finalize_targets(objects, desi_target, bgs_target, mws_target):
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         #- on desi_target != 0
         keep = (desi_target != 0)
@@ -775,6 +770,22 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
             objects, desi_target, bgs_target, mws_target)
 
         return io.fix_tractor_dr1_dtype(targets)
+
+    #- functions to run on every brick/sweep file
+    def _select_targets_file(filename):
+        '''Returns targets in filename that pass the cuts'''
+        objects = io.read_tractor(filename)
+        desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
+
+        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
+
+    def _select_sandbox_targets_file(filename):
+        '''Returns targets in filename that pass the sandbox cuts'''
+        from desitarget.sandbox.cuts import apply_sandbox_cuts
+        objects = io.read_tractor(filename)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects)
+
+        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
@@ -796,12 +807,19 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+            if sandbox:
+                targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
+            else:
+                targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
-        for x in infiles:
-            targets.append(_update_status(_select_targets_file(x)))
-        
+        if sandbox:
+            for x in infiles:
+                targets.append(_update_status(_select_sandbox_targets_file(x)))
+        else:
+            for x in infiles:
+                targets.append(_update_status(_select_targets_file(x)))
+                
     targets = np.concatenate(targets)
     
     return targets
