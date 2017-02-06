@@ -23,8 +23,7 @@ from desispec.log import get_logger, DEBUG
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget.targetmask import desi_mask, bgs_mask
-from desitarget import obsconditions
-from desitarget.mock.spectra import empty_truth_table, MockSpectra
+from desitarget.mock.spectra import MockSpectra
 
 log = get_logger(DEBUG)
 
@@ -338,8 +337,8 @@ def empty_targets_table(nobj=1):
 
     # Quantities mimicking a true targeting catalog (or inherited from the
     # mocks).
-    targets.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='8A'))
+#   targets.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='S10'))
     targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
@@ -348,6 +347,75 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
 
     return targets
+
+def empty_truth_table(nobj=1, npix=None):
+    """Initialize the truth table for each mock object, with spectra.
+    
+    """
+    from astropy.table import Table, Column
+
+    truth = Table()
+    truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
+
+    truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
+    truth.add_column(Column(name='TRUETYPE', length=nobj, dtype=(str, 10)))
+    truth.add_column(Column(name='TRUESUBTYPE', length=nobj, dtype=(str, 10)))
+    truth.add_column(Column(name='SOURCETYPE', length=nobj, dtype=(str, 10)))
+
+    truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4',data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
+    truth.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+
+    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+
+    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
+    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
+    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
+
+    if npix is not None:
+        truth.add_column(Column(name='TRUEFLUX', shape=(npix,), length=nobj, dtype='f4'))
+
+    return truth
+
+def _getSourcetype(truetype):
+    """Simple utility function to convert a TRUETYPE to SOURCETYPE."""
+    true_type_map = {
+        'STD_FSTAR': 'STAR',
+        'ELG': 'GALAXY',
+        'LRG': 'GALAXY',
+        'BGS': 'GALAXY',
+        'QSO': 'QSO',
+        'STD_FSTAR': 'STAR',
+        'MWS_MAIN': 'STAR',
+        'MWS_WD': 'STAR',
+        'MWS_NEARBY': 'STAR',
+        'SKY': 'SKY',
+        }
+    sourcetype = true_type_map[truetype]
+
+    return sourcetype
+
+def _getObsconditions(nobj, target_name):
+    """Simple utility function to convert a target to OBSCONDITIONS."""
+    from desitarget import obsconditions # this only works if targetmask.py is imported first 
+
+    source_obsconditions = np.ones(nobj, dtype='uint16')
+    if target_name in ['LRG', 'QSO']:
+        source_obsconditions[:] = obsconditions.DARK
+    if target_name in ['ELG']:
+        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
+    if target_name in ['BGS']:
+        source_obsconditions[:] = obsconditions.BRIGHT
+    if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
+        source_obsconditions[:] = obsconditions.BRIGHT
+    if target_name in ['STD_FSTAR', 'SKY']:
+        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
+
+    return source_obsconditions
 
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False):
     """
@@ -392,8 +460,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         target_desimodel[t.upper()] = td[t]
     brick_info.update(target_desimodel)
 
-    # Initialize the Spectrum() class (used to assign spectra).
+    # Initialize the Spectrum() class (used to assign spectra).  The default
+    # wavelength array gets initialized here, too.
     Spectra = MockSpectra()
+    npix = len(Spectra.wave)
 
     # Print info about the mocks we will be loading and then load them.
     mockio.print_all_mocks_info(params)
@@ -411,20 +481,40 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
         source_data = source_data_all[source_name]   # data (ra, dec, etc.)
 
-        # Assign each source to 
+        brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
+
+        # Initialize the truth and targets table
+        nobj = len(source_data['RA'])
+        
+        targets = empty_targets_table(nobj)
+        targets['RA'] = source_data['RA']
+        targets['DEC'] = source_data['DEC']
+        targets['BRICKNAME'] = brickname
+        
+        truth = empty_truth_table(nobj, npix=npix)
+        truth['TRUEZ'] = source_data['Z']
+        truth['TRUETYPE'] = source_name
+        truth['SOURCETYPE'] = _getSourcetype(source_name)
+        truth['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
 
         # Parallelize by brick and assign spectra.
-        brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
+
         for thisbrick in list(set(brickname)):
             these = np.where(thisbrick == brickname)[0]
 
-            # Draw from the Gaussian mixture models to add shapes.
+            # Draw from the Gaussian mixture models to add shapes / photometry.
 
             # Generate spctra.
-            flux, meta = getattr(Spectra, 'getspectra_'+source_params['format'].lower())(source_data, index=these)
+            _flux, _meta = getattr(Spectra, 'getspectra_'+source_params['format'].lower())(source_data, index=these)
+            truth['TRUEFLUX'][these] = _flux
+            for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+                        'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+                truth[key][these] = _meta[key]
 
             # Perturb the photometry based on the variance on this brick.
+            
 
+            # Select targets
             
             
             import pdb ; pdb.set_trace()
@@ -479,36 +569,36 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
 
         # define names that go into Truth
         n = len(source_data['RA'][ii])
-        if source_name not in ['STD_FSTAR', 'SKY']:
-            true_type_map = {
-                'STD_FSTAR': 'STAR',
-                'ELG': 'GALAXY',
-                'LRG': 'GALAXY',
-                'BGS': 'GALAXY',
-                'QSO': 'QSO',
-                'STD_FSTAR': 'STAR',
-                'MWS_MAIN': 'STAR',
-                'MWS_WD': 'STAR',
-                'MWS_NEARBY': 'STAR',
-                'SKY': 'SKY',
-            }
-            source_type = np.zeros(n, dtype='S10')
-            source_type[:] = target_name
-            true_type = np.zeros(n, dtype='S10')
-            true_type[:] = true_type_map[truth_name]
+        #if source_name not in ['STD_FSTAR', 'SKY']:
+        #    true_type_map = {
+        #        'STD_FSTAR': 'STAR',
+        #        'ELG': 'GALAXY',
+        #        'LRG': 'GALAXY',
+        #        'BGS': 'GALAXY',
+        #        'QSO': 'QSO',
+        #        'STD_FSTAR': 'STAR',
+        #        'MWS_MAIN': 'STAR',
+        #        'MWS_WD': 'STAR',
+        #        'MWS_NEARBY': 'STAR',
+        #        'SKY': 'SKY',
+        #    }
+        #    source_type = np.zeros(n, dtype='S10')
+        #    source_type[:] = target_name
+        #    true_type = np.zeros(n, dtype='S10')
+        #    true_type[:] = true_type_map[truth_name]
 
-        #define obsconditions
-        source_obsconditions = np.ones(n,dtype='uint16')
-        if target_name in ['LRG', 'QSO']:
-            source_obsconditions[:] = obsconditions.DARK
-        if target_name in ['ELG']:
-            source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
-        if target_name in ['BGS']:
-            source_obsconditions[:] = obsconditions.BRIGHT
-        if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
-            source_obsconditions[:] = obsconditions.BRIGHT
-        if target_name in ['STD_FSTAR', 'SKY']:
-            source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
+        ##define obsconditions
+        #source_obsconditions = np.ones(n,dtype='uint16')
+        #if target_name in ['LRG', 'QSO']:
+        #    source_obsconditions[:] = obsconditions.DARK
+        #if target_name in ['ELG']:
+        #    source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
+        #if target_name in ['BGS']:
+        #    source_obsconditions[:] = obsconditions.BRIGHT
+        #if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
+        #    source_obsconditions[:] = obsconditions.BRIGHT
+        #if target_name in ['STD_FSTAR', 'SKY']:
+        #    source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
 
         #append to the arrays that will go into Targets
         if source_name in ['STD_FSTAR']:
