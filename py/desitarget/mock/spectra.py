@@ -136,7 +136,6 @@ class MockSpectra(object):
 
         return flux, meta
 
-
 def empty_truth_table(nobj=1):
     """Initialize the truth table for each mock object.
 

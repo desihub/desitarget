@@ -18,11 +18,15 @@ import yaml
 from astropy.table import Table, Column
 
 import desispec.brick
+from desispec.log import get_logger, DEBUG
+
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget.targetmask import desi_mask, bgs_mask
 from desitarget import obsconditions
 from desitarget.mock.spectra import empty_truth_table, MockSpectra
+
+log = get_logger(DEBUG)
 
 def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     """
@@ -56,7 +60,7 @@ def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
             fluctuation['FLUC_'+depth][ttype] = targetQA.generate_fluctuations(decals_brick_info,
                                                                                ttype, depth,
                                                                                brick_info[depth])    
-            print('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+            log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
     return fluctuation
 
 def depths_across_bricks(brick_info):
@@ -117,7 +121,7 @@ def depths_across_bricks(brick_info):
         depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
         
         depths['GAL'+name] = depths[name] - depth_minus_galdepth
-        print('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
+        log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
         
     return depths
 
@@ -312,32 +316,40 @@ def fileid_filename(source_data, output_dir):
 
     return map_id_name
 
-
 def empty_targets_table(nobj=1):
-    """
-    In [2]: hh = fits.open('targets.fits')
-    
-    In [3]: hh[1].columns
-    Out[3]: 
-    ColDefs(
-    name = 'TARGETID'; format = 'K'
-    name = 'RA'; format = 'D'
-    name = 'DEC'; format = 'D'
-    name = 'DESI_TARGET'; format = 'K'
-    name = 'BGS_TARGET'; format = 'K'
-    name = 'MWS_TARGET'; format = 'K'
-    name = 'SUBPRIORITY'; format = 'D'
-    name = 'OBSCONDITIONS'; format = 'I'; bzero = 32768
-    name = 'BRICKNAME'; format = '8A'
-    name = 'DECAM_FLUX'; format = '6E'
-    name = 'SHAPEDEV_R'; format = 'E'
-    name = 'SHAPEEXP_R'; format = 'E'
-    name = 'DEPTH_R'; format = 'E'
-    name = 'GALDEPTH_R'; format = 'E'
-    )
-    """
+    """Initialize an empty 'targets' table.  The required output columns in order
+    for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
+    MWS_TARGET, SUBPRIORITY and OBSCONDITIONS.  Everything else is gravy.
 
-def targets_truth(params, output_dir, realtargets=None, seed=None):
+    """
+    from astropy.table import Table, Column
+
+    targets = Table()
+
+    # Columns required for fiber assignment:
+    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='RA', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='DEC', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='uint16'))
+
+    # Quantities mimicking a true targeting catalog (or inherited from the
+    # mocks).
+    targets.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='8A'))
+    targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
+
+    return targets
+
+def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False):
     """
     Write
 
@@ -357,6 +369,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
     source_defs = params['sources']
 
     # Compile information for all the bricks.
+    log.info('Compiling the brick information structure.')
     if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
         brick_info = generate_brick_info(bounds=(params['subset']['min_ra'],
                                                  params['subset']['max_ra'],
@@ -379,8 +392,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
         target_desimodel[t.upper()] = td[t]
     brick_info.update(target_desimodel)
 
-    # Initialize the template KDTree for all the object classes.
-    # tree = TemplateKDTree()
+    # Initialize the Spectrum() class (used to assign spectra).
     Spectra = MockSpectra()
 
     # Print info about the mocks we will be loading and then load them.
@@ -389,8 +401,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None):
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
     # Loop over each source / object type.
-    print('Assigning spectra and selecting targets.')
-    # runs target selection on every mock
+    log.info('Assigning spectra and selecting targets.')
     for source_name in sorted(source_defs.keys()):
         print('Working on source {}.'.format(source_name))
         

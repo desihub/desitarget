@@ -11,6 +11,7 @@ parser.add_argument('--config','-c',default='input.yaml')
 parser.add_argument('--output_dir', '-O', help='Path to write the outputs', type=str, default='./')
 parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('--seed', '-s', help='Seed for random number generation', type=int, default=None)
+parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 args = parser.parse_args()
 
 if not os.path.exists(args.config):
@@ -31,7 +32,8 @@ else:
     realtargets = None
 
 # Construct Targets and Truth files
-desitarget.mock.build.targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed)
+desitarget.mock.build.targets_truth(params, args.output_dir, realtargets=realtargets,
+                                    seed=args.seed, verbose=args.verbose)
 
 print('done!')
 
