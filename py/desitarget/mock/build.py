@@ -50,7 +50,7 @@ def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     depth_available = []
 #   for k in brick_info.keys():        
     for k in ['GALDEPTH_R', 'EBV']:        
-        if('DEPTH' in k or 'EBV' in k):
+        if ('DEPTH' in k or 'EBV' in k):
             depth_available.append(k)
 
     for depth in depth_available:        
@@ -62,7 +62,7 @@ def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
             log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
     return fluctuation
 
-def depths_across_bricks(brick_info):
+def depths_across_bricks(brick_info, random_state=None):
     """
     Generates a sample of magnitud dephts for a set of bricks.
 
@@ -81,7 +81,10 @@ def depths_across_bricks(brick_info):
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
             The values ofr each key ar numpy arrays (float) with size equal to 
             the input ra, dec arrays.
+
     """
+    if random_state is None:
+        random_state = np.random.RandomState()
 
     ra = brick_info['RA']
     dec = brick_info['DEC']
@@ -111,10 +114,10 @@ def depths_across_bricks(brick_info):
     names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
     depths = {}
     for name in names:
-        fracs = np.random.random(n_to_generate)
+        fracs = random_state.random(n_to_generate)
         depths[name] = np.interp(fracs, fractions[name], points[name])
 
-        depth_minus_galdepth = np.random.normal(
+        depth_minus_galdepth = random_state.normal(
             loc=differences[name][0], 
             scale=differences[name][1], size=n_to_generate)
         depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
@@ -218,12 +221,16 @@ def add_galdepths(mocktargets, brickinfo):
         else:
             warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
 
-def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
+def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None):
     '''
     Add DECAM_FLUX, SHAPEDEV_R, and SHAPEEXP_R from a real target catalog
     
     Modifies mocktargets by adding columns
+
     '''
+    if random_state is None:
+        random_state = np.random.RandomState()
+        
     n = len(mocktargets)
     if 'DECAM_FLUX' not in mocktargets.dtype.names:
         mocktargets['DECAM_FLUX'] = np.zeros((n, 6), dtype='f4')
@@ -247,7 +254,7 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
             raise ValueError("Real target catalog missing {}".format(objtype))
 
         #- Which random jj should be used to fill in values for ii?
-        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        kk = jj[random_state.randint(0, len(jj), size=len(ii))]
         
         mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
@@ -263,12 +270,12 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None):
 
         #- Which jj should be used to fill in values for ii?
         #- NOTE: not filling in BGS or MWS fluxes, only shapes
-        kk = jj[np.random.randint(0, len(jj), size=len(ii))]
+        kk = jj[random_state.randint(0, len(jj), size=len(ii))]
         # mocktargets['DECAM_FLUX'][ii] = realtargets['DECAM_FLUX'][kk]
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
         mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
 
-def add_OIIflux(targets, truth):
+def add_OIIflux(targets, truth, random_state=None):
     '''
     PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
     
@@ -277,7 +284,11 @@ def add_OIIflux(targets, truth):
         truth: target selection catalog Table
     
     Note: Modifies truth table in place by adding OIIFLUX column
+
     '''
+    if random_state is None:
+        random_state = np.random.RandomState()
+        
     assert np.all(targets['TARGETID'] == truth['TARGETID'])
 
     ntargets = len(targets)
@@ -292,7 +303,7 @@ def add_OIIflux(targets, truth):
     #- within a r-flux dependent upper limit
     rflux = targets['DECAM_FLUX'][isELG][:,2]
     maxflux = np.clip(3e-16*rflux, 0, 7e-16)
-    truth['OIIFLUX'][isELG] = maxflux * np.random.uniform(0,1.0,size=nELG)
+    truth['OIIFLUX'][isELG] = maxflux * random_state.uniform(0,1.0,size=nELG)
 
 def fileid_filename(source_data, output_dir):
     '''
@@ -433,6 +444,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         truth:
     
     """
+    # Initialize the random state object.
+    rand = np.random.RandomState(seed)
+    
     target_mask_all = dict()
     source_defs = params['sources']
 
@@ -446,8 +460,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
     else:
         brick_info = generate_brick_info()
 
-    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir']))  # add extinction
-    brick_info.update(depths_across_bricks(brick_info))                          # add depths
+    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir'], random_state=rand))  # add extinction
+    brick_info.update(depths_across_bricks(brick_info, random_state=rand))       # add depths
     brick_info.update(fluctuations_across_bricks(brick_info,
                                                  list(params['sources'].keys()),
                                                  params['decals_brick_info']))   # add number density fluctuations
@@ -512,7 +526,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
                 truth[key][these] = _meta[key]
 
             # Perturb the photometry based on the variance on this brick.
-            
+            decam_flux_obs = 
 
             # Select targets
             
@@ -672,11 +686,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         n_sky = len(ra_sky)
         n += n_sky
     print('Great total of {} targets {} stdstars {} sky pos'.format(n_target, n_star, n_sky))
-    targetid = np.random.randint(2**62, size=n)
+    targetid = rand.randint(2**62, size=n)
 
     # write to disk
     if 'STD_FSTAR' in source_defs.keys():
-        subprior = np.random.uniform(0., 1., size=n_star)
+        subprior = rand.uniform(0., 1., size=n_star)
         #write the Std Stars to disk
         print('Started writing StdStars file')
         stars_filename = os.path.join(output_dir, 'stdstars.fits')
@@ -698,7 +712,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         print('Finished writing stdstars file')
 
     if 'SKY' in source_defs.keys():
-        subprior = np.random.uniform(0., 1., size=n_sky)
+        subprior = rand.uniform(0., 1., size=n_sky)
         #write the Std Stars to disk
         print('Started writing sky to file')
         sky_filename = os.path.join(output_dir, 'sky.fits')
@@ -717,7 +731,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         print('Finished writing sky file')
 
     if n_target > 0:
-        subprior = np.random.uniform(0., 1., size=n_target)
+        subprior = rand.uniform(0., 1., size=n_target)
         # write the Targets to disk
         print('Started writing Targets file')
         targets_filename = os.path.join(output_dir, 'targets.fits')
@@ -752,7 +766,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         truth['BRICKNAME'] = brickname
         truth['MOCKID'] = mockid_total
 
-        add_OIIflux(targets, truth)
+        add_OIIflux(targets, truth, random_state=rand)
         
         truth.write(truth_filename, overwrite=True)
         print('Finished writing Truth file')

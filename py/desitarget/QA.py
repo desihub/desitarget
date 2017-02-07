@@ -23,7 +23,7 @@ from . import gitversion
 from desiutil import depend
 import warnings
 
-def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
+def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray, random_state=None):
     """Based on depth or E(B-V) values for a brick, generate target fluctuations
 
     Parameters
@@ -46,9 +46,10 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
     :class:`float`
         An array of the same length as depthorebvarray with per-brick fluctuations 
         generated from actual DECaLS data
+
     """
-
-
+    if random_state is None:
+        random_state = np.random.RandomState()
 
     #ADM check some impacts are as expected
     dts = ["DEPTH_G","GALDEPTH_G","DEPTH_R","GALDEPTH_R","DEPTH_Z","GALDEPTH_Z","EBV"]
@@ -72,8 +73,6 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
         warnings.warn(mess,RuntimeWarning)
         return fluc
 
-
-
     #ADM the target fluctuations are actually called FLUC_* in the model dictionary
     targettype = "FLUC_"+targettype
 
@@ -85,15 +84,14 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
 
     #ADM sample the distribution for each parameter in the quadratic
     #ADM fit for each of the total number of bricks
-    asamp = np.random.normal(means[0],sigmas[0],nbricks)
-    bsamp = np.random.normal(means[1],sigmas[1],nbricks)
-    csamp = np.random.normal(means[2],sigmas[2],nbricks)
+    asamp = random_state.normal(means[0], sigmas[0], nbricks)
+    bsamp = random_state.normal(means[1], sigmas[1], nbricks)
+    csamp = random_state.normal(means[2], sigmas[2], nbricks)
 
     #ADM grab the fluctuation in each brick
     fluc = asamp*depthorebvarray**2. + bsamp*depthorebvarray + csamp
 
     return fluc
-
 
 def model_map(brickfilename,plot=False):
     """Make a model map of how 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
