@@ -96,6 +96,8 @@ class MockSpectra(object):
 
     """
     def __init__(self, wavemin=None, wavemax=None, dw=0.2):
+        from desisim.templates import BGS
+
         self.tree = TemplateKDTree()
 
         # Build a default wavelength vector.
@@ -105,12 +107,13 @@ class MockSpectra(object):
             wavemax = load_throughput('z').wavemax
         self.wave = np.arange(round(wavemin, 1), wavemax, dw)
 
+        self.bgs = BGS(wave=self.wave)
+
     def getspectra_durham_mxxl_hdf5(self, data, index=None):
         """
         data needs Z, SDSS_absmag_r01, and SDSS_01gr, which are assigned in mock.io.read_durham_mxxl_hdf5
 
         """
-        from desisim.templates import BGS
         objtype = 'BGS'
 
         if index is None:
@@ -131,8 +134,9 @@ class MockSpectra(object):
         input_meta['TEMPLATEID'] = templateid
 
         print('Building spectra for {}'.format(objtype))
-        bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
-        flux, _, meta = bgs.make_templates(input_meta=input_meta, nocolorcuts=True)
+        #bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
+        self.bgs.normfilter = data['FILTERNAME']
+        flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True)
 
         return flux, meta
 

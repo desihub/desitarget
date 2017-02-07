@@ -676,12 +676,12 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
     print('read {} lines from {}'.format(len(ra), filename))
 
     print('HACK!!!!!!!!!!!!!!!')
-    ra = ra[:5000]
-    dec = dec[:5000]
-    rmag = rmag[:5000]
-    absmag = absmag[:5000]
-    gr = gr[:5000]
-    zred = zred[:5000]
+    ra = ra[:500]
+    dec = dec[:500]
+    rmag = rmag[:500]
+    absmag = absmag[:500]
+    gr = gr[:500]
+    zred = zred[:500]
 
     #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
     # DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5

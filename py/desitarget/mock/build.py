@@ -27,7 +27,7 @@ from desitarget.mock.spectra import MockSpectra
 
 log = get_logger(DEBUG)
 
-def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
+def fluctuations_across_bricks(brick_info, target_names, decals_brick_info, random_state=None):
     """
     Generates number density fluctuations.
 
@@ -45,6 +45,9 @@ def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
     """
     import desitarget.QA as targetQA
 
+    if random_state is None:
+        random_state = np.random.RandomState()
+
     fluctuation = {}
     
     depth_available = []
@@ -58,8 +61,11 @@ def fluctuations_across_bricks(brick_info, target_names, decals_brick_info):
         for ttype in target_names:
             fluctuation['FLUC_'+depth][ttype] = targetQA.generate_fluctuations(decals_brick_info,
                                                                                ttype, depth,
-                                                                               brick_info[depth])    
-            log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+                                                                               brick_info[depth],
+                                                                               random_state=random_state)
+            log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
+                ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+            
     return fluctuation
 
 def depths_across_bricks(brick_info, random_state=None):
@@ -114,7 +120,7 @@ def depths_across_bricks(brick_info, random_state=None):
     names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
     depths = {}
     for name in names:
-        fracs = random_state.random(n_to_generate)
+        fracs = random_state.random_sample(n_to_generate)
         depths[name] = np.interp(fracs, fractions[name], points[name])
 
         depth_minus_galdepth = random_state.normal(
@@ -460,11 +466,12 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
     else:
         brick_info = generate_brick_info()
 
-    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir'], random_state=rand))  # add extinction
+    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir']))  # add extinction
     brick_info.update(depths_across_bricks(brick_info, random_state=rand))       # add depths
     brick_info.update(fluctuations_across_bricks(brick_info,
                                                  list(params['sources'].keys()),
-                                                 params['decals_brick_info']))   # add number density fluctuations
+                                                 params['decals_brick_info'],
+                                                 random_state=rand))   # add number density fluctuations
 
     # Read target info from DESIMODEL; change all the keys to upper case; append into brick_info.
     filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
@@ -495,9 +502,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
         source_data = source_data_all[source_name]   # data (ra, dec, etc.)
 
-        brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
+        getSpectra_function = 'getspectra_'+source_params['format'].lower()
+        log.info('Generating spectra using {} function.'.format(getSpectra_function))
 
         # Initialize the truth and targets table
+        brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
         nobj = len(source_data['RA'])
         
         targets = empty_targets_table(nobj)
@@ -515,23 +524,25 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
 
         for thisbrick in list(set(brickname)):
             these = np.where(thisbrick == brickname)[0]
+            brickindx = brick_info['BRICKNAME'] == thisbrick
 
-            # Draw from the Gaussian mixture models to add shapes / photometry.
-
-            # Generate spctra.
-            _flux, _meta = getattr(Spectra, 'getspectra_'+source_params['format'].lower())(source_data, index=these)
+            # Generate spctra; need to include Galactic extinction here!
+            _flux, _meta = getattr(Spectra, getSpectra_function)(source_data, index=these)
             truth['TRUEFLUX'][these] = _flux
             for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                         'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
                 truth[key][these] = _meta[key]
 
-            # Perturb the photometry based on the variance on this brick.
-            decam_flux_obs = 
+            # Perturb the photometry based on the variance on this brick.  Hack!
+            # Assume a fixed S/N=20 in the WISE bands for now.
+            for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
+                targets['DECAM_FLUX'][these, band] = truth['DECAM_FLUX'][these, band] + \
+                  rand.normal(scale=1.0/np.sqrt(brick_info[depthkey][brickindx]), size=len(these))
+            targets['WISE_FLUX'][these, :] = truth['WISE_FLUX'][these, :] + \
+              rand.normal(scale=truth['WISE_FLUX'][these, :] / 20.0, size=(len(these), 2))
 
-            # Select targets
-            
-            
-            import pdb ; pdb.set_trace()
+        # Select targets
+        import pdb ; pdb.set_trace()
 
         source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
         print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))

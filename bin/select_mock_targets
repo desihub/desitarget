@@ -18,7 +18,6 @@ if not os.path.exists(args.config):
     raise Exception('No configuration file {} found.'.format(args.config))
 
 print('Using configuration file {}'.format(args.config))
-print('')
 
 # Read parameters from yaml
 with open(args.config, 'r') as pfile:
