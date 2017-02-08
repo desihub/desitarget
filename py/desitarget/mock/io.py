@@ -9,11 +9,14 @@ Handles mock data to build target catalogs.
 """
 from __future__ import (absolute_import, division, print_function)
 #
-import numpy as np
-import fitsio
 import os, re
-import desitarget.io
+import numpy as np
 import h5py
+
+import fitsio
+
+import desispec.brick
+import desitarget.io
 import desitarget.targets
 
 """
@@ -274,7 +277,6 @@ def make_mockid(objid, n_per_file):
 
     n_p_file = np.array(n_per_file)
     n_per_file_cumsum = n_p_file.cumsum()
-
 
     filenum = np.zeros(n_obj, dtype='int64')
     for n in range(1,n_files):
@@ -676,12 +678,12 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
     print('read {} lines from {}'.format(len(ra), filename))
 
     print('HACK!!!!!!!!!!!!!!!')
-    ra = ra[:500]
-    dec = dec[:500]
-    rmag = rmag[:500]
-    absmag = absmag[:500]
-    gr = gr[:500]
-    zred = zred[:500]
+    ra = ra[:50]
+    dec = dec[:50]
+    rmag = rmag[:50]
+    absmag = absmag[:50]
+    gr = gr[:50]
+    zred = zred[:50]
 
     #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
     # DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
@@ -704,9 +706,10 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
     vdisp = 10**rand.normal(1.9, 0.15, nobj)
 
     filtername = 'sdss2010-r'
+    brickname = desispec.brick.brickname(ra, dec)
 
-    return {'objid': objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z': zred,
-            'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr,
+    return {'objid': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
+            'Z': zred, 'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr,
             'SEED': seed, 'VDISP': vdisp, 'FILTERNAME': filtername, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 

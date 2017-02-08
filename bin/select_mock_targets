@@ -1,28 +1,42 @@
 #!/usr/bin/env python
-import desitarget.mock.build
 
+from __future__ import print_function, division
 
 import os
 import argparse
 import yaml
 
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+from desitarget.mock.build import targets_truth
+from desispec.log import get_logger, DEBUG
+
 parser = argparse.ArgumentParser()
-parser.add_argument('--config','-c',default='input.yaml')
+parser.add_argument('--config', '-c',default='input.yaml')
 parser.add_argument('--output_dir', '-O', help='Path to write the outputs', type=str, default='./')
 parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('--seed', '-s', help='Seed for random number generation', type=int, default=None)
+parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
+
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 args = parser.parse_args()
 
-if not os.path.exists(args.config):
-    raise Exception('No configuration file {} found.'.format(args.config))
+if args.verbose:
+    log = get_logger(DEBUG)
+else:
+    log = get_logger(DEBUG)
 
-print('Using configuration file {}'.format(args.config))
+if not os.path.exists(args.config):
+    log.fatal('No configuration file {} found.'.format(args.config))
+    raise Exception()
 
 # Read parameters from yaml
+log.info('Reading configuration file {}'.format(args.config))
 with open(args.config, 'r') as pfile:
     params = yaml.load(pfile)
 
+# Optionally read the "real" target catalog.
 if args.realtargets is not None:
     from astropy.io import fits
     print('Loading real targets from {}'.format(args.realtargets))
@@ -31,8 +45,8 @@ else:
     realtargets = None
 
 # Construct Targets and Truth files
-desitarget.mock.build.targets_truth(params, args.output_dir, realtargets=realtargets,
-                                    seed=args.seed, verbose=args.verbose)
+targets_truth(params, args.output_dir, realtargets=realtargets,
+              seed=args.seed, nproc=args.nproc, verbose=args.verbose)
 
-print('done!')
+log.info('All done!')
 

@@ -96,8 +96,6 @@ class MockSpectra(object):
 
     """
     def __init__(self, wavemin=None, wavemax=None, dw=0.2):
-        from desisim.templates import BGS
-
         self.tree = TemplateKDTree()
 
         # Build a default wavelength vector.
@@ -107,7 +105,12 @@ class MockSpectra(object):
             wavemax = load_throughput('z').wavemax
         self.wave = np.arange(round(wavemin, 1), wavemax, dw)
 
-        self.bgs = BGS(wave=self.wave)
+        #self.__normfilter = 'decam2014-r' # default normalization filter
+
+        # Initialize the templates once:
+        from desisim.templates import BGS, ELG
+        self.bgs = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
+        self.elg = ELG(wave=self.wave)
 
     def getspectra_durham_mxxl_hdf5(self, data, index=None):
         """
@@ -127,15 +130,15 @@ class MockSpectra(object):
         dist, templateid = self.tree.query(objtype, alldata)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
-        input_meta['SEED'] = data['SEED'][index]
-        input_meta['MAG'] = data['MAG'][index]
-        input_meta['REDSHIFT'] = data['Z'][index]
-        input_meta['VDISP'] = data['VDISP'][index]
         input_meta['TEMPLATEID'] = templateid
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            input_meta[inkey] = data[datakey][index]
 
-        print('Building spectra for {}'.format(objtype))
+        #print('Building spectra for {}'.format(objtype))
         #bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
-        self.bgs.normfilter = data['FILTERNAME']
+        #self.bgs.normfilter = data['FILTERNAME']
+        
         flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True)
 
         return flux, meta

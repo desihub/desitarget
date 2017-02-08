@@ -11,10 +11,11 @@ Build a truth catalog (including spectra) and a targets catalog for the mocks.
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import numpy as np
 import warnings
+from time import time
 
 import yaml
+import numpy as np
 from astropy.table import Table, Column
 
 import desispec.brick
@@ -24,6 +25,7 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget.targetmask import desi_mask, bgs_mask
 from desitarget.mock.spectra import MockSpectra
+from desitarget.internal import sharedmem
 
 log = get_logger(DEBUG)
 
@@ -434,7 +436,37 @@ def _getObsconditions(nobj, target_name):
 
     return source_obsconditions
 
-def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False):
+def _get_spectra_onebrick(specargs):
+    """Filler function for the multiproc"""
+    return get_spectra_onebrick(*specargs)
+
+def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand):
+    """Wrapper function to generate spectra for all the objects on a single brick."""
+
+    these = np.where(source_data['BRICKNAME'] == thisbrick)[0]
+    brickindx = brick_info['BRICKNAME'] == thisbrick
+    nobj = len(these)
+
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj, npix=len(Spectra.wave))
+
+    # Generate spctra; need to include Galactic extinction here!
+    _flux, _meta = getattr(Spectra, getSpectra_function)(source_data, index=these)
+    truth['TRUEFLUX'] = _flux
+    for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key] = _meta[key]
+
+    # Perturb the photometry based on the variance on this brick.  Hack!
+    # Assume a fixed S/N=20 in the WISE bands for now.
+    for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
+        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
+          rand.normal(scale=1.0/np.sqrt(brick_info[depthkey][brickindx]), size=nobj)
+        targets['WISE_FLUX'] = truth['WISE_FLUX'] + rand.normal(scale=truth['WISE_FLUX'] / 20.0, size=(nobj, 2))
+
+    return [targets, truth, these]
+
+def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verbose=True):
     """
     Write
 
@@ -444,10 +476,14 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
 
     Options:
         realtargets: real target catalog table, e.g. from DR3
+        nproc : number of parallel processes to use (default 4)
 
     Returns:
-        targets:
-        truth:
+      targets:
+      truth:
+
+    Notes:
+      If nproc == 1 use serial instead of parallel code.
     
     """
     # Initialize the random state object.
@@ -484,7 +520,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
     # Initialize the Spectrum() class (used to assign spectra).  The default
     # wavelength array gets initialized here, too.
     Spectra = MockSpectra()
-    npix = len(Spectra.wave)
 
     # Print info about the mocks we will be loading and then load them.
     mockio.print_all_mocks_info(params)
@@ -505,41 +540,54 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=False
         getSpectra_function = 'getspectra_'+source_params['format'].lower()
         log.info('Generating spectra using {} function.'.format(getSpectra_function))
 
-        # Initialize the truth and targets table
-        brickname = desispec.brick.brickname(source_data['RA'], source_data['DEC'])
+        # Assign spectra by parallel-processing the bricks.
+        brickname = source_data['BRICKNAME']
+        unique_bricks = list(set(brickname))
+
+        nbrick = np.zeros((), dtype='i8')
+
+        t0 = time()
+        def _update_status(result):
+            ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+            if nbrick > 0:
+            #if verbose and nbrick % 50 == 0 and nbrick > 0:
+                rate = nbrick / (time() - t0)
+                print('{} bricks; {:.1f} bricks/sec'.format(nbrick, rate))
+
+            nbrick[...] += 1    # this is an in-place modification
+            return result
+    
+        specargs = list()
+        for thisbrick in unique_bricks:
+                specargs.append((thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand))
+                
+        if nproc > 1:
+            pool = sharedmem.MapReduce(np=nproc)
+            with pool:
+                out = pool.map(_get_spectra_onebrick, specargs, reduce=_update_status)
+        else:
+            out = list()
+            for ii in range(len(unique_bricks)):
+                out.append(_update_status(_get_spectra_onebrick(specargs[ii])))
+
+        # Initialize and then populate the truth and targets tables. 
         nobj = len(source_data['RA'])
-        
         targets = empty_targets_table(nobj)
+        truth = empty_truth_table(nobj, npix=len(Spectra.wave))
+
+        for ii in range(len(unique_bricks)):
+            targets[out[ii][2]] = out[ii][0]
+            truth[out[ii][2]] = out[ii][1]
+
         targets['RA'] = source_data['RA']
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
         
-        truth = empty_truth_table(nobj, npix=npix)
-        truth['TRUEZ'] = source_data['Z']
         truth['TRUETYPE'] = source_name
+        truth['TRUEZ'] = source_data['Z']
         truth['SOURCETYPE'] = _getSourcetype(source_name)
         truth['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
-
-        # Parallelize by brick and assign spectra.
-
-        for thisbrick in list(set(brickname)):
-            these = np.where(thisbrick == brickname)[0]
-            brickindx = brick_info['BRICKNAME'] == thisbrick
-
-            # Generate spctra; need to include Galactic extinction here!
-            _flux, _meta = getattr(Spectra, getSpectra_function)(source_data, index=these)
-            truth['TRUEFLUX'][these] = _flux
-            for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
-                        'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-                truth[key][these] = _meta[key]
-
-            # Perturb the photometry based on the variance on this brick.  Hack!
-            # Assume a fixed S/N=20 in the WISE bands for now.
-            for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
-                targets['DECAM_FLUX'][these, band] = truth['DECAM_FLUX'][these, band] + \
-                  rand.normal(scale=1.0/np.sqrt(brick_info[depthkey][brickindx]), size=len(these))
-            targets['WISE_FLUX'][these, :] = truth['WISE_FLUX'][these, :] + \
-              rand.normal(scale=truth['WISE_FLUX'][these, :] / 20.0, size=(len(these), 2))
 
         # Select targets
         import pdb ; pdb.set_trace()
