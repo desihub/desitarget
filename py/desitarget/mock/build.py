@@ -19,6 +19,8 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table, Column, vstack
 
+#from desiutil.io import encode_table
+
 import desispec.brick
 from desispec.log import get_logger, DEBUG
 from desispec.io.util import fitsheader, write_bintable, makepath
@@ -591,7 +593,7 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
         targets['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
         
         truth['TRUETYPE'] = source_name
-        truth['TRUEZ'] = source_data['Z']
+        truth['TRUEZ'] = source_data['Z'].astype('f4')
         truth['MOCKID'] = source_data['MOCKID']
         truth['SOURCETYPE'] = _getSourcetype(source_name)
 
@@ -616,269 +618,265 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
     targets['TARGETID'] = targetid
     targets['SUBPRIORITY'] = rand.uniform(0.0, 1.0, size=ntarget)
 
-    trueflux = truth['TRUEFLUX'].data * 1E17 # Note!
+    trueflux = truth['TRUEFLUX'].data
     truth.remove_column('TRUEFLUX')
 
-    # Write out.
-    header = dict(
-        CRPIX1 = (1, 'reference pixel number'),
-        CRVAL1 = (Spectra.wavemin, 'Starting wavelength'),
-        CDELT1 = (Spectra.dw, 'Wavelength step'),
-        LOGLAM = (0, 'linear wavelength steps, not log10'),
-        AIRORVAC = ('vac', 'Vacuum wavelengths'),
-        CUNIT = ('Angstrom', 'Wavelength units'),
-        BUNIT = ('Angstrom', 'Wavelength units'),
-        )
-    wavehdr = fitsheader(header)
-
+    # Write out.  Should this be parallelized?!?
+    log.info('Writing out.')
+    
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
-        if not os.path.exists(thisradir):
-            os.makedirs(thisradir)
+        # Make the directory, if necessary.
+        thisradir = makepath(thisradir)
         
         inraslice = np.where(radir == thisradir)[0]
         for thisbrick in list(set(targets['BRICKNAME'][inraslice])):
             these = np.where(targets['BRICKNAME'] == thisbrick)[0]
+
             targets[these].write(os.path.join(thisradir, 'targets-{}.fits'.format(thisbrick)), overwrite=True)
 
             # Split out the spectrum from the truth table.
-            hx = fits.HDUList()
-            hx.append(fits.PrimaryHDU(None, header=wavehdr))
-            x = fits.ImageHDU(trueflux.astype(np.float32), name='TRUEFLUX')
-            x.header['BUNIT'] = '1e-17 erg/s/cm2/A'
-            hx.append(x)
-            hx.writeto(os.path.join(thisradir, 'truespectra-{}.fits'.format(thisbrick)), clobber=True)
+            hdulist = fits.HDUList(fits.PrimaryHDU(None, header=None))
 
-            truth[these].write(os.path.join(thisradir, 'truth-{}.fits'.format(thisbrick)), overwrite=True)
-            
+            hdu = fits.ImageHDU(Spectra.wave.astype(np.float32), name='WAVE')
+            hdu.header['BUNIT']  = ('Angstrom', 'Wavelength units')
+            hdu.header['AIRORVAC']  = ('vac', 'Vacuum wavelengths')
+            hdulist.append(hdu)
+
+            hdu = fits.ImageHDU(trueflux.astype(np.float32), name='FLUX')
+            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+            hdulist.append(hdu)
+
+            #metatable = encode_table(meta, encoding='ascii')
+            metahdu = fits.convenience.table_to_hdu(truth[these])
+            metahdu.header['EXTNAME'] = 'TRUTH'
+            hdulist.append(metahdu)
+
+            hdulist.writeto(os.path.join(thisradir, 'truth-{}.fits'.format(thisbrick)), clobber=True)
 
     import pdb ; pdb.set_trace()
         
-    # consolidates all relevant arrays across mocks
-    ra_total = np.empty(0)
-    dec_total = np.empty(0)
-    z_total = np.empty(0)
-    mockid_total = np.empty(0, dtype='int64')
-    desi_target_total = np.empty(0, dtype='i8')
-    bgs_target_total = np.empty(0, dtype='i8')
-    mws_target_total = np.empty(0, dtype='i8')
-    true_type_total = np.empty(0, dtype='S10')
-    source_type_total = np.empty(0, dtype='S10')
-    obsconditions_total = np.empty(0, dtype='uint16')
-    decam_flux = np.empty((0,6), dtype='f4')
-
-    print('Collects information across mock files')
-    for source_name in sorted(source_defs.keys()):
-        target_name = params['sources'][source_name]['target_name']
-        truth_name = params['sources'][source_name]['truth_name']
-        source_data = source_data_all[source_name]
-        target_mask = target_mask_all[source_name]
-
-        ii = target_mask >-1 #only targets that passed cuts
-
-        #define all flags
-        desi_target = 0 * target_mask[ii]
-        bgs_target = 0 * target_mask[ii] 
-        mws_target = 0 * target_mask[ii]
-        if target_name in ['ELG', 'LRG', 'QSO', 'STD_FSTAR', 'SKY']:
-            desi_target = target_mask[ii]
-        if target_name in ['BGS']:
-            bgs_target = target_mask[ii]
-            desi_target |= desi_mask.BGS_ANY
-        if target_name in ['MWS_MAIN', 'MWS_WD' ,'MWS_NEARBY']:
-            mws_target = target_mask[ii]
-            desi_target |= desi_mask.MWS_ANY
-
-
-        # define names that go into Truth
-        n = len(source_data['RA'][ii])
-        #if source_name not in ['STD_FSTAR', 'SKY']:
-        #    true_type_map = {
-        #        'STD_FSTAR': 'STAR',
-        #        'ELG': 'GALAXY',
-        #        'LRG': 'GALAXY',
-        #        'BGS': 'GALAXY',
-        #        'QSO': 'QSO',
-        #        'STD_FSTAR': 'STAR',
-        #        'MWS_MAIN': 'STAR',
-        #        'MWS_WD': 'STAR',
-        #        'MWS_NEARBY': 'STAR',
-        #        'SKY': 'SKY',
-        #    }
-        #    source_type = np.zeros(n, dtype='S10')
-        #    source_type[:] = target_name
-        #    true_type = np.zeros(n, dtype='S10')
-        #    true_type[:] = true_type_map[truth_name]
-
-        ##define obsconditions
-        #source_obsconditions = np.ones(n,dtype='uint16')
-        #if target_name in ['LRG', 'QSO']:
-        #    source_obsconditions[:] = obsconditions.DARK
-        #if target_name in ['ELG']:
-        #    source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
-        #if target_name in ['BGS']:
-        #    source_obsconditions[:] = obsconditions.BRIGHT
-        #if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
-        #    source_obsconditions[:] = obsconditions.BRIGHT
-        #if target_name in ['STD_FSTAR', 'SKY']:
-        #    source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
-
-        #append to the arrays that will go into Targets
-        if source_name in ['STD_FSTAR']:
-            ra_stars = source_data['RA'][ii].copy()
-            dec_stars = source_data['DEC'][ii].copy()
-            desi_target_stars = desi_target.copy()
-            bgs_target_stars = bgs_target.copy()
-            mws_target_stars = mws_target.copy()
-            obsconditions_stars = source_obsconditions.copy()
-        if source_name in ['SKY']:
-            ra_sky = source_data['RA'][ii].copy()
-            dec_sky = source_data['DEC'][ii].copy()
-            desi_target_sky = desi_target.copy()
-            bgs_target_sky = bgs_target.copy()
-            mws_target_sky = mws_target.copy()
-            obsconditions_sky = source_obsconditions.copy()
-        if source_name not in ['SKY', 'STD_FSTAR']:
-            ra_total = np.append(ra_total, source_data['RA'][ii])
-            dec_total = np.append(dec_total, source_data['DEC'][ii])
-            z_total = np.append(z_total, source_data['Z'][ii])
-            desi_target_total = np.append(desi_target_total, desi_target)
-            bgs_target_total = np.append(bgs_target_total, bgs_target)
-            mws_target_total = np.append(mws_target_total, mws_target)
-            true_type_total = np.append(true_type_total, true_type)
-            source_type_total = np.append(source_type_total, source_type)
-            obsconditions_total = np.append(obsconditions_total, source_obsconditions)
-            mockid_total = np.append(mockid_total, source_data['MOCKID'][ii])
-
-            # --------------------------------------------------
-            # HERE!!  Need to read in more of the rest-frame properties so we can do the mapping to spectra.
-
-            import pdb ; pdb.set_trace()
-
-            ##- Add fluxes, which default to 0 if the mocks don't have them
-            #if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
-            #    from desitarget.mock import sfdmap
-            #    ra = source_data['RA']
-            #    dec = source_data['DEC']
-            #    ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
-            #    #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
-            #    source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
-            #
-            #if 'DECAM_FLUX' in source_data:
-            #    decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
-            #else:
-            #    n = len(desi_target)
-            #    tmpflux = np.zeros((n,6), dtype='f4')
-            #    if 'DECAMg_obs' in source_data:
-            #        tmpflux[:,1] = 10**(0.4*(22.5-source_data['DECAMg_obs'][ii]))
-            #    if 'DECAMr_obs' in source_data:
-            #        tmpflux[:,2] = 10**(0.4*(22.5-source_data['DECAMr_obs'][ii]))
-            #    if 'DECAMz_obs' in source_data:
-            #        tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
-            #    decam_flux = np.vstack([decam_flux, tmpflux])
-            ## --------------------------------------------------
-
-        print('source {} target {} truth {}: selected {} out of {}'.format(
-                source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
-
-        import pdb ; pdb.set_trace()
-
-    # create unique IDs, subpriorities and bricknames across all mock files
-    n_target = len(ra_total)     
-    n_star = 0
-    n_sky = 0
-    n  = n_target    
-    if 'STD_FSTAR' in source_defs.keys():
-        n_star = len(ra_stars)
-        n += n_star
-    if 'SKY' in source_defs.keys():
-        n_sky = len(ra_sky)
-        n += n_sky
-    print('Great total of {} targets {} stdstars {} sky pos'.format(n_target, n_star, n_sky))
-    targetid = rand.randint(2**62, size=n)
-
-    # write to disk
-    if 'STD_FSTAR' in source_defs.keys():
-        subprior = rand.uniform(0., 1., size=n_star)
-        #write the Std Stars to disk
-        print('Started writing StdStars file')
-        stars_filename = os.path.join(output_dir, 'stdstars.fits')
-        stars = Table()
-        stars['TARGETID'] = targetid[n_target:n_target+n_star]
-        stars['RA'] = ra_stars
-        stars['DEC'] = dec_stars
-        stars['DESI_TARGET'] = desi_target_stars
-        stars['BGS_TARGET'] = bgs_target_stars
-        stars['MWS_TARGET'] = mws_target_stars
-        stars['SUBPRIORITY'] = subprior
-        stars['OBSCONDITIONS'] = obsconditions_stars
-        # if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-        #     stars = stars[ii_stars]
-        #     print('subsetting in std_stars data done')
-        brickname = desispec.brick.brickname(stars['RA'], stars['DEC'])
-        stars['BRICKNAME'] = brickname
-        stars.write(stars_filename, overwrite=True)
-        print('Finished writing stdstars file')
-
-    if 'SKY' in source_defs.keys():
-        subprior = rand.uniform(0., 1., size=n_sky)
-        #write the Std Stars to disk
-        print('Started writing sky to file')
-        sky_filename = os.path.join(output_dir, 'sky.fits')
-        sky = Table()
-        sky['TARGETID'] = targetid[n_target+n_star:n_target+n_star+n_sky]
-        sky['RA'] = ra_sky
-        sky['DEC'] = dec_sky
-        sky['DESI_TARGET'] = desi_target_sky
-        sky['BGS_TARGET'] = bgs_target_sky
-        sky['MWS_TARGET'] = mws_target_sky
-        sky['SUBPRIORITY'] = subprior
-        sky['OBSCONDITIONS'] = obsconditions_sky
-        brickname = desispec.brick.brickname(sky['RA'], sky['DEC'])
-        sky['BRICKNAME'] = brickname
-        sky.write(sky_filename, overwrite=True)
-        print('Finished writing sky file')
-
-    if n_target > 0:
-        subprior = rand.uniform(0., 1., size=n_target)
-        # write the Targets to disk
-        print('Started writing Targets file')
-        targets_filename = os.path.join(output_dir, 'targets.fits')
-        targets = Table()
-        targets['TARGETID'] = targetid[0:n_target]
-        targets['RA'] = ra_total
-        targets['DEC'] = dec_total
-        targets['DESI_TARGET'] = desi_target_total
-        targets['BGS_TARGET'] = bgs_target_total
-        targets['MWS_TARGET'] = mws_target_total
-        targets['SUBPRIORITY'] = subprior
-        targets['OBSCONDITIONS'] = obsconditions_total
-        brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
-        targets['BRICKNAME'] = brickname          
-
-        targets['DECAM_FLUX'] = decam_flux
-        add_mock_shapes_and_fluxes(targets, realtargets)
-        add_galdepths(targets, brick_info)
-        targets.write(targets_filename, overwrite=True)
-        print('Finished writing Targets file')
-
-        # write the Truth to disk
-        print('Started writing Truth file')
-        truth_filename = os.path.join(output_dir, 'truth.fits')
-        truth = Table()
-        truth['TARGETID'] = targetid[0:n_target]
-        truth['RA'] = ra_total
-        truth['DEC'] = dec_total
-        truth['TRUEZ'] = z_total
-        truth['TRUETYPE'] = true_type_total
-        truth['SOURCETYPE'] = source_type_total
-        truth['BRICKNAME'] = brickname
-        truth['MOCKID'] = mockid_total
-
-        add_OIIflux(targets, truth, random_state=rand)
-        
-        truth.write(truth_filename, overwrite=True)
-        print('Finished writing Truth file')
+#    # consolidates all relevant arrays across mocks
+#    ra_total = np.empty(0)
+#    dec_total = np.empty(0)
+#    z_total = np.empty(0)
+#    mockid_total = np.empty(0, dtype='int64')
+#    desi_target_total = np.empty(0, dtype='i8')
+#    bgs_target_total = np.empty(0, dtype='i8')
+#    mws_target_total = np.empty(0, dtype='i8')
+#    true_type_total = np.empty(0, dtype='S10')
+#    source_type_total = np.empty(0, dtype='S10')
+#    obsconditions_total = np.empty(0, dtype='uint16')
+#    decam_flux = np.empty((0,6), dtype='f4')
+#
+#    print('Collects information across mock files')
+#    for source_name in sorted(source_defs.keys()):
+#        target_name = params['sources'][source_name]['target_name']
+#        truth_name = params['sources'][source_name]['truth_name']
+#        source_data = source_data_all[source_name]
+#        target_mask = target_mask_all[source_name]
+#
+#        ii = target_mask >-1 #only targets that passed cuts
+#
+#        #define all flags
+#        desi_target = 0 * target_mask[ii]
+#        bgs_target = 0 * target_mask[ii] 
+#        mws_target = 0 * target_mask[ii]
+#        if target_name in ['ELG', 'LRG', 'QSO', 'STD_FSTAR', 'SKY']:
+#            desi_target = target_mask[ii]
+#        if target_name in ['BGS']:
+#            bgs_target = target_mask[ii]
+#            desi_target |= desi_mask.BGS_ANY
+#        if target_name in ['MWS_MAIN', 'MWS_WD' ,'MWS_NEARBY']:
+#            mws_target = target_mask[ii]
+#            desi_target |= desi_mask.MWS_ANY
+#
+#
+#        # define names that go into Truth
+#        n = len(source_data['RA'][ii])
+#        #if source_name not in ['STD_FSTAR', 'SKY']:
+#        #    true_type_map = {
+#        #        'STD_FSTAR': 'STAR',
+#        #        'ELG': 'GALAXY',
+#        #        'LRG': 'GALAXY',
+#        #        'BGS': 'GALAXY',
+#        #        'QSO': 'QSO',
+#        #        'STD_FSTAR': 'STAR',
+#        #        'MWS_MAIN': 'STAR',
+#        #        'MWS_WD': 'STAR',
+#        #        'MWS_NEARBY': 'STAR',
+#        #        'SKY': 'SKY',
+#        #    }
+#        #    source_type = np.zeros(n, dtype='S10')
+#        #    source_type[:] = target_name
+#        #    true_type = np.zeros(n, dtype='S10')
+#        #    true_type[:] = true_type_map[truth_name]
+#
+#        ##define obsconditions
+#        #source_obsconditions = np.ones(n,dtype='uint16')
+#        #if target_name in ['LRG', 'QSO']:
+#        #    source_obsconditions[:] = obsconditions.DARK
+#        #if target_name in ['ELG']:
+#        #    source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
+#        #if target_name in ['BGS']:
+#        #    source_obsconditions[:] = obsconditions.BRIGHT
+#        #if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
+#        #    source_obsconditions[:] = obsconditions.BRIGHT
+#        #if target_name in ['STD_FSTAR', 'SKY']:
+#        #    source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
+#
+#        #append to the arrays that will go into Targets
+#        if source_name in ['STD_FSTAR']:
+#            ra_stars = source_data['RA'][ii].copy()
+#            dec_stars = source_data['DEC'][ii].copy()
+#            desi_target_stars = desi_target.copy()
+#            bgs_target_stars = bgs_target.copy()
+#            mws_target_stars = mws_target.copy()
+#            obsconditions_stars = source_obsconditions.copy()
+#        if source_name in ['SKY']:
+#            ra_sky = source_data['RA'][ii].copy()
+#            dec_sky = source_data['DEC'][ii].copy()
+#            desi_target_sky = desi_target.copy()
+#            bgs_target_sky = bgs_target.copy()
+#            mws_target_sky = mws_target.copy()
+#            obsconditions_sky = source_obsconditions.copy()
+#        if source_name not in ['SKY', 'STD_FSTAR']:
+#            ra_total = np.append(ra_total, source_data['RA'][ii])
+#            dec_total = np.append(dec_total, source_data['DEC'][ii])
+#            z_total = np.append(z_total, source_data['Z'][ii])
+#            desi_target_total = np.append(desi_target_total, desi_target)
+#            bgs_target_total = np.append(bgs_target_total, bgs_target)
+#            mws_target_total = np.append(mws_target_total, mws_target)
+#            true_type_total = np.append(true_type_total, true_type)
+#            source_type_total = np.append(source_type_total, source_type)
+#            obsconditions_total = np.append(obsconditions_total, source_obsconditions)
+#            mockid_total = np.append(mockid_total, source_data['MOCKID'][ii])
+#
+#            # --------------------------------------------------
+#            # HERE!!  Need to read in more of the rest-frame properties so we can do the mapping to spectra.
+#
+#            ##- Add fluxes, which default to 0 if the mocks don't have them
+#            #if 'DECAMr_true' in source_data and 'DECAMr_obs' not in source_data:
+#            #    from desitarget.mock import sfdmap
+#            #    ra = source_data['RA']
+#            #    dec = source_data['DEC']
+#            #    ebv = sfdmap.ebv(ra, dec, mapdir=params['dust_dir'])
+#            #    #- Magic number for extinction coefficient from https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
+#            #    source_data['DECAMr_obs'] = source_data['DECAMr_true'] + ebv*2.165
+#            #
+#            #if 'DECAM_FLUX' in source_data:
+#            #    decam_flux = np.append(decam_flux, source_data['DECAM_FLUX'][ii])
+#            #else:
+#            #    n = len(desi_target)
+#            #    tmpflux = np.zeros((n,6), dtype='f4')
+#            #    if 'DECAMg_obs' in source_data:
+#            #        tmpflux[:,1] = 10**(0.4*(22.5-source_data['DECAMg_obs'][ii]))
+#            #    if 'DECAMr_obs' in source_data:
+#            #        tmpflux[:,2] = 10**(0.4*(22.5-source_data['DECAMr_obs'][ii]))
+#            #    if 'DECAMz_obs' in source_data:
+#            #        tmpflux[:,4] = 10**(0.4*(22.5-source_data['DECAMz_obs'][ii]))
+#            #    decam_flux = np.vstack([decam_flux, tmpflux])
+#            ## --------------------------------------------------
+#
+#        print('source {} target {} truth {}: selected {} out of {}'.format(
+#                source_name, target_name, truth_name, len(source_data['RA'][ii]), len(source_data['RA'])))
+#
+#    # create unique IDs, subpriorities and bricknames across all mock files
+#    n_target = len(ra_total)     
+#    n_star = 0
+#    n_sky = 0
+#    n  = n_target    
+#    if 'STD_FSTAR' in source_defs.keys():
+#        n_star = len(ra_stars)
+#        n += n_star
+#    if 'SKY' in source_defs.keys():
+#        n_sky = len(ra_sky)
+#        n += n_sky
+#    print('Great total of {} targets {} stdstars {} sky pos'.format(n_target, n_star, n_sky))
+#    targetid = rand.randint(2**62, size=n)
+#
+#    # write to disk
+#    if 'STD_FSTAR' in source_defs.keys():
+#        subprior = rand.uniform(0., 1., size=n_star)
+#        #write the Std Stars to disk
+#        print('Started writing StdStars file')
+#        stars_filename = os.path.join(output_dir, 'stdstars.fits')
+#        stars = Table()
+#        stars['TARGETID'] = targetid[n_target:n_target+n_star]
+#        stars['RA'] = ra_stars
+#        stars['DEC'] = dec_stars
+#        stars['DESI_TARGET'] = desi_target_stars
+#        stars['BGS_TARGET'] = bgs_target_stars
+#        stars['MWS_TARGET'] = mws_target_stars
+#        stars['SUBPRIORITY'] = subprior
+#        stars['OBSCONDITIONS'] = obsconditions_stars
+#        # if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+#        #     stars = stars[ii_stars]
+#        #     print('subsetting in std_stars data done')
+#        brickname = desispec.brick.brickname(stars['RA'], stars['DEC'])
+#        stars['BRICKNAME'] = brickname
+#        stars.write(stars_filename, overwrite=True)
+#        print('Finished writing stdstars file')
+#
+#    if 'SKY' in source_defs.keys():
+#        subprior = rand.uniform(0., 1., size=n_sky)
+#        #write the Std Stars to disk
+#        print('Started writing sky to file')
+#        sky_filename = os.path.join(output_dir, 'sky.fits')
+#        sky = Table()
+#        sky['TARGETID'] = targetid[n_target+n_star:n_target+n_star+n_sky]
+#        sky['RA'] = ra_sky
+#        sky['DEC'] = dec_sky
+#        sky['DESI_TARGET'] = desi_target_sky
+#        sky['BGS_TARGET'] = bgs_target_sky
+#        sky['MWS_TARGET'] = mws_target_sky
+#        sky['SUBPRIORITY'] = subprior
+#        sky['OBSCONDITIONS'] = obsconditions_sky
+#        brickname = desispec.brick.brickname(sky['RA'], sky['DEC'])
+#        sky['BRICKNAME'] = brickname
+#        sky.write(sky_filename, overwrite=True)
+#        print('Finished writing sky file')
+#
+#    if n_target > 0:
+#        subprior = rand.uniform(0., 1., size=n_target)
+#        # write the Targets to disk
+#        print('Started writing Targets file')
+#        targets_filename = os.path.join(output_dir, 'targets.fits')
+#        targets = Table()
+#        targets['TARGETID'] = targetid[0:n_target]
+#        targets['RA'] = ra_total
+#        targets['DEC'] = dec_total
+#        targets['DESI_TARGET'] = desi_target_total
+#        targets['BGS_TARGET'] = bgs_target_total
+#        targets['MWS_TARGET'] = mws_target_total
+#        targets['SUBPRIORITY'] = subprior
+#        targets['OBSCONDITIONS'] = obsconditions_total
+#        brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
+#        targets['BRICKNAME'] = brickname          
+#
+#        targets['DECAM_FLUX'] = decam_flux
+#        add_mock_shapes_and_fluxes(targets, realtargets)
+#        add_galdepths(targets, brick_info)
+#        targets.write(targets_filename, overwrite=True)
+#        print('Finished writing Targets file')
+#
+#        # write the Truth to disk
+#        print('Started writing Truth file')
+#        truth_filename = os.path.join(output_dir, 'truth.fits')
+#        truth = Table()
+#        truth['TARGETID'] = targetid[0:n_target]
+#        truth['RA'] = ra_total
+#        truth['DEC'] = dec_total
+#        truth['TRUEZ'] = z_total
+#        truth['TRUETYPE'] = true_type_total
+#        truth['SOURCETYPE'] = source_type_total
+#        truth['BRICKNAME'] = brickname
+#        truth['MOCKID'] = mockid_total
+#
+#        add_OIIflux(targets, truth, random_state=rand)
+#        
+#        truth.write(truth_filename, overwrite=True)
+#        print('Finished writing Truth file')
 
 
         
