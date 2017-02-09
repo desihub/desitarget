@@ -17,6 +17,7 @@ parser.add_argument('--config', '-c',default='input.yaml')
 parser.add_argument('--output_dir', '-O', help='Path to write the outputs', type=str, default='./')
 parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('--seed', '-s', help='Seed for random number generation', type=int, default=None)
+parser.add_argument('--nsubset', type=int, help='analyze a subset of each target type (default is all)', default=None)
 parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
@@ -45,7 +46,7 @@ else:
     realtargets = None
 
 # Construct Targets and Truth files
-targets_truth(params, args.output_dir, realtargets=realtargets,
+targets_truth(params, args.output_dir, realtargets=realtargets, nsubset=args.nsubset, 
               seed=args.seed, nproc=args.nproc, verbose=args.verbose)
 
 log.info('All done!')

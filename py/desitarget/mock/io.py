@@ -52,7 +52,7 @@ def print_all_mocks_info(params):
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params, seed=None):
+def load_all_mocks(params, nsubset=None, rand=None):
     """
     Prints parameters to read mock files.
     Parameters
@@ -65,7 +65,6 @@ def load_all_mocks(params, seed=None):
         stored under params['sources'].keys()
     """
     source_data_all = {}
-
 
     # load all the mocks
     loaded_mocks = {}
@@ -89,10 +88,7 @@ def load_all_mocks(params, seed=None):
             loaded_mocks[this_name] = source_name
 
             func = globals()[function]
-            result = func(source_path, target_name, mock_name=mock_name, seed=seed)
-
-            # Add a random seed to each mock source (used for template-generation).
-            # result.update({'SEED': np.random.RandomState(seed).randint(2**32, size=len(result['RA']))})
+            result = func(source_path, target_name, mock_name=mock_name, nsubset=nsubset, rand=rand)
 
             if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
                 print('Trimming {} to RA,dec subselection'.format(source_name))
@@ -647,7 +643,7 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
     return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
+def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, rand=None):
     """ Reads mock information for MXXL bright time survey galaxies.
 
     Args:
@@ -663,8 +659,8 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
         SDSS_01gr       : SDSS g-r color band-shifted to z=0.1
         MAG             : apparent SDSS r-band magnitude (extinction-corrected)
         FILTERNAME      : filter name corresponding to MAG
-    """
 
+    """
     filename = os.path.join(mock_dir, target_type+'.hdf5')
     f = h5py.File(filename)
     ra  = f["Data/ra"][...].astype('f8') % 360.0
@@ -677,16 +673,16 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
 
     print('read {} lines from {}'.format(len(ra), filename))
 
-    print('HACK!!!!!!!!!!!!!!!')
-    ra = ra[:50]
-    dec = dec[:50]
-    rmag = rmag[:50]
-    absmag = absmag[:50]
-    gr = gr[:50]
-    zred = zred[:50]
-
-    #- Convert SDSSr to DECAMr for a typical BGS target with (r-i)=0.4
-    # DECAMr_true = SDSSr_true - 0.03587 - 0.14144*0.4  #- DESI-1788v1 eqn 5
+    # Choose a subset of objects.
+    if nsubset is not None:
+        print('Choosing a random subset of {} objects.'.format(nsubset))
+        these = rand.randint(0, len(ra)+1, nsubset)
+        ra = ra[these]
+        dec = dec[these]
+        rmag = rmag[these]
+        absmag = absmag[these]
+        gr = gr[these]
+        zred = zred[these]
 
     files = list()
     files.append(filename)
@@ -700,7 +696,6 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
     mockid = make_mockid(objid, n_per_file)
 
     # Generate a random seed for every object and assign velocity dispersions.
-    rand = np.random.RandomState(seed)
     seed = rand.randint(2**32, size=nobj)
     vdisp = np.zeros_like(rmag)
     vdisp = 10**rand.normal(1.9, 0.15, nobj)
@@ -708,7 +703,7 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, seed=None):
     filtername = 'sdss2010-r'
     brickname = desispec.brick.brickname(ra, dec)
 
-    return {'objid': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
             'Z': zred, 'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr,
             'SEED': seed, 'VDISP': vdisp, 'FILTERNAME': filtername, 
             'FILES': files, 'N_PER_FILE': n_per_file}

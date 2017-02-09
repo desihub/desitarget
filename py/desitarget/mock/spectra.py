@@ -138,7 +138,8 @@ class MockSpectra(object):
         #print('Building spectra for {}'.format(objtype))
         #bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
         #self.bgs.normfilter = data['FILTERNAME']
-        
+
+        # ToDo (@moustakas): apply Galactic extinction.
         flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True)
 
         return flux, meta

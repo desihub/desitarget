@@ -8,18 +8,20 @@ desitarget.mock.selection
 Applies selection criteria on mock target catalogs.
 """
 from __future__ import (absolute_import, division)
-#
-import numpy as np
-import os, re
-import desitarget.mock.io
-import desitarget.io
-from   desitarget import mws_mask, desi_mask, bgs_mask
+
+
 import os
-from   astropy.table import Table, Column
-import fitsio
-import desispec.brick
+import re
 import warnings
 
+import numpy as np
+from astropy.table import Table, Column
+import fitsio
+
+import desitarget.io
+import desitarget.mock.io
+import desispec.brick
+from desitarget import mws_mask, desi_mask, bgs_mask
 
 def make_lookup_dict(bricks):
     """
@@ -46,7 +48,7 @@ def make_lookup_dict(bricks):
         except:
             lookup[bricks[i]] = i
     return lookup
-############################################################
+
 def mag_select(data, sourcename, targetname, truthname, brick_info=None, density_fluctuations=False, **kwargs):
     """
     Apply the selection function to determine the target class of each entry in
@@ -93,7 +95,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
 
     target_class = -1
 
-    if(sourcename == 'STD_FSTAR'):
+    if (sourcename == 'STD_FSTAR'):
         """
         Apply the selection function to determine the target class of each entry in
         the input catalog.
@@ -135,7 +137,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         select_std_stars = (select_color) & (select_mag)
         target_class[select_std_stars] = desi_mask.mask('STD_FSTAR')
 
-    if(sourcename == 'MWS_MAIN'):
+    if (sourcename == 'MWS_MAIN'):
         mag_bright       = kwargs['mag_bright']
         mag_faintest     = kwargs['mag_faintest']
         mag_faint_filler = kwargs['mag_faint_filler']
@@ -194,7 +196,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
         target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
             
-    if(sourcename == 'MWS_WD'):
+    if (sourcename == 'MWS_WD'):
         mag_bright = kwargs['mag_bright']
         mag_faint  = kwargs['mag_faint']
 
@@ -212,8 +214,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit)
         target_class[select_wd_sample] = mws_mask.mask('MWS_WD')
 
-
-    if(sourcename == 'MWS_NEARBY'):
+    if (sourcename == 'MWS_NEARBY'):
         mag_bright = kwargs['mag_bright']
         mag_faint  = kwargs['mag_faint']
 
@@ -229,8 +230,7 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit)
         target_class[select_nearby_sample] = mws_mask.mask('MWS_NEARBY')
 
-
-    if(sourcename == 'BGS'):
+    if (sourcename == 'BGS'):
         mag_bright = kwargs['mag_bright']
         mag_faintest = kwargs['mag_faintest']
         mag_priority_split = kwargs['mag_priority_split']
@@ -298,8 +298,6 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
             target_class[select_faint_sample] = bgs_mask.mask('BGS_FAINT')
 
     return target_class
-
-
 
 def ndens_select(data, sourcename, targetname, truthname, brick_info = None, density_fluctuations = False, **kwargs):
 
@@ -402,3 +400,33 @@ def ndens_select(data, sourcename, targetname, truthname, brick_info = None, den
 
     return target_class
 
+class SelectTargets(object):
+    """Select various types of targets.  Most of this functionality is taken from
+    desitarget.cuts but that code has not been factored in a way that is
+    convenient at this time.
+
+    """
+    def __init__(self):
+        from desitarget import desi_mask, bgs_mask, mws_mask
+        self.desi_mask = desi_mask
+        self.bgs_mask = bgs_mask
+        self.mws_mask = mws_mask
+
+    def bgs_select(self, targets):
+    """Select BGS targets."""
+        from desitarget.cuts import isBGS_bright, isBGS_faint
+
+        rflux = targets['DECAM_FLUX'][..., 2]
+
+        bgs_bright = isBGS_bright(rflux=rflux)
+        bgs_faint  = isBGS_faint(rflux=rflux)
+
+        bgs_target = bgs_bright * self.bgs_mask.BGS_BRIGHT
+        bgs_target |= bgs_bright * self.bgs_mask.BGS_BRIGHT_SOUTH
+        bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT
+        bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT_SOUTH
+
+        targets['BGS_TARGET'] = bgs_target
+        targets['DESI_TARGET'] = ((bgs_target != 0) * self.desi_mask.BGS_ANY
+            
+        return targets

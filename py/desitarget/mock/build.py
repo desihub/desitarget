@@ -466,7 +466,7 @@ def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, so
 
     return [targets, truth, these]
 
-def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verbose=True):
+def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None, nproc=4, verbose=False):
     """
     Write
 
@@ -489,7 +489,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
     # Initialize the random state object.
     rand = np.random.RandomState(seed)
     
-    target_mask_all = dict()
+    #target_mask_all = dict()
     source_defs = params['sources']
 
     # Compile information for all the bricks.
@@ -520,20 +520,24 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
     # Initialize the Spectrum() class (used to assign spectra).  The default
     # wavelength array gets initialized here, too.
     Spectra = MockSpectra()
+    SelectTargets = mockselect.SelectTargets()
 
     # Print info about the mocks we will be loading and then load them.
-    mockio.print_all_mocks_info(params)
-    source_data_all = mockio.load_all_mocks(params, seed=seed)
+    if verbose:
+        mockio.print_all_mocks_info(params)
+    source_data_all = mockio.load_all_mocks(params, nsubset=nsubset, rand=rand)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
     # Loop over each source / object type.
     log.info('Assigning spectra and selecting targets.')
+
+    alltargets = list()
+    alltruth = list()
     for source_name in sorted(source_defs.keys()):
-        print('Working on source {}.'.format(source_name))
+        log.info('Working on source {}.'.format(source_name))
         
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
         truth_name = params['sources'][source_name]['truth_name']   # True type (e.g., ELG, STAR)
-
         source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
         source_data = source_data_all[source_name]   # data (ra, dec, etc.)
 
@@ -589,19 +593,18 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         truth['SOURCETYPE'] = _getSourcetype(source_name)
         truth['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
 
-        # Select targets
-        import pdb ; pdb.set_trace()
+        # Select targets and get the targeting bits.
+        selection_function = '{}_select'.format(source_name.lower())
+        log.info('Selecting {} targets using {} function.'.format(source_name, selection_function))
 
-        source_selection = params['sources'][source_name]['selection'] # criteria to make target selection
-        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
+        targets = getattr(SelectTargets, selection_function)(targets)
+        keep = targets['DESI_TARGET'] != 0
 
+        alltargets.append(targets[keep])
+        alltruth.append(truth[keep])
 
-        print('target_name {} : type: {} select: {}'.format(target_name, source_name, source_selection))
-        selection_function = source_selection + '_select'
-        result = getattr(mockselect, selection_function.lower())(source_data, source_name, target_name, truth_name, brick_info = brick_info, 
-                                                                 density_fluctuations = params['density_fluctuations'],
-                                                                 **source_params)
-        target_mask_all[source_name] = result
+    import pdb ; pdb.set_trace()
+
 
         
     # consolidates all relevant arrays across mocks
