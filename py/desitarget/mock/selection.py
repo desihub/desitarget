@@ -413,7 +413,7 @@ class SelectTargets(object):
         self.mws_mask = mws_mask
 
     def bgs_select(self, targets):
-    """Select BGS targets."""
+        """Select BGS targets."""
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
         rflux = targets['DECAM_FLUX'][..., 2]
@@ -427,6 +427,25 @@ class SelectTargets(object):
         bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT_SOUTH
 
         targets['BGS_TARGET'] = bgs_target
-        targets['DESI_TARGET'] = ((bgs_target != 0) * self.desi_mask.BGS_ANY
+        targets['DESI_TARGET'] = (bgs_target != 0) * self.desi_mask.BGS_ANY
+            
+        return targets
+
+    def mws_select(self, targets):
+        """Select BGS targets."""
+        from desitarget.cuts import isBGS_bright, isBGS_faint
+
+        rflux = targets['DECAM_FLUX'][..., 2]
+
+        bgs_bright = isBGS_bright(rflux=rflux)
+        bgs_faint  = isBGS_faint(rflux=rflux)
+
+        bgs_target = bgs_bright * self.bgs_mask.BGS_BRIGHT
+        bgs_target |= bgs_bright * self.bgs_mask.BGS_BRIGHT_SOUTH
+        bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT
+        bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT_SOUTH
+
+        targets['BGS_TARGET'] = bgs_target
+        targets['DESI_TARGET'] = (bgs_target != 0) * self.desi_mask.BGS_ANY
             
         return targets

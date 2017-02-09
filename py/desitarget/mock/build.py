@@ -16,10 +16,12 @@ from time import time
 
 import yaml
 import numpy as np
-from astropy.table import Table, Column
+from astropy.io import fits
+from astropy.table import Table, Column, vstack
 
 import desispec.brick
 from desispec.log import get_logger, DEBUG
+from desispec.io.util import fitsheader, write_bintable, makepath
 
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
@@ -356,14 +358,13 @@ def empty_targets_table(nobj=1):
 
     # Quantities mimicking a true targeting catalog (or inherited from the
     # mocks).
-#   targets.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='S10'))
     targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
 
     return targets
 
@@ -587,11 +588,12 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
         targets['RA'] = source_data['RA']
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
+        targets['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
         
         truth['TRUETYPE'] = source_name
         truth['TRUEZ'] = source_data['Z']
+        truth['MOCKID'] = source_data['MOCKID']
         truth['SOURCETYPE'] = _getSourcetype(source_name)
-        truth['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
 
         # Select targets and get the targeting bits.
         selection_function = '{}_select'.format(source_name.lower())
@@ -603,9 +605,54 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
 
+    # Consolidate across all the mocks and then assign TARGETIDs and
+    # subpriorities.
+    targets = vstack(alltargets)
+    truth = vstack(alltruth)
+    ntarget = len(targets)
+
+    targetid = rand.randint(2**62, size=ntarget)
+    truth['TARGETID'] = targetid
+    targets['TARGETID'] = targetid
+    targets['SUBPRIORITY'] = rand.uniform(0.0, 1.0, size=ntarget)
+
+    trueflux = truth['TRUEFLUX'].data * 1E17 # Note!
+    truth.remove_column('TRUEFLUX')
+
+    # Write out.
+    header = dict(
+        CRPIX1 = (1, 'reference pixel number'),
+        CRVAL1 = (Spectra.wavemin, 'Starting wavelength'),
+        CDELT1 = (Spectra.dw, 'Wavelength step'),
+        LOGLAM = (0, 'linear wavelength steps, not log10'),
+        AIRORVAC = ('vac', 'Vacuum wavelengths'),
+        CUNIT = ('Angstrom', 'Wavelength units'),
+        BUNIT = ('Angstrom', 'Wavelength units'),
+        )
+    wavehdr = fitsheader(header)
+
+    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
+    for thisradir in list(set(radir)):
+        if not os.path.exists(thisradir):
+            os.makedirs(thisradir)
+        
+        inraslice = np.where(radir == thisradir)[0]
+        for thisbrick in list(set(targets['BRICKNAME'][inraslice])):
+            these = np.where(targets['BRICKNAME'] == thisbrick)[0]
+            targets[these].write(os.path.join(thisradir, 'targets-{}.fits'.format(thisbrick)), overwrite=True)
+
+            # Split out the spectrum from the truth table.
+            hx = fits.HDUList()
+            hx.append(fits.PrimaryHDU(None, header=wavehdr))
+            x = fits.ImageHDU(trueflux.astype(np.float32), name='TRUEFLUX')
+            x.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+            hx.append(x)
+            hx.writeto(os.path.join(thisradir, 'truespectra-{}.fits'.format(thisbrick)), clobber=True)
+
+            truth[these].write(os.path.join(thisradir, 'truth-{}.fits'.format(thisbrick)), overwrite=True)
+            
+
     import pdb ; pdb.set_trace()
-
-
         
     # consolidates all relevant arrays across mocks
     ra_total = np.empty(0)

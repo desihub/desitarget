@@ -103,6 +103,10 @@ class MockSpectra(object):
             wavemin = load_throughput('b').wavemin
         if wavemax is None:
             wavemax = load_throughput('z').wavemax
+            
+        self.wavemin = wavemin
+        self.wavemax = wavemax
+        self.dw = dw
         self.wave = np.arange(round(wavemin, 1), wavemax, dw)
 
         #self.__normfilter = 'decam2014-r' # default normalization filter
