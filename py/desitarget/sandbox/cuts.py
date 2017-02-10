@@ -97,99 +97,6 @@ def isLRG_2016v3(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     return lrg
 
-def apply_sandbox_cuts(objects):
-    """Perform target selection on objects, returning target mask arrays
-
-    Args:
-        objects: numpy structured array with UPPERCASE columns needed for
-            target selection, OR a string tractor/sweep filename
-
-    Returns:
-        (desi_target, bgs_target, mws_target) where each element is
-        an ndarray of target selection bitmask flags for each object
-        
-    Bugs:
-        If objects is a astropy Table with lowercase column names, this
-        converts them to UPPERCASE in-place, thus modifying the input table.
-        To avoid this, pass in objects.copy() instead. 
-
-    See desitarget.targetmask for the definition of each bit
-
-    """
-    #- Check if objects is a filename instead of the actual data
-    if isinstance(objects, str):
-        from desitarget import io
-        objects = io.read_tractor(objects)
-    
-    #- ensure uppercase column names if astropy Table
-    if isinstance(objects, (Table, Row)):
-        for col in list(objects.columns.values()):
-            if not col.name.isupper():
-                col.name = col.name.upper()
-
-    #- undo Milky Way extinction
-    flux = unextinct_fluxes(objects)
-    gflux = flux['GFLUX']
-    rflux = flux['RFLUX']
-    zflux = flux['ZFLUX']
-    w1flux = flux['W1FLUX']
-    w2flux = flux['W2FLUX']
-    objtype = objects['TYPE']
-    
-    decam_ivar = objects['DECAM_FLUX_IVAR']
-    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
-
-    #- DR1 has targets off the edge of the brick; trim to just this brick
-    try:
-        primary = objects['BRICK_PRIMARY']
-    except (KeyError, ValueError):
-        if _is_row(objects):
-            primary = True
-        else:
-            primary = np.ones_like(objects, dtype=bool)
-        
-    lrg = isLRG_2016v3(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                       gflux_ivar=decam_ivar[..., 1], 
-                       rflux_snr=decam_snr[..., 2],
-                       zflux_snr=decam_snr[..., 4],
-                       w1flux_snr=wise_snr[..., 0],
-                       primary=primary)
-
-    #- construct the targetflag bits
-    #- Currently our only cuts are DECam based (i.e. South)
-    desi_target  = lrg * desi_mask.LRG_SOUTH
-    #desi_target |= elg * desi_mask.ELG_SOUTH
-    #desi_target |= qso * desi_mask.QSO_SOUTH
-
-    desi_target |= lrg * desi_mask.LRG
-    #desi_target |= elg * desi_mask.ELG
-    #desi_target |= qso * desi_mask.QSO
-
-    #desi_target |= fstd * desi_mask.STD_FSTAR
-
-    bgs_target = np.zeros_like(desi_target)
-    #bgs_target = bgs_bright * bgs_mask.BGS_BRIGHT
-    #bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT_SOUTH
-    #bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
-    #bgs_target |= bgs_faint * bgs_mask.BGS_FAINT_SOUTH
-
-    #- nothing for MWS yet; will be GAIA-based
-    #if isinstance(bgs_target, numbers.Integral):
-    #    mws_target = 0
-    #else:
-    #    mws_target = np.zeros_like(bgs_target)
-    mws_target = np.zeros_like(desi_target)
-
-    #- Are any BGS or MWS bit set?  Tell desi_target too.
-    desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
-    desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
-
-    return desi_target, bgs_target, mws_target
-
-
-
-
 
 def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref=0.5,\
                        rz_ref=0.5,reg_r=1e-4/(0.025**2 * 0.05),f_i=[1., 1., 0., 0.25, 0., 0.25, 0.],\
@@ -234,6 +141,7 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
             - Append this selection column to the table and return.
 
     """
+
     ####### Density parameters hard coded in. np.float64 used for maximal precision. #######
     params ={(0, 'mean'): np.array([[ 0.374283820390701,  1.068873405456543],
            [ 0.283886760473251,  0.733299076557159]]),
@@ -365,37 +273,37 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     # params = generate_XD_model_dictionary()
 
 
-
     ####### Load variables. #######
     # Flux
-    gflux = objs['decam_flux'][:][:,1]/objs['decam_mw_transmission'][:][:,1] 
-    rflux = objs['decam_flux'][:][:,2]/objs['decam_mw_transmission'][:][:,2]
-    zflux = objs['decam_flux'][:][:,4]/objs['decam_mw_transmission'][:][:,4]
+    gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1] 
+    rflux = objs['DECAM_FLUX'][:][:,2]/objs['DECAM_MW_TRANSMISSION'][:][:,2]
+    zflux = objs['DECAM_FLUX'][:][:,4]/objs['DECAM_MW_TRANSMISSION'][:][:,4]
     # mags
-    g = (22.5 - 2.5*np.log10(gflux)) 
-    r = (22.5 - 2.5*np.log10(rflux))
-    z = (22.5 - 2.5*np.log10(zflux))    
-    # Inver variance
-    givar = objs['decam_flux_ivar'][:][:,1]
-    rivar = objs['decam_flux_ivar'][:][:,2]
-    zivar = objs['decam_flux_ivar'][:][:,4]
-    # Color
-    rz = (r-z); gr = (g-r)    
+    #ADM added explicit capture of runtime warnings for zero and negative fluxes
+    with np.errstate(invalid='ignore',divide='ignore'):
+        g = (22.5 - 2.5*np.log10(gflux)) 
+        r = (22.5 - 2.5*np.log10(rflux))
+        z = (22.5 - 2.5*np.log10(zflux))
+        # Inver variance
+        givar = objs['DECAM_FLUX_IVAR'][:][:,1]
+        rivar = objs['DECAM_FLUX_IVAR'][:][:,2]
+        zivar = objs['DECAM_FLUX_IVAR'][:][:,4]
+        # Color
+        rz = (r-z); gr = (g-r)    
     
-
-    ####### Reaonsable quaity cut. #######
-    iflux_positive = (gflux>0)&(rflux>0)&(zflux>0)
-    ireasonable_color = (gr>-0.5) & (gr<2.5) & (rz>-0.5) &(rz<2.7) & (g<gmax) & (g>gmin)
-    thres = 2
-    igrz_SN2 =  ((gflux*np.sqrt(givar))>thres)&((rflux*np.sqrt(rivar))>thres)&((zflux*np.sqrt(zivar))>thres)
-    # Combination of above cuts.
-    ireasonable = iflux_positive & ireasonable_color & igrz_SN2
+        ####### Reaonsable quaity cut. #######
+        iflux_positive = (gflux>0)&(rflux>0)&(zflux>0)
+        ireasonable_color = (gr>-0.5) & (gr<2.5) & (rz>-0.5) &(rz<2.7) & (g<gmax) & (g>gmin)
+        thres = 2
+        igrz_SN2 =  ((gflux*np.sqrt(givar))>thres)&((rflux*np.sqrt(rivar))>thres)&((zflux*np.sqrt(zivar))>thres)
+        # Combination of above cuts.
+        ireasonable = iflux_positive & ireasonable_color & igrz_SN2
     
-    ####### A rough cut #######
-    irough = (gr<1.3) & np.logical_or(gr<(rz+0.3) ,gr<0.3)
+        ####### A rough cut #######
+        irough = (gr<1.3) & np.logical_or(gr<(rz+0.3) ,gr<0.3)
 
-    ####### Objects for which FoM to be calculated. #######
-    ibool = ireasonable & irough 
+        ####### Objects for which FoM to be calculated. #######
+        ibool = ireasonable & irough 
     
     ######## Compute FoM values for objects that pass the cuts. #######
     # Place holder for FoM
@@ -484,5 +392,110 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     iXD = FoM>last_FoM
     
     return iXD, FoM
+
+
+def apply_sandbox_cuts(objects,FoMthresh=None):
+    """Perform target selection on objects, returning target mask arrays
+
+    Args:
+        objects: numpy structured array with UPPERCASE columns needed for
+            target selection, OR a string tractor/sweep filename
+        FoMthresh: If this is passed, then run apply_XD_globalerror and
+            return the Figure of Merits calculated for the ELGs in a file
+            "FoM.fits" in the sandbox directory.
+    Returns:
+        (desi_target, bgs_target, mws_target) where each element is
+        an ndarray of target selection bitmask flags for each object
+        If FoMthresh is passed
+        where FoM are the Figure of Merit values calculated by apply_XD_globalerror
+        
+    Bugs:
+        If objects is a astropy Table with lowercase column names, this
+        converts them to UPPERCASE in-place, thus modifying the input table.
+        To avoid this, pass in objects.copy() instead. 
+
+    See desitarget.targetmask for the definition of each bit
+
+    """
+
+    #- Check if objects is a filename instead of the actual data
+    if isinstance(objects, str):
+        from desitarget import io
+        objects = io.read_tractor(objects)
+    
+    #- ensure uppercase column names if astropy Table
+    if isinstance(objects, (Table, Row)):
+        for col in list(objects.columns.values()):
+            if not col.name.isupper():
+                col.name = col.name.upper()
+
+    #- undo Milky Way extinction
+    flux = unextinct_fluxes(objects)
+    gflux = flux['GFLUX']
+    rflux = flux['RFLUX']
+    zflux = flux['ZFLUX']
+    w1flux = flux['W1FLUX']
+    w2flux = flux['W2FLUX']
+    objtype = objects['TYPE']
+    
+    decam_ivar = objects['DECAM_FLUX_IVAR']
+    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
+    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+
+    #- DR1 has targets off the edge of the brick; trim to just this brick
+    try:
+        primary = objects['BRICK_PRIMARY']
+    except (KeyError, ValueError):
+        if _is_row(objects):
+            primary = True
+        else:
+            primary = np.ones_like(objects, dtype=bool)
+        
+    lrg = isLRG_2016v3(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                       gflux_ivar=decam_ivar[..., 1], 
+                       rflux_snr=decam_snr[..., 2],
+                       zflux_snr=decam_snr[..., 4],
+                       w1flux_snr=wise_snr[..., 0],
+                       primary=primary)
+
+    if FoMthresh is not None:
+        elg, FoM = apply_XD_globalerror(objects, FoMthresh, glim=23.8, rlim=23.4, zlim=22.4, gr_ref=0.5,
+                       rz_ref=0.5,reg_r=1e-4/(0.025**2 * 0.05),f_i=[1., 1., 0., 0.25, 0., 0.25, 0.],
+                       gmin = 21., gmax = 24.)
+
+    #- construct the targetflag bits
+    #- Currently our only cuts are DECam based (i.e. South)
+    desi_target  = lrg * desi_mask.LRG_SOUTH
+    #desi_target |= elg * desi_mask.ELG_SOUTH
+    #desi_target |= qso * desi_mask.QSO_SOUTH
+
+    desi_target |= lrg * desi_mask.LRG
+    if FoMthresh is not None:
+        desi_target |= elg * desi_mask.ELG
+    #desi_target |= qso * desi_mask.QSO
+
+    #desi_target |= fstd * desi_mask.STD_FSTAR
+
+    bgs_target = np.zeros_like(desi_target)
+    #bgs_target = bgs_bright * bgs_mask.BGS_BRIGHT
+    #bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT_SOUTH
+    #bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
+    #bgs_target |= bgs_faint * bgs_mask.BGS_FAINT_SOUTH
+
+    #- nothing for MWS yet; will be GAIA-based
+    #if isinstance(bgs_target, numbers.Integral):
+    #    mws_target = 0
+    #else:
+    #    mws_target = np.zeros_like(bgs_target)
+    mws_target = np.zeros_like(desi_target)
+
+    #- Are any BGS or MWS bit set?  Tell desi_target too.
+    desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
+    desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
+
+    if FoMthresh is not None:
+        return desi_target, bgs_target, mws_target, FoM
+
+    return desi_target, bgs_target, mws_target
 
 
