@@ -7,12 +7,58 @@ import os.path
 from time import time
 
 import numpy as np
+import numpy.lib.recfunctions as rfn
 from astropy.table import Table, Row
 
 import desitarget.targets
 from desitarget.cuts import unextinct_fluxes, _is_row
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, bgs_mask, mws_mask
+from desitarget import io
+
+def finalize_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
+    """Return new targets array with added/renamed columns including ELG Figure of Merit
+
+    Args:
+        targets: numpy structured array of targets
+        FoM: Figure of Merit calculated by apply_XD_globalerror
+        desi_target: 1D array of target selection bit flags
+        bgs_target: 1D array of target selection bit flags
+        mws_target: 1D array of target selection bit flags
+                                                                                                                                                      
+    Returns new targets structured array with those changes
+                                                                                                                                                      
+    Finalize target list by:
+      * renaming OBJID -> BRICK_OBJID (it is only unique within a brick)
+      * Adding new columns:
+                                                                                                                                                      
+        - TARGETID: unique ID across all bricks
+        - FoM: ELG XD Figure of Merit
+        - DESI_TARGET: target selection flags
+        - MWS_TARGET: target selection flags
+        - BGS_TARGET: target selection flags
+    """
+    ntargets = len(targets)
+    assert ntargets == len(FoM)
+    assert ntargets == len(desi_target)
+    assert ntargets == len(bgs_target)
+    assert ntargets == len(mws_target)
+
+    #- OBJID in tractor files is only unique within the brick; rename and                                                                             
+    #- create a new unique TARGETID                                                                                                                   
+    targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})
+    targetid = targets['BRICKID'].astype(np.int64)*1000000 + targets['BRICK_OBJID']
+
+    #- Add new columns: TARGETID, TARGETFLAG, NUMOBS                                                                                                  
+    targets = rfn.append_fields(targets,
+        ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'FOM'],
+        [targetid, desi_target, bgs_target, mws_target, FoM], usemask=False)
+
+    io.write_targets('FoM.fits', targets, sandboxcuts=ns.sandbox)
+
+    print('{} targets written to {}'.format(len(targets), 'FoM.fits'))
+
+    return True
 
 def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None): 
