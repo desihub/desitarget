@@ -16,7 +16,7 @@ from desitarget.internal import sharedmem
 from desitarget import desi_mask, bgs_mask, mws_mask
 from desitarget import io
 
-def finalize_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
+def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
     """Return new targets array with added/renamed columns including ELG Figure of Merit
 
     Args:
@@ -58,7 +58,7 @@ def finalize_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
 
     print('{} targets written to {}'.format(len(targets), 'FoM.fits'))
 
-    return True
+    return
 
 def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None): 
@@ -540,7 +540,7 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
     if FoMthresh is not None:
-        return desi_target, bgs_target, mws_target, FoM
+        write_fom_targets()
 
     return desi_target, bgs_target, mws_target
 
