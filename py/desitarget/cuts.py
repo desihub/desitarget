@@ -94,22 +94,70 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
     Returns:
         mask : boolean array, True if the object has colors like an FSTD
 
+    """
+
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    fstd = primary.copy()
+
+    # Clip to avoid warnings from negative numbers.
+    gflux = gflux.clip(0)
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    
+    # colors near BD+17
+    grcolor = 2.5 * np.log10(rflux / gflux)
+    rzcolor = 2.5 * np.log10(zflux / rflux)
+    fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+
+    return fstd
+
+def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None,
+           objtype=None, decam_snr=None, obs_rflux=None, bright=False):
+    """Select FSTD targets using color cuts and photometric quality cuts (PSF-like
+    and fracflux).  See isFSTD_colors() for additional info.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+          The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        primary: array_like or None
+          If given, the BRICK_PRIMARY column of the catalogue.
+        bright: apply magnitude cuts for "bright" conditions; otherwise, choose
+          "normal" brightness standards.
+
+    Returns:
+        mask : boolean array, True if the object has colors like an FSTD
+
     Notes:
         The full FSTD target selection also includes PSF-like and fracflux
         cuts; this function is only cuts on the colors.
 
     """
-    #----- F-type standard stars
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     fstd = primary.copy()
 
-    #- colors near BD+17; ignore warnings about flux<=0
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        grcolor = 2.5 * np.log10(rflux / gflux)
-        rzcolor = 2.5 * np.log10(zflux / rflux)
-        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+    # Apply the magnitude and color cuts.
+    fstd &= isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+
+    # Apply type=PSF, fracflux, and S/N cuts.
+    fstd &= _psflike(objtype)
+    for j in (1, 2, 4):  # g, r, z
+        fstd &= decam_fracflux[j] < 0.04
+        fstd &= decam_snr[..., j] > 10
+
+    # Observed flux; no Milky Way extinction
+    if obs_rflux is None:
+        obs_rflux = rflux
+
+    rbright = 16.0
+    if bright:
+        rfaint = 18.0
+    else:
+        rfaint = 19.0
+        
+    fstd &= obs_rflux < 10**((22.5 - rbright)/2.5)
+    fstd &= obs_rflux > 10**((22.5 - rfaint)/2.5)
 
     return fstd
 
@@ -145,17 +193,6 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     return mwsstar
 
-def psflike(psftype):
-    """ If the object is PSF """
-    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    #ADM fixed this in I/O.
-    psftype = np.asarray(psftype)
-    #ADM in Python3 these string literals become byte-like
-    #ADM so to retain Python2 compatibility we need to check
-    #ADM against both bytes and unicode
-    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
-    return psflike
-
 def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
     """Target Definition of BGS faint targets, returning a boolean array.
 
@@ -179,9 +216,9 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, ob
     bgs &= rflux > 10**((22.5-20.0)/2.5)
     bgs &= rflux <= 10**((22.5-19.5)/2.5)
     if objtype is not None:
-        bgs &= ~psflike(objtype)
+        bgs &= ~_psflike(objtype)
+        
     return bgs
-
 
 def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets, returning a boolean array.
@@ -205,7 +242,7 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, o
     bgs = primary.copy()
     bgs &= rflux > 10**((22.5-19.5)/2.5)
     if objtype is not None:
-        bgs &= ~psflike(objtype)
+        bgs &= ~_psflike(objtype)
     return bgs
 
 def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
@@ -284,10 +321,9 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
         qso &= primary
 
     if objtype is not None:
-        qso &= psflike(objtype)
+        qso &= _psflike(objtype)
 
     return qso
-
 
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
          deltaChi2=None, primary=None):
@@ -315,11 +351,11 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # build variables for random forest    
     nfeatures=11 # number of variables in random forest
     nbEntries=rflux.size
-    colors, r, DECaLSOK = getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux)
+    colors, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
 
     #Preselection to speed up the process, store the indexes
     rMax = 22.7  # r<22.7
-    preSelection = (r<rMax) &  psflike(objtype) & DECaLSOK 
+    preSelection = (r<rMax) & _psflike(objtype) & DECaLSOK 
     colorsCopy = colors.copy()
     colorsReduced = colorsCopy[preSelection]
     colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
@@ -351,7 +387,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     qso &= DECaLSOK  
       
     if objtype is not None:
-        qso &= psflike(objtype)
+        qso &= _psflike(objtype)
 
     if deltaChi2 is not None:
         qso &= deltaChi2>30.
@@ -363,8 +399,18 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         
     return qso
 
+def _psflike(psftype):
+    """ If the object is PSF """
+    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
+    #ADM fixed this in I/O.
+    psftype = np.asarray(psftype)
+    #ADM in Python3 these string literals become byte-like
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
+    return psflike
 
-def getColors(nbEntries,nfeatures,gflux,rflux,zflux,w1flux,w2flux):
+def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
  
     limitInf=1.e-04
     gflux = gflux.clip(limitInf)
@@ -481,6 +527,8 @@ def apply_cuts(objects, qso_selection='randomforest'):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
+    obs_rflux = objects['DECAM_FLUX'][..., 2] # observed r-band flux (used for F standards, below)
+
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
     gflux = flux['GFLUX']
@@ -490,8 +538,9 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
     
+    decam_fracflux = objects['DECAM_FRACFLUX'].T # note transpose
+    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
-
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ'] 
@@ -515,35 +564,24 @@ def apply_cuts(objects, qso_selection='randomforest'):
     
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                wise_snr=wise_snr)
+                         w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
+                         wise_snr=wise_snr)
     elif qso_selection == 'randomforest':
         qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
+                                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
     else:
-        raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection, qso_selection_options))
+        raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
+                                                                                 qso_selection_options))
 
-    #----- Standard stars
-    fstd = isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
-
-    fstd &= psflike(objtype)
-    fracflux = objects['DECAM_FRACFLUX'].T        
-    signal2noise = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    with warnings.catch_warnings():
-        # FIXME: what warnings are we ignoring?
-        warnings.simplefilter('ignore')
-        for j in (1,2,4):  #- g, r, z
-            fstd &= fracflux[j] < 0.04
-            fstd &= signal2noise[..., j] > 10
-
-    #- observed flux; no Milky Way extinction
-    obs_rflux = objects['DECAM_FLUX'][..., 2]
-    fstd &= obs_rflux < 10**((22.5-16.0)/2.5)
-    fstd &= obs_rflux > 10**((22.5-19.0)/2.5)
-
-    #-----
-    #- construct the targetflag bits
-    #- Currently our only cuts are DECam based (i.e. South)
+    fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  obs_rflux=obs_rflux)
+    fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  obs_rflux=obs_rflux, bright=True)
+                  
+    # Construct the targetflag bits; currently our only cuts are DECam based
+    # (i.e. South).  This should really be refactored into a dedicated function.
     desi_target  = lrg * desi_mask.LRG_SOUTH
     desi_target |= elg * desi_mask.ELG_SOUTH
     desi_target |= qso * desi_mask.QSO_SOUTH
@@ -552,25 +590,27 @@ def apply_cuts(objects, qso_selection='randomforest'):
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
+    # Standards; still need to set STD_WD
     desi_target |= fstd * desi_mask.STD_FSTAR
-    
+    desi_target |= fstd_bright * desi_mask.STD_BRIGHT
+
+    # BGS, bright and faint
     bgs_target = bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT_SOUTH
 
-    #- nothing for MWS yet; will be GAIA-based
+    # Nothing for MWS yet; will be GAIA-based.
     if isinstance(bgs_target, numbers.Integral):
         mws_target = 0
     else:
         mws_target = np.zeros_like(bgs_target)
 
-    #- Are any BGS or MWS bit set?  Tell desi_target too.
+    # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
     return desi_target, bgs_target, mws_target
-
 
 def check_input_files(infiles, numproc=4, verbose=False):
     """
