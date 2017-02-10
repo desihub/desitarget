@@ -54,7 +54,7 @@ def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
         ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'FOM'],
         [targetid, desi_target, bgs_target, mws_target, FoM], usemask=False)
 
-    io.write_targets('FoM.fits', targets, sandboxcuts=ns.sandbox)
+    io.write_targets('FoM.fits', targets, qso_selection='irrelevant',sandboxcuts=True)
 
     print('{} targets written to {}'.format(len(targets), 'FoM.fits'))
 
@@ -448,7 +448,7 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
             target selection, OR a string tractor/sweep filename
         FoMthresh: If this is passed, then run apply_XD_globalerror and
             return the Figure of Merits calculated for the ELGs in a file
-            "FoM.fits" in the sandbox directory.
+            "FoM.fits" in the current working directory.
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object
@@ -540,7 +540,8 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
     if FoMthresh is not None:
-        write_fom_targets()
+        keep = (desi_target != 0)
+        write_fom_targets(objects[keep], FoM[keep], desi_target[keep], bgs_target[keep], mws_target[keep])
 
     return desi_target, bgs_target, mws_target
 

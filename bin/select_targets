@@ -29,7 +29,6 @@ ap.add_argument("--numproc", type=int,
     help='number of concurrent processes to use [{}]'.format(nproc),
     default=nproc)
 
-
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
 if len(infiles) == 0:
@@ -44,7 +43,7 @@ if ns.check:
     print('{} potentially corrupt files'.format(nbadfiles))
 else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
-                             qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=FoMthresh)
+                             qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
