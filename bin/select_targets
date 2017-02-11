@@ -21,6 +21,7 @@ ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms.")
+ap.add_argument("--FoMthresh", type=float,help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
@@ -42,7 +43,7 @@ if ns.check:
     print('{} potentially corrupt files'.format(nbadfiles))
 else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
-                             qso_selection=ns.qsoselection, sandbox=ns.sandbox)
+                             qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
