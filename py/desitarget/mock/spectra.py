@@ -12,7 +12,6 @@ from __future__ import (absolute_import, division, print_function)
 
 import numpy as np
 from desisim.io import read_basis_templates, empty_metatable
-from desimodel.io import load_throughput
 
 class TemplateKDTree(object):
     """Build a KD Tree for each object type.
@@ -96,13 +95,16 @@ class MockSpectra(object):
 
     """
     def __init__(self, wavemin=None, wavemax=None, dw=0.2):
+
+        from desimodel.io import load_throughput
+        
         self.tree = TemplateKDTree()
 
         # Build a default wavelength vector.
         if wavemin is None:
-            wavemin = load_throughput('b').wavemin
+            wavemin = load_throughput('b').wavemin - 10.0
         if wavemax is None:
-            wavemax = load_throughput('z').wavemax
+            wavemax = load_throughput('z').wavemax + 10.0
             
         self.wavemin = wavemin
         self.wavemax = wavemax

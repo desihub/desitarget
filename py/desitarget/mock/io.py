@@ -110,6 +110,7 @@ def load_all_mocks(params, nsubset=None, rand=None):
                 source_dict.update(params['subset'])
 
             source_data_all[source_name] = result
+            #import pdb ; pdb.set_trace()
         else:
             print('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
             source_data_all[source_name] = source_data_all[loaded_mocks[this_name]]
@@ -341,8 +342,6 @@ def read_100pc(mock_dir, target_type, mock_name=None):
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'magg': magg, 'FILES': files, 'N_PER_FILE': n_per_file}
 
-
-############################################################
 def read_wd(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.

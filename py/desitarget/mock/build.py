@@ -151,7 +151,7 @@ def extinction_across_bricks(brick_info, dust_dir):
     from desitarget.mock import sfdmap
     a = {}
     a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=dust_dir)
-    print('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
+    log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
     
     return a
 
@@ -198,7 +198,7 @@ def generate_brick_info(bounds=(0.0, 359.99, -89.99, 89.99)):
 
     for k in brick_info.keys():
         brick_info[k] = np.array(brick_info[k])
-    print('Generated basic brick info for {} bricks'.format(len(brick_info['BRICKNAME'])))
+    log.info('Generated basic brick info for {} bricks'.format(len(brick_info['BRICKNAME'])))
     
     return brick_info
 
@@ -356,7 +356,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='uint16'))
+    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i4'))
 
     # Quantities mimicking a true targeting catalog (or inherited from the
     # mocks).
@@ -446,6 +446,8 @@ def _get_spectra_onebrick(specargs):
 def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
+    log.info(thisbrick)
+
     these = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     brickindx = brick_info['BRICKNAME'] == thisbrick
     nobj = len(these)
@@ -459,6 +461,9 @@ def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, so
     for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key] = _meta[key]
+
+    #if thisbrick == '2052m040':
+    #    import pdb ; pdb.set_trace()
 
     # Perturb the photometry based on the variance on this brick.  Hack!
     # Assume a fixed S/N=20 in the WISE bands for now.
@@ -627,7 +632,10 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
         # Make the directory, if necessary.
-        thisradir = makepath(thisradir)
+        try:
+            os.stat(thisradir)
+        except:
+            os.mkdir(thisradir)
         
         inraslice = np.where(radir == thisradir)[0]
         for thisbrick in list(set(targets['BRICKNAME'][inraslice])):
@@ -652,9 +660,9 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
             metahdu.header['EXTNAME'] = 'TRUTH'
             hdulist.append(metahdu)
 
-            hdulist.writeto(os.path.join(thisradir, 'truth-{}.fits'.format(thisbrick)), clobber=True)
+            hdulist.writeto(os.path.join(thisradir, 'truth-{}.fits'.format(thisbrick)), overwrite=True)
 
-    import pdb ; pdb.set_trace()
+    #import pdb ; pdb.set_trace()
         
 #    # consolidates all relevant arrays across mocks
 #    ra_total = np.empty(0)
