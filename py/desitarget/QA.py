@@ -70,7 +70,7 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
     if not targettype in tts:
         fluc = np.ones(nbricks)
         mess = "fluctuations for targettype {} are set to one".format(targettype)
-        warnings.warn(mess,RuntimeWarning)
+        warnings.warn(mess, RuntimeWarning)
         return fluc
 
     #ADM the target fluctuations are actually called FLUC_* in the model dictionary
@@ -183,10 +183,12 @@ def fit_quad(x,y,plot=False):
     #ADM initial guesses at params
     initparams = (1.,1.,1.)
     #ADM loop to get least squares fit
-    params,ok = leastsq(errfunc,initparams[:],args=(x,y))
-
-    params, cov, infodict, errmsg, ok = leastsq(errfunc, initparams[:], args=(x, y),
-                                               full_output=1, epsfcn=0.0001)
+    with warnings.catch_warnings(): # added by Moustakas
+        warnings.simplefilter('ignore')
+        
+        params,ok = leastsq(errfunc,initparams[:],args=(x,y))
+        params, cov, infodict, errmsg, ok = leastsq(errfunc, initparams[:], args=(x, y),
+                                                    full_output=1, epsfcn=0.0001)
 
     #ADM turn the covariance matrix into something chi-sq like
     #ADM via degrees of freedom

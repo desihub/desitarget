@@ -15,9 +15,12 @@ import h5py
 
 import fitsio
 
-import desispec.brick
 import desitarget.io
 import desitarget.targets
+from desispec.brick import brickname as get_brickname
+
+from desispec.log import get_logger, DEBUG
+log = get_logger(DEBUG)
 
 """
 How to distribute 52 user bits of targetid.
@@ -42,12 +45,12 @@ def print_all_mocks_info(params):
     ----------
         params (dictionary) The different kind of sources are stored under the 'sources' key.
     """
-    print('The following populations and paths are specified:')
+    log.info('The following populations and paths are specified:')
     for source_name in sorted(params['sources'].keys()):
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
         target_name = params['sources'][source_name]['target_name']
-        print('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
+        log.info('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
                                                                                   source_format,
                                                                                   target_name,
                                                                                   source_path))
@@ -74,7 +77,7 @@ def load_all_mocks(params, nsubset=None, rand=None):
         source_dict = params['sources'][source_name]
         target_name = params['sources'][source_name]['target_name']
 
-        print('type: {} format: {}'.format(source_name, source_format))
+        log.info('type: {} format: {}'.format(source_name, source_format))
         function = 'read_'+source_format
         if 'mock_name' in source_dict.keys():
             mock_name = source_dict['mock_name']
@@ -84,23 +87,21 @@ def load_all_mocks(params, nsubset=None, rand=None):
             this_name = source_path
             
         if this_name not in loaded_mocks.keys():
-            print('reading {} for {}'.format(this_name, source_name))
+            log.info('Reading {} for {}'.format(this_name, source_name))
             loaded_mocks[this_name] = source_name
 
             func = globals()[function]
             result = func(source_path, target_name, mock_name=mock_name, nsubset=nsubset, rand=rand)
 
             if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
-                print('Trimming {} to RA,dec subselection'.format(source_name))
                 ii  = (result['RA']  >= params['subset']['min_ra']) & \
                     (result['RA']  <= params['subset']['max_ra']) & \
                     (result['DEC'] >= params['subset']['min_dec']) & \
                     (result['DEC'] <= params['subset']['max_dec'])
                 
-                #- Trim RA,DEC,Z, ... columns to subselection
-                #- Different types of mocks have different metadata, so assume
-                #- that any ndarray of the same length as number of targets should
-                #- be trimmed.
+                #- Trim RA,DEC,Z, ... columns to subselection Different types of
+                #- mocks have different metadata, so assume that any ndarray of
+                #- the same length as number of targets should be trimmed.
                 ntargets = len(result['RA'])
                 for key in result:
                     if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
@@ -109,13 +110,15 @@ def load_all_mocks(params, nsubset=None, rand=None):
             #- Add min/max ra/dec to source_dict for use in density estimates
                 source_dict.update(params['subset'])
 
+                log.info('Trimmed {} to {} objects in RA, Dec subselection.'.format(source_name, len(result['RA'])))
+
             source_data_all[source_name] = result
             #import pdb ; pdb.set_trace()
         else:
-            print('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
+            log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
             source_data_all[source_name] = source_data_all[loaded_mocks[this_name]]
 
-    print('loaded {} mock sources'.format(len(source_data_all)))
+    log.info('loaded {} mock sources'.format(len(source_data_all)))
     return source_data_all
 
 def _load_mock_mws_file(filename):
@@ -147,7 +150,7 @@ def _load_mock_mws_file(filename):
              Apparent magnitudes in SDSS grz bands, including extinction.
     """
     import desitarget.photo
-    print('Reading '+filename)
+    log.info('Reading '+filename)
     C_LIGHT = 299792.458
     desitarget.io.check_fitsio_version()
     data = fitsio.read(filename,
@@ -241,10 +244,10 @@ def encode_rownum_filenum(rownum, filenum):
     assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
 
     # This should be a 64 bit integer.
-    encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum,dtype=np.uint64)
+    encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum, dtype=np.uint64)
 
     # Note return signed
-    return np.asarray(encoded_value,dtype=np.int64)
+    return np.asarray(encoded_value, dtype=np.int64)
 
 def decode_rownum_filenum(encoded_values):
     """Inverts encode_rownum_filenum to obtain row number and file number.
@@ -335,8 +338,8 @@ def read_100pc(mock_dir, target_type, mock_name=None):
     n = len(ra)
     objid = np.arange(n, dtype='i8')
 
-    print('read {} objects'.format(n_per_file[0]))
-    print('building mockid id')
+    log.info('read {} objects'.format(n_per_file[0]))
+    log.info('building mockid id')
     mockid = make_mockid(objid, n_per_file)
     
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
@@ -401,10 +404,10 @@ def read_wd(mock_dir, target_type, mock_name=None):
     n = len(ra)
     objid = np.arange(n, dtype='i8')
 
-    print('read {} objects'.format(n_per_file[0]))
-    print('making mockid id')
+    log.info('read {} objects'.format(n_per_file[0]))
+    log.info('making mockid id')
     mockid = make_mockid(objid, n_per_file)
-    print('finished making mockid id')
+    log.info('finished making mockid id')
     
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'g_sdss': g_sdss, 'FILES': files, 'N_PER_FILE': n_per_file}
@@ -451,15 +454,15 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
     # Leaving this code here for the moment in case we fine a workaround
 
     import multiprocessing
-    print('Reading individual mock files')
+    log.info('Reading individual mock files')
     file_list = list(iter_mock_files)
     nfiles = len(file_list)
     ncpu = max(1, multiprocessing.cpu_count() // 2)
-    print('using {} parallel readers'.format(ncpu))
+    log.info('using {} parallel readers'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
     target_list = p.map(_load_mock_mws_file, file_list)
     p.close()
-#    print('Reading individual mock files')
+#    log.info('Reading individual mock files')
 #    target_list = list()
 #    file_list   = list()
 #    nfiles      = 0
@@ -469,24 +472,24 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         data_this_file = _load_mock_mws_file(mock_file)
         target_list.append(data_this_file)
         file_list.append(mock_file)
-        print('read file {} {}'.format(nfiles, mock_file))
+        log.info('read file {} {}'.format(nfiles, mock_file))
 
     if nfiles == 0:
         raise ValueError('Unable to find files in {}'.format(mock_dir))
 
-    print('Read {} files'.format(nfiles))
+    log.info('Read {} files'.format(nfiles))
     # Concatenate all the dictionaries into a single dictionary, in an order
     # determined by np.argsort applied to the base name of each path in
     # file_list.
     file_order = np.argsort([os.path.basename(x) for x in file_list])
 
-    print('Combining mock files')
+    log.info('Combining mock files')
     ordered_file_list = list()
     n_per_file  = list()
     full_data   = dict()
     if len(target_list) > 0:
         for k in list(target_list[0]): #iterate over keys
-            print(' -- {}'.format(k))
+            log.info(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order: #append all the arrays corresponding to a given key
                 data_list_this_key.append(target_list[itarget][k])
@@ -498,12 +501,12 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
         ordered_file_list = [file_list[itarget] for itarget in file_order]
 
-    print('Read {} objects'.format(np.sum(n_per_file)))
+    log.info('Read {} objects'.format(np.sum(n_per_file)))
 
 
-    print('making mockid id')
+    log.info('making mockid id')
     full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
-    print('finished making mockid id')
+    log.info('finished making mockid id')
 
     full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
@@ -539,31 +542,31 @@ def read_lya(mock_dir, target_type, mock_name=None):
     iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits.gz")
 
     # Read each file
-    print('Reading individual mock files')
+    log.info('Reading individual mock files')
     file_list = list(iter_mock_files)
     nfiles = len(file_list)
 
     import multiprocessing
     ncpu = max(1, multiprocessing.cpu_count() // 2)
-    print('using {} parallel readers'.format(ncpu))
+    log.info('using {} parallel readers'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
     target_list = p.map(_load_mock_lya_file, file_list)
     p.close()
 
-    print('Read {} files'.format(nfiles))
+    log.info('Read {} files'.format(nfiles))
 
     # Concatenate all the dictionaries into a single dictionary, in an order
     # determined by np.argsort applied to the base name of each path in
     # file_list.
     file_order = np.argsort([os.path.basename(x) for x in file_list])
 
-    print('Combining mock files')
+    log.info('Combining mock files')
     ordered_file_list = list()
     n_per_file  = list()
     full_data   = dict()
     if len(target_list) > 0:
         for k in list(target_list[0]): #iterate over keys
-            print(' -- {}'.format(k))
+            log.info(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order: #append all the arrays corresponding to a given key
                 data_list_this_key.append(target_list[itarget][k])
@@ -575,11 +578,11 @@ def read_lya(mock_dir, target_type, mock_name=None):
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
         odered_file_list = [file_list[itarget] for itarget in file_order]
 
-    print('Read {} objects'.format(np.sum(n_per_file)))
+    log.info('Read {} objects'.format(np.sum(n_per_file)))
 
-    print('making mockid id')
+    log.info('making mockid id')
     full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
-    print('finished making mockid id')
+    log.info('finished making mockid id')
 
     full_data['FILES']      = ordered_file_list
     full_data['N_PER_FILE'] = n_per_file
@@ -625,8 +628,8 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
         dec  = data['DEC'].astype('f8')
         zz = np.random.uniform(0.0, 1.0, size=len(ra))
 
-    print('read columns {}'.format(columns))
-    print('read {} lines from {}'.format(len(data), filename))
+    log.info('read columns {}'.format(columns))
+    log.info('read {} lines from {}'.format(len(data), filename))
     del data
     files = list()
     files.append(filename)
@@ -635,9 +638,9 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
 
     objid = np.arange(len(ra))
 
-    print('making mockid id')
+    log.info('making mockid id')
     mockid = make_mockid(objid, n_per_file)
-    print('finished making mockid id')
+    log.info('finished making mockid id')
 
     return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
             'FILES': files, 'N_PER_FILE': n_per_file}
@@ -670,11 +673,20 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, r
     zred = f["Data/z_obs"][...].astype('f8')
     f.close()
 
-    print('read {} lines from {}'.format(len(ra), filename))
+    log.info('Hack by Moustakas -- cut the sample at r<20.2')
+    cut = rmag < 20.2
+    ra = ra[cut]
+    dec = dec[cut]
+    rmag = rmag[cut]
+    absmag = absmag[cut]
+    gr = gr[cut]
+    zred = zred[cut]
+    
+    log.info('Read {} objects from {}'.format(len(ra), filename))
 
     # Choose a subset of objects.
     if nsubset is not None:
-        print('Choosing a random subset of {} objects.'.format(nsubset))
+        log.info('Choosing a random subset of {} objects.'.format(nsubset))
         these = rand.randint(0, len(ra)+1, nsubset)
         ra = ra[these]
         dec = dec[these]
@@ -691,7 +703,6 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, r
     nobj = len(ra)
     objid = np.arange(nobj)
 
-    print('build mockid id')
     mockid = make_mockid(objid, n_per_file)
 
     # Generate a random seed for every object and assign velocity dispersions.
@@ -700,7 +711,7 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, r
     vdisp = 10**rand.normal(1.9, 0.15, nobj)
 
     filtername = 'sdss2010-r'
-    brickname = desispec.brick.brickname(ra, dec)
+    brickname = get_brickname(ra, dec)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
             'Z': zred, 'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr,

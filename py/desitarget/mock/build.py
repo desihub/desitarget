@@ -79,14 +79,15 @@ class BrickInfo(object):
         brick_info['DEC2'] =   []
         brick_info['BRICKAREA'] =  [] 
 
-        i_rows = np.where((B._edges_dec < max_dec ) & (B._edges_dec > min_dec))
+        i_rows = np.where((B._edges_dec < max_dec ) & (B._edges_dec >= min_dec))
         i_rows = i_rows[0]
         
         for i_row in i_rows:
             j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
             j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
             
-            for j_col in range(j_col_min, j_col_max+1):
+            for j_col in range(j_col_min, j_col_max):
+            #for j_col in range(j_col_min, j_col_max+1):
                 brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
                     
                 brick_info['RA'].append(B._center_ra[i_row][j_col])
@@ -102,13 +103,16 @@ class BrickInfo(object):
                 brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) -
                                np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
                 brick_info['BRICKAREA'].append(brick_area)
-        
-            for k in brick_info.keys():
-                brick_info[k] = np.array(brick_info[k])
-                
-            log.info('Generating brick information for {} bricks.'.format(len(brick_info['BRICKNAME'])))
+
+        for k in brick_info.keys():
+            brick_info[k] = np.array(brick_info[k])
+
+        log.info('Generating brick information for {} brick(s) with boundaries RA={}, {}, Dec={}, {}.'.\
+                 format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
+                        self.bounds[2], self.bounds[3]))
+        #import pdb ; pdb.set_trace()
             
-            return brick_info
+        return brick_info
 
     def extinction_across_bricks(self, brick_info):
         """Estimates E(B-V) across bricks.
@@ -247,7 +251,7 @@ class BrickInfo(object):
         brick_info.update(self.extinction_across_bricks(brick_info))   # add extinction
         brick_info.update(self.depths_across_bricks(brick_info))       # add depths
         brick_info.update(self.fluctuations_across_bricks(brick_info)) # add number density fluctuations
-        brick_info.update(self.targetinfo(brick_info))                 # add nominal target densities
+        brick_info.update(self.targetinfo())                           # add nominal target densities
 
         return brick_info
 
@@ -465,12 +469,21 @@ def _get_spectra_onebrick(specargs):
 def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
-    log.info(thisbrick)
+    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+    nbrick = len(brickindx)
 
     these = np.where(source_data['BRICKNAME'] == thisbrick)[0]
-    brickindx = brick_info['BRICKNAME'] == thisbrick
+    print('HACK!!!!!!!!!!!!!!!')
+    these = these[:100]
+
     nobj = len(these)
 
+    if (nbrick != 1) or (nobj == 0):
+        log.fatal('Problem in brick {}!'.format(thisbrick))
+        import pdb ; pdb.set_trace()
+
+    log.info('{}, {} objects'.format(thisbrick, nobj))
+        
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj, npix=len(Spectra.wave))
 
@@ -481,15 +494,17 @@ def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, so
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key] = _meta[key]
 
-    #if thisbrick == '2052m040':
-    #    import pdb ; pdb.set_trace()
+    # Perturb the photometry based on the variance on this brick.  Hack!  Assume
+    # a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3 nanomaggies) in the
+    # WISE bands for now.
+    wise_onesigma = np.zeros((nobj, 2))
+    wise_onesigma[:, 0] = 1.2
+    wise_onesigma[:, 1] = 0.3
 
-    # Perturb the photometry based on the variance on this brick.  Hack!
-    # Assume a fixed S/N=20 in the WISE bands for now.
     for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=1.0/np.sqrt(brick_info[depthkey][brickindx]), size=nobj)
-        targets['WISE_FLUX'] = truth['WISE_FLUX'] + rand.normal(scale=truth['WISE_FLUX'] / 20.0, size=(nobj, 2))
+    targets['WISE_FLUX'] = truth['WISE_FLUX'] + rand.normal(scale=wise_onesigma)
 
     return [targets, truth, these]
 
@@ -525,9 +540,10 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
                            decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys())).build_brickinfo()
-    
+
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
+    log.info('Initializing the MockSpectra and SelectTargets classes.')
     Spectra = MockSpectra()
     SelectTargets = mockselect.SelectTargets()
 
@@ -538,22 +554,20 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
     # Loop over each source / object type.
-    log.info('Assigning spectra and selecting targets.')
-
     alltargets = list()
     alltruth = list()
 
     source_defs = params['sources']
     for source_name in sorted(source_defs.keys()):
-        log.info('Working on source {}.'.format(source_name))
+        log.info('Assigning spectra and selecting targets for source {}.'.format(source_name))
         
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
         truth_name = params['sources'][source_name]['truth_name']   # True type (e.g., ELG, STAR)
         source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
-        source_data = source_data_all[source_name]   # data (ra, dec, etc.)
+        source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
         getSpectra_function = 'getspectra_'+source_params['format'].lower()
-        log.info('Generating spectra using {} function.'.format(getSpectra_function))
+        log.info('Generating spectra using function {}.'.format(getSpectra_function))
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
@@ -575,7 +589,7 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
     
         specargs = list()
         for thisbrick in unique_bricks:
-                specargs.append((thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand))
+            specargs.append((thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand))
                 
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
@@ -609,13 +623,13 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
         selection_function = '{}_select'.format(source_name.lower())
         log.info('Selecting {} targets using {} function.'.format(source_name, selection_function))
 
+        #import pdb ; pdb.set_trace()
+
         targets = getattr(SelectTargets, selection_function)(targets)
         keep = targets['DESI_TARGET'] != 0
 
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
-
-    import pdb ; pdb.set_trace()
 
     # Consolidate across all the mocks and then assign TARGETIDs and
     # subpriorities.
@@ -630,6 +644,8 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 
     trueflux = truth['TRUEFLUX'].data
     truth.remove_column('TRUEFLUX')
+
+    #import pdb ; pdb.set_trace()
 
     # Write out.  Should this be parallelized?!?
     log.info('Writing out.')

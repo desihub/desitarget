@@ -11,6 +11,8 @@ Functions dealing with assigning template spectra to mock targets.
 from __future__ import (absolute_import, division, print_function)
 
 import numpy as np
+from time import time
+
 from desisim.io import read_basis_templates, empty_metatable
 
 class TemplateKDTree(object):
@@ -146,7 +148,9 @@ class MockSpectra(object):
         #self.bgs.normfilter = data['FILTERNAME']
 
         # ToDo (@moustakas): apply Galactic extinction.
-        flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True)
+        t0 = time()
+        flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
+        print('Time in getspectra', time() - t0)
 
         return flux, meta
 
