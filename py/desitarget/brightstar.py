@@ -15,6 +15,7 @@ import fitsio
 from glob import glob
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+import sys
 
 from . import __version__ as desitarget_version
 from . import gitversion
@@ -23,15 +24,19 @@ from desiutil import depend
 from desitarget import io
 from desitarget.internal import sharedmem
 
-def collect_bright_stars(band,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=False,verbose=True):
+def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=False,verbose=True):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
     Parameters
     ----------
-    band : :class:`str`
+    bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z"
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a 
+           list of the same length as the string
     maglim : :class:`float`
         The upper limit in that magnitude band for which to assemble a list of bright stars
+        Can pass a list of magnitude limits, in which case bands has to be a string of the
+           same length (e.g., "GRZ" for [12.3,12.7,12.6]
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -45,8 +50,8 @@ def collect_bright_stars(band,maglim,numproc=4,rootdirname='/global/project/proj
     Returns
     -------
     :class:`recarray`
-        The structure of bright stars from the sweeps limited in the passed band to the
-        passed maglim
+        The structure of bright stars from the sweeps limited in the passed band(s) to the
+        passed maglim(s). Only the following tags are retained:
     """
 
     #ADM use io.py to retrieve list of sweeps or tractor files
@@ -57,21 +62,30 @@ def collect_bright_stars(band,maglim,numproc=4,rootdirname='/global/project/proj
         print('FATAL: no sweep or tractor files found in {}'.format(rootdirname))
         sys.exit(1)
 
-    #ADM set band to uppercase if passed as lower case
-    band = band.upper()
+    #ADM force the input maglim to be a list (in case a single value was passed)
+    if type(maglim) == type(16) or type(maglim) == type(16.):
+        maglim = [maglim]
+
+    #ADM set bands to uppercase if passed as lower case
+    bands = bands.upper()
     #ADM the band as an integer location
-    bandint = "UGRIZY".find(band)
+    bandint = np.array([ "UGRIZY".find(band) for band in bands ])
 
-    #ADM change input magnitude to a flux to test against
-    fluxlim = 10.**((22.5-maglim)/2.5)
+    if len(bandint) != len(maglim):
+        print('FATAL: bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
+        sys.exit(1)
 
-    #ADM parallel formalism from this step forward is stolen cuts.select_targets
+    #ADM change input magnitude(s) to a flux to test against
+    fluxlim = 10.**((22.5-np.array(maglim))/2.5)
+
+    #ADM parallel formalism from this step forward is stolen from cuts.select_targets
 
     #ADM function to grab the bright stars from a given file
     def _get_bright_stars(filename):
         '''Retrieves bright stars from a sweeps/Tractor file'''
         objs = io.read_tractor(filename)
-        w = np.where(objs["DECAM_FLUX"][...,bandint] > fluxlim)
+        #ADM Retain rows for which ANY band is brighter than maglim
+        w = np.where(np.any(objs["DECAM_FLUX"][...,bandint] > fluxlim,axis=1))
         if len(w[0]) > 0:
             return objs[w]
 
