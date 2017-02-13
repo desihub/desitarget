@@ -21,7 +21,7 @@ from astropy.table import Table, Column, vstack
 
 #from desiutil.io import encode_table
 
-import desispec.brick
+from desispec.brick import brickname as get_brickname_from_radec
 from desispec.log import get_logger, DEBUG
 from desispec.io.util import fitsheader, write_bintable, makepath
 
@@ -33,174 +33,223 @@ from desitarget.internal import sharedmem
 
 log = get_logger(DEBUG)
 
-def fluctuations_across_bricks(brick_info, target_names, decals_brick_info, random_state=None):
-    """
-    Generates number density fluctuations.
-
-    Args:
-      decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS. 
-      brick_info(Dictionary). Containts at least the following keys:
-        DEPTH_G(float) : array of depth magnitudes in the G band.
-
-    Returns:
-      fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
-        corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
-        i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion 
-        is a dictionary with keys corresponding to the different galaxy types.
-    
-    """
-    import desitarget.QA as targetQA
-
-    if random_state is None:
-        random_state = np.random.RandomState()
-
-    fluctuation = {}
-    
-    depth_available = []
-#   for k in brick_info.keys():        
-    for k in ['GALDEPTH_R', 'EBV']:        
-        if ('DEPTH' in k or 'EBV' in k):
-            depth_available.append(k)
-
-    for depth in depth_available:        
-        fluctuation['FLUC_'+depth] = {}
-        for ttype in target_names:
-            fluctuation['FLUC_'+depth][ttype] = targetQA.generate_fluctuations(decals_brick_info,
-                                                                               ttype, depth,
-                                                                               brick_info[depth],
-                                                                               random_state=random_state)
-            log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
-                ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
-            
-    return fluctuation
-
-def depths_across_bricks(brick_info, random_state=None):
-    """
-    Generates a sample of magnitud dephts for a set of bricks.
-
-    This model was built from the Data Release 3 of DECaLS.
-
-    Parameters:
-    -----------
-        brick_info(Dictionary). Containts at least the following keys:
-            RA (float): numpy array of RA positions
-            DEC (float): numpy array of Dec positions
-
-    Return:
-    ------
-        depths (dictionary). keys include
-            'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
-            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
-            The values ofr each key ar numpy arrays (float) with size equal to 
-            the input ra, dec arrays.
+class BrickInfo(object):
+    """Gather information on all the bricks.
 
     """
-    if random_state is None:
-        random_state = np.random.RandomState()
+    def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 359.99, -89.99, 89.99),
+                 decals_brick_info=None, target_names=None):
+        """Initialize the class.
 
-    ra = brick_info['RA']
-    dec = brick_info['DEC']
+        Args:
+          random_state : random number generator object
+          dust_dir : path where the E(B-V) maps are stored
+          bounds : brick boundaries
+          decals_brick_info : filename of the DECaLS brick information structure
+          target_names : list of targets (e.g., BGS, ELG, etc.)
 
-    n_to_generate = len(ra)
-    #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
-    differences = {}
-    differences['DEPTH_G'] = [0.22263251, 0.059752077]
-    differences['DEPTH_R'] = [0.26939404, 0.091162138]
-    differences['DEPTH_Z'] = [0.34058815, 0.056099825]
-    
-    # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
-    
-    points = {}
-    points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
-                  24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
-    points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
-                  24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
-    points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
-                  23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
+        """
+        if random_state is None:
+            random_state = np.random.RandomState()
+        self.random_state = random_state
 
-    fractions = {}
-    fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-    fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-    fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+        self.dust_dir = dust_dir
+        self.bounds = bounds
+        self.decals_brick_info = decals_brick_info
+        self.target_names = target_names
 
-    names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
-    depths = {}
-    for name in names:
-        fracs = random_state.random_sample(n_to_generate)
-        depths[name] = np.interp(fracs, fractions[name], points[name])
+    def generate_brick_info(self):
+        """Generate the brick dictionary in the ragion (min_ra, max_ra, min_dec,
+           max_dec).
 
-        depth_minus_galdepth = random_state.normal(
-            loc=differences[name][0], 
-            scale=differences[name][1], size=n_to_generate)
-        depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
+           [Doesn't this functionality exist elsewhere?!?]
+
+        """
+        from desispec.brick import Bricks
+        min_ra, max_ra, min_dec, max_dec = self.bounds
+
+        B = Bricks()
+        brick_info = {}
+        brick_info['BRICKNAME'] = []
+        brick_info['RA'] = []
+        brick_info['DEC'] =  []
+        brick_info['RA1'] =  []
+        brick_info['RA2'] =  []
+        brick_info['DEC1'] =  []
+        brick_info['DEC2'] =   []
+        brick_info['BRICKAREA'] =  [] 
+
+        i_rows = np.where((B._edges_dec < max_dec ) & (B._edges_dec > min_dec))
+        i_rows = i_rows[0]
         
-        depths['GAL'+name] = depths[name] - depth_minus_galdepth
-        log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
+        for i_row in i_rows:
+            j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
+            j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
+            
+            for j_col in range(j_col_min, j_col_max+1):
+                brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
+                    
+                brick_info['RA'].append(B._center_ra[i_row][j_col])
+                brick_info['DEC'].append(B._center_dec[i_row])
         
-    return depths
-
-def extinction_across_bricks(brick_info, dust_dir):
-    """
-    Estimates E(B-V) across bricks.
-
-    Args:
-         brick_info : dictionary gathering brick information. It must have at least two keys 'RA' and 'DEC'.
-         dust_dir : path where the E(B-V) maps are stored
-    
-    """
-    from desitarget.mock import sfdmap
-    a = {}
-    a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=dust_dir)
-    log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
-    
-    return a
-
-def generate_brick_info(bounds=(0.0, 359.99, -89.99, 89.99)):
-    """
-    Generates brick dictionary in the ragion (min_ra, max_ra, min_dec, max_dec).
-    
-    """
-    min_ra, max_ra, min_dec, max_dec = bounds
-
-    B = desispec.brick.Bricks()
-    brick_info = {}
-    brick_info['BRICKNAME'] = []
-    brick_info['RA'] = []
-    brick_info['DEC'] =  []
-    brick_info['RA1'] =  []
-    brick_info['RA2'] =  []
-    brick_info['DEC1'] =  []
-    brick_info['DEC2'] =   []
-    brick_info['BRICKAREA'] =  [] 
-    
-    i_rows = np.where((B._edges_dec < max_dec ) & (B._edges_dec > min_dec))
-    i_rows = i_rows[0]
-
-    for i_row in i_rows:
-        j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
-        j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
-        for j_col in range(j_col_min, j_col_max+1):
-            brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
+                brick_info['RA1'].append(B._edges_ra[i_row][j_col])
+                brick_info['DEC1'].append(B._edges_dec[i_row])
+                    
+                brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
+                brick_info['DEC2'].append(B._edges_dec[i_row+1])
+        
+                brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1]) 
+                brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) -
+                               np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
+                brick_info['BRICKAREA'].append(brick_area)
+        
+            for k in brick_info.keys():
+                brick_info[k] = np.array(brick_info[k])
+                
+            log.info('Generating brick information for {} bricks.'.format(len(brick_info['BRICKNAME'])))
             
-            brick_info['RA'].append(B._center_ra[i_row][j_col])
-            brick_info['DEC'].append(B._center_dec[i_row])
+            return brick_info
 
-            brick_info['RA1'].append(B._edges_ra[i_row][j_col])
-            brick_info['DEC1'].append(B._edges_dec[i_row])
-            
-            brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
-            brick_info['DEC2'].append(B._edges_dec[i_row+1])
-
-            brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1]) 
-            brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) -
-                           np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
-            brick_info['BRICKAREA'].append(brick_area)
-
-    for k in brick_info.keys():
-        brick_info[k] = np.array(brick_info[k])
-    log.info('Generated basic brick info for {} bricks'.format(len(brick_info['BRICKNAME'])))
+    def extinction_across_bricks(self, brick_info):
+        """Estimates E(B-V) across bricks.
     
-    return brick_info
+        Args:
+          brick_info : dictionary gathering brick information. It must have at
+            least two keys 'RA' and 'DEC'.
+
+        """
+        from desitarget.mock import sfdmap
+
+        #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
+        a = {}
+        a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
+        
+        return a
+
+    def depths_across_bricks(self, brick_info):
+        """
+        Generates a sample of magnitud dephts for a set of bricks.
+    
+        This model was built from the Data Release 3 of DECaLS.
+    
+        Args:
+        -----------
+            brick_info(Dictionary). Containts at least the following keys:
+                RA (float): numpy array of RA positions
+                DEC (float): numpy array of Dec positions
+    
+        Return:
+        ------
+            depths (dictionary). keys include
+                'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
+                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
+                The values ofr each key ar numpy arrays (float) with size equal to 
+                the input ra, dec arrays.
+    
+        """
+        ra = brick_info['RA']
+        dec = brick_info['DEC']
+    
+        n_to_generate = len(ra)
+        #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
+        differences = {}
+        differences['DEPTH_G'] = [0.22263251, 0.059752077]
+        differences['DEPTH_R'] = [0.26939404, 0.091162138]
+        differences['DEPTH_Z'] = [0.34058815, 0.056099825]
+        
+        # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
+        
+        points = {}
+        points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+                      24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
+        points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+                      24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
+        points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+                      23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
+    
+        fractions = {}
+        fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+    
+        names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
+        depths = {}
+        for name in names:
+            fracs = self.random_state.random_sample(n_to_generate)
+            depths[name] = np.interp(fracs, fractions[name], points[name])
+    
+            depth_minus_galdepth = self.random_state.normal(
+                loc=differences[name][0], 
+                scale=differences[name][1], size=n_to_generate)
+            depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
+            
+            depths['GAL'+name] = depths[name] - depth_minus_galdepth
+            #log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
+            
+        return depths
+
+    def fluctuations_across_bricks(self, brick_info):
+        """
+        Generates number density fluctuations.
+    
+        Args:
+          decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS. 
+          brick_info(Dictionary). Containts at least the following keys:
+            DEPTH_G(float) : array of depth magnitudes in the G band.
+    
+        Returns:
+          fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
+            corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
+            i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion 
+            is a dictionary with keys corresponding to the different galaxy types.
+        
+        """
+        from desitarget.QA import generate_fluctuations
+    
+        fluctuation = {}
+        
+        depth_available = []
+    #   for k in brick_info.keys():        
+        for k in ['GALDEPTH_R', 'EBV']:        
+            if ('DEPTH' in k or 'EBV' in k):
+                depth_available.append(k)
+    
+        for depth in depth_available:        
+            fluctuation['FLUC_'+depth] = {}
+            for ttype in self.target_names:
+                fluctuation['FLUC_'+depth][ttype] = generate_fluctuations(self.decals_brick_info,
+                                                                          ttype,
+                                                                          depth,
+                                                                          brick_info[depth],
+                                                                          random_state=self.random_state)
+                #log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
+                #    ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+                
+        return fluctuation
+
+    def targetinfo(self):
+        """Read target info from DESIMODEL, change all the keys to upper case, and
+        append into brick_info.
+
+        """ 
+        filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
+        td = yaml.load(filein)
+        target_desimodel = {}
+        for t in td.keys():
+            target_desimodel[t.upper()] = td[t]
+
+        return target_desimodel
+
+    def build_brickinfo(self):
+        """Build the complete information structure."""
+
+        brick_info = self.generate_brick_info()
+        brick_info.update(self.extinction_across_bricks(brick_info))   # add extinction
+        brick_info.update(self.depths_across_bricks(brick_info))       # add depths
+        brick_info.update(self.fluctuations_across_bricks(brick_info)) # add number density fluctuations
+        brick_info.update(self.targetinfo(brick_info))                 # add nominal target densities
+
+        return brick_info
 
 def add_galdepths(mocktargets, brickinfo):
     '''
@@ -217,7 +266,7 @@ def add_galdepths(mocktargets, brickinfo):
 
     # create dictionary with targets per brick
     
-    bricks = desispec.brick.brickname(mocktargets['RA'], mocktargets['DEC'])
+    bricks = get_brickname_from_radec(mocktargets['RA'], mocktargets['DEC'])
     unique_bricks = list(set(bricks))
     lookup = mockselect.make_lookup_dict(bricks)
     n_brick = len(unique_bricks)
@@ -287,36 +336,6 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None)
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
         mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
 
-def add_OIIflux(targets, truth, random_state=None):
-    '''
-    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
-    
-    Args:
-        targets: target selection catalog Table or structured array
-        truth: target selection catalog Table
-    
-    Note: Modifies truth table in place by adding OIIFLUX column
-
-    '''
-    if random_state is None:
-        random_state = np.random.RandomState()
-        
-    assert np.all(targets['TARGETID'] == truth['TARGETID'])
-
-    ntargets = len(targets)
-    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
-    
-    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
-    nELG = np.count_nonzero(isELG)
-
-    #- TODO: make this a meaningful distribution
-    #- At low redshift and low flux, r-band flux sets an approximate
-    #- upper limit on [OII] flux, but no lower limit; treat as uniform
-    #- within a r-flux dependent upper limit
-    rflux = targets['DECAM_FLUX'][isELG][:,2]
-    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
-    truth['OIIFLUX'][isELG] = maxflux * random_state.uniform(0,1.0,size=nELG)
-
 def fileid_filename(source_data, output_dir):
     '''
     Outputs text file with mapping between mock filenum and file on disk
@@ -365,8 +384,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
 
     return targets
 
@@ -494,39 +513,21 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
       If nproc == 1 use serial instead of parallel code.
     
     """
-    # Initialize the random state object.
     rand = np.random.RandomState(seed)
-    
-    #target_mask_all = dict()
-    source_defs = params['sources']
 
-    # Compile information for all the bricks.
-    log.info('Compiling the brick information structure.')
+    # Build the brick information structure.
     if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
-        brick_info = generate_brick_info(bounds=(params['subset']['min_ra'],
-                                                 params['subset']['max_ra'],
-                                                 params['subset']['min_dec'],
-                                                 params['subset']['max_dec']))
+        bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
+                  params['subset']['min_dec'], params['subset']['max_dec'])
     else:
-        brick_info = generate_brick_info()
-
-    brick_info.update(extinction_across_bricks(brick_info, params['dust_dir']))  # add extinction
-    brick_info.update(depths_across_bricks(brick_info, random_state=rand))       # add depths
-    brick_info.update(fluctuations_across_bricks(brick_info,
-                                                 list(params['sources'].keys()),
-                                                 params['decals_brick_info'],
-                                                 random_state=rand))   # add number density fluctuations
-
-    # Read target info from DESIMODEL; change all the keys to upper case; append into brick_info.
-    filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
-    td = yaml.load(filein)
-    target_desimodel = {}
-    for t in td.keys():
-        target_desimodel[t.upper()] = td[t]
-    brick_info.update(target_desimodel)
-
-    # Initialize the Spectrum() class (used to assign spectra).  The default
-    # wavelength array gets initialized here, too.
+        bounds=(0.0, 359.99, -89.99, 89.99)
+        
+    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
+                           decals_brick_info=params['decals_brick_info'],
+                           target_names=list(params['sources'].keys())).build_brickinfo()
+    
+    # Initialize the Classes used to assign spectra and select targets.  Note:
+    # The default wavelength array gets initialized here, too.
     Spectra = MockSpectra()
     SelectTargets = mockselect.SelectTargets()
 
@@ -541,6 +542,8 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 
     alltargets = list()
     alltruth = list()
+
+    source_defs = params['sources']
     for source_name in sorted(source_defs.keys()):
         log.info('Working on source {}.'.format(source_name))
         
@@ -611,6 +614,8 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
+
+    import pdb ; pdb.set_trace()
 
     # Consolidate across all the mocks and then assign TARGETIDs and
     # subpriorities.
@@ -821,7 +826,7 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 #        # if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
 #        #     stars = stars[ii_stars]
 #        #     print('subsetting in std_stars data done')
-#        brickname = desispec.brick.brickname(stars['RA'], stars['DEC'])
+#        brickname = get_brickname_from_radec(stars['RA'], stars['DEC'])
 #        stars['BRICKNAME'] = brickname
 #        stars.write(stars_filename, overwrite=True)
 #        print('Finished writing stdstars file')
@@ -840,7 +845,7 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 #        sky['MWS_TARGET'] = mws_target_sky
 #        sky['SUBPRIORITY'] = subprior
 #        sky['OBSCONDITIONS'] = obsconditions_sky
-#        brickname = desispec.brick.brickname(sky['RA'], sky['DEC'])
+#        brickname = get_brickname_from_radec(sky['RA'], sky['DEC'])
 #        sky['BRICKNAME'] = brickname
 #        sky.write(sky_filename, overwrite=True)
 #        print('Finished writing sky file')
@@ -859,7 +864,7 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 #        targets['MWS_TARGET'] = mws_target_total
 #        targets['SUBPRIORITY'] = subprior
 #        targets['OBSCONDITIONS'] = obsconditions_total
-#        brickname = desispec.brick.brickname(targets['RA'], targets['DEC'])
+#        brickname = get_brickname_from_radec(targets['RA'], targets['DEC'])
 #        targets['BRICKNAME'] = brickname          
 #
 #        targets['DECAM_FLUX'] = decam_flux
@@ -889,4 +894,34 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None, seed=None,
 
         
         
+
+def add_OIIflux(targets, truth, random_state=None):
+    '''
+    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
+    
+    Args:
+        targets: target selection catalog Table or structured array
+        truth: target selection catalog Table
+    
+    Note: Modifies truth table in place by adding OIIFLUX column
+
+    '''
+    if random_state is None:
+        random_state = np.random.RandomState()
+        
+    assert np.all(targets['TARGETID'] == truth['TARGETID'])
+
+    ntargets = len(targets)
+    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
+    
+    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
+    nELG = np.count_nonzero(isELG)
+
+    #- TODO: make this a meaningful distribution
+    #- At low redshift and low flux, r-band flux sets an approximate
+    #- upper limit on [OII] flux, but no lower limit; treat as uniform
+    #- within a r-flux dependent upper limit
+    rflux = targets['DECAM_FLUX'][isELG][:,2]
+    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
+    truth['OIIFLUX'][isELG] = maxflux * random_state.uniform(0,1.0,size=nELG)
 

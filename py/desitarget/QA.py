@@ -56,10 +56,10 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
     if not depthtype in dts:
         raise ValueError("depthtype must be one of {}".format(" ".join(dts)))
 
-    if depthtype == "EBV":
-        print("generating per-brick fluctuations for E(B-V) values")
-    else:
-        print("generating per-brick fluctuations for depth values")
+    #if depthtype == "EBV":
+        #print("generating per-brick fluctuations for E(B-V) values")
+    #else:
+        #print("generating per-brick fluctuations for depth values")
 
     if not type(depthorebvarray) == np.ndarray:
         raise ValueError("depthorebvarray must be a numpy array not type {}".format(type(depthorebvarray)))
