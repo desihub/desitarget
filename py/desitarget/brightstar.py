@@ -218,4 +218,33 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
     return ldict, bdict
 
+ 
+def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=True):
+    """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
+    Parameters
+    ----------
+    bands : :class:`str`
+        A magnitude band from the sweeps, e.g., "G", "R", "Z"
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a 
+           list of the same length as the string
+    maglim : :class:`float`
+        The upper limit in that magnitude band for which to assemble a list of bright stars
+        Can pass a list of magnitude limits, in which case bands has to be a string of the
+           same length (e.g., "GRZ" for [12.3,12.7,12.6]
+    numproc : :class:`int`, optional
+        Number of processes over which to parallelize
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
+    outdirname : :class:`str`, optional, defaults to not writing anything to file
+        File name to which to write the output structure of bright stars
+    verbose : :class:`bool`, optional
+        Send to write progress to screen
+
+    Returns
+    -------
+    :class:`recarray`
+        The structure of bright stars from the sweeps limited in the passed band(s) to the
+        passed maglim(s). Only the following tags are retained:
+    """
