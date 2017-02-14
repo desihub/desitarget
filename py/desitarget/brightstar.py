@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division)
 #
 from time import time
 import numpy as np
+import numpy.lib.recfunctions as rfn
 import fitsio
 from glob import glob
 from astropy.coordinates import SkyCoord
@@ -24,7 +25,7 @@ from desiutil import depend
 from desitarget import io
 from desitarget.internal import sharedmem
 
-def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=False,verbose=True):
+def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
     Parameters
@@ -42,8 +43,8 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
-    outdirname : :class:`str`, optional, defaults to not writing anything to file
-        File name to which to write the output structure of bright stars
+    outfilename : :class:`str`, optional, defaults to not writing anything to file
+        (FITS) File name to which to write the output structure of bright stars
     verbose : :class:`bool`, optional
         Send to write progress to screen
 
@@ -51,7 +52,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     -------
     :class:`recarray`
         The structure of bright stars from the sweeps limited in the passed band(s) to the
-        passed maglim(s). Only the following tags are retained:
+        passed maglim(s).
     """
 
     #ADM use io.py to retrieve list of sweeps or tractor files
@@ -123,7 +124,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     starstruc = np.hstack(starstruc)
 
     #ADM if the name of a file for output is passed, then write to it
-    if outfilename:
+    if outfilename is not None:
         fitsio.write(outfilename, starstruc, clobber=True)
 
     return starstruc
@@ -237,14 +238,69 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
-    outdirname : :class:`str`, optional, defaults to not writing anything to file
-        File name to which to write the output structure of bright stars
+    infilename : :class:`str`, optional, 
+        if this exists, then the list of bright stars is read in from the file of this name
+        if this is not passed, then code defaults to deriving the recarray of bright stars 
+        via a call to collect_bright_stars
+    outfilename : :class:`str`, optional, defaults to not writing anything to file
+        (FITS) File name to which to write the output bright star mask
     verbose : :class:`bool`, optional
         Send to write progress to screen
 
     Returns
     -------
     :class:`recarray`
-        The structure of bright stars from the sweeps limited in the passed band(s) to the
-        passed maglim(s). Only the following tags are retained:
+        The bright star mask in the form RA,DEC,RADIUS (may also be written to file if outfilename is passed)
+        radius is in ARCMINUTES
+    Notes
+    -----
+    Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band):
+
+    R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
+
+    It's an open question as to what the correct radius is for DESI observations
+
     """
+
+    #ADM set bands to uppercase if passed as lower case
+    bands = bands.upper()
+    #ADM the band as an integer location
+    bandint = np.array([ "UGRIZY".find(band) for band in bands ])
+
+    #ADM force the input maglim to be a list (in case a single value was passed)
+    if type(maglim) == type(16) or type(maglim) == type(16.):
+        maglim = [maglim]
+
+    if len(bandint) != len(maglim):
+        print('FATAL: bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
+        sys.exit(1)
+
+    #ADM change input magnitude(s) to a flux to test against
+    fluxlim = 10.**((22.5-np.array(maglim))/2.5)
+
+    if infilename is not None:
+        objs = io.read_tractor(infilename)
+    else:
+        objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename,verbose)
+   
+    #ADM limit to the passed faint limit
+    w = np.where(np.any(objs["DECAM_FLUX"][...,bandint] > fluxlim,axis=1))
+    objs = objs[w]
+
+    #ADM grab the (GRZ) magnitudes for observations
+    #ADM and record only the largest flux (smallest magnitude)
+    fluxmax =  np.max(objs["DECAM_FLUX"][...,bandint],axis=1)
+    mags = 22.5-2.5*np.log10(fluxmax)
+
+    #ADM convert the largest magnitude into a radius. This will require more consideration
+    #ADM to determine the truly correct numbers for DESI
+    radius = (0.0802*mags*mags - 1.860*mags + 11.625)
+
+    #ADM create an output recarray that is just RA, Dec and the radius
+    done = objs[['RA','DEC']].copy()
+    done = rfn.append_fields(done,"RADIUS",radius,usemask=False,dtypes='<f4')
+
+    if outfilename is not None:
+        fitsio.write(outfilename, starstruc, clobber=True)
+
+    return done
