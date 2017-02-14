@@ -17,7 +17,7 @@ import fitsio
 
 import desitarget.io
 import desitarget.targets
-from desispec.brick import brickname as get_brickname
+from desispec.brick import brickname as get_brickname_from_radec
 
 from desispec.log import get_logger, DEBUG
 log = get_logger(DEBUG)
@@ -55,7 +55,7 @@ def print_all_mocks_info(params):
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params, nsubset=None, rand=None):
+def load_all_mocks(params, rand=None):
     """
     Prints parameters to read mock files.
     Parameters
@@ -67,6 +67,9 @@ def load_all_mocks(params, nsubset=None, rand=None):
         source_data_all (dictionary). The keys correspond to the different input 'sources'
         stored under params['sources'].keys()
     """
+    if rand is None:
+        rand = np.random.RandomState()
+
     source_data_all = {}
 
     # load all the mocks
@@ -91,7 +94,7 @@ def load_all_mocks(params, nsubset=None, rand=None):
             loaded_mocks[this_name] = source_name
 
             func = globals()[function]
-            result = func(source_path, target_name, mock_name=mock_name, nsubset=nsubset, rand=rand)
+            result = func(source_path, target_name, mock_name=mock_name, rand=rand)
 
             if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
                 ii  = (result['RA']  >= params['subset']['min_ra']) & \
@@ -589,7 +592,7 @@ def read_lya(mock_dir, target_type, mock_name=None):
 
     return full_data
 
-def read_gaussianfield(mock_dir, target_type, mock_name=None):
+def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
     Parameters:
@@ -616,36 +619,45 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None):
         filename = os.path.join(mock_dir, mock_name+'.fits')
 
     try:
-        columns = ['RA','DEC','Z_COSMO', 'DZ_RSD']
+        columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
         data = fitsio.read(filename,columns=columns, upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
-        zz   = data[  'Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')
+        zz   = data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')
     except:
-        columns = ['RA','DEC']
+        columns = ['RA', 'DEC']
         data = fitsio.read(filename,columns=columns, upper=True)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
-        zz = np.random.uniform(0.0, 1.0, size=len(ra))
-
-    log.info('read columns {}'.format(columns))
-    log.info('read {} lines from {}'.format(len(data), filename))
+        zz = rand.uniform(0.0, 1.0, size=len(ra))
+    nobj = len(data)
     del data
+
+    log.info('Read columns {} for {} objects from {}'.format(columns, nobj, filename))
+    
     files = list()
     files.append(filename)
     n_per_file = list()
-    n_per_file.append(len(ra))
+    n_per_file.append(nobj)
 
-    objid = np.arange(len(ra))
-
-    log.info('making mockid id')
+    objid = np.arange(nobj)
     mockid = make_mockid(objid, n_per_file)
-    log.info('finished making mockid id')
+    brickname = get_brickname_from_radec(ra, dec)
 
-    return {'objid':objid, 'MOCKID':mockid, 'RA':ra, 'DEC':dec, 'Z':zz, 
-            'FILES': files, 'N_PER_FILE': n_per_file}
+    # Generate a random seed for every object and assign velocity dispersions.
+    seed = rand.randint(2**32, size=nobj)
+    vdisp = np.zeros_like(rmag)
+    vdisp = 10**rand.normal(1.9, 0.15, nobj)
 
-def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, rand=None):
+    filtername = 'decam2014-r'
+
+    import pdb ; pdb.set_trace()
+
+    return {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
+            'Z': zz, 'SEED': seed, 'MAG': mag, 'VDISP': vdisp, 'DECAM_GR': gr, 'DECAM_RZ': rz, 
+            'FILTERNAME': filtername, 'FILES': files, 'N_PER_FILE': n_per_file}
+
+def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, rand=None):
     """ Reads mock information for MXXL bright time survey galaxies.
 
     Args:
@@ -673,37 +685,26 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, r
     zred = f["Data/z_obs"][...].astype('f8')
     f.close()
 
-    log.info('Hack by Moustakas -- cut the sample at r<20.2')
-    cut = rmag < 20.2
+    log.info('Hack by Moustakas -- cut the sample at r<20.3')
+    cut = rmag < 20.3
     ra = ra[cut]
     dec = dec[cut]
     rmag = rmag[cut]
     absmag = absmag[cut]
     gr = gr[cut]
     zred = zred[cut]
+    nobj = len(ra)
     
-    log.info('Read {} objects from {}'.format(len(ra), filename))
-
-    # Choose a subset of objects.
-    if nsubset is not None:
-        log.info('Choosing a random subset of {} objects.'.format(nsubset))
-        these = rand.randint(0, len(ra)+1, nsubset)
-        ra = ra[these]
-        dec = dec[these]
-        rmag = rmag[these]
-        absmag = absmag[these]
-        gr = gr[these]
-        zred = zred[these]
+    log.info('Read {} objects from {}'.format(nobj, filename))
 
     files = list()
     files.append(filename)
     n_per_file = list()
-    n_per_file.append(len(ra))
+    n_per_file.append(nobj)
 
-    nobj = len(ra)
     objid = np.arange(nobj)
-
     mockid = make_mockid(objid, n_per_file)
+    brickname = get_brickname_from_radec(ra, dec)
 
     # Generate a random seed for every object and assign velocity dispersions.
     seed = rand.randint(2**32, size=nobj)
@@ -711,7 +712,6 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, nsubset=None, r
     vdisp = 10**rand.normal(1.9, 0.15, nobj)
 
     filtername = 'sdss2010-r'
-    brickname = get_brickname(ra, dec)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
             'Z': zred, 'MAG': rmag, 'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr,

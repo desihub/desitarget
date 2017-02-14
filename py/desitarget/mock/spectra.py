@@ -23,11 +23,17 @@ class TemplateKDTree(object):
         from scipy.spatial import KDTree
 
         self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
+        self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)
+        self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
         self.mws_meta = read_basis_templates(objtype='STAR', onlymeta=True)
+        self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)
         self.wd_meta = read_basis_templates(objtype='WD', onlymeta=True)
 
         self.bgs_tree = KDTree(self.bgs())
+        self.elg_tree = KDTree(self.elg())
+        #self.lrg_tree = KDTree(self.lrg())
         self.mws_tree = KDTree(self.mws())
+        #self.qso_tree = KDTree(self.qso())
         self.wd_tree = KDTree(self.wd())
 
     def bgs(self):
@@ -37,6 +43,19 @@ class TemplateKDTree(object):
         rmabs = mabs[:, 2]
         gr = mabs[:, 1] - mabs[:, 2]
         return np.vstack((zobj, rmabs, gr)).T
+
+    def elg(self):
+        """Quantities we care about: redshift, g-r, r-z."""
+        
+        zobj = self.elg_meta['Z'].data
+        gr = self.elg_meta['DECAM_G'].data - self.elg_meta['DECAM_R'].data
+        rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
+        #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
+        return np.vstack((zobj, gr, rz)).T
+
+    #def lrg(self):
+    #    """Quantities we care about: redshift, XXX"""
+    #    pass 
 
     def mws(self):
         """Quantities we care about: Teff, logg, and [Fe/H].
@@ -48,6 +67,10 @@ class TemplateKDTree(object):
         logg = self.mws_meta['LOGG'].data
         feh = self.mws_meta['FEH'].data
         return np.vstack((teff, logg, feh)).T
+
+    #def qso(self):
+    #    """Quantities we care about: redshift, XXX"""
+    #    pass 
 
     def wd(self):
         """Quantities we care about: Teff and logg.
@@ -76,17 +99,20 @@ class TemplateKDTree(object):
         if objtype.upper() == 'BGS':
             dist, indx = self.bgs_tree.query(matrix)
             
-        elif objtype.upper() == 'MWS':
-            dist, indx = self.mws_tree.query(matrix)
-            
-        elif objtype.upper() == 'WD':
-            dist, indx = self.wd_tree.query(matrix)
-            
         elif objtype.upper() == 'ELG':
             dist, indx = self.elg_tree.query(matrix)
             
         elif objtype.upper() == 'LRG':
             dist, indx = self.lrg_tree.query(matrix)
+            
+        elif objtype.upper() == 'MWS':
+            dist, indx = self.mws_tree.query(matrix)
+            
+        elif objtype.upper() == 'QSO':
+            dist, indx = self.qso_tree.query(matrix)
+            
+        elif objtype.upper() == 'WD':
+            dist, indx = self.wd_tree.query(matrix)
             
         return dist, indx
 
@@ -120,9 +146,12 @@ class MockSpectra(object):
         self.bgs = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
         self.elg = ELG(wave=self.wave)
 
-    def getspectra_durham_mxxl_hdf5(self, data, index=None):
-        """
-        data needs Z, SDSS_absmag_r01, and SDSS_01gr, which are assigned in mock.io.read_durham_mxxl_hdf5
+    def getspectra_bgs_durham_mxxl_hdf5(self, data, index=None):
+        """Generate spectra for the BGS/MXXL mock sample.
+
+        DATA needs to have Z, SDSS_absmag_r01, SDSS_01gr, VDISP, and SEED, which
+        are assigned in mock.io.read_durham_mxxl_hdf5.  See also
+        TemplateKDTree.bgs().
 
         """
         objtype = 'BGS'
@@ -151,6 +180,35 @@ class MockSpectra(object):
         t0 = time()
         flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
         print('Time in getspectra', time() - t0)
+
+        return flux, meta
+
+    def getspectra_elg_gaussianfield(self, data, index=None):
+        """Generate spectra for the ELG/GaussianField mock sample.
+
+        DATA needs to have Z, DECAM_GR, DECAM_RZ, VDISP, and SEED, which are
+        assigned in mock.io.read_gaussianfield.  See also TemplateKDTree.elg().
+
+        """
+        objtype = 'ELG'
+
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+
+        # Get the nearest template.
+        alldata = np.vstack((data['Z'][index],
+                             data['DECAM_GR'][index],
+                             data['DECAM_RZ'][index])).T
+        dist, templateid = self.tree.query(objtype, alldata)
+
+        input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        input_meta['TEMPLATEID'] = templateid
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            input_meta[inkey] = data[datakey][index]
+            
+        flux, _, meta = self.elg.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
 
         return flux, meta
 

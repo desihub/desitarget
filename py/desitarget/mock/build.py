@@ -24,7 +24,7 @@ from astropy.table import Table, Column, vstack
 
 #from desiutil.io import encode_table
 
-from desispec.brick import brickname as get_brickname_from_radec
+#from desispec.brick import brickname as get_brickname_from_radec
 from desispec.log import get_logger, DEBUG
 from desispec.io.util import fitsheader, write_bintable, makepath
 
@@ -468,8 +468,7 @@ def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, so
           
     return [targets, truth, trueflux, onbrick]
 
-def targets_truth(params, output_dir, realtargets=None, nsubset=None,
-                  seed=None, nproc=4, verbose=True):
+def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verbose=True):
     """
     Write
 
@@ -511,7 +510,7 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None,
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
-    source_data_all = mockio.load_all_mocks(params, nsubset=nsubset, rand=rand)
+    source_data_all = mockio.load_all_mocks(params, rand=rand)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
     # Loop over each source / object type.
@@ -523,11 +522,11 @@ def targets_truth(params, output_dir, realtargets=None, nsubset=None,
         log.info('Assigning spectra and selecting targets for source {}.'.format(source_name))
         
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
-        truth_name = params['sources'][source_name]['truth_name']   # True type (e.g., ELG, STAR)
+        #truth_name = params['sources'][source_name]['truth_name']   # True type (e.g., ELG, STAR)
         source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
         source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
-        getSpectra_function = 'getspectra_'+source_params['format'].lower()
+        getSpectra_function = 'getspectra_{}_{}'.format(target_name.lower(), source_params['format'].lower())
         log.info('Generating spectra using function {}.'.format(getSpectra_function))
 
         # Assign spectra by parallel-processing the bricks.
