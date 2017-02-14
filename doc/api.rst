@@ -21,3 +21,6 @@ desitarget API
 
 .. automodule:: desitarget.targets
     :members:
+
+.. automodule:: desitarget.mock.sample
+    :members:

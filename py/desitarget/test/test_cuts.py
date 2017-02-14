@@ -78,8 +78,12 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(np.all(elg1==elg2))
 
         psftype = targets['TYPE']
-        bgs1 = cuts.isBGS(rflux=rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS(rflux=rflux, objtype=None, primary=None)
+        bgs1 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=primary)
+        bgs2 = cuts.isBGS_bright(rflux=rflux, objtype=None, primary=None)
+        self.assertTrue(np.all(bgs1==bgs2))
+
+        bgs1 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=primary)
+        bgs2 = cuts.isBGS_faint(rflux=rflux, objtype=None, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
         #- Test that objtype and primary are optional
@@ -133,6 +137,24 @@ class TestCuts(unittest.TestCase):
                     notNan = np.ones(len(t1), dtype=bool)
 
                 self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
+
+    #- Check that sandbox cuts at least don't crash
+    def test_select_targets_sandbox(self):
+        from desitarget import sandbox
+        ntot = 0
+        for filename in self.tractorfiles+self.sweepfiles:
+            targets = cuts.select_targets(filename, numproc=1, sandbox=True)
+            objects = Table.read(filename)
+            if 'BRICK_PRIMARY' in objects.colnames:
+                objects.remove_column('BRICK_PRIMARY')
+            desi_target, bgs_target, mws_target = \
+                    sandbox.cuts.apply_sandbox_cuts(objects)
+            n = np.count_nonzero(desi_target) + \
+                np.count_nonzero(bgs_target) + \
+                np.count_nonzero(mws_target)
+            self.assertEqual(len(targets), n)
+            ntot += n
+        self.assertGreater(ntot, 0, 'No targets selected by sandbox.cuts')
 
     def test_check_targets(self):
         for filelist in self.tractorfiles:
