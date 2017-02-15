@@ -17,6 +17,7 @@ import fitsio
 
 import desitarget.io
 import desitarget.targets
+from desitarget.mock.sample import SampleGMM
 from desispec.brick import brickname as get_brickname_from_radec
 
 from desispec.log import get_logger, DEBUG
@@ -80,11 +81,11 @@ def load_all_mocks(params, rand=None):
         source_dict = params['sources'][source_name]
         target_name = params['sources'][source_name]['target_name']
 
-        log.info('type: {} format: {}'.format(source_name, source_format))
+        log.info('Source/Target: {}, Mock format: {}'.format(source_name, source_format))
         function = 'read_'+source_format
         if 'mock_name' in source_dict.keys():
             mock_name = source_dict['mock_name']
-            this_name = source_path+mock_name
+            this_name = os.path.join(source_path, mock_name)
         else:
             mock_name = None
             this_name = source_path
@@ -611,6 +612,7 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
     z: :class: `numpy.ndarray`
         Array with the redshiffts for the objects in the mock.
         Zeros if read_z = False
+    
     """
     desitarget.io.check_fitsio_version()
     if mock_name is None:
@@ -619,8 +621,9 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
         filename = os.path.join(mock_dir, mock_name+'.fits')
 
     try:
+        log.info('HACK!!!!!!!!!!!!!!!!!  Read just a few thousand objects.')
         columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
-        data = fitsio.read(filename,columns=columns, upper=True)
+        data = fitsio.read(filename,columns=columns, upper=True, rows=np.arange(50)+5000)
         ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
         dec  = data['DEC'].astype('f8')
         zz   = data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')
@@ -646,15 +649,26 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
 
     # Generate a random seed for every object and assign velocity dispersions.
     seed = rand.randint(2**32, size=nobj)
-    vdisp = np.zeros_like(rmag)
-    vdisp = 10**rand.normal(1.9, 0.15, nobj)
 
-    filtername = 'decam2014-r'
-
-    import pdb ; pdb.set_trace()
+    # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
+    GMM = SampleGMM(random_state=rand)
+    mags = GMM.sample(target_type, nobj)
+    
+    vdisp = np.zeros(nobj, dtype='f4')
+    if target_type == 'ELG':
+        filtername = 'decam2014-r'
+        magnorm = mags[:, 1] # r-band
+        vdisp = 10**rand.normal(1.9, 0.15, nobj)
+    elif target_type == 'LRG':
+        filtername = 'decam2014-z'
+        magnorm = mags[:, 4] # z-band
+        vdisp = 10**rand.normal(2.3, 0.1, nobj)
+    else:
+        import pdb ; pdb.set_trace()
 
     return {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
-            'Z': zz, 'SEED': seed, 'MAG': mag, 'VDISP': vdisp, 'DECAM_GR': gr, 'DECAM_RZ': rz, 
+            'Z': zz, 'SEED': seed, 'VDISP': vdisp,
+            'MAG': magnorm, 'DECAM_GR': mags[:, 0]-mags[:, 1], 'DECAM_RZ': mags[:, 1]-mags[:, 2],
             'FILTERNAME': filtername, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, rand=None):

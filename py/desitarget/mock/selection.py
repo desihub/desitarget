@@ -431,21 +431,48 @@ class SelectTargets(object):
             
         return targets
 
-    def mws_select(self, targets):
-        """Select BGS targets."""
-        from desitarget.cuts import isBGS_bright, isBGS_faint
+    def elg_select(self, targets):
+        """Select ELG targets."""
+        from desitarget.cuts import isELG
 
+        gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
+        zflux = targets['DECAM_FLUX'][..., 4]
+        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
 
-        bgs_bright = isBGS_bright(rflux=rflux)
-        bgs_faint  = isBGS_faint(rflux=rflux)
+        desi_target = elg * self.desi_mask.ELG_SOUTH
+        desi_target |= elg * self.desi_mask.ELG
 
-        bgs_target = bgs_bright * self.bgs_mask.BGS_BRIGHT
-        bgs_target |= bgs_bright * self.bgs_mask.BGS_BRIGHT_SOUTH
-        bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT
-        bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT_SOUTH
+        targets['DESI_TARGET'] = desi_target
+            
+        return targets
 
-        targets['BGS_TARGET'] = bgs_target
-        targets['DESI_TARGET'] = (bgs_target != 0) * self.desi_mask.BGS_ANY
+    def lrg_select(self, targets):
+        """Select LRG targets."""
+        from desitarget.cuts import isLRG
+
+        gflux = targets['DECAM_FLUX'][..., 1]
+        rflux = targets['DECAM_FLUX'][..., 2]
+        zflux = targets['DECAM_FLUX'][..., 4]
+        lrg = isLRG(gflux=gflux, rflux=rflux, zflux=zflux)
+
+        desi_target = lrg * self.desi_mask.LRG_SOUTH
+        desi_target |= lrg * self.desi_mask.LRG
+
+        targets['DESI_TARGET'] = desi_target
+            
+        return targets
+
+    def mws_select(self, targets):
+        """Select MWS targets."""
+
+        import pdb ; pdb.set_trace()
+            
+        return targets
+
+    def qso_select(self, targets):
+        """Select QSO targets."""
+
+        import pdb ; pdb.set_trace()
             
         return targets

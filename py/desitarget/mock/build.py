@@ -26,11 +26,10 @@ from astropy.table import Table, Column, vstack
 
 #from desispec.brick import brickname as get_brickname_from_radec
 from desispec.log import get_logger, DEBUG
-from desispec.io.util import fitsheader, write_bintable, makepath
+from desispec.io.util import fitsheader, write_bintable
 
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
-from desitarget.targetmask import desi_mask, bgs_mask
 from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
 
@@ -258,6 +257,7 @@ class BrickInfo(object):
 
 def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None):
     '''Add SHAPEDEV_R and SHAPEEXP_R from a real target catalog.'''
+    from desitarget.targetmask import desi_mask, bgs_mask
     
     if random_state is None:
         random_state = np.random.RandomState()
@@ -413,7 +413,7 @@ def _getObsconditions(nobj, target_name):
     return source_obsconditions
 
 def _get_spectra_onebrick(specargs):
-    """Filler function for the multiproc"""
+    """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
 def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand):
@@ -468,6 +468,35 @@ def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, so
           
     return [targets, truth, trueflux, onbrick]
 
+def _write_onebrick(writeargs):
+    """Filler function for the multiprocessing."""
+    return write_onebrick(*writeargs)
+
+def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_dir):
+    """Wrapper function to write out files on a single brick."""
+
+    onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
+
+    radir = os.path.join(output_dir, thisbrick[:3])
+    targetsfile = os.path.join(radir, 'targets-{}.fits'.format(thisbrick))
+    truthfile = os.path.join(radir, 'truth-{}.fits'.format(thisbrick))
+    log.info('Writing {}.'.format(truthfile))
+
+    targets[onbrick].write(targetsfile, overwrite=True)
+            
+    hx = fits.HDUList()
+    hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
+    hx.append(hdu)
+
+    hdu = fits.ImageHDU(trueflux.astype(np.float32), name='FLUX')
+    hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+    hx.append(hdu)
+
+    hx.writeto(truthfile, overwrite=True)
+    write_bintable(truthfile, truth[onbrick], extname='TRUTH')
+    
+    #import pdb ; pdb.set_trace()
+
 def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verbose=True):
     """
     Write
@@ -516,6 +545,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
+    alltrueflux = list()
 
     source_defs = params['sources']
     for source_name in sorted(source_defs.keys()):
@@ -532,10 +562,12 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
+        #unique_bricks = list(set(brickname[:1]))
+        log.info(unique_bricks)
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
-        def _update_status(result):
+        def _update_spectra_status(result):
             if verbose and nbrick % 5 == 0 and nbrick > 0:
                 rate = (time() - t0) / nbrick
                 print('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
@@ -549,11 +581,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
             with pool:
-                out = pool.map(_get_spectra_onebrick, specargs, reduce=_update_status)
+                out = pool.map(_get_spectra_onebrick, specargs, reduce=_update_spectra_status)
         else:
             out = list()
             for ii in range(len(unique_bricks)):
-                out.append(_update_status(_get_spectra_onebrick(specargs[ii])))
+                out.append(_update_spectra_status(_get_spectra_onebrick(specargs[ii])))
 
         # Initialize and then populate the truth and targets tables. 
         nobj = len(source_data['RA'])
@@ -587,11 +619,13 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
 
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
+        alltrueflux.append(trueflux[keep, :])
 
     # Consolidate across all the mocks and then assign TARGETIDs, subpriorities,
     # and shapes and fluxes.
     targets = vstack(alltargets)
     truth = vstack(alltruth)
+    trueflux = np.concatenate(alltrueflux)
     ntarget = len(targets)
 
     targetid = rand.randint(2**62, size=ntarget)
@@ -602,44 +636,52 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
     if realtargets is not None:
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
-    # Write out.  Should this be parallelized?!?
+    # Write out.
     log.info('Writing out.')
-    
+
+    # Create the RA-slice directories, if necessary.
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
-        # Make the directory, if necessary.
         try:
             os.stat(thisradir)
         except:
-            os.mkdir(thisradir)
-        
-        inraslice = np.where(radir == thisradir)[0]
-        for thisbrick in list(set(targets['BRICKNAME'][inraslice])):
-            onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
+            os.makedirs(thisradir)
 
-            targets[onbrick].write(os.path.join(thisradir, 'targets-{}.fits'.format(thisbrick)), overwrite=True)
+    # Initialize the output header.
+    if seed is None:
+        seed1 = 'None'
+    else:
+        seed1 = seed
+    truthhdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed'),
+        BUNIT = ('Angstrom', 'wavelength units'),
+        AIRORVAC = ('vac', 'vacuum wavelengths')
+        ))
 
-            # Split out the spectrum from the truth table.
-            hdulist = fits.HDUList(fits.PrimaryHDU(None, header=None))
+    nbrick = np.zeros((), dtype='i8')
+    t0 = time()
+    def _update_write_status(result):
+        if verbose and nbrick % 5 == 0 and nbrick > 0:
+            rate = nbrick / (time() - t0)
+            #rate = (time() - t0) / nbrick
+            print('Writing {} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
+        nbrick[...] += 1    # this is an in-place modification
+        return result
 
-            hdu = fits.ImageHDU(Spectra.wave.astype(np.float32), name='WAVE')
-            hdu.header['BUNIT']  = ('Angstrom', 'Wavelength units')
-            hdu.header['AIRORVAC']  = ('vac', 'Vacuum wavelengths')
-            hdulist.append(hdu)
+    unique_bricks = list(set(targets['BRICKNAME']))
+    
+    writeargs = list()
+    for thisbrick in unique_bricks:
+        writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir))
+                
+    if nproc > 1:
+        pool = sharedmem.MapReduce(np=nproc)
+        with pool:
+            pool.map(_write_onebrick, writeargs, reduce=_update_write_status)
+    else:
+        for ii in range(len(unique_bricks)):
+            _update_write_status(_write_onebrick(writeargs[ii]))
 
-            hdu = fits.ImageHDU(trueflux.astype(np.float32), name='FLUX')
-            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
-            hdulist.append(hdu)
-
-            #metatable = encode_table(meta, encoding='ascii')
-            metahdu = fits.convenience.table_to_hdu(truth[onbrick])
-            metahdu.header['EXTNAME'] = 'TRUTH'
-            hdulist.append(metahdu)
-
-            hdulist.writeto(os.path.join(thisradir, 'truth-{}.fits'.format(thisbrick)), overwrite=True)
-
-    #import pdb ; pdb.set_trace()
-        
 #    # consolidates all relevant arrays across mocks
 #    ra_total = np.empty(0)
 #    dec_total = np.empty(0)

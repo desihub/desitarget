@@ -117,9 +117,10 @@ class TemplateKDTree(object):
         return dist, indx
 
 class MockSpectra(object):
-    """Generate spectra for each type of mock.
+    """Generate spectra for each type of mock.  Currently just choose the closest
+    template; we can get fancier later.
 
-    Currently just choose the closest template; we can get fancier later.
+    ToDo (@moustakas): apply Galactic extinction.
 
     """
     def __init__(self, wavemin=None, wavemax=None, dw=0.2):
@@ -128,7 +129,7 @@ class MockSpectra(object):
         
         self.tree = TemplateKDTree()
 
-        # Build a default wavelength vector.
+        # Build a default (buffered) wavelength vector.
         if wavemin is None:
             wavemin = load_throughput('b').wavemin - 10.0
         if wavemax is None:
@@ -142,9 +143,11 @@ class MockSpectra(object):
         #self.__normfilter = 'decam2014-r' # default normalization filter
 
         # Initialize the templates once:
-        from desisim.templates import BGS, ELG
+        from desisim.templates import BGS, ELG, LRG, QSO
         self.bgs = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
-        self.elg = ELG(wave=self.wave)
+        self.elg = ELG(wave=self.wave, normfilter='decam2014-r')
+        self.lrg = LRG(wave=self.wave, normfilter='decam2014-z')
+        self.qso = QSO(wave=self.wave, normfilter='decam2014-g')
 
     def getspectra_bgs_durham_mxxl_hdf5(self, data, index=None):
         """Generate spectra for the BGS/MXXL mock sample.
@@ -158,7 +161,6 @@ class MockSpectra(object):
 
         if index is None:
             index = np.arange(len(data['Z']))
-        nobj = len(index)
 
         # Get the nearest template.
         alldata = np.vstack((data['Z'][index],
@@ -166,7 +168,7 @@ class MockSpectra(object):
                              data['SDSS_01gr'][index])).T
         dist, templateid = self.tree.query(objtype, alldata)
 
-        input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
         input_meta['TEMPLATEID'] = templateid
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
@@ -176,7 +178,6 @@ class MockSpectra(object):
         #bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
         #self.bgs.normfilter = data['FILTERNAME']
 
-        # ToDo (@moustakas): apply Galactic extinction.
         t0 = time()
         flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
         print('Time in getspectra', time() - t0)
@@ -194,20 +195,18 @@ class MockSpectra(object):
 
         if index is None:
             index = np.arange(len(data['Z']))
-        nobj = len(index)
 
-        # Get the nearest template.
         alldata = np.vstack((data['Z'][index],
                              data['DECAM_GR'][index],
                              data['DECAM_RZ'][index])).T
         dist, templateid = self.tree.query(objtype, alldata)
 
-        input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
         input_meta['TEMPLATEID'] = templateid
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
-            
+
         flux, _, meta = self.elg.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
 
         return flux, meta
