@@ -647,29 +647,45 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
     mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec)
 
-    # Generate a random seed for every object and assign velocity dispersions.
+    # Generate a random seed for every object.
     seed = rand.randint(2**32, size=nobj)
 
+    out = {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
+           'Z': zz, 'SEED': seed, 'FILES': files, 'N_PER_FILE': n_per_file}
+        
     # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
-    GMM = SampleGMM(random_state=rand)
-    mags = GMM.sample(target_type, nobj)
-    
-    vdisp = np.zeros(nobj, dtype='f4')
-    if target_type == 'ELG':
-        filtername = 'decam2014-r'
-        magnorm = mags[:, 1] # r-band
-        vdisp = 10**rand.normal(1.9, 0.15, nobj)
-    elif target_type == 'LRG':
-        filtername = 'decam2014-z'
-        magnorm = mags[:, 4] # z-band
-        vdisp = 10**rand.normal(2.3, 0.1, nobj)
-    else:
+    if target_type == 'SKY':
         import pdb ; pdb.set_trace()
 
-    return {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
-            'Z': zz, 'SEED': seed, 'VDISP': vdisp,
-            'MAG': magnorm, 'DECAM_GR': mags[:, 0]-mags[:, 1], 'DECAM_RZ': mags[:, 1]-mags[:, 2],
-            'FILTERNAME': filtername, 'FILES': files, 'N_PER_FILE': n_per_file}
+    else:
+        GMM = SampleGMM(random_state=rand)
+        mags = GMM.sample(target_type, nobj) # [g, r, z, w1, w2, w3, w4]
+    
+        if target_type == 'ELG':
+            """Selected in the r-band with g-r, r-z colors."""
+            filtername = 'decam2014-r'
+            vdisp = 10**rand.normal(1.9, 0.15, nobj)
+            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
+                        'RZ': mags[:, 1]-mags[:, 2], 'FILTERNAME': filtername})
+
+        elif target_type == 'LRG':
+            """Selected in the z-band with r-z, r-W1 colors."""
+            filtername = 'decam2014-z'
+            vdisp = 10**rand.normal(2.3, 0.1, nobj)
+            out.append({'VDISP': vdisp, 'MAG': mags[:, 2], 'RZ': mags[:, 1]-mags[:, 2],
+                        'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
+            
+        elif target_type == 'QSO':
+            """Selected in the r-band (or g-band?!?!) with XXX colors."""
+            filtername = 'decam2014-r'
+            magnorm = mags[:, 1] # z-band
+            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
+                        'RZ': mags[:, 1]-mags[:, 2], 'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
+        else:
+            log.warning('Unrecognized target type {}!'.format(target_type))
+            import pdb ; pdb.set_trace()
+
+    return out
 
 def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, rand=None):
     """ Reads mock information for MXXL bright time survey galaxies.

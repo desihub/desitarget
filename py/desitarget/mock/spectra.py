@@ -53,6 +53,15 @@ class TemplateKDTree(object):
         #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
         return np.vstack((zobj, gr, rz)).T
 
+    def lrg(self):
+        """Quantities we care about: r-z, r-W1."""
+        
+        zobj = self.elg_meta['Z'].data
+        gr = self.elg_meta['DECAM_G'].data - self.elg_meta['DECAM_R'].data
+        rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
+        #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
+        return np.vstack((zobj, gr, rz)).T
+
     #def lrg(self):
     #    """Quantities we care about: redshift, XXX"""
     #    pass 
@@ -187,8 +196,8 @@ class MockSpectra(object):
     def getspectra_elg_gaussianfield(self, data, index=None):
         """Generate spectra for the ELG/GaussianField mock sample.
 
-        DATA needs to have Z, DECAM_GR, DECAM_RZ, VDISP, and SEED, which are
-        assigned in mock.io.read_gaussianfield.  See also TemplateKDTree.elg().
+        DATA needs to have Z, GR, RZ, VDISP, and SEED, which are assigned in
+        mock.io.read_gaussianfield.  See also TemplateKDTree.elg().
 
         """
         objtype = 'ELG'
@@ -197,8 +206,8 @@ class MockSpectra(object):
             index = np.arange(len(data['Z']))
 
         alldata = np.vstack((data['Z'][index],
-                             data['DECAM_GR'][index],
-                             data['DECAM_RZ'][index])).T
+                             data['GR'][index],
+                             data['RZ'][index])).T
         dist, templateid = self.tree.query(objtype, alldata)
 
         input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
