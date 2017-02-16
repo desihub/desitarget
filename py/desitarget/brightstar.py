@@ -221,7 +221,7 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
  
 def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=True):
-    """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
+    """Make a bright star mask from a structure of bright stars drawn from the sweeps
 
     Parameters
     ----------
@@ -304,3 +304,48 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         fitsio.write(outfilename, starstruc, clobber=True)
 
     return done
+
+
+def is_in_bright_star(targs,starmask):
+    """Determine whether a set of targets is in a bright star mask
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+
+    Returns
+    -------
+        mask : array_like. True if target is in a bright star mask  
+    """
+
+    #ADM initialize an array of all False (nothing is yet in a star mask)
+    done = np.zeros(len(targs), dtype=bool)
+
+    #ADM turn the coordinates of the masks and the targets into SkyCoord objects
+    ctargs = SkyCoord(targs["RA"]*u.degree, targs["DEC"]*u.degree)
+    cstars = SkyCoord(starmask["RA"]*u.degree, starmask["DEC"]*u.degree)
+    
+    #ADM this is the largest search radius we should need to consider
+    #ADM in the future an obvious speed up is to split on radius 
+    #ADM as large radii are rarer but take longer
+    maxrad = max(starmask["RADIUS"])*u.arcmin
+
+    #ADM coordinate match the star masks and the targets
+    idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs,maxrad)
+
+    #ADM for a matching star mask, find the angular separations that are less than the mask radius
+    w = np.where(d2d.arcmin < starmask[idstars]["RADIUS"])
+
+    #ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
+    done[idtargs[w]] = 'True'
+
+    return done
+
+
+
+
+
+
