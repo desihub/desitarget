@@ -9,14 +9,13 @@ Handles mock data to build target catalogs.
 """
 from __future__ import (absolute_import, division, print_function)
 #
-import os, re
-import numpy as np
+import os
 import h5py
+import numpy as np
 
 import fitsio
 
-import desitarget.io
-import desitarget.targets
+from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desispec.brick import brickname as get_brickname_from_radec
 
@@ -38,6 +37,8 @@ ENCODE_ROW_MAX     = ENCODE_ROW_MASK
 ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
+
+C_LIGHT = 299792.458
 
 def print_all_mocks_info(params):
     """
@@ -71,47 +72,58 @@ def load_all_mocks(params, rand=None):
     if rand is None:
         rand = np.random.RandomState()
 
-    source_data_all = {}
+    # Make sure fitsio is up to date.
+    check_fitsio_version()
 
-    # load all the mocks
-    loaded_mocks = {}
+    source_data_all = {}
+    loaded_mocks = list()
+
     for source_name in sorted(params['sources'].keys()):
-        source_format = params['sources'][source_name]['format']
-        source_path = params['sources'][source_name]['root_mock_dir']
+
         source_dict = params['sources'][source_name]
         target_name = params['sources'][source_name]['target_name']
+        source_format = params['sources'][source_name]['format']
+        mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        read_function = 'read_{}'.format(source_format)
 
-        log.info('Source/Target: {}, Mock format: {}'.format(source_name, source_format))
-        function = 'read_'+source_format
-        if 'mock_name' in source_dict.keys():
-            mock_name = source_dict['mock_name']
-            this_name = os.path.join(source_path, mock_name)
-        else:
-            mock_name = None
-            this_name = source_path
+        log.info('Source {}, Target {}, Format {}'.format(source_name, target_name, source_format))
+        log.info('Mock file/path {} to be read with {}'.format(mock_dir_name, read_function))
+        
+        #if 'mock_name' in source_dict.keys():
+        #    mock_name = source_dict['mock_name']
+        #    this_name = os.path.join(source_path, mock_name)
+        #else:
+        #    mock_name = None
+        #    this_name = source_path
+
+        if target_name not in loaded_mocks: # not sure if this is right
+        #if this_name not in loaded_mocks.keys():
+            loaded_mocks.append(target_name)
             
-        if this_name not in loaded_mocks.keys():
-            log.info('Reading {} for {}'.format(this_name, source_name))
-            loaded_mocks[this_name] = source_name
+            #log.info('Reading {} for {}'.format(this_name, source_name))
+            #loaded_mocks[this_name] = source_name
 
-            func = globals()[function]
-            result = func(source_path, target_name, mock_name=mock_name, rand=rand)
+            func = globals()[read_function]
+            result = func(mock_dir_name, target_name, rand=rand)
+            #result = func(source_path, target_name, mock_name=mock_name, rand=rand)
 
-            if ('subset' in params.keys()) & (params['subset']['ra_dec_cut']==True):
+            #import pdb ; pdb.set_trace()
+
+            if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
                 ii  = (result['RA']  >= params['subset']['min_ra']) & \
                     (result['RA']  <= params['subset']['max_ra']) & \
                     (result['DEC'] >= params['subset']['min_dec']) & \
                     (result['DEC'] <= params['subset']['max_dec'])
                 
-                #- Trim RA,DEC,Z, ... columns to subselection Different types of
-                #- mocks have different metadata, so assume that any ndarray of
-                #- the same length as number of targets should be trimmed.
+                # Trim RA,DEC,Z, ... columns to subselection. Different types of
+                # mocks have different metadata, so assume that any ndarray of
+                # the same length as number of targets should be trimmed.
                 ntargets = len(result['RA'])
                 for key in result:
                     if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
                         result[key] = result[key][ii]
 
-            #- Add min/max ra/dec to source_dict for use in density estimates
+                # Add min/max ra/dec to source_dict for use in density estimates.
                 source_dict.update(params['subset'])
 
                 log.info('Trimmed {} to {} objects in RA, Dec subselection.'.format(source_name, len(result['RA'])))
@@ -119,10 +131,10 @@ def load_all_mocks(params, rand=None):
             source_data_all[source_name] = result
             #import pdb ; pdb.set_trace()
         else:
-            log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
-            source_data_all[source_name] = source_data_all[loaded_mocks[this_name]]
+            #log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
+            source_data_all[source_name] = source_data_all[loaded_mocks[target_name]]
 
-    log.info('loaded {} mock sources'.format(len(source_data_all)))
+    log.info('Loaded {} mock catalog(s).'.format(len(source_data_all)))
     return source_data_all
 
 def _load_mock_mws_file(filename):
@@ -155,8 +167,7 @@ def _load_mock_mws_file(filename):
     """
     import desitarget.photo
     log.info('Reading '+filename)
-    C_LIGHT = 299792.458
-    desitarget.io.check_fitsio_version()
+    
     data = fitsio.read(filename,
                        columns= ['RA','DEC','v_helio','d_helio', 'SDSSr_true',
                                  'SDSSg_obs', 'SDSSr_obs', 'SDSSi_obs', 'SDSSz_obs'])
@@ -205,8 +216,6 @@ def _load_mock_lya_file(filename):
         'Z': :class: `numpy.ndarray`
             Redshift
     """
-
-    desitarget.io.check_fitsio_version()
 
     h = fitsio.FITS(filename)
 
@@ -288,7 +297,8 @@ def make_mockid(objid, n_per_file):
 
     return encode_rownum_filenum(objid, filenum)
 
-def read_100pc(mock_dir, target_type, mock_name=None):
+def read_100pc(mockfile, target_type, rand=None):
+#def read_100pc(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
 
@@ -317,37 +327,43 @@ def read_100pc(mock_dir, target_type, mock_name=None):
         'magg': :class: `numpy.ndarray`
             Apparent magnitudes in Gaia G band
     """
-    desitarget.io.check_fitsio_version()
-    C_LIGHT = 299792.458
+    try:
+        os.stat(mockfile)
+    except:
+        log.fatal('Mock file {} not found!'.format(mockfile))
+        raise(IOError)
 
-    if mock_name is None:
-        filename  = os.path.join(mock_dir,'mock_100pc.fits')
-    else:
-        if '.fits' in mock_name:
-            filename = os.path.join(mock_dir, mock_name)
-        else:
-            filename = os.path.join(mock_dir, mock_name+'.fits')
+    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG'] # 'FEH'
+    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
 
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    v_helio     = data['radialvelocity'].astype('f8')
-    magg        = data['magg'].astype('f8')
+    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec = data['DEC'].astype('f8')
+    zz = data['RADIALVELOCITY'].astype('f4')/C_LIGHT
+    magg = data['MAGG'].astype('f4')
+    teff = data['TEFF'].astype('f4')
+    logg = data['LOGG'].astype('f4')
+    #feh = data['FEH'].astype('f4')
+    feh = np.zeros_like(teff).astype('f4') # Hack!
+
+    nobj = len(ra)
+    log.info('Read {} objects from {}'.format(nobj, mockfile))
 
     files = list()
-    files.append(filename)
+    files.append(mockfile)
     n_per_file = list()
-    n_per_file.append(len(ra))
+    n_per_file.append(nobj)
 
-
-    n = len(ra)
-    objid = np.arange(n, dtype='i8')
-
-    log.info('read {} objects'.format(n_per_file[0]))
-    log.info('building mockid id')
+    objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
-    
-    return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
-            'magg': magg, 'FILES': files, 'N_PER_FILE': n_per_file}
+    brickname = get_brickname_from_radec(ra, dec)
+
+    seed = rand.randint(2**32, size=nobj)
+    filtername = 'sdss2010-g' # ????
+
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
+            'Z': zz, 'MAG': magg, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
+            'SEED': seed, 'FILTERNAME': filtername, 
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir, target_type, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
@@ -379,9 +395,6 @@ def read_wd(mock_dir, target_type, mock_name=None):
         'magg': :class: `numpy.ndarray`
             Apparent magnitudes in Gaia G band
     """
-    desitarget.io.check_fitsio_version()
-    C_LIGHT = 299792.458
-
     if mock_name is None:
         filename  = os.path.join(mock_dir,'mock_wd.fits')
     else:
@@ -446,7 +459,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
              Apparent magnitudes in SDSS bands, including extinction.
     """
     # Build iterator of all desi_galfast files
-    iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits")
+    iter_mock_files = iter_files(mock_dir, '', ext="fits")
 
     # Read each file
 
@@ -543,7 +556,7 @@ def read_lya(mock_dir, target_type, mock_name=None):
             Heliocentric radial velocity divided by the speed of light.
     """
     # Build iterator of all desi_galfast files
-    iter_mock_files = desitarget.io.iter_files(mock_dir, '', ext="fits.gz")
+    iter_mock_files = iter_files(mock_dir, '', ext="fits.gz")
 
     # Read each file
     log.info('Reading individual mock files')
@@ -614,7 +627,6 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
         Zeros if read_z = False
     
     """
-    desitarget.io.check_fitsio_version()
     if mock_name is None:
         filename = os.path.join(mock_dir, target_type+'.fits')
     else:
@@ -759,10 +771,8 @@ def read_mock_durham(core_filename, photo_filename):
     -------
         objects: ndarray with the structure required to go through
         desitarget.cuts.select_targets()
+    
     """
-
-    import h5py
-
     fin_core = h5py.File(core_filename, "r")
     fin_mags = h5py.File(photo_filename, "r")
 

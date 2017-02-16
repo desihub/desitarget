@@ -25,19 +25,22 @@ class TemplateKDTree(object):
         self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
         self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)
         self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
-        self.mws_meta = read_basis_templates(objtype='STAR', onlymeta=True)
+        self.star_meta = read_basis_templates(objtype='STAR', onlymeta=True)
         self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)
         self.wd_meta = read_basis_templates(objtype='WD', onlymeta=True)
 
         self.bgs_tree = KDTree(self.bgs())
         self.elg_tree = KDTree(self.elg())
         #self.lrg_tree = KDTree(self.lrg())
-        self.mws_tree = KDTree(self.mws())
+        self.star_tree = KDTree(self.star())
         #self.qso_tree = KDTree(self.qso())
         self.wd_tree = KDTree(self.wd())
 
     def bgs(self):
-        """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r)."""
+        """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r).  This needs to
+        be generalized to accommodate other mocks!
+
+        """
         zobj = self.bgs_meta['Z'].data
         mabs = self.bgs_meta['SDSS_UGRIZ_ABSMAG_Z01'].data
         rmabs = mabs[:, 2]
@@ -66,15 +69,13 @@ class TemplateKDTree(object):
     #    """Quantities we care about: redshift, XXX"""
     #    pass 
 
-    def mws(self):
+    def star(self):
         """Quantities we care about: Teff, logg, and [Fe/H].
 
-        TODO (@moustakas): need to deal with standard stars and other selections. 
-
         """
-        teff = self.mws_meta['TEFF'].data
-        logg = self.mws_meta['LOGG'].data
-        feh = self.mws_meta['FEH'].data
+        teff = self.star_meta['TEFF'].data
+        logg = self.star_meta['LOGG'].data
+        feh = self.star_meta['FEH'].data
         return np.vstack((teff, logg, feh)).T
 
     #def qso(self):
@@ -114,8 +115,8 @@ class TemplateKDTree(object):
         elif objtype.upper() == 'LRG':
             dist, indx = self.lrg_tree.query(matrix)
             
-        elif objtype.upper() == 'MWS':
-            dist, indx = self.mws_tree.query(matrix)
+        elif objtype.upper() == 'STAR':
+            dist, indx = self.star_tree.query(matrix)
             
         elif objtype.upper() == 'QSO':
             dist, indx = self.qso_tree.query(matrix)
@@ -157,66 +158,92 @@ class MockSpectra(object):
         self.elg = ELG(wave=self.wave, normfilter='decam2014-r')
         self.lrg = LRG(wave=self.wave, normfilter='decam2014-z')
         self.qso = QSO(wave=self.wave, normfilter='decam2014-g')
+        
+    def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
+        """Generate spectra for BGS.
 
-    def getspectra_bgs_durham_mxxl_hdf5(self, data, index=None):
-        """Generate spectra for the BGS/MXXL mock sample.
-
-        DATA needs to have Z, SDSS_absmag_r01, SDSS_01gr, VDISP, and SEED, which
-        are assigned in mock.io.read_durham_mxxl_hdf5.  See also
+        Currently only the MXXL (durham_mxxl_hdf5) mock is supported.  DATA
+        needs to have Z, SDSS_absmag_r01, SDSS_01gr, VDISP, and SEED, which are
+        assigned in mock.io.read_durham_mxxl_hdf5.  See also
         TemplateKDTree.bgs().
 
         """
         objtype = 'BGS'
-
         if index is None:
             index = np.arange(len(data['Z']))
-
-        # Get the nearest template.
-        alldata = np.vstack((data['Z'][index],
-                             data['SDSS_absmag_r01'][index],
-                             data['SDSS_01gr'][index])).T
-        dist, templateid = self.tree.query(objtype, alldata)
-
+            
         input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
-        input_meta['TEMPLATEID'] = templateid
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
 
-        #print('Building spectra for {}'.format(objtype))
-        #bgs = BGS(wave=self.wave, normfilter=data['FILTERNAME'])
-        #self.bgs.normfilter = data['FILTERNAME']
+        if mockformat.lower() == 'durham_mxxl_hdf5':
+            alldata = np.vstack((data['Z'][index],
+                                 data['SDSS_absmag_r01'][index],
+                                 data['SDSS_01gr'][index])).T
+            _, templateid = self.tree.query(objtype, alldata)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        t0 = time()
-        flux, _, meta = self.bgs.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
-        print('Time in getspectra', time() - t0)
+        input_meta['TEMPLATEID'] = templateid
+        flux, _, meta = self.bgs.make_templates(input_meta=input_meta,
+                                                nocolorcuts=True, novdisp=True)
 
         return flux, meta
 
-    def getspectra_elg_gaussianfield(self, data, index=None):
-        """Generate spectra for the ELG/GaussianField mock sample.
+    def elg(self, data, index=None, mockformat='gaussianfield'):
+        """Generate spectra for the ELG sample.
 
-        DATA needs to have Z, GR, RZ, VDISP, and SEED, which are assigned in
+        Currently only the GaussianField mock sample is supported.  DATA needs
+        to have Z, GR, RZ, VDISP, and SEED, which are assigned in
         mock.io.read_gaussianfield.  See also TemplateKDTree.elg().
 
         """
         objtype = 'ELG'
-
         if index is None:
             index = np.arange(len(data['Z']))
 
-        alldata = np.vstack((data['Z'][index],
-                             data['GR'][index],
-                             data['RZ'][index])).T
-        dist, templateid = self.tree.query(objtype, alldata)
-
         input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
-        input_meta['TEMPLATEID'] = templateid
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
 
+        if mockformat.lower() == 'gaussianfield':
+            alldata = np.vstack((data['Z'][index],
+                                 data['GR'][index],
+                                 data['RZ'][index])).T
+            _, templateid = self.tree.query(objtype, alldata)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.elg.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
+
+        return flux, meta
+
+    def mws_nearby(self, data, index=None, mockformat='100pc'):
+        """Generate spectra for the MWS_NEARBY sample.
+
+        """
+        objtype = 'STAR'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
+            input_meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() == '100pc':
+            alldata = np.vstack((data['TEFF'][index],
+                                 data['LOGG'][index],
+                                 data['FEH'][index])).T
+            _, templateid = self.tree.query(objtype, alldata)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        input_meta['TEMPLATEID'] = templateid
+        flux, _, meta = self.elg.make_templates(input_meta=input_meta, nocolorcuts=True)
 
         return flux, meta
 

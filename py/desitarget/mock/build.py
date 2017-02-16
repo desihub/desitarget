@@ -416,7 +416,7 @@ def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
-def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand):
+def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
@@ -443,7 +443,7 @@ def get_spectra_onebrick(thisbrick, brick_info, Spectra, getSpectra_function, so
     truth = empty_truth_table(nobj)
 
     # Generate spctra.
-    trueflux, meta = getattr(Spectra, getSpectra_function)(source_data, index=onbrick)
+    trueflux, meta = getattr(Spectra, target_name.lower())(source_data, index=onbrick, mockformat=mockformat)
 
     for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
@@ -542,6 +542,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
     source_data_all = mockio.load_all_mocks(params, rand=rand)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
+    #import pdb ; pdb.set_trace()
+
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -552,18 +554,17 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         log.info('Assigning spectra and selecting targets for source {}.'.format(source_name))
         
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
-        #truth_name = params['sources'][source_name]['truth_name']   # True type (e.g., ELG, STAR)
-        source_params = params['sources'][source_name] # dictionary with info about this sources (e.g., pathnames)
+        mockformat = params['sources'][source_name]['format']
         source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
-        getSpectra_function = 'getspectra_{}_{}'.format(target_name.lower(), source_params['format'].lower())
-        log.info('Generating spectra using function {}.'.format(getSpectra_function))
+        #getSpectra_function = 'getspectra_{}_{}'.format(target_name.lower())
+        #log.info('Generating spectra using function {}.'.format(getSpectra_function))
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
         #unique_bricks = list(set(brickname[:1]))
-        log.info(unique_bricks)
+        #log.info(unique_bricks)
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -576,7 +577,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
     
         specargs = list()
         for thisbrick in unique_bricks:
-            specargs.append((thisbrick, brick_info, Spectra, getSpectra_function, source_data, rand))
+            specargs.append((target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand))
                 
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
