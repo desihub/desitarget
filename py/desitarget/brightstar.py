@@ -21,9 +21,9 @@ import sys
 from . import __version__ as desitarget_version
 from . import gitversion
 
-from desiutil import depend
 from desitarget import io
 from desitarget.internal import sharedmem
+from desitarget import desi_mask
 
 def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
@@ -350,7 +350,7 @@ def is_in_bright_star(targs,starmask):
 
 
 def set_target_bits(targs,starmask):
-    """Perform target selection on objects, returning target mask arrays
+    """Apply bright star mask to targets, return desi_target array
 
     Parameters
     ----------
@@ -359,16 +359,20 @@ def set_target_bits(targs,starmask):
     starmask : :class:`recarray`
         A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
 
-    Returns:
-    --------
-        an ndarray of target selection bitmask flags for each object
+    Returns
+    -------
+        an ndarray of the updated desi_target bit that includes bright star information
                                                                                                                                                       
-    To Do:
-    ------
-        Currently sets IN_BRIGHT_OBJECT but should also use the TARGETID to set BRIGHT_OBJECT
+    To Do
+    -----
+        Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
 
     See desitarget.targetmask for the definition of each bit
     """
 
+    in_bright_object = is_in_bright_star(targs,starmask)
 
-
+    desi_target = targs["DESI_TARGET"].copy()
+    desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
+    
+    return desi_target
