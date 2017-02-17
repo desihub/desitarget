@@ -60,8 +60,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     if len(infiles) == 0:
         infiles = io.list_tractorfiles(rootdirname)
     if len(infiles) == 0:
-        print('FATAL: no sweep or tractor files found in {}'.format(rootdirname))
-        sys.exit(1)
+        raise IOError('No sweep or tractor files found in {}'.format(rootdirname))
 
     #ADM force the input maglim to be a list (in case a single value was passed)
     if type(maglim) == type(16) or type(maglim) == type(16.):
@@ -73,8 +72,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     bandint = np.array([ "UGRIZY".find(band) for band in bands ])
 
     if len(bandint) != len(maglim):
-        print('FATAL: bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
-        sys.exit(1)
+        raise IOError('bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
 
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
@@ -376,3 +374,61 @@ def set_target_bits(targs,starmask):
     desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
     
     return desi_target
+
+
+def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[9,9,9],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
+    """Add bits for whether objects are in a bright star mask to list of targets
+
+    Parameters
+    ----------
+    targs : :class:`str` or recarray
+        A recarray of targets created by desitarget.cuts.select_targets OR a filename of
+        a file that contains such a set of targets
+    instarmaskfile : :class=`str`, optional
+        An input bright star mask created by desitarget.brightstar.make_bright_star_mask
+        If None, defaults to making the bright star mask from scratch
+        The next 5 parameters are only relevant to making the bright star mask from scratch
+    bands : :class:`str`
+        A magnitude band from the sweeps, e.g., "G", "R", "Z"
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a 
+           list of the same length as the string
+    maglim : :class:`float`
+        The upper limit in that magnitude band for which to assemble a list of bright stars
+        Can pass a list of magnitude limits, in which case bands has to be a string of the
+           same length (e.g., "GRZ" for [12.3,12.7,12.6]
+    numproc : :class:`int`, optional
+        Number of processes over which to parallelize
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
+    outfilename : :class:`str`, optional, defaults to not writing anything to file
+        (FITS) File name to which to write the output bright star mask ONE OF outfilename or
+        instarmaskfile MUST BE PASSED
+    verbose : :class:`bool`, optional
+        Send to write progress to screen
+
+    Returns:
+        targets numpy structured array: the input targets with the DESI_TARGET column 
+        updated to reflect the BRIGHT_OBJECT bits.
+    """
+
+    if instarmaskfile is None and outfilename is None:
+        raise IOError('One of instarmaskfile or outfilename must be passed')
+
+    #ADM Check if targs is a filename or the structure itself
+    if isinstance(targs, str):
+        if not os.path.exists(targs):
+            raise ValueError("{} doesn't exist".format(targs))
+        targs = fitsio.read(targs)
+
+    #ADM check if a file for the bright star mask was passed, if not then create it
+    if instarmaskfile is None:
+        starmask = make_bright_star_mask(bands,maglim,numproc,
+            rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename,verbose):
+    else:
+        starmask = fitsio.read(instarmaskfile)
+
+    dt = set_target_bits(targs,starmask)
+    targs["DESI_TARGET"] = dt
+    
+    return targs
