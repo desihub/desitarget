@@ -16,7 +16,7 @@ import fitsio
 from glob import glob
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-import sys
+import os
 
 from . import __version__ as desitarget_version
 from . import gitversion
@@ -271,8 +271,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         maglim = [maglim]
 
     if len(bandint) != len(maglim):
-        print('FATAL: bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
-        sys.exit(1)
+        raise IOError('bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
 
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
@@ -303,7 +302,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     done = rfn.append_fields(done,["TARGETID","RADIUS"],[targetid,radius],usemask=False,dtypes=['>i8','<f4'])
 
     if outfilename is not None:
-        fitsio.write(outfilename, starstruc, clobber=True)
+        fitsio.write(outfilename, done, clobber=True)
 
     return done
 
@@ -412,6 +411,8 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[9,9,9],numproc=4,
         updated to reflect the BRIGHT_OBJECT bits.
     """
 
+    t0 = time()
+
     if instarmaskfile is None and outfilename is None:
         raise IOError('One of instarmaskfile or outfilename must be passed')
 
@@ -423,12 +424,20 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[9,9,9],numproc=4,
 
     #ADM check if a file for the bright star mask was passed, if not then create it
     if instarmaskfile is None:
-        starmask = make_bright_star_mask(bands,maglim,numproc,
-            rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename,verbose):
+        starmask = make_bright_star_mask(bands,maglim,numproc=numproc,
+                                         rootdirname=rootdirname,outfilename=outfilename,verbose=verbose)
     else:
         starmask = fitsio.read(instarmaskfile)
 
+    if verbose:
+        print('Number of targets {}...t={:.1f}s'.format(len(targs), time()-t0))
+        print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
+
     dt = set_target_bits(targs,starmask)
-    targs["DESI_TARGET"] = dt
+    done = targs.copy()
+    done["DESI_TARGET"] = dt
     
-    return targs
+    if verbose:
+        print('Finishing up...t={:.1f}s'.format(time()-t0))
+
+    return done
