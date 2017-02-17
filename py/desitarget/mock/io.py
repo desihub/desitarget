@@ -333,17 +333,17 @@ def read_100pc(mockfile, target_type, rand=None):
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise(IOError)
 
-    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG'] # 'FEH'
+    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
     data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
 
     ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
     zz = data['RADIALVELOCITY'].astype('f4')/C_LIGHT
-    magg = data['MAGG'].astype('f4')
+    magg = data['MAGG'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
     logg = data['LOGG'].astype('f4')
-    #feh = data['FEH'].astype('f4')
-    feh = np.zeros_like(teff).astype('f4') # Hack!
+    feh = data['FEH'].astype('f4')
+    templatesubtype = data['SPECTRALTYPE']
 
     nobj = len(ra)
     log.info('Read {} objects from {}'.format(nobj, mockfile))
@@ -362,7 +362,8 @@ def read_100pc(mockfile, target_type, rand=None):
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
             'Z': zz, 'MAG': magg, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-            'SEED': seed, 'FILTERNAME': filtername, 
+            'SEED': seed, 'FILTERNAME': filtername,
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir, target_type, mock_name=None):
@@ -458,43 +459,47 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
         'DECAMr_obs': :class: `numpy.ndarray`
              Apparent magnitudes in SDSS bands, including extinction.
     """
+    import multiprocessing
+
+    ncpu = max(1, multiprocessing.cpu_count() // 2)
+
     # Build iterator of all desi_galfast files
-    iter_mock_files = iter_files(mock_dir, '', ext="fits")
+    iter_mock_files = iter_files(mock_dir, '', ext='fits')
 
     # Read each file
 
-    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks
-    # due to python issue https://bugs.python.org/issue17560 where
-    # Pool.map can't return objects with more then 2**32-1 bytes:
-    # multiprocessing.pool.MaybeEncodingError: Error sending result:
-    # Reason: 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
+    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks due
+    # to python issue https://bugs.python.org/issue17560 where Pool.map can't
+    # return objects with more then 2**32-1 bytes:
+    # multiprocessing.pool.MaybeEncodingError: Error sending result: Reason:
+    # 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
     # Leaving this code here for the moment in case we fine a workaround
 
-    import multiprocessing
     log.info('Reading individual mock files')
     file_list = list(iter_mock_files)
     nfiles = len(file_list)
-    ncpu = max(1, multiprocessing.cpu_count() // 2)
-    log.info('using {} parallel readers'.format(ncpu))
+    log.info('Using {} parallel readers.'.format(ncpu))
     p = multiprocessing.Pool(ncpu)
     target_list = p.map(_load_mock_mws_file, file_list)
     p.close()
-#    log.info('Reading individual mock files')
-#    target_list = list()
-#    file_list   = list()
-#    nfiles      = 0
+    
+#   log.info('Reading individual mock files')
+#   target_list = list()
+#   file_list   = list()
+#   nfiles      = 0
 
     for mock_file in iter_mock_files:
         nfiles += 1
         data_this_file = _load_mock_mws_file(mock_file)
         target_list.append(data_this_file)
         file_list.append(mock_file)
-        log.info('read file {} {}'.format(nfiles, mock_file))
+        log.info('Read file {} {}'.format(nfiles, mock_file))
 
     if nfiles == 0:
-        raise ValueError('Unable to find files in {}'.format(mock_dir))
+        log.fatal('Unable to find files in {}'.format(mock_dir))
+        raise ValueError
 
-    log.info('Read {} files'.format(nfiles))
+    log.info('Read {} files.'.format(nfiles))
     # Concatenate all the dictionaries into a single dictionary, in an order
     # determined by np.argsort applied to the base name of each path in
     # file_list.

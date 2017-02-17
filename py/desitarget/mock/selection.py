@@ -407,12 +407,26 @@ class SelectTargets(object):
 
     """
     def __init__(self):
-        from desitarget import desi_mask, bgs_mask, mws_mask
+        from desitarget import desi_mask, bgs_mask, mws_mask, obsconditions
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
+        self.obsconditions = obsconditions
 
-    def bgs_select(self, targets):
+#    source_obsconditions = np.ones(nobj, dtype='uint16')
+#    if target_name in ['LRG', 'QSO']:
+#        source_obsconditions[:] = obsconditions.DARK
+#    if target_name in ['ELG']:
+#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
+#    if target_name in ['BGS']:
+#        source_obsconditions[:] = obsconditions.BRIGHT
+#    if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
+#        source_obsconditions[:] = obsconditions.BRIGHT
+#    if target_name in ['STD_FSTAR', 'SKY']:
+#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
+        
+
+    def bgs_select(self, targets, truth=None):
         """Select BGS targets."""
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
@@ -426,12 +440,12 @@ class SelectTargets(object):
         bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT
         bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT_SOUTH
 
-        targets['BGS_TARGET'] = bgs_target
-        targets['DESI_TARGET'] = (bgs_target != 0) * self.desi_mask.BGS_ANY
+        targets['BGS_TARGET'] |= bgs_target
+        targets['DESI_TARGET'] |= (bgs_target != 0) * self.desi_mask.BGS_ANY
             
         return targets
 
-    def elg_select(self, targets):
+    def elg_select(self, targets, truth=None):
         """Select ELG targets."""
         from desitarget.cuts import isELG
 
@@ -443,11 +457,11 @@ class SelectTargets(object):
         desi_target = elg * self.desi_mask.ELG_SOUTH
         desi_target |= elg * self.desi_mask.ELG
 
-        targets['DESI_TARGET'] = desi_target
+        targets['DESI_TARGET'] |= desi_target
             
         return targets
 
-    def lrg_select(self, targets):
+    def lrg_select(self, targets, truth=None):
         """Select LRG targets."""
         from desitarget.cuts import isLRG
 
@@ -459,18 +473,27 @@ class SelectTargets(object):
         desi_target = lrg * self.desi_mask.LRG_SOUTH
         desi_target |= lrg * self.desi_mask.LRG
 
-        targets['DESI_TARGET'] = desi_target
+        targets['DESI_TARGET'] |= desi_target
             
         return targets
 
-    def mws_select(self, targets):
-        """Select MWS targets."""
+    def mws_nearby_select(self, targets, truth=None):
+        """Select MWS_NEARBY targets.  The selection eventually will be done with Gaia,
+        so for now just do a "perfect" selection.
 
-        import pdb ; pdb.set_trace()
-            
+        """    
+        for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
+
+        mws_nearby = truth['MAG'] <= 20.0 # SDSS g-band!
+        mws_target = mws_nearby * self.mws_mask.mask('MWS_NEARBY')
+
+        targets['MWS_TARGET'] |= mws_target
+        targets['DESI_TARGET'] |= (mws_target != 0) * self.desi_mask.MWS_ANY
+        
         return targets
 
-    def qso_select(self, targets):
+    def qso_select(self, targets, truth=None):
         """Select QSO targets."""
 
         import pdb ; pdb.set_trace()

@@ -153,11 +153,13 @@ class MockSpectra(object):
         #self.__normfilter = 'decam2014-r' # default normalization filter
 
         # Initialize the templates once:
-        from desisim.templates import BGS, ELG, LRG, QSO
+        from desisim.templates import BGS, ELG, LRG, QSO, STAR, WD
         self.bgs = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
         self.elg = ELG(wave=self.wave, normfilter='decam2014-r')
         self.lrg = LRG(wave=self.wave, normfilter='decam2014-z')
         self.qso = QSO(wave=self.wave, normfilter='decam2014-g')
+        self.star = STAR(wave=self.wave, normfilter='decam2014-r')
+        self.wd = WD(wave=self.wave, normfilter='decam2014-g')
         
     def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
         """Generate spectra for BGS.
@@ -243,7 +245,7 @@ class MockSpectra(object):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.elg.make_templates(input_meta=input_meta, nocolorcuts=True)
+        flux, _, meta = self.star.make_templates(input_meta=input_meta) # Note! No colorcuts.
 
         return flux, meta
 

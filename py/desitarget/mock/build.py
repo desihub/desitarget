@@ -341,8 +341,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, data=np.zeros((nobj, 6))+99, dtype='f4'))
+    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, data=np.zeros((nobj, 6))+99, dtype='f4'))
 
     return targets
 
@@ -357,13 +357,13 @@ def empty_truth_table(nobj=1):
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
 
     truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUETYPE', length=nobj, dtype=(str, 10)))
-    truth.add_column(Column(name='TRUESUBTYPE', length=nobj, dtype=(str, 10)))
-    truth.add_column(Column(name='SOURCETYPE', length=nobj, dtype=(str, 10)))
+    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype=(str, 10))) # GALAXY, QSO, STAR, etc.
+    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype=(str, 10))) # ELG, BGS, STAR, WD, etc.
+    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype=(str, 10))) # DA, DB, etc.
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4',data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99))
     truth.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
     truth.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
 
@@ -376,41 +376,38 @@ def empty_truth_table(nobj=1):
 
     return truth
 
-def _getSourcetype(truetype):
-    """Simple utility function to convert a TRUETYPE to SOURCETYPE."""
-    true_type_map = {
-        'STD_FSTAR': 'STAR',
-        'ELG': 'GALAXY',
-        'LRG': 'GALAXY',
-        'BGS': 'GALAXY',
-        'QSO': 'QSO',
-        'STD_FSTAR': 'STAR',
-        'MWS_MAIN': 'STAR',
-        'MWS_WD': 'STAR',
-        'MWS_NEARBY': 'STAR',
-        'SKY': 'SKY',
-        }
-    sourcetype = true_type_map[truetype]
-
-    return sourcetype
-
-def _getObsconditions(nobj, target_name):
-    """Simple utility function to convert a target to OBSCONDITIONS."""
-    from desitarget import obsconditions # this only works if targetmask.py is imported first 
-
-    source_obsconditions = np.ones(nobj, dtype='uint16')
-    if target_name in ['LRG', 'QSO']:
-        source_obsconditions[:] = obsconditions.DARK
-    if target_name in ['ELG']:
-        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
-    if target_name in ['BGS']:
-        source_obsconditions[:] = obsconditions.BRIGHT
-    if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
-        source_obsconditions[:] = obsconditions.BRIGHT
-    if target_name in ['STD_FSTAR', 'SKY']:
-        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
-
-    return source_obsconditions
+#def _getTruespectype(templatetype):
+#    """Simple utility function to convert a TRUETYPE to SOURCETYPE."""
+#    truespectype_map = {
+#        'ELG':        'GALAXY',
+#        'LRG':        'GALAXY',
+#        'BGS':        'GALAXY',
+#        'QSO':        'QSO',
+#        'MWS_MAIN':   'STAR',
+#        'MWS_NEARBY': 'STAR',
+#        'MWS_WD':     'STAR',
+#        'SKY':        'SKY',
+#        }
+#        
+#    return truespectype_map[templatetype]
+#
+#def _getObsconditions(nobj, target_name):
+#    """Simple utility function to convert a target to OBSCONDITIONS."""
+#    from desitarget import obsconditions # this only works if targetmask.py is imported first 
+#
+#    source_obsconditions = np.ones(nobj, dtype='uint16')
+#    if target_name in ['LRG', 'QSO']:
+#        source_obsconditions[:] = obsconditions.DARK
+#    if target_name in ['ELG']:
+#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
+#    if target_name in ['BGS']:
+#        source_obsconditions[:] = obsconditions.BRIGHT
+#    if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
+#        source_obsconditions[:] = obsconditions.BRIGHT
+#    if target_name in ['STD_FSTAR', 'SKY']:
+#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
+#
+#    return source_obsconditions
 
 def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
@@ -563,7 +560,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        #unique_bricks = list(set(brickname[:1]))
+        #unique_bricks = list(set(brickname[:5]))
+        #print('HACK!!!!!!!!!!!!!!!!!!!!!!!!')
         #log.info(unique_bricks)
 
         nbrick = np.zeros((), dtype='i8')
@@ -602,20 +600,21 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         targets['RA'] = source_data['RA']
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
-        targets['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
+        #targets['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
         
-        truth['TRUETYPE'] = source_name
-        truth['TRUEZ'] = source_data['Z'].astype('f4')
         truth['MOCKID'] = source_data['MOCKID']
-        truth['SOURCETYPE'] = _getSourcetype(source_name)
+        truth['TRUEZ'] = source_data['Z'].astype('f4')
+        truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
+        truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
+        truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
 
         # Select targets and get the targeting bits.
-        selection_function = '{}_select'.format(source_name.lower())
+        selection_function = '{}_select'.format(target_name.lower())
         log.info('Selecting {} targets using {} function.'.format(source_name, selection_function))
 
+        getattr(SelectTargets, selection_function)(targets, truth)
         #import pdb ; pdb.set_trace()
-
-        targets = getattr(SelectTargets, selection_function)(targets)
+        
         keep = targets['DESI_TARGET'] != 0
 
         alltargets.append(targets[keep])
