@@ -250,8 +250,9 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     Returns
     -------
     :class:`recarray`
-        The bright star mask in the form RA,DEC,RADIUS (may also be written to file if outfilename is passed)
+        The bright star mask in the form RA,DEC,TARGETID,RADIUS (may also be written to file if outfilename is passed)
         radius is in ARCMINUTES
+        TARGETID is as calculated in desitarget.targets.py
     Notes
     -----
     Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band):
@@ -296,9 +297,12 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     #ADM to determine the truly correct numbers for DESI
     radius = (0.0802*mags*mags - 1.860*mags + 11.625)
 
-    #ADM create an output recarray that is just RA, Dec and the radius
+    #ADM calculate the TARGETID
+    targetid = objs['BRICKID'].astype(np.int64)*1000000 + objs['OBJID']
+
+    #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
     done = objs[['RA','DEC']].copy()
-    done = rfn.append_fields(done,"RADIUS",radius,usemask=False,dtypes='<f4')
+    done = rfn.append_fields(done,["TARGETID","RADIUS"],[targetid,radius],usemask=False,dtypes=['>i8','<f4'])
 
     if outfilename is not None:
         fitsio.write(outfilename, starstruc, clobber=True)
@@ -345,7 +349,26 @@ def is_in_bright_star(targs,starmask):
     return done
 
 
+def set_target_bits(targs,starmask):
+    """Perform target selection on objects, returning target mask arrays
 
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+
+    Returns:
+    --------
+        an ndarray of target selection bitmask flags for each object
+                                                                                                                                                      
+    To Do:
+    ------
+        Currently sets IN_BRIGHT_OBJECT but should also use the TARGETID to set BRIGHT_OBJECT
+
+    See desitarget.targetmask for the definition of each bit
+    """
 
 
 
