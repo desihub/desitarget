@@ -7,6 +7,7 @@ import numpy as np
 
 from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options
+from desitarget.brightstar import mask_targets
 
 import warnings
 warnings.simplefilter('error')
@@ -24,7 +25,7 @@ ap.add_argument('-s', "--starmask", action='store_true',help="Mask the targets f
 ap.add_argument("--starmaskfile", 
                 help='File containing bright object mask if -s (--starmask) is sent. If not sent, star mask is built from files in src directory')
 ap.add_argument("--starmaskbands", 
-                help='Bands to use to build the star mask if -s (--starmask) is sent but --starmaskfile is not (e.g. GRZ)')
+                help='Bands to use to build the star mask if -s (--starmask) is sent but --starmaskfile is not (e.g. GRZ)',
                 default="GRZ")
 ap.add_argument("--starmaskmaglim",
                 help='Magnitude limits for building the star mask if -s (--starmask) is sent but --starmaskfile is not (e.g. 10,10,10)',
