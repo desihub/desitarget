@@ -375,7 +375,7 @@ def set_target_bits(targs,starmask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[9,9,9],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
+def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
     """Add bits for whether objects are in a bright star mask to list of targets
 
     Parameters
@@ -407,8 +407,14 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[9,9,9],numproc=4,
         Send to write progress to screen
 
     Returns:
+    --------
         targets numpy structured array: the input targets with the DESI_TARGET column 
         updated to reflect the BRIGHT_OBJECT bits.
+
+    Notes: 
+    ------
+        Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10) 
+        (not including 5-10 minutes to build the star mask from scratch)
     """
 
     t0 = time()

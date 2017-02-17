@@ -20,7 +20,18 @@ ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
-ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms.")
+ap.add_argument('-s', "--starmask", action='store_true',help="Mask the targets for bright objects")
+ap.add_argument("--starmaskfile", 
+                help='File containing bright object mask if -s (--starmask) is sent. If not sent, star mask is built from files in src directory')
+ap.add_argument("--starmaskbands", 
+                help='Bands to use to build the star mask if -s (--starmask) is sent but --starmaskfile is not (e.g. GRZ)')
+                default="GRZ")
+ap.add_argument("--starmaskmaglim",
+                help='Magnitude limits for building the star mask if -s (--starmask) is sent but --starmaskfile is not (e.g. 10,10,10)',
+                default="10,10,10")
+ap.add_argument("--starmaskoutfile",
+                help='Output file name to which to write star mask if -s (--starmask) is sent but --starmaskfile is not')
+ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms")
 ap.add_argument("--FoMthresh", type=float,help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
@@ -37,6 +48,8 @@ if len(infiles) == 0:
     print('FATAL: no sweep or tractor files found')
     sys.exit(1)
 
+maglim = ns.starmaskmaglim.split(',')
+
 if ns.check:
     print('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
@@ -44,6 +57,9 @@ if ns.check:
 else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
+    if ns.starmask:
+        targets = mask_targets(targets,instarmaskfile=ns.starmaskfile,bands=ns.starmaskbands,maglim=maglim,numproc=ns.numproc,
+                               rootdir=ns.src,outfilename=ns.starmaskoutfile,verbose=ns.verbose)
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
