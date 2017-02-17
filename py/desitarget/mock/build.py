@@ -22,9 +22,6 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table, Column, vstack
 
-#from desiutil.io import encode_table
-
-#from desispec.brick import brickname as get_brickname_from_radec
 from desispec.log import get_logger, DEBUG
 from desispec.io.util import fitsheader, write_bintable
 
@@ -40,13 +37,14 @@ class BrickInfo(object):
 
     """
     def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 359.99, -89.99, 89.99),
-                 decals_brick_info=None, target_names=None):
+                 bricksize=2.0, decals_brick_info=None, target_names=None):
         """Initialize the class.
 
         Args:
           random_state : random number generator object
           dust_dir : path where the E(B-V) maps are stored
           bounds : brick boundaries
+          bricksize : brick size (default 2 deg, square)
           decals_brick_info : filename of the DECaLS brick information structure
           target_names : list of targets (e.g., BGS, ELG, etc.)
 
@@ -57,6 +55,7 @@ class BrickInfo(object):
 
         self.dust_dir = dust_dir
         self.bounds = bounds
+        self.bricksize = bricksize
         self.decals_brick_info = decals_brick_info
         self.target_names = target_names
 
@@ -70,7 +69,7 @@ class BrickInfo(object):
         from desispec.brick import Bricks
         min_ra, max_ra, min_dec, max_dec = self.bounds
 
-        B = Bricks()
+        B = Bricks(bricksize=self.bricksize)
         brick_info = {}
         brick_info['BRICKNAME'] = []
         brick_info['RA'] = []
@@ -108,9 +107,9 @@ class BrickInfo(object):
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
 
-        log.info('Generating brick information for {} brick(s) with boundaries RA={}, {}, Dec={}, {}.'.\
+        log.info('Generating brick information for {} brick(s) with boundaries RA={}, {}, Dec={}, {} and bricksize {} deg.'.\
                  format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
-                        self.bounds[2], self.bounds[3]))
+                        self.bounds[2], self.bounds[3], self.bricksize))
             
         return brick_info
 
@@ -424,7 +423,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     #onbrick = onbrick[:100]
     nobj = len(onbrick)
 
-    log.info('{}, {} objects'.format(thisbrick, nobj))
+    #log.info('{}, {} objects'.format(thisbrick, nobj))
     
     if (nbrick != 1) or (nobj == 0):
         log.warning('No matching brick or no matching objects in brick {}!'.format(thisbrick))
@@ -494,7 +493,8 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     
     #import pdb ; pdb.set_trace()
 
-def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verbose=True):
+def targets_truth(params, output_dir, realtargets=None, seed=None,
+                  bricksize=2.0, nproc=4, verbose=True):
     """
     Write
 
@@ -524,7 +524,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         bounds=(0.0, 359.99, -89.99, 89.99)
         
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
-                           decals_brick_info=params['decals_brick_info'],
+                           bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys())).build_brickinfo()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
@@ -562,14 +562,17 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         unique_bricks = list(set(brickname))
         #unique_bricks = list(set(brickname[:5]))
         #print('HACK!!!!!!!!!!!!!!!!!!!!!!!!')
-        #log.info(unique_bricks)
+        log.info('Assigned objects to {} unique bricks.'.format(len(unique_bricks)))
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
-            if verbose and nbrick % 5 == 0 and nbrick > 0:
-                rate = (time() - t0) / nbrick
-                print('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
+            if nbrick % 5 == 0 and nbrick > 0:
+            #if verbose and nbrick % 5 == 0 and nbrick > 0:
+                rate = nbrick / (time() - t0)
+                log.info('{} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
+                #rate = (time() - t0) / nbrick
+                #print('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
             nbrick[...] += 1    # this is an in-place modification
             return result
     
@@ -654,6 +657,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
         seed1 = seed
     truthhdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed'),
+        BRICKSZ = (bricksize, 'bricksize'),
         BUNIT = ('Angstrom', 'wavelength units'),
         AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
@@ -903,65 +907,66 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, nproc=4, verb
 #        
 #        truth.write(truth_filename, overwrite=True)
 #        print('Finished writing Truth file')
-
-def add_galdepths(mocktargets, brickinfo):
-    '''
-    Add GALDEPTH_R and DEPTH_R.
-    Modifies mocktargets by adding columns.
-    DEPTHS are constant across bricks.
-    '''
-    n = len(mocktargets)
-    if 'DEPTH_R' not in mocktargets.dtype.names:
-        mocktargets['DEPTH_R'] = 99.0*np.ones(n, dtype='f4')
-
-    if 'GALDEPTH_R' not in mocktargets.dtype.names:
-        mocktargets['GALDEPTH_R'] = 99.0*np.ones(n, dtype='f4')
-
-    # create dictionary with targets per brick
-    
-    bricks = get_brickname_from_radec(mocktargets['RA'], mocktargets['DEC'])
-    unique_bricks = list(set(bricks))
-    lookup = mockselect.make_lookup_dict(bricks)
-    n_brick = len(unique_bricks)
-    i_brick = 0
-    for brickname in unique_bricks:
-        in_brick = np.array(lookup[brickname])
-        i_brick += 1
-#       print('brick {} out of {}'.format(i_brick,n_brick))                
-        id_binfo  = (brickinfo['BRICKNAME'] == brickname)
-        if np.count_nonzero(id_binfo) == 1:
-            mocktargets['DEPTH_R'][in_brick] = brickinfo['DEPTH_R'][id_binfo]
-            mocktargets['GALDEPTH_R'][in_brick] = brickinfo['GALDEPTH_R'][id_binfo]
-        else:
-            warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
-
-def add_OIIflux(targets, truth, random_state=None):
-    '''
-    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
-    
-    Args:
-        targets: target selection catalog Table or structured array
-        truth: target selection catalog Table
-    
-    Note: Modifies truth table in place by adding OIIFLUX column
-
-    '''
-    if random_state is None:
-        random_state = np.random.RandomState()
-        
-    assert np.all(targets['TARGETID'] == truth['TARGETID'])
-
-    ntargets = len(targets)
-    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
-    
-    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
-    nELG = np.count_nonzero(isELG)
-
-    #- TODO: make this a meaningful distribution
-    #- At low redshift and low flux, r-band flux sets an approximate
-    #- upper limit on [OII] flux, but no lower limit; treat as uniform
-    #- within a r-flux dependent upper limit
-    rflux = targets['DECAM_FLUX'][isELG][:,2]
-    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
-    truth['OIIFLUX'][isELG] = maxflux * random_state.uniform(0,1.0,size=nELG)
-
+#
+#def add_galdepths(mocktargets, brickinfo):
+#    '''
+#    Add GALDEPTH_R and DEPTH_R.
+#    Modifies mocktargets by adding columns.
+#    DEPTHS are constant across bricks.
+#    '''
+#    n = len(mocktargets)
+#    if 'DEPTH_R' not in mocktargets.dtype.names:
+#        mocktargets['DEPTH_R'] = 99.0*np.ones(n, dtype='f4')
+#
+#    if 'GALDEPTH_R' not in mocktargets.dtype.names:
+#        mocktargets['GALDEPTH_R'] = 99.0*np.ones(n, dtype='f4')
+#
+#    # create dictionary with targets per brick
+#    
+#    bricks = get_brickname_from_radec(mocktargets['RA'], mocktargets['DEC'])
+#    unique_bricks = list(set(bricks))
+#    lookup = mockselect.make_lookup_dict(bricks)
+#    n_brick = len(unique_bricks)
+#    i_brick = 0
+#    for brickname in unique_bricks:
+#        in_brick = np.array(lookup[brickname])
+#        i_brick += 1
+##       print('brick {} out of {}'.format(i_brick,n_brick))                
+#        id_binfo  = (brickinfo['BRICKNAME'] == brickname)
+#        if np.count_nonzero(id_binfo) == 1:
+#            mocktargets['DEPTH_R'][in_brick] = brickinfo['DEPTH_R'][id_binfo]
+#            mocktargets['GALDEPTH_R'][in_brick] = brickinfo['GALDEPTH_R'][id_binfo]
+#        else:
+#            warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
+#
+#def add_OIIflux(targets, truth, random_state=None):
+#    '''
+#    PLACEHOLDER: add fake OIIFLUX entries to truth for ELG targets
+#    
+#    Args:
+#        targets: target selection catalog Table or structured array
+#        truth: target selection catalog Table
+#    
+#    Note: Modifies truth table in place by adding OIIFLUX column
+#
+#    '''
+#    if random_state is None:
+#        random_state = np.random.RandomState()
+#        
+#    assert np.all(targets['TARGETID'] == truth['TARGETID'])
+#
+#    ntargets = len(targets)
+#    truth['OIIFLUX'] = np.zeros(ntargets, dtype=float)
+#    
+#    isELG = (targets['DESI_TARGET'] & desi_mask.ELG) != 0
+#    nELG = np.count_nonzero(isELG)
+#
+#    #- TODO: make this a meaningful distribution
+#    #- At low redshift and low flux, r-band flux sets an approximate
+#    #- upper limit on [OII] flux, but no lower limit; treat as uniform
+#    #- within a r-flux dependent upper limit
+#    rflux = targets['DECAM_FLUX'][isELG][:,2]
+#    maxflux = np.clip(3e-16*rflux, 0, 7e-16)
+#    truth['OIIFLUX'][isELG] = maxflux * random_state.uniform(0,1.0,size=nELG)
+#
+#

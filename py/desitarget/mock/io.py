@@ -297,19 +297,12 @@ def make_mockid(objid, n_per_file):
 
     return encode_rownum_filenum(objid, filenum)
 
-def read_100pc(mockfile, target_type, rand=None):
-#def read_100pc(mock_dir, target_type, mock_name=None):
-    """ Reads a single-file GUMS-based mock that includes 'big brick'
-    bricknames as in the Galaxia and Galfast mocks.
+def read_100pc(mockfile, target_name=None, rand=None):
+    """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
+    no white dwarfs).
 
-    Parameters:
-    ----------
-    root_mock_dir: :class:`str`
-        Path to the mock file.
-
-    mock_name: :class:`str`
-        Optional name of the mock file.
-        default: 'mock_100pc'
+    Args:
+        mockfile: :class:`str`: Full-path filename to the mock.
 
     brickname_list:
         Optional list of specific bricknames to read.
@@ -326,6 +319,7 @@ def read_100pc(mockfile, target_type, rand=None):
             Heliocentric radial velocity divided by the speed of light.
         'magg': :class: `numpy.ndarray`
             Apparent magnitudes in Gaia G band
+
     """
     try:
         os.stat(mockfile)
@@ -366,7 +360,7 @@ def read_100pc(mockfile, target_type, rand=None):
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_wd(mock_dir, target_type, mock_name=None):
+def read_wd(mock_dir, target_name, mock_name=None):
     """ Reads a single-file GUMS-based mock that includes 'big brick'
     bricknames as in the Galaxia and Galfast mocks.
     It only includes white dwarfs.
@@ -430,7 +424,7 @@ def read_wd(mock_dir, target_type, mock_name=None):
     return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
             'g_sdss': g_sdss, 'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_galaxia(mock_dir, target_type, mock_name=None):
+def read_galaxia(mock_dir, target_name, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -535,7 +529,7 @@ def read_galaxia(mock_dir, target_type, mock_name=None):
 
     return full_data
 
-def read_lya(mock_dir, target_type, mock_name=None):
+def read_lya(mock_dir, target_name, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
 
     Parameters:
@@ -611,7 +605,7 @@ def read_lya(mock_dir, target_type, mock_name=None):
 
     return full_data
 
-def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
+def read_gaussianfield(mock_dir, target_name, mock_name=None, rand=None):
     """Reads preliminary mocks (positions only) for the dark time survey.
 
     Parameters:
@@ -633,7 +627,7 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
     
     """
     if mock_name is None:
-        filename = os.path.join(mock_dir, target_type+'.fits')
+        filename = os.path.join(mock_dir, target_name+'.fits')
     else:
         filename = os.path.join(mock_dir, mock_name+'.fits')
 
@@ -671,40 +665,40 @@ def read_gaussianfield(mock_dir, target_type, mock_name=None, rand=None):
            'Z': zz, 'SEED': seed, 'FILES': files, 'N_PER_FILE': n_per_file}
         
     # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
-    if target_type == 'SKY':
+    if target_name == 'SKY':
         import pdb ; pdb.set_trace()
 
     else:
         GMM = SampleGMM(random_state=rand)
-        mags = GMM.sample(target_type, nobj) # [g, r, z, w1, w2, w3, w4]
+        mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
     
-        if target_type == 'ELG':
+        if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
             filtername = 'decam2014-r'
             vdisp = 10**rand.normal(1.9, 0.15, nobj)
             out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
                         'RZ': mags[:, 1]-mags[:, 2], 'FILTERNAME': filtername})
 
-        elif target_type == 'LRG':
+        elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
             filtername = 'decam2014-z'
             vdisp = 10**rand.normal(2.3, 0.1, nobj)
             out.append({'VDISP': vdisp, 'MAG': mags[:, 2], 'RZ': mags[:, 1]-mags[:, 2],
                         'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
             
-        elif target_type == 'QSO':
+        elif target_name == 'QSO':
             """Selected in the r-band (or g-band?!?!) with XXX colors."""
             filtername = 'decam2014-r'
             magnorm = mags[:, 1] # z-band
             out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
                         'RZ': mags[:, 1]-mags[:, 2], 'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
         else:
-            log.warning('Unrecognized target type {}!'.format(target_type))
+            log.warning('Unrecognized target type {}!'.format(target_name))
             import pdb ; pdb.set_trace()
 
     return out
 
-def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, rand=None):
+def read_durham_mxxl_hdf5(mock_dir, target_name, mock_name=None, rand=None):
     """ Reads mock information for MXXL bright time survey galaxies.
 
     Args:
@@ -722,7 +716,7 @@ def read_durham_mxxl_hdf5(mock_dir, target_type, mock_name=None, rand=None):
         FILTERNAME      : filter name corresponding to MAG
 
     """
-    filename = os.path.join(mock_dir, target_type+'.hdf5')
+    filename = os.path.join(mock_dir, target_name+'.hdf5')
     f = h5py.File(filename)
     ra  = f["Data/ra"][...].astype('f8') % 360.0
     dec = f["Data/dec"][...].astype('f8')
