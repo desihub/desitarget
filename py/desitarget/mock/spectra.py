@@ -249,3 +249,29 @@ class MockSpectra(object):
 
         return flux, meta
 
+    def mws_wd(self, data, index=None, mockformat='wd'):
+        """Generate spectra for the MWS_WD sample.
+
+        """
+        print('NEED TO DO WD SUBTYPES!!!!!')
+        objtype = 'WD'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG')):
+            input_meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() == 'wd':
+            alldata = np.vstack((data['TEFF'][index],
+                                 data['LOGG'][index])).T
+            _, templateid = self.tree.query(objtype, alldata)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        input_meta['TEMPLATEID'] = templateid
+        flux, _, meta = self.wd.make_templates(input_meta=input_meta) # Note! No colorcuts.
+
+        return flux, meta
+

@@ -5,12 +5,12 @@
 desitarget.mock.io
 ==================
 
-Handles mock data to build target catalogs.
+Code to read in all the mock data.
+
 """
-from __future__ import (absolute_import, division, print_function)
-#
+from __future__ import absolute_import, division, print_function
+
 import os
-import h5py
 import numpy as np
 
 import fitsio
@@ -22,12 +22,12 @@ from desispec.brick import brickname as get_brickname_from_radec
 from desispec.log import get_logger, DEBUG
 log = get_logger(DEBUG)
 
-"""
-How to distribute 52 user bits of targetid.
+"""How to distribute 52 user bits of targetid.
 
 Used to generate target IDs as combination of input file and row in input file.
 Sets the maximum number of rows per input file for mocks using this scheme to
 generate target IDs
+
 """
 # First 32 bits are row
 ENCODE_ROW_END     = 32
@@ -41,11 +41,13 @@ ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 C_LIGHT = 299792.458
 
 def print_all_mocks_info(params):
-    """
-    Prints parameters to read mock files.
+    """Prints parameters to read mock files.
+    
     Parameters
     ----------
-        params (dictionary) The different kind of sources are stored under the 'sources' key.
+        params : dict
+            The different kind of sources are stored under the 'sources' key.
+    
     """
     log.info('The following populations and paths are specified:')
     for source_name in sorted(params['sources'].keys()):
@@ -57,23 +59,27 @@ def print_all_mocks_info(params):
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params, rand=None):
-    """
-    Prints parameters to read mock files.
+def load_all_mocks(params, rand=None, bricksize=0.25):
+    """Read all the mocks.
+
     Parameters
     ----------
-    params (dictionary) The different kind of sources are stored under the 'sources' key.
+    params : dict
+        The different kind of sources are stored under the 'sources' key.
+    rand : numpy.RandomState
+        RandomState object used for the random number generation. 
     
     Returns
     -------
-        source_data_all (dictionary). The keys correspond to the different input 'sources'
-        stored under params['sources'].keys()
+    source_data_all : dict
+        The keys correspond to the different input 'sources' stored under
+        params['sources'].keys()
+
     """
     if rand is None:
         rand = np.random.RandomState()
 
-    # Make sure fitsio is up to date.
-    check_fitsio_version()
+    check_fitsio_version() # Make sure fitsio is up to date.
 
     source_data_all = {}
     loaded_mocks = list()
@@ -104,7 +110,7 @@ def load_all_mocks(params, rand=None):
             #loaded_mocks[this_name] = source_name
 
             func = globals()[read_function]
-            result = func(mock_dir_name, target_name, rand=rand)
+            result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize)
             #result = func(source_path, target_name, mock_name=mock_name, rand=rand)
 
             #import pdb ; pdb.set_trace()
@@ -136,6 +142,266 @@ def load_all_mocks(params, rand=None):
 
     log.info('Loaded {} mock catalog(s).'.format(len(source_data_all)))
     return source_data_all
+
+def encode_rownum_filenum(rownum, filenum):
+    """Encodes row and file number in 52 packed bits.
+
+    Parameters
+    ----------
+    rownum : int
+        Row in input file.
+    filenum : int
+        File number in input file set.
+
+    Returns
+    -------
+    encoded value(s) : int64 numpy.ndarray
+        52 packed bits encoding row and file number.
+
+    """
+    assert(np.shape(rownum) == np.shape(filenum))
+    assert(np.all(rownum  >= 0))
+    assert(np.all(rownum  <= int(ENCODE_ROW_MAX)))
+    assert(np.all(filenum >= 0))
+    assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
+
+    # This should be a 64 bit integer.
+    encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum, dtype=np.uint64)
+
+    # Note return signed
+    return np.asarray(encoded_value, dtype=np.int64)
+
+def decode_rownum_filenum(encoded_values):
+    """Inverts encode_rownum_filenum to obtain row number and file number.
+
+    Parameters
+    ----------
+    encoded_values(s) : int64 ndarray
+
+    Returns
+    -------
+    filenum : str
+        File number.
+    rownum : int
+        Row number.
+
+    """
+    filenum = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_FILE_MASK) >> ENCODE_ROW_END
+    rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
+    return rownum, filenum
+
+def make_mockid(objid, n_per_file):
+    """
+    Computes mockid from row and file IDs.
+    
+    Parameters
+    ----------
+    objid : int array
+        Row identification number.
+    n_per_file : int list
+        Number of items per file that went into objid.
+    
+    Returns
+    -------
+    mockid : int array
+        Encoded row and file ID.
+    
+    """
+    n_files = len(n_per_file)
+    n_obj = len(objid)
+
+    n_p_file = np.array(n_per_file)
+    n_per_file_cumsum = n_p_file.cumsum()
+
+    filenum = np.zeros(n_obj, dtype='int64')
+    for n in range(1,n_files):
+        filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
+
+    return encode_rownum_filenum(objid, filenum)
+
+def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
+    """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
+    no white dwarfs).
+
+    Parameters
+    ----------
+    mock_dir_name : str
+        Complete path and filename of the mock catalog.
+    target_name : str
+        Target name (not used; defaults to `STAR`).
+    rand : numpy.RandomState
+        RandomState object used for the random number generation.
+    bricksize : float
+        Size of each brick in deg.
+
+    Returns
+    -------
+    Dictionary with the following entries.
+        'OBJID' : int64 numpy.ndarray
+            Object identification number for each file in mock_dir_name.
+        'MOCKID': int numpy.ndarray
+            Unique mock identification number.
+        'RA': numpy.ndarray
+            RA positions for the objects in the mock.
+        'DEC' : numpy.ndarray
+            DEC positions for the objects in the mock.
+        'Z' : numpy.ndarray
+            Heliocentric radial velocity divided by the speed of light.
+        'BRICKNAME' : str numpy.ndarray
+            Brick name assigned according to RA, Dec coordinates.
+        'SEED' : int numpy.ndarray
+            Random seed used in the template-generating code.
+        'MAG': numpy.ndarray
+            Apparent magnitude in SDSS g-band(???).
+        'TEFF': numpy.ndarray
+            Effective stellar temperature (K).
+        'LOGG': numpy.ndarray
+            Surface gravity (cm/s**2).
+        'FEH': numpy.ndarray
+            Logarithmic iron abundance relative to solar.
+        'FILTERNAME': str
+            Filter name corresponding to mag (used to normalize the spectra). 
+        'TRUESPECTYPE': str
+            Set to `STAR` for this whole sample.
+        'TEMPLATETYPE': str
+            Set to `STAR` for this whole sample.
+        'TEMPLATESUBTYPE': numpy.ndarray
+            Spectral class for each object (e.g., GV) based on the GUMS mock.
+        'FILES': str list
+            List of all mock file(s) read.
+        'N_PER_FILE': int list
+            Number of mock targets per file.
+
+    """
+    try:
+        os.stat(mock_dir_name)
+    except:
+        log.fatal('Mock file {} not found!'.format(mock_dir_name))
+        raise(IOError)
+
+    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG',
+            'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
+    data = fitsio.read(mock_dir_name, ext=1, upper=True, columns=cols)
+
+    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec = data['DEC'].astype('f8')
+    zz = data['RADIALVELOCITY'].astype('f4') / C_LIGHT
+    mag = data['MAGG'].astype('f4') # SDSS g-band
+    teff = data['TEFF'].astype('f4')
+    logg = data['LOGG'].astype('f4')
+    feh = data['FEH'].astype('f4')
+    templatesubtype = data['SPECTRALTYPE']
+
+    nobj = len(ra)
+    log.info('Read {} objects from {}'.format(nobj, mock_dir_name))
+
+    files = list()
+    files.append(mock_dir_name)
+    n_per_file = list()
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
+
+    seed = rand.randint(2**32, size=nobj)
+    filtername = 'sdss2010-g' # ????
+
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
+            'FILTERNAME': filtername, 'TRUESPECTYPE': 'STAR',
+            'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
+            'FILES': files, 'N_PER_FILE': n_per_file}
+
+def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
+    """Read a single-file GUMS-based mock of white dwarfs.
+
+    Parameters
+    ----------
+    mock_dir_name : str
+        Complete path and filename of the mock catalog.
+    target_name : str
+        Target name (not used; defaults to `STAR`).
+    rand : numpy.RandomState
+        RandomState object used for the random number generation. 
+    bricksize : float
+        Size of each brick in deg.
+
+    Returns
+    -------
+    Dictionary with the following entries.
+        'OBJID' : int64 numpy.ndarray
+            Object identification number for each file in mock_dir_name.
+        'MOCKID': int numpy.ndarray
+            Unique mock identification number.
+        'RA': numpy.ndarray
+            RA positions for the objects in the mock.
+        'DEC' : numpy.ndarray
+            DEC positions for the objects in the mock.
+        'Z' : numpy.ndarray
+            Heliocentric radial velocity divided by the speed of light.
+        'BRICKNAME' : str numpy.ndarray
+            Brick name assigned according to RA, Dec coordinates.
+        'SEED' : int numpy.ndarray
+            Random seed used in the template-generating code.
+        'MAG': numpy.ndarray
+            Apparent magnitude in the SDSS g-band.
+        'TEFF': numpy.ndarray
+            Effective stellar temperature (K).
+        'LOGG': numpy.ndarray
+            Surface gravity (cm/s**2).
+        'FILTERNAME': str
+            Filter name corresponding to mag (used to normalize the spectra). 
+        'TRUESPECTYPE': str
+            Set to `STAR` for this whole sample.
+        'TEMPLATETYPE': str
+            Set to `WD` for this whole sample.
+        'TEMPLATESUBTYPE': numpy.ndarray
+            Spectral class for each object (DA vs DB) based on the GUMS mock. 
+        'FILES': str list
+            List of all mock file(s) read.
+        'N_PER_FILE': int list
+            Number of mock targets per file.
+
+    """
+    try:
+        os.stat(mock_dir_name)
+    except:
+        log.fatal('Mock file {} not found!'.format(mock_dir_name))
+        raise(IOError)
+
+    cols = ['RA','DEC','RADIALVELOCITY', 'G_SDSS',
+            'TEFF', 'LOGG', 'SPECTRALTYPE']
+    data = fitsio.read(mock_dir_name, ext=1, upper=True, columns=cols)
+    
+    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec = data['DEC'].astype('f8')
+    zz = data['RADIALVELOCITY'].astype('f4') / C_LIGHT
+    mag = data['G_SDSS'].astype('f4') # SDSS g-band
+    teff = data['TEFF'].astype('f4')
+    logg = data['LOGG'].astype('f4')
+    templatesubtype = data['SPECTRALTYPE']
+
+    nobj = len(ra)
+    log.info('Read {} objects from {}'.format(nobj, mock_dir_name))
+
+    files = list()
+    files.append(mock_dir_name)
+    n_per_file = list()
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
+
+    seed = rand.randint(2**32, size=nobj)
+    filtername = 'sdss2010-g'
+
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 
+            'FILTERNAME': filtername, 'TRUESPECTYPE': 'STAR',
+            'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype, 
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 def _load_mock_mws_file(filename):
     """
@@ -238,191 +504,6 @@ def _load_mock_lya_file(filename):
     ra          = ra % 360.0 #enforce 0 < ra < 360
 
     return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z': z}
-
-def encode_rownum_filenum(rownum, filenum):
-    """Encodes row and file number in 52 packed bits.
-
-    Parameters:
-        rownum (int): Row in input file
-        filenum (int): File number in input file set
-
-    Return:
-        encoded value(s) (int64 ndarray):
-            52 packed bits encoding row and file number
-    """
-    assert(np.shape(rownum) == np.shape(filenum))
-    assert(np.all(rownum  >= 0))
-    assert(np.all(rownum  <= int(ENCODE_ROW_MAX)))
-    assert(np.all(filenum >= 0))
-    assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
-
-    # This should be a 64 bit integer.
-    encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum, dtype=np.uint64)
-
-    # Note return signed
-    return np.asarray(encoded_value, dtype=np.int64)
-
-def decode_rownum_filenum(encoded_values):
-    """Inverts encode_rownum_filenum to obtain row number and file number.
-
-    Parameters:
-        encoded_values(s) (int64 ndarray)
-
-    Return:
-        (filenum, rownum) (int)
-    """
-    filenum = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_FILE_MASK) >> ENCODE_ROW_END
-    rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
-    return rownum,filenum
-
-def make_mockid(objid, n_per_file):
-    """
-    Computes mockid from row and file ids.
-    Parameters:
-        objid (int array): Row ID.
-        n_per_file (int list): Number of items per file that went into objid.
-    Return:
-        mockid (int array): encoded row and file ID.
-    """
-    
-    n_files = len(n_per_file)
-    n_obj = len(objid)
-
-    n_p_file = np.array(n_per_file)
-    n_per_file_cumsum = n_p_file.cumsum()
-
-    filenum = np.zeros(n_obj, dtype='int64')
-    for n in range(1,n_files):
-        filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
-
-    return encode_rownum_filenum(objid, filenum)
-
-def read_100pc(mockfile, target_name=None, rand=None):
-    """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
-    no white dwarfs).
-
-    Args:
-        mockfile: :class:`str`: Full-path filename to the mock.
-
-    brickname_list:
-        Optional list of specific bricknames to read.
-
-    Returns:
-    -------
-    Dictionary with the following entries.
-
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'magg': :class: `numpy.ndarray`
-            Apparent magnitudes in Gaia G band
-
-    """
-    try:
-        os.stat(mockfile)
-    except:
-        log.fatal('Mock file {} not found!'.format(mockfile))
-        raise(IOError)
-
-    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
-
-    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
-    zz = data['RADIALVELOCITY'].astype('f4')/C_LIGHT
-    magg = data['MAGG'].astype('f4') # SDSS g-band
-    teff = data['TEFF'].astype('f4')
-    logg = data['LOGG'].astype('f4')
-    feh = data['FEH'].astype('f4')
-    templatesubtype = data['SPECTRALTYPE']
-
-    nobj = len(ra)
-    log.info('Read {} objects from {}'.format(nobj, mockfile))
-
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
-    brickname = get_brickname_from_radec(ra, dec)
-
-    seed = rand.randint(2**32, size=nobj)
-    filtername = 'sdss2010-g' # ????
-
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
-            'Z': zz, 'MAG': magg, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-            'SEED': seed, 'FILTERNAME': filtername,
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
-            'FILES': files, 'N_PER_FILE': n_per_file}
-
-def read_wd(mock_dir, target_name, mock_name=None):
-    """ Reads a single-file GUMS-based mock that includes 'big brick'
-    bricknames as in the Galaxia and Galfast mocks.
-    It only includes white dwarfs.
-
-    Parameters:
-    ----------
-    root_mock_dir: :class:`str`
-        Path to the mock file.
-
-    mock_name: :class:`str`
-        Optional name of the mock file.
-        default: 'mock_wd100pc'
-
-    brickname_list:
-        Optional list of specific bricknames to read.
-
-    Returns:
-    -------
-    Dictionary with the following entries.
-
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'magg': :class: `numpy.ndarray`
-            Apparent magnitudes in Gaia G band
-    """
-    if mock_name is None:
-        filename  = os.path.join(mock_dir,'mock_wd.fits')
-    else:
-        if '.fits' in mock_name:
-            filename = os.path.join(mock_dir, mock_name)
-        else:
-            filename = os.path.join(mock_dir, mock_name+'.fits')
-
-    data = fitsio.read(filename,
-                       columns= ['RA','DEC','radialvelocity','g_sdss'], ext=1)
-
-
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    v_helio     = data['radialvelocity'].astype('f8')
-    g_sdss        = data['g_sdss'].astype('f8')
-
-    files = list()
-    files.append(filename)
-    n_per_file = list()
-    n_per_file.append(len(ra))
-
-
-    n = len(ra)
-    objid = np.arange(n, dtype='i8')
-
-    log.info('read {} objects'.format(n_per_file[0]))
-    log.info('making mockid id')
-    mockid = make_mockid(objid, n_per_file)
-    log.info('finished making mockid id')
-    
-    return {'objid': objid, 'MOCKID': mockid, 'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
-            'g_sdss': g_sdss, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir, target_name, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
@@ -716,6 +797,8 @@ def read_durham_mxxl_hdf5(mock_dir, target_name, mock_name=None, rand=None):
         FILTERNAME      : filter name corresponding to MAG
 
     """
+    import h5py
+
     filename = os.path.join(mock_dir, target_name+'.hdf5')
     f = h5py.File(filename)
     ra  = f["Data/ra"][...].astype('f8') % 360.0
@@ -772,6 +855,8 @@ def read_mock_durham(core_filename, photo_filename):
         desitarget.cuts.select_targets()
     
     """
+    import h5py
+
     fin_core = h5py.File(core_filename, "r")
     fin_mags = h5py.File(photo_filename, "r")
 

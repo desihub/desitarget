@@ -37,14 +37,14 @@ class BrickInfo(object):
 
     """
     def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 359.99, -89.99, 89.99),
-                 bricksize=2.0, decals_brick_info=None, target_names=None):
+                 bricksize=0.25, decals_brick_info=None, target_names=None):
         """Initialize the class.
 
         Args:
           random_state : random number generator object
           dust_dir : path where the E(B-V) maps are stored
           bounds : brick boundaries
-          bricksize : brick size (default 2 deg, square)
+          bricksize : brick size (default 0.25 deg, square)
           decals_brick_info : filename of the DECaLS brick information structure
           target_names : list of targets (e.g., BGS, ELG, etc.)
 
@@ -375,39 +375,6 @@ def empty_truth_table(nobj=1):
 
     return truth
 
-#def _getTruespectype(templatetype):
-#    """Simple utility function to convert a TRUETYPE to SOURCETYPE."""
-#    truespectype_map = {
-#        'ELG':        'GALAXY',
-#        'LRG':        'GALAXY',
-#        'BGS':        'GALAXY',
-#        'QSO':        'QSO',
-#        'MWS_MAIN':   'STAR',
-#        'MWS_NEARBY': 'STAR',
-#        'MWS_WD':     'STAR',
-#        'SKY':        'SKY',
-#        }
-#        
-#    return truespectype_map[templatetype]
-#
-#def _getObsconditions(nobj, target_name):
-#    """Simple utility function to convert a target to OBSCONDITIONS."""
-#    from desitarget import obsconditions # this only works if targetmask.py is imported first 
-#
-#    source_obsconditions = np.ones(nobj, dtype='uint16')
-#    if target_name in ['LRG', 'QSO']:
-#        source_obsconditions[:] = obsconditions.DARK
-#    if target_name in ['ELG']:
-#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
-#    if target_name in ['BGS']:
-#        source_obsconditions[:] = obsconditions.BRIGHT
-#    if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
-#        source_obsconditions[:] = obsconditions.BRIGHT
-#    if target_name in ['STD_FSTAR', 'SKY']:
-#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
-#
-#    return source_obsconditions
-
 def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
@@ -494,7 +461,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     #import pdb ; pdb.set_trace()
 
 def targets_truth(params, output_dir, realtargets=None, seed=None,
-                  bricksize=2.0, nproc=4, verbose=True):
+                  bricksize=0.25, nproc=4, verbose=True):
     """
     Write
 
@@ -536,7 +503,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
-    source_data_all = mockio.load_all_mocks(params, rand=rand)
+    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
 
     #import pdb ; pdb.set_trace()
@@ -558,6 +525,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         #log.info('Generating spectra using function {}.'.format(getSpectra_function))
 
         # Assign spectra by parallel-processing the bricks.
+        #brickname = get_brickname_from_radec(source_data['RA'], source_data['DEC'])#, bricksize=bricksize)
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
         #unique_bricks = list(set(brickname[:5]))
@@ -603,7 +571,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         targets['RA'] = source_data['RA']
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
-        #targets['OBSCONDITIONS'] = _getObsconditions(nobj, target_name)
         
         truth['MOCKID'] = source_data['MOCKID']
         truth['TRUEZ'] = source_data['Z'].astype('f4')
@@ -685,6 +652,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     else:
         for ii in range(len(unique_bricks)):
             _update_write_status(_write_onebrick(writeargs[ii]))
+
+
 
 #    # consolidates all relevant arrays across mocks
 #    ra_total = np.empty(0)

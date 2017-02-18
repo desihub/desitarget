@@ -485,12 +485,11 @@ class SelectTargets(object):
         for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
 
-        log.info('Using a "perfect" selection of MWS_NEARBY targets.')
         mws_nearby = np.ones(len(targets)) # select everything!
-        #mws_nearby = truth['MAG'] <= 20.0 # SDSS g-band!
+        #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
 
-        targets['MWS_TARGET'] |= mws_nearby * self.mws_mask.mask('MWS_NEARBY')
-        targets['DESI_TARGET'] |= mws_nearby * self.desi_mask.MWS_ANY
+        targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
+        targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
         
         return targets
 
@@ -502,16 +501,15 @@ class SelectTargets(object):
         for oo in self.mws_mask.MWS_WD.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
 
-        log.info('Using a "perfect" selection of MWS_WD and STD_WD targets.')
         #mws_wd = np.ones(len(targets)) # select everything!
-        mws_wd = (truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)  # SDSS g-band!
+        mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
 
-        targets['MWS_TARGET'] |= mws_wd * self.mws_mask.mask('MWS_WD')
-        targets['DESI_TARGET'] |= mws_wd * self.desi_mask.MWS_ANY
+        targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+        targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
 
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
-        std_wd = truth['MAG'] <= 19.0 # SDSS g-band!
-        targets['DESI_TARGET'] |= std_wd * self.desi_mask.mask('STD_WD')
+        std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
+        targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
         
         return targets
 
