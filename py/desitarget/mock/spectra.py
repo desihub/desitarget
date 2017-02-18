@@ -29,14 +29,14 @@ class TemplateKDTree(object):
         self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)
         self.wd_meta = read_basis_templates(objtype='WD', onlymeta=True)
 
-        self.bgs_tree = KDTree(self.bgs())
-        self.elg_tree = KDTree(self.elg())
-        #self.lrg_tree = KDTree(self.lrg())
-        self.star_tree = KDTree(self.star())
-        #self.qso_tree = KDTree(self.qso())
-        self.wd_tree = KDTree(self.wd())
+        self.bgs_tree = KDTree(self._bgs())
+        self.elg_tree = KDTree(self._elg())
+        #self.lrg_tree = KDTree(self._lrg())
+        self.star_tree = KDTree(self._star())
+        #self.qso_tree = KDTree(self._qso())
+        self.wd_tree = KDTree(self._wd())
 
-    def bgs(self):
+    def _bgs(self):
         """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r).  This needs to
         be generalized to accommodate other mocks!
 
@@ -47,7 +47,7 @@ class TemplateKDTree(object):
         gr = mabs[:, 1] - mabs[:, 2]
         return np.vstack((zobj, rmabs, gr)).T
 
-    def elg(self):
+    def _elg(self):
         """Quantities we care about: redshift, g-r, r-z."""
         
         zobj = self.elg_meta['Z'].data
@@ -56,7 +56,7 @@ class TemplateKDTree(object):
         #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
         return np.vstack((zobj, gr, rz)).T
 
-    def lrg(self):
+    def _lrg(self):
         """Quantities we care about: r-z, r-W1."""
         
         zobj = self.elg_meta['Z'].data
@@ -65,11 +65,11 @@ class TemplateKDTree(object):
         #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
         return np.vstack((zobj, gr, rz)).T
 
-    #def lrg(self):
+    #def _lrg(self):
     #    """Quantities we care about: redshift, XXX"""
     #    pass 
 
-    def star(self):
+    def _star(self):
         """Quantities we care about: Teff, logg, and [Fe/H].
 
         """
@@ -82,7 +82,7 @@ class TemplateKDTree(object):
     #    """Quantities we care about: redshift, XXX"""
     #    pass 
 
-    def wd(self):
+    def _wd(self):
         """Quantities we care about: Teff and logg.
 
         TODO (@moustakas): deal with DA vs DB types!
@@ -154,12 +154,12 @@ class MockSpectra(object):
 
         # Initialize the templates once:
         from desisim.templates import BGS, ELG, LRG, QSO, STAR, WD
-        self.bgs = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
-        self.elg = ELG(wave=self.wave, normfilter='decam2014-r')
-        self.lrg = LRG(wave=self.wave, normfilter='decam2014-z')
-        self.qso = QSO(wave=self.wave, normfilter='decam2014-g')
-        self.star = STAR(wave=self.wave, normfilter='decam2014-r')
-        self.wd = WD(wave=self.wave, normfilter='decam2014-g')
+        self.bgs_templates = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
+        self.elg_templates = ELG(wave=self.wave, normfilter='decam2014-r')
+        self.lrg_templates = LRG(wave=self.wave, normfilter='decam2014-z')
+        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-g')
+        self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
+        self.wd_templates = WD(wave=self.wave, normfilter='decam2014-g')
         
     def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
         """Generate spectra for BGS.
@@ -188,8 +188,8 @@ class MockSpectra(object):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.bgs.make_templates(input_meta=input_meta,
-                                                nocolorcuts=True, novdisp=True)
+        flux, _, meta = self.bgs_templates.make_templates(input_meta=input_meta,
+                                                          nocolorcuts=True, novdisp=True)
 
         return flux, meta
 
@@ -219,7 +219,8 @@ class MockSpectra(object):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.elg.make_templates(input_meta=input_meta, nocolorcuts=True, novdisp=True)
+        flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,
+                                                          nocolorcuts=True, novdisp=True)
 
         return flux, meta
 
@@ -245,7 +246,7 @@ class MockSpectra(object):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.star.make_templates(input_meta=input_meta) # Note! No colorcuts.
+        flux, _, meta = self.star_templates.make_templates(input_meta=input_meta) # Note! No colorcuts.
 
         return flux, meta
 
@@ -271,7 +272,7 @@ class MockSpectra(object):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.wd.make_templates(input_meta=input_meta) # Note! No colorcuts.
+        flux, _, meta = self.wd_templates.make_templates(input_meta=input_meta) # Note! No colorcuts.
 
         return flux, meta
 

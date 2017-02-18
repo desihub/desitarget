@@ -278,7 +278,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
         os.stat(mockfile)
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
-        raise(IOError)
+        raise IOError
 
     cols = ['RA','DEC','RADIALVELOCITY', 'MAGG',
             'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
@@ -370,7 +370,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
         os.stat(mockfile)
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
-        raise(IOError)
+        raise IOError
 
     cols = ['RA','DEC','RADIALVELOCITY', 'G_SDSS',
             'TEFF', 'LOGG', 'SPECTRALTYPE']
@@ -411,10 +411,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
     Parameters
     ----------
     mock_dir_name : str
-        Complete top-level path to the mock catalogs.
+        Complete top-level path to the mock catalogs or the mock filename (for SKY).
     target_name : str
-        Target name specifying the mock catalog to read ('LRG', 'ELG', or
-        'QSO').
+        Target name specifying the mock catalog to read ('LRG', 'ELG', 'QSO', or
+        'SKY').
     rand : numpy.RandomState
         RandomState object used for the random number generation. 
     bricksize : float
@@ -422,7 +422,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
 
     Returns
     -------
-    Dictionary with the following entries.
+    Dictionary with the following basic entries (for SKY).
         'OBJID' : int64 numpy.ndarray
             Object identification number for each file in mock_dir_name.
         'MOCKID': int numpy.ndarray
@@ -432,45 +432,63 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
         'DEC' : numpy.ndarray
             DEC positions for the objects in the mock.
         'Z' : numpy.ndarray
-            Heliocentric radial velocity divided by the speed of light.
+            Heliocentric redshift (equal to zero for SKY).
         'BRICKNAME' : str numpy.ndarray
             Brick name assigned according to RA, Dec coordinates.
         'SEED' : int numpy.ndarray
             Random seed used in the template-generating code.
-        'MAG': numpy.ndarray
-            Apparent magnitude in the SDSS g-band.
-        'TEFF': numpy.ndarray
-            Effective stellar temperature (K).
-        'LOGG': numpy.ndarray
-            Surface gravity (cm/s**2).
-        'FILTERNAME': str
-            Filter name corresponding to mag (used to normalize the spectra). 
         'TRUESPECTYPE': str
-            Set to `STAR` for this whole sample.
+            Set to one of SKY, GALAXY (for ELG and LRG), or QSO.
         'TEMPLATETYPE': str
-            Set to `WD` for this whole sample.
+            Set to one of SKY, ELG, LRG, or QSO. 
         'TEMPLATESUBTYPE': numpy.ndarray
-            Spectral class for each object (DA vs DB) based on the GUMS mock. 
+            Not used for now (empty string for all target names).
         'FILES': str list
             List of all mock file(s) read.
         'N_PER_FILE': int list
             Number of mock targets per file.
-    
+
+    The target names ELG, LRG, and QSO have the following additional/optional
+    keys. 
+        'GR': numpy.ndarray
+            Apparent g-r color (only for ELG, QSO).
+        'RZ': numpy.ndarray
+            Apparent r-z color
+        'RW1': numpy.ndarray
+            Apparent r-W1 color (only for LRG).
+        'W1W2': numpy.ndarray
+            Apparent W1-W2 color (only for QSO).
+        'MAG': numpy.ndarray
+            Apparent magnitude in the DECam r-, z-, or g-band (for ELG, LRG, QSO, resp.)
+        'FILTERNAME': str
+            Filter name corresponding to mag (used to normalize the spectra).
+        'VDISP': numpy.ndarray
+            Velocity dispersion (km/s) (only for ELG, LRG).
+
     """
-    mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.lower()))
+    if target_name.lower() == 'sky':
+        mockfile = mock_dir_name
+        columns = ['RA', 'DEC']
+    else:
+        mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.lower()))
+        columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
+        
     try:
         os.stat(mockfile)
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
-        raise(IOError)
+        raise IOError
 
     log.info('HACK!!!!!!!!!!!!!!!!!  Read just a few thousand objects.')
-    columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
-    data = fitsio.read(filename,columns=columns, upper=True, rows=np.arange(50)+5000)
+    rows = np.arange(50)+5000
+    data = fitsio.read(mockfile, columns=columns, upper=True, rows=rows)
 
     ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
-    zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+    if 'Z_COSMO' in data.dtype.names:
+        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+    else:
+        zz = np.zeros_like(ra).astype('f4')
     del data
 
     nobj = len(ra)
@@ -487,40 +505,43 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
 
     seed = rand.randint(2**32, size=nobj)
 
-    out = {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
-           'Z': zz, 'SEED': seed, 'FILES': files, 'N_PER_FILE': n_per_file}
+    # Create a basic dictionary for SKY.
+    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz, 
+           'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
+           'N_PER_FILE': n_per_file}
         
     # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
     if target_name == 'SKY':
-        import pdb ; pdb.set_trace()
-
+        out.update({'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': ''})
+        
     else:
+        log.info('Sampling from Gaussian mixture model.')
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
+
+        out.update({'GR': mags[:, 0]-mags[:, 1], 'RZ': mags[:, 1]-mags[:, 2],
+                    'RW1': mags[:, 1]-mags[:, 3], 'W1W2': mags[:, 3]-mags[:, 4]})
     
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
-            filtername = 'decam2014-r'
             vdisp = 10**rand.normal(1.9, 0.15, nobj)
-            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
-                        'RZ': mags[:, 1]-mags[:, 2], 'FILTERNAME': filtername})
+            out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
+                        'VDISP': vdisp, 'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
 
         elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
-            filtername = 'decam2014-z'
             vdisp = 10**rand.normal(2.3, 0.1, nobj)
-            out.append({'VDISP': vdisp, 'MAG': mags[:, 2], 'RZ': mags[:, 1]-mags[:, 2],
-                        'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
+            out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
+                        'VDISP': vdisp, 'MAG': mags[:, 2], 'FILTERNAME': 'decam2014-z'})
             
         elif target_name == 'QSO':
-            """Selected in the r-band (or g-band?!?!) with XXX colors."""
-            filtername = 'decam2014-r'
-            magnorm = mags[:, 1] # z-band
-            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
-                        'RZ': mags[:, 1]-mags[:, 2], 'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
+            """Selected in the r-band with g-r, r-z, and W1-W2 colors."""
+            out.update({'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
+                        'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
+            
         else:
-            log.warning('Unrecognized target type {}!'.format(target_name))
-            import pdb ; pdb.set_trace()
+            log.fatal('Unrecognized target type {}!'.format(target_name))
+            raise ValueError
 
     return out
 

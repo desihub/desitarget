@@ -405,7 +405,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
 
-    # Generate spctra.
+    # Generate spctra.    
     trueflux, meta = getattr(Spectra, target_name.lower())(source_data, index=onbrick, mockformat=mockformat)
 
     for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
@@ -605,6 +605,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
 
     if realtargets is not None:
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
+
+    log.info('DO A FINAL CHECK OF THE DENSITIES AND SUBSAMPLE IF NECESSARY!!!')
+
 
     # Write out.
     log.info('Writing out.')
