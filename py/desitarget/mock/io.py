@@ -273,19 +273,20 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
             Number of mock targets per file.
 
     """
+    mockfile = mock_dir_name
     try:
-        os.stat(mock_dir_name)
+        os.stat(mockfile)
     except:
-        log.fatal('Mock file {} not found!'.format(mock_dir_name))
+        log.fatal('Mock file {} not found!'.format(mockfile))
         raise(IOError)
 
     cols = ['RA','DEC','RADIALVELOCITY', 'MAGG',
             'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
-    data = fitsio.read(mock_dir_name, ext=1, upper=True, columns=cols)
+    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
 
     ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
-    zz = data['RADIALVELOCITY'].astype('f4') / C_LIGHT
+    zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
     mag = data['MAGG'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
     logg = data['LOGG'].astype('f4')
@@ -293,10 +294,10 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
     templatesubtype = data['SPECTRALTYPE']
 
     nobj = len(ra)
-    log.info('Read {} objects from {}'.format(nobj, mock_dir_name))
+    log.info('Read {} objects from {}'.format(nobj, mockfile))
 
     files = list()
-    files.append(mock_dir_name)
+    files.append(mockfile)
     n_per_file = list()
     n_per_file.append(nobj)
 
@@ -321,7 +322,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
     mock_dir_name : str
         Complete path and filename of the mock catalog.
     target_name : str
-        Target name (not used; defaults to `STAR`).
+        Target name (not used; defaults to `WD`).
     rand : numpy.RandomState
         RandomState object used for the random number generation. 
     bricksize : float
@@ -364,29 +365,30 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
             Number of mock targets per file.
 
     """
+    mockfile = mock_dir_name
     try:
-        os.stat(mock_dir_name)
+        os.stat(mockfile)
     except:
-        log.fatal('Mock file {} not found!'.format(mock_dir_name))
+        log.fatal('Mock file {} not found!'.format(mockfile))
         raise(IOError)
 
     cols = ['RA','DEC','RADIALVELOCITY', 'G_SDSS',
             'TEFF', 'LOGG', 'SPECTRALTYPE']
-    data = fitsio.read(mock_dir_name, ext=1, upper=True, columns=cols)
+    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
     
     ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
-    zz = data['RADIALVELOCITY'].astype('f4') / C_LIGHT
+    zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
     mag = data['G_SDSS'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
     logg = data['LOGG'].astype('f4')
     templatesubtype = data['SPECTRALTYPE']
 
     nobj = len(ra)
-    log.info('Read {} objects from {}'.format(nobj, mock_dir_name))
+    log.info('Read {} objects from {}'.format(nobj, mockfile))
 
     files = list()
-    files.append(mock_dir_name)
+    files.append(mockfile)
     n_per_file = list()
     n_per_file.append(nobj)
 
@@ -402,6 +404,125 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
             'FILTERNAME': filtername, 'TRUESPECTYPE': 'STAR',
             'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype, 
             'FILES': files, 'N_PER_FILE': n_per_file}
+
+def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
+    """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs. 
+
+    Parameters
+    ----------
+    mock_dir_name : str
+        Complete top-level path to the mock catalogs.
+    target_name : str
+        Target name specifying the mock catalog to read ('LRG', 'ELG', or
+        'QSO').
+    rand : numpy.RandomState
+        RandomState object used for the random number generation. 
+    bricksize : float
+        Size of each brick in deg.
+
+    Returns
+    -------
+    Dictionary with the following entries.
+        'OBJID' : int64 numpy.ndarray
+            Object identification number for each file in mock_dir_name.
+        'MOCKID': int numpy.ndarray
+            Unique mock identification number.
+        'RA': numpy.ndarray
+            RA positions for the objects in the mock.
+        'DEC' : numpy.ndarray
+            DEC positions for the objects in the mock.
+        'Z' : numpy.ndarray
+            Heliocentric radial velocity divided by the speed of light.
+        'BRICKNAME' : str numpy.ndarray
+            Brick name assigned according to RA, Dec coordinates.
+        'SEED' : int numpy.ndarray
+            Random seed used in the template-generating code.
+        'MAG': numpy.ndarray
+            Apparent magnitude in the SDSS g-band.
+        'TEFF': numpy.ndarray
+            Effective stellar temperature (K).
+        'LOGG': numpy.ndarray
+            Surface gravity (cm/s**2).
+        'FILTERNAME': str
+            Filter name corresponding to mag (used to normalize the spectra). 
+        'TRUESPECTYPE': str
+            Set to `STAR` for this whole sample.
+        'TEMPLATETYPE': str
+            Set to `WD` for this whole sample.
+        'TEMPLATESUBTYPE': numpy.ndarray
+            Spectral class for each object (DA vs DB) based on the GUMS mock. 
+        'FILES': str list
+            List of all mock file(s) read.
+        'N_PER_FILE': int list
+            Number of mock targets per file.
+    
+    """
+    mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.lower()))
+    try:
+        os.stat(mockfile)
+    except:
+        log.fatal('Mock file {} not found!'.format(mockfile))
+        raise(IOError)
+
+    log.info('HACK!!!!!!!!!!!!!!!!!  Read just a few thousand objects.')
+    columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
+    data = fitsio.read(filename,columns=columns, upper=True, rows=np.arange(50)+5000)
+
+    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    dec = data['DEC'].astype('f8')
+    zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+    del data
+
+    nobj = len(ra)
+    log.info('Read {} objects from {}'.format(nobj, mockfile))
+    
+    files = list()
+    files.append(mockfile)
+    n_per_file = list()
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
+
+    seed = rand.randint(2**32, size=nobj)
+
+    out = {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
+           'Z': zz, 'SEED': seed, 'FILES': files, 'N_PER_FILE': n_per_file}
+        
+    # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
+    if target_name == 'SKY':
+        import pdb ; pdb.set_trace()
+
+    else:
+        GMM = SampleGMM(random_state=rand)
+        mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
+    
+        if target_name == 'ELG':
+            """Selected in the r-band with g-r, r-z colors."""
+            filtername = 'decam2014-r'
+            vdisp = 10**rand.normal(1.9, 0.15, nobj)
+            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
+                        'RZ': mags[:, 1]-mags[:, 2], 'FILTERNAME': filtername})
+
+        elif target_name == 'LRG':
+            """Selected in the z-band with r-z, r-W1 colors."""
+            filtername = 'decam2014-z'
+            vdisp = 10**rand.normal(2.3, 0.1, nobj)
+            out.append({'VDISP': vdisp, 'MAG': mags[:, 2], 'RZ': mags[:, 1]-mags[:, 2],
+                        'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
+            
+        elif target_name == 'QSO':
+            """Selected in the r-band (or g-band?!?!) with XXX colors."""
+            filtername = 'decam2014-r'
+            magnorm = mags[:, 1] # z-band
+            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
+                        'RZ': mags[:, 1]-mags[:, 2], 'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
+        else:
+            log.warning('Unrecognized target type {}!'.format(target_name))
+            import pdb ; pdb.set_trace()
+
+    return out
 
 def _load_mock_mws_file(filename):
     """
@@ -686,99 +807,6 @@ def read_lya(mock_dir, target_name, mock_name=None):
 
     return full_data
 
-def read_gaussianfield(mock_dir, target_name, mock_name=None, rand=None):
-    """Reads preliminary mocks (positions only) for the dark time survey.
-
-    Parameters:
-    ----------
-    filename : :class:`str`
-        File name of one mock dark time file.
-    read_z =: :class:`boolean`
-        Option to read the redshift column.
-
-    Returns:
-    --------
-    ra: :class: `numpy.ndarray`
-        Array with the RA positions for the objects in the mock.
-    dec: :class: `numpy.ndarray`
-        Array with the DEC positions for the objects in the mock.
-    z: :class: `numpy.ndarray`
-        Array with the redshiffts for the objects in the mock.
-        Zeros if read_z = False
-    
-    """
-    if mock_name is None:
-        filename = os.path.join(mock_dir, target_name+'.fits')
-    else:
-        filename = os.path.join(mock_dir, mock_name+'.fits')
-
-    try:
-        log.info('HACK!!!!!!!!!!!!!!!!!  Read just a few thousand objects.')
-        columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
-        data = fitsio.read(filename,columns=columns, upper=True, rows=np.arange(50)+5000)
-        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-        dec  = data['DEC'].astype('f8')
-        zz   = data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')
-    except:
-        columns = ['RA', 'DEC']
-        data = fitsio.read(filename,columns=columns, upper=True)
-        ra   = data[ 'RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-        dec  = data['DEC'].astype('f8')
-        zz = rand.uniform(0.0, 1.0, size=len(ra))
-    nobj = len(data)
-    del data
-
-    log.info('Read columns {} for {} objects from {}'.format(columns, nobj, filename))
-    
-    files = list()
-    files.append(filename)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj)
-    mockid = make_mockid(objid, n_per_file)
-    brickname = get_brickname_from_radec(ra, dec)
-
-    # Generate a random seed for every object.
-    seed = rand.randint(2**32, size=nobj)
-
-    out = {'OBJID': objid, 'MOCKID':mockid, 'RA': ra, 'DEC': dec, 'BRICKNAME': brickname,
-           'Z': zz, 'SEED': seed, 'FILES': files, 'N_PER_FILE': n_per_file}
-        
-    # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
-    if target_name == 'SKY':
-        import pdb ; pdb.set_trace()
-
-    else:
-        GMM = SampleGMM(random_state=rand)
-        mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
-    
-        if target_name == 'ELG':
-            """Selected in the r-band with g-r, r-z colors."""
-            filtername = 'decam2014-r'
-            vdisp = 10**rand.normal(1.9, 0.15, nobj)
-            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
-                        'RZ': mags[:, 1]-mags[:, 2], 'FILTERNAME': filtername})
-
-        elif target_name == 'LRG':
-            """Selected in the z-band with r-z, r-W1 colors."""
-            filtername = 'decam2014-z'
-            vdisp = 10**rand.normal(2.3, 0.1, nobj)
-            out.append({'VDISP': vdisp, 'MAG': mags[:, 2], 'RZ': mags[:, 1]-mags[:, 2],
-                        'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
-            
-        elif target_name == 'QSO':
-            """Selected in the r-band (or g-band?!?!) with XXX colors."""
-            filtername = 'decam2014-r'
-            magnorm = mags[:, 1] # z-band
-            out.append({'VDISP': vdisp, 'MAG': mags[:, 1], 'GR': mags[:, 0]-mags[:, 1],
-                        'RZ': mags[:, 1]-mags[:, 2], 'RW1': mags[:, 1]-mags[:, 3], 'FILTERNAME': filtername})
-        else:
-            log.warning('Unrecognized target type {}!'.format(target_name))
-            import pdb ; pdb.set_trace()
-
-    return out
-
 def read_durham_mxxl_hdf5(mock_dir, target_name, mock_name=None, rand=None):
     """ Reads mock information for MXXL bright time survey galaxies.
 
@@ -826,7 +854,7 @@ def read_durham_mxxl_hdf5(mock_dir, target_name, mock_name=None, rand=None):
     n_per_file = list()
     n_per_file.append(nobj)
 
-    objid = np.arange(nobj)
+    objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec)
 
