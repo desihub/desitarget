@@ -80,8 +80,8 @@ class BrickInfo(object):
         brick_info['DEC2'] =   []
         brick_info['BRICKAREA'] =  [] 
 
-        i_rows = np.where((B._edges_dec < (max_dec+B._bricksize/2)) &
-                          (B._edges_dec > (min_dec-B._bricksize/2)))[0]
+        i_rows = np.where((B._edges_dec < (max_dec+B._bricksize)) &
+                          (B._edges_dec > (min_dec-B._bricksize)))[0]
         
         for i_row in i_rows:
             j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
@@ -392,9 +392,8 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     #log.info('{}, {} objects'.format(thisbrick, nobj))
     
-    if (nbrick != 1) or (nobj == 0):
-        log.warning('No matching brick or no matching objects in brick {}!'.format(thisbrick))
-        # warnings.warn("Tile is on the border. DEPTH_R = 99.0. GALDEPTH_R = 99.0", RuntimeWarning)
+    if (nbrick != 1):
+        log.warning('No matching brick {}! This should not happen'.format(thisbrick))
         _targets = empty_targets_table()
         _truth = empty_truth_table()
         _trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
@@ -499,12 +498,14 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     log.info('Initializing the MockSpectra and SelectTargets classes.')
     Spectra = MockSpectra()
     SelectTargets = mockselect.SelectTargets()
+    print()
 
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
     source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
+    print()
 
     #import pdb ; pdb.set_trace()
 
@@ -512,10 +513,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     alltargets = list()
     alltruth = list()
     alltrueflux = list()
-
-    source_defs = params['sources']
-    for source_name in sorted(source_defs.keys()):
-        log.info('Assigning spectra and selecting targets for source {}.'.format(source_name))
+    for source_name in sorted(params['sources'].keys()):
+        #log.info('Assigning spectra and selecting targets for source {}.'.format(source_name))
         
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
         mockformat = params['sources'][source_name]['format']
@@ -530,7 +529,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         unique_bricks = list(set(brickname))
         #unique_bricks = list(set(brickname[:5]))
         #print('HACK!!!!!!!!!!!!!!!!!!!!!!!!')
-        log.info('Assigned objects to {} unique bricks.'.format(len(unique_bricks)))
+        log.info('Assigned {} {} objects to {} unique bricks.'.format(len(brickname), target_name, len(unique_bricks)))
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -580,7 +579,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
 
         # Select targets and get the targeting bits.
         selection_function = '{}_select'.format(target_name.lower())
-        log.info('Selecting {} targets using {} function.'.format(source_name, selection_function))
+        #log.info('Selecting {} targets using {} function.'.format(source_name, selection_function))
 
         getattr(SelectTargets, selection_function)(targets, truth)
         #import pdb ; pdb.set_trace()
@@ -590,6 +589,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
         alltrueflux.append(trueflux[keep, :])
+        print()
 
     # Consolidate across all the mocks and then assign TARGETIDs, subpriorities,
     # and shapes and fluxes.
@@ -607,7 +607,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
     log.info('DO A FINAL CHECK OF THE DENSITIES AND SUBSAMPLE IF NECESSARY!!!')
-
+    import pdb ; pdb.set_trace()
 
     # Write out.
     log.info('Writing out.')
