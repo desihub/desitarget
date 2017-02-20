@@ -1,4 +1,4 @@
-"""Samples magnitudes for LRGs, ELGs and QSOs from a Gaussian mixture model.
+"""Samples magnitudes and shapes for LRG, ELG, QSO, and BGS targets from a Gaussian mixture model.
 
 The model for each object type is fit to DR2 targets that have passed target
 selection critera.
@@ -67,8 +67,8 @@ class GaussianMixtureModel(object):
         return X
 
 
-def sample_magnitudes(target_type, n_targets, random_state=None):
-    """Sample magnitudes based on target type (i.e. LRG, ELG, QSO, BGS).
+def sample_mag_shape(target_type, n_targets, random_state=None):
+    """Sample magnitudes and shapes based on target type (i.e. LRG, ELG, QSO, BGS).
 
     Can sample multiple targets at once and needs only to be called
     once for each target_type.
@@ -78,7 +78,7 @@ def sample_magnitudes(target_type, n_targets, random_state=None):
     target_type : str
         One of four object types (LRG, ELG, QSO, BGS).
     n_targets : int
-        Number of sampled magntiudes to be returned for the specified
+        Number of sampled magntiudes and shapes to be returned for the specified
         target_type.
     random_state: RandomState or an int seed
         A random number generator.
@@ -87,7 +87,9 @@ def sample_magnitudes(target_type, n_targets, random_state=None):
     Returns
     -------
     np.ndarray length n_targets
-        Structured array with columns g,r,z,w1,w2,w3,w4 of sampled magnitudes.
+        Structured array with columns g,r,z,w1,w2,w3,w4,exp_r,exp_e1, exp_e2,
+        dev_r, dev_e1, dev_e2 of sampled magnitudes and shapes. Note that
+        target_type='QSO' only returns magnitudes.
     """
 
     #Path to model .fits files
@@ -95,25 +97,49 @@ def sample_magnitudes(target_type, n_targets, random_state=None):
 
     #Load the mixture model for the specified target_type
     if target_type == 'LRG':
-        model = GaussianMixtureModel.load(pathToModels + '/lrgMag_gmm.fits')
+        model = GaussianMixtureModel.load(pathToModels + '/lrg_gmm.fits')
     elif target_type == 'ELG':
-        model = GaussianMixtureModel.load(pathToModels + '/elgMag_gmm.fits')
+        model = GaussianMixtureModel.load(pathToModels + '/elg_gmm.fits')
     elif target_type == 'QSO':
-        model = GaussianMixtureModel.load(pathToModels + '/qsoMag_gmm.fits')
+        model = GaussianMixtureModel.load(pathToModels + '/qso_gmm.fits')
     elif target_type == 'BGS':
-        model = GaussianMixtureModel.load(pathToModels + '/bgsMag_gmm.fits')
+        model = GaussianMixtureModel.load(pathToModels + '/bgs_gmm.fits')
 
     #Generate a sample of magnitudes of size n_targets
-    mags = model.sample(n_samples=n_targets, random_state=random_state)
+    params = model.sample(n_samples=n_targets, random_state=random_state)
 
-    samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8'),
-    ('w1', 'f8'), ('w2', 'f8'), ('w3', 'f8'), ('w4', 'f8')])
-    samp['g'] = mags[:,0]
-    samp['r'] = mags[:,1]
-    samp['z'] = mags[:,2]
-    samp['w1'] = mags[:,3]
-    samp['w2'] = mags[:,4]
-    samp['w3'] = mags[:,5]
-    samp['w4'] = mags[:,6]
+    if target_type == 'QSO':
+
+        samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8'),
+        ('w1', 'f8'), ('w2', 'f8'), ('w3', 'f8'), ('w4', 'f8')])
+
+        samp['g'] = params[:,0]
+        samp['r'] = params[:,1]
+        samp['z'] = params[:,2]
+        samp['w1'] = params[:,3]
+        samp['w2'] = params[:,4]
+        samp['w3'] = params[:,5]
+        samp['w4'] = params[:,6]
+
+    else:
+
+        samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8'),
+        ('w1', 'f8'), ('w2', 'f8'), ('w3', 'f8'), ('w4', 'f8'),  ('exp_r', 'f8'),
+        ('exp_e1', 'f8'), ('exp_e2', 'f8'), ('dev_r', 'f8'), ('dev_e1', 'f8'),
+        ('dev_e2', 'f8')])
+
+        samp['g'] = params[:,0]
+        samp['r'] = params[:,1]
+        samp['z'] = params[:,2]
+        samp['w1'] = params[:,3]
+        samp['w2'] = params[:,4]
+        samp['w3'] = params[:,5]
+        samp['w4'] = params[:,6]
+        samp['exp_r'] = params[:,7]
+        samp['exp_e1'] = params[:,8]
+        samp['exp_e2'] = params[:,9]
+        samp['dev_r'] = params[:,10]
+        samp['dev_e1'] = params[:,11]
+        samp['dev_e2'] = params[:,12]
 
     return samp
