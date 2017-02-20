@@ -413,19 +413,6 @@ class SelectTargets(object):
         self.mws_mask = mws_mask
         self.obsconditions = obsconditions
 
-#    source_obsconditions = np.ones(nobj, dtype='uint16')
-#    if target_name in ['LRG', 'QSO']:
-#        source_obsconditions[:] = obsconditions.DARK
-#    if target_name in ['ELG']:
-#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY
-#    if target_name in ['BGS']:
-#        source_obsconditions[:] = obsconditions.BRIGHT
-#    if target_name in ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']:
-#        source_obsconditions[:] = obsconditions.BRIGHT
-#    if target_name in ['STD_FSTAR', 'SKY']:
-#        source_obsconditions[:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
-        
-
     def bgs_select(self, targets, truth=None):
         """Select BGS targets."""
         from desitarget.cuts import isBGS_bright, isBGS_faint
@@ -440,8 +427,13 @@ class SelectTargets(object):
         bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT
         bgs_target |= bgs_faint * self.bgs_mask.BGS_FAINT_SOUTH
 
+        need to distinguish bgs_faint and bgs_bright!!!
+        
+
         targets['BGS_TARGET'] |= bgs_target
         targets['DESI_TARGET'] |= (bgs_target != 0) * self.desi_mask.BGS_ANY
+        for oo in self.bgs_mask.BGS.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
             
         return targets
 
@@ -454,10 +446,10 @@ class SelectTargets(object):
         zflux = targets['DECAM_FLUX'][..., 4]
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
 
-        desi_target = elg * self.desi_mask.ELG_SOUTH
-        desi_target |= elg * self.desi_mask.ELG
-
-        targets['DESI_TARGET'] |= desi_target
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        for oo in self.desi_mask.ELG.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
             
         return targets
 
@@ -470,11 +462,58 @@ class SelectTargets(object):
         zflux = targets['DECAM_FLUX'][..., 4]
         lrg = isLRG(gflux=gflux, rflux=rflux, zflux=zflux)
 
-        desi_target = lrg * self.desi_mask.LRG_SOUTH
-        desi_target |= lrg * self.desi_mask.LRG
-
-        targets['DESI_TARGET'] |= desi_target
+        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
+        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
+        for oo in self.desi_mask.LRG.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(oo)
             
+        return targets
+
+    def mws_main_select(self, targets, truth=None):
+        """Select MWS_MAIN targets.  The selection eventually will be done with Gaia, so
+        for now just do a "perfect" selection.
+
+        """    
+        from desitarget.cuts import isFSTD
+
+        # How should the Milky Way stars be selected!?!
+        nobj = len(targets)
+        mws_main = np.ones(nobj) # select everything!
+
+        targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
+        targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
+        for oo in self.mws_mask.MWS_MAIN.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (mws_main != 0) * self.obsconditions.mask(oo)
+
+        # Select standard stars.
+        gflux = targets['DECAM_FLUX'][..., 1]
+        rflux = targets['DECAM_FLUX'][..., 2]
+        zflux = targets['DECAM_FLUX'][..., 4]
+        snr = np.zeros_like(targets['DECAM_FLUX']) + 20 # fixed S/N=20
+        fracflux = np.zeros_like(targets['DECAM_FLUX']) # no contamination from neighbors
+        objtype = np.repeat('PSF', nobj).astype('U3')   # right data type?!?
+
+
+        figure out how to pass the observed r-band flux, or just pass the extinction through targets
+
+
+        # Dark-time FSTD.
+        fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                      decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux)
+        targets['DESI_TARGET'] |= (fstd != 0) * self.desi_mask.STD_FSTAR
+        for oo in self.desi_mask.STD_FSTAR.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (fstd != 0) * self.obsconditions.mask(oo)
+
+        # Bright-time FSTD.
+        fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                             decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux,
+                             bright=True)
+        targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
+        for oo in self.desi_mask.STD_BRIGHT.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(oo)
+
+        import pdb ; pdb.set_trace()
+        
         return targets
 
     def mws_nearby_select(self, targets, truth=None):
@@ -482,14 +521,13 @@ class SelectTargets(object):
         so for now just do a "perfect" selection.
 
         """    
-        for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
-
         mws_nearby = np.ones(len(targets)) # select everything!
         #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
 
         targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
         targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
+        for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (mws_nearby != 0) * self.obsconditions.mask(oo)
         
         return targets
 
@@ -498,18 +536,19 @@ class SelectTargets(object):
         Gaia, so for now just do a "perfect" selection here.
 
         """    
-        for oo in self.mws_mask.MWS_WD.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
-
         #mws_wd = np.ones(len(targets)) # select everything!
         mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
 
         targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
         targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
+        for oo in self.mws_mask.MWS_WD.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (mws_wd != 0) * self.obsconditions.mask(oo)
 
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
         targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
+        for oo in self.mws_mask.STD_WD.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (std_wd != 0) * self.obsconditions.mask(oo)
         
         return targets
 
@@ -524,5 +563,7 @@ class SelectTargets(object):
         """Select SKY targets."""
 
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
+        for oo in self.desi_mask.SKY.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
             
         return targets

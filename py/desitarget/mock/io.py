@@ -714,64 +714,192 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
             'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '', 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def _load_mock_mws_file(filename):
-    """
-    Reads mock information for MWS bright time survey.
+def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
+               bounds=None, magcut=None):
+    """ Read and concatenate the MWS_MAIN mock files.
 
-    Parameters:
+    Parameters
     ----------
-    filename: :class:`str`
-        Name of a single MWS mock file.
+    mock_dir_name : str
+        Complete top-level path to the mock catalogs.
+    target_name : str
+        Target name (not used; defaults to `STAR`).
+    rand : numpy.RandomState
+        RandomState object used for the random number generation. 
+    bricksize : float
+        Size of each brick in deg.
+    bounds : 4-element tuple
+        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
 
-    Returns:
+    Returns
     -------
     Dictionary with the following entries.
-
-        'RA': :class: `numpy.ndarray`
+        'OBJID' : int64 numpy.ndarray
+            Object identification number for each file in mock_dir_name.
+        'MOCKID': int numpy.ndarray
+            Unique mock identification number.
+        'RA': numpy.ndarray
             RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
+        'DEC' : numpy.ndarray
             DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
+        'Z' : numpy.ndarray
             Heliocentric radial velocity divided by the speed of light.
+        'BRICKNAME' : str numpy.ndarray
+            Brick name assigned according to RA, Dec coordinates.
+        'SEED' : int numpy.ndarray
+            Random seed used in the template-generating code.
+        'MAG': numpy.ndarray
+            Apparent magnitude (extinction-corrected) in SDSS r-band.
+        'MAG_OBS': numpy.ndarray
+            Apparent magnitude (including extinction) in SDSS r-band.
+        'TEFF': numpy.ndarray
+            Effective stellar temperature (K).
+        'LOGG': numpy.ndarray
+            Surface gravity (cm/s**2).
+        'FEH': numpy.ndarray
+            Logarithmic iron abundance relative to solar.
+        'FILTERNAME': str
+            Filter name corresponding to mag (used to normalize the spectra). 
+        'TRUESPECTYPE': str
+            Set to `STAR` for this whole sample.
+        'TEMPLATETYPE': str
+            Set to `STAR` for this whole sample.
+        'TEMPLATESUBTYPE': numpy.ndarray
+            Spectral class for each object (e.g., GV) based on the GUMS mock.
+        'FILES': str list
+            List of all mock file(s) read.
+        'N_PER_FILE': int list
+            Number of mock targets per file.
 
-        'd_helio': :class `numpy.ndarray'
-            Heliocentric distance in kpc, required only to avoid overlap
-            with 100pc sample.
-        'SDSSr_true': :class: `numpy.ndarray`
-            Apparent magnitude in SDSS bands r, before extinction.
-        'SDSS[grz]_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS grz bands, including extinction.
     """
-    import desitarget.photo
-    log.info('Reading '+filename)
-    
-    data = fitsio.read(filename,
-                       columns= ['RA','DEC','v_helio','d_helio', 'SDSSr_true',
-                                 'SDSSg_obs', 'SDSSr_obs', 'SDSSi_obs', 'SDSSz_obs'])
- 
-    ra          = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec         = data['DEC'].astype('f8')
-    v_helio     = data['v_helio'].astype('f4')
-    d_helio     = data['d_helio'].astype('f4')
-    SDSSr_true  = data['SDSSr_true'].astype('f4')
-    SDSSg_obs   = data['SDSSg_obs'].astype('f4')
-    SDSSr_obs   = data['SDSSr_obs'].astype('f4')
-    SDSSi_obs   = data['SDSSi_obs'].astype('f4')
-    SDSSz_obs   = data['SDSSz_obs'].astype('f4')
+    # Build iterator of all desi_galfast files
+    if False:
+        iter_mock_files = iter_files(mock_dir_name, 'allsky', ext='fits')
+    else:
+        from glob import glob
+        log.warning('Temporary hack using glob because I am having problems with iter_files.')
+        iter_mock_files = glob(mock_dir_name+'/*/*.fits')
 
-    DECAMg_obs, DECAMr_obs, DECAMz_obs = \
-        desitarget.photo.sdss2decam(SDSSg_obs, SDSSr_obs, SDSSi_obs, SDSSz_obs)
+    file_list = list(iter_mock_files)
+    nfiles = len(file_list)
 
-    n = len(ra)
-    objid = np.arange(n, dtype='i8')
+    def _load_mock_mws_file(mockfile):
+        """Reads each individual galaxia file."""
 
-    return {'objid': objid,
-            'RA':ra, 'DEC':dec, 'Z': v_helio/C_LIGHT,
-            'd_helio': d_helio,
-            'SDSSr_true': DECAMr_obs,
-            'DECAMr_obs': DECAMr_obs,
-            'DECAMg_obs': DECAMg_obs,
-            'DECAMz_obs': DECAMz_obs }
+        try:
+            os.stat(mockfile)
+        except:
+            log.fatal('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        cols = ['RA','DEC','V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS',
+                'TEFF', 'LOGG', 'FEH']
+        data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+
+        ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = data['DEC'].astype('f8')
+        zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
+        mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
+        mag_obs = data['SDSSR_OBS'].astype('f4')     # SDSS r-band, observed
+        teff = data['TEFF'].astype('f4')
+        logg = data['LOGG'].astype('f4')
+        feh = data['FEH'].astype('f4')
+
+        return {'OBJID': np.arange(len(ra), dtype='i8'), 'RA': ra, 'DEC': dec,
+                'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
+                'LOGG': logg, 'FEH': feh}
+
+    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks due
+    # to python issue https://bugs.python.org/issue17560 where Pool.map can't
+    # return objects with more then 2**32-1 bytes:
+    # multiprocessing.pool.MaybeEncodingError: Error sending result: Reason:
+    # 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
+    # Leaving this code here for the moment in case we fine a workaround
+    if False:
+        import multiprocessing
+        ncpu = max(1, multiprocessing.cpu_count() // 2)
+        log.info('Using {} parallel readers.'.format(ncpu))
+        p = multiprocessing.Pool(ncpu)
+        target_list = p.map(_load_mock_mws_file, file_list)
+        p.close()
+
+#   log.info('Reading individual mock files')
+    target_list = list()
+    file_list   = list()
+    nfiles      = 0
+    for mock_file in iter_mock_files:
+        nfiles += 1
+        data_this_file = _load_mock_mws_file(mock_file)
+        target_list.append(data_this_file)
+        file_list.append(mock_file)
+        log.info('Read file {} {}'.format(nfiles, mock_file))
+
+    if nfiles == 0:
+        log.fatal('Unable to find files in {}'.format(mock_dir_name))
+        raise ValueError
+
+    # Concatenate all the dictionaries into a single dictionary, in an order
+    # determined by np.argsort applied to the base name of each path in
+    # file_list.
+    file_order = np.argsort([os.path.basename(x) for x in file_list])
+
+    log.info('Combining mock files')
+    ordered_file_list = list()
+    n_per_file  = list()
+    full_data   = dict()
+    if len(target_list) > 0:
+        for k in list(target_list[0]): # iterate over keys
+            log.info(' -- {}'.format(k))
+            data_list_this_key = list()
+            for itarget in file_order: # append all the arrays corresponding to a given key
+                data_list_this_key.append(target_list[itarget][k])
+
+            full_data[k] = np.concatenate(data_list_this_key) #consolidate data dictionary
+
+        # Count number of points per file
+        k          = list(target_list[0])[0] # pick the first available column
+        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
+        ordered_file_list = [file_list[itarget] for itarget in file_order]
+
+    ra = full_data['RA']
+    dec = full_data['DEC']
+    zz = full_data['Z']
+    mag = full_data['MAG']
+    mag_obs = full_data['MAG_OBS']
+    objid = full_data['OBJID']
+    teff = full_data['TEFF']
+    logg = full_data['LOGG']
+    feh = full_data['FEH']
+    nobj = len(ra)
+    log.info('Read {} objects from {} mock files.'.format(nobj, nfiles))
+
+    if bounds is not None:
+        min_ra, max_ra, min_dec, max_dec = bounds
+        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        mag = mag[cut]
+        mag_obs = mag_obs[cut]
+        objid = objid[cut]
+        teff = teff[cut]
+        logg = logg[cut]
+        feh = feh[cut]
+        nobj = len(ra)
+        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+
+    mockid = make_mockid(objid, n_per_file)
+    seed = rand.randint(2**32, size=nobj)
+    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
+
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
+            'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '', 
+            'FILES': ordered_file_list, 'N_PER_FILE': n_per_file}
 
 def _load_mock_lya_file(filename):
     """
@@ -815,111 +943,6 @@ def _load_mock_lya_file(filename):
     ra          = ra % 360.0 #enforce 0 < ra < 360
 
     return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z': z}
-
-def read_galaxia(mock_dir, target_name, mock_name=None):
-    """ Reads and concatenates MWS mock files stored below the root directory.
-
-    Parameters:
-    ----------
-    root_mock_dir: :class:`str`
-        Path to all the 'desi_galfast' files.
-
-    mock_prefix: :class:`str`
-        Start of individual file names.
-
-    brickname_list:
-        Optional list of specific bricknames to read.
-
-    Returns:
-    -------
-    Dictionary concatenating all the 'desi_galfast' files with the following entries.
-
-        'RA': :class: `numpy.ndarray`
-            RA positions for the objects in the mock.
-        'DEC': :class: `numpy.ndarray`
-            DEC positions for the objects in the mock.
-        'Z': :class: `numpy.ndarray`
-            Heliocentric radial velocity divided by the speed of light.
-        'SDSSr_true': :class: `numpy.ndarray`
-            Apparent magnitudes in SDSS bands, including extinction.
-        'DECAMr_obs': :class: `numpy.ndarray`
-             Apparent magnitudes in SDSS bands, including extinction.
-    """
-    import multiprocessing
-
-    ncpu = max(1, multiprocessing.cpu_count() // 2)
-
-    # Build iterator of all desi_galfast files
-    iter_mock_files = iter_files(mock_dir, '', ext='fits')
-
-    # Read each file
-
-    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks due
-    # to python issue https://bugs.python.org/issue17560 where Pool.map can't
-    # return objects with more then 2**32-1 bytes:
-    # multiprocessing.pool.MaybeEncodingError: Error sending result: Reason:
-    # 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
-    # Leaving this code here for the moment in case we fine a workaround
-
-    log.info('Reading individual mock files')
-    file_list = list(iter_mock_files)
-    nfiles = len(file_list)
-    log.info('Using {} parallel readers.'.format(ncpu))
-    p = multiprocessing.Pool(ncpu)
-    target_list = p.map(_load_mock_mws_file, file_list)
-    p.close()
-    
-#   log.info('Reading individual mock files')
-#   target_list = list()
-#   file_list   = list()
-#   nfiles      = 0
-
-    for mock_file in iter_mock_files:
-        nfiles += 1
-        data_this_file = _load_mock_mws_file(mock_file)
-        target_list.append(data_this_file)
-        file_list.append(mock_file)
-        log.info('Read file {} {}'.format(nfiles, mock_file))
-
-    if nfiles == 0:
-        log.fatal('Unable to find files in {}'.format(mock_dir))
-        raise ValueError
-
-    log.info('Read {} files.'.format(nfiles))
-    # Concatenate all the dictionaries into a single dictionary, in an order
-    # determined by np.argsort applied to the base name of each path in
-    # file_list.
-    file_order = np.argsort([os.path.basename(x) for x in file_list])
-
-    log.info('Combining mock files')
-    ordered_file_list = list()
-    n_per_file  = list()
-    full_data   = dict()
-    if len(target_list) > 0:
-        for k in list(target_list[0]): #iterate over keys
-            log.info(' -- {}'.format(k))
-            data_list_this_key = list()
-            for itarget in file_order: #append all the arrays corresponding to a given key
-                data_list_this_key.append(target_list[itarget][k])
-
-            full_data[k] = np.concatenate(data_list_this_key) #consolidate data dictionary
-
-        # Count number of points per file
-        k          = list(target_list[0])[0] # pick the first available column
-        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-        ordered_file_list = [file_list[itarget] for itarget in file_order]
-
-    log.info('Read {} objects'.format(np.sum(n_per_file)))
-
-
-    log.info('making mockid id')
-    full_data['MOCKID'] = make_mockid(full_data['objid'], n_per_file)
-    log.info('finished making mockid id')
-
-    full_data['FILES']      = ordered_file_list
-    full_data['N_PER_FILE'] = n_per_file
-
-    return full_data
 
 def read_lya(mock_dir, target_name, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.

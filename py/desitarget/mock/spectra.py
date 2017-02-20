@@ -224,8 +224,8 @@ class MockSpectra(object):
 
         return flux, meta
 
-    def mws_nearby(self, data, index=None, mockformat='100pc'):
-        """Generate spectra for the MWS_NEARBY sample.
+    def mws(self, data, index=None, mockformat='galaxia'):
+        """Generate spectra for a generic MWS sample.
 
         """
         objtype = 'STAR'
@@ -242,12 +242,31 @@ class MockSpectra(object):
                                  data['LOGG'][index],
                                  data['FEH'][index])).T
             _, templateid = self.tree.query(objtype, alldata)
+        elif mockformat.lower() == 'galaxia':
+            alldata = np.vstack((data['TEFF'][index],
+                                 data['LOGG'][index],
+                                 data['FEH'][index])).T
+            _, templateid = self.tree.query(objtype, alldata)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.star_templates.make_templates(input_meta=input_meta) # Note! No colorcuts.
 
+        return flux, meta
+
+    def mws_nearby(self, data, index=None, mockformat='100pc'):
+        """Generate spectra for the MWS_NEARBY sample.
+
+        """
+        flux, meta = self.mws(data, index=index, mockformat=mockformat)
+        return flux, meta
+
+    def mws_main(self, data, index=None, mockformat='galaxia'):
+        """Generate spectra for the MWS_MAIN sample.
+
+        """
+        flux, meta = self.mws(data, index=index, mockformat=mockformat)
         return flux, meta
 
     def mws_wd(self, data, index=None, mockformat='wd'):
