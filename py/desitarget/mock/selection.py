@@ -519,3 +519,10 @@ class SelectTargets(object):
         import pdb ; pdb.set_trace()
             
         return targets
+
+    def sky_select(self, targets, truth=None):
+        """Select SKY targets."""
+
+        targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
+            
+        return targets

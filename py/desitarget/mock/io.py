@@ -50,7 +50,7 @@ def print_all_mocks_info(params):
     
     """
     log.info('The following populations and paths are specified:')
-    for source_name in sorted(params['sources'].keys()):
+    for source_name in params['sources'].keys():
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['root_mock_dir']
         target_name = params['sources'][source_name]['target_name']
@@ -81,65 +81,44 @@ def load_all_mocks(params, rand=None, bricksize=0.25):
 
     check_fitsio_version() # Make sure fitsio is up to date.
 
-    source_data_all = {}
-    loaded_mocks = list()
+    #loaded_mocks = list()
 
+    source_data_all = {}
     for source_name in sorted(params['sources'].keys()):
 
-        source_dict = params['sources'][source_name]
         target_name = params['sources'][source_name]['target_name']
         source_format = params['sources'][source_name]['format']
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        bounds = params['sources'][source_name]['bounds']
+
+        if 'magcut' in params['sources'][source_name].keys():
+            magcut = params['sources'][source_name]['magcut']
+        else:
+            magcut = None
+            
         read_function = 'read_{}'.format(source_format)
 
-        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, source_format))
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
         log.info('Mock file/path {} to be read with mock.io.{}'.format(mock_dir_name, read_function))
+
+        func = globals()[read_function]
+        result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                      bounds=bounds, magcut=magcut)
+        source_data_all[source_name] = result
+        print()
         
-        #if 'mock_name' in source_dict.keys():
-        #    mock_name = source_dict['mock_name']
-        #    this_name = os.path.join(source_path, mock_name)
+        #if target_name not in loaded_mocks: # not sure if this is right
+        ##if this_name not in loaded_mocks.keys():
+        #    loaded_mocks.append(target_name)
+        #    
+        #    func = globals()[read_function]
+        #    result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+        #                  bounds=bounds, magcut=magcut)
+        #    source_data_all[source_name] = result
+        #    print()
         #else:
-        #    mock_name = None
-        #    this_name = source_path
-
-        if target_name not in loaded_mocks: # not sure if this is right
-        #if this_name not in loaded_mocks.keys():
-            loaded_mocks.append(target_name)
-            
-            #log.info('Reading {} for {}'.format(this_name, source_name))
-            #loaded_mocks[this_name] = source_name
-
-            func = globals()[read_function]
-            result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize)
-            #result = func(source_path, target_name, mock_name=mock_name, rand=rand)
-
-            #import pdb ; pdb.set_trace()
-
-            if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
-                ii  = (result['RA']  >= params['subset']['min_ra']) & \
-                    (result['RA']  <= params['subset']['max_ra']) & \
-                    (result['DEC'] >= params['subset']['min_dec']) & \
-                    (result['DEC'] <= params['subset']['max_dec'])
-                
-                # Trim RA,DEC,Z, ... columns to subselection. Different types of
-                # mocks have different metadata, so assume that any ndarray of
-                # the same length as number of targets should be trimmed.
-                ntargets = len(result['RA'])
-                for key in result:
-                    if isinstance(result[key], np.ndarray) and len(result[key]) == ntargets:
-                        result[key] = result[key][ii]
-
-                # Add min/max ra/dec to source_dict for use in density estimates.
-                source_dict.update(params['subset'])
-
-                log.info('Trimmed target {} to {} objects in RA, Dec subselection.'.format(source_name, len(result['RA'])))
-
-            source_data_all[source_name] = result
-            print()
-            #import pdb ; pdb.set_trace()
-        else:
-            #log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
-            source_data_all[source_name] = source_data_all[loaded_mocks[target_name]]
+        #    #log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
+        #    source_data_all[target_name] = source_data_all[loaded_mocks[target_name]]
 
     log.info('Loaded {} mock catalog(s).'.format(len(source_data_all)))
     return source_data_all
@@ -220,7 +199,8 @@ def make_mockid(objid, n_per_file):
 
     return encode_rownum_filenum(objid, filenum)
 
-def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
+def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
+               bounds=None, magcut=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -234,6 +214,10 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
+    bounds : 4-element tuple
+        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    magcut : float
+        Magnitude cut to apply to the sample (not used here).
 
     Returns
     -------
@@ -296,6 +280,23 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
 
     nobj = len(ra)
     log.info('Read {} objects from {}.'.format(nobj, mockfile))
+    
+    if bounds is not None:
+        min_ra, max_ra, min_dec, max_dec = bounds
+        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        mag = mag[cut]
+        teff = teff[cut]
+        logg = logg[cut]
+        feh = feh[cut]
+        templatesubtype = templatesubtype[cut]
+        nobj = len(ra)
+        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
     files = list()
     files.append(mockfile)
@@ -307,15 +308,15 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25):
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
     seed = rand.randint(2**32, size=nobj)
-    filtername = 'sdss2010-g' # ????
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-            'FILTERNAME': filtername, 'TRUESPECTYPE': 'STAR',
-            'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
+            'FILTERNAME': 'sdss2010-g', # ?????
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
+def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
+               bounds=None, magcut=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -328,6 +329,10 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
         RandomState object used for the random number generation. 
     bricksize : float
         Size of each brick in deg.
+    bounds : 4-element tuple
+        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    magcut : float
+        Magnitude cut to apply to the sample (not used here).
 
     Returns
     -------
@@ -388,6 +393,22 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
     nobj = len(ra)
     log.info('Read {} objects from {}.'.format(nobj, mockfile))
 
+    if bounds is not None:
+        min_ra, max_ra, min_dec, max_dec = bounds
+        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        mag = mag[cut]
+        teff = teff[cut]
+        logg = logg[cut]
+        templatesubtype = templatesubtype[cut]
+        nobj = len(ra)
+        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+
     files = list()
     files.append(mockfile)
     n_per_file = list()
@@ -398,15 +419,15 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25):
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
     seed = rand.randint(2**32, size=nobj)
-    filtername = 'sdss2010-g'
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 
-            'FILTERNAME': filtername, 'TRUESPECTYPE': 'STAR',
-            'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype, 
+            'FILTERNAME': 'sdss2010-g', 
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype, 
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
+def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
+               bounds=None, magcut=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs. 
 
     Parameters
@@ -420,6 +441,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
         RandomState object used for the random number generation. 
     bricksize : float
         Size of each brick in deg.
+    bounds : 4-element tuple
+        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    magcut : float
+        Magnitude cut to apply to the sample (not used here).
 
     Returns
     -------
@@ -467,7 +492,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
             Velocity dispersion (km/s) (only for ELG, LRG).
 
     """
-    if target_name.lower() == 'sky':
+    if target_name == 'SKY':
         mockfile = mock_dir_name
         columns = ['RA', 'DEC']
     else:
@@ -480,7 +505,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    if True:
+    if False:
         log.warning('Reading a random subset of sources for testing!')
         nrows = fitsio.FITS(mockfile)[1].get_nrows()
         rows = rand.randint(0, nrows, 100000)
@@ -488,7 +513,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
     else:
         data = fitsio.read(mockfile, columns=columns, upper=True)
 
-    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
+    ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
     if 'Z_COSMO' in data.dtype.names:
         zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
@@ -498,7 +523,19 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
 
     nobj = len(ra)
     log.info('Read {} objects from {}.'.format(nobj, mockfile))
-    
+
+    if bounds is not None:
+        min_ra, max_ra, min_dec, max_dec = bounds
+        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        nobj = len(ra)
+        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+        
     files = list()
     files.append(mockfile)
     n_per_file = list()
@@ -550,7 +587,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25):
 
     return out
 
-def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25, rmagcut=20.3):
+def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
+                          bounds=None, magcut=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -563,8 +601,10 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         RandomState object used for the random number generation. 
     bricksize : float
         Size of each brick in deg.
-    rmagcut : float
-        Only return objects with r < rmagcut.
+    bounds : 4-element tuple
+        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    magcut : float
+        Magnitude cut to apply to the sample (not used here).
 
     Returns
     -------
@@ -618,23 +658,44 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     f = h5py.File(mockfile)
     ra  = f['Data/ra'][...].astype('f8') % 360.0
     dec = f['Data/dec'][...].astype('f8')
+    zz = f['Data/z_obs'][...].astype('f8')
     rmag = f['Data/app_mag'][...].astype('f8')
     absmag = f['Data/abs_mag'][...].astype('f8')
     gr = f['Data/g_r'][...].astype('f8')
-    zz = f['Data/z_obs'][...].astype('f8')
     f.close()
 
-    cut = rmag < rmagcut
-    ra = ra[cut]
-    dec = dec[cut]
-    rmag = rmag[cut]
-    absmag = absmag[cut]
-    gr = gr[cut]
-    zz = zz[cut]
-    
     nobj = len(ra)
-    log.info('Read {} objects from {} with r<{}.'.format(nobj, mockfile, rmagcut))
+    log.info('Read {} objects from {}.'.format(nobj, mockfile))
 
+    if bounds is not None:
+        min_ra, max_ra, min_dec, max_dec = bounds
+        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        rmag = rmag[cut]
+        absmag = absmag[cut]
+        gr = gr[cut]
+        nobj = len(ra)
+        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+
+    if magcut is not None:
+        cut = rmag < magcut
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects with r < {}!'.format(magcut))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        rmag = rmag[cut]
+        absmag = absmag[cut]
+        gr = gr[cut]
+        nobj = len(ra)
+        log.info('Trimmed sample to {} objects r < {}.'.format(nobj, magcut))
+    
     files = list()
     files.append(mockfile)
     n_per_file = list()

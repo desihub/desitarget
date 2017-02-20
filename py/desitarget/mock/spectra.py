@@ -276,3 +276,19 @@ class MockSpectra(object):
 
         return flux, meta
 
+    def sky(self, data, index=None, mockformat=None):
+        """Generate spectra for SKY.
+
+        """
+        objtype = 'SKY'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+            
+        meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'REDSHIFT'),
+                                  ('SEED', 'Z')):
+            meta[inkey] = data[datakey][index]
+        flux = np.zeros((nobj, len(self.wave)), dtype='f4')
+
+        return flux, meta

@@ -386,25 +386,20 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     nbrick = len(brickindx)
 
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
-    #print('HACK!!!!!!!!!!!!!!!')
-    #onbrick = onbrick[:100]
     nobj = len(onbrick)
 
-    #log.info('{}, {} objects'.format(thisbrick, nobj))
-    
     if (nbrick != 1):
         log.warning('No matching brick {}! This should not happen'.format(thisbrick))
+        import pdb ; pdb.set_trace()
         _targets = empty_targets_table()
         _truth = empty_truth_table()
         _trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
         _onbrick = np.array([], dtype=int)
-        #import pdb ; pdb.set_trace()
         return [_targets, _truth, _trueflux, _onbrick]
         
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
 
-    # Generate spctra.    
     trueflux, meta = getattr(Spectra, target_name.lower())(source_data, index=onbrick, mockformat=mockformat)
 
     for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
@@ -482,13 +477,18 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     """
     rand = np.random.RandomState(seed)
 
-    # Build the brick information structure.
+    # Add the ra,dec boundaries to the parameters dictionary for each source, so
+    # we can check the target densities, below.
     if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
         bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
                   params['subset']['min_dec'], params['subset']['max_dec'])
     else:
-        bounds=(0.0, 359.99, -89.99, 89.99)
+        bounds = (0.0, 359.99, -89.99, 89.99)
+
+    for src in params['sources'].keys():
+        params['sources'][src].update({'bounds': bounds})
         
+    # Build the brick information structure.    
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys())).build_brickinfo()
@@ -513,15 +513,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     alltargets = list()
     alltruth = list()
     alltrueflux = list()
-    for source_name in sorted(params['sources'].keys()):
-        #log.info('Assigning spectra and selecting targets for source {}.'.format(source_name))
-        
+    for source_name in params['sources'].keys():
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
         mockformat = params['sources'][source_name]['format']
-        source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
-        #getSpectra_function = 'getspectra_{}_{}'.format(target_name.lower())
-        #log.info('Generating spectra using function {}.'.format(getSpectra_function))
+        source_data = source_data_all[source_name]     # data (ra, dec, etc.)
+        nobj = len(source_data['RA'])
+
+        targets = empty_targets_table(nobj)
+        truth = empty_truth_table(nobj)
+        trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
 
         # Assign spectra by parallel-processing the bricks.
         #brickname = get_brickname_from_radec(source_data['RA'], source_data['DEC'])#, bricksize=bricksize)
@@ -536,10 +537,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         def _update_spectra_status(result):
             if nbrick % 5 == 0 and nbrick > 0:
             #if verbose and nbrick % 5 == 0 and nbrick > 0:
-                rate = nbrick / (time() - t0)
-                log.info('{} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
-                #rate = (time() - t0) / nbrick
-                #print('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
+                #rate = nbrick / (time() - t0)
+                #log.info('{} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
+                rate = (time() - t0) / nbrick
+                print('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
             nbrick[...] += 1    # this is an in-place modification
             return result
     
@@ -555,12 +556,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
             out = list()
             for ii in range(len(unique_bricks)):
                 out.append(_update_spectra_status(_get_spectra_onebrick(specargs[ii])))
-
-        # Initialize and then populate the truth and targets tables. 
-        nobj = len(source_data['RA'])
-        targets = empty_targets_table(nobj)
-        truth = empty_truth_table(nobj)
-        trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
 
         for ii in range(len(unique_bricks)):
             targets[out[ii][3]] = out[ii][0]
