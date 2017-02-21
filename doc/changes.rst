@@ -6,6 +6,7 @@ desitarget Change Log
 ------------------
 
 * include mapping from MOCKID -> TARGETID
+* Added shapes to gaussian mixture model of target params [PR #150]
 
 0.8.2 (2016-12-03)
 ------------------
