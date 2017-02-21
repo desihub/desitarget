@@ -144,9 +144,12 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
 
     # Apply type=PSF, fracflux, and S/N cuts.
     fstd &= _psflike(objtype)
-    for j in (1, 2, 4):  # g, r, z
-        fstd &= decam_fracflux[j] < 0.04
-        fstd &= decam_snr[..., j] > 10
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore') # fracflux can be Inf/NaN
+        for j in (1, 2, 4):  # g, r, z
+            fstd &= decam_fracflux[j] < 0.04
+            fstd &= decam_snr[..., j] > 10
 
     # Observed flux; no Milky Way extinction
     if obs_rflux is None:
