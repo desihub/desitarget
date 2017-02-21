@@ -83,7 +83,7 @@ mws_mask:
     # choices here.
 
     # 8: Low galactic latitude
-    - [MWS_MAIN_LOW_GAL_B,       8, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
+    #- [MWS_MAIN_LOW_GAL_B,       8, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
     #- [MWS_WD_LOW_GAL_B,         9, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
     #- [MWS_NEARBY_LOW_GAL_B,    10, "Milky Way Survey low galactic latitude",                 {obsconditions: BRIGHT}]
 

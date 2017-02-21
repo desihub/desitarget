@@ -832,7 +832,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         data_this_file = _load_mock_mws_file(mock_file)
         target_list.append(data_this_file)
         file_list.append(mock_file)
-        log.info('Read file {} {}'.format(nfiles, mock_file))
+        #log.info('Read file {} {}'.format(nfiles, mock_file))
 
     if nfiles == 0:
         log.fatal('Unable to find files in {}'.format(mock_dir_name))
@@ -849,7 +849,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     full_data   = dict()
     if len(target_list) > 0:
         for k in list(target_list[0]): # iterate over keys
-            log.info(' -- {}'.format(k))
+            #log.info(' -- {}'.format(k))
             data_list_this_key = list()
             for itarget in file_order: # append all the arrays corresponding to a given key
                 data_list_this_key.append(target_list[itarget][k])

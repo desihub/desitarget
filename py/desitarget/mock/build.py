@@ -342,6 +342,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, data=np.zeros((nobj, 6))+99, dtype='f4'))
     targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, data=np.zeros((nobj, 6))+99, dtype='f4'))
+    targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
 
     return targets
 
@@ -410,6 +411,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
     for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):
         targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
+    targets['EBV'] = brick_info['EBV'][brickindx]
 
     # Perturb the photometry based on the variance on this brick.  Hack!  Assume
     # a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3 nanomaggies) in the
@@ -492,6 +494,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys())).build_brickinfo()
+    #import pdb ; pdb.set_trace()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
@@ -506,8 +509,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
-
-    #import pdb ; pdb.set_trace()
 
     # Loop over each source / object type.
     alltargets = list()
@@ -574,8 +575,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
 
         # Select targets and get the targeting bits.
         selection_function = '{}_select'.format(target_name.lower())
-        #log.info('Selecting {} targets using {} function.'.format(source_name, selection_function))
-
         getattr(SelectTargets, selection_function)(targets, truth)
         #import pdb ; pdb.set_trace()
         
