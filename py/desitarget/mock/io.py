@@ -898,7 +898,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '', 
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '', 
             'FILES': ordered_file_list, 'N_PER_FILE': n_per_file}
 
 def _load_mock_lya_file(filename):

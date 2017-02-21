@@ -29,6 +29,7 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
+from desitarget.targetmask import desi_mask, bgs_mask
 
 log = get_logger(DEBUG)
 
@@ -256,8 +257,7 @@ class BrickInfo(object):
 
 def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None):
     '''Add SHAPEDEV_R and SHAPEEXP_R from a real target catalog.'''
-    from desitarget.targetmask import desi_mask, bgs_mask
-    
+
     if random_state is None:
         random_state = np.random.RandomState()
         
@@ -601,10 +601,26 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
     log.info('DO A FINAL CHECK OF THE DENSITIES AND SUBSAMPLE IF NECESSARY!!!')
-    import pdb ; pdb.set_trace()
 
-    # Write out.
-    log.info('Writing out.')
+    # Write out the sky catalog.  Should we write "truth.fits" as well?!?
+    skyfile = os.path.join(output_dir, 'sky.fits')
+    isky = (targets['DESI_TARGET'] & desi_mask.SKY) != 0
+    nsky = np.count_nonzero(isky) > 0
+    if nsky:
+        log.info('Writing {}.'.format(skyfile))
+        write_bintable(skyfile, targets[isky], extname='SKY')
+
+        log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
+        notsky = ~isky
+        targets = targets[notsky]
+        truth = truth[notsky]
+        trueflux = trueflux[notsky, :]
+
+    #import pdb ; pdb.set_trace()
+
+    log.info('Repackage into larger bricks here and re-assign BRICKNAME!')
+    unique_bricks = list(set(targets['BRICKNAME']))
+    log.info('Writing out {} targets across {} bricks.'.format(len(targets), len(unique_bricks)))
 
     # Create the RA-slice directories, if necessary.
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
@@ -636,8 +652,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         nbrick[...] += 1    # this is an in-place modification
         return result
 
-    unique_bricks = list(set(targets['BRICKNAME']))
-    
     writeargs = list()
     for thisbrick in unique_bricks:
         writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir))
