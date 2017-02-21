@@ -106,9 +106,11 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
     zflux = zflux.clip(0)
     
     # colors near BD+17
-    grcolor = 2.5 * np.log10(rflux / gflux)
-    rzcolor = 2.5 * np.log10(zflux / rflux)
-    fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        grcolor = 2.5 * np.log10(rflux / gflux)
+        rzcolor = 2.5 * np.log10(zflux / rflux)
+        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
 
     return fstd
 
@@ -142,9 +144,12 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
 
     # Apply type=PSF, fracflux, and S/N cuts.
     fstd &= _psflike(objtype)
-    for j in (1, 2, 4):  # g, r, z
-        fstd &= decam_fracflux[j] < 0.04
-        fstd &= decam_snr[..., j] > 10
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore') # fracflux can be Inf/NaN
+        for j in (1, 2, 4):  # g, r, z
+            fstd &= decam_fracflux[j] < 0.04
+            fstd &= decam_snr[..., j] > 10
 
     # Observed flux; no Milky Way extinction
     if obs_rflux is None:
