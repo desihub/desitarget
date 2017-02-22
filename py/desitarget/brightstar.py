@@ -120,7 +120,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     #ADM note that if there were no bright stars in a file then
     #ADM the _get_bright_stars function will have returned NoneTypes
     #ADM so we need to filter those out
-    starstruc = [x for x in starstruc if x not None]
+    starstruc = [x for x in starstruc if x is not None]
     if len(starstruc) == 0:
         raise IOError('There are no stars brighter than {} in {} in files in {} with which to make a mask'.format(str(maglim),bands,rootdirname))
     #ADM concatenate all of the output recarrays
