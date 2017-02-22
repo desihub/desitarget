@@ -47,13 +47,15 @@ class TestCuts(unittest.TestCase):
 
     def test_cuts_noprimary(self):
         #- cuts should work with or without "primary"
+        #- BRICK_PRIMARY was removed from the sweeps in dr3 (@moustakas) 
         targets = Table.read(self.sweepfiles[0])
-        desi1, bgs1, mws1 = cuts.apply_cuts(targets)
-        targets.remove_column('BRICK_PRIMARY')
-        desi2, bgs2, mws2 = cuts.apply_cuts(targets)
-        self.assertTrue(np.all(desi1==desi2))
-        self.assertTrue(np.all(bgs1==bgs2))
-        self.assertTrue(np.all(mws1==mws2))
+        if 'BRICK_PRIMARY' in targets.colnames:
+            desi1, bgs1, mws1 = cuts.apply_cuts(targets)
+            targets.remove_column('BRICK_PRIMARY')
+            desi2, bgs2, mws2 = cuts.apply_cuts(targets)
+            self.assertTrue(np.all(desi1==desi2))
+            self.assertTrue(np.all(bgs1==bgs2))
+            self.assertTrue(np.all(mws1==mws2))
 
     def test_single_cuts(self):
         #- test cuts of individual target classes
@@ -67,7 +69,10 @@ class TestCuts(unittest.TestCase):
         wise_snr = targets['WISE_FLUX'] * np.sqrt(targets['WISE_FLUX_IVAR'])
         dchisq = targets['DCHISQ'] 
         deltaChi2 = dchisq[...,0] - dchisq[...,1]
-        primary = targets['BRICK_PRIMARY']
+        if 'BRICK_PRIMARY' in targets.colnames:
+            primary = targets['BRICK_PRIMARY']
+        else:
+            primary = np.ones_like(gflux, dtype='?')
 
         lrg1 = cuts.isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux, primary=None)
         lrg2 = cuts.isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux, primary=primary)
@@ -77,13 +82,14 @@ class TestCuts(unittest.TestCase):
         elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         self.assertTrue(np.all(elg1==elg2))
 
+        # @moustakas - Leaving off objtype will result in different samples!
         psftype = targets['TYPE']
         bgs1 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS_bright(rflux=rflux, objtype=None, primary=None)
+        bgs2 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
         bgs1 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS_faint(rflux=rflux, objtype=None, primary=None)
+        bgs2 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
         #- Test that objtype and primary are optional
