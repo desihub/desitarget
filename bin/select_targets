@@ -49,7 +49,7 @@ if len(infiles) == 0:
     print('FATAL: no sweep or tractor files found')
     sys.exit(1)
 
-maglim = ns.starmaskmaglim.split(',')
+maglim = [ float(ml) for ml in ns.starmaskmaglim.split(',') ]
 
 if ns.check:
     print('Check input files...')
@@ -60,7 +60,7 @@ else:
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
     if ns.starmask:
         targets = mask_targets(targets,instarmaskfile=ns.starmaskfile,bands=ns.starmaskbands,maglim=maglim,numproc=ns.numproc,
-                               rootdir=ns.src,outfilename=ns.starmaskoutfile,verbose=ns.verbose)
+                               rootdirname=ns.src,outfilename=ns.starmaskoutfile,verbose=ns.verbose)
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)

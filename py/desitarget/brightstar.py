@@ -118,6 +118,10 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     #ADM the _get_bright_stars function will have returned NoneTypes
     #ADM so we need to filter those out
     starstruc = [x for x in starstruc if x != None]
+    #ADM if when we filter out Nones there's nothing in starstruc, then there
+    #ADM were no bright stars with the passed criteria
+    if len(starstruc) == 0:
+        raise ValueError('there are no objects brighter than {} in bands {} in files in {} to make masks'.format(str(maglim), bands, rootdirname))
     #ADM concatenate all of the output recarrays
     starstruc = np.hstack(starstruc)
 
