@@ -6,6 +6,7 @@ import numbers
 import sys
 
 import numpy as np
+np.seterr(all="ignore")
 from astropy.table import Table, Row
 from pkg_resources import resource_filename
 

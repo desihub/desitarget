@@ -8,7 +8,7 @@ desitarget.brightstar
 Module for studying and masking bright stars in the sweeps
 """
 from __future__ import (absolute_import, division)
-#
+
 from time import time
 import numpy as np
 import numpy.lib.recfunctions as rfn
@@ -94,6 +94,9 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     totfiles = np.ones((),dtype='i8')*len(infiles)
     nfiles = np.ones((), dtype='i8')
     t0 = time()
+    if verbose:
+        print('Collecting bright stars from sweeps...')
+
     def _update_status(result):
         '''wrapper function for the critical reduction operation,
         that occurs on the main parallel process'''
@@ -117,11 +120,9 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     #ADM note that if there were no bright stars in a file then
     #ADM the _get_bright_stars function will have returned NoneTypes
     #ADM so we need to filter those out
-    starstruc = [x for x in starstruc if x != None]
-    #ADM if when we filter out Nones there's nothing in starstruc, then there
-    #ADM were no bright stars with the passed criteria
+    starstruc = [x for x in starstruc if x not None]
     if len(starstruc) == 0:
-        raise ValueError('there are no objects brighter than {} in bands {} in files in {} to make masks'.format(str(maglim), bands, rootdirname))
+        raise IOError('There are no stars brighter than {} in {} in files in {} with which to make a mask'.format(str(maglim),bands,rootdirname))
     #ADM concatenate all of the output recarrays
     starstruc = np.hstack(starstruc)
 
