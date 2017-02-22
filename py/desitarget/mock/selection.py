@@ -432,7 +432,7 @@ class SelectTargets(object):
         targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
         targets['DESI_TARGET'] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
         for oo in self.bgs_mask.BGS_BRIGHT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (bgs_bright != 0) * self.obsconditions.mask(oo)
 
         # Select BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
@@ -440,7 +440,7 @@ class SelectTargets(object):
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
         for oo in self.bgs_mask.BGS_FAINT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(oo)
             
         return targets
 
@@ -566,7 +566,7 @@ class SelectTargets(object):
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
         targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
-        for oo in self.mws_mask.STD_WD.obsconditions.split('|'):
+        for oo in self.desi_mask.STD_WD.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (std_wd != 0) * self.obsconditions.mask(oo)
         
         return targets

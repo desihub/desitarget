@@ -24,6 +24,7 @@ from astropy.table import Table, Column, vstack
 
 from desispec.log import get_logger, DEBUG
 from desispec.io.util import fitsheader, write_bintable
+from desispec.brick import brickname as get_brickname_from_radec
 
 import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
@@ -456,8 +457,8 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     
     #import pdb ; pdb.set_trace()
 
-def targets_truth(params, output_dir, realtargets=None, seed=None,
-                  bricksize=0.25, nproc=4, verbose=True):
+def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
+                  bricksize=0.25, outbricksize=5.0, nproc=4):
     """
     Write
 
@@ -531,7 +532,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         unique_bricks = list(set(brickname))
         #unique_bricks = list(set(brickname[:5]))
         #print('HACK!!!!!!!!!!!!!!!!!!!!!!!!')
-        log.info('Assigned {} {} objects to {} unique bricks.'.format(len(brickname), target_name, len(unique_bricks)))
+        log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), target_name,
+                                                                                 len(unique_bricks),
+                                                                                 bricksize, bricksize))
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -607,7 +610,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     isky = (targets['DESI_TARGET'] & desi_mask.SKY) != 0
     nsky = np.count_nonzero(isky) > 0
     if nsky:
-        log.info('Writing {}.'.format(skyfile))
+        log.info('Writing {}'.format(skyfile))
         write_bintable(skyfile, targets[isky], extname='SKY')
 
         log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
@@ -615,14 +618,15 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         targets = targets[notsky]
         truth = truth[notsky]
         trueflux = trueflux[notsky, :]
+        print()
 
+    targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
+    unique_bricks = list(set(targets['BRICKNAME']))
+    log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
+                                                                          outbricksize, outbricksize))
     #import pdb ; pdb.set_trace()
 
-    log.info('Repackage into larger bricks here and re-assign BRICKNAME!')
-    unique_bricks = list(set(targets['BRICKNAME']))
-    log.info('Writing out {} targets across {} bricks.'.format(len(targets), len(unique_bricks)))
-
-    # Create the RA-slice directories, if necessary.
+    # Create the RA-slice directories, if necessary and then initialize the output header. 
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
         try:
@@ -630,14 +634,13 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
         except:
             os.makedirs(thisradir)
 
-    # Initialize the output header.
     if seed is None:
         seed1 = 'None'
     else:
         seed1 = seed
     truthhdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed'),
-        BRICKSZ = (bricksize, 'bricksize'),
+        BRICKSZ = (outbricksize, 'brick size (deg)'),
         BUNIT = ('Angstrom', 'wavelength units'),
         AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
@@ -663,8 +666,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None,
     else:
         for ii in range(len(unique_bricks)):
             _update_write_status(_write_onebrick(writeargs[ii]))
-
-
 
 #    # consolidates all relevant arrays across mocks
 #    ra_total = np.empty(0)

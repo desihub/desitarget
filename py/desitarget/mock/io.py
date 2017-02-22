@@ -296,7 +296,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         feh = feh[cut]
         templatesubtype = templatesubtype[cut]
         nobj = len(ra)
-        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
     files = list()
     files.append(mockfile)
@@ -407,7 +407,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         logg = logg[cut]
         templatesubtype = templatesubtype[cut]
         nobj = len(ra)
-        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
     files = list()
     files.append(mockfile)
@@ -534,7 +534,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         dec = dec[cut]
         zz = zz[cut]
         nobj = len(ra)
-        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
         
     files = list()
     files.append(mockfile)
@@ -680,7 +680,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         absmag = absmag[cut]
         gr = gr[cut]
         nobj = len(ra)
-        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
     if magcut is not None:
         cut = rmag < magcut
@@ -694,7 +694,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         absmag = absmag[cut]
         gr = gr[cut]
         nobj = len(ra)
-        log.info('Trimmed sample to {} objects r < {}.'.format(nobj, magcut))
+        log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
     
     files = list()
     files.append(mockfile)
@@ -889,7 +889,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         logg = logg[cut]
         feh = feh[cut]
         nobj = len(ra)
-        log.info('Trimmed sample to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
     mockid = make_mockid(objid, n_per_file)
     seed = rand.randint(2**32, size=nobj)
