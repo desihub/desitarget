@@ -342,6 +342,10 @@ def is_in_bright_star(targs,starmask):
     #ADM coordinate match the star masks and the targets
     idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs,maxrad)
 
+    #ADM catch the case where nothing fell in a mask
+    if len(idstars) == 0:
+        return done
+
     #ADM for a matching star mask, find the angular separations that are less than the mask radius
     w = np.where(d2d.arcmin < starmask[idstars]["RADIUS"])
 
