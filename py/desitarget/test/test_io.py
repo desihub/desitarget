@@ -30,7 +30,7 @@ class TestIO(unittest.TestCase):
 
     def test_list_sweepfiles(self):
         files = io.list_sweepfiles(self.datadir)
-        self.assertEqual(len(files), 3)
+        self.assertEqual(len(files), 4)
         for x in files:
             self.assertTrue(os.path.basename(x).startswith('sweep'))
             self.assertTrue(os.path.basename(x).endswith('.fits'))
