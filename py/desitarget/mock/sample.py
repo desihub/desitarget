@@ -27,10 +27,10 @@ class SampleGMM(object):
         from pkg_resources import resource_filename
         from desiutil.sklearn import GaussianMixtureModel
 
-        bgsfile = resource_filename('desitarget', 'mock/data/bgsMag_gmm.fits')
-        elgfile = resource_filename('desitarget', 'mock/data/elgMag_gmm.fits')
-        lrgfile = resource_filename('desitarget', 'mock/data/lrgMag_gmm.fits')
-        qsofile = resource_filename('desitarget', 'mock/data/qsoMag_gmm.fits')
+        bgsfile = resource_filename('desitarget', 'mock/data/bgs_gmm.fits')
+        elgfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
+        lrgfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
+        qsofile = resource_filename('desitarget', 'mock/data/qso_gmm.fits')
 
         self.bgsmodel = GaussianMixtureModel.load(bgsfile)
         self.elgmodel = GaussianMixtureModel.load(elgfile)

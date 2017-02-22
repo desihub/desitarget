@@ -407,7 +407,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key] = meta[key]
-        
+
     for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
         targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
     for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):

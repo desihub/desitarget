@@ -225,7 +225,7 @@ class MockSpectra(object):
         return flux, meta
 
     def mws(self, data, index=None, mockformat='galaxia'):
-        """Generate spectra for a generic MWS sample.
+        """Generate spectra for the MWS_NEARBY and MWS_MAIN samples.
 
         """
         objtype = 'STAR'
@@ -293,6 +293,32 @@ class MockSpectra(object):
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.wd_templates.make_templates(input_meta=input_meta) # Note! No colorcuts.
 
+        return flux, meta
+
+    def qso(self, data, index=None, mockformat='gaussianfield'):
+        """Generate spectra for the QSO sample.
+
+        Currently only the GaussianField mock sample is supported.  DATA needs
+        to have Z, MAG, and SEED, which are assigned in
+        mock.io.read_gaussianfield.  See also TemplateKDTree.qso().
+
+        """
+        objtype = 'QSO'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT'),
+                                  ('SEED', 'MAG', 'Z')):
+            input_meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() == 'gaussianfield':
+            pass
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
+                                                          nocolorcuts=True)
         return flux, meta
 
     def sky(self, data, index=None, mockformat=None):
