@@ -72,7 +72,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     bandint = np.array([ "UGRIZY".find(band) for band in bands ])
 
     if len(bandint) != len(maglim):
-        raise IOError('bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
+        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandint),len(maglim)))
 
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
@@ -276,7 +276,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         maglim = [maglim]
 
     if len(bandint) != len(maglim):
-        raise IOError('bands has to be the same length as magint and {} does not equal {}'.format(len(bandint),len(maglim)))
+        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandint),len(maglim)))
 
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)

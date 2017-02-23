@@ -1,0 +1,47 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+
+from desitarget import io
+from desitarget.brightstar import make_bright_star_mask
+
+import warnings
+warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+from argparse import ArgumentParser
+ap = ArgumentParser()
+ap.add_argument("src", help="root directory with tractor/sweeps files from which to build mask")
+ap.add_argument("dest", help='Output file name to which to write mask')
+ap.add_argument('-v', "--verbose", action='store_true')
+ap.add_argument("--bands", 
+                help='Bands to use to build the star mask (e.g. GRZ)',
+                default="GRZ")
+ap.add_argument("--maglim",
+                help='Magnitude limits for building the star mask (e.g. 10,10,10)',
+                default="10,10,10")
+### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
+ap.add_argument("--numproc", type=int,
+    help='number of concurrent processes to use [{}]'.format(nproc),
+    default=nproc)
+
+ns = ap.parse_args()
+infiles = io.list_sweepfiles(ns.src)
+if len(infiles) == 0:
+    infiles = io.list_tractorfiles(ns.src)
+if len(infiles) == 0:
+    print('FATAL: no sweep or tractor files found')
+    sys.exit(1)
+
+maglim = [ float(ml) for ml in ns.maglim.split(',') ]
+
+starmask = make_bright_star_mask(ns.bands,maglim,numproc=ns.numproc,
+                                 rootdirname=ns.src,outfilename=ns.dest,verbose=ns.verbose)
+
+print('wrote a file of {} masks to {}'.format(len(starmask), ns.dest))
+
