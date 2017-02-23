@@ -942,7 +942,7 @@ def _load_mock_lya_file(filename):
     dec = dec * 180.0 / np.pi
     ra          = ra % 360.0 #enforce 0 < ra < 360
 
-    return {'objid':objid, 'RA':ra, 'DEC':dec, 'Z': z}
+    return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': z}
 
 def read_lya(mock_dir, target_name, mock_name=None):
     """ Reads and concatenates MWS mock files stored below the root directory.
