@@ -155,10 +155,11 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
     if obs_rflux is None:
         obs_rflux = rflux
 
-    rbright = 16.0
     if bright:
-        rfaint = 18.0
+        rbright = 14.0
+        rfaint = 17.0
     else:
+        rbright = 16.0
         rfaint = 19.0
         
     fstd &= obs_rflux < 10**((22.5 - rbright)/2.5)
