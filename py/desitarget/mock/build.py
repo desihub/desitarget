@@ -500,7 +500,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the MockSpectra and SelectTargets classes.')
-    Spectra = MockSpectra()
+    Spectra = MockSpectra(rand=rand)
     SelectTargets = mockselect.SelectTargets()
     print()
 

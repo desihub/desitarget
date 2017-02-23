@@ -464,10 +464,10 @@ class SelectTargets(object):
         """Select LRG targets."""
         from desitarget.cuts import isLRG
 
-        gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
         zflux = targets['DECAM_FLUX'][..., 4]
-        lrg = isLRG(gflux=gflux, rflux=rflux, zflux=zflux)
+        w1flux = targets['WISE_FLUX'][..., 0]
+        lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
 
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH

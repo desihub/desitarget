@@ -133,7 +133,7 @@ class MockSpectra(object):
     ToDo (@moustakas): apply Galactic extinction.
 
     """
-    def __init__(self, wavemin=None, wavemax=None, dw=0.2):
+    def __init__(self, wavemin=None, wavemax=None, dw=0.2, rand=None):
 
         from desimodel.io import load_throughput
         
@@ -149,6 +149,8 @@ class MockSpectra(object):
         self.wavemax = wavemax
         self.dw = dw
         self.wave = np.arange(round(wavemin, 1), wavemax, dw)
+
+        self.rand = rand
 
         #self.__normfilter = 'decam2014-r' # default normalization filter
 
@@ -220,6 +222,36 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,
+                                                          nocolorcuts=True, novdisp=True)
+
+        return flux, meta
+
+    def lrg(self, data, index=None, mockformat='gaussianfield'):
+        """Generate spectra for the LRG sample.
+
+        Currently only the GaussianField mock sample is supported.  DATA needs
+        to have Z, GR, RZ, VDISP, and SEED, which are assigned in
+        mock.io.read_gaussianfield.  See also TemplateKDTree.lrg().
+
+        """
+        objtype = 'LRG'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            input_meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() == 'gaussianfield':
+            # This is wrong: choose a template with equal probability.
+            templateid = self.rand.choice(self.tree.lrg_meta['TEMPLATEID'], len(index))
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        input_meta['TEMPLATEID'] = templateid
+        flux, _, meta = self.lrg_templates.make_templates(input_meta=input_meta,
                                                           nocolorcuts=True, novdisp=True)
 
         return flux, meta
