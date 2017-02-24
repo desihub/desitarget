@@ -34,6 +34,27 @@ from desitarget.targetmask import desi_mask, bgs_mask
 
 log = get_logger(DEBUG)
 
+def fileid_filename(source_data, output_dir):
+    '''
+    Outputs text file with mapping between mock filenum and file on disk
+
+    returns mapping dictionary map[mockanme][filenum] = filepath
+    
+    '''
+    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
+    map_id_name = {}
+    for k in source_data.keys():
+        map_id_name[k] = {}
+        data = source_data[k]
+        filenames = data['FILES']
+        n_files = len(filenames)
+        for i in range(n_files):
+            map_id_name[k][i] = filenames[i]
+            out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
+    out.close()
+
+    return map_id_name
+
 class BrickInfo(object):
     """Gather information on all the bricks.
 
@@ -293,27 +314,6 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None)
         mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
         mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
 
-def fileid_filename(source_data, output_dir):
-    '''
-    Outputs text file with mapping between mock filenum and file on disk
-
-    returns mapping dictionary map[mockanme][filenum] = filepath
-    
-    '''
-    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
-    map_id_name = {}
-    for k in source_data.keys():
-        map_id_name[k] = {}
-        data = source_data[k]
-        filenames = data['FILES']
-        n_files = len(filenames)
-        for i in range(n_files):
-            map_id_name[k][i] = filenames[i]
-            out.write('{} {} {}\n'.format(k,i, map_id_name[k][i]))
-    out.close()
-
-    return map_id_name
-
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.  The required output columns in order
     for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
@@ -341,8 +341,10 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj, data=np.zeros((nobj, 6))+99, dtype='f4'))
-    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj, data=np.zeros((nobj, 6))+99, dtype='f4'))
+    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj,
+                              data=np.zeros((nobj, 6)), dtype='f4'))
+    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj,
+                              data=np.zeros((nobj, 6)), dtype='f4'))
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
 
     return targets
@@ -604,6 +606,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
     log.info('DO A FINAL CHECK OF THE DENSITIES AND SUBSAMPLE IF NECESSARY!!!')
+    import pdb ; pdb.set_trace()
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
     skyfile = os.path.join(output_dir, 'sky.fits')

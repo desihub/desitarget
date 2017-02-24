@@ -18,9 +18,9 @@ class SampleGMM(object):
         specified target_type.
     random_state: RandomState or an int seed.  A random number generator.
 
-    Returns
-      np.ndarray length n_targets : Structured array with columns
-        g,r,z,w1,w2,w3,w4 of sampled magnitudes.
+    Returns: np.ndarray length n_targets :
+        Structured array with columns g, r, z, w1, w2, w3, w4, exp_r, exp_e1,
+        exp_e2, dev_r, dev_e1, dev_e2 of sampled magnitudes.
 
     """
     def __init__(self, random_state=None):

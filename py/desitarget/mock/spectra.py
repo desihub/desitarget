@@ -159,7 +159,8 @@ class MockSpectra(object):
         self.bgs_templates = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
         self.elg_templates = ELG(wave=self.wave, normfilter='decam2014-r')
         self.lrg_templates = LRG(wave=self.wave, normfilter='decam2014-z')
-        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-g')
+        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-r')
+        self.lya_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
         self.wd_templates = WD(wave=self.wave, normfilter='decam2014-g')
         
@@ -328,29 +329,48 @@ class MockSpectra(object):
         return flux, meta
 
     def qso(self, data, index=None, mockformat='gaussianfield'):
-        """Generate spectra for the QSO sample.
+        """Generate spectra for the QSO or QSO/LYA samples.
 
-        Currently only the GaussianField mock sample is supported.  DATA needs
-        to have Z, MAG, and SEED, which are assigned in
-        mock.io.read_gaussianfield.  See also TemplateKDTree.qso().
+        Note: We need to make sure NORMFILTER matches!
 
         """
         objtype = 'QSO'
         if index is None:
             index = np.arange(len(data['Z']))
-
-        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT'),
-                                  ('SEED', 'MAG', 'Z')):
-            input_meta[inkey] = data[datakey][index]
+        nobj = len(index)
 
         if mockformat.lower() == 'gaussianfield':
-            pass
+            # Build spectra for tracer QSOs.
+            input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
+            for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT'),
+                                      ('SEED', 'MAG', 'Z')):
+                input_meta[inkey] = data[datakey][index]
+
+            flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
+                                                              nocolorcuts=True)
+        elif mockformat.lower() == 'lya':
+            # Build spectra for Lyman-alpha QSOs.
+            from astropy.table import vstack
+            from desisim.lya_spectra import get_spectra
+            from desitarget.mock.io import decode_rownum_filenum
+
+            meta = empty_metatable(nmodel=nobj, objtype=objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+            
+            rowindx, fileindx = decode_rownum_filenum(data['MOCKID'][index])
+            for indx1 in set(fileindx):
+                lyafile = data['FILES'][indx1]
+                these = np.where(indx1 == fileindx)[0]
+                templateid = rowindx[these].astype('int')
+            
+                flux1, _, meta1 = get_spectra(lyafile, templateid=templateid,
+                                              normfilter=data['FILTERNAME'],
+                                              rand=self.rand, qso=self.lya_templates)
+                meta[these] = meta1
+                flux[these, :] = flux1
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True)
         return flux, meta
 
     def sky(self, data, index=None, mockformat=None):
