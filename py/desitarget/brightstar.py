@@ -337,6 +337,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         The bright star mask in the form RA,DEC,TARGETID,RADIUS (may also be written to file if outfilename is passed)
         radius is in ARCMINUTES
         TARGETID is as calculated in desitarget.targets.py
+
     Notes
     -----
     Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band):
@@ -367,6 +368,11 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     else:
         objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename,verbose)
    
+    #ADM set any observations with NOBS = 0 to have zero flux so glitches don't end up as bright star masks
+    w = np.where(objs["DECAM_NOBS"] == 0)
+    if len(w[0]) > 0:
+        objs["DECAM_FLUX"][w] = 0.
+
     #ADM limit to the passed faint limit
     w = np.where(np.any(objs["DECAM_FLUX"][...,bandint] > fluxlim,axis=1))
     objs = objs[w]
@@ -413,7 +419,7 @@ def plot_mask(mask,limits=None,over=False):
 
     #ADM set up the plot
     plt.figure(figsize=(8,8))
-    plt.ax=subplot(aspect='equal')
+    ax = plt.subplot(aspect='equal')
     plt.xlabel('RA (o)')
     plt.ylabel('Dec (o)')
 
