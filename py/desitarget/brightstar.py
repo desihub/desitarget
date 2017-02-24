@@ -494,7 +494,8 @@ def set_target_bits(targs,starmask):
 
     To Do
     -----
-        Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
+        - Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
+        - Should also set NEAR_BRIGHT_OBJECT at an appropriate radius in is_in_bright_star
 
     See desitarget.targetmask for the definition of each bit
     """
