@@ -18,12 +18,93 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 import os
 
+import matplotlib.pyplot as plt
+from matplotlib.patches import Circle, Ellipse, Rectangle
+from matplotlib.collections import PatchCollection
+
 from . import __version__ as desitarget_version
 from . import gitversion
 
 from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget import desi_mask
+
+def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
+    """
+    Make a scatter plot of circles. 
+    Similar to plt.scatter, but the size of circles are in data scale.
+
+    Parameters
+    ----------
+    x, y : scalar or array_like, shape (n, )
+        Input data
+    s : scalar or array_like, shape (n, ) 
+        Radius of circles.
+    c : color or sequence of color, optional, default : 'b'
+        `c` can be a single color format string, or a sequence of color
+        specifications of length `N`, or a sequence of `N` numbers to be
+        mapped to colors using the `cmap` and `norm` specified via kwargs.
+        Note that `c` should not be a single numeric RGB or RGBA sequence 
+        because that is indistinguishable from an array of values
+        to be colormapped. (If you insist, use `color` instead.)  
+        `c` can be a 2-D array in which the rows are RGB or RGBA, however. 
+    vmin, vmax : scalar, optional, default: None
+        `vmin` and `vmax` are used in conjunction with `norm` to normalize
+        luminance data.  If either are `None`, the min and max of the
+        color array is used.
+    kwargs : `~matplotlib.collections.Collection` properties
+        Eg. alpha, edgecolor(ec), facecolor(fc), linewidth(lw), linestyle(ls), 
+        norm, cmap, transform, etc.
+
+    Returns
+    -------
+    paths : `~matplotlib.collections.PathCollection`
+
+    Examples
+    --------
+    a = np.arange(11)
+    circles(a, a, s=a*0.2, c=a, alpha=0.5, ec='none')
+    plt.colorbar()
+
+    License
+    --------
+    This code is under [The BSD 3-Clause License]
+    (http://opensource.org/licenses/BSD-3-Clause)
+
+    Attribution
+    -----------
+    With thanks to https://gist.github.com/synnick/5088216
+    """
+
+    if np.isscalar(c):
+        kwargs.setdefault('color', c)
+        c = None
+    if 'fc' in kwargs:
+        kwargs.setdefault('facecolor', kwargs.pop('fc'))
+    if 'ec' in kwargs:
+        kwargs.setdefault('edgecolor', kwargs.pop('ec'))
+    if 'ls' in kwargs:
+        kwargs.setdefault('linestyle', kwargs.pop('ls'))
+    if 'lw' in kwargs:
+        kwargs.setdefault('linewidth', kwargs.pop('lw'))
+    # You can set `facecolor` with an array for each patch,
+    # while you can only set `facecolors` with a value for all.
+
+    patches = [Circle((x_, y_), s_)
+               for x_, y_, s_ in np.broadcast(x, y, s)]
+    collection = PatchCollection(patches, **kwargs)
+    if c is not None:
+        collection.set_array(np.asarray(c))
+        collection.set_clim(vmin, vmax)
+
+    ax = plt.gca()
+    ax.add_collection(collection)
+    ax.autoscale_view()
+    plt.draw_if_interactive()
+    if c is not None:
+        plt.sci(collection)
+    return collection
+
 
 def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
@@ -312,6 +393,42 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     return done
 
 
+def plot_mask(mask,limits=None,over=False):
+    """Make a plot of a mask and either display it or retain the plot object for over-plotting
+    
+    Parameters
+    ----------
+    mask : :class:`recarray`
+        A mask constructed by make_bright_star_mask (or read in from file in the make_bright_star_mask format)
+    limits : :class:`list`, optional
+        A list defining the RA/Dec limits of the plot as would be passed to matplotlib.pyplot.axis
+    over : :class:`boolean`
+        If False, then don't "show" the plot, so that the plotting commands can be combined with
+        other matplotlib commands to save the figure, over-plot targets etc.
+
+    Returns
+    -------
+        Nothing
+    """
+
+    #ADM set up the plot
+    plt.figure(figsize=(8,8))
+    plt.ax=subplot(aspect='equal')
+    plt.xlabel('RA (o)')
+    plt.ylabel('Dec (o)')
+
+    if limits is not None:
+        plt.axis(limits)
+
+    #ADM draw circle patches from the mask information converting radius to degrees
+    out = circles(mask["RA"], mask["DEC"], mask["RADIUS"]/60., alpha=0.2, edgecolor='none')
+
+    if not over:
+        plt.show()
+
+    return
+
+
 def is_in_bright_star(targs,starmask):
     """Determine whether a set of targets is in a bright star mask
 
@@ -368,7 +485,7 @@ def set_target_bits(targs,starmask):
     Returns
     -------
         an ndarray of the updated desi_target bit that includes bright star information
-                                                                                                                                                      
+
     To Do
     -----
         Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
