@@ -74,69 +74,6 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
             mag_bright:      float
                 Hard bright limit for inclusion in survey.
     """
-    # reference for SDSS values:  (Yuan, Liu, Xiang) https://arxiv.org/pdf/1301.1427v1.pdf
-    # reference for other values: The Tractor https://github.com/dstndstn/tractor/blob/39f883c811f0a6b17a44db140d93d4268c6621a1/tractor/sfd.py
-    extinctions = {
-        'SDSSu': 4.239,
-        'SDSSg': 3.30,
-        'SDSSr': 2.31,
-        'SDSSz': 1.29,
-        'DESu': 3.995,
-        'DESg': 3.214,
-        'DESr': 2.165,
-        'DESi': 1.592,
-        'DESz': 1.211,
-        'DESY': 1.064,
-        'WISEW1': 0.184,
-        'WISEW2': 0.113,
-        'WISEW3': 0.0241,
-        'WISEW4': 0.00910,
-        }
-
-    target_class = -1
-
-    if (sourcename == 'STD_FSTAR'):
-        """
-        Apply the selection function to determine the target class of each entry in
-        the input catalog.
-
-        This implements standard F-star cuts from:
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
-
-        Optical colors near BD+17 4708
-        (GRCOLOR - 0.32)^2 + (RZCOLOR - 0.13)^2 < 0.06^2
-
-        To do:
-        - Isolation criterion
-        - DECam magnitudes rather than SDSS
-        """
-        # Parameters
-        mag_faint  = kwargs['mag_faint']
-        mag_bright = kwargs['mag_bright']
-        grcolor    = kwargs['grcolor']
-        rzcolor    = kwargs['rzcolor']
-        colortol   = kwargs['colortol']
- 
-        SELECTION_MAG_NAME = 'DECAMr_obs'
-        COLOR_G_NAME       = 'DECAMg_obs'
-        COLOR_R_NAME       = 'DECAMr_obs'
-        COLOR_Z_NAME       = 'DECAMz_obs'
-
-        # Will populate this array with the bitmask values of each target class
-        n = len(data[SELECTION_MAG_NAME])
-        target_class = np.zeros(n,dtype=np.int64) - 1
-
-        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
-        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
-
-        gmr            = data[COLOR_G_NAME] - data[COLOR_R_NAME]
-        rmz            = data[COLOR_R_NAME] - data[COLOR_Z_NAME]
-
-        select_color     = (gmr - grcolor)**2 + (rmz - rzcolor)**2 < colortol**2
-        select_mag       = (fainter_than_bright_limit) & (brighter_than_faint_limit)
-        select_std_stars = (select_color) & (select_mag)
-        target_class[select_std_stars] = desi_mask.mask('STD_FSTAR')
-
     if (sourcename == 'MWS_MAIN'):
         mag_bright       = kwargs['mag_bright']
         mag_faintest     = kwargs['mag_faintest']
@@ -196,40 +133,6 @@ def mag_select(data, sourcename, targetname, truthname, brick_info=None, density
         target_class[select_main_sample] = mws_mask.mask('MWS_MAIN')
         target_class[select_faint_filler_sample] = mws_mask.mask('MWS_MAIN_VERY_FAINT')
             
-    if (sourcename == 'MWS_WD'):
-        mag_bright = kwargs['mag_bright']
-        mag_faint  = kwargs['mag_faint']
-
-        # Parameters
-        SELECTION_MAG_NAME = 'g_sdss'
-
-        # Will populate this array with the bitmask values of each target class
-        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
-
-        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
-        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
-
-
-        # WD sample
-        select_wd_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit)
-        target_class[select_wd_sample] = mws_mask.mask('MWS_WD')
-
-    if (sourcename == 'MWS_NEARBY'):
-        mag_bright = kwargs['mag_bright']
-        mag_faint  = kwargs['mag_faint']
-
-        # Parameters
-        SELECTION_MAG_NAME = 'magg'
-
-        # Will populate this array with the bitmask values of each target class
-        target_class = np.zeros(len(data[SELECTION_MAG_NAME]),dtype=np.int64) - 1
-
-        fainter_than_bright_limit  = data[SELECTION_MAG_NAME]  >= mag_bright
-        brighter_than_faint_limit  = data[SELECTION_MAG_NAME]  <  mag_faint
-
-        select_nearby_sample               = (fainter_than_bright_limit) & (brighter_than_faint_limit)
-        target_class[select_nearby_sample] = mws_mask.mask('MWS_NEARBY')
-
     if (sourcename == 'BGS'):
         mag_bright = kwargs['mag_bright']
         mag_faintest = kwargs['mag_faintest']

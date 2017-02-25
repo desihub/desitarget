@@ -529,7 +529,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
 
         # Assign spectra by parallel-processing the bricks.
-        #brickname = get_brickname_from_radec(source_data['RA'], source_data['DEC'])#, bricksize=bricksize)
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
         #unique_bricks = list(set(brickname[:5]))
@@ -588,7 +587,14 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
         alltrueflux.append(trueflux[keep, :])
+
+        # Finally downsample based on the desired number density.
+        
+
+        
         print()
+
+        import pdb ; pdb.set_trace()
 
     # Consolidate across all the mocks and then assign TARGETIDs, subpriorities,
     # and shapes and fluxes.
