@@ -13,7 +13,8 @@ class TestMockBuild(unittest.TestCase):
     
     def setUp(self):
         pass
-            
+
+    @unittest.skip('This test is deprecated, so skip for now.')
     def test_shapes_and_fluxes(self):
         nreal = 40
         real = Table()

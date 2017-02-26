@@ -532,8 +532,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        #unique_bricks = list(set(brickname[:5]))
-        #print('HACK!!!!!!!!!!!!!!!!!!!!!!!!')
         log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), target_name,
                                                                                  len(unique_bricks),
                                                                                  bricksize, bricksize))
@@ -541,12 +539,12 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
-            if nbrick % 5 == 0 and nbrick > 0:
+            if nbrick % 10 == 0 and nbrick > 0:
             #if verbose and nbrick % 5 == 0 and nbrick > 0:
                 #rate = nbrick / (time() - t0)
                 #log.info('{} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
                 rate = (time() - t0) / nbrick
-                print('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
+                log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
             nbrick[...] += 1    # this is an in-place modification
             return result
     
@@ -581,7 +579,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Select targets and get the targeting bits.
         selection_function = '{}_select'.format(target_name.lower())
         getattr(SelectTargets, selection_function)(targets, truth)
-        #import pdb ; pdb.set_trace()
         
         targkeep = targets['DESI_TARGET'] != 0
 
@@ -629,14 +626,37 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         targets = targets[notsky]
         truth = truth[notsky]
         trueflux = trueflux[notsky, :]
+
+        if len(targets) == 0:
+            log.info('Only SKY targets; returning.')
+            return
         print()
 
+    # Write out the dark- and bright-time standard stars.
+    stdfile_dark = os.path.join(output_dir, 'standards-dark.fits')
+    #istddark = ((targets['DESI_TARGET'] & desi_mask.STD_FSTAR) |
+    #    (targets['DESI_TARGET'] & desi_mask.STD_WD)) != 0
+    istddark = (targets['DESI_TARGET'] & desi_mask.STD_FSTAR) != 0
+    if np.count_nonzero(istddark) > 0:
+        log.info('Writing {}'.format(stdfile_dark))
+        write_bintable(stdfile_dark, targets[istddark], extname='STD')
+
+    stdfile_bright = os.path.join(output_dir, 'standards-bright.fits')
+    istdbright = (targets['DESI_TARGET'] & desi_mask.STD_BRIGHT) != 0
+    #istdbright = ((targets['DESI_TARGET'] & desi_mask.STD_BRIGHT) |
+    #    (targets['DESI_TARGET'] & desi_mask.STD_WD)) != 0
+    if np.count_nonzero(istdbright) > 0:
+        log.info('Writing {}'.format(stdfile_bright))
+        write_bintable(stdfile_bright, targets[istdbright], extname='STD')
+
+    import pdb ; pdb.set_trace()
+
+    # Write out the brick-level files (if any).
+    
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
                                                                           outbricksize, outbricksize))
-    #import pdb ; pdb.set_trace()
-
     # Create the RA-slice directories, if necessary and then initialize the output header. 
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
