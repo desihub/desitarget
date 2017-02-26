@@ -816,7 +816,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     else:
         from glob import glob
         log.warning('Temporary hack using glob because I am having problems with iter_files.')
-        iter_mock_files = glob(mock_dir_name+'/*/*.fits')
+        iter_mock_files = glob(mock_dir_name+'/*/*/*.fits')
 
     file_list = list(iter_mock_files)
     nfiles = len(iter_mock_files)

@@ -30,7 +30,7 @@ import desitarget.mock.io as mockio
 import desitarget.mock.selection as mockselect
 from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
-from desitarget.targetmask import desi_mask, bgs_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 log = get_logger(DEBUG)
 
@@ -497,7 +497,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys())).build_brickinfo()
-    #import pdb ; pdb.set_trace()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
@@ -540,9 +539,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         t0 = time()
         def _update_spectra_status(result):
             if nbrick % 10 == 0 and nbrick > 0:
-            #if verbose and nbrick % 5 == 0 and nbrick > 0:
-                #rate = nbrick / (time() - t0)
-                #log.info('{} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
                 rate = (time() - t0) / nbrick
                 log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
             nbrick[...] += 1    # this is an in-place modification
@@ -588,9 +584,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
             denskeep = SelectTargets.density_select(targets[targkeep], density=density,
                                                     sourcename=source_name)
-            keep = targkeep[denskeep]
+            keep = targkeep[denskeep] * 1
         else:
-            keep = targkeep
+            keep = targkeep * 1
+
+        import pdb ; pdb.set_trace()
             
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
@@ -615,7 +613,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
     skyfile = os.path.join(output_dir, 'sky.fits')
-    isky = (targets['DESI_TARGET'] & desi_mask.SKY) != 0
+    isky = ((targets['DESI_TARGET'] & desi_mask.SKY) != 0) * 1
     nsky = np.count_nonzero(isky) > 0
     if nsky:
         log.info('Writing {}'.format(skyfile))
@@ -632,27 +630,20 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             return
         print()
 
-    # Write out the dark- and bright-time standard stars.
-    stdfile_dark = os.path.join(output_dir, 'standards-dark.fits')
-    #istddark = ((targets['DESI_TARGET'] & desi_mask.STD_FSTAR) |
-    #    (targets['DESI_TARGET'] & desi_mask.STD_WD)) != 0
-    istddark = (targets['DESI_TARGET'] & desi_mask.STD_FSTAR) != 0
-    if np.count_nonzero(istddark) > 0:
-        log.info('Writing {}'.format(stdfile_dark))
-        write_bintable(stdfile_dark, targets[istddark], extname='STD')
-
-    stdfile_bright = os.path.join(output_dir, 'standards-bright.fits')
-    istdbright = (targets['DESI_TARGET'] & desi_mask.STD_BRIGHT) != 0
-    #istdbright = ((targets['DESI_TARGET'] & desi_mask.STD_BRIGHT) |
-    #    (targets['DESI_TARGET'] & desi_mask.STD_WD)) != 0
-    if np.count_nonzero(istdbright) > 0:
-        log.info('Writing {}'.format(stdfile_bright))
-        write_bintable(stdfile_bright, targets[istdbright], extname='STD')
-
-    import pdb ; pdb.set_trace()
+    # Write out the dark- and bright-time standard stars.  White dwarf standards
+    # not yet supported.
+    for suffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+        stdfile = os.path.join(output_dir, 'standards-{}.fits'.format(suffix))
+        #istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+        #        (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
+        istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
+        if np.count_nonzero(istd) > 0:
+            log.info('Writing {}'.format(stdfile))
+            write_bintable(stdfile, targets[istd], extname='STD')
+        else:
+            log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
 
     # Write out the brick-level files (if any).
-    
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
@@ -681,9 +672,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     def _update_write_status(result):
         if verbose and nbrick % 5 == 0 and nbrick > 0:
             rate = nbrick / (time() - t0)
-            #rate = (time() - t0) / nbrick
             print('Writing {} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
-        nbrick[...] += 1    # this is an in-place modification
+        nbrick[...] += 1
         return result
 
     writeargs = list()
@@ -697,6 +687,3 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     else:
         for ii in range(len(unique_bricks)):
             _update_write_status(_write_onebrick(writeargs[ii]))
-
-    import pdb ; pdb.set_trace()
-    

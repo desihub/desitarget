@@ -306,7 +306,6 @@ class MockSpectra(object):
         """Generate spectra for the MWS_WD sample.
 
         """
-        print('NEED TO DO WD SUBTYPES!!!!!')
         objtype = 'WD'
         if index is None:
             index = np.arange(len(data['Z']))
@@ -315,6 +314,8 @@ class MockSpectra(object):
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG'),
                                   ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG')):
             input_meta[inkey] = data[datakey][index]
+
+        import pdb ; pdb.set_trace()
 
         if mockformat.lower() == 'wd':
             alldata = np.vstack((data['TEFF'][index],
