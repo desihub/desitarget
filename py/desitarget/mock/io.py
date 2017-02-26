@@ -535,6 +535,15 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         zz = zz[cut]
         nobj = len(ra)
         log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+
+    # Cut the QSO sample to z<2.1
+    if target_name == 'QSO':
+        cut = (zz > 0) * (zz < 2.1)
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        nobj = len(ra)
+        log.info('Trimmed to {} QSOs in redshift range 0.0<z<2.1'.format(nobj))
         
     files = list()
     files.append(mockfile)

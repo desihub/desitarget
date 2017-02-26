@@ -262,7 +262,8 @@ class BrickInfo(object):
         td = yaml.load(filein)
         target_desimodel = {}
         for t in td.keys():
-            target_desimodel[t.upper()] = td[t]
+            if 'ntarget' in t.upper():
+                target_desimodel[t.upper()] = td[t]
 
         return target_desimodel
 
@@ -387,19 +388,18 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-    nbrick = len(brickindx)
 
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
 
-    if (nbrick != 1):
-        log.warning('No matching brick {}! This should not happen'.format(thisbrick))
-        import pdb ; pdb.set_trace()
-        _targets = empty_targets_table()
-        _truth = empty_truth_table()
-        _trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
-        _onbrick = np.array([], dtype=int)
-        return [_targets, _truth, _trueflux, _onbrick]
+    if (len(brickindx) != 1):
+        log.fatal('No matching brick {}! This should not happen...'.format(thisbrick))
+        raise ValueError
+        #_targets = empty_targets_table()
+        #_truth = empty_truth_table()
+        #_trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
+        #_onbrick = np.array([], dtype=int)
+        #return [_targets, _truth, _trueflux, _onbrick]
         
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
@@ -503,7 +503,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the MockSpectra and SelectTargets classes.')
     Spectra = MockSpectra(rand=rand)
-    SelectTargets = mockselect.SelectTargets()
+    SelectTargets = mockselect.SelectTargets(logger=log, rand=rand,
+                                             brick_info=brick_info)
     print()
 
     # Print info about the mocks we will be loading and then load them.
@@ -582,19 +583,23 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         getattr(SelectTargets, selection_function)(targets, truth)
         #import pdb ; pdb.set_trace()
         
-        keep = targets['DESI_TARGET'] != 0
+        targkeep = targets['DESI_TARGET'] != 0
 
+        # Finally downsample based on the desired number density.
+        if 'density' in params['sources'][source_name].keys():
+            density = params['sources'][source_name]['density']
+            log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
+            denskeep = SelectTargets.density_select(targets[targkeep], density=density,
+                                                    sourcename=source_name)
+            keep = targkeep[denskeep]
+        else:
+            keep = targkeep
+            
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
         alltrueflux.append(trueflux[keep, :])
 
-        # Finally downsample based on the desired number density.
-        
-
-        
         print()
-
-        import pdb ; pdb.set_trace()
 
     # Consolidate across all the mocks and then assign TARGETIDs, subpriorities,
     # and shapes and fluxes.
@@ -610,9 +615,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     if realtargets is not None:
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
-
-    log.info('DO A FINAL CHECK OF THE DENSITIES AND SUBSAMPLE IF NECESSARY!!!')
-    import pdb ; pdb.set_trace()
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
     skyfile = os.path.join(output_dir, 'sky.fits')
@@ -675,3 +677,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     else:
         for ii in range(len(unique_bricks)):
             _update_write_status(_write_onebrick(writeargs[ii]))
+
+    import pdb ; pdb.set_trace()
+    
