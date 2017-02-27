@@ -457,8 +457,6 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     hx.writeto(truthfile, overwrite=True)
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
     
-    #import pdb ; pdb.set_trace()
-
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                   bricksize=0.25, outbricksize=5.0, nproc=4):
     """
@@ -588,8 +586,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         else:
             keep = targkeep * 1
 
-        import pdb ; pdb.set_trace()
-            
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
         alltrueflux.append(trueflux[keep, :])
