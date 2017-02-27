@@ -27,14 +27,16 @@ class TemplateKDTree(object):
         self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
         self.star_meta = read_basis_templates(objtype='STAR', onlymeta=True)
         self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)
-        self.wd_meta = read_basis_templates(objtype='WD', onlymeta=True)
+        self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
+        self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
 
         self.bgs_tree = KDTree(self._bgs())
         self.elg_tree = KDTree(self._elg())
         #self.lrg_tree = KDTree(self._lrg())
         self.star_tree = KDTree(self._star())
         #self.qso_tree = KDTree(self._qso())
-        self.wd_tree = KDTree(self._wd())
+        self.wd_da_tree = KDTree(self._wd_da())
+        self.wd_db_tree = KDTree(self._wd_db())
 
     def _bgs(self):
         """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r).  This needs to
@@ -65,10 +67,6 @@ class TemplateKDTree(object):
         #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
         return np.vstack((zobj, gr, rz)).T
 
-    #def _lrg(self):
-    #    """Quantities we care about: redshift, XXX"""
-    #    pass 
-
     def _star(self):
         """Quantities we care about: Teff, logg, and [Fe/H].
 
@@ -82,17 +80,23 @@ class TemplateKDTree(object):
     #    """Quantities we care about: redshift, XXX"""
     #    pass 
 
-    def _wd(self):
-        """Quantities we care about: Teff and logg.
+    def _wd_da(self):
+        """DA white dwarf.  Quantities we care about: Teff and logg.
 
-        TODO (@moustakas): deal with DA vs DB types!
-        
         """
-        teff = self.wd_meta['TEFF'].data
-        logg = self.wd_meta['LOGG'].data
+        teff = self.wd_da_meta['TEFF'].data
+        logg = self.wd_da_meta['LOGG'].data
         return np.vstack((teff, logg)).T
 
-    def query(self, objtype, matrix):
+    def _wd_db(self):
+        """DB white dwarf.  Quantities we care about: Teff and logg.
+
+        """
+        teff = self.wd_db_meta['TEFF'].data
+        logg = self.wd_db_meta['LOGG'].data
+        return np.vstack((teff, logg)).T
+
+    def query(self, objtype, matrix, subtype=''):
         """Return the nearest template number based on the KD Tree.
 
         Args:
@@ -100,6 +104,7 @@ class TemplateKDTree(object):
           matrix (numpy.ndarray): (M,N) array (M=number of properties,
             N=number of objects) in the same format as the corresponding
             function for each object type (e.g., self.bgs).
+          subtype (str, optional): subtype (only for white dwarfs)
 
         Returns:
           dist: distance to nearest template
@@ -122,8 +127,14 @@ class TemplateKDTree(object):
             dist, indx = self.qso_tree.query(matrix)
             
         elif objtype.upper() == 'WD':
-            dist, indx = self.wd_tree.query(matrix)
-            
+            if subtype.upper() == 'DA':
+                dist, indx = self.wd_da_tree.query(matrix)
+            elif subtype.upper() == 'DB':
+                dist, indx = self.wd_db_tree.query(matrix)
+            else:
+                log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
+                raise ValueError
+                
         return dist, indx
 
 class MockSpectra(object):
@@ -162,7 +173,8 @@ class MockSpectra(object):
         self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-r')
         self.lya_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
-        self.wd_templates = WD(wave=self.wave, normfilter='decam2014-g')
+        self.wd_da_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DA')
+        self.wd_db_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DB')
         
     def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
         """Generate spectra for BGS.
@@ -303,29 +315,41 @@ class MockSpectra(object):
         return flux, meta
 
     def mws_wd(self, data, index=None, mockformat='wd'):
-        """Generate spectra for the MWS_WD sample.
+        """Generate spectra for the MWS_WD sample.  Deal with DA vs DB white dwarfs
+        separately.
 
         """
         objtype = 'WD'
         if index is None:
             index = np.arange(len(data['Z']))
+        nobj = len(index)
 
-        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG'),
-                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG')):
+        input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'SUBTYPE'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'TEMPLATESUBTYPE')):
             input_meta[inkey] = data[datakey][index]
 
-        import pdb ; pdb.set_trace()
-
         if mockformat.lower() == 'wd':
-            alldata = np.vstack((data['TEFF'][index],
-                                 data['LOGG'][index])).T
-            _, templateid = self.tree.query(objtype, alldata)
+            meta = empty_metatable(nmodel=nobj, objtype=objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+            
+            for subtype in ('DA', 'DB'):
+                these = np.where(input_meta['SUBTYPE'] == subtype)[0]
+                if len(these) > 0:
+                    alldata = np.vstack((data['TEFF'][index][these],
+                                         data['LOGG'][index][these])).T
+                    _, templateid = self.tree.query(objtype, alldata, subtype=subtype)
+
+                    input_meta['TEMPLATEID'][these] = templateid
+                    
+                    template_function = 'wd_{}_templates'.format(subtype.lower())
+                    flux1, _, meta1 = getattr(self, template_function).make_templates(input_meta=input_meta[these])
+                    
+                    meta[these] = meta1
+                    flux[these, :] = flux1
+            
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-
-        input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.wd_templates.make_templates(input_meta=input_meta) # Note! No colorcuts.
 
         return flux, meta
 

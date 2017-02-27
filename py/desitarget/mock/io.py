@@ -388,7 +388,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
     mag = data['G_SDSS'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
     logg = data['LOGG'].astype('f4')
-    templatesubtype = data['SPECTRALTYPE']
+    templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
 
     nobj = len(ra)
     log.info('Read {} objects from {}.'.format(nobj, mockfile))
