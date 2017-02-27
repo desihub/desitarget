@@ -11,7 +11,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
 
     def setUp(self):
         self.datadir = resource_filename('desitarget.test', 't')
-        self.bsdatadir = self.datadir+'/brightstar'
+        self.bsdatadir = resource_filename('desitarget.test', 't2')
         self.testbsfile = 'bs.fits'
         self.testmaskfile = 'bsmask.fits'
         self.testtargfile = 'bstargs.fits'

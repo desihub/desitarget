@@ -21,7 +21,7 @@ for brick in ['3301m002', '3301m007', '3303p000']:
 
 sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1/'
 #sweepdir = '/data/legacysurvey/dr2p/sweep/'
-for radec in ['190m005-200p000', '310m005-320p000', '320m005-330p000', '330m005-340p000']:
+for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
     desi_target = apply_cuts(filepath)[0]
     yes = np.where(desi_target != 0)[0]
@@ -31,8 +31,8 @@ for radec in ['190m005-200p000', '310m005-320p000', '320m005-330p000', '330m005-
     fits.writeto(basename(filepath), data[keep], header=hdr)
 
 #ADM adding a file to make a mask for bright stars
-#ADM this should go in its own directory /t/brighstar
+#ADM this should go in its own directory /t2 (others are in t1)
 filepath = '{}/sweep-{}.fits'.format(sweepdir, '190m005-200p000')
 data, hdr = fits.getdata(filepath, header=True)
 keep = np.where(data["DECAM_FLUX"][:,4] > 100000)
-fits.writeto('brightstar/'+basename(filepath), data[keep], header=hdr)
+fits.writeto('t2/'+basename(filepath), data[keep], header=hdr)
