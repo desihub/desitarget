@@ -237,6 +237,9 @@ class SelectTargets(object):
     
             onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
             n_in_brick = len(onbrick)
+            if n_in_brick == 0:
+                self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
+                raise ValueError
     
             mock_density = n_in_brick / brick_area
             desired_density = self.brick_info['FLUC_EBV'][sourcename][brickindx] * density

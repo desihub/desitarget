@@ -7,14 +7,13 @@ desitarget.mock.build
 
 Build a truth catalog (including spectra) and a targets catalog for the mocks. 
 
-python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 444 --nproc 4
-pyprof2calltree -k -i mock.dat
+time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 678 --nproc 8 --output_dir brick_targets
+pyprof2calltree -k -i mock.dat &
 
 """
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import warnings
 from time import time
 
 import yaml
@@ -22,7 +21,6 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table, Column, vstack
 
-from desispec.log import get_logger, DEBUG
 from desispec.io.util import fitsheader, write_bintable
 from desispec.brick import brickname as get_brickname_from_radec
 
@@ -32,6 +30,7 @@ from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
+from desispec.log import get_logger, DEBUG
 log = get_logger(DEBUG)
 
 def fileid_filename(source_data, output_dir):
@@ -321,8 +320,6 @@ def empty_targets_table(nobj=1):
     MWS_TARGET, SUBPRIORITY and OBSCONDITIONS.  Everything else is gravy.
 
     """
-    from astropy.table import Table, Column
-
     targets = Table()
 
     # Columns required for fiber assignment:
@@ -354,8 +351,6 @@ def empty_truth_table(nobj=1):
     """Initialize the truth table for each mock object, with spectra.
     
     """
-    from astropy.table import Table, Column
-
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
@@ -529,7 +524,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), target_name,
+        log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), source_name,
                                                                                  len(unique_bricks),
                                                                                  bricksize, bricksize))
 
@@ -563,7 +558,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         targets['RA'] = source_data['RA']
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
-        
+
         truth['MOCKID'] = source_data['MOCKID']
         truth['TRUEZ'] = source_data['Z'].astype('f4')
         truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
@@ -573,8 +568,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Select targets and get the targeting bits.
         selection_function = '{}_select'.format(target_name.lower())
         getattr(SelectTargets, selection_function)(targets, truth)
-        
-        targkeep = targets['DESI_TARGET'] != 0
+
+        targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
 
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
@@ -582,9 +577,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
             denskeep = SelectTargets.density_select(targets[targkeep], density=density,
                                                     sourcename=source_name)
-            keep = targkeep[denskeep] * 1
+            keep = targkeep[denskeep]
         else:
-            keep = targkeep * 1
+            keep = targkeep
 
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
@@ -608,20 +603,25 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
+    try:
+        os.stat(output_dir)
+    except:
+        os.makedirs(output_dir)
+    
     skyfile = os.path.join(output_dir, 'sky.fits')
-    isky = ((targets['DESI_TARGET'] & desi_mask.SKY) != 0) * 1
-    nsky = np.count_nonzero(isky) > 0
+    isky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) != 0)[0]
+    nsky = len(isky)
     if nsky:
         log.info('Writing {}'.format(skyfile))
         write_bintable(skyfile, targets[isky], extname='SKY')
 
         log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
-        notsky = ~isky
-        targets = targets[notsky]
-        truth = truth[notsky]
-        trueflux = trueflux[notsky, :]
-
-        if len(targets) == 0:
+        notsky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) == 0)[0]
+        if len(notsky) > 0:
+            targets = targets[notsky]
+            truth = truth[notsky]
+            trueflux = trueflux[notsky, :]
+        else:
             log.info('Only SKY targets; returning.')
             return
         print()
