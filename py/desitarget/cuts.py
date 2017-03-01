@@ -361,7 +361,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     #Preselection to speed up the process, store the indexes
     rMax = 22.7  # r<22.7
-    preSelection = (r<rMax) & _psflike(objtype) & DECaLSOK 
+    #ADM this previous had no np.where but was flagging DeprecationWarnings on
+    #ADM indexing a Boolean, so I switched the Boolean to an integer via np.where
+    preSelection = np.where( (r<rMax) & _psflike(objtype) & DECaLSOK )
     colorsCopy = colors.copy()
     colorsReduced = colorsCopy[preSelection]
     colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)

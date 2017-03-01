@@ -7,6 +7,7 @@ import numpy as np
 
 from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options
+from desitarget.brightstar import mask_targets
 
 import warnings
 warnings.simplefilter('error')
@@ -20,7 +21,8 @@ ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
-ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms.")
+ap.add_argument('-s', "--starmask", help="If sent then mask the targets, the name of the star mask file should be supplied")
+ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms")
 ap.add_argument("--FoMthresh", type=float,help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
@@ -44,6 +46,8 @@ if ns.check:
 else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
+    if ns.starmask:
+        targets = mask_targets(targets,instarmaskfile=ns.starmask)
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
