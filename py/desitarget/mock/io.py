@@ -742,7 +742,7 @@ def _load_galaxia_file(mockfile):
     zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
     mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
     mag_obs = data['SDSSR_OBS'].astype('f4')     # SDSS r-band, observed
-    teff = data['TEFF'].astype('f4')
+    teff = 10**data['TEFF'].astype('f4')         # log10!
     logg = data['LOGG'].astype('f4')
     feh = data['FEH'].astype('f4')
     
