@@ -496,7 +496,13 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         mockfile = mock_dir_name
         columns = ['RA', 'DEC']
     else:
-        mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.lower()))
+        from pathlib import Path
+        f = Path(mock_dir_name)
+        if f.is_file():
+            mockfile = mock_dir_name
+        else:
+            mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.upper()))
+
         columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
         
     try:
