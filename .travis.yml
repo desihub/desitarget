@@ -41,9 +41,9 @@ env:
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
         - ASTROPY_VERSION=1.1.1
-        - DESIUTIL_VERSION=1.9.0
+        - DESIUTIL_VERSION=1.9.3
         - DESISPEC_VERSION=0.11.0
-        - DESISIM_VERSION=0.14.0
+        - DESISIM_VERSION=0.14.1
         - DESIMODEL_VERSION=0.4.4
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
