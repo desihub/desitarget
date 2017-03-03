@@ -334,7 +334,7 @@ def empty_targets_table(nobj=1):
 
     # Quantities mimicking a true targeting catalog (or inherited from the
     # mocks).
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='S10'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U10'))
     targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
@@ -439,7 +439,10 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     truthfile = os.path.join(radir, 'truth-{}.fits'.format(thisbrick))
     log.info('Writing {}.'.format(truthfile))
 
-    targets[onbrick].write(targetsfile, overwrite=True)
+    try:
+        targets[onbrick].write(targetsfile, overwrite=True)
+    except:
+        targets[onbrick].write(targetsfile, clobber=True)
             
     hx = fits.HDUList()
     hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
@@ -449,7 +452,11 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
     hx.append(hdu)
 
-    hx.writeto(truthfile, overwrite=True)
+    try:
+        hx.writeto(truthfile, overwrite=True)
+    except:
+        hx.writeto(truthfile, clobber=True)
+        
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
     
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
@@ -635,7 +642,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
         if np.count_nonzero(istd) > 0:
             log.info('Writing {}'.format(stdfile))
-            write_bintable(stdfile, targets[istd], extname='STD')
+            write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
         else:
             log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
 

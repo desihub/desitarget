@@ -233,6 +233,9 @@ class SelectTargets(object):
         keep = []
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
+            if len(brickindx) == 0:
+                log.warning('No matching brick {}!'.format(thisbrick))
+                raise ValueError
             brick_area = self.brick_info['BRICKAREA'][brickindx]
     
             onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
@@ -253,6 +256,7 @@ class SelectTargets(object):
                 self.log.warning('Brick {}: mock density {}/deg2 too low!.'.format(thisbrick, mock_density))
                 frac_keep = 1.0
 
+            #import pdb ; pdb.set_trace()
             keep.append(self.rand.choice(onbrick, int(n_in_brick * frac_keep), replace=False))
 
         return np.hstack(keep)
