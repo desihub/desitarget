@@ -14,6 +14,7 @@ import os
 import numpy as np
 
 import fitsio
+from scipy import constants 
 
 from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
@@ -38,7 +39,7 @@ ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
-C_LIGHT = 299792.458
+C_LIGHT = constants.c/1000.0
 
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
