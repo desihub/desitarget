@@ -2,11 +2,20 @@
 desitarget Change Log
 =====================
 
-0.8.3 (unreleased)
+0.9.1 (unreleased)
+------------------
+
+* No changes yet
+
+0.9.0 (2017-03-03)
 ------------------
 
 * include mapping from MOCKID -> TARGETID
 * Added shapes to gaussian mixture model of target params [PR #150]
+* Added basic bright star masking
+* Updates for mock targets
+* Added desitarget.sandbox.cuts area for experimental work
+* Add ELG XD and new LRG to sandbox
 
 0.8.2 (2016-12-03)
 ------------------
