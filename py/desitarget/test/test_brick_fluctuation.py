@@ -30,9 +30,9 @@ class TestBrickFluctuation(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
-
-        self.b = build.generate_brick_info(bounds=(0.0, 1.0, -1.0, 1.0))
-        self.depth = build.depths_across_bricks(self.b)
+        self.brick_info = build.BrickInfo(bounds=(0.0, 1.0, -1.0, 1.0))
+        self.b = self.brick_info.generate_brick_info()
+        self.depth = self.brick_info.depths_across_bricks(self.b)
 
     def test_generate_brick(self):
         keys = ['BRICKNAME', 'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2', 'BRICKAREA']
