@@ -3,17 +3,17 @@ import numpy as np
 
 from pkg_resources import resource_filename
 from desitarget.mock import sample
-
+from desiutil.sklearn import GaussianMixtureModel
 
 class TestSample(unittest.TestCase):
 
 
     def setUp(self):
         self.modelpath = resource_filename('desitarget', "mock/data")
-        self.lrg = sample.GaussianMixtureModel.load(self.modelpath + '/lrg_gmm.fits')
-        self.elg = sample.GaussianMixtureModel.load(self.modelpath + '/elg_gmm.fits')
-        self.qso = sample.GaussianMixtureModel.load(self.modelpath + '/qso_gmm.fits')
-        self.bgs = sample.GaussianMixtureModel.load(self.modelpath + '/bgs_gmm.fits')
+        self.lrg = GaussianMixtureModel.load(self.modelpath + '/lrg_gmm.fits')
+        self.elg = GaussianMixtureModel.load(self.modelpath + '/elg_gmm.fits')
+        self.qso = GaussianMixtureModel.load(self.modelpath + '/qso_gmm.fits')
+        self.bgs = GaussianMixtureModel.load(self.modelpath + '/bgs_gmm.fits')
 
 
     def test_sample_mag_shape(self):

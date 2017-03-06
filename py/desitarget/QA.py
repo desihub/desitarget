@@ -23,7 +23,7 @@ from . import gitversion
 from desiutil import depend
 import warnings
 
-def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
+def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray, random_state=None):
     """Based on depth or E(B-V) values for a brick, generate target fluctuations
 
     Parameters
@@ -46,19 +46,20 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
     :class:`float`
         An array of the same length as depthorebvarray with per-brick fluctuations 
         generated from actual DECaLS data
+
     """
-
-
+    if random_state is None:
+        random_state = np.random.RandomState()
 
     #ADM check some impacts are as expected
     dts = ["DEPTH_G","GALDEPTH_G","DEPTH_R","GALDEPTH_R","DEPTH_Z","GALDEPTH_Z","EBV"]
     if not depthtype in dts:
         raise ValueError("depthtype must be one of {}".format(" ".join(dts)))
 
-    if depthtype == "EBV":
-        print("generating per-brick fluctuations for E(B-V) values")
-    else:
-        print("generating per-brick fluctuations for depth values")
+    #if depthtype == "EBV":
+        #print("generating per-brick fluctuations for E(B-V) values")
+    #else:
+        #print("generating per-brick fluctuations for depth values")
 
     if not type(depthorebvarray) == np.ndarray:
         raise ValueError("depthorebvarray must be a numpy array not type {}".format(type(depthorebvarray)))
@@ -69,10 +70,8 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
     if not targettype in tts:
         fluc = np.ones(nbricks)
         mess = "fluctuations for targettype {} are set to one".format(targettype)
-        warnings.warn(mess,RuntimeWarning)
+        warnings.warn(mess, RuntimeWarning)
         return fluc
-
-
 
     #ADM the target fluctuations are actually called FLUC_* in the model dictionary
     targettype = "FLUC_"+targettype
@@ -85,15 +84,14 @@ def generate_fluctuations(brickfilename,targettype,depthtype,depthorebvarray):
 
     #ADM sample the distribution for each parameter in the quadratic
     #ADM fit for each of the total number of bricks
-    asamp = np.random.normal(means[0],sigmas[0],nbricks)
-    bsamp = np.random.normal(means[1],sigmas[1],nbricks)
-    csamp = np.random.normal(means[2],sigmas[2],nbricks)
+    asamp = random_state.normal(means[0], sigmas[0], nbricks)
+    bsamp = random_state.normal(means[1], sigmas[1], nbricks)
+    csamp = random_state.normal(means[2], sigmas[2], nbricks)
 
     #ADM grab the fluctuation in each brick
     fluc = asamp*depthorebvarray**2. + bsamp*depthorebvarray + csamp
 
     return fluc
-
 
 def model_map(brickfilename,plot=False):
     """Make a model map of how 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
@@ -185,10 +183,12 @@ def fit_quad(x,y,plot=False):
     #ADM initial guesses at params
     initparams = (1.,1.,1.)
     #ADM loop to get least squares fit
-    params,ok = leastsq(errfunc,initparams[:],args=(x,y))
-
-    params, cov, infodict, errmsg, ok = leastsq(errfunc, initparams[:], args=(x, y),
-                                               full_output=1, epsfcn=0.0001)
+    with warnings.catch_warnings(): # added by Moustakas
+        warnings.simplefilter('ignore')
+        
+        params,ok = leastsq(errfunc,initparams[:],args=(x,y))
+        params, cov, infodict, errmsg, ok = leastsq(errfunc, initparams[:], args=(x, y),
+                                                    full_output=1, epsfcn=0.0001)
 
     #ADM turn the covariance matrix into something chi-sq like
     #ADM via degrees of freedom
