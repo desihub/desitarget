@@ -7,7 +7,7 @@ desitarget.mock.build
 
 Build a truth catalog (including spectra) and a targets catalog for the mocks. 
 
-time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 678 --nproc 8 --output_dir brick_targets
+time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
 pyprof2calltree -k -i mock.dat &
 
 """
