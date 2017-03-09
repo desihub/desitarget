@@ -334,17 +334,24 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     Returns
     -------
     :class:`recarray`
-        The bright star mask in the form RA,DEC,TARGETID,RADIUS (may also be written to file if outfilename is passed)
-        radius is in ARCMINUTES
+        The bright star mask in the form RA,DEC,TARGETID,IN_RADIUS, NEAR_RADIUS (may also be written to file
+        if "outfilename" is passed)
+        The radii are in ARCMINUTES
         TARGETID is as calculated in desitarget.targets.py
 
     Notes
     -----
-    Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band):
+    NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
+    IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
+
+    Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
+    the NEAR_RADIUS:
 
     R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
 
-    It's an open question as to what the correct radius is for DESI observations
+    and half that radius to set the IN_RADIUS.
+
+    It's an open question as to what the correct radii are for DESI observations
 
     """
 
@@ -382,16 +389,18 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     fluxmax =  np.max(objs["DECAM_FLUX"][...,bandint],axis=1)
     mags = 22.5-2.5*np.log10(fluxmax)
 
-    #ADM convert the largest magnitude into a radius. This will require more consideration
-    #ADM to determine the truly correct numbers for DESI
-    radius = (0.0802*mags*mags - 1.860*mags + 11.625)
+    #ADM convert the largest magnitude into radii for "in" and "near" bright objects. This will require 
+    #ADM more consideration to determine the truly correct numbers for DESI
+    near_radius = (0.0802*mags*mags - 1.860*mags + 11.625)
+    in_radius = 0.5*(0.0802*mags*mags - 1.860*mags + 11.625)
 
     #ADM calculate the TARGETID
     targetid = objs['BRICKID'].astype(np.int64)*1000000 + objs['OBJID']
 
     #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
     done = objs[['RA','DEC']].copy()
-    done = rfn.append_fields(done,["TARGETID","RADIUS"],[targetid,radius],usemask=False,dtypes=['>i8','<f4'])
+    done = rfn.append_fields(done,["TARGETID","IN_RADIUS","NEAR_RADIUS"],[targetid,in_radius,near_radius],
+                             usemask=False,dtypes=['>i8','<f4','<f4'])
 
     if outfilename is not None:
         fitsio.write(outfilename, done, clobber=True)
@@ -399,7 +408,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     return done
 
 
-def plot_mask(mask,limits=None,over=False):
+def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
     """Make a plot of a mask and either display it or retain the plot object for over-plotting
     
     Parameters
@@ -408,9 +417,15 @@ def plot_mask(mask,limits=None,over=False):
         A mask constructed by make_bright_star_mask (or read in from file in the make_bright_star_mask format)
     limits : :class:`list`, optional
         A list defining the RA/Dec limits of the plot as would be passed to matplotlib.pyplot.axis
+    radius : :class: `str`, optional
+        Which of the mask radii to plot ("IN_RADIUS" or "NEAR_RADIUS"). Both can be plotted by calling
+        this function twice with show=False the first time and over=True the second time                    
     over : :class:`boolean`
-        If False, then don't "show" the plot, so that the plotting commands can be combined with
-        other matplotlib commands to save the figure, over-plot targets etc.
+        If True, then don't set-up the plot commands. Just issue the command to plot the mask so that the 
+        mask will be over-plotted on any existing plot (of targets etc.)
+    show : :class:`boolean`
+        If True, then display the plot, Otherwise, just execute the plot commands so it can be shown or
+        saved to file later              
 
     Returns
     -------
@@ -418,18 +433,19 @@ def plot_mask(mask,limits=None,over=False):
     """
 
     #ADM set up the plot
-    plt.figure(figsize=(8,8))
-    ax = plt.subplot(aspect='equal')
-    plt.xlabel('RA (o)')
-    plt.ylabel('Dec (o)')
+    if not over:
+        plt.figure(figsize=(8,8))
+        ax = plt.subplot(aspect='equal')
+        plt.xlabel('RA (o)')
+        plt.ylabel('Dec (o)')
 
-    if limits is not None:
-        plt.axis(limits)
+        if limits is not None:
+            plt.axis(limits)
 
     #ADM draw circle patches from the mask information converting radius to degrees
-    out = circles(mask["RA"], mask["DEC"], mask["RADIUS"]/60., alpha=0.2, edgecolor='none')
+    out = circles(mask["RA"], mask["DEC"], mask[radius]/60., alpha=0.2, edgecolor='none')
 
-    if not over:
+    if show:
         plt.show()
 
     return
