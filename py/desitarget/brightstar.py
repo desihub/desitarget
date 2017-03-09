@@ -463,11 +463,15 @@ def is_in_bright_star(targs,starmask):
 
     Returns
     -------
-        mask : array_like. True if target is in a bright star mask  
+    in_mask : array_like. 
+        True if target is IN a bright star mask
+    near_mask : array_like. 
+        True if target is NEAR a bright star mask
     """
 
     #ADM initialize an array of all False (nothing is yet in a star mask)
-    done = np.zeros(len(targs), dtype=bool)
+    in_mask = np.zeros(len(targs), dtype=bool)
+    near_mask = np.zeros(len(targs), dtype=bool)
 
     #ADM turn the coordinates of the masks and the targets into SkyCoord objects
     ctargs = SkyCoord(targs["RA"]*u.degree, targs["DEC"]*u.degree)
@@ -476,7 +480,7 @@ def is_in_bright_star(targs,starmask):
     #ADM this is the largest search radius we should need to consider
     #ADM in the future an obvious speed up is to split on radius 
     #ADM as large radii are rarer but take longer
-    maxrad = max(starmask["RADIUS"])*u.arcmin
+    maxrad = max(starmask["NEAR_RADIUS"])*u.arcmin
 
     #ADM coordinate match the star masks and the targets
     idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs,maxrad)
@@ -486,12 +490,14 @@ def is_in_bright_star(targs,starmask):
         return done
 
     #ADM for a matching star mask, find the angular separations that are less than the mask radius
-    w = np.where(d2d.arcmin < starmask[idstars]["RADIUS"])
+    w_in = np.where(d2d.arcmin < starmask[idstars]["IN_RADIUS"])
+    w_near = np.where(d2d.arcmin < starmask[idstars]["NEAR_RADIUS"])
 
     #ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
-    done[idtargs[w]] = 'True'
+    in_mask[idtargs[w_in]] = 'True'
+    near_mask[idtargs[w_near]] = 'True'
 
-    return done
+    return in_mask, near_mask
 
 
 def set_target_bits(targs,starmask):
@@ -510,16 +516,18 @@ def set_target_bits(targs,starmask):
 
     To Do
     -----
-        - Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
-        - Should also set NEAR_BRIGHT_OBJECT at an appropriate radius in is_in_bright_star
+        - Currently sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT but should also 
+              match on the TARGETID to set the BRIGHT_OBJECT bit
 
     See desitarget.targetmask for the definition of each bit
     """
 
-    in_bright_object = is_in_bright_star(targs,starmask)
+    in_bright_object, near_bright_object = is_in_bright_star(targs,starmask)
 
     desi_target = targs["DESI_TARGET"].copy()
+
     desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
+    desi_target |= near_bright_object * desi_mask.NEAR_BRIGHT_OBJECT
     
     return desi_target
 
