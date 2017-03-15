@@ -81,22 +81,26 @@ def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (zflux < 10**(0.4*2.5)*rflux) # r-z<2.5
     lrg &= (zflux > 10**(0.4*0.8)*rflux) # r-z>0.8
 
-    # This is the star-galaxy separation cut
-    # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
-    lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
+    # The code below can overflow, since the fluxes are float32 arrays
+    # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
+    # this will overflow, and crash the code. 
+    with np.errstate(over='ignore'):
+        # This is the star-galaxy separation cut
+        # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
+        lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
 
-    # Now for the work-horse sliding flux-color cut:
-    # mlrg2 = z-2*(r-z-1.2) < 19.6 -> 3*z < 19.6-2.4-2*r
-    lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.6))*rflux**2)
+        # Now for the work-horse sliding flux-color cut:
+        # mlrg2 = z-2*(r-z-1.2) < 19.6 -> 3*z < 19.6-2.4-2*r
+        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.6))*rflux**2)
 
-    # Another guard against bright & red outliers
-    # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
-    lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
+        # Another guard against bright & red outliers
+        # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
+        lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
 
-    # Finally, a cut to exclude the z<0.4 objects while retaining the elbow at
-    # z=0.4-0.5.  r-z>1.2 || (good_data_in_g and g-r>1.7).  Note that we do not
-    # require gflux>0.
-    lrg &= np.logical_or((zflux > 10**(0.4*1.2)*rflux), (ggood & (rflux>10**(0.4*1.7)*gflux)))
+        # Finally, a cut to exclude the z<0.4 objects while retaining the elbow at
+        # z=0.4-0.5.  r-z>1.2 || (good_data_in_g and g-r>1.7).  Note that we do not
+        # require gflux>0.
+        lrg &= np.logical_or((zflux > 10**(0.4*1.2)*rflux), (ggood & (rflux>10**(0.4*1.7)*gflux)))
 
     return lrg
 
