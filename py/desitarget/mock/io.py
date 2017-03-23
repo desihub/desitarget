@@ -38,7 +38,13 @@ ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
-C_LIGHT = constants.c/1000.0
+try:
+    C_LIGHT = constants.c/1000.0
+except TypeError:
+    #
+    # This can happen during documentation builds.
+    #
+    C_LIGHT = 299792458.0/1000.0
 
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
