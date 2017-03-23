@@ -139,8 +139,8 @@ napoleon_include_private_with_doc = True
 # building process.
 autodoc_mock_imports = ['fitsio', 'desisim.io',
                         'desispec.brick', 'desispec.io', 'desispec.io.util',
-                        'desiutil.bitmask',
-                        'sklearn.externals']
+                        'desiutil', 'desiutil.bitmask', 'desiutil.log',
+                        'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree']
 
 # -- Options for HTML output ----------------------------------------------
 
