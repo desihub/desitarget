@@ -1,3 +1,14 @@
+"""
+desitarget.cuts
+===============
+
+Target Selection for DECALS catalogue data
+
+https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
+
+A collection of helpful (static) methods to check whether an object's
+flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
+"""
 import warnings
 from time import time
 import os.path
@@ -14,14 +25,6 @@ from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget import desi_mask, bgs_mask, mws_mask
 
-"""
-Target Selection for DECALS catalogue data
-
-https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
-
-A collection of helpful (static) methods to check whether an object's
-flux passes a given selection criterion (e.g. LRG, ELG or QSO).
-"""
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
@@ -83,7 +86,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     return elg
 
 def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
-    """Select FSTD targets just based on color cuts. Returns a boolean array. 
+    """Select FSTD targets just based on color cuts. Returns a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -104,7 +107,7 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
     gflux = gflux.clip(0)
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    
+
     # colors near BD+17
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
@@ -161,14 +164,14 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
     else:
         rbright = 16.0
         rfaint = 19.0
-        
+
     fstd &= obs_rflux < 10**((22.5 - rbright)/2.5)
     fstd &= obs_rflux > 10**((22.5 - rfaint)/2.5)
 
     return fstd
 
 def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
-    """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array. 
+    """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -183,7 +186,7 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     Notes:
         The full MWS target selection also includes PSF-like and fracflux
         cuts and will include Gaia information; this function is only to enforce
-        a reasonable range of color/TEFF when simulating data. 
+        a reasonable range of color/TEFF when simulating data.
 
     """
     #----- Old stars, g-r > 0
@@ -223,7 +226,7 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, ob
     bgs &= rflux <= 10**((22.5-19.5)/2.5)
     if objtype is not None:
         bgs &= ~_psflike(objtype)
-        
+
     return bgs
 
 def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
@@ -285,7 +288,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
     mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
-    
+
     return qso
 
 def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
@@ -299,11 +302,9 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
             chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         wise_snr: array_like[ntargets, 2]
             S/N in the W1 and W2 bands.
-
-    Options:
-        objtype: array_like or None
+        objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
-        primary: array_like or None
+        primary (optional): array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
@@ -354,7 +355,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
 
-    # build variables for random forest    
+    # build variables for random forest
     nfeatures=11 # number of variables in random forest
     nbEntries=rflux.size
     colors, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
@@ -374,8 +375,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     # Compute random forest probability
     from desitarget.myRF import myRF
-    prob = np.zeros(nbEntries)  
-   
+    prob = np.zeros(nbEntries)
+
     if (colorsReducedIndex.any()) :
         rf = myRF(colorsReduced,pathToRF)
         fileName = pathToRF + '/rf_model_dr3.npz'
@@ -391,9 +392,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
 
     qso = primary.copy()
-    qso &= r<rMax  
-    qso &= DECaLSOK  
-      
+    qso &= r<rMax
+    qso &= DECaLSOK
+
     if objtype is not None:
         qso &= _psflike(objtype)
 
@@ -403,8 +404,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if nbEntries==1 : # for call of a single object
         qso &= prob[0]>pcut
     else :
-        qso &= prob>pcut        
-        
+        qso &= prob>pcut
+
     return qso
 
 def _psflike(psftype):
@@ -419,7 +420,7 @@ def _psflike(psftype):
     return psflike
 
 def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
- 
+
     limitInf=1.e-04
     gflux = gflux.clip(limitInf)
     rflux = rflux.clip(limitInf)
@@ -452,7 +453,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
 
 def _is_row(table):
     '''Return True/False if this is a row of a table instead of a full table
-    
+
     supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
     '''
     import astropy.io.fits.fitsrec
@@ -466,14 +467,14 @@ def _is_row(table):
 def unextinct_fluxes(objects):
     """
     Calculate unextincted DECam and WISE fluxes
-    
+
     Args:
         objects: array or Table with columns DECAM_FLUX, DECAM_MW_TRANSMISSION,
             WISE_FLUX, and WISE_MW_TRANSMISSION
-            
+
     Returns:
         array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX
-        
+
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
@@ -485,7 +486,7 @@ def unextinct_fluxes(objects):
 
 #ADM Hack for DR3 because of some corrupt sweeps/Tractor files REMOVE ONCE SWEEPS ARE FIXED!!!
 #    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
-    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'], 
+    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
                                  where=objects['DECAM_MW_TRANSMISSION']!=0)
     result['GFLUX'] = dered_decam_flux[..., 1]
     result['RFLUX'] = dered_decam_flux[..., 2]
@@ -513,22 +514,22 @@ def apply_cuts(objects, qso_selection='randomforest'):
     Options:
         qso_selection : algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
-            
+
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object
-        
+
     Bugs:
         If objects is a astropy Table with lowercase column names, this
         converts them to UPPERCASE in-place, thus modifying the input table.
-        To avoid this, pass in objects.copy() instead. 
+        To avoid this, pass in objects.copy() instead.
 
     See desitarget.targetmask for the definition of each bit
     """
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
-    
+
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
@@ -545,13 +546,13 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
-    
+
     decam_fracflux = objects['DECAM_FRACFLUX'].T # note transpose
     decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
-    dchisq = objects['DCHISQ'] 
+    dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[...,0] - dchisq[...,1]
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
@@ -562,14 +563,14 @@ def apply_cuts(objects, qso_selection='randomforest'):
             primary = True
         else:
             primary = np.ones_like(objects, dtype=bool)
-        
+
     lrg = isLRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
 
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
     bgs_faint  = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype)
-    
+
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                          w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
@@ -587,7 +588,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   decam_fracflux=decam_fracflux, decam_snr=decam_snr,
                   obs_rflux=obs_rflux, bright=True)
-                  
+
     # Construct the targetflag bits; currently our only cuts are DECam based
     # (i.e. South).  This should really be refactored into a dedicated function.
     desi_target  = lrg * desi_mask.LRG_SOUTH
@@ -739,23 +740,22 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
     Args:
         infiles: list of input filenames (tractor or sweep files),
             OR a single filename
-        
-    Optional:
-        numproc: number of parallel processes to use
-        verbose: if True, print progress messages
-        qso_selection : algorithm to use for QSO selection; valid options
-          are 'colorcuts' and 'randomforest'
-        sandbox : if True, use the sample selection cuts in
-          desitarget.sandbox.cuts
-        FoMthresh: if a value is passed then run apply_XD_globalerror for ELGs in 
-          the sandbox. This will write out an "FoM.fits" file for every ELG target
-          in the sandbox directory.
+        numproc (optional): number of parallel processes to use
+        verbose (optional): if True, print progress messages
+        qso_selection (optional): algorithm to use for QSO selection; valid options
+            are 'colorcuts' and 'randomforest'
+        sandbox (optional): if True, use the sample selection cuts in
+            :mod:`desitarget.sandbox.cuts`.
+        FoMthresh (optional): if a value is passed then run apply_XD_globalerror for ELGs in
+            the sandbox. This will write out an "FoM.fits" file for every ELG target
+            in the sandbox directory.
 
     Returns:
-        targets numpy structured array: the subset of input targets which
-            pass the cuts, including extra columns for DESI_TARGET,
-            BGS_TARGET, and MWS_TARGET target selection bitmasks. 
-            
+        targets numpy structured array
+            the subset of input targets which pass the cuts, including extra
+            columns for DESI_TARGET, BGS_TARGET, and MWS_TARGET target
+            selection bitmasks.
+
     Notes:
         if numproc==1, use serial code instead of parallel
 
@@ -832,7 +832,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         else:
             for x in infiles:
                 targets.append(_update_status(_select_targets_file(x)))
-                
+
     targets = np.concatenate(targets)
-    
+
     return targets

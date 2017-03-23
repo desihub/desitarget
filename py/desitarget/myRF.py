@@ -1,8 +1,15 @@
+"""
+desitarget.myRF
+===============
+
+This module does something.
+"""
 import numpy as np
 import sys
 
-class myRF :
-    
+class myRF(object):
+    """Great, this class has no documentation whatsoever.
+    """
     def __init__(self,data,modelDir,version=1):
     # loads the data once and initializes arrays
         self.data  = data.copy()
@@ -40,7 +47,7 @@ class myRF :
         rightChildId = nodeInfo[1]
         feature      = nodeInfo[2]
         threshold    = nodeInfo[3]
-            
+
         leftCond = (self.data[indices,feature] <= threshold)
         leftChildIndices  = indices[leftCond]
 #        rightCond = (self.data[indices,feature] > threshold)
@@ -58,7 +65,7 @@ class myRF :
             self.loadTreeFromForest(iTree)
             self.searchNodes(np.arange(len(self.data)))
             self.bdtOutput+=self.proba
-        
+
         self.bdtOutput/=nTrees
         return self.bdtOutput
 
@@ -101,4 +108,3 @@ class myRF :
             forest.append(np.load(answerFile))
         np.savez_compressed(forestFileName,forest)
         return
-

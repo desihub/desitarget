@@ -1,4 +1,8 @@
-"""Samples magnitudes and shapes for LRG, ELG, QSO, and BGS targets from a Gaussian mixture model.
+"""
+desitarget.mock.sample
+======================
+
+Samples magnitudes and shapes for LRG, ELG, QSO, and BGS targets from a Gaussian mixture model.
 
 The model for each object type is fit to DR2 targets that have passed target
 selection critera.

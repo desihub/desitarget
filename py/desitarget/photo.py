@@ -1,4 +1,7 @@
 '''
+desitarget.photo
+================
+
 Implements the photometric transforms between SDSS and DECam using g,r,z
 documented in DESI-1788v1
 https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=1788
@@ -7,13 +10,13 @@ https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=1788
 def sdss2decam(g_sdss, r_sdss, i_sdss, z_sdss):
     '''
     Converts SDSS magnitudes to DECam magnitudes
-    
+
     Args:
         [griz]_sdss: SDSS magnitudes (float or arrays of floats)
-    
+
     Returns:
         g_decam, r_decam, z_decam
-    
+
     Note: SDSS griz are inputs, but only grz (no i) are output
     '''
     gr = g_sdss - r_sdss
@@ -30,10 +33,10 @@ def sdss2decam(g_sdss, r_sdss, i_sdss, z_sdss):
 def cfht2decam(g_cfht, r_cfht, i_cfht, z_cfht):
     '''
     Converts CFHT magnitudes to DECam magnitudes
-    
+
     Args:
         [griz]_cfht: CFHT magnitudes (float or arrays of floats)
-    
+
     Returns:
         g_decam, r_decam, z_decam
 
@@ -55,4 +58,3 @@ def decam2sdss(g_decam, r_decam, z_decam):
 def decam2cfht(g_decam, r_decam, z_decam):
     '''Not yet implemented'''
     raise NotImplementedError
-
