@@ -1,3 +1,9 @@
+"""
+desitarget.targetmask
+=====================
+
+This looks more like a script than an actual module.
+"""
 from desiutil.bitmask import BitMask
 
 import os
@@ -5,7 +11,7 @@ import sys
 import yaml
 from pkg_resources import resource_filename
 #- Load bit definitions from yaml file
-_filepath = resource_filename('desitarget', "data/targetmask.yaml") 
+_filepath = resource_filename('desitarget', "data/targetmask.yaml")
 with open(_filepath) as fx:
     _bitdefs = yaml.load(fx)
 
