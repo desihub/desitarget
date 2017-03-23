@@ -40,7 +40,7 @@ env:
         # to repeat them for all configurations.
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=1.1.1
+        - ASTROPY_VERSION=1.2.1
         - DESIUTIL_VERSION=1.9.3
         - DESISPEC_VERSION=0.11.0
         - DESISIM_VERSION=0.18.1
@@ -62,6 +62,7 @@ env:
         - DEBUG=False
     matrix:
         - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=3.5 SETUP_CMD='egg_info'
 
 matrix:
     # Don't wait for allowed failures.
@@ -76,17 +77,22 @@ matrix:
         # Check for sphinx doc build warnings - we do this first because it
         # runs for a long time
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
+          env: PYTHON_VERSION=3.5 SETUP_CMD='build_sphinx --warning-is-error'
           # -w is an astropy extension
+
+        # Do a bdist_egg compile.  This will catch things like syntax errors
+        # without needing to do a full python setup.py test
+        - os: linux
+          env: PYTHON_VERSION=3.5 SETUP_CMD='bdist_egg'
 
         # Try several python versions with the latest numpy
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=2.7 SETUP_CMD='test'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 

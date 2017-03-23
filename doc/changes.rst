@@ -5,7 +5,7 @@ desitarget Change Log
 0.9.1 (unreleased)
 ------------------
 
-* No changes yet
+* Update Travis configuration to catch documentation errors.
 
 0.9.0 (2017-03-03)
 ------------------
