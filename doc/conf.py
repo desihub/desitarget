@@ -12,6 +12,8 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import sys
 import os
 import os.path
@@ -45,7 +47,7 @@ extensions = [
     'sphinx.ext.todo',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    napoleon_extension
+    'sphinx.ext.napoleon'
 ]
 
 # Configuration for intersphinx, copied from astropy.
@@ -131,6 +133,12 @@ todo_include_todos = False
 
 # Include functions that begin with an underscore, e.g. _private().
 napoleon_include_private_with_doc = True
+
+# This value contains a list of modules to be mocked up. This is useful when
+# some external dependencies are not met at build time and break the
+# building process.
+autodoc_mock_imports = ['fitsio', 'desisim.io',
+                        'desispec.brick', 'desispec.io', 'desispec.io.util']
 
 # -- Options for HTML output ----------------------------------------------
 

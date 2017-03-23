@@ -1,7 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-=====================
 desitarget.brightstar
 =====================
 
@@ -23,7 +22,6 @@ from matplotlib.patches import Circle, Ellipse, Rectangle
 from matplotlib.collections import PatchCollection
 
 from . import __version__ as desitarget_version
-from . import gitversion
 
 from desitarget import io
 from desitarget.internal import sharedmem
@@ -31,29 +29,29 @@ from desitarget import desi_mask
 
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     """
-    Make a scatter plot of circles. 
+    Make a scatter plot of circles.
     Similar to plt.scatter, but the size of circles are in data scale.
 
     Parameters
     ----------
     x, y : scalar or array_like, shape (n, )
         Input data
-    s : scalar or array_like, shape (n, ) 
+    s : scalar or array_like, shape (n, )
         Radius of circles.
     c : color or sequence of color, optional, default : 'b'
         `c` can be a single color format string, or a sequence of color
         specifications of length `N`, or a sequence of `N` numbers to be
         mapped to colors using the `cmap` and `norm` specified via kwargs.
-        Note that `c` should not be a single numeric RGB or RGBA sequence 
+        Note that `c` should not be a single numeric RGB or RGBA sequence
         because that is indistinguishable from an array of values
-        to be colormapped. (If you insist, use `color` instead.)  
-        `c` can be a 2-D array in which the rows are RGB or RGBA, however. 
+        to be colormapped. (If you insist, use `color` instead.)
+        `c` can be a 2-D array in which the rows are RGB or RGBA, however.
     vmin, vmax : scalar, optional, default: None
         `vmin` and `vmax` are used in conjunction with `norm` to normalize
         luminance data.  If either are `None`, the min and max of the
         color array is used.
     kwargs : `~matplotlib.collections.Collection` properties
-        Eg. alpha, edgecolor(ec), facecolor(fc), linewidth(lw), linestyle(ls), 
+        Eg. alpha, edgecolor(ec), facecolor(fc), linewidth(lw), linestyle(ls),
         norm, cmap, transform, etc.
 
     Returns
@@ -66,13 +64,8 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     circles(a, a, s=a*0.2, c=a, alpha=0.5, ec='none')
     plt.colorbar()
 
-    License
-    --------
-    This code is under [The BSD 3-Clause License]
-    (http://opensource.org/licenses/BSD-3-Clause)
-
-    Attribution
-    -----------
+    References
+    ----------
     With thanks to https://gist.github.com/synnick/5088216
     """
 
@@ -112,13 +105,13 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     Parameters
     ----------
     bands : :class:`str`
-        A magnitude band from the sweeps, e.g., "G", "R", "Z"
-        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a 
-           list of the same length as the string
+        A magnitude band from the sweeps, e.g., "G", "R", "Z".
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        list of the same length as the string
     maglim : :class:`float`
-        The upper limit in that magnitude band for which to assemble a list of bright stars
+        The upper limit in that magnitude band for which to assemble a list of bright stars.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
-           same length (e.g., "GRZ" for [12.3,12.7,12.6]
+        same length (e.g., "GRZ" for [12.3,12.7,12.6]
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -216,7 +209,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
 
 def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/'):
 
-    """Build a dictionary of the fraction of bricks containing a star of a given 
+    """Build a dictionary of the fraction of bricks containing a star of a given
     magnitude in a given band as function of Galactic l and b
 
     Parameters
@@ -303,28 +296,28 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
     return ldict, bdict
 
- 
+
 def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=True):
     """Make a bright star mask from a structure of bright stars drawn from the sweeps
 
     Parameters
     ----------
     bands : :class:`str`
-        A magnitude band from the sweeps, e.g., "G", "R", "Z"
-        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a 
-           list of the same length as the string
+        A magnitude band from the sweeps, e.g., "G", "R", "Z".
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        list of the same length as the string
     maglim : :class:`float`
-        The upper limit in that magnitude band for which to assemble a list of bright stars
+        The upper limit in that magnitude band for which to assemble a list of bright stars.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
-           same length (e.g., "GRZ" for [12.3,12.7,12.6]
+        same length (e.g., "GRZ" for [12.3,12.7,12.6]
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
-    infilename : :class:`str`, optional, 
+    infilename : :class:`str`, optional,
         if this exists, then the list of bright stars is read in from the file of this name
-        if this is not passed, then code defaults to deriving the recarray of bright stars 
+        if this is not passed, then code defaults to deriving the recarray of bright stars
         via a call to collect_bright_stars
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask
@@ -367,7 +360,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         objs = io.read_tractor(infilename)
     else:
         objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename,verbose)
-   
+
     #ADM set any observations with NOBS = 0 to have zero flux so glitches don't end up as bright star masks
     w = np.where(objs["DECAM_NOBS"] == 0)
     if len(w[0]) > 0:
@@ -401,7 +394,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
 
 def plot_mask(mask,limits=None,over=False):
     """Make a plot of a mask and either display it or retain the plot object for over-plotting
-    
+
     Parameters
     ----------
     mask : :class:`recarray`
@@ -447,7 +440,7 @@ def is_in_bright_star(targs,starmask):
 
     Returns
     -------
-        mask : array_like. True if target is in a bright star mask  
+        mask : array_like. True if target is in a bright star mask
     """
 
     #ADM initialize an array of all False (nothing is yet in a star mask)
@@ -456,9 +449,9 @@ def is_in_bright_star(targs,starmask):
     #ADM turn the coordinates of the masks and the targets into SkyCoord objects
     ctargs = SkyCoord(targs["RA"]*u.degree, targs["DEC"]*u.degree)
     cstars = SkyCoord(starmask["RA"]*u.degree, starmask["DEC"]*u.degree)
-    
+
     #ADM this is the largest search radius we should need to consider
-    #ADM in the future an obvious speed up is to split on radius 
+    #ADM in the future an obvious speed up is to split on radius
     #ADM as large radii are rarer but take longer
     maxrad = max(starmask["RADIUS"])*u.arcmin
 
@@ -492,19 +485,18 @@ def set_target_bits(targs,starmask):
     -------
         an ndarray of the updated desi_target bit that includes bright star information
 
-    To Do
+    Notes
     -----
-        - Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
-        - Should also set NEAR_BRIGHT_OBJECT at an appropriate radius in is_in_bright_star
-
-    See desitarget.targetmask for the definition of each bit
+    - Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
+    - Should also set NEAR_BRIGHT_OBJECT at an appropriate radius in is_in_bright_star
+    - See :mod:`desitarget.targetmask` for the definition of each bit
     """
 
     in_bright_object = is_in_bright_star(targs,starmask)
 
     desi_target = targs["DESI_TARGET"].copy()
     desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
-    
+
     return desi_target
 
 
@@ -521,13 +513,13 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
     bands : :class:`str`
-        A magnitude band from the sweeps, e.g., "G", "R", "Z"
-        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a 
-           list of the same length as the string
+        A magnitude band from the sweeps, e.g., "G", "R", "Z".
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        list of the same length as the string
     maglim : :class:`float`
-        The upper limit in that magnitude band for which to assemble a list of bright stars
+        The upper limit in that magnitude band for which to assemble a list of bright stars.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
-           same length (e.g., "GRZ" for [12.3,12.7,12.6]
+        same length (e.g., "GRZ" for [12.3,12.7,12.6]
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -539,15 +531,15 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     verbose : :class:`bool`, optional
         Send to write progress to screen
 
-    Returns:
-    --------
-        targets numpy structured array: the input targets with the DESI_TARGET column 
-        updated to reflect the BRIGHT_OBJECT bits.
+    Returns
+    -------
+    targets numpy structured array
+        the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits.
 
-    Notes: 
-    ------
-        Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10) 
-        (not including 5-10 minutes to build the star mask from scratch)
+    Notes
+    -----
+    Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
+    (not including 5-10 minutes to build the star mask from scratch)
     """
 
     t0 = time()
@@ -575,7 +567,7 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     dt = set_target_bits(targs,starmask)
     done = targs.copy()
     done["DESI_TARGET"] = dt
-    
+
     if verbose:
         print('Finishing up...t={:.1f}s'.format(time()-t0))
 

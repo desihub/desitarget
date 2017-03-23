@@ -1,4 +1,4 @@
-# Copied on Nov/20/2016 from https://github.com/kbarbary/sfdmap/ commit: bacdbbd  
+# Copied on Nov/20/2016 from https://github.com/kbarbary/sfdmap/ commit: bacdbbd
 
 # Licensed under an MIT "Expat" license
 
@@ -22,7 +22,12 @@
 #OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 #SOFTWARE.
 
-"""Get E(B-V) values from the Schlegel, Finkbeiner & Davis (1998) dust map."""
+"""
+desitarget.mock.sfdmap
+======================
+
+Get E(B-V) values from the Schlegel, Finkbeiner & Davis (1998) dust map.
+"""
 
 import os
 
@@ -103,7 +108,7 @@ FK5J2000_TO_GAL = np.dot(np.dot(zrotmat(np.pi - lon0_fk5j2000),
                                 yrotmat(np.pi/2. - ngp_fk5j2000_dec)),
                          zrotmat(ngp_fk5j2000_ra))
 
-# ICRS --> Gal: simply chain through FK5J2000 
+# ICRS --> Gal: simply chain through FK5J2000
 ICRS_TO_GAL = np.dot(FK5J2000_TO_GAL, ICRS_TO_FK5J2000)
 
 
@@ -151,9 +156,9 @@ def _bilinear_interpolate(data, y, x):
     x1 = np.minimum(x1, nx-1)
 
     return ((1.0-xw) * (1.0-yw) * data[y0, x0] +
-            xw       * (1.0-yw) * data[y0, x1] + 
+            xw       * (1.0-yw) * data[y0, x1] +
             (1.0-xw) * yw       * data[y1, x0] +
-            xw       * yw       * data[y1, x1])   
+            xw       * yw       * data[y1, x1])
 
 
 # -----------------------------------------------------------------------------
@@ -168,7 +173,7 @@ class _Hemisphere(object):
         self.crpix2 = header['CRPIX2']
         self.lam_scal = header['LAM_SCAL']
         self.sign = header['LAM_NSGP']  # north = 1, south = -1
-        
+
     def ebv(self, l, b, interpolate):
         # Project from galactic longitude/latitude to lambert pixels.
         # (See SFD98 or SFD data FITS header).
@@ -178,7 +183,7 @@ class _Hemisphere(object):
         y = (self.crpix2 - 1.0 -
              self.sign * self.lam_scal * np.sin(l) *
              np.sqrt(1.0 - self.sign * np.sin(b)))
-            
+
         # Get map values at these pixel coordinates.
         if interpolate:
             return _bilinear_interpolate(self.data, y, x)
@@ -188,7 +193,7 @@ class _Hemisphere(object):
 
             # some valid coordinates are right on the border (e.g., x/y = 4096)
             x = np.clip(x, 0, self.data.shape[1]-1)
-            y = np.clip(y, 0, self.data.shape[0]-1) 
+            y = np.clip(y, 0, self.data.shape[0]-1)
             return self.data[y, x]
 
 
@@ -242,9 +247,7 @@ class SFDMap(object):
 
         Parameters
         ----------
-
         coordinates or ra, dec: SkyCoord or numpy.ndarray
-
             If one argument is passed, assumed to be a
             `astropy.coordinates.SkyCoords` instance. In this case,
             the ``frame`` and ``unit`` keyword arguments are
@@ -252,26 +255,19 @@ class SFDMap(object):
             ``latitute, longitude`` (can be scalars or arrays).  In
             the two argument case, the frame and unit is taken from
             the keywords.
-
         frame : {'icrs', 'fk5j2000', 'galactic'}, optional
             Coordinate frame, if two arguments are passed. Default is
             ``'icrs'``.
-
         unit : {'degree', 'radian'}, optional
-
             Unit of coordinates, if two arguments are passed. Default
             is ``'degree'``.
-
         interpolate : bool, optional
-
             Interpolate between the map values using bilinear interpolation.
             Default is True.
 
         Returns
         -------
-
         `~numpy.ndarray`
-
             Specific extinction E(B-V) at the given locations.
 
         """
@@ -356,8 +352,8 @@ class SFDMap(object):
 
 
 def ebv(*args, **kwargs):
-    """Convenience function, equivalent to SFDMap().ebv(*args)"""
-    
+    """Convenience function, equivalent to ``SFDMap().ebv(*args)``"""
+
     m = SFDMap(mapdir=kwargs.get('mapdir', None),
                north=kwargs.get('north', "SFD_dust_4096_ngp.fits"),
                south=kwargs.get('south', "SFD_dust_4096_sgp.fits"),

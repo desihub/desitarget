@@ -1,4 +1,7 @@
 """
+desitarget.sandbox.cuts
+=======================
+
 Sandbox target selection cuts, intended for algorithms that are still in
 development.
 
@@ -11,10 +14,10 @@ import numpy.lib.recfunctions as rfn
 from astropy.table import Table, Row
 
 import desitarget.targets
-from desitarget.cuts import unextinct_fluxes, _is_row
-from desitarget.internal import sharedmem
-from desitarget import desi_mask, bgs_mask, mws_mask
-from desitarget import io
+from ..cuts import unextinct_fluxes, _is_row
+from ..internal import sharedmem
+from ..targetmask import desi_mask, bgs_mask, mws_mask
+from .. import io
 
 def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
     """Return new targets array with added/renamed columns including ELG Figure of Merit
@@ -25,18 +28,22 @@ def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
         desi_target: 1D array of target selection bit flags
         bgs_target: 1D array of target selection bit flags
         mws_target: 1D array of target selection bit flags
-                                                                                                                                                      
-    Returns new targets structured array with those changes
-                                                                                                                                                      
-    Finalize target list by:
-      * renaming OBJID -> BRICK_OBJID (it is only unique within a brick)
-      * Adding new columns:
-                                                                                                                                                      
-        - TARGETID: unique ID across all bricks
-        - FoM: ELG XD Figure of Merit
-        - DESI_TARGET: target selection flags
-        - MWS_TARGET: target selection flags
-        - BGS_TARGET: target selection flags
+
+    Returns:
+        New targets structured array with those changes
+
+    Notes:
+
+        Finalize target list by:
+
+        * renaming OBJID -> BRICK_OBJID (it is only unique within a brick)
+        * Adding new columns:
+
+          - TARGETID: unique ID across all bricks
+          - FoM: ELG XD Figure of Merit
+          - DESI_TARGET: target selection flags
+          - MWS_TARGET: target selection flags
+          - BGS_TARGET: target selection flags
     """
     ntargets = len(targets)
     assert ntargets == len(FoM)
@@ -44,12 +51,12 @@ def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
     assert ntargets == len(bgs_target)
     assert ntargets == len(mws_target)
 
-    #- OBJID in tractor files is only unique within the brick; rename and                                                                             
-    #- create a new unique TARGETID                                                                                                                   
+    #- OBJID in tractor files is only unique within the brick; rename and
+    #- create a new unique TARGETID
     targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})
     targetid = targets['BRICKID'].astype(np.int64)*1000000 + targets['BRICK_OBJID']
 
-    #- Add new columns: TARGETID, TARGETFLAG, NUMOBS                                                                                                  
+    #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,
         ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'FOM'],
         [targetid, desi_target, bgs_target, mws_target, FoM], usemask=False)
@@ -61,11 +68,9 @@ def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
     return
 
 def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                        w2flux=None, ggood=None, primary=None): 
-
-    """See the isLRG_2016v3() function for details.  This function applies just the
-       flux and color cuts.
-
+                        w2flux=None, ggood=None, primary=None):
+    """See :func:`~desitarget.sandbox.cuts.isLRG_2016v3` for details.
+    This function applies just the flux and color cuts.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -83,7 +88,7 @@ def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     # The code below can overflow, since the fluxes are float32 arrays
     # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
-    # this will overflow, and crash the code. 
+    # this will overflow, and crash the code.
     with np.errstate(over='ignore'):
         # This is the star-galaxy separation cut
         # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
@@ -106,25 +111,25 @@ def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 def isLRG_2016v3(gflux=None, rflux=None, zflux=None, w1flux=None,
                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-                 gflux_ivar=None, primary=None): 
-
+                 gflux_ivar=None, primary=None):
     """This is version 3 of the Eisenstein/Dawson Summer 2016 work on LRG target
     selection, but anymask has been changed to allmask, which probably means
     that the flux cuts need to be re-tuned.  That is, mlrg2<19.6 may need to
-    change to 19.5 or 19.4.
-      -Daniel Eisenstein -- Jan 9, 2017
+    change to 19.5 or 19.4. --Daniel Eisenstein -- Jan 9, 2017
 
     Args:
-      gflux, 
+        gflux, rflux, zflux
 
-    # Inputs: decam_flux, decam_flux_ivar, decam_allmask, decam_mw_transmission
-    # wise_flux, wise_flux_ivar, wise_mw_transmission
-    # Using g, r, z, and W1 information.
+    Returns:
+        stuff
 
-    # Applying the reddening
-    # Also clip r, z, and W1 at 0 to avoid warnings from negative numbers raised to
-    # fractional powers.  
-
+    Notes:
+        - Inputs: decam_flux, decam_flux_ivar, decam_allmask, decam_mw_transmission
+          wise_flux, wise_flux_ivar, wise_mw_transmission
+          Using g, r, z, and W1 information.
+        - Applying the reddening
+        - Also clip r, z, and W1 at 0 to avoid warnings from negative numbers raised to
+          fractional powers.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -156,36 +161,34 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     Args:
         objs: A DECaLS fits table.
         last_FoM: Threshold FoM.
-        
-    Optional:
-        glim, rlim, zlim: 5-sigma detection limiting magnitudes. 
-        gr_ref, rz_ref: Number density conserving global error reference point.
-        reg_r: Regularization parameter. Empirically set to avoid pathologic 
+        glim, rlim, zlim (optional): 5-sigma detection limiting magnitudes.
+        gr_ref, rz_ref (optional): Number density conserving global error reference point.
+        reg_r (optional): Regularization parameter. Empirically set to avoid pathologic
             behaviors of the selection boundary.
-        f_i: Various class weights for FoM.
-        gmin, gmax: Minimum and maximum g-magnitude range to consider.
+        f_i (optional): Various class weights for FoM.
+        gmin, gmax (optional): Minimum and maximum g-magnitude range to consider.
 
-    
+
     Returns:
         iXD: Boolean mask array that implements XD selection.
         FoM: Figure of Merit number computed for objects that pass the initial set of masks.
 
     Note:
-        1. The current version of XD selection method assumes the imposition of decam_allmask 
-            and tycho2 stellar mask. (The individual class densities have been fitted with these 
+        1. The current version of XD selection method assumes the imposition of decam_allmask
+            and tycho2 stellar mask. (The individual class densities have been fitted with these
             masks imposed.) However, the code does not implement them yet as we want to understand
             the large scale systematics of the XD selection with and without these masks.
-        2. A different  version of this function using individual Tractor error is called 
+        2. A different  version of this function using individual Tractor error is called
             apply_XD_Tractor_error().
-            
+
         Process in summary:
             - Construct a Python dictionary that contains all XD GMM and dNdm parameters
                 using a string.
             - Load variables from the input astropy fits table.
-            - Compute which objects pass the reasonable imaging quality cut 
+            - Compute which objects pass the reasonable imaging quality cut
                 (SNR>2, flux positive, and flux invariance positive).
             - Compute which objects pass a rough color cut that eliminates a
-                bulk of low redshift contaiminants. 
+                bulk of low redshift contaiminants.
             - For each object that passes the above two cuts, compute Figure of Merit FoM.
             - If FoM>FoM_last, then include the object in the selection.
             - Append this selection column to the table and return.
@@ -293,7 +296,7 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     # def generate_XD_model_dictionary(tag1="glim24", tag2="", K_i = [2,2,2,2,3,2,7], dNdm_type = [1, 1, 0, 1, 0, 0, 1]):
     #     # Create empty dictionary
     #     params = {}
-        
+
     #     # Adding dNdm parameters for each class
     #     for i in range(7):
     #         if dNdm_type[i] == 0:
@@ -301,14 +304,14 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     #         else:
     #             dNdm_params =np.loadtxt(("%d-fit-broken-"+tag1)%i)
     #         params[(i, "dNdm")] = dNdm_params
-            
+
     #     # Adding GMM parameters for each class
     #     for i in range(7):
     #         amp, mean, covar = load_params_XD(i,K_i[i],tag0="fit",tag1=tag1,tag2=tag2)
     #         params[(i,"amp")] = amp
     #         params[(i,"mean")] = mean
     #         params[(i,"covar")] = covar
-            
+
     #     return params
 
     # def load_params_XD(i,K,tag0="fit",tag1="glim24",tag2=""):
@@ -318,20 +321,20 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     #     mean= np.load(fname)
     #     fname = ("%d-params-"+tag0+"-covars-"+tag1+"-K%d"+tag2+".npy") %(i, K)
     #     covar  = np.load(fname)
-    #     return amp, mean, covar        
+    #     return amp, mean, covar
 
     # params = generate_XD_model_dictionary()
 
 
     ####### Load variables. #######
     # Flux
-    gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1] 
+    gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1]
     rflux = objs['DECAM_FLUX'][:][:,2]/objs['DECAM_MW_TRANSMISSION'][:][:,2]
     zflux = objs['DECAM_FLUX'][:][:,4]/objs['DECAM_MW_TRANSMISSION'][:][:,4]
     # mags
     #ADM added explicit capture of runtime warnings for zero and negative fluxes
     with np.errstate(invalid='ignore',divide='ignore'):
-        g = (22.5 - 2.5*np.log10(gflux)) 
+        g = (22.5 - 2.5*np.log10(gflux))
         r = (22.5 - 2.5*np.log10(rflux))
         z = (22.5 - 2.5*np.log10(zflux))
         # Inver variance
@@ -339,8 +342,8 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
         rivar = objs['DECAM_FLUX_IVAR'][:][:,2]
         zivar = objs['DECAM_FLUX_IVAR'][:][:,4]
         # Color
-        rz = (r-z); gr = (g-r)    
-    
+        rz = (r-z); gr = (g-r)
+
         ####### Reaonsable quaity cut. #######
         iflux_positive = (gflux>0)&(rflux>0)&(zflux>0)
         ireasonable_color = (gr>-0.5) & (gr<2.5) & (rz>-0.5) &(rz<2.7) & (g<gmax) & (g>gmin)
@@ -348,34 +351,34 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
         igrz_SN2 =  ((gflux*np.sqrt(givar))>thres)&((rflux*np.sqrt(rivar))>thres)&((zflux*np.sqrt(zivar))>thres)
         # Combination of above cuts.
         ireasonable = iflux_positive & ireasonable_color & igrz_SN2
-    
+
         ####### A rough cut #######
         irough = (gr<1.3) & np.logical_or(gr<(rz+0.3) ,gr<0.3)
 
         ####### Objects for which FoM to be calculated. #######
-        ibool = ireasonable & irough 
-    
+        ibool = ireasonable & irough
+
     ######## Compute FoM values for objects that pass the cuts. #######
     # Place holder for FoM
     FoM = np.zeros(ibool.size, dtype=np.float)
 
     # Select subset of objects.
     mag = g[ibool]
-    flux = gflux[ibool]    
+    flux = gflux[ibool]
     gr = gr[ibool]
     rz = rz[ibool]
 
     # Compute the global error noise corresponding to each objects.
-    const = 2.5/(5*np.log(10)) 
+    const = 2.5/(5*np.log(10))
     gvar = (const * 10**(0.4*(mag-glim)))**2
     rvar = (const * 10**(0.4*(mag-gr_ref-rlim)))**2
-    zvar = (const * 10**(0.4*(mag-gr_ref-rz_ref-zlim)))**2        
+    zvar = (const * 10**(0.4*(mag-gr_ref-rz_ref-zlim)))**2
 
     # Calculate the densities.
     # Helper function 1.
     def GMM_vectorized(gr, rz, amps, means, covars, gvar, rvar, zvar):
         """
-        Color-color density    
+        Color-color density
 
         Params
         ------
@@ -383,27 +386,27 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
         """
         # Place holder for return array.
         density = np.zeros(gr.size,dtype=np.float)
-        
-        # Compute 
+
+        # Compute
         for i in range(amps.size):
             # Calculating Sigma+Error
             C11 = covars[i][0,0]+gvar+rvar
             C12 = covars[i][0,1]+rvar
             C22 = covars[i][1,1]+rvar+zvar
-            
+
             # Compute the determinant
             detC = C11*C22-C12**2
-            
+
             # Compute variables
             x11 = (gr-means[i][0])**2
             x12 = (gr-means[i][0])*(rz-means[i][1])
             x22 = (rz-means[i][1])**2
-            
+
             # Calculating the exponetial
             EXP = np.exp(-(C22*x11-2*C12*x12+C11*x22)/(2.*detC+1e-12))
-            
+
             density += amps[i]*EXP/(2*np.pi*np.sqrt(detC)+1e-12)
-        
+
         return density
 
 
@@ -428,19 +431,19 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
         fs = params[2]
         phi = params[3]
         return phi/((flux/fs)**alpha+(flux/fs)**beta + 1e-12)
- 
+
     FoM_num = np.zeros_like(gr)
     FoM_denom = np.zeros_like(gr)
     for i in range(7): # number of classes.
         n_i = GMM_vectorized(gr,rz, params[i, "amp"], params[i, "mean"],params[i, "covar"], gvar, rvar, zvar)  * dNdm(params[(i,"dNdm")], flux)
         FoM_num += f_i[i]*n_i
         FoM_denom += n_i
-           
+
     FoM[ibool] = FoM_num/(FoM_denom+reg_r+1e-12) # For proper broadcasting.
-    
+
     # XD-selection
     iXD = FoM>last_FoM
-    
+
     return iXD, FoM
 
 
@@ -458,11 +461,11 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
         an ndarray of target selection bitmask flags for each object
         If FoMthresh is passed
         where FoM are the Figure of Merit values calculated by apply_XD_globalerror
-        
+
     Bugs:
         If objects is a astropy Table with lowercase column names, this
         converts them to UPPERCASE in-place, thus modifying the input table.
-        To avoid this, pass in objects.copy() instead. 
+        To avoid this, pass in objects.copy() instead.
 
     See desitarget.targetmask for the definition of each bit
 
@@ -472,7 +475,7 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
     if isinstance(objects, str):
         from desitarget import io
         objects = io.read_tractor(objects)
-    
+
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
@@ -487,7 +490,7 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
-    
+
     decam_ivar = objects['DECAM_FLUX_IVAR']
     decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
     wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
@@ -500,9 +503,9 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
             primary = True
         else:
             primary = np.ones_like(objects, dtype=bool)
-        
+
     lrg = isLRG_2016v3(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                       gflux_ivar=decam_ivar[..., 1], 
+                       gflux_ivar=decam_ivar[..., 1],
                        rflux_snr=decam_snr[..., 2],
                        zflux_snr=decam_snr[..., 4],
                        w1flux_snr=wise_snr[..., 0],
@@ -548,5 +551,3 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
         write_fom_targets(objects[keep], FoM[keep], desi_target[keep], bgs_target[keep], mws_target[keep])
 
     return desi_target, bgs_target, mws_target
-
-
