@@ -140,7 +140,7 @@ napoleon_include_private_with_doc = True
 autodoc_mock_imports = ['fitsio', 'desisim.io', 'numpy', 'numpy.lib.recfunctions',
                         'astropy.coordinates', 'astropy.io.fits', 'astropy.table',
                         'scipy', 'scipy.optimize', 'matplotlib', 'matplotlib.pyplot',
-                        'matplotlib.patches',
+                        'matplotlib.patches', 'matplotlib.collections',
                         'desispec.brick', 'desispec.io', 'desispec.io.util',
                         'desiutil', 'desiutil.bitmask', 'desiutil.log',
                         'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree']
