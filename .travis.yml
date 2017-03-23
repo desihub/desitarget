@@ -78,7 +78,8 @@ matrix:
         # runs for a long time
         - os: linux
           env: PYTHON_VERSION=3.5 SETUP_CMD='build_sphinx --warning-is-error'
-          # -w is an astropy extension
+               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Do a bdist_egg compile.  This will catch things like syntax errors
         # without needing to do a full python setup.py test
