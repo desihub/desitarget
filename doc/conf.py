@@ -137,7 +137,8 @@ napoleon_include_private_with_doc = True
 # This value contains a list of modules to be mocked up. This is useful when
 # some external dependencies are not met at build time and break the
 # building process.
-autodoc_mock_imports = ['fitsio', 'desisim.io',
+autodoc_mock_imports = ['fitsio', 'desisim.io', 'numpy',
+                        'astropy.io.fits',
                         'desispec.brick', 'desispec.io', 'desispec.io.util',
                         'desiutil', 'desiutil.bitmask', 'desiutil.log',
                         'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree']
