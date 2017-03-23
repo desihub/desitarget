@@ -13,6 +13,7 @@ import numpy as np
 import fitsio
 import os, re
 from . import __version__ as desitarget_version
+from . import gitversion
 
 from desiutil import depend
 
