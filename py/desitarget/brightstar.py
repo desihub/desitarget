@@ -543,16 +543,18 @@ def set_target_bits(targs,starmask):
 
     Notes
     -----
-        - Currently sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT but should also 
-              match on the TARGETID to set the BRIGHT_OBJECT bit
+        - Sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT via coordinate matches to the mask centers and radii
+        - Sets BRIGHT_OBJECT via an index match on TARGETID (defined as TARGETID = BRICKID*1000000 + OBJID)
 
     See :mod:`desitarget.targetmask` for the definition of each bit
     """
 
+    bright_object = is_bright_star(targs,starmask)
     in_bright_object, near_bright_object = is_in_bright_star(targs,starmask)
 
     desi_target = targs["DESI_TARGET"].copy()
 
+    desi_target |= bright_object * desi_mask.BRIGHT_OBJECT
     desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
     desi_target |= near_bright_object * desi_mask.NEAR_BRIGHT_OBJECT
 
