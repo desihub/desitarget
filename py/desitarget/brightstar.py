@@ -457,9 +457,9 @@ def is_in_bright_star(targs,starmask):
     Returns
     -------
     in_mask : array_like. 
-        True if target is IN a bright star mask
+        True for array entries that correspond to a target that is IN a bright star mask
     near_mask : array_like. 
-        True if target is NEAR a bright star mask
+        True for array entries that correspond to a target that is NEAR a bright star mask
 
     """
 
@@ -492,6 +492,39 @@ def is_in_bright_star(targs,starmask):
     near_mask[idtargs[w_near]] = 'True'
 
     return in_mask, near_mask
+
+def is_bright_star(targs,starmask):
+    """Determine whether any of a set of targets are, themselves, a bright star mask
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+
+    Returns
+    -------
+    is_mask : array_like. 
+        True for array entries that correspond to targets that are, themselves, a bright star mask
+
+    """
+
+    #ADM initialize an array of all False (nothing yet has been shown to correspond to a star mask)
+    is_mask = np.zeros(len(targs), dtype=bool)
+
+    #ADM calculate the TARGETID for the targets
+    targetid = targs['BRICKID'].astype(np.int64)*1000000 + targs['BRICK_OBJID']
+
+    #ADM super-fast set-based look-up of which TARGETIDs are matches between the masks and the targets
+    matches = set(starmask["TARGETID"]).intersection(set(targetid))
+    #ADM determine the indexes of the targets that have a TARGETID in matches
+    w_mask = [ index for index, item in enumerate(targetid) if item in matches ]
+
+    #ADM w_mask now contains the target indices that match to a bright star mask on TARGETID
+    is_mask[w_mask] = 'True'
+
+    return is_mask
 
 
 def set_target_bits(targs,starmask):
