@@ -1,22 +1,26 @@
 """
-Training code developed by E. Burtin
-Update to run with DR3 by Ch. Yeche
+desitarget.train.train_mva_decals
+=================================
+
+- Training code developed by E. Burtin
+- Update to run with DR3 by Ch. Yeche
 
 This example can be run with the module desitarget/bin/qso_training
 
-Three actions controlled by "step" flag: train - test - extract_myRF 
+Three actions controlled by "step" flag: train - test - extract_myRF
 
 Two examples of random forest (with and without r_mag)
 Two examples of adaboost (with and without r_mag)
 
-Inputs:
-======
+Inputs
+------
+
 The training samples and the test sample are available on nesrc at:
 /global/project/projectdirs/desi/target/qso_training/
 
 The qso  training sample qso_dr3_nora36-42.fits is obtained
 with QSOs from the fat stripe 82 and bright QSOs (sigma(r)<0.02) of the
-rest of the footprint. Note that the 36<ra<42 region was exluded of 
+rest of the footprint. Note that the 36<ra<42 region was exluded of
 the training sample to allow independant test over this 36<ra<42 region
 
 The star  training sample qso_dr3_nora36-42_normalized.fits is obtained
@@ -24,26 +28,25 @@ with PSF objects of stripe 82, which are not variable (NNVariability<0.3)
 and not known QSOs. "normalized" means that the r_mag distribution of the
 stars is exactly the same as that of qsos.
 
-The test sample Stripe82_dr3_decals is the stripe 82. Note this file 
+The test sample Stripe82_dr3_decals is the stripe 82. Note this file
 contains the results of the four algorithm for seed 0. The new probabilities
 should be _strictly_ identical
 
-Outputs:
-=======
-train:
-Four compressed files are produced. Each file corresponds to one algorithm 
-(ie adaboost/random forest, with/withour rmag).
+Outputs
+-------
 
-test:
-Produce the probabilities for the four algorithms, the results are stored in
-Stripe82_dr3_decals_newTraining.fits
+train
+    Four compressed files are produced. Each file corresponds to one algorithm
+    (*i.e.* adaboost/random forest, with/withour rmag).
 
-extract_myRF:
-Use the file rf_model_dr3.pkl.gz produced in step "train" and convert it
-in a numpy array that can be read by desitarget.myRF class. 
-The results is the compressed numpy array rf_model_dr3.npz 
+test
+    Produce the probabilities for the four algorithms, the results are stored in
+    Stripe82_dr3_decals_newTraining.fits
 
-
+extract_myRF
+    Use the file rf_model_dr3.pkl.gz produced in step "train" and convert it
+    in a numpy array that can be read by desitarget.myRF class.
+    The results is the compressed numpy array rf_model_dr3.npz
 """
 
 import astropy.io.fits as pyfits
@@ -60,7 +63,7 @@ from desitarget.myRF import myRF
 
 #------------------------------------------------------------
 def magsExtFromFlux(dataArray):
-   
+
     gflux  = dataArray.decam_flux[:,1]/dataArray.decam_mw_transmission[:,1]
     rflux  = dataArray.decam_flux[:,2]/dataArray.decam_mw_transmission[:,2]
     zflux  = dataArray.decam_flux[:,4]/dataArray.decam_mw_transmission[:,4]
@@ -77,13 +80,13 @@ def magsExtFromFlux(dataArray):
     gflux[np.isinf(gflux)]=0.
     rflux[np.isinf(rflux)]=0.
     zflux[np.isinf(zflux)]=0.
- 
+
     g=np.where( gflux>0,22.5-2.5*np.log10(gflux), 0.)
     r=np.where( rflux>0,22.5-2.5*np.log10(rflux), 0.)
     z=np.where( zflux>0,22.5-2.5*np.log10(zflux), 0.)
     W1=np.where( W1flux>0, 22.5-2.5*np.log10(W1flux), 0.)
     W2=np.where( W2flux>0, 22.5-2.5*np.log10(W2flux), 0.)
-    
+
     g[np.isnan(g)]=0.
     g[np.isinf(g)]=0.
     r[np.isnan(r)]=0.
@@ -114,7 +117,7 @@ def colors(nbEntries,nfeatures,g,r,z,W1,W2):
     colors[:,9]=W1-W2
     colors[:,10]=r
 
-    return colors 
+    return colors
 
 def train_mva_decals(Step,debug=False):
 
@@ -125,13 +128,13 @@ def train_mva_decals(Step,debug=False):
 #   files to be used for training and for tests
 #----------------------------------------------------------
 
-# files available on nersc 
+# files available on nersc
     modelDir='./'
     dataDir='/global/project/projectdirs/desi/target/qso_training/'
-  
-# region of control   36<ra<42 is removed 
+
+# region of control   36<ra<42 is removed
     starTraining = dataDir+'star_dr3_nora36-42_normalized.fits' #dr3
-    qsoTraining = dataDir+'qso_dr3_nora36-42.fits' #dr3 
+    qsoTraining = dataDir+'qso_dr3_nora36-42.fits' #dr3
 
 # Test over stripe 82
     fileName = 'Stripe82_dr3_decals' #dr3
@@ -145,8 +148,8 @@ def train_mva_decals(Step,debug=False):
 
         qso0 = pyfits.open(qsoTraining,memmap=True)[1].data
         qso0_g,qso0_r,qso0_z,qso0_W1,qso0_W2 = magsExtFromFlux(qso0)
-        qso = qso0[(qso0_r>0)&(qso0_r<22.7)] 
-    
+        qso = qso0[(qso0_r>0)&(qso0_r<22.7)]
+
     elif ( Step=='test' or  Step=='extract_myRF' ) :
         object = pyfits.open(objectTesting,memmap=True)[1].data
         object_g,object_r,object_z,object_W1,object_W2 = magsExtFromFlux(object)
@@ -155,7 +158,7 @@ def train_mva_decals(Step,debug=False):
 
     else :
         print('Unknown option')
-        sys.exit()   
+        sys.exit()
 
 
 
@@ -168,8 +171,8 @@ def train_mva_decals(Step,debug=False):
 #   prepare arrays for Machine Learning
 #----------------------------------------------------------
 
-        print('qsos in file:',len(qso)) 
-        print('star in file:',len(star)) 
+        print('qsos in file:',len(qso))
+        print('star in file:',len(star))
         nqsotot = len(qso)
         nqso   = len(qso)
         nstartot = len(star)
@@ -216,7 +219,7 @@ def train_mva_decals(Step,debug=False):
             print(' Debug stars')
             print(star_colors)
 
-    # final arrays    
+    # final arrays
         data[0:nqso,:]=qso_colors[0:nqso,:]
         data[nqso:nqso+nstar,:]=star_colors[0:nstar,:]
         target[0:nqso]=1
@@ -225,58 +228,58 @@ def train_mva_decals(Step,debug=False):
     #----------------------------------------------------------
     #   Start the training
     #----------------------------------------------------------
-    
+
         print('training over ',nqso,' qsos and ',nstar,' stars')
-       
+
         print('with random Forest')
         np.random.seed(0)
         rf = RandomForestClassifier(200)
         rf.fit(data, target)
-        joblib.dump(rf, modelDir+'rf_model_dr3.pkl.gz',compress=9) 
+        joblib.dump(rf, modelDir+'rf_model_dr3.pkl.gz',compress=9)
         np.random.seed(0)
         rf.fit(data[:,0:9], target)
-        joblib.dump(rf, modelDir+'rf_model_normag_dr3.pkl.gz',compress=9) 
+        joblib.dump(rf, modelDir+'rf_model_normag_dr3.pkl.gz',compress=9)
 
         print('with adaBoost')
         ada = AdaBoostClassifier(DecisionTreeClassifier(max_depth=8),
                          algorithm="SAMME.R",
-                         n_estimators=200)  
+                         n_estimators=200)
         np.random.seed(0)
         ada.fit(data, target)
-        joblib.dump(ada, modelDir+'adaboost_model_dr3.pkl.gz',compress=9) 
+        joblib.dump(ada, modelDir+'adaboost_model_dr3.pkl.gz',compress=9)
         np.random.seed(0)
         ada.fit(data[:,0:9], target)
-        joblib.dump(ada, modelDir+'adaboost_model_normag_dr3.pkl.gz',compress=9) 
+        joblib.dump(ada, modelDir+'adaboost_model_normag_dr3.pkl.gz',compress=9)
 
         sys.exit()
-        
+
 #------------------------------------------------------------
     if Step== 'test' :
 #------------------------------------------------------------
         print('Check over a test sample')
-    
+
 #-----------------------
         print('random Forest over ', len(object_colors),' objects ')
-    
-        rf = joblib.load(modelDir+'rf_model_dr3.pkl.gz') 
+
+        rf = joblib.load(modelDir+'rf_model_dr3.pkl.gz')
         pobject_rf = rf.predict_proba(object_colors)
 
-        rf = joblib.load(modelDir+'rf_model_normag_dr3.pkl.gz') 
+        rf = joblib.load(modelDir+'rf_model_normag_dr3.pkl.gz')
         pobject_rf_ns = rf.predict_proba(object_colors[:,0:9])
 
 #-----------------------
         print('adaBoost over ', len(object_colors),' objects ')
-  
-        ada = joblib.load(modelDir+'adaboost_model_dr3.pkl.gz') 
+
+        ada = joblib.load(modelDir+'adaboost_model_dr3.pkl.gz')
         pobject_ada = ada.predict_proba(object_colors)
 
-        ada = joblib.load(modelDir+'adaboost_model_normag_dr3.pkl.gz') 
+        ada = joblib.load(modelDir+'adaboost_model_normag_dr3.pkl.gz')
         pobject_ada_ns = ada.predict_proba(object_colors[:,0:9])
 
-#-----------------------    
+#-----------------------
         print('updating fits file')
-   
-    
+
+
         hdusel = pyfits.BinTableHDU(data=object)
         print('create fit file with',len(object),' objects')
         orig_cols = object.columns
@@ -288,7 +291,7 @@ def train_mva_decals(Step,debug=False):
                 ])
         hduNew = pyfits.BinTableHDU.from_columns(orig_cols + new_cols)
         hduNew.writeto(outputFile,clobber=True)
- 
+
         sys.exit()
 
 #------------------------------------------------------------
@@ -302,9 +305,9 @@ def train_mva_decals(Step,debug=False):
         print ('dump all files in ',newDir)
         if not os.path.isdir(newDir) :
             os.makedirs(newDir)
-        joblib.dump(rf, newDir+'bdt.pkl') 
+        joblib.dump(rf, newDir+'bdt.pkl')
 
         myrf =  myRF(object_colors,newDir)
         myrf.saveForest(modelDir+'rf_model_dr3.npz')
-        
-        sys.exit() 
+
+        sys.exit()

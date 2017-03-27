@@ -1,4 +1,8 @@
-"""Samples magnitudes and shapes for LRG, ELG, QSO, and BGS targets from a Gaussian mixture model.
+"""
+desitarget.mock.sample
+======================
+
+Samples magnitudes and shapes for LRG, ELG, QSO, and BGS targets from a Gaussian mixture model.
 
 The model for each object type is fit to DR2 targets that have passed target
 selection critera.
@@ -6,66 +10,51 @@ selection critera.
 
 from __future__ import print_function, division
 
-import numpy as np
-import os
-from pkg_resources import resource_filename
-from astropy.io import fits
+class SampleGMM(object):
+    """Sample magnitudes based on target type (i.e. LRG, ELG, QSO, BGS).
 
-class GaussianMixtureModel(object):
+    Can sample multiple targets at once and needs only to be called
+    once for each target_type.
 
-    def __init__(self, weights, means, covars, covtype):
-        self.weights = weights
-        self.means = means
-        self.covars = covars
-        self.covtype = covtype
-        self.n_components, self.n_dimensions = self.means.shape
+    Args:
+      target_type (str) : One of four object types (LRG, ELG, QSO, BGS).
+      n_targets (int) : Number of sampled magntiudes to be returned for the
+        specified target_type.
+    random_state: RandomState or an int seed.  A random number generator.
 
-    @staticmethod
-    def save(model, filename):
-        hdus = fits.HDUList()
-        hdr = fits.Header()
-        hdr['covtype'] = model.covariance_type
-        hdus.append(fits.ImageHDU(model.weights_, name='weights', header=hdr))
-        hdus.append(fits.ImageHDU(model.means_, name='means'))
-        hdus.append(fits.ImageHDU(model.covars_, name='covars'))
-        hdus.writeto(filename, clobber=True)
+    Returns: np.ndarray length n_targets :
+        Structured array with columns g, r, z, w1, w2, w3, w4, exp_r, exp_e1,
+        exp_e2, dev_r, dev_e1, dev_e2 of sampled magnitudes.
 
-    @staticmethod
-    def load(filename):
-        hdus = fits.open(filename, memmap=False)
-        hdr = hdus[0].header
-        covtype = hdr['covtype']
-        model = GaussianMixtureModel(
-            hdus['weights'].data, hdus['means'].data, hdus['covars'].data, covtype)
-        hdus.close()
-        return model
+    """
+    def __init__(self, random_state=None):
+        from pkg_resources import resource_filename
+        from desiutil.sklearn import GaussianMixtureModel
 
-    def sample(self, n_samples=1, random_state=None):
+        bgsfile = resource_filename('desitarget', 'mock/data/bgs_gmm.fits')
+        elgfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
+        lrgfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
+        qsofile = resource_filename('desitarget', 'mock/data/qso_gmm.fits')
 
-        if self.covtype != 'full':
-            return NotImplementedError(
-                'covariance type "{0}" not implemented yet.'.format(self.covtype))
+        self.bgsmodel = GaussianMixtureModel.load(bgsfile)
+        self.elgmodel = GaussianMixtureModel.load(elgfile)
+        self.lrgmodel = GaussianMixtureModel.load(lrgfile)
+        self.qsomodel = GaussianMixtureModel.load(qsofile)
 
-        # Code adapted from sklearn's GMM.sample()
-        if random_state is None:
-            random_state = np.random.RandomState()
+        self.random_state = random_state
 
-        weight_cdf = np.cumsum(self.weights)
-        X = np.empty((n_samples, self.n_dimensions))
-        rand = random_state.rand(n_samples)
-        # decide which component to use for each sample
-        comps = weight_cdf.searchsorted(rand)
-        # for each component, generate all needed samples
-        for comp in range(self.n_components):
-            # occurrences of current component in X
-            comp_in_X = (comp == comps)
-            # number of those occurrences
-            num_comp_in_X = comp_in_X.sum()
-            if num_comp_in_X > 0:
-                X[comp_in_X] = random_state.multivariate_normal(
-                    self.means[comp], self.covars[comp], num_comp_in_X)
-        return X
-
+    def sample(self, target_type='LRG', n_targets=1):
+        if target_type == 'BGS':
+            return self.bgsmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'ELG':
+            return self.elgmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'LRG':
+            return self.lrgmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'QSO':
+            return self.qsomodel.sample(n_targets, self.random_state).astype('f4')
+        else:
+            log.fatal('Unknown object type {}!'.format(target_type))
+            raise ValueError
 
 def sample_mag_shape(target_type, n_targets, random_state=None):
     """Sample magnitudes and shapes based on target type (i.e. LRG, ELG, QSO, BGS).
@@ -91,6 +80,9 @@ def sample_mag_shape(target_type, n_targets, random_state=None):
         dev_r, dev_e1, dev_e2 of sampled magnitudes and shapes. Note that
         target_type='QSO' only returns magnitudes.
     """
+    import numpy as np
+    from pkg_resources import resource_filename
+    from desiutil.sklearn import GaussianMixtureModel
 
     #Path to model .fits files
     pathToModels = resource_filename('desitarget', "mock/data")

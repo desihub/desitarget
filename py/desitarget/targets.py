@@ -1,3 +1,9 @@
+"""
+desitarget.targets
+==================
+
+Presumably this defines targets.
+"""
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
@@ -54,7 +60,7 @@ def target_bitmask_to_string(target_class,mask):
         has_this_target_class = np.where(target_class == tc)[0]
 
         tc_name = '+'.join(mask.names(tc))
-        target_class_names[has_this_target_class] = tc_name 
+        target_class_names[has_this_target_class] = tc_name
         print('Target class %s (%d): %d'%(tc_name,tc,len(has_this_target_class)))
 
     return target_class_names
@@ -69,28 +75,28 @@ def encode_mtl_targetid(targets):
     sources.
     """
     encoded_targetid = targets['TARGETID'].copy()
-    
+
     # Validate incoming target ids
     if not np.all(encoded_targetid <= ENCODE_MTL_USER_MASK):
         print('Invalid range of user-specfied targetid: cannot exceed {}'.format(ENCODE_MTL_USER_MASK))
         raise Exception
-    
+
     desi_target = targets['DESI_TARGET'] != 0
     bgs_target  = targets['BGS_TARGET']  != 0
     mws_target  = targets['MWS_TARGET']  != 0
 
     # Assumes surveys are mutually exclusive.
     assert(np.max(np.sum([desi_target,bgs_target,mws_target],axis=0)) == 1)
-    
+
     # Set the survey bits
     #encoded_targetid[desi_target] += TARGETID_SURVEY_INDEX['desi'] << SOURCE_END
     #encoded_targetid[bgs_target ] += TARGETID_SURVEY_INDEX['bgs']  << SOURCE_END
     #encoded_targetid[mws_target]  += TARGETID_SURVEY_INDEX['mws']  << SOURCE_END
- 
+
     encoded_targetid[desi_target] += encode_survey_source(TARGETID_SURVEY_INDEX['desi'],0,0)
     encoded_targetid[bgs_target ] += encode_survey_source(TARGETID_SURVEY_INDEX['bgs'],0,0)
-    encoded_targetid[mws_target]  += encode_survey_source(TARGETID_SURVEY_INDEX['mws'],0,0) 
-     
+    encoded_targetid[mws_target]  += encode_survey_source(TARGETID_SURVEY_INDEX['mws'],0,0)
+
     # Set the source bits. Will be different for each survey.
     desi_sources = ['ELG','LRG','QSO']
     bgs_sources  = ['BGS_FAINT','BGS_BRIGHT']
@@ -100,17 +106,17 @@ def encode_mtl_targetid(targets):
         ii  = (targets['DESI_TARGET'] & desi_mask[name]) != 0
         assert(desi_mask[name] <= SOURCE_MAX)
         encoded_targetid[ii] += encode_survey_source(0,desi_mask[name],0)
- 
+
     for name in bgs_sources:
         ii  = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
         assert(bgs_mask[name] <= SOURCE_MAX)
         encoded_targetid[ii] += encode_survey_source(0,bgs_mask[name],0)
-    
+
     for name in mws_sources:
         ii  = (targets['MWS_TARGET'] & mws_mask[name]) != 0
         assert(mws_mask[name] <= SOURCE_MAX)
         encoded_targetid[ii] += encode_survey_source(0,mws_mask[name],0)
-   
+
     # FIXME (APC): expensive...
     assert(len(np.unique(encoded_targetid)) == len(encoded_targetid))
     return encoded_targetid
@@ -204,7 +210,7 @@ def calc_priority(targets):
         # QSO could be Lyman-alpha or Tracer
         name = 'QSO'
         ii                       = (targets['DESI_TARGET'] & desi_mask[name]) != 0
-        good_hiz                 = zgood & (targets['Z'] >= 2.15) & (targets['ZWARN'] == 0)    
+        good_hiz                 = zgood & (targets['Z'] >= 2.15) & (targets['ZWARN'] == 0)
         priority[ii & unobs]     = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
         priority[ii & done]      = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
         priority[ii & good_hiz]  = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
@@ -309,30 +315,30 @@ def calc_numobs(targets):
 ############################################################
 def finalize(targets, desi_target, bgs_target, mws_target):
     """Return new targets array with added/renamed columns
-    
+
     Args:
         targets: numpy structured array of targets
         kwargs: colname=array of columns to add
         desi_target: 1D array of target selection bit flags
         bgs_target: 1D array of target selection bit flags
         mws_target: 1D array of target selection bit flags
-        
+
     Returns new targets structured array with those changes
-    
+
     Finalize target list by:
       * renaming OBJID -> BRICK_OBJID (it is only unique within a brick)
       * Adding new columns:
-    
+
         - TARGETID: unique ID across all bricks
         - DESI_TARGET: target selection flags
         - MWS_TARGET: target selection flags
-        - BGS_TARGET: target selection flags        
+        - BGS_TARGET: target selection flags
     """
     ntargets = len(targets)
     assert ntargets == len(desi_target)
     assert ntargets == len(bgs_target)
     assert ntargets == len(mws_target)
-    
+
     #- OBJID in tractor files is only unique within the brick; rename and
     #- create a new unique TARGETID
     targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})

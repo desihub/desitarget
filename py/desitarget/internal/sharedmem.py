@@ -1,116 +1,119 @@
 """
-    Easier parallel programming on shared memory computers.
+desitarget.internal.sharedmem
+=============================
 
-    The source code is at http://github.com/rainwoodman/sharedmem .
+Easier parallel programming on shared memory computers.
 
-    .. contents:: Topics
-        :local:
+The source code is at http://github.com/rainwoodman/sharedmem .
 
-    Programming Model
-    -----------------
-    :py:class:`MapReduce` provides the equivalent to multiprocessing.Pool, with the following
-    differences:
+.. contents:: Topics
+    :local:
 
-    - MapReduce does not require the work function to be picklable.
-    - MapReduce adds a reduction step that is guaranteed to run on the master process's
-      scope.
-    - MapReduce allows the use of critical sections and ordered execution in the work
-      function.
+Programming Model
+-----------------
+:py:class:`MapReduce` provides the equivalent to multiprocessing.Pool, with the following
+differences:
 
-    Modifications to shared Memory arrays, allocated via 
+- MapReduce does not require the work function to be picklable.
+- MapReduce adds a reduction step that is guaranteed to run on the master process's
+  scope.
+- MapReduce allows the use of critical sections and ordered execution in the work
+  function.
 
-    - :py:meth:`sharedmem.empty`,
-    - :py:meth:`sharedmem.empty_like`,
-    - :py:meth:`sharedmem.copy`,
+Modifications to shared Memory arrays, allocated via
 
-    are visible by all processes, including the master process.
+- :py:meth:`sharedmem.empty`,
+- :py:meth:`sharedmem.empty_like`,
+- :py:meth:`sharedmem.copy`,
 
-    Usage
-    -----
-    The package can be installed via :code:`easy_install sharedmem`.
-    Alternatively, the file :code:`sharedmem.py` can be directly embedded into 
-    other projects.
+are visible by all processes, including the master process.
 
-    The only external dependency is numpy, since this was designed to
-    work with large shared memory chunks through numpy.ndarray.
+Usage
+-----
+The package can be installed via :code:`easy_install sharedmem`.
+Alternatively, the file :code:`sharedmem.py` can be directly embedded into
+other projects.
 
-    Environment variable OMP_NUM_THREADS is used to determine the
-    default number of slaves.
+The only external dependency is numpy, since this was designed to
+work with large shared memory chunks through numpy.ndarray.
 
-    Notes
-    -----
-    This module depends on the `fork` system call, thus is available
-    only on posix systems (not Windows).
+Environment variable OMP_NUM_THREADS is used to determine the
+default number of slaves.
 
-    Examples
-    --------
+Notes
+-----
+This module depends on the `fork` system call, thus is available
+only on posix systems (not Windows).
 
-    Sum up a large array
+Examples
+--------
 
-    >>> input = numpy.arange(1024 * 1024 * 128, dtype='f8')
-    >>> output = sharedmem.empty(1024 * 1024 * 128, dtype='f8')
-    >>> with MapReduce() as pool:
-    >>>    chunksize = 1024 * 1024
-    >>>    def work(i):
-    >>>        s = slice (i, i + chunksize)
-    >>>        output[s] = input[s]
-    >>>        return i, sum(input[s])
-    >>>    def reduce(i, r):
-    >>>        print('chunk', i, 'done')
-    >>>        return r
-    >>>    r = pool.map(work, range(0, len(input), chunksize), reduce=reduce)
-    >>> print numpy.sum(r)
-    >>>
+Sum up a large array
 
-    Textual analysis
+>>> input = numpy.arange(1024 * 1024 * 128, dtype='f8')
+>>> output = sharedmem.empty(1024 * 1024 * 128, dtype='f8')
+>>> with MapReduce() as pool:
+>>>    chunksize = 1024 * 1024
+>>>    def work(i):
+>>>        s = slice (i, i + chunksize)
+>>>        output[s] = input[s]
+>>>        return i, sum(input[s])
+>>>    def reduce(i, r):
+>>>        print('chunk', i, 'done')
+>>>        return r
+>>>    r = pool.map(work, range(0, len(input), chunksize), reduce=reduce)
+>>> print numpy.sum(r)
+>>>
 
-    >>> input = file('mytextfile.txt').readlines()
-    >>> word_count = {'bacon': 0, 'eggs': 0 }
-    >>> with MapReduce() as pool:
-    >>>    def work(line):
-    >>>        words = line.split()
-    >>>        for word in words:
-    >>>            word_count[word] += 1
-    >>>        return word_count
-    >>>    def reduce(wc):
-    >>>        for key in word_count:
-    >>>            word_count[key] += wc[key]
-    >>> print word_count
-    >>>
+Textual analysis
 
-    pool.ordered can be used to require a block of code to be executed in order
-    
-    >>> with MapReduce() as pool:
-    >>>    def work(i):
-    >>>         with pool.ordered:
-    >>>            print(i)
-    >>>    pool.map(work, range(10))
+>>> input = file('mytextfile.txt').readlines()
+>>> word_count = {'bacon': 0, 'eggs': 0 }
+>>> with MapReduce() as pool:
+>>>    def work(line):
+>>>        words = line.split()
+>>>        for word in words:
+>>>            word_count[word] += 1
+>>>        return word_count
+>>>    def reduce(wc):
+>>>        for key in word_count:
+>>>            word_count[key] += wc[key]
+>>> print word_count
+>>>
 
-    pool.critical can be used to require a block of code to be executed in a critical
-    section.
+pool.ordered can be used to require a block of code to be executed in order
 
-    >>> counter = sharedmem.empty(1)
-    >>> counter[:] = 0
-    >>> with MapReduce() as pool:
-    >>>    def work(i):
-    >>>         with pool.critical:
-    >>>             counter[:] += i
-    >>>    pool.map(work, range(10))
-    >>> print(counter)
+>>> with MapReduce() as pool:
+>>>    def work(i):
+>>>         with pool.ordered:
+>>>            print(i)
+>>>    pool.map(work, range(10))
 
-    API References
-    --------------
-    
+pool.critical can be used to require a block of code to be executed in a critical
+section.
+
+>>> counter = sharedmem.empty(1)
+>>> counter[:] = 0
+>>> with MapReduce() as pool:
+>>>    def work(i):
+>>>         with pool.critical:
+>>>             counter[:] += i
+>>>    pool.map(work, range(10))
+>>> print(counter)
+
+API References
+--------------
+
 """
 __author__ = "Yu Feng"
 __email__ = "rainwoodman@gmail.com"
 
-__all__ = ['set_debug', 'get_debug', 
-        'total_memory', 'cpu_count', 
+__all__ = ['set_debug', 'get_debug',
+        'total_memory', 'cpu_count',
         'SlaveException', 'StopProcessGroup',
         'background',
         'MapReduce', 'MapReduceByThread',
-        'empty', 'empty_like', 
+        'empty', 'empty_like',
         'full', 'full_like',
         'copy',
         ]
@@ -149,13 +152,13 @@ def set_debug(flag):
 
         In debug mode (flag==True), no slaves are spawn.
         All work are done in serial on the master thread/process.
-        This eases debuggin when the worker throws out an exception. 
+        This eases debuggin when the worker throws out an exception.
     """
     global __shmdebug__
     __shmdebug__ = flag
 
 def get_debug():
-    """ Get the debug mode """    
+    """ Get the debug mode """
     global __shmdebug__
     return __shmdebug__
 
@@ -199,7 +202,7 @@ class LostExceptionType(Warning):
     pass
 
 class SlaveException(Exception):
-    """ Represents an exception that has occured during a slave process 
+    """ Represents an exception that has occured during a slave process
 
         Attributes
         ----------
@@ -210,7 +213,7 @@ class SlaveException(Exception):
             reason is of type Exception.
 
         traceback : str
-            The string version of the traceback that can be used to inspect the 
+            The string version of the traceback that can be used to inspect the
             error.
 
     """
@@ -268,14 +271,14 @@ class ProcessGroup(object):
             try:
                 # Put in the string version of the exception,
                 # Some of the Exception types in extension types are probably
-                # not picklable (thus can't be sent via a queue), 
+                # not picklable (thus can't be sent via a queue),
                 # However, we don't use the extra information in customized
                 # Exception types anyways.
                 try:
                     pickle.dumps(e)
                 except Exception as ee:
                     e = str(e)
-                 
+
                 tb = traceback.format_exc()
                 self.Errors.put((e, tb), timeout=0)
             except queue.Full:
@@ -325,7 +328,7 @@ class ProcessGroup(object):
                     self.Errors.put((e, ""), timeout=0)
                 except queue.Full:
                     pass
-        self.semaphore.release() 
+        self.semaphore.release()
 
     def _guardMain(self):
         # this guard will wait till all children are dead.
@@ -423,7 +426,7 @@ class Ordered(object):
 
     def __enter__(self):
         while self.counter.value != self.tls.iter:
-            self.event.wait() 
+            self.event.wait()
         self.event.clear()
         return self
 
@@ -479,11 +482,11 @@ class background(object):
 
     """
     def __init__(self, function, *args, **kwargs):
-            
+
         backend = kwargs.pop('backend', ProcessBackend)
 
         self.result = backend.QueueFactory(1)
-        self.slave = backend.SlaveFactory(target=self._closure, 
+        self.slave = backend.SlaveFactory(target=self._closure,
                 args=(function, args, kwargs, self.result))
         self.slave.start()
 
@@ -496,7 +499,7 @@ class background(object):
             result.put((None, rt))
 
     def wait(self):
-        """ Wait and join the child process. 
+        """ Wait and join the child process.
             The return value of the function call is returned.
             If any exception occurred it is wrapped and raised.
         """
@@ -572,10 +575,10 @@ class MapReduce(object):
     def map(self, func, sequence, reduce=None, star=False):
         """ Map-reduce with multile processes.
 
-            Apply func to each item on the sequence, in parallel. 
+            Apply func to each item on the sequence, in parallel.
             As the results are collected, reduce is called on the result.
             The reduced result is returned as a list.
-            
+
             Parameters
             ----------
             func : callable
@@ -592,7 +595,7 @@ class MapReduce(object):
                 The sequence of arguments to be applied to func.
 
             reduce : callable, optional
-                Apply an reduction operation on the 
+                Apply an reduction operation on the
                 return values of func. If func returns a tuple, they
                 are treated as positional arguments of reduce.
 
@@ -605,14 +608,14 @@ class MapReduce(object):
             results : list
                 The list of reduced results from the map operation, in
                 the order of the arguments of sequence.
-                
+
             Raises
             ------
             SlaveException
                 If any of the slave process encounters
                 an exception. Inspect :py:attr:`SlaveException.reason` for the underlying exception.
-        
-        """ 
+
+        """
         def realreduce(r):
             if reduce:
                 if isinstance(r, tuple):
@@ -660,10 +663,10 @@ class MapReduce(object):
             finally:
                 pass
         feeder = threading.Thread(None, feeder, args=(pg, Q, N))
-        feeder.start() 
+        feeder.start()
 
         # we run fetcher on main thread to catch exceptions
-        # raised by reduce 
+        # raised by reduce
         count = 0
         try:
             while True:
@@ -676,7 +679,7 @@ class MapReduce(object):
                 capsule = capsule[0], realreduce(capsule[1])
                 heapq.heappush(L, capsule)
                 count = count + 1
-                if len(N) > 0 and count == N[0]: 
+                if len(N) > 0 and count == N[0]:
                     # if finished feeding see if all
                     # results have been obtained
                     break
@@ -693,14 +696,14 @@ class MapReduce(object):
             pg.killall()
             pg.join()
             feeder.join()
-            raise 
+            raise
 
 
 def empty_like(array, dtype=None):
     """ Create a shared memory array from the shape of array.
     """
     array = numpy.asarray(array)
-    if dtype is None: 
+    if dtype is None:
         dtype = array.dtype
     return anonymousmemmap(array.shape, dtype)
 
@@ -715,7 +718,7 @@ def full_like(array, value, dtype=None):
     shared = empty_like(array, dtype)
     shared[:] = value
     return shared
-    
+
 def full(shape, value, dtype='f8'):
     """ Create a shared memory array of given shape and type, filled with `value`.
     """
@@ -724,7 +727,7 @@ def full(shape, value, dtype='f8'):
     return shared
 
 def copy(a):
-    """ Copy an array to the shared memory. 
+    """ Copy an array to the shared memory.
 
         Notes
         -----
@@ -756,12 +759,12 @@ def __unpickle__(ai, dtype):
     ra = tp.from_address(ai['data'][0])
     buffer = numpy.ctypeslib.as_array(ra).ravel()
     # view it as what it should look like
-    shm = numpy.ndarray(buffer=buffer, dtype=dtype, 
+    shm = numpy.ndarray(buffer=buffer, dtype=dtype,
             strides=ai['strides'], shape=ai['shape']).view(type=anonymousmemmap)
     return shm
 
 class anonymousmemmap(numpy.memmap):
-    """ Arrays allocated on shared memory. 
+    """ Arrays allocated on shared memory.
 
         The array is stored in an anonymous memory map that is shared between child-processes.
 
@@ -785,12 +788,10 @@ class anonymousmemmap(numpy.memmap):
         self = numpy.ndarray.__new__(subtype, shape, dtype=descr, buffer=mm, order=order)
         self._mmap = mm
         return self
-        
+
     def __array_wrap__(self, outarr, context=None):
     # after ufunc this won't be on shm!
         return numpy.ndarray.__array_wrap__(self.view(numpy.ndarray), outarr, context)
 
     def __reduce__(self):
         return __unpickle__, (self.__array_interface__, self.dtype)
-
-

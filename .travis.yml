@@ -40,9 +40,12 @@ env:
         # to repeat them for all configurations.
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=1.1.1
-        - DESIUTIL_VERSION=1.9.0
+        - ASTROPY_VERSION=1.2.1
+        - DESIUTIL_VERSION=1.9.3
         - DESISPEC_VERSION=0.11.0
+        - DESISIM_VERSION=0.18.1
+        - DESIMODEL_VERSION=0.4.4
+        - SPECLITE_VERSION=0.5
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.
         - CONDA_DEPENDENCIES='pyyaml qt=4'
@@ -51,14 +54,15 @@ env:
         # These packages will always be installed.
         - PIP_DEPENDENCIES=''
         # These packages will only be installed if we really need them.
-        - PIP_ALL_DEPENDENCIES='fitsio coveralls'
+        - PIP_ALL_DEPENDENCIES='fitsio coveralls speclite'
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
-        - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION}"
+        - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION} desimodel=${DESIMODEL_VERSION}"
         # Debug the Travis install process.
         - DEBUG=False
     matrix:
         - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=3.5 SETUP_CMD='egg_info'
 
 matrix:
     # Don't wait for allowed failures.
@@ -73,17 +77,23 @@ matrix:
         # Check for sphinx doc build warnings - we do this first because it
         # runs for a long time
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='build_sphinx'
-          # -w is an astropy extension
+          env: PYTHON_VERSION=3.5 SETUP_CMD='build_sphinx --warning-is-error'
+               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+
+        # Do a bdist_egg compile.  This will catch things like syntax errors
+        # without needing to do a full python setup.py test
+        - os: linux
+          env: PYTHON_VERSION=3.5 SETUP_CMD='bdist_egg'
 
         # Try several python versions with the latest numpy
         - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=2.7 SETUP_CMD='test'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
