@@ -55,6 +55,11 @@ class TestBRIGHTSTAR(unittest.TestCase):
         #ADM because the input file has not been through Target Selection we need to add DESI_TARGET
         ntargs = len(maskabletargs)
         intargs = rfn.append_fields(maskabletargs,"DESI_TARGET",np.zeros(ntargs),usemask=False,dtypes='>i8')
+        #ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
+        #ADM column "BRICK_OBJID" and include it as the new column "OBJID"
+        intargs = rfn.append_fields(intargs,"BRICK_OBJID",np.zeros(ntargs),usemask=False,dtypes='>i4')
+        intargs["BRICK_OBJID"] = intargs["OBJID"]
+
         #ADM mask the targets, creating the mask
         targs = brightstar.mask_targets(intargs,bands="RZ",maglim=[8,10],numproc=1,
                                         rootdirname=self.bsdatadir,outfilename=self.testmaskfile)
@@ -63,9 +68,14 @@ class TestBRIGHTSTAR(unittest.TestCase):
     def test_non_mask_targets(self):
         unmaskablefile = self.datadir+'/'+self.unmaskablefile
         unmaskabletargs = fitsio.read(unmaskablefile)
-        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET
+        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET...
         ntargs = len(unmaskabletargs)
         intargs = rfn.append_fields(unmaskabletargs,"DESI_TARGET",np.zeros(ntargs),usemask=False,dtypes='>i8')
+        #ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
+        #ADM column "BRICK_OBJID" and include it as the new column "OBJID"
+        intargs = rfn.append_fields(intargs,"BRICK_OBJID",np.zeros(ntargs),usemask=False,dtypes='>i4')
+        intargs["BRICK_OBJID"] = intargs["OBJID"]
+
         #ADM write targs to file in order to check input file method
         fitsio.write(self.testtargfile, intargs, clobber=True)
         #ADM create the mask and write it to file
