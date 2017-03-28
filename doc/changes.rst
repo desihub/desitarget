@@ -2,10 +2,21 @@
 desitarget Change Log
 =====================
 
-0.9.1 (unreleased)
-------------------
+0.10.1 (unreleased)
+-------------------
+
+* No changes yet
+
+0.10.0 (2017-03-27)
+-------------------
 
 * Update Travis configuration to catch documentation errors.
+* WIP: refactor of mock.build
+* added mock.spectra module to connect mock targets with spectra
+* fix overflow in LRG sandbox cuts [`PR #160`_]
+* fixed many documentation syntax errors
+
+.. _`PR #160`: https://github.com/desihub/desitarget/pull/160
 
 0.9.0 (2017-03-03)
 ------------------
