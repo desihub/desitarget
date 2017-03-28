@@ -3,12 +3,12 @@ desitarget Change Log
 =====================
 
 0.10.1 (unreleased)
-------------------
+-------------------
 
 * No changes yet
 
-0.10.0 (unreleased)
-------------------
+0.10.0 (2017-03-27)
+-------------------
 
 * Update Travis configuration to catch documentation errors.
 * WIP: refactor of mock.build
