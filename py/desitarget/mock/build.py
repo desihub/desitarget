@@ -1,11 +1,10 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-=====================
 desitarget.mock.build
 =====================
 
-Build a truth catalog (including spectra) and a targets catalog for the mocks. 
+Build a truth catalog (including spectra) and a targets catalog for the mocks.
 
 time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
 pyprof2calltree -k -i mock.dat &
@@ -30,7 +29,7 @@ from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
-from desispec.log import get_logger, DEBUG
+from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
 
 def fileid_filename(source_data, output_dir):
@@ -38,7 +37,7 @@ def fileid_filename(source_data, output_dir):
     Outputs text file with mapping between mock filenum and file on disk
 
     returns mapping dictionary map[mockanme][filenum] = filepath
-    
+
     '''
     out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
     map_id_name = {}
@@ -82,11 +81,10 @@ class BrickInfo(object):
         self.target_names = target_names
 
     def generate_brick_info(self):
-        """Generate the brick dictionary in the ragion (min_ra, max_ra, min_dec,
-           max_dec).
+        """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
+        max_dec).
 
-           [Doesn't this functionality exist elsewhere?!?]
-
+        [Doesn't this functionality exist elsewhere?!?]
         """
         from desispec.brick import Bricks
         min_ra, max_ra, min_dec, max_dec = self.bounds
@@ -100,28 +98,28 @@ class BrickInfo(object):
         brick_info['RA2'] =  []
         brick_info['DEC1'] =  []
         brick_info['DEC2'] =   []
-        brick_info['BRICKAREA'] =  [] 
+        brick_info['BRICKAREA'] =  []
 
         i_rows = np.where((B._edges_dec < (max_dec+B._bricksize)) &
                           (B._edges_dec > (min_dec-B._bricksize)))[0]
-        
+
         for i_row in i_rows:
             j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
             j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
-            
+
             for j_col in range(j_col_min, j_col_max+1):
                 brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
-                    
+
                 brick_info['RA'].append(B._center_ra[i_row][j_col])
                 brick_info['DEC'].append(B._center_dec[i_row])
-        
+
                 brick_info['RA1'].append(B._edges_ra[i_row][j_col])
                 brick_info['DEC1'].append(B._edges_dec[i_row])
-                    
+
                 brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
                 brick_info['DEC2'].append(B._edges_dec[i_row+1])
-        
-                brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1]) 
+
+                brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1])
                 brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) -
                                np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
                 brick_info['BRICKAREA'].append(brick_area)
@@ -132,12 +130,12 @@ class BrickInfo(object):
         log.info('Generating brick information for {} brick(s) with boundaries RA={}, {}, Dec={}, {} and bricksize {} deg.'.\
                  format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
                         self.bounds[2], self.bounds[3], self.bricksize))
-            
+
         return brick_info
 
     def extinction_across_bricks(self, brick_info):
         """Estimates E(B-V) across bricks.
-    
+
         Args:
           brick_info : dictionary gathering brick information. It must have at
             least two keys 'RA' and 'DEC'.
@@ -148,42 +146,40 @@ class BrickInfo(object):
         #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
         a = {}
         a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
-        
+
         return a
 
     def depths_across_bricks(self, brick_info):
         """
         Generates a sample of magnitud dephts for a set of bricks.
-    
+
         This model was built from the Data Release 3 of DECaLS.
-    
+
         Args:
-        -----------
             brick_info(Dictionary). Containts at least the following keys:
                 RA (float): numpy array of RA positions
                 DEC (float): numpy array of Dec positions
-    
-        Return:
-        ------
+
+        Returns:
             depths (dictionary). keys include
                 'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
                 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
-                The values ofr each key ar numpy arrays (float) with size equal to 
+                The values ofr each key ar numpy arrays (float) with size equal to
                 the input ra, dec arrays.
-    
+
         """
         ra = brick_info['RA']
         dec = brick_info['DEC']
-    
+
         n_to_generate = len(ra)
         #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
         differences = {}
         differences['DEPTH_G'] = [0.22263251, 0.059752077]
         differences['DEPTH_R'] = [0.26939404, 0.091162138]
         differences['DEPTH_Z'] = [0.34058815, 0.056099825]
-        
+
         # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
-        
+
         points = {}
         points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
                       24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
@@ -191,55 +187,55 @@ class BrickInfo(object):
                       24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
         points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
                       23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
-    
+
         fractions = {}
         fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
         fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
         fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
-    
+
         names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
         depths = {}
         for name in names:
             fracs = self.random_state.random_sample(n_to_generate)
             depths[name] = np.interp(fracs, fractions[name], points[name])
-    
+
             depth_minus_galdepth = self.random_state.normal(
-                loc=differences[name][0], 
+                loc=differences[name][0],
                 scale=differences[name][1], size=n_to_generate)
             depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
-            
+
             depths['GAL'+name] = depths[name] - depth_minus_galdepth
             #log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
-            
+
         return depths
 
     def fluctuations_across_bricks(self, brick_info):
         """
         Generates number density fluctuations.
-    
+
         Args:
-          decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS. 
+          decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS.
           brick_info(Dictionary). Containts at least the following keys:
             DEPTH_G(float) : array of depth magnitudes in the G band.
-    
+
         Returns:
           fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
             corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
-            i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion 
+            i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion
             is a dictionary with keys corresponding to the different galaxy types.
-        
+
         """
         from desitarget.QA import generate_fluctuations
-    
+
         fluctuation = {}
-        
+
         depth_available = []
-    #   for k in brick_info.keys():        
-        for k in ['GALDEPTH_R', 'EBV']:        
+    #   for k in brick_info.keys():
+        for k in ['GALDEPTH_R', 'EBV']:
             if ('DEPTH' in k or 'EBV' in k):
                 depth_available.append(k)
-    
-        for depth in depth_available:        
+
+        for depth in depth_available:
             fluctuation['FLUC_'+depth] = {}
             for ttype in self.target_names:
                 fluctuation['FLUC_'+depth][ttype] = generate_fluctuations(self.decals_brick_info,
@@ -249,14 +245,14 @@ class BrickInfo(object):
                                                                           random_state=self.random_state)
                 #log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
                 #    ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
-                
+
         return fluctuation
 
     def targetinfo(self):
         """Read target info from DESIMODEL, change all the keys to upper case, and
         append into brick_info.
 
-        """ 
+        """
         filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
         td = yaml.load(filein)
         target_desimodel = {}
@@ -282,9 +278,9 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None)
 
     if random_state is None:
         random_state = np.random.RandomState()
-        
+
     n = len(mocktargets)
-    
+
     for objtype in ('ELG', 'LRG', 'QSO'):
         mask = desi_mask.mask(objtype)
         #- indices where mock (ii) and real (jj) match the mask
@@ -349,7 +345,7 @@ def empty_targets_table(nobj=1):
 
 def empty_truth_table(nobj=1):
     """Initialize the truth table for each mock object, with spectra.
-    
+
     """
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
@@ -395,7 +391,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         #_trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
         #_onbrick = np.array([], dtype=int)
         #return [_targets, _truth, _trueflux, _onbrick]
-        
+
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
 
@@ -418,11 +414,11 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     wise_onesigma[:, 0] = 1.2
     wise_onesigma[:, 1] = 0.3
     targets['WISE_FLUX'] = truth['WISE_FLUX'] + rand.normal(scale=wise_onesigma)
-    
+
     for band in (1, 2, 4):
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=1.0/np.sqrt(targets['DECAM_DEPTH'][:, band]))
-          
+
     return [targets, truth, trueflux, onbrick]
 
 def _write_onebrick(writeargs):
@@ -443,7 +439,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
         targets[onbrick].write(targetsfile, overwrite=True)
     except:
         targets[onbrick].write(targetsfile, clobber=True)
-            
+
     hx = fits.HDUList()
     hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
     hx.append(hdu)
@@ -456,9 +452,9 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
         hx.writeto(truthfile, overwrite=True)
     except:
         hx.writeto(truthfile, clobber=True)
-        
+
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
-    
+
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                   bricksize=0.25, outbricksize=5.0, nproc=4):
     """
@@ -467,10 +463,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     Args:
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
-
-    Options:
-        realtargets: real target catalog table, e.g. from DR3
-        nproc : number of parallel processes to use (default 4)
+        realtargets (optional): real target catalog table, e.g. from DR3
+        nproc (optional): number of parallel processes to use (default 4)
 
     Returns:
       targets:
@@ -478,7 +472,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     Notes:
       If nproc == 1 use serial instead of parallel code.
-    
+
     """
     rand = np.random.RandomState(seed)
 
@@ -492,8 +486,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     for src in params['sources'].keys():
         params['sources'][src].update({'bounds': bounds})
-        
-    # Build the brick information structure.    
+
+    # Build the brick information structure.
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys())).build_brickinfo()
@@ -543,11 +537,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
             nbrick[...] += 1    # this is an in-place modification
             return result
-    
+
         specargs = list()
         for thisbrick in unique_bricks:
             specargs.append((target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand))
-                
+
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
             with pool:
@@ -614,7 +608,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         os.stat(output_dir)
     except:
         os.makedirs(output_dir)
-    
+
     skyfile = os.path.join(output_dir, 'sky.fits')
     isky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) != 0)[0]
     nsky = len(isky)
@@ -651,7 +645,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
                                                                           outbricksize, outbricksize))
-    # Create the RA-slice directories, if necessary and then initialize the output header. 
+    # Create the RA-slice directories, if necessary and then initialize the output header.
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
         try:
@@ -682,7 +676,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     writeargs = list()
     for thisbrick in unique_bricks:
         writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir))
-                
+
     if nproc > 1:
         pool = sharedmem.MapReduce(np=nproc)
         with pool:

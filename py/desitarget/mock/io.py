@@ -1,7 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-==================
 desitarget.mock.io
 ==================
 
@@ -14,13 +13,13 @@ import os
 import numpy as np
 
 import fitsio
-from scipy import constants 
+from scipy import constants
 
 from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desispec.brick import brickname as get_brickname_from_radec
 
-from desispec.log import get_logger, DEBUG
+from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
 
 """How to distribute 52 user bits of targetid.
@@ -39,16 +38,22 @@ ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
-C_LIGHT = constants.c/1000.0
+try:
+    C_LIGHT = constants.c/1000.0
+except TypeError:
+    #
+    # This can happen during documentation builds.
+    #
+    C_LIGHT = 299792458.0/1000.0
 
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
-    
+
     Parameters
     ----------
         params : dict
             The different kind of sources are stored under the 'sources' key.
-    
+
     """
     log.info('The following populations and paths are specified:')
     for source_name in params['sources'].keys():
@@ -68,8 +73,8 @@ def load_all_mocks(params, rand=None, bricksize=0.25):
     params : dict
         The different kind of sources are stored under the 'sources' key.
     rand : numpy.RandomState
-        RandomState object used for the random number generation. 
-    
+        RandomState object used for the random number generation.
+
     Returns
     -------
     source_data_all : dict
@@ -96,7 +101,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25):
             magcut = params['sources'][source_name]['magcut']
         else:
             magcut = None
-            
+
         read_function = 'read_{}'.format(source_format)
 
         log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
@@ -107,11 +112,11 @@ def load_all_mocks(params, rand=None, bricksize=0.25):
                       bounds=bounds, magcut=magcut)
         source_data_all[source_name] = result
         print()
-        
+
         #if target_name not in loaded_mocks: # not sure if this is right
         ##if this_name not in loaded_mocks.keys():
         #    loaded_mocks.append(target_name)
-        #    
+        #
         #    func = globals()[read_function]
         #    result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
         #                  bounds=bounds, magcut=magcut)
@@ -174,19 +179,19 @@ def decode_rownum_filenum(encoded_values):
 def make_mockid(objid, n_per_file):
     """
     Computes mockid from row and file IDs.
-    
+
     Parameters
     ----------
     objid : int array
         Row identification number.
     n_per_file : int list
         Number of items per file that went into objid.
-    
+
     Returns
     -------
     mockid : int array
         Encoded row and file ID.
-    
+
     """
     n_files = len(n_per_file)
     n_obj = len(objid)
@@ -246,7 +251,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         'FEH': numpy.ndarray
             Logarithmic iron abundance relative to solar.
         'FILTERNAME': str
-            Filter name corresponding to mag (used to normalize the spectra). 
+            Filter name corresponding to mag (used to normalize the spectra).
         'TRUESPECTYPE': str
             Set to `STAR` for this whole sample.
         'TEMPLATETYPE': str
@@ -281,7 +286,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     nobj = len(ra)
     log.info('Read {} objects from {}.'.format(nobj, mockfile))
-    
+
     if bounds is not None:
         min_ra, max_ra, min_dec, max_dec = bounds
         cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
@@ -313,7 +318,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'FILTERNAME': 'sdss2010-g', # ?????
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype, 
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': templatesubtype,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
@@ -327,7 +332,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
     target_name : str
         Target name (not used; defaults to `WD`).
     rand : numpy.RandomState
-        RandomState object used for the random number generation. 
+        RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
     bounds : 4-element tuple
@@ -359,13 +364,13 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         'LOGG': numpy.ndarray
             Surface gravity (cm/s**2).
         'FILTERNAME': str
-            Filter name corresponding to mag (used to normalize the spectra). 
+            Filter name corresponding to mag (used to normalize the spectra).
         'TRUESPECTYPE': str
             Set to `STAR` for this whole sample.
         'TEMPLATETYPE': str
             Set to `WD` for this whole sample.
         'TEMPLATESUBTYPE': numpy.ndarray
-            Spectral class for each object (DA vs DB) based on the GUMS mock. 
+            Spectral class for each object (DA vs DB) based on the GUMS mock.
         'FILES': str list
             List of all mock file(s) read.
         'N_PER_FILE': int list
@@ -382,7 +387,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
     cols = ['RA','DEC','RADIALVELOCITY', 'G_SDSS',
             'TEFF', 'LOGG', 'SPECTRALTYPE']
     data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
-    
+
     ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
     zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
@@ -422,14 +427,14 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
-            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 
-            'FILTERNAME': 'sdss2010-g', 
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype, 
+            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
+            'FILTERNAME': 'sdss2010-g',
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
                bounds=None, magcut=None):
-    """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs. 
+    """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
     ----------
@@ -439,7 +444,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         Target name specifying the mock catalog to read ('LRG', 'ELG', 'QSO', or
         'SKY').
     rand : numpy.RandomState
-        RandomState object used for the random number generation. 
+        RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
     bounds : 4-element tuple
@@ -467,7 +472,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         'TRUESPECTYPE': str
             Set to one of SKY, GALAXY (for ELG and LRG), or QSO.
         'TEMPLATETYPE': str
-            Set to one of SKY, ELG, LRG, or QSO. 
+            Set to one of SKY, ELG, LRG, or QSO.
         'TEMPLATESUBTYPE': numpy.ndarray
             Not used for now (empty string for all target names).
         'FILES': str list
@@ -476,7 +481,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             Number of mock targets per file.
 
     The target names ELG, LRG, and QSO have the following additional/optional
-    keys. 
+    keys.
         'GR': numpy.ndarray
             Apparent g-r color (only for ELG, QSO).
         'RZ': numpy.ndarray
@@ -505,7 +510,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.upper()))
 
         columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
-        
+
     try:
         os.stat(mockfile)
     except:
@@ -551,7 +556,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         zz = zz[cut]
         nobj = len(ra)
         log.info('Trimmed to {} QSOs in redshift range 0.0<z<2.1'.format(nobj))
-        
+
     files = list()
     files.append(mockfile)
     n_per_file = list()
@@ -564,10 +569,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
-    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz, 
+    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
            'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
            'N_PER_FILE': n_per_file}
-        
+
     # Assign magnitudes / colors based on the appropriate Gaussian mixture model.
     if target_name == 'SKY':
         out.update({'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': ''})
@@ -578,7 +583,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         out.update({'GR': mags[:, 0]-mags[:, 1], 'RZ': mags[:, 1]-mags[:, 2],
                     'RW1': mags[:, 1]-mags[:, 3], 'W1W2': mags[:, 3]-mags[:, 4]})
-    
+
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
             vdisp = 10**rand.normal(1.9, 0.15, nobj)
@@ -590,12 +595,12 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             vdisp = 10**rand.normal(2.3, 0.1, nobj)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags[:, 2], 'FILTERNAME': 'decam2014-z'})
-            
+
         elif target_name == 'QSO':
             """Selected in the r-band with g-r, r-z, and W1-W2 colors."""
             out.update({'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
                         'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
-            
+
         else:
             log.fatal('Unrecognized target type {}!'.format(target_name))
             raise ValueError
@@ -613,7 +618,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     target_name : str
         Target name (not used; defaults to `BGS`).
     rand : numpy.RandomState
-        RandomState object used for the random number generation. 
+        RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
     bounds : 4-element tuple
@@ -647,7 +652,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         'SDSS_01gr' : numpy.ndarray
             SDSS g-r color band-shifted to z=0.1
         'FILTERNAME': str
-            Filter name corresponding to mag (used to normalize the spectra). 
+            Filter name corresponding to mag (used to normalize the spectra).
         'TRUESPECTYPE': str
             Set to `GALAXY` for this whole sample.
         'TEMPLATETYPE': str
@@ -710,7 +715,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         gr = gr[cut]
         nobj = len(ra)
         log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
-    
+
     files = list()
     files.append(mockfile)
     n_per_file = list()
@@ -726,7 +731,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': rmag, 'VDISP': vdisp,
             'SDSS_absmag_r01': absmag, 'SDSS_01gr': gr, 'FILTERNAME': 'sdss2010-r',
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '', 
+            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '',
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def _load_galaxia_file(mockfile):
@@ -739,11 +744,11 @@ def _load_galaxia_file(mockfile):
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
-    
+
     cols = ['RA','DEC','V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS',
             'TEFF', 'LOGG', 'FEH']
     data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
-    
+
     ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
     zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
@@ -752,7 +757,7 @@ def _load_galaxia_file(mockfile):
     teff = 10**data['TEFF'].astype('f4')         # log10!
     logg = data['LOGG'].astype('f4')
     feh = data['FEH'].astype('f4')
-    
+
     return {'OBJID': np.arange(len(ra), dtype='i8'), 'RA': ra, 'DEC': dec,
             'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
             'LOGG': logg, 'FEH': feh}
@@ -768,7 +773,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     target_name : str
         Target name (not used; defaults to `STAR`).
     rand : numpy.RandomState
-        RandomState object used for the random number generation. 
+        RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
     bounds : 4-element tuple
@@ -802,7 +807,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         'FEH': numpy.ndarray
             Logarithmic iron abundance relative to solar.
         'FILTERNAME': str
-            Filter name corresponding to mag (used to normalize the spectra). 
+            Filter name corresponding to mag (used to normalize the spectra).
         'TRUESPECTYPE': str
             Set to `STAR` for this whole sample.
         'TEMPLATETYPE': str
@@ -817,7 +822,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     """
     import multiprocessing
     ncpu = max(1, multiprocessing.cpu_count() // 2)
-    
+
     if False:
         iter_mock_files = iter_files(mock_dir_name, 'allsky', ext='fits')
     else:
@@ -838,7 +843,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     # multiprocessing.pool.MaybeEncodingError: Error sending result: Reason:
     # 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
     # Leaving this code here for the moment in case we fine a workaround
-    
+
     if False:
         p = multiprocessing.Pool(ncpu)
         target_list = p.map(_load_galaxia_file, file_list)
@@ -906,7 +911,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '', 
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
             'FILES': ofile_list, 'N_PER_FILE': n_per_file}
 
 def _load_lya_file(mockfile):
@@ -929,13 +934,13 @@ def _load_lya_file(mockfile):
     ra = np.zeros(nn).astype('f8')
     dec = np.zeros(nn).astype('f8')
     mag_g = np.zeros(nn).astype('f4')
-    
+
     for ii in range(nn):
         zz[ii] = heads[ii+1]['ZQSO']
         ra[ii] = heads[ii+1]['RA']
         dec[ii] = heads[ii+1]['DEC']
         mag_g[ii] = heads[ii+1]['MAG_G']
-        
+
     objid = np.arange(len(ra), dtype='i8')
     ra = ra * 180.0 / np.pi
     ra = ra % 360.0 #enforce 0 < ra < 360
@@ -954,7 +959,7 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
     target_name : str
         Target name (not used; defaults to `QSO`).
     rand : numpy.RandomState
-        RandomState object used for the random number generation. 
+        RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
     bounds : 4-element tuple
@@ -980,13 +985,13 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
         'MAG': numpy.ndarray
             Apparent magnitude (extinction-corrected) in SDSS r-band.
         'FILTERNAME': str
-            Filter name corresponding to mag (used to normalize the spectra). 
+            Filter name corresponding to mag (used to normalize the spectra).
         'TRUESPECTYPE': str
             Set to `QSO` for this whole sample.
         'TEMPLATETYPE': str
             Set to `QSO` for this whole sample.
         'TEMPLATESUBTYPE': numpy.ndarray
-            Spectral class for each object (set to `LYA` for this whole sample). 
+            Spectral class for each object (set to `LYA` for this whole sample).
         'FILES': str list
             List of all mock file(s) read.
         'N_PER_FILE': int list
@@ -1002,14 +1007,14 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
         from glob import glob
         log.warning('Temporary hack using glob because I am having problems with iter_files.')
         iter_mock_files = glob(mock_dir_name+'/*.fits.gz')
-        
+
     file_list = list(iter_mock_files)
     nfiles = len(iter_mock_files)
 
     if nfiles == 0:
         log.fatal('Unable to find files in {}'.format(mock_dir_name))
         raise ValueError
-    
+
     if True:
         p = multiprocessing.Pool(ncpu)
         target_list = p.map(_load_lya_file, file_list)
@@ -1040,14 +1045,14 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
         n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
         ofile_list = [file_list[itarget] for itarget in file_order]
         #bb = [file_list[itarget] for itarget in file_order]
-    
+
     objid = full_data['OBJID']
     ra = full_data['RA']
     dec = full_data['DEC']
     zz = full_data['Z']
     mag_g = full_data['MAG_G']
     nobj = len(ra)
-    log.info('Read {} objects from {} mock files.'.format(nobj, nfiles))    
+    log.info('Read {} objects from {} mock files.'.format(nobj, nfiles))
 
     mockid = make_mockid(objid, n_per_file)
 
@@ -1076,21 +1081,20 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'FILTERNAME': 'sdss2010-g',
-            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA', 
+            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
             'MAG': mag_g, 'FILES': ofile_list, 'N_PER_FILE': n_per_file}
 
 def read_mock_durham(core_filename, photo_filename):
-    """
+    """Read stuff.
+
     Args:
-    -----
         core_filename: filename of the hdf5 file storing core lightconedata
         photo_filename: filename of the hdf5 storing photometric data
 
     Returns:
-    -------
         objects: ndarray with the structure required to go through
         desitarget.cuts.select_targets()
-    
+
     """
     import h5py
 

@@ -1,3 +1,10 @@
+"""
+desispec.mtl
+============
+
+Merged target lists?
+"""
+
 import numpy as np
 import sys
 from astropy.table import Table, join
@@ -9,6 +16,7 @@ from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
 ############################################################
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
+
     Parameters
     ----------
     targets : :class:`~astropy.table.Table`
@@ -38,7 +46,7 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # Create redshift catalog
     if zcat is not None:
-        
+
         ztargets = join(targets, zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'],
                             keys='TARGETID', join_type='outer')
         if ztargets.masked:
@@ -47,7 +55,7 @@ def make_mtl(targets, zcat=None, trim=False):
             unobsz = ztargets['Z'].mask
             ztargets['Z'][unobsz] = -1
             unobszw = ztargets['ZWARN'].mask
-            ztargets['ZWARN'][unobszw] = -1        
+            ztargets['ZWARN'][unobszw] = -1
 
 
     else:
@@ -60,7 +68,7 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # Create MTL
     mtl = ztargets.copy()
- 
+
     # Assign priorities
     mtl['PRIORITY'] = calc_priority(ztargets)
 

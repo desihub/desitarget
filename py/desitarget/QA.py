@@ -18,7 +18,6 @@ from glob import glob
 from scipy.optimize import leastsq
 
 from . import __version__ as desitarget_version
-from . import gitversion
 
 from desiutil import depend
 import warnings
@@ -44,7 +43,7 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
     Returns
     -------
     :class:`float`
-        An array of the same length as depthorebvarray with per-brick fluctuations 
+        An array of the same length as depthorebvarray with per-brick fluctuations
         generated from actual DECaLS data
 
     """
@@ -106,10 +105,10 @@ def model_map(brickfilename,plot=False):
     Returns
     -------
     :class:`dictionary`
-        model of brick fluctuations, median, 16%, 84% for overall 
-        brick depth variations and variation of target density with 
+        model of brick fluctuations, median, 16%, 84% for overall
+        brick depth variations and variation of target density with
         depth and EBV (per band). The first level of the nested
-        dictionary are the keys DEPTH_G, DEPTH_R, DEPTH_Z, GALDEPTH_G, 
+        dictionary are the keys DEPTH_G, DEPTH_R, DEPTH_Z, GALDEPTH_G,
         GALDEPTH_R, GALDEPTH_Z, EBV. The second level are the keys PERC,
         which contains a list of values corresponding to the 16,50,84%
         fluctuations in that value of DEPTH or EBV per brick and the
@@ -177,7 +176,7 @@ def fit_quad(x,y,plot=False):
     """
 
     #ADM standard equation for a quadratic
-    funcQuad = lambda params,x : params[0]*x**2+params[1]*x+params[2]    
+    funcQuad = lambda params,x : params[0]*x**2+params[1]*x+params[2]
     #ADM difference between model and data
     errfunc = lambda params,x,y: funcQuad(params,x)-y
     #ADM initial guesses at params
@@ -185,7 +184,7 @@ def fit_quad(x,y,plot=False):
     #ADM loop to get least squares fit
     with warnings.catch_warnings(): # added by Moustakas
         warnings.simplefilter('ignore')
-        
+
         params,ok = leastsq(errfunc,initparams[:],args=(x,y))
         params, cov, infodict, errmsg, ok = leastsq(errfunc, initparams[:], args=(x, y),
                                                     full_output=1, epsfcn=0.0001)
@@ -199,14 +198,14 @@ def fit_quad(x,y,plot=False):
         cov = np.inf
 
     #ADM estimate the error on the fit from the diagonal of the covariance matrix
-    err = [] 
+    err = []
     for i in range(len(params)):
         try:
           err.append(np.absolute(cov[i][i])**0.5)
         except:
           err.append(0.)
     err = np.array(err)
-          
+
     if plot:
         import matplotlib.pyplot as plt
         #ADM generate a model
@@ -239,7 +238,7 @@ def fluc_map(brickfilename):
     -------
     :class:`recarray`
         numpy structured array of number of times median target density
-        for each brick for which NEXP is at least 3 in all of g/r/z bands. 
+        for each brick for which NEXP is at least 3 in all of g/r/z bands.
         Contains EBV and pixel-weighted mean depth for building models
         of how target density fluctuates.
     """
@@ -265,7 +264,7 @@ def fluc_map(brickfilename):
     data = alldata[cols]
     newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
     data.dtype.names = newcols
-    
+
     #ADM for each of the density columns loop through and replace
     #ADM density by value relative to median
     outdata = data.copy()
@@ -276,7 +275,7 @@ def fluc_map(brickfilename):
                 outdata[col] = data[col]/med
             else:
                 outdata[col] = 1.
-    
+
     return outdata
 
 
@@ -323,7 +322,7 @@ def mag_histogram(targetfilename,binsize,outfile):
 
     #ADM loop through bits and print histogram of raw target numbers per magnitude
     for i, bitval in enumerate(bitvals):
-        print('Doing',bitnames[i]) 
+        print('Doing',bitnames[i])
         w = np.where(targetdata["DESI_TARGET"] & bitval)
         if len(w[0]):
             ghist,dum = np.histogram(gmags[w],bins=binedges)
@@ -346,7 +345,7 @@ def construct_QA_file(nrows):
     Parameters
     ----------
     nrows : :class:`int`
-        Number of rows in the recarray (size, in rows, of expected fits output)    
+        Number of rows in the recarray (size, in rows, of expected fits output)
 
     Returns
     -------
@@ -369,7 +368,7 @@ def construct_QA_file(nrows):
             ('NEXP_G','i2'),('NEXP_R','i2'),('NEXP_Z','i2'),
             ('DENSITY_ALL','>f4'),
             ('DENSITY_ELG','>f4'),('DENSITY_LRG','>f4'),
-            ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'), 
+            ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'),
             ('DENSITY_BGS','>f4'),('DENSITY_MWS','>f4'),
             ('DENSITY_BAD_ELG','>f4'),('DENSITY_BAD_LRG','>f4'),
             ('DENSITY_BAD_QSO','>f4'),('DENSITY_BAD_LYA','>f4'),
@@ -428,7 +427,7 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
     instruc['EBV'] = ebvdata[matches]['EBV']
 
     return instruc
-    
+
 
 def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/'):
     """Add depth-related information to a numpy array
@@ -495,7 +494,7 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
         areas.append(maxpix*pixtodeg)
         #ADM add percentiles for depth...using a
         #ADM list comprehension, which is fast because the pixel numbers are ordered and
-        #ADM says "give me the first magbin where we exceed a certain pixel percentile"        
+        #ADM says "give me the first magbin where we exceed a certain pixel percentile"
         if totpix[0]:
             perc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_G']) > p )[0][0]] for p in pixpercs ])
             galperc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_G']) > p )[0][0]] for p in pixpercs ])
@@ -616,7 +615,7 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     print('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
     outstruc = populate_depths(outstruc,rootdirname)
-   
+
     print('Adding target density information...t = {:.1f}s'.format(time()-start))
     #ADM bits and names of interest for desitarget
     #ADM -1 as a bit will return all values
@@ -637,6 +636,3 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
 
     print('Done...t = {:.1f}s'.format(time()-start))
     return outstruc
-
-
-
