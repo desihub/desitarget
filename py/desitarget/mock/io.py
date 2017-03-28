@@ -527,10 +527,11 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
     ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
-    if 'Z_COSMO' in data.dtype.names:
-        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+    
+    if target_name == 'SKY':
+        zz = np.zeros(len(ra), dtype='f4')
     else:
-        zz = np.zeros_like(ra).astype('f4')
+        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
     del data
 
     nobj = len(ra)
