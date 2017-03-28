@@ -481,7 +481,7 @@ def is_in_bright_star(targs,starmask):
 
     #ADM catch the case where nothing fell in a mask
     if len(idstars) == 0:
-        return done
+        return in_mask, near_mask
 
     #ADM for a matching star mask, find the angular separations that are less than the mask radius
     w_in = np.where(d2d.arcmin < starmask[idstars]["IN_RADIUS"])
