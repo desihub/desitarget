@@ -410,6 +410,12 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
 def _psflike(psftype):
     """ If the object is PSF """
+    #ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    #ADM run this test on empty information. In the past we have had bugs where
+    #ADM we forgot to pass objtype=objtype in, e.g., isFSTD
+    if psftype is None:
+        raise ValueError("NoneType submitted to _psfflike function")
+
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #ADM fixed this in I/O.
     psftype = np.asarray(psftype)
