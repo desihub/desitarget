@@ -113,7 +113,7 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
         warnings.simplefilter('ignore')
         grcolor = 2.5 * np.log10(rflux / gflux)
         rzcolor = 2.5 * np.log10(zflux / rflux)
-        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+        fstd &= (grcolor - 0.26)**2 + (rzcolor - 0.13)**2 < 0.06**2
 
     return fstd
 
