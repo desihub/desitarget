@@ -581,13 +581,14 @@ def apply_cuts(objects, qso_selection='randomforest'):
     else:
         raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
                                                                                  qso_selection_options))
-
+    #ADM Make sure to pass all of the needed columns! At one point we stopped
+    #ADM passing objtype, which meant no standards were being returned.
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   decam_fracflux=decam_fracflux, decam_snr=decam_snr,
-                  obs_rflux=obs_rflux)
+                  obs_rflux=obs_rflux, objtype=objtype)
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   decam_fracflux=decam_fracflux, decam_snr=decam_snr,
-                  obs_rflux=obs_rflux, bright=True)
+                  obs_rflux=obs_rflux, objtype=objtype, bright=True)
 
     # Construct the targetflag bits; currently our only cuts are DECam based
     # (i.e. South).  This should really be refactored into a dedicated function.
