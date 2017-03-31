@@ -6,7 +6,7 @@ desitarget Change Log
 -------------------
 
 * New cuts for standards [`PR #167`_]
-* Ensured objtype was being passed to :func:`~desitarget.cuts.FSTD`.
+* Ensured objtype was being passed to :func:`~desitarget.cuts.isFSTD`.
 
 .. _`PR #167`: https://github.com/desihub/desitarget/pull/167
 
