@@ -113,7 +113,7 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
         warnings.simplefilter('ignore')
         grcolor = 2.5 * np.log10(rflux / gflux)
         rzcolor = 2.5 * np.log10(zflux / rflux)
-        fstd &= (grcolor - 0.32)**2 + (rzcolor - 0.13)**2 < 0.06**2
+        fstd &= (grcolor - 0.26)**2 + (rzcolor - 0.13)**2 < 0.06**2
 
     return fstd
 
@@ -410,6 +410,12 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
 def _psflike(psftype):
     """ If the object is PSF """
+    #ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    #ADM run this test on empty information. In the past we have had bugs where
+    #ADM we forgot to pass objtype=objtype in, e.g., isFSTD
+    if psftype is None:
+        raise ValueError("NoneType submitted to _psfflike function")
+
     #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     #ADM fixed this in I/O.
     psftype = np.asarray(psftype)
@@ -581,13 +587,14 @@ def apply_cuts(objects, qso_selection='randomforest'):
     else:
         raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
                                                                                  qso_selection_options))
-
+    #ADM Make sure to pass all of the needed columns! At one point we stopped
+    #ADM passing objtype, which meant no standards were being returned.
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   decam_fracflux=decam_fracflux, decam_snr=decam_snr,
-                  obs_rflux=obs_rflux)
+                  obs_rflux=obs_rflux, objtype=objtype)
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   decam_fracflux=decam_fracflux, decam_snr=decam_snr,
-                  obs_rflux=obs_rflux, bright=True)
+                  obs_rflux=obs_rflux, objtype=objtype, bright=True)
 
     # Construct the targetflag bits; currently our only cuts are DECam based
     # (i.e. South).  This should really be refactored into a dedicated function.
