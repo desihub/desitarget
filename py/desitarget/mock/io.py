@@ -58,7 +58,7 @@ def print_all_mocks_info(params):
     log.info('The following populations and paths are specified:')
     for source_name in params['sources'].keys():
         source_format = params['sources'][source_name]['format']
-        source_path = params['sources'][source_name]['root_mock_dir']
+        source_path = params['sources'][source_name]['mock_dir_name']
         target_name = params['sources'][source_name]['target_name']
         log.info('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
                                                                                   source_format,
