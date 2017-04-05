@@ -456,7 +456,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  bricksize=0.25, outbricksize=5.0, nproc=4):
+                  bricksize=0.25, outbricksize=0.25, nproc=4):
     """
     Write
 
