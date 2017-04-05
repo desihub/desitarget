@@ -444,7 +444,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
     hx.append(hdu)
 
-    hdu = fits.ImageHDU(trueflux.astype(np.float32), name='FLUX')
+    hdu = fits.ImageHDU(trueflux[onbrick, :].astype(np.float32), name='FLUX')
     hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
     hx.append(hdu)
 
