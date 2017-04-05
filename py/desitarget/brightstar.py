@@ -589,7 +589,7 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     targs : :class:`str` or recarray
         A recarray of targets created by desitarget.cuts.select_targets OR a filename of
         a file that contains such a set of targets
-    instarmaskfile : :class=`str`, optional
+    instarmaskfile : :class:`str`, optional
         An input bright star mask created by desitarget.brightstar.make_bright_star_mask
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
