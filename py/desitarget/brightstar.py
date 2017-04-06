@@ -99,6 +99,31 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     return collection
 
 
+def cap_area(theta):
+    """True area of a circle of a given radius drawn on the surface of a sphere
+
+    Parameters
+    ----------
+    radius : array_like
+        (angular) radius of a circle drawn on the surface of the unit sphere in DEGREES
+        
+    Returns
+    -------
+    area : array_like.
+       surface area on the sphere transcribed by the passed angular radius
+
+    Notes
+    -----
+        - The approximate formula pi*theta**2 is accurate to ~0.0025% at 1o, ~0.25% at 10o and ~2.26% at 30o
+    """
+    
+    #ADM factor to convert steradians to sq.deg.
+    st2sq = 180.*180./np.pi/np.pi
+
+    #ADM formula for the area based on the angular radius
+    return st2sq*2*np.pi*(1-(np.cos(np.radians(theta))))
+
+
 def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
@@ -235,7 +260,7 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
     Notes
     -----
-    converts using coordinates of the brick center, so is an approximation
+        - converts using coordinates of the brick center, so is an approximation
 
     """
     #ADM histogram bin edges in Galactic coordinates at resolution of 1 degree
@@ -334,17 +359,17 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
 
     Notes
     -----
-    NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
-    IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
+        - NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
+        - IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
 
-    Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
-    the NEAR_RADIUS:
+        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
+        the NEAR_RADIUS:
 
-    R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
+            R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
 
-    and half that radius to set the IN_RADIUS.
+        and half that radius to set the IN_RADIUS.
 
-    It's an open question as to what the correct radii are for DESI observations
+        - It's an open question as to what the correct radii are for DESI observations
 
     """
 
@@ -624,8 +649,8 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
 
     Notes
     -----
-    Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
-    (not including 5-10 minutes to build the star mask from scratch)
+        - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
+        - (not including 5-10 minutes to build the star mask from scratch)
     """
 
     t0 = time()
