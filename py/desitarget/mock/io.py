@@ -65,7 +65,7 @@ def print_all_mocks_info(params):
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params, rand=None, bricksize=0.25):
+def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
     """Read all the mocks.
 
     Parameters
@@ -109,7 +109,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25):
 
         func = globals()[read_function]
         result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                      bounds=bounds, magcut=magcut)
+                      bounds=bounds, magcut=magcut, nproc=nproc)
         source_data_all[source_name] = result
         print()
 
@@ -206,7 +206,7 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=None, magcut=None):
+               bounds=None, magcut=None, nproc=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -224,6 +224,8 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
     magcut : float
         Magnitude cut to apply to the sample (not used here).
+    nproc : int
+        Number of cores to use for reading (not used here).
 
     Returns
     -------
@@ -322,7 +324,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
-               bounds=None, magcut=None):
+               bounds=None, magcut=None, nproc=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -339,6 +341,8 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
     magcut : float
         Magnitude cut to apply to the sample (not used here).
+    nproc : int
+        Number of cores to use for reading (not used here).
 
     Returns
     -------
@@ -433,7 +437,7 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-               bounds=None, magcut=None):
+               bounds=None, magcut=None, nproc=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -451,6 +455,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
     magcut : float
         Magnitude cut to apply to the sample (not used here).
+    nproc : int
+        Number of cores to use for reading (not used here).
 
     Returns
     -------
@@ -609,7 +615,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     return out
 
 def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
-                          bounds=None, magcut=None):
+                          bounds=None, magcut=None, nproc=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -626,6 +632,8 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
     magcut : float
         Magnitude cut to apply to the sample (not used here).
+    nproc : int
+        Number of cores to use for reading (not used here).
 
     Returns
     -------
@@ -764,7 +772,7 @@ def _load_galaxia_file(mockfile):
             'LOGG': logg, 'FEH': feh}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=None, magcut=None):
+                 bounds=None, magcut=None, nproc=1):
     """ Read and concatenate the MWS_MAIN mock files.
 
     Parameters
@@ -779,6 +787,10 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         Size of each brick in deg.
     bounds : 4-element tuple
         Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    magcut : float
+        Magnitude cut to apply to the sample (not used here).
+    nproc : int
+        Number of cores to use for reading (default 1).
 
     Returns
     -------
@@ -822,7 +834,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     """
     import multiprocessing
-    ncpu = max(1, multiprocessing.cpu_count() // 2)
+    #nproc = max(1, multiprocessing.cpu_count() // 2)
 
     if False:
         iter_mock_files = iter_files(mock_dir_name, 'allsky', ext='fits')
@@ -846,7 +858,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     # Leaving this code here for the moment in case we fine a workaround
 
     if False:
-        p = multiprocessing.Pool(ncpu)
+        p = multiprocessing.Pool(nproc)
         target_list = p.map(_load_galaxia_file, file_list)
         p.close()
     else:
@@ -950,7 +962,7 @@ def _load_lya_file(mockfile):
     return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': zz, 'MAG_G': mag_g}
 
 def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
-             bounds=None, magcut=None):
+             bounds=None, magcut=None, nproc=1):
     """ Read and concatenate the LYA mock files.
 
     Parameters
@@ -965,6 +977,10 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
         Size of each brick in deg.
     bounds : 4-element tuple
         Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    magcut : float
+        Magnitude cut to apply to the sample (not used here).
+    nproc : int
+        Number of cores to use for reading (default 1).
 
     Returns
     -------
@@ -1000,7 +1016,7 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
 
     """
     import multiprocessing
-    ncpu = max(1, multiprocessing.cpu_count() // 2)
+    #nproc = max(1, multiprocessing.cpu_count() // 2)
 
     if False:
         iter_mock_files = iter_files(mock_dir_name, '', ext='fits.gz')
@@ -1016,8 +1032,8 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
         log.fatal('Unable to find files in {}'.format(mock_dir_name))
         raise ValueError
 
-    if True:
-        p = multiprocessing.Pool(ncpu)
+    if nproc > 1:
+        p = multiprocessing.Pool(nproc)
         target_list = p.map(_load_lya_file, file_list)
         p.close()
     else:

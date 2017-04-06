@@ -456,7 +456,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  bricksize=0.25, outbricksize=0.25, nproc=4):
+                  bricksize=0.25, outbricksize=0.25, nproc=1):
     """
     Write
 
@@ -503,7 +503,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
-    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize)
+    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
