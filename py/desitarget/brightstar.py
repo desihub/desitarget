@@ -114,13 +114,22 @@ def cap_area(theta):
 
     Notes
     -----
-        - The approximate formula pi*theta**2 is accurate to ~0.0025% at 1o, ~0.25% at 10o and ~2.26% at 30o
+        - The approximate formula pi*theta**2 is only accurate to ~0.0025% at 1o, ~0.25% at 10o,
+          sufficient for bright star mask purposes. But the equation in this function is more general.
+        - We recast the input array as float64 to circumvent precision issues with np.cos()
+          when radii of only a few arcminutes are passed
+        - Even for passed radii of 1 (0.1) arcsec, float64 is sufficiently precise to give the correct
+          area to ~0.00043 (~0.043%) using np.cos()
+
     """
+
+    #ADM recast input array as float64
+    theta = theta.astype('<f8')
     
     #ADM factor to convert steradians to sq.deg.
     st2sq = 180.*180./np.pi/np.pi
 
-    #ADM formula for the area based on the angular radius
+    #ADM return area
     return st2sq*2*np.pi*(1-(np.cos(np.radians(theta))))
 
 
@@ -352,15 +361,15 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     Returns
     -------
     :class:`recarray`
-        The bright star mask in the form RA,DEC,TARGETID,IN_RADIUS, NEAR_RADIUS (may also be written to file
+        The bright star mask in the form RA, DEC, TARGETID, IN_RADIUS, NEAR_RADIUS (may also be written to file
         if "outfilename" is passed)
         The radii are in ARCMINUTES
         TARGETID is as calculated in desitarget.targets.py
 
     Notes
     -----
-        - NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
         - IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
+        - NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
 
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
         the NEAR_RADIUS:
@@ -418,7 +427,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
     done = objs[['RA','DEC']].copy()
     done = rfn.append_fields(done,["TARGETID","IN_RADIUS","NEAR_RADIUS"],[targetid,in_radius,near_radius],
-                             usemask=False,dtypes=['>i8','<f4','<f4'])
+                             usemask=False,dtypes=['>i8','<f8','<f8'])
 
     if outfilename is not None:
         fitsio.write(outfilename, done, clobber=True)
@@ -573,8 +582,12 @@ def generate_safe_locations(starmask,npersqdeg):
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
     """
     
-    #ADM
+    #ADM determine the area of each mask
+    area = cap_area(starmask["IN_RADIUS"]/60.)
 
+    #ADM determine the number of SAFE locations to assign to each
+    #ADM mask given the passed number per sq. deg.
+    Nsafe = np.ceil(area*npersqdeg).astype('i')
 
 
 def set_target_bits(targs,starmask):
