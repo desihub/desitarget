@@ -526,14 +526,16 @@ def is_bright_star(targs,starmask):
 
     return is_mask
 
-def generate_safe_locations(starmask):
+def generate_safe_locations(starmask,npersqdeg):
     """Given a bright star mask, generate SAFE (BADSKY) locations at its periphery
 
     Parameters
     ----------
     starmask : :class:`recarray`
         A recarray containing a bright star mask as made by :mod:`desitarget.brightstar.make_bright_star_mask`
-
+    npersqdeg : :class:`int`
+        The number of safe locations to generate per square degree of each mask
+        
     Returns
     -------
     ra : array_like. 
@@ -545,6 +547,9 @@ def generate_safe_locations(starmask):
     -----
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
     """
+    
+    #ADM
+
 
 
 def set_target_bits(targs,starmask):
