@@ -532,7 +532,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
-            if nbrick % 10 == 0 and nbrick > 0:
+            #if nbrick % 10 == 0 and nbrick > 0:
+            if nbrick > 0:
                 rate = (time() - t0) / nbrick
                 log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
             nbrick[...] += 1    # this is an in-place modification
