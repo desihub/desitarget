@@ -144,7 +144,7 @@ class MockSpectra(object):
     ToDo (@moustakas): apply Galactic extinction.
 
     """
-    def __init__(self, wavemin=None, wavemax=None, dw=0.2, rand=None):
+    def __init__(self, wavemin=None, wavemax=None, dw=0.2, rand=None, verbose=False):
 
         from desimodel.io import load_throughput
         
@@ -162,6 +162,7 @@ class MockSpectra(object):
         self.wave = np.arange(round(wavemin, 1), wavemax, dw)
 
         self.rand = rand
+        self.verbose = verbose
 
         #self.__normfilter = 'decam2014-r' # default normalization filter
 
@@ -204,7 +205,8 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.bgs_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True)
+                                                          nocolorcuts=True, novdisp=True,
+                                                          verbose=self.verbose)
 
         return flux, meta
 
@@ -235,7 +237,8 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True)
+                                                          nocolorcuts=True, novdisp=True,
+                                                          verbose=self.verbose)
 
         return flux, meta
 
@@ -265,7 +268,8 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.lrg_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True)
+                                                          nocolorcuts=True, novdisp=True,
+                                                          verbose=self.verbose)
 
         return flux, meta
 
@@ -296,7 +300,8 @@ class MockSpectra(object):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         input_meta['TEMPLATEID'] = templateid
-        flux, _, meta = self.star_templates.make_templates(input_meta=input_meta) # Note! No colorcuts.
+        flux, _, meta = self.star_templates.make_templates(input_meta=input_meta,
+                                                          verbose=self.verbose) # Note! No colorcuts.
 
         return flux, meta
 
@@ -343,7 +348,8 @@ class MockSpectra(object):
                     input_meta['TEMPLATEID'][these] = templateid
                     
                     template_function = 'wd_{}_templates'.format(subtype.lower())
-                    flux1, _, meta1 = getattr(self, template_function).make_templates(input_meta=input_meta[these])
+                    flux1, _, meta1 = getattr(self, template_function).make_templates(input_meta=input_meta[these],
+                                                          verbose=self.verbose)
                     
                     meta[these] = meta1
                     flux[these, :] = flux1
@@ -372,7 +378,8 @@ class MockSpectra(object):
                 input_meta[inkey] = data[datakey][index]
 
             flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
-                                                              nocolorcuts=True)
+                                                              nocolorcuts=True,
+                                                              verbose=self.verbose)
         elif mockformat.lower() == 'lya':
             # Build spectra for Lyman-alpha QSOs.
             from astropy.table import vstack

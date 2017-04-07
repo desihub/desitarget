@@ -6,7 +6,7 @@ desitarget.mock.build
 
 Build a truth catalog (including spectra) and a targets catalog for the mocks.
 
-time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 678 --nproc 8 --output_dir brick_targets
+time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
 pyprof2calltree -k -i mock.dat &
 
 """
@@ -456,7 +456,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  bricksize=0.25, outbricksize=0.25, nproc=4):
+                  bricksize=0.25, outbricksize=0.25, nproc=1):
     """
     Write
 
@@ -495,7 +495,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the MockSpectra and SelectTargets classes.')
-    Spectra = MockSpectra(rand=rand)
+    Spectra = MockSpectra(rand=rand, verbose=verbose)
     SelectTargets = mockselect.SelectTargets(logger=log, rand=rand,
                                              brick_info=brick_info)
     print()
@@ -503,7 +503,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
-    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize)
+    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
