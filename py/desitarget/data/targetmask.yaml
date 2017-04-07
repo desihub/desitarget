@@ -202,3 +202,9 @@ priorities:
         MWS_MAIN_LOW_GAL_B:  SAME_AS_MWS_MAIN
         MWS_MAIN_VERY_FAINT: {UNOBS: 1400}
 
+
+#- Bits that can be set in TARGETID. See the schema at
+#- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348;
+targetid_mask:
+    - [MOCK,       48, "this target is a mock target"]
+    - [SKY,        49, "this target is a sky fiber target"]
