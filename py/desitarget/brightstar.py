@@ -25,7 +25,7 @@ from . import __version__ as desitarget_version
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget import desi_mask
+from desitarget import desi_mask, targetid_mask
 
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     """
@@ -477,7 +477,6 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
 
     return
 
-
 def is_in_bright_star(targs,starmask):
     """Determine whether a set of targets is in a bright star mask
 
@@ -573,9 +572,9 @@ def generate_safe_locations(starmask,Npersqdeg):
     Returns
     -------
     ra : array_like. 
-        The Right Ascension of the SAFE locations
+        The Right Ascensions of the SAFE locations
     dec : array_like. 
-        The Declination of the SAFE locations
+        The Declinations of the SAFE locations
 
     Notes
     -----
@@ -600,7 +599,56 @@ def generate_safe_locations(starmask,Npersqdeg):
     ra = starmask["RA"] + offra
     dec = starmask["DEC"] + offdec
 
-    return ra, dec
+    #ADM have to turn the generated locations into 1-D arrays before returning them
+    return np.hstack(ra), np.hstack(dec)
+
+
+def append_safe_targets(targs,starmask):
+    """Append targets at SAFE locations to a list of targets
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+
+    Returns
+    -------
+        The original recarray of targets (targs) is returned with additional SAFE targets appended to it
+
+    Notes
+    -----
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
+          on the SAFE locations
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348 for more details
+          on setting the SKY bit in TARGETID
+        - Currently hard-coded to create an additional 10,000 safe locations per sq. deg. of mask. What is the 
+          correct number per sq. deg. (Npersqdeg) for DESI is an open question.
+    """
+    
+    #Number of safe locations per sq. deg. of each mask in starmask
+    Npersqdeg = 10000
+
+    #ADM generate SAFE locations at the periphery of the star masks appropriate to a density of Npersqdeg
+    ra, dec = generate_safe_locations(starmask,Npersqdeg)
+
+    #ADM duplicate the targs rec array with a number of rows equal to the generated safe locations
+    nrows = len(ra)
+    safes = np.zeros(nrows, dtype=targs.dtype)
+
+    #ADM populate the safes recarray with the RA/Dec of the SAFE locations
+    safes["RA"] = ra
+    safes["DEC"] = dec
+
+    #ADM set SKY in the TARGETID for safe locations
+    safes["TARGETID"] = targetid_mask.SKY
+
+    #ADM set the bit for SAFE locations in DESITARGET
+    safes["DESI_TARGET"] = desi_mask.SAFE
+
+    #ADM return the input targs with the SAFE targets appended
+    return np.hstack([targs,safes])
 
 
 def set_target_bits(targs,starmask):
