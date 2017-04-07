@@ -560,7 +560,7 @@ def is_bright_star(targs,starmask):
 
     return is_mask
 
-def generate_safe_locations(starmask,npersqdeg):
+def generate_safe_locations(starmask,Npersqdeg):
     """Given a bright star mask, generate SAFE (BADSKY) locations at its periphery
 
     Parameters
@@ -582,12 +582,25 @@ def generate_safe_locations(starmask,npersqdeg):
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
     """
     
+    #ADM the radius of each mask in degrees
+    radius = starmask["IN_RADIUS"]/60.
+
     #ADM determine the area of each mask
-    area = cap_area(starmask["IN_RADIUS"]/60.)
+    area = cap_area(radius)
 
     #ADM determine the number of SAFE locations to assign to each
-    #ADM mask given the passed number per sq. deg.
-    Nsafe = np.ceil(area*npersqdeg).astype('i')
+    #ADM mask given the passed number of locations per sq. deg.
+    Nsafe = np.ceil(area*Npersqdeg).astype('i')
+
+    #ADM determine Nsafe RA,Dec offsets equally spaced around the perimeter for each mask
+    offra = [ rad*np.cos(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
+    offdec = [ rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
+
+    #ADM add the offsets to the RA/Dec of the mask centers
+    ra = starmask["RA"] + offra
+    dec = starmask["DEC"] + offdec
+
+    return ra, dec
 
 
 def set_target_bits(targs,starmask):
