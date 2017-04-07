@@ -436,6 +436,19 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'WD', 'TEMPLATESUBTYPE': templatesubtype,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
+def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
+    """Choose a subset of velocity dispersions."""
+    if rand is None:
+        rand = np.random.RandomState()
+
+    fracvdisp = (0.1, 40)
+
+    nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
+    vvdisp = 10**rand.normal(logvdisp_meansig[0], logvdisp_meansig[1], nvdisp)
+    vdisp = rand.choice(vvdisp, nmodel)
+    
+    return vdisp
+
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
                bounds=None, magcut=None, nproc=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
@@ -593,13 +606,13 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
-            vdisp = 10**rand.normal(1.9, 0.15, nobj)
+            vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
 
         elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
-            vdisp = 10**rand.normal(2.3, 0.1, nobj)
+            vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags[:, 2], 'FILTERNAME': 'decam2014-z'})
 
@@ -735,7 +748,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
     seed = rand.randint(2**32, size=nobj)
-    vdisp = 10**rand.normal(1.9, 0.15, nobj)
+    vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': rmag, 'VDISP': vdisp,
