@@ -750,14 +750,14 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
 
     if verbose:
         ntargsin = len(targs)
-        print('Number of targets {}...t={:.1f}s'.format(ntargsin), time()-t0))
+        print('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
         print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
     #ADM generate SAFE locations and add them to the target list
     targs = append_safe_targets(targs,starmask)
     
     if verbose:
-        print('Generated {} SAFE locations...t={:.1f}s'.format(len(targs)-ntargsin), time()-t0))
+        print('Generated {} SAFE locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
 
     #ADM update the bits depending on whether targets are in a mask
     dt = set_target_bits(targs,starmask)
