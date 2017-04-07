@@ -38,4 +38,4 @@ def gitversion():
 
 # desitarget.targetmask makes more sense?
 from .targetmask import obsconditions, obsmask
-from .targetmask import desi_mask, mws_mask, bgs_mask
+from .targetmask import desi_mask, mws_mask, bgs_mask, targetid_mask
