@@ -686,7 +686,7 @@ def set_target_bits(targs,starmask):
 
 
 def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
-    """Add bits for whether objects are in a bright star mask to list of targets
+    """Add bits for whether objects are in a bright star mask, and SAFE sky locations, to a list of targets
 
     Parameters
     ----------
@@ -719,10 +719,13 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     Returns
     -------
     targets numpy structured array
-        the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits.
+        the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits
+        and SAFE sky locations added around the perimeter of the bright star mask.
 
     Notes
     -----
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
+          about SAFE locations
         - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
         - (not including 5-10 minutes to build the star mask from scratch)
     """
@@ -746,9 +749,17 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
         starmask = fitsio.read(instarmaskfile)
 
     if verbose:
-        print('Number of targets {}...t={:.1f}s'.format(len(targs), time()-t0))
+        ntargsin = len(targs)
+        print('Number of targets {}...t={:.1f}s'.format(ntargsin), time()-t0))
         print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
+    #ADM generate SAFE locations and add them to the target list
+    targs = append_safe_targets(targs,starmask)
+    
+    if verbose:
+        print('Generated {} SAFE locations...t={:.1f}s'.format(len(targs)-ntargsin), time()-t0))
+
+    #ADM update the bits depending on whether targets are in a mask
     dt = set_target_bits(targs,starmask)
     done = targs.copy()
     done["DESI_TARGET"] = dt
