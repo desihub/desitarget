@@ -73,6 +73,9 @@ class SelectTargets(object):
         for oo in self.desi_mask.ELG.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
+        import pdb ; pdb.set_trace()
+        
+
         return targets
 
     def lrg_select(self, targets, truth=None):
