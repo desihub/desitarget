@@ -60,12 +60,15 @@ class SelectTargets(object):
         return targets
 
     def elg_select(self, targets, truth=None):
-        """Select ELG targets."""
-        from desitarget.cuts import isELG
+        """Select ELG targets and contaminants."""
+        from desitarget.cuts import isELG, isQSO_colors
 
         gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
         zflux = targets['DECAM_FLUX'][..., 4]
+        w1flux = targets['WISE_FLUX'][..., 0]
+        w2flux = targets['WISE_FLUX'][..., 1]
+        
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
 
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
@@ -73,8 +76,11 @@ class SelectTargets(object):
         for oo in self.desi_mask.ELG.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
-        import pdb ; pdb.set_trace()
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                           w2flux=w2flux, optical=True)
         
+        import pdb ; pdb.set_trace()
+                            
 
         return targets
 
