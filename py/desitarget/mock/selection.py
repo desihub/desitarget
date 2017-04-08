@@ -76,11 +76,13 @@ class SelectTargets(object):
         for oo in self.desi_mask.ELG.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
+        # ELG contaminants for QSO targets.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=True)
-        
-        import pdb ; pdb.set_trace()
-                            
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        for oo in self.desi_mask.QSO.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
 
         return targets
 
@@ -196,28 +198,28 @@ class SelectTargets(object):
         return targets
 
     def qso_select(self, targets, truth=None):
-        """Select QSO targets.  Unfortunately we can't apply the appropriate color-cuts
-        because our spectra don't go red enough (i.e., into the WISE bands).  So
-        all the QSOs pass for now.
+        """Select QSO targets and contaminants."""
+        from desitarget.cuts import isQSO_colors, isELG
 
-        """
-        if False:
-            from desitarget.cuts import isQSO
-
-            gflux = targets['DECAM_FLUX'][..., 1]
-            rflux = targets['DECAM_FLUX'][..., 2]
-            zflux = targets['DECAM_FLUX'][..., 4]
-            w1flux = targets['WISE_FLUX'][..., 0]
-            w2flux = targets['WISE_FLUX'][..., 1]
-            qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                               w1flux=w1flux, w2flux=w2flux)
-        else:
-            qso = np.ones(len(targets)) # select everything!
+        gflux = targets['DECAM_FLUX'][..., 1]
+        rflux = targets['DECAM_FLUX'][..., 2]
+        zflux = targets['DECAM_FLUX'][..., 4]
+        w1flux = targets['WISE_FLUX'][..., 0]
+        w2flux = targets['WISE_FLUX'][..., 1]
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux, optical=True)
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
+
+        # QSO contaminants for ELG targets.
+        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        for oo in self.desi_mask.ELG.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
         return targets
 
