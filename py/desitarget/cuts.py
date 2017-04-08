@@ -254,12 +254,13 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, o
         bgs &= ~_psflike(objtype)
     return bgs
 
-def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
+def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     """Tests if objects have QSO-like colors, i.e. a subset of the QSO cuts.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        optical : Just apply optical color-cuts (default False)
 
     Returns:
         mask : array_like. True if the object has QSO-like colors.
@@ -275,8 +276,10 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
     qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
     qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
-    qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
-    qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
+
+    if not optical:
+        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
 
     # Harder cut on stellar contamination
     mainseq = rflux > gflux * 10**(0.20/2.5)
@@ -286,7 +289,8 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux):
     zflux = zflux.clip(0)
     mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
     mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    if not optical:
+        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
 
     return qso
