@@ -558,8 +558,11 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
         if limits is not None:
             plt.axis(limits)
 
-    #ADM draw circle patches from the mask information converting radius to degrees
-    out = circles(mask["RA"], mask["DEC"], mask[radius]/60., alpha=0.2, edgecolor='none')
+    #ADM draw ellipse patches from the mask information converting radius to degrees
+    #ADM include the cos(dec) term to expand the RA semi-major axis at higher declination
+    minoraxis = mask[radius]/60.
+    majoraxis = minoraxis/np.cos(mask["DEC"])
+    out = ellipses(mask["RA"], mask["DEC"], majoraxis, minoraxis, alpha=0.2, edgecolor='none')
 
     if show:
         plt.show()
@@ -687,7 +690,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     #ADM add the offsets to the RA/Dec of the mask centers
     #ADM remembering to correct the RA offset for the cos(Dec) term
     dec = starmask["DEC"] + offdec
-    offrawcos =  off/(np.cos(np.radians(d))) for off,d in zip(offra,dec) ]
+    offrawcos =  [ off/(np.cos(np.radians(d))) for off,d in zip(offra,dec) ]
     ra = starmask["RA"] + offrawcos
 
     #ADM have to turn the generated locations into 1-D arrays before returning them
