@@ -76,7 +76,7 @@ class SelectTargets(object):
         for oo in self.desi_mask.ELG.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
-        # ELG contaminants for QSO targets.
+        # Select ELG contaminants for QSO targets.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=True)
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
@@ -93,6 +93,8 @@ class SelectTargets(object):
         rflux = targets['DECAM_FLUX'][..., 2]
         zflux = targets['DECAM_FLUX'][..., 4]
         w1flux = targets['WISE_FLUX'][..., 0]
+        w1flux = targets['WISE_FLUX'][..., 0]
+        w2flux = targets['WISE_FLUX'][..., 1]
         lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
 
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
@@ -104,10 +106,11 @@ class SelectTargets(object):
 
     def mws_main_select(self, targets, truth=None):
         """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, STD_FSTAR, and STD_BRIGHT targets.  The
-        selection eventually will be done with Gaia (I think).
+        selection eventually will be done with Gaia (I think).  Also select
+        contaminants for the other target classes.
 
         """
-        from desitarget.cuts import isFSTD
+        from desitarget.cuts import isFSTD, isELG, isQSO_colors
 
         def _isMWS_MAIN(rflux):
             """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
@@ -124,6 +127,8 @@ class SelectTargets(object):
         gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
         zflux = targets['DECAM_FLUX'][..., 4]
+        w1flux = targets['WISE_FLUX'][..., 0]
+        w2flux = targets['WISE_FLUX'][..., 1]
         obs_rflux = rflux * 10**(-0.4 * targets['EBV'] * self.decam_extcoeff[2]) # attenuate for dust
 
         snr = np.zeros_like(targets['DECAM_FLUX']) + 100      # Hack -- fixed S/N
@@ -158,6 +163,21 @@ class SelectTargets(object):
         targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
         for oo in self.desi_mask.STD_BRIGHT.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(oo)
+
+        # Select MWS_MAIN contaminants for ELG targets.
+        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        for oo in self.desi_mask.ELG.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
+
+        # Select MWS_MAIN contaminants for QSO targets.
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                           w2flux=w2flux, optical=True)
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        for oo in self.desi_mask.QSO.obsconditions.split('|'):
+            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
 
         return targets
 
@@ -214,7 +234,7 @@ class SelectTargets(object):
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
 
-        # QSO contaminants for ELG targets.
+        # Select QSO contaminants for ELG targets.
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
@@ -266,7 +286,6 @@ class SelectTargets(object):
                 self.log.warning('Brick {}: mock density {}/deg2 too low!.'.format(thisbrick, mock_density))
                 frac_keep = 1.0
 
-            #import pdb ; pdb.set_trace()
             keep.append(self.rand.choice(onbrick, int(n_in_brick * frac_keep), replace=False))
 
         return np.hstack(keep)

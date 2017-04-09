@@ -512,7 +512,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     alltruth = list()
     alltrueflux = list()
     for source_name in params['sources'].keys():
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
 
         source_data = source_data_all[source_name]     # data (ra, dec, etc.)
@@ -571,16 +571,18 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         getattr(SelectTargets, selection_function)(targets, truth)
 
         targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
+        keep = targkeep
 
-        # Finally downsample based on the desired number density.
-        if 'density' in params['sources'][source_name].keys():
-            density = params['sources'][source_name]['density']
-            log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-            denskeep = SelectTargets.density_select(targets[targkeep], density=density,
-                                                    sourcename=source_name)
-            keep = targkeep[denskeep]
-        else:
-            keep = targkeep
+        ## Finally downsample based on the desired number density.
+        #log.warning('TEMPORARILY TURNING OFF DENSITY DOWN-SELECTION!')
+        #if False and 'density' in params['sources'][source_name].keys():
+        #    density = params['sources'][source_name]['density']
+        #    log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
+        #    denskeep = SelectTargets.density_select(targets[targkeep], density=density,
+        #                                            sourcename=source_name)
+        #    keep = targkeep[denskeep]
+        #else:
+        #    keep = targkeep
 
         alltargets.append(targets[keep])
         alltruth.append(truth[keep])
@@ -593,6 +595,23 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     targets = vstack(alltargets)
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
+
+    # Downsample the targets and contaminants based on the desired number density.
+    for source_name in params['sources'].keys():
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+
+
+    import pdb ; pdb.set_trace()
+
+    if 'density' in params['sources'][source_name].keys():
+        density = params['sources'][source_name]['density']
+        log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
+        denskeep = SelectTargets.density_select(targets[targkeep], density=density,
+                                                    sourcename=source_name)
+        keep = targkeep[denskeep]
+    else:
+        keep = targkeep
+
     ntarget = len(targets)
 
     targetid = rand.randint(2**62, size=ntarget)
