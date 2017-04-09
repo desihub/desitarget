@@ -581,8 +581,8 @@ def generate_safe_locations(starmask,Npersqdeg):
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
     """
     
-    #ADM the radius of each mask in degrees
-    radius = starmask["IN_RADIUS"]/60.
+    #ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
+    radius = 1.001*starmask["IN_RADIUS"]/60.
 
     #ADM determine the area of each mask
     area = cap_area(radius)
@@ -596,8 +596,10 @@ def generate_safe_locations(starmask,Npersqdeg):
     offdec = [ rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
 
     #ADM add the offsets to the RA/Dec of the mask centers
-    ra = starmask["RA"] + offra
+    #ADM remembering to correct the RA offset for the cos(Dec) term
     dec = starmask["DEC"] + offdec
+    offrawcos =  off/(np.cos(np.radians(d))) for off,d in zip(offra,dec) ]
+    ra = starmask["RA"] + offrawcos
 
     #ADM have to turn the generated locations into 1-D arrays before returning them
     return np.hstack(ra), np.hstack(dec)
