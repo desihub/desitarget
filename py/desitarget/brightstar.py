@@ -560,9 +560,10 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
 
     #ADM draw ellipse patches from the mask information converting radius to degrees
     #ADM include the cos(dec) term to expand the RA semi-major axis at higher declination
+    #ADM note the "ellipses" takes the diameter, not the radius
     minoraxis = mask[radius]/60.
     majoraxis = minoraxis/np.cos(mask["DEC"])
-    out = ellipses(mask["RA"], mask["DEC"], majoraxis, minoraxis, alpha=0.2, edgecolor='none')
+    out = ellipses(mask["RA"], mask["DEC"], 2*majoraxis, 2*minoraxis, alpha=0.2, edgecolor='none')
 
     if show:
         plt.show()
