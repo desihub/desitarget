@@ -100,12 +100,11 @@ class BrickInfo(object):
         brick_info['DEC2'] =   []
         brick_info['BRICKAREA'] =  []
 
-        i_rows = np.where((B._edges_dec < (max_dec+B._bricksize)) &
-                          (B._edges_dec > (min_dec-B._bricksize)))[0]
+        i_rows = np.where((B._edges_dec < max_dec) & (B._edges_dec >= min_dec))[0]
 
         for i_row in i_rows:
-            j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
-            j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
+            j_col_min = int((min_ra)/360 * B._ncol_per_row[i_row])
+            j_col_max = int((max_ra)/360 * B._ncol_per_row[i_row])
 
             for j_col in range(j_col_min, j_col_max+1):
                 brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
@@ -596,21 +595,19 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
 
-    # Downsample the targets and contaminants based on the desired number density.
-    for source_name in params['sources'].keys():
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-
-
-    import pdb ; pdb.set_trace()
-
-    if 'density' in params['sources'][source_name].keys():
-        density = params['sources'][source_name]['density']
-        log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-        denskeep = SelectTargets.density_select(targets[targkeep], density=density,
-                                                    sourcename=source_name)
-        keep = targkeep[denskeep]
-    else:
-        keep = targkeep
+    ## Downsample the targets and contaminants based on the desired number density.
+    #denskeep = list()
+    #for source_name in params['sources'].keys():
+    #    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+    #    
+    #    if 'density' in params['sources'][source_name].keys():
+    #        density = params['sources'][source_name]['density']
+    #        log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
+    #        denskeep.append(SelectTargets.density_select(targets[targkeep], density=density,
+    #                                                     sourcename=source_name))
+    #    else:
+    #        keep = targkeep
+    #import pdb ; pdb.set_trace()
 
     ntarget = len(targets)
 
