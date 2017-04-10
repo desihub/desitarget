@@ -906,9 +906,13 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     done = targs.copy()
     done["DESI_TARGET"] = dt
 
-    #ADM remove any SAFE locations that are in bright masks (because they aren't safe)
+    #ADM remove any SAFE locations that are in bright masks (because they aren't really safe)
+    w = np.where(  ((targs["DESI_TARGET"] & desi_mask.SAFE) == 0)  | 
+                   ((targs["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
+    done = done[w]
 
     if verbose:
         print('Finishing up...t={:.1f}s'.format(time()-t0))
 
     return done
+ 
