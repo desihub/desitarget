@@ -28,9 +28,7 @@ from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
 
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
-    """
-    Make a scatter plot of circles.
-    Similar to plt.scatter, but the size of circles are in data scale.
+    """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
 
     Parameters
     ----------
@@ -105,8 +103,8 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
 
 
 def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
-    """
-    Make a scatter plot of ellipses. 
+    """Make a scatter plot of ellipses
+
     Parameters
     ----------
     x, y : scalar or array_like, shape (n, )
