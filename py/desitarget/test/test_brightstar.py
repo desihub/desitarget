@@ -5,7 +5,7 @@ import fitsio
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-from desitarget import brightstar
+from desitarget import brightstar, desi_mask
 
 class TestBRIGHTSTAR(unittest.TestCase):
 
@@ -52,9 +52,10 @@ class TestBRIGHTSTAR(unittest.TestCase):
     def test_mask_targets(self):
         maskablefile = self.bsdatadir+'/'+self.maskablefile
         maskabletargs = fitsio.read(maskablefile)
-        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET
+        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET and TARGETID
         ntargs = len(maskabletargs)
-        intargs = rfn.append_fields(maskabletargs,"DESI_TARGET",np.zeros(ntargs),usemask=False,dtypes='>i8')
+        intargs = rfn.append_fields(maskabletargs,["DESI_TARGET","TARGETID"],
+                                              [np.zeros(ntargs),np.zeros(ntargs)],usemask=False,dtypes='>i8')
         #ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
         #ADM column "BRICK_OBJID" and include it as the new column "OBJID"
         intargs = rfn.append_fields(intargs,"BRICK_OBJID",np.zeros(ntargs),usemask=False,dtypes='>i4')
@@ -68,9 +69,10 @@ class TestBRIGHTSTAR(unittest.TestCase):
     def test_non_mask_targets(self):
         unmaskablefile = self.datadir+'/'+self.unmaskablefile
         unmaskabletargs = fitsio.read(unmaskablefile)
-        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET...
+        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET and TARGETID
         ntargs = len(unmaskabletargs)
-        intargs = rfn.append_fields(unmaskabletargs,"DESI_TARGET",np.zeros(ntargs),usemask=False,dtypes='>i8')
+        intargs = rfn.append_fields(unmaskabletargs,["DESI_TARGET","TARGETID"],
+                                              [np.zeros(ntargs),np.zeros(ntargs)],usemask=False,dtypes='>i8')
         #ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
         #ADM column "BRICK_OBJID" and include it as the new column "OBJID"
         intargs = rfn.append_fields(intargs,"BRICK_OBJID",np.zeros(ntargs),usemask=False,dtypes='>i4')
@@ -83,7 +85,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         #ADM mask the targets, reading in the mask
         targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile)
         #ADM none of the targets should have been masked
-        self.assertTrue(np.all(targs["DESI_TARGET"] == 0))
+        self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.SAFE) != 0)))
 
 if __name__ == '__main__':
     unittest.main()
