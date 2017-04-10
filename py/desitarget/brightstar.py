@@ -907,9 +907,13 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     done["DESI_TARGET"] = dt
 
     #ADM remove any SAFE locations that are in bright masks (because they aren't really safe)
-    w = np.where(  ((targs["DESI_TARGET"] & desi_mask.SAFE) == 0)  | 
-                   ((targs["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
-    done = done[w]
+    w = np.where(  ((done["DESI_TARGET"] & desi_mask.SAFE) == 0)  | 
+                   ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
+    if len(w[0]) > 0:
+        done = done[w]
+
+    if verbose:
+        print("...of these, {} SAFE locations aren't in masks...t={:.1f}s".format(len(done)-ntargsin, time()-t0))
 
     if verbose:
         print('Finishing up...t={:.1f}s'.format(time()-t0))
