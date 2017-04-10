@@ -193,13 +193,13 @@ def cap_area(theta):
 
     Parameters
     ----------
-    radius : array_like
-        (angular) radius of a circle drawn on the surface of the unit sphere in DEGREES
+    theta : array_like
+        (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
         
     Returns
     -------
-    area : array_like.
-       surface area on the sphere transcribed by the passed angular radius
+    area : array_like
+       surface area on the sphere included within the passed angular radius
 
     Notes
     -----
@@ -209,7 +209,6 @@ def cap_area(theta):
           when radii of only a few arcminutes are passed
         - Even for passed radii of 1 (0.1) arcsec, float64 is sufficiently precise to give the correct
           area to ~0.00043 (~0.043%) using np.cos()
-
     """
 
     #ADM recast input array as float64
@@ -220,6 +219,45 @@ def cap_area(theta):
 
     #ADM return area
     return st2sq*2*np.pi*(1-(np.cos(np.radians(theta))))
+
+
+def sphere_circle_ra_off(theta,centdec,declocs):
+    """Offsets in RA needed for given declinations in order to draw a (small) circle on the sphere
+
+    Parameters
+    ----------
+    theta : :class:`float`
+        (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
+        
+    centdec : :class:`float`
+        declination of the center of the circle to be drawn on the sphere (in DEGREES)
+
+    declocs : array_like
+        declinations of positions on the boundary of the circle at which to calculate RA offsets (in DEGREES)
+
+    Returns
+    -------
+    raoff : array_like
+        offsets in RA that correspond to the passed dec locations for the given dec circle center (IN DEGREES)
+
+    Notes
+    -----
+        - This function is ambivalent to the SIGN of the offset. In other words, it can only draw the semi-circle
+          in theta from -90o->90o, which corresponds to offsets in the POSITIVE RA direction. The user must determine
+          which offsets are to the negative side of the circle, or call this function twice.
+    """
+
+    #ADM convert the input angles from degrees to radians
+    thetar = np.radians(theta)
+    centdecr = np.radians(centdec)
+    declocsr = np.radians(declocs)
+
+    #ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g.
+    #ADM converting to Cartesian coordinates and using dot products)
+    offrar = np.arccos((np.cos(thetar) - (np.sin(centdecr)*np.sin(declocsr)))/(np.cos(centdecr)*np.cos(declocsr)))
+
+    #ADM return the angular offsets in degrees
+    return  np.degrees(offrar)
 
 
 def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
@@ -684,15 +722,21 @@ def generate_safe_locations(starmask,Npersqdeg):
     #ADM mask given the passed number of locations per sq. deg.
     Nsafe = np.ceil(area*Npersqdeg).astype('i')
 
-    #ADM determine Nsafe RA,Dec offsets equally spaced around the perimeter for each mask
-    offra = [ rad*np.cos(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
+    #ADM determine Nsafe Dec offsets equally spaced around the perimeter for each mask
     offdec = [ rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
 
-    #ADM add the offsets to the RA/Dec of the mask centers
-    #ADM remembering to correct the RA offset for the cos(Dec) term
+    #ADM use offsets to determine DEC positions
     dec = starmask["DEC"] + offdec
-    offrawcos =  [ off/(np.cos(np.radians(d))) for off,d in zip(offra,dec) ]
-    ra = starmask["RA"] + offrawcos
+
+    #ADM determine the offsets in RA at these Decs given the mask center Dec
+    offrapos =  [ sphere_circle_ra_off(th,cen,declocs) for th,cen,declocs in zip(radius,starmask["DEC"],dec) ]
+
+    #ADM determine which of the RA offsets are in the positive direction
+    sign = [ np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in Nsafe ]
+
+    #ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
+    offra = [o*s for o,s in zip(offra,sign)]
+    ra = starmask["RA"] + offra
 
     #ADM have to turn the generated locations into 1-D arrays before returning them
     return np.hstack(ra), np.hstack(dec)
