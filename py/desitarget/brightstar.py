@@ -252,9 +252,12 @@ def sphere_circle_ra_off(theta,centdec,declocs):
     centdecr = np.radians(centdec)
     declocsr = np.radians(declocs)
 
-    #ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g.
-    #ADM converting to Cartesian coordinates and using dot products)
-    offrar = np.arccos((np.cos(thetar) - (np.sin(centdecr)*np.sin(declocsr)))/(np.cos(centdecr)*np.cos(declocsr)))
+    #ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g. converting
+    #ADM to Cartesian coordinates and using dot products). The answer is the arccos of the following:
+    cosoffrar = (np.cos(thetar) - (np.sin(centdecr)*np.sin(declocsr))) / (np.cos(centdecr)*np.cos(declocsr))
+
+    #ADM catch cases where the offset angle is very close to 0 
+    offrar = np.arccos(np.clip(cosoffrar,-1,1))
 
     #ADM return the angular offsets in degrees
     return  np.degrees(offrar)
@@ -735,7 +738,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     sign = [ np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in Nsafe ]
 
     #ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
-    offra = [o*s for o,s in zip(offra,sign)]
+    offra = [ o*s for o,s in zip(offrapos,sign) ]
     ra = starmask["RA"] + offra
 
     #ADM have to turn the generated locations into 1-D arrays before returning them
