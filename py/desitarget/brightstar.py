@@ -603,7 +603,7 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
     #ADM include the cos(dec) term to expand the RA semi-major axis at higher declination
     #ADM note the "ellipses" takes the diameter, not the radius
     minoraxis = mask[radius]/60.
-    majoraxis = minoraxis/np.cos(mask["DEC"])
+    majoraxis = minoraxis/np.cos(np.radians(mask["DEC"]))
     out = ellipses(mask["RA"], mask["DEC"], 2*majoraxis, 2*minoraxis, alpha=0.2, edgecolor='none')
 
     if show:
@@ -905,6 +905,8 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     dt = set_target_bits(targs,starmask)
     done = targs.copy()
     done["DESI_TARGET"] = dt
+
+    #ADM remove any SAFE locations that are in bright masks (because they aren't safe)
 
     if verbose:
         print('Finishing up...t={:.1f}s'.format(time()-t0))
