@@ -527,7 +527,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), source_name,
                                                                                  len(unique_bricks),
                                                                                  bricksize, bricksize))
-
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
@@ -569,9 +568,14 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         selection_function = '{}_select'.format(target_name.lower())
         getattr(SelectTargets, selection_function)(targets, truth)
 
+        # As a special case select stellar contaminants for each of the
+        # extragalactic target classes.
+        if target_name.upper() == 'MWS_MAIN':
+            targets = SelectTargets.star_contaminants_select(targets, truth)
+        
+        print('HACK!')
         targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
         keep = targkeep
-
         ## Finally downsample based on the desired number density.
         #log.warning('TEMPORARILY TURNING OFF DENSITY DOWN-SELECTION!')
         #if False and 'density' in params['sources'][source_name].keys():
