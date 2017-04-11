@@ -489,9 +489,9 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         - IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
         - NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
-        the NEAR_RADIUS:
-            R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
-        and half that radius to set the IN_RADIUS.
+          the NEAR_RADIUS:
+          R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
+          and half that radius to set the IN_RADIUS.
         - It's an open question as to what the correct radii are for DESI observations
 
     """
