@@ -62,11 +62,6 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     circles(a, a, s=a*0.2, c=a, alpha=0.5, ec='none')
     plt.colorbar()
 
-    License
-    --------
-    This code is under [The BSD 3-Clause License]
-    (http://opensource.org/licenses/BSD-3-Clause)
-
     References
     ----------
     With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
@@ -139,11 +134,6 @@ def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
     a = np.arange(11)
     ellipses(a, a, w=4, h=a, rot=a*30, c=a, alpha=0.5, ec='none')
     plt.colorbar()
-
-    License
-    --------
-    This code is under [The BSD 3-Clause License]
-    (http://opensource.org/licenses/BSD-3-Clause)
 
     References
     ----------
