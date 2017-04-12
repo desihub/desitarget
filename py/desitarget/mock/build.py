@@ -569,10 +569,20 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         getattr(SelectTargets, selection_function)(targets, truth)
 
         targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
+
+        # Finally downsample based on the desired number density.
+        if 'density' in params['sources'][source_name].keys():
+            density = params['sources'][source_name]['density']
+            log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
+            denskeep = SelectTargets.density_select(targets[targkeep], sourcename=source_name,
+                                                    density=density)
+            keep = targkeep[denskeep]
+        else:
+            keep = targkeep
         
-        alltargets.append(targets[targkeep])
-        alltruth.append(truth[targkeep])
-        alltrueflux.append(trueflux[targkeep, :])
+        alltargets.append(targets[keep])
+        alltruth.append(truth[keep])
+        alltrueflux.append(trueflux[keep, :])
 
         print()
 
@@ -580,6 +590,15 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     targets = vstack(alltargets)
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
+
+    # Now downsample contaminants.
+    for source_name in params['sources'].keys():
+        if 'contam' in params['sources'][source_name].keys():
+            contam = params['sources'][source_name]['contam']
+
+            keep = SelectTargets.contaminants_select(targets, truth, sourcename=source_name, contam=contam)
+
+            import pdb ; pdb.set_trace()
 
     # Finally downsample based on the desired number density.
     density, contam = None, None

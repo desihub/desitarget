@@ -268,11 +268,8 @@ class SelectTargets(object):
 
         return targets
 
-    def density_select(self, targets, density, sourcename, contam=None):
-        """Downsample a target and/or contaminating sample to a desired number density
-        in targets/deg2.
-
-        """
+    def density_select(self, targets, sourcename, density):
+        """Downsample a target sample to a desired number density in targets/deg2."""
         nobj = len(targets)
 
         unique_bricks = list(set(targets['BRICKNAME']))
@@ -287,6 +284,9 @@ class SelectTargets(object):
             brick_area = self.brick_info['BRICKAREA'][brickindx]
 
             onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
+
+            log.info('NEED TO MAKE SURE THESE ARE THE RIGHT TARGETS, NOT A CONTAMINANT...')
+            
             n_in_brick = len(onbrick)
             if n_in_brick == 0:
                 self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
@@ -308,6 +308,52 @@ class SelectTargets(object):
 
                 keep.append(self.rand.choice(onbrick, int(n_in_brick * frac_keep), replace=False))
 
-            import pdb ; pdb.set_trace()
+        return np.hstack(keep)
+
+    def contaminants_select(self, targets, truth, sourcename, contam):
+        """Downsample contaminants to a desired number density in targets/deg2."""
+        nobj = len(targets)
+
+        unique_bricks = list(set(targets['BRICKNAME']))
+        n_brick = len(unique_bricks)
+
+        keep = []
+        for thisbrick in unique_bricks:
+            brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
+            if len(brickindx) == 0:
+                log.warning('No matching brick {}!'.format(thisbrick))
+                raise ValueError
+            brick_area = self.brick_info['BRICKAREA'][brickindx]
+
+            for contamtype in contam.keys():
+                onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
+                onbrick_contam = np.where(((targets['DESI_TARGET'][onbrick] & desi_mask.mask(sourcename)) != 0) * \
+                                          (truth['TRUESPECTYPE'][onbrick] == contamtype))[0]
+                contam_density = len(onbrick_contam) / brick_area
+
+                import pdb ; pdb.set_trace()
+
+            log.info('NEED TO MAKE SURE THESE ARE THE RIGHT TARGETS, NOT A CONTAMINANT...')
+            
+            n_in_brick = len(onbrick)
+            if n_in_brick == 0:
+                self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
+                raise ValueError
+
+            # Downsample in density.
+            if density:
+                mock_density = n_in_brick / brick_area
+                desired_density = self.brick_info['FLUC_EBV'][sourcename][brickindx] * density
+
+                frac_keep = desired_density / mock_density
+                self.log.debug('Downsampling {}s from {} to {} targets/deg2.'.format(sourcename,
+                                                                                     mock_density,
+                                                                                     desired_density))
+
+                if (frac_keep > 1.0):
+                    self.log.warning('Brick {}: mock density {}/deg2 too low!.'.format(thisbrick, mock_density))
+                    frac_keep = 1.0
+
+                keep.append(self.rand.choice(onbrick, int(n_in_brick * frac_keep), replace=False))
 
         return np.hstack(keep)
