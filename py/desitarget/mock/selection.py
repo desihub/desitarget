@@ -216,23 +216,11 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
     def mws_main_select(self, targets, truth):
-        """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, STD_FSTAR, and STD_BRIGHT targets.  The
-        selection eventually will be done with Gaia (I think).  Also select
-        contaminants for the other target classes.
+        """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
+        contaminants for extragalactic targets.  The selection here eventually
+        will be done with Gaia (I think).
 
         """
-        def _isMWS_MAIN(rflux):
-            """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
-            main = rflux > 10**((22.5-19.0)/2.5)
-            main &= rflux <= 10**((22.5-15.0)/2.5)
-            return main
-
-        def _isMWS_MAIN_VERY_FAINT(rflux):
-            """A function like this should be in desitarget.cuts. Select 19<r<20 filler stars."""
-            faint = rflux > 10**((22.5-20.0)/2.5)
-            faint &= rflux <= 10**((22.5-19.0)/2.5)
-            return faint
-
         gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
         zflux = targets['DECAM_FLUX'][..., 4]
@@ -240,24 +228,16 @@ class SelectTargets(object):
         w2flux = targets['WISE_FLUX'][..., 1]
 
         # Select MWS_MAIN targets.
-        mws_main = _isMWS_MAIN(rflux=rflux)
+        mws_main = np.ones(len(targets)) # select everything!
         targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
         targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         for oo in self.mws_mask.MWS_MAIN.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (mws_main != 0) * self.obsconditions.mask(oo)
 
-        # Select MWS_MAIN_VERY_FAINT targets.
-        mws_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
-        targets['MWS_TARGET'] |= (mws_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
-        targets['DESI_TARGET'] |= (mws_very_faint != 0) * self.desi_mask.MWS_ANY
-        for oo in self.mws_mask.MWS_MAIN_VERY_FAINT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (mws_very_faint != 0) * self.obsconditions.mask(oo)
-
         # Select standard stars.
-        self.std_select(targets, truth)
+        self._std_select(targets, truth)
         
-        # Select bright (MWS) stellar contaminants for the extragalactic
-        # targets.
+        # Select bright stellar contaminants for the extragalactic targets.
         self._star_select(targets, truth)
 
     def mws_nearby_select(self, targets, truth):
