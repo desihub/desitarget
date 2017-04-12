@@ -72,7 +72,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
         # Select faint stellar contaminants for LRG targets.
-        lrg = isLRG(gflux=gflux, rflux=rflux, zflux=zflux)
+        lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
         for oo in self.desi_mask.LRG.obsconditions.split('|'):
@@ -314,7 +314,6 @@ class SelectTargets(object):
         unique_bricks = list(set(targets['BRICKNAME']))
         n_brick = len(unique_bricks)
 
-        keep = []
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
             if len(brickindx) == 0:
@@ -322,32 +321,30 @@ class SelectTargets(object):
                 raise ValueError
             brick_area = float(self.brick_info['BRICKAREA'][brickindx])
 
-            #onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
-            onbrick = np.where((targets['BRICKNAME'] == thisbrick) *
-                               (truth['TEMPLATETYPE'] == target_name.upper()))[0]
+            onbrick = np.where((targets['BRICKNAME'] == thisbrick) * (truth['CONTAM_TARGET'] == 0))[0]
 
             n_in_brick = len(onbrick)
             if n_in_brick == 0:
                 self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
                 raise ValueError
 
-            # Downsample in density.
             if density:
                 mock_density = n_in_brick / brick_area
                 desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * density)
 
                 frac_keep = desired_density / mock_density
-                self.log.debug('Downsampling {}s from {} to {} targets/deg2.'.format(source_name,
-                                                                                     mock_density,
-                                                                                     desired_density))
+                if frac_keep > 1.0:
+                    self.log.warning('Brick {}: mock density {:.0f}/deg2 too low; keeping all targets.'.format(
+                        thisbrick, mock_density))
 
-                if (frac_keep > 1.0):
-                    self.log.warning('Brick {}: mock density {}/deg2 too low!'.format(thisbrick, mock_density))
-                    frac_keep = 1.0
+                else:
+                    self.log.debug('Downsampling {}s from {:.0f} to {:.0f} targets/deg2.'.format(source_name,
+                                                                                                 mock_density,
+                                                                                                 desired_density))
 
-                keep.append(self.rand.choice(onbrick, np.ceil( int(n_in_brick * frac_keep) ), replace=False))
-
-        return np.hstack(keep)
+                    frac_toss = 1.0 - frac_keep
+                    toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
+                    targets['DESI_TARGET'][toss] = 0 
 
     def contaminants_select(self, targets, truth, source_name, target_name, contam):
         """Downsample contaminants to a desired number density in targets/deg2."""
@@ -356,7 +353,6 @@ class SelectTargets(object):
         unique_bricks = list(set(targets['BRICKNAME']))
         n_brick = len(unique_bricks)
 
-        toss = []
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
             if len(brickindx) == 0:
@@ -364,45 +360,43 @@ class SelectTargets(object):
                 raise ValueError
             brick_area = float(self.brick_info['BRICKAREA'][brickindx])
 
-            onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
-            n_in_brick = len(onbrick)
-            if n_in_brick == 0:
-                self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
-                raise ValueError
+            #onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
+            #n_in_brick = len(onbrick)
+            #if n_in_brick == 0:
+            #    self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
+            #    raise ValueError
 
             for contam_name in contam.keys():
 
-                if contam_name == 'GALAXY':
-                    onbrick_contam = np.where(
-                        ( (targets['DESI_TARGET'][onbrick] & self.desi_mask.mask(target_name)) != 0 ) *
-                        ( (targets['DESI_TARGET'][onbrick] & self.desi_mask.mask('ELG')) == 0 ) *
-                        ( (targets['DESI_TARGET'][onbrick] & self.desi_mask.mask('LRG')) == 0 ) *
-                        ( truth['TRUESPECTYPE'][onbrick] == contam_name )
-                        )[0]
-                else:
-                    onbrick_contam = np.where(
-                        ( (targets['DESI_TARGET'][onbrick] & self.desi_mask.mask(target_name)) != 0 ) *
-                        ( truth['TRUESPECTYPE'][onbrick] == contam_name )
-                        )[0]
-                    
-                n_in_brick_contam = len(onbrick_contam)
+                onbrick = np.where(
+                    (targets['BRICKNAME'] == thisbrick) *
+                    (truth['CONTAM_TARGET'] & self.contam_mask.mask('{}_IS_{}'.format(target_name.upper(), contam_name.upper())) != 0)
+                    )[0]
+                n_in_brick = len(onbrick)
 
-                contam_density = len(onbrick_contam) / brick_area
-                desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * contam[contam_name])
+                if n_in_brick > 0:
+                    contam_density = len(onbrick) / brick_area
+                    desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * contam[contam_name])
 
-                frac_keep = desired_density / contam_density
-                self.log.debug('Downsampling {}/{} contaminants from {} to {} targets/deg2.'.format(target_name,
-                                                                                                    contam_name,
-                                                                                                    contam_density,
-                                                                                                    desired_density))
+                    frac_keep = desired_density / contam_density
+                    if frac_keep > 1.0:
+                        self.log.warning('Brick {}: contaminant density {}/deg2 too low; keeping all targets'.format(
+                            thisbrick, contam_density))
 
-                if (frac_keep > 1.0):
-                    self.log.warning('Brick {}: contaminant density {}/deg2 too low!'.format(thisbrick, contam_density))
-                    frac_keep = 1.0
+                    else:
+                        self.log.debug('Downsampling {}/{} contaminants from {:.0f} to {:.0f} targets/deg2.'.format(target_name,
+                                                                                                                    contam_name,
+                                                                                                                    contam_density,
+                                                                                                                    desired_density))
 
-                toss_contam = self.rand.choice(onbrick_contam, int( np.ceil(
-                    n_in_brick_contam * (1 - frac_keep) ) ), replace=False)
-                toss.append(onbrick[toss_contam])
+                        frac_toss = 1.0 - frac_keep
+                        toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
+                        targets['DESI_TARGET'][toss] = 0 
+                        
+
+                #toss_contam = self.rand.choice(onbrick_contam, int( np.ceil(
+                #    n_in_brick_contam * (1 - frac_keep) ) ), replace=False)
+                #toss.append(onbrick[toss_contam])
                 
                 #targets[onbrick[toss_contam]]['DESI_TARGET'] & self.desi_mask.mask(target_name)
                 #truth[onbrick[toss_contam]]

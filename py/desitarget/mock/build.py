@@ -565,30 +565,39 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
         truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
 
-        # Select targets and get the targeting bits.
+        # Select targets.
         selection_function = '{}_select'.format(target_name.lower())
         getattr(SelectTargets, selection_function)(targets, truth)
 
-        targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
-        if len(targkeep) == 0:
+        keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        if len(keep) == 0:
             log.warning('No {} targets identified!'.format(target_name))
-            
         else:
-            # Finally downsample based on the desired number density.
-            if 'density' in params['sources'][source_name].keys():
-                density = params['sources'][source_name]['density']
-                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                denskeep = SelectTargets.density_select(targets[targkeep], truth[targkeep],
-                                                        source_name=source_name, target_name=target_name,
-                                                        density=density)
-                keep = targkeep[denskeep]
+            targets = targets[keep]
+            truth = truth[keep]
+            trueflux = trueflux[keep, :]
+            
+        # Finally downsample based on the desired number density.
+        if 'density' in params['sources'][source_name].keys():
+            if verbose:
+                print()
+            density = params['sources'][source_name]['density']
+            log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+
+            SelectTargets.density_select(targets, truth, source_name=source_name,
+                                         target_name=target_name, density=density)
+
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                log.warning('All {} targets rejected!'.format(target_name))
             else:
-                keep = targkeep
+                targets = targets[keep]
+                truth = truth[keep]
+                trueflux = trueflux[keep, :]
 
-            alltargets.append(targets[keep])
-            alltruth.append(truth[keep])
-            alltrueflux.append(trueflux[keep, :])
-
+        alltargets.append(targets)
+        alltruth.append(truth)
+        alltrueflux.append(trueflux)
         print()
 
     # Consolidate across all the mocks.  
@@ -596,36 +605,34 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
 
+    #import pdb ; pdb.set_trace()
+
     # Finally downsample contaminants.  The way this is being done isn't idea
     # because in principle an object could be a contaminant in one target class
     # (and be tossed) but be a contaminant for another target class and be kept.
     # But I think this is mostly OK.
-    toss = []
     for source_name in params['sources'].keys():
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         
         if 'contam' in params['sources'][source_name].keys():
+            if verbose:
+                print()
             log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
             
             contam = params['sources'][source_name]['contam']
-            target_toss = SelectTargets.contaminants_select(targets, truth, source_name=source_name,
-                                                            target_name=target_name, contam=contam)
-            if len(target_toss) > 0:
-                toss.append(target_toss)
-            if verbose:
-                print()
+            SelectTargets.contaminants_select(targets, truth, source_name=source_name,
+                                              target_name=target_name, contam=contam)
+            
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                log.warning('All {} contaminants rejected!'.format(target_name))
+            else:
+                targets = targets[keep]
+                truth = truth[keep]
+                trueflux = trueflux[keep, :]
 
-    if len(toss) > 0:
-        toss = np.concatenate(toss)
-        import pdb ; pdb.set_trace()
-        
-        targets = Table(np.delete(targets, toss))
-        truth = Table(np.delete(truth, toss))
-        trueflux = np.delete(trueflux, toss, axis=0)
-
-    import pdb ; pdb.set_trace()
+    #import pdb ; pdb.set_trace()
     # Finally assign TARGETIDs, subpriorities, and shapes and fluxes.
-
     ntarget = len(targets)
 
     targetid = rand.randint(2**62, size=ntarget)

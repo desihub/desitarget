@@ -320,8 +320,8 @@ class MockSpectra(object):
         flux, meta = self.mws(data, index=index, mockformat=mockformat)
         return flux, meta
 
-    def star(self, data, index=None, mockformat='galaxia'):
-        """Generate spectra for the STAR (faint stellar) sample.
+    def faintstar(self, data, index=None, mockformat='galaxia'):
+        """Generate spectra for the FAINTSTAR (faint stellar) sample.
 
         """
         flux, meta = self.mws(data, index=index, mockformat=mockformat)
