@@ -291,6 +291,7 @@ class MockSpectra(object):
                                  data['LOGG'][index],
                                  data['FEH'][index])).T
             _, templateid = self.tree.query(objtype, alldata)
+            
         elif mockformat.lower() == 'galaxia':
             alldata = np.vstack((data['TEFF'][index],
                                  data['LOGG'][index],
@@ -314,6 +315,13 @@ class MockSpectra(object):
 
     def mws_main(self, data, index=None, mockformat='galaxia'):
         """Generate spectra for the MWS_MAIN sample.
+
+        """
+        flux, meta = self.mws(data, index=index, mockformat=mockformat)
+        return flux, meta
+
+    def star(self, data, index=None, mockformat='galaxia'):
+        """Generate spectra for the STAR (faint stellar) sample.
 
         """
         flux, meta = self.mws(data, index=index, mockformat=mockformat)

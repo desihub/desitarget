@@ -568,36 +568,36 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         selection_function = '{}_select'.format(target_name.lower())
         getattr(SelectTargets, selection_function)(targets, truth)
 
-        # As a special case select stellar contaminants for each of the
-        # extragalactic target classes.
-        if target_name.upper() == 'MWS_MAIN':
-            targets = SelectTargets.star_contaminants_select(targets, truth)
-        
-        print('HACK!')
         targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
-        keep = targkeep
-        ## Finally downsample based on the desired number density.
-        #log.warning('TEMPORARILY TURNING OFF DENSITY DOWN-SELECTION!')
-        #if False and 'density' in params['sources'][source_name].keys():
-        #    density = params['sources'][source_name]['density']
-        #    log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-        #    denskeep = SelectTargets.density_select(targets[targkeep], density=density,
-        #                                            sourcename=source_name)
-        #    keep = targkeep[denskeep]
-        #else:
-        #    keep = targkeep
-
-        alltargets.append(targets[keep])
-        alltruth.append(truth[keep])
-        alltrueflux.append(trueflux[keep, :])
+        
+        alltargets.append(targets[targkeep])
+        alltruth.append(truth[targkeep])
+        alltrueflux.append(trueflux[targkeep, :])
 
         print()
 
-    # Consolidate across all the mocks and then assign TARGETIDs, subpriorities,
-    # and shapes and fluxes.
+    # Consolidate across all the mocks.  
     targets = vstack(alltargets)
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
+
+    # Finally downsample based on the desired number density.
+    density, contam = None, None
+    pkeys = params['sources'][source_name].keys()
+    if 'density' in pkeys:
+        density = params['sources'][source_name]['density']
+    if 'contam' in pkeys:
+        contam = params['sources'][source_name]['contam']
+        
+    if density or contam:
+        #log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
+        denskeep = SelectTargets.density_select(targets[targkeep], density=density,
+                                                sourcename=source_name, contam=contam)
+        keep = targkeep[denskeep]
+    else:
+        keep = targkeep
+
+    import pdb ; pdb.set_trace()
 
     ## Downsample the targets and contaminants based on the desired number density.
     #denskeep = list()
@@ -612,6 +612,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     #    else:
     #        keep = targkeep
     #import pdb ; pdb.set_trace()
+
+    # Finally assign TARGETIDs, subpriorities, and shapes and fluxes.
 
     ntarget = len(targets)
 
@@ -659,6 +661,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
         else:
             log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
+
+    #import pdb ; pdb.set_trace()
 
     # Write out the brick-level files (if any).
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)

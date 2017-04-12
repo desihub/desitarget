@@ -930,6 +930,23 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         nobj = len(ra)
         log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
+    if magcut is not None:
+        cut = mag < magcut
+        if np.count_nonzero(cut) == 0:
+            log.fatal('No objects with r < {}!'.format(magcut))
+            raise ValueError
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        mag = mag[cut]
+        mag_obs = mag_obs[cut]
+        objid = objid[cut]
+        teff = teff[cut]
+        logg = logg[cut]
+        feh = feh[cut]
+        nobj = len(ra)
+        log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
+
     mockid = make_mockid(objid, n_per_file)
     seed = rand.randint(2**32, size=nobj)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)

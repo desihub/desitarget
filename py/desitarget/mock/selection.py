@@ -32,8 +32,8 @@ class SelectTargets(object):
         self.wise_extcoeff = (0.184, 0.113, 0.0241, 0.00910)
         self.sdss_extcoeff = (4.239, 3.303, 2.285, 1.698, 1.263)
 
-        self.mws_scale = 10**(-0.4*(23.4-19.6))
-        self.log.info('Using a constant factor to scale the MWS to fainter magnitudes!')
+        #self.mws_scale = 10**(-0.4*(23.4-19.6))
+        #self.log.info('Using a constant factor to scale the MWS to fainter magnitudes!')
 
     def bgs_select(self, targets, truth=None):
         """Select BGS targets.  Note that obsconditions for BGS_ANY are set to BRIGHT
@@ -240,30 +240,16 @@ class SelectTargets(object):
 
         return targets
 
-    def star_contaminants_select(self, targets, truth=None):
+    def star_select(self, targets, truth=None):
         """Select stellar contaminants for the extragalactic targets."""
 
         from desitarget.cuts import isELG, isQSO_colors
 
-        scaletargets = targets.copy()
-        for band in (1, 2, 4):
-            scaletargets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] * self.mws_scale + \
-              self.rand.normal(scale=1.0/np.sqrt(targets['DECAM_DEPTH'][:, band]))
-        
-        gflux = scaletargets['DECAM_FLUX'][..., 1]
-        rflux = scaletargets['DECAM_FLUX'][..., 2]
-        zflux = scaletargets['DECAM_FLUX'][..., 4]
-        w1flux = scaletargets['WISE_FLUX'][..., 0]
-        w2flux = scaletargets['WISE_FLUX'][..., 1]
-
-        #gr = -2.5*np.log10(gf/rf)            
-        #rz = -2.5*np.log10(rf/zf)
-        #import matplotlib.pyplot as plt
-        #
-        #import pdb ; pdb.set_trace()
-        #plt.scatter(-2.5*np.log10(rflux/zflux), -2.5*np.log10(gflux/rflux), color='orange')
-        #plt.scatter(rz, gr, color='blue', s=1, alpha=0.5)
-        #plt.show()
+        gflux = targets['DECAM_FLUX'][..., 1]
+        rflux = targets['DECAM_FLUX'][..., 2]
+        zflux = targets['DECAM_FLUX'][..., 4]
+        w1flux = targets['WISE_FLUX'][..., 0]
+        w2flux = targets['WISE_FLUX'][..., 1]
 
         # Select stellar contaminants for ELG targets.
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
@@ -282,9 +268,11 @@ class SelectTargets(object):
 
         return targets
 
-    def density_select(self, targets, density, sourcename):
-        """Downsample a target sample to a desired number density in targets/deg2."""
+    def density_select(self, targets, density, sourcename, contam=None):
+        """Downsample a target and/or contaminating sample to a desired number density
+        in targets/deg2.
 
+        """
         nobj = len(targets)
 
         unique_bricks = list(set(targets['BRICKNAME']))
@@ -304,18 +292,22 @@ class SelectTargets(object):
                 self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
                 raise ValueError
 
-            mock_density = n_in_brick / brick_area
-            desired_density = self.brick_info['FLUC_EBV'][sourcename][brickindx] * density
+            # Downsample in density.
+            if density:
+                mock_density = n_in_brick / brick_area
+                desired_density = self.brick_info['FLUC_EBV'][sourcename][brickindx] * density
 
-            frac_keep = desired_density / mock_density
-            self.log.debug('Downsampling {}s from {} to {} targets/deg2.'.format(sourcename,
-                                                                                 mock_density,
-                                                                                 desired_density))
+                frac_keep = desired_density / mock_density
+                self.log.debug('Downsampling {}s from {} to {} targets/deg2.'.format(sourcename,
+                                                                                     mock_density,
+                                                                                     desired_density))
 
-            if (frac_keep > 1.0):
-                self.log.warning('Brick {}: mock density {}/deg2 too low!.'.format(thisbrick, mock_density))
-                frac_keep = 1.0
+                if (frac_keep > 1.0):
+                    self.log.warning('Brick {}: mock density {}/deg2 too low!.'.format(thisbrick, mock_density))
+                    frac_keep = 1.0
 
-            keep.append(self.rand.choice(onbrick, int(n_in_brick * frac_keep), replace=False))
+                keep.append(self.rand.choice(onbrick, int(n_in_brick * frac_keep), replace=False))
+
+            import pdb ; pdb.set_trace()
 
         return np.hstack(keep)
