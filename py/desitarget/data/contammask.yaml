@@ -4,6 +4,7 @@ contam_mask:
     - [BGS_IS_STAR, 0, "BGS_IS_STAR"]
 
     - [ELG_IS_STAR, 3, "ELG_IS_STAR"]
+    - [ELG_IS_QSO,  4, "ELG_IS_QSO"]
 
     - [LRG_IS_STAR, 7, "LRG_IS_STAR"]
 
