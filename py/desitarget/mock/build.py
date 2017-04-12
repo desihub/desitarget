@@ -351,9 +351,10 @@ def empty_truth_table(nobj=1):
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
 
     truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype=(str, 10))) # GALAXY, QSO, STAR, etc.
-    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype=(str, 10))) # ELG, BGS, STAR, WD, etc.
-    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype=(str, 10))) # DA, DB, etc.
+    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
+    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='U10')) # ELG, BGS, STAR, WD, etc.
+    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='U10')) # DA, DB, etc.
+    #truth.add_column(Column(name='CONTAMINANT', length=nobj, dtype='i2', data=np.zeros(nobj)))
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
@@ -569,20 +570,24 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         getattr(SelectTargets, selection_function)(targets, truth)
 
         targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
-
-        # Finally downsample based on the desired number density.
-        if 'density' in params['sources'][source_name].keys():
-            density = params['sources'][source_name]['density']
-            log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-            denskeep = SelectTargets.density_select(targets[targkeep], sourcename=source_name,
-                                                    density=density)
-            keep = targkeep[denskeep]
+        if len(targkeep) == 0:
+            log.warning('No {} targets identified!'.format(target_name))
+            
         else:
-            keep = targkeep
-        
-        alltargets.append(targets[keep])
-        alltruth.append(truth[keep])
-        alltrueflux.append(trueflux[keep, :])
+            # Finally downsample based on the desired number density.
+            if 'density' in params['sources'][source_name].keys():
+                density = params['sources'][source_name]['density']
+                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+                denskeep = SelectTargets.density_select(targets[targkeep], truth[targkeep],
+                                                        source_name=source_name, target_name=target_name,
+                                                        density=density)
+                keep = targkeep[denskeep]
+            else:
+                keep = targkeep
+
+            alltargets.append(targets[keep])
+            alltruth.append(truth[keep])
+            alltrueflux.append(trueflux[keep, :])
 
         print()
 
@@ -591,47 +596,34 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
 
-    # Now downsample contaminants.
+    # Finally downsample contaminants.  The way this is being done isn't idea
+    # because in principle an object could be a contaminant in one target class
+    # (and be tossed) but be a contaminant for another target class and be kept.
+    # But I think this is mostly OK.
+    toss = []
     for source_name in params['sources'].keys():
-        if 'contam' in params['sources'][source_name].keys():
-            contam = params['sources'][source_name]['contam']
-
-            keep = SelectTargets.contaminants_select(targets, truth, sourcename=source_name, contam=contam)
-
-            import pdb ; pdb.set_trace()
-
-    # Finally downsample based on the desired number density.
-    density, contam = None, None
-    pkeys = params['sources'][source_name].keys()
-    if 'density' in pkeys:
-        density = params['sources'][source_name]['density']
-    if 'contam' in pkeys:
-        contam = params['sources'][source_name]['contam']
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         
-    if density or contam:
-        #log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-        denskeep = SelectTargets.density_select(targets[targkeep], density=density,
-                                                sourcename=source_name, contam=contam)
-        keep = targkeep[denskeep]
-    else:
-        keep = targkeep
+        if 'contam' in params['sources'][source_name].keys():
+            log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
+            
+            contam = params['sources'][source_name]['contam']
+            target_toss = SelectTargets.contaminants_select(targets, truth, source_name=source_name,
+                                                            target_name=target_name, contam=contam)
+            if len(target_toss) > 0:
+                toss.append(target_toss)
+            if verbose:
+                print()
+
+    if len(toss) > 0:
+        toss = np.concatenate(toss)
+        import pdb ; pdb.set_trace()
+        
+        targets = Table(np.delete(targets, toss))
+        truth = Table(np.delete(truth, toss))
+        trueflux = np.delete(trueflux, toss, axis=0)
 
     import pdb ; pdb.set_trace()
-
-    ## Downsample the targets and contaminants based on the desired number density.
-    #denskeep = list()
-    #for source_name in params['sources'].keys():
-    #    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-    #    
-    #    if 'density' in params['sources'][source_name].keys():
-    #        density = params['sources'][source_name]['density']
-    #        log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-    #        denskeep.append(SelectTargets.density_select(targets[targkeep], density=density,
-    #                                                     sourcename=source_name))
-    #    else:
-    #        keep = targkeep
-    #import pdb ; pdb.set_trace()
-
     # Finally assign TARGETIDs, subpriorities, and shapes and fluxes.
 
     ntarget = len(targets)
