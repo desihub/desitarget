@@ -24,13 +24,13 @@ desi_mask:
     - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY}]
     - [STD_BRIGHT,  35, "F-type standard for BRIGHT conditions",
         {obsconditions: BRIGHT}]
+    - [BADSKY,      36, "Blank sky locations that are imperfect but still useable",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Related to bright object masking
     - [BRIGHT_OBJECT,       50, "Known bright object to avoid", {obsconditions: APOCALYPSE}]
     - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE", {obsconditions: APOCALYPSE}]
     - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
-            {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [SAFE,                53, "Safe location near bright object to be used if needed",
             {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- A bit for another survey is set
@@ -171,7 +171,7 @@ priorities:
         LRG_SOUTH: SAME_AS_LRG
         ELG_SOUTH: SAME_AS_ELG
         QSO_SOUTH: SAME_AS_QSO
-        SAFE: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
+        BADSKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FSTAR:  -1
         STD_WD:     -1

@@ -690,9 +690,9 @@ def generate_safe_locations(starmask,Npersqdeg):
     Returns
     -------
     ra : array_like. 
-        The Right Ascensions of the SAFE locations
+        The Right Ascensions of the SAFE (BADSKY) locations
     dec : array_like. 
-        The Declinations of the SAFE locations
+        The Declinations of the SAFE (BADSKY) locations
 
     Notes
     -----
@@ -730,7 +730,7 @@ def generate_safe_locations(starmask,Npersqdeg):
 
 
 def append_safe_targets(targs,starmask):
-    """Append targets at SAFE locations to a list of targets
+    """Append targets at SAFE (BADSKY) locations to a list of targets
 
     Parameters
     ----------
@@ -741,12 +741,12 @@ def append_safe_targets(targs,starmask):
 
     Returns
     -------
-        The original recarray of targets (targs) is returned with additional SAFE targets appended to it
+        The original recarray of targets (targs) is returned with additional SAFE (BADSKY) targets appended to it
 
     Notes
     -----
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
-          on the SAFE locations
+          on the SAFE (BADSKY) locations
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348 for more details
           on setting the SKY bit in TARGETID
         - Currently hard-coded to create an additional 10,000 safe locations per sq. deg. of mask. What is the 
@@ -771,7 +771,7 @@ def append_safe_targets(targs,starmask):
     safes["TARGETID"] = targetid_mask.SKY
 
     #ADM set the bit for SAFE locations in DESITARGET
-    safes["DESI_TARGET"] = desi_mask.SAFE
+    safes["DESI_TARGET"] = desi_mask.BADSKY
 
     #ADM return the input targs with the SAFE targets appended
     return np.hstack([targs,safes])
@@ -812,7 +812,7 @@ def set_target_bits(targs,starmask):
 
 
 def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
-    """Add bits for whether objects are in a bright star mask, and SAFE sky locations, to a list of targets
+    """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
     ----------
@@ -846,12 +846,12 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     -------
     targets numpy structured array
         the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits
-        and SAFE sky locations added around the perimeter of the bright star mask.
+        and SAFE (BADSKY) sky locations added around the perimeter of the bright star mask.
 
     Notes
     -----
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
-          about SAFE locations
+          about SAFE (BADSKY) locations
         - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
         - (not including 5-10 minutes to build the star mask from scratch)
     """
@@ -883,7 +883,7 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     targs = append_safe_targets(targs,starmask)
     
     if verbose:
-        print('Generated {} SAFE locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
+        print('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
 
     #ADM update the bits depending on whether targets are in a mask
     dt = set_target_bits(targs,starmask)
@@ -891,13 +891,13 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     done["DESI_TARGET"] = dt
 
     #ADM remove any SAFE locations that are in bright masks (because they aren't really safe)
-    w = np.where(  ((done["DESI_TARGET"] & desi_mask.SAFE) == 0)  | 
+    w = np.where(  ((done["DESI_TARGET"] & desi_mask.BADSKY) == 0)  | 
                    ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
     if len(w[0]) > 0:
         done = done[w]
 
     if verbose:
-        print("...of these, {} SAFE locations aren't in masks...t={:.1f}s".format(len(done)-ntargsin, time()-t0))
+        print("...of these, {} SAFE (BADSKY) locations aren't in masks...t={:.1f}s".format(len(done)-ntargsin, time()-t0))
 
     if verbose:
         print('Finishing up...t={:.1f}s'.format(time()-t0))

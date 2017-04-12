@@ -87,7 +87,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         #ADM mask the targets, reading in the mask
         targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile)
         #ADM none of the targets should have been masked
-        self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.SAFE) != 0)))
+        self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BADSKY) != 0)))
 
     def test_safe_locations(self):
         unmaskablefile = self.datadir+'/'+self.unmaskablefile
@@ -100,13 +100,13 @@ class TestBRIGHTSTAR(unittest.TestCase):
         mask = np.zeros(2, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f8')])
         mask["DEC"] = [0,70]
         mask["IN_RADIUS"] = [5.,60.*2]
-        #ADM append SAFE locations around the periphery of the mask
+        #ADM append SAFE (BADSKY) locations around the periphery of the mask
         targs = brightstar.append_safe_targets(targs,mask)
         #ADM first check that the SKY bit and BADSKY bits are appropriately set
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
-        badskybitset = ((targs["DESI_TARGET"] & desi_mask.SAFE) != 0)
+        badskybitset = ((targs["DESI_TARGET"] & desi_mask.BADSKY) != 0)
         self.assertTrue(np.all(skybitset == badskybitset))
-        #ADM restrict to just SAFE locations
+        #ADM restrict to just SAFE (BADSKY) locations
         safes = targs[np.where(skybitset)]
         #ADM for each mask location check that every safe location is equidistant from the mask center
         c = SkyCoord(safes["RA"]*u.deg,safes["DEC"]*u.deg)
