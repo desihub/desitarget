@@ -18,10 +18,12 @@ class SelectTargets(object):
 
     """
     def __init__(self, logger=None, rand=None, brick_info=None):
-        from desitarget import desi_mask, bgs_mask, mws_mask, obsconditions
+        from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, obsconditions
+        
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
+        self.contam_mask = contam_mask
         self.obsconditions = obsconditions
 
         self.log = logger
@@ -77,15 +79,15 @@ class SelectTargets(object):
         for oo in self.desi_mask.ELG.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
-        # Select ELG contaminants for QSO targets.
+        # Select ELG contaminants for QSO targets.  There should be a morphology
+        # cut here, too, so we're going to overestimate the number of
+        # contaminants.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=True)
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
-        #if np.count_nonzero(qso) > 0:
-        #    truth['CONTAMINANT'][np.where(qso)[0]] = 1
 
     def lrg_select(self, targets, truth=None):
         """Select LRG targets."""
