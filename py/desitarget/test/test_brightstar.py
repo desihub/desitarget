@@ -4,8 +4,10 @@ import os.path
 import fitsio
 import numpy as np
 import numpy.lib.recfunctions as rfn
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
-from desitarget import brightstar, desi_mask
+from desitarget import brightstar, desi_mask, targetid_mask
 
 class TestBRIGHTSTAR(unittest.TestCase):
 
@@ -86,6 +88,36 @@ class TestBRIGHTSTAR(unittest.TestCase):
         targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile)
         #ADM none of the targets should have been masked
         self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.SAFE) != 0)))
+
+    def test_safe_locations(self):
+        unmaskablefile = self.datadir+'/'+self.unmaskablefile
+        unmaskabletargs = fitsio.read(unmaskablefile)
+        #ADM because the input file has not been through Target Selection we need to add DESI_TARGET and TARGETID
+        ntargs = len(unmaskabletargs)
+        targs = rfn.append_fields(unmaskabletargs,["DESI_TARGET","TARGETID"],
+                                  [np.zeros(ntargs),np.zeros(ntargs)],usemask=False,dtypes='>i8')
+        #ADM invent a mask with wildly differing radii (5' and 2o) and declinations
+        mask = np.zeros(2, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f8')])
+        mask["DEC"] = [0,70]
+        mask["IN_RADIUS"] = [5.,60.*2]
+        #ADM append SAFE locations around the periphery of the mask
+        targs = brightstar.append_safe_targets(targs,mask)
+        #ADM first check that the SKY bit and BADSKY bits are appropriately set
+        skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
+        badskybitset = ((targs["DESI_TARGET"] & desi_mask.SAFE) != 0)
+        self.assertTrue(np.all(skybitset == badskybitset))
+        #ADM restrict to just SAFE locations
+        safes = targs[np.where(skybitset)]
+        #ADM for each mask location check that every safe location is equidistant from the mask center
+        c = SkyCoord(safes["RA"]*u.deg,safes["DEC"]*u.deg)
+        for i in range(2):
+            cent = SkyCoord(mask[i]["RA"]*u.deg, mask[i]["DEC"]*u.deg)
+            sep = cent.separation(c)
+            #ADM only things close to mask i
+            w = np.where(sep < np.min(sep)*1.002)
+            #ADM are these all the same distance to a very high precision?
+            print("mask position and radius (arcmin)",mask[i])
+            self.assertTrue(np.max(sep[w] - sep[w[0]]) < 1e-15*u.deg)
 
 if __name__ == '__main__':
     unittest.main()
