@@ -680,8 +680,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         else:
             log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
 
-    #import pdb ; pdb.set_trace()
-
     # Write out the brick-level files (if any).
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
     unique_bricks = list(set(targets['BRICKNAME']))
