@@ -2,11 +2,17 @@
 desitarget Change Log
 =====================
 
-0.10.1 (unreleased)
+0.11.1 (Unreleased)
+-------------------
+
+* No changes yet
+
+0.11.0 (2017-04-14)
 -------------------
 
 * New cuts for standards [`PR #167`_]
 * Ensured objtype was being passed to :func:`~desitarget.cuts.isFSTD`.
+* Added mock -> targets+spectra infrastructure
 
 .. _`PR #167`: https://github.com/desihub/desitarget/pull/167
 
