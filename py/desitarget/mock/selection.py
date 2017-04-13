@@ -187,13 +187,14 @@ class SelectTargets(object):
 
     def lrg_select(self, targets, truth):
         """Select LRG targets."""
-        from desitarget.cuts import isLRG
+        from desitarget.cuts import isLRG, isQSO_colors
 
+        gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
         zflux = targets['DECAM_FLUX'][..., 4]
         w1flux = targets['WISE_FLUX'][..., 0]
-        w1flux = targets['WISE_FLUX'][..., 0]
         w2flux = targets['WISE_FLUX'][..., 1]
+
         lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
 
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
@@ -334,8 +335,8 @@ class SelectTargets(object):
 
                 frac_keep = desired_density / mock_density
                 if frac_keep > 1.0:
-                    self.log.warning('Brick {}: mock density {:.0f}/deg2 too low; keeping all targets.'.format(
-                        thisbrick, mock_density))
+                    self.log.warning('Brick {}: mock density {:.0f}/deg2 lower than desired {:.0f}/deg2; keeping all targets.'.format(
+                        thisbrick, mock_density, desired_density))
 
                 else:
                     self.log.debug('Downsampling {}s from {:.0f} to {:.0f} targets/deg2.'.format(source_name,
@@ -360,12 +361,6 @@ class SelectTargets(object):
                 raise ValueError
             brick_area = float(self.brick_info['BRICKAREA'][brickindx])
 
-            #onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
-            #n_in_brick = len(onbrick)
-            #if n_in_brick == 0:
-            #    self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
-            #    raise ValueError
-
             for contam_name in contam.keys():
 
                 onbrick = np.where(
@@ -380,8 +375,8 @@ class SelectTargets(object):
 
                     frac_keep = desired_density / contam_density
                     if frac_keep > 1.0:
-                        self.log.warning('Brick {}: contaminant density {}/deg2 too low; keeping all targets'.format(
-                            thisbrick, contam_density))
+                        self.log.warning('Brick {}: contaminant density {:.0f}/deg2 lower than desired {:.0f}/deg2; keeping all contaminants.'.format(
+                            thisbrick, contam_density, desired_density))
 
                     else:
                         self.log.debug('Downsampling {}/{} contaminants from {:.0f} to {:.0f} targets/deg2.'.format(target_name,
@@ -391,15 +386,6 @@ class SelectTargets(object):
 
                         frac_toss = 1.0 - frac_keep
                         toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
+                        # This isn't quite right because we occassionally throw
+                        # away too many other "real" targets.
                         targets['DESI_TARGET'][toss] = 0 
-                        
-
-                #toss_contam = self.rand.choice(onbrick_contam, int( np.ceil(
-                #    n_in_brick_contam * (1 - frac_keep) ) ), replace=False)
-                #toss.append(onbrick[toss_contam])
-                
-                #targets[onbrick[toss_contam]]['DESI_TARGET'] & self.desi_mask.mask(target_name)
-                #truth[onbrick[toss_contam]]
-                #import pdb ; pdb.set_trace()
-
-        return np.hstack(toss)

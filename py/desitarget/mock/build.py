@@ -654,7 +654,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     nsky = len(isky)
     if nsky:
         log.info('Writing {}'.format(skyfile))
-        write_bintable(skyfile, targets[isky], extname='SKY')
+        write_bintable(skyfile, targets[isky], extname='SKY', clobber=True)
 
         log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
         notsky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) == 0)[0]
