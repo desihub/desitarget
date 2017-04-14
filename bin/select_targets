@@ -42,7 +42,6 @@ if len(infiles) == 0:
 
 #ADM record the DATA RELEASE as a 9-string
 drstring = "{:9}".format(fitsio.read_header(infiles[0], 0)["DECALSDR"].lower())
-print(drstring)
 
 if ns.check:
     print('Check input files...')
@@ -52,7 +51,7 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
     if ns.starmask:
-        targets = mask_targets(targets,instarmaskfile=ns.starmask)
+        targets = mask_targets(targets, instarmaskfile=ns.starmask, drstring=drstring)
 
     io.write_targets(ns.dest, targets, drstring=drstring, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)

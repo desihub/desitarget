@@ -27,6 +27,8 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
 
+from desiutil import depend
+
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
 
@@ -686,7 +688,7 @@ def generate_safe_locations(starmask,Npersqdeg):
         A recarray containing a bright star mask as made by :mod:`desitarget.brightstar.make_bright_star_mask`
     npersqdeg : :class:`int`
         The number of safe locations to generate per square degree of each mask
-        
+
     Returns
     -------
     ra : array_like. 
@@ -729,7 +731,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     return np.hstack(ra), np.hstack(dec)
 
 
-def append_safe_targets(targs,starmask):
+def append_safe_targets(targs,starmask,drstring=None):
     """Append targets at SAFE (BADSKY) locations to a list of targets
 
     Parameters
@@ -738,6 +740,8 @@ def append_safe_targets(targs,starmask):
         A recarray of targets as made by desitarget.cuts.select_targets
     starmask : :class:`recarray`
         A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+    drstring : :class:`str`, optional
+        The imaging data release for the targets as a 9-string (i.e. 'dr3      ') to update TARGETID
 
     Returns
     -------
@@ -767,8 +771,17 @@ def append_safe_targets(targs,starmask):
     safes["RA"] = ra
     safes["DEC"] = dec
 
+    #ADM if the data release string was passed
+    if drstring is not None:
+        #ADM turn the string into the integer of the release
+        drint = int(drstring[2:])
+        #ADM find the bit corresponding to DR in the TARGETID mask (x in 2**x, not 2**x itself)
+        bit = len(np.binary_repr(targetid_mask.DR))-1
+        #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
+        safes["TARGETID"] = drint << bit
+
     #ADM set SKY in the TARGETID for safe locations
-    safes["TARGETID"] = targetid_mask.SKY
+    safes["TARGETID"] |= targetid_mask.SKY
 
     #ADM set the bit for SAFE locations in DESITARGET
     safes["DESI_TARGET"] = desi_mask.BADSKY
@@ -811,7 +824,7 @@ def set_target_bits(targs,starmask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
+def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
     """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
@@ -823,6 +836,8 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
         An input bright star mask created by desitarget.brightstar.make_bright_star_mask
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
+    drstring : :class:`str`, optional
+        Pass the imaging data release for the targets as a 9-string (i.e. 'dr3      ')
     bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z".
         Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
@@ -880,7 +895,7 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
         print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
     #ADM generate SAFE locations and add them to the target list
-    targs = append_safe_targets(targs,starmask)
+    targs = append_safe_targets(targs,starmask,drstring=drstring)
     
     if verbose:
         print('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
