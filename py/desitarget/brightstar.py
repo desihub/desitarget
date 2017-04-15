@@ -178,6 +178,37 @@ def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
     return collection
 
 
+def max_objid_bricks(targs):
+    """For a set of targets, return the maximum value of BRICK_OBJID in each BRICK_ID
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+
+    Returns
+    -------
+    maxobjid : :class:`dictionary`
+        A dictionary with keys for each unique BRICKID and values of the maximum OBJID in that brick
+    """
+    
+    #ADM the maximum BRICKID in the passed target set
+    brickmax = np.max(targs["BRICKID"])
+
+    #ADM how many OBJIDs are in each unique brick, starting from 0 and ordered on BRICKID
+    h = np.histogram(targs["BRICKID"],range=[0,brickmax],bins=brickmax)[0]
+    #ADM remove zero entries from the histogram
+    h = h[np.where(h > 0)]
+    #ADM the index of the maximum OBJID in eacn brick if the bricks are ordered on BRICKID and OBJID
+    maxind = np.cumsum(h)-1
+
+    #ADM an array of BRICKID, OBJID sorted first on BRICKID and then on OBJID within each BRICKID
+    ordered = np.array(sorted(zip(targs["BRICKID"],targs["BRICK_OBJID"]), key=lambda x: (x[0], x[1])))
+
+    #ADM return a dictionary of the maximum OBJID (values) for each BRICKID (keys)
+    return dict(ordered[maxind])
+
+
 def cap_area(theta):
     """True area of a circle of a given radius drawn on the surface of a sphere
 
@@ -378,11 +409,11 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
     Returns
     -------
-    :class:`recarray`
+    :class:`dictionary`
         dictionary of the fraction of bricks containing a star of a given
         magnitude in a given band as function of Galactic l Keys are mag
         bin CENTERS, values are arrays running from 0->1 to 359->360
-    :class:`recarray`
+    :class:`dictionary`
         dictionary of the fraction of bricks containing a star of a given
         magnitude in a given band as function of Galactic b. Keys are mag
         bin CENTERS, values are arrays running from -90->-89 to 89->90
@@ -732,7 +763,7 @@ def generate_safe_locations(starmask,Npersqdeg):
 
 
 def append_safe_targets(targs,starmask,drstring=None):
-    """Append targets at SAFE (BADSKY) locations to a list of targets
+    """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
     ----------
@@ -757,7 +788,7 @@ def append_safe_targets(targs,starmask,drstring=None):
           correct number per sq. deg. (Npersqdeg) for DESI is an open question.
     """
     
-    #Number of safe locations per sq. deg. of each mask in starmask
+    #ADM Number of safe locations per sq. deg. of each mask in starmask
     Npersqdeg = 10000
 
     #ADM generate SAFE locations at the periphery of the star masks appropriate to a density of Npersqdeg
@@ -782,6 +813,9 @@ def append_safe_targets(targs,starmask,drstring=None):
 
     #ADM set SKY in the TARGETID for safe locations
     safes["TARGETID"] |= targetid_mask.SKY
+
+    #ADM count how many targets are in each brick on BRICKID
+
 
     #ADM set the bit for SAFE locations in DESITARGET
     safes["DESI_TARGET"] = desi_mask.BADSKY
