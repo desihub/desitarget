@@ -12,6 +12,7 @@ from time import time
 import numpy as np
 import numpy.lib.recfunctions as rfn
 from astropy.table import Table, Row
+from pkg_resources import resource_filename
 
 import desitarget.targets
 from ..cuts import unextinct_fluxes, _is_row
@@ -447,6 +448,107 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     return iXD, FoM
 
 
+def isELG_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+    """Target Definition of ELG using a random forest returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        deltaChi2: array_like or None
+             If given, difference of chi2 bteween PSF and SIMP morphology
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a ELG
+            target.
+
+    """
+    #----- Quasars
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+
+    # build variables for random forest
+    nfeatures=11 # number of variables in random forest
+    nbEntries=rflux.size
+    colors, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
+
+    #Preselection to speed up the process, store the indexes
+    rMax = 23.4  # r<23.4
+
+    preSelection = np.where( (r<rMax) & DECaLSOK )
+    colorsCopy = colors.copy()
+    colorsReduced = colorsCopy[preSelection]
+    colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
+    colorsReducedIndex =  colorsIndex[preSelection]
+
+    #Path to random forest files
+    pathToRF = resource_filename('desitarget', "sandbox/data")
+ 
+    # Compute random forest probability
+    from desitarget.myRF import myRF
+    prob = np.zeros(nbEntries)
+
+    if (colorsReducedIndex.any()) :
+        rf = myRF(colorsReduced,pathToRF)
+        fileName = pathToRF + '/rf_model_dr3_elg.npz'
+        rf.loadForest(fileName)
+        objects_rf = rf.predict_proba()
+        # add random forest probability to preselected objects
+        j=0
+        for i in colorsReducedIndex :
+            prob[i]=objects_rf[j]
+            j += 1
+
+    #define pcut
+    pcut = 0.98
+
+    elg = primary.copy()
+    elg &= r<rMax
+    elg &= DECaLSOK
+
+
+    if nbEntries==1 : # for call of a single object
+        elg &= prob[0]>pcut
+    else :
+        elg &= prob>pcut
+
+    return elg, prob
+
+def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
+
+    limitInf=1.e-04
+    gflux = gflux.clip(limitInf)
+    rflux = rflux.clip(limitInf)
+    zflux = zflux.clip(limitInf)
+    w1flux = w1flux.clip(limitInf)
+    w2flux = w2flux.clip(limitInf)
+
+    g=np.where( gflux>limitInf,22.5-2.5*np.log10(gflux), 0.)
+    r=np.where( rflux>limitInf,22.5-2.5*np.log10(rflux), 0.)
+    z=np.where( zflux>limitInf,22.5-2.5*np.log10(zflux), 0.)
+    W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
+    W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
+
+    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+
+    colors  = np.zeros((nbEntries,nfeatures))
+    colors[:,0]=g-r
+    colors[:,1]=r-z
+    colors[:,2]=g-z
+    colors[:,3]=g-W1
+    colors[:,4]=r-W1
+    colors[:,5]=z-W1
+    colors[:,6]=g-W2
+    colors[:,7]=r-W2
+    colors[:,8]=z-W2
+    colors[:,9]=W1-W2
+    colors[:,10]=r
+
+    return colors, r, DECaLSOK
+
 def apply_sandbox_cuts(objects,FoMthresh=None):
     """Perform target selection on objects, returning target mask arrays
 
@@ -512,9 +614,13 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
                        primary=primary)
 
     if FoMthresh is not None:
-        elg, FoM = apply_XD_globalerror(objects, FoMthresh, glim=23.8, rlim=23.4, zlim=22.4, gr_ref=0.5,
+        if (FoMthresh!=2.0) :
+            elg, FoM = apply_XD_globalerror(objects, FoMthresh, glim=23.8, rlim=23.4, zlim=22.4, gr_ref=0.5,
                        rz_ref=0.5,reg_r=1e-4/(0.025**2 * 0.05),f_i=[1., 1., 0., 0.25, 0., 0.25, 0.],
                        gmin = 21., gmax = 24.)
+        else :
+            elg, FoM = isELG_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                 w1flux=w1flux, w2flux=w2flux)    
 
     #- construct the targetflag bits
     #- Currently our only cuts are DECam based (i.e. South)
