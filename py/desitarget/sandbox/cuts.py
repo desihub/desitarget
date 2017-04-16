@@ -448,16 +448,13 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     return iXD, FoM
 
 
-def isELG_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of ELG using a random forest returning a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        deltaChi2: array_like or None
-             If given, difference of chi2 bteween PSF and SIMP morphology
+                
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -503,7 +500,7 @@ def isELG_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             j += 1
 
     #define pcut
-    pcut = 0.98
+    #pcut = 0.98
 
     elg = primary.copy()
     elg &= r<rMax
@@ -614,12 +611,12 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
                        primary=primary)
 
     if FoMthresh is not None:
-        if (FoMthresh!=2.0) :
+        if (FoMthresh>0.0) :
             elg, FoM = apply_XD_globalerror(objects, FoMthresh, glim=23.8, rlim=23.4, zlim=22.4, gr_ref=0.5,
                        rz_ref=0.5,reg_r=1e-4/(0.025**2 * 0.05),f_i=[1., 1., 0., 0.25, 0., 0.25, 0.],
                        gmin = 21., gmax = 24.)
         else :
-            elg, FoM = isELG_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            elg, FoM = isELG_randomforest(pcut=abs(FoMthresh), primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                  w1flux=w1flux, w2flux=w2flux)    
 
     #- construct the targetflag bits
