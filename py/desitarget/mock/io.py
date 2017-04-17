@@ -55,7 +55,7 @@ def print_all_mocks_info(params):
             The different kind of sources are stored under the 'sources' key.
 
     """
-    log.info('The following populations and paths are specified:')
+    log.info('Paths and targets:')
     for source_name in params['sources'].keys():
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['mock_dir_name']
@@ -108,8 +108,13 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         log.info('Mock file/path {} to be read with mock.io.{}'.format(mock_dir_name, read_function))
 
         func = globals()[read_function]
-        result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                      bounds=bounds, magcut=magcut, nproc=nproc)
+        if 'LYA' in params['sources'][source_name].keys():
+            result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                          bounds=bounds, magcut=magcut, nproc=nproc, lya=params['sources'][source_name]['LYA'])
+        else:
+            result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                          bounds=bounds, magcut=magcut, nproc=nproc)
+
         source_data_all[source_name] = result
         print()
 
@@ -450,7 +455,7 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-               bounds=None, magcut=None, nproc=None):
+                       lya=None, bounds=None, magcut=None, nproc=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -470,6 +475,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         Magnitude cut to apply to the sample (not used here).
     nproc : int
         Number of cores to use for reading (not used here).
+    lya : dictionary
+        Information on the Lyman-alpha mock to read.
 
     Returns
     -------
@@ -521,13 +528,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         mockfile = mock_dir_name
         columns = ['RA', 'DEC']
     else:
-        from pathlib import Path
-        f = Path(mock_dir_name)
-        if f.is_file():
-            mockfile = mock_dir_name
-        else:
-            mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.upper()))
-
+        mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.upper()))
         columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
 
     try:
@@ -536,13 +537,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    if False:
-        log.warning('Reading a random subset of sources for testing!')
-        nrows = fitsio.FITS(mockfile)[1].get_nrows()
-        rows = rand.randint(0, nrows, 100000)
-        data = fitsio.read(mockfile, columns=columns, upper=True, rows=rows)
-    else:
-        data = fitsio.read(mockfile, columns=columns, upper=True)
+    data = fitsio.read(mockfile, columns=columns, upper=True, ext=1)
 
     ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = data['DEC'].astype('f8')
@@ -556,34 +551,74 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     nobj = len(ra)
     log.info('Read {} objects from {}.'.format(nobj, mockfile))
 
+    mag = np.repeat(-1, nobj) # placeholder
+
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+    
+    # Combine the QSO and Lyman-alpha samples.
+    if target_name == 'QSO' and lya:
+
+        log.info('Adding Lyman-alpha targets.')
+
+        #truespectype = np.repeat('QSO', nobj)
+        #templatetype = np.repeat('QSO', nobj)
+        #templatesubtype = np.repeat('', nobj)
+
+        mockfile_lya = lya['mock_dir_name']
+        columns = ['RA', 'DEC', 'Z', 'MAG_G']
+
+        try:
+            os.stat(mockfile_lya)
+        except:
+            log.fatal('Mock file {} not found!'.format(mockfile_lya))
+            raise IOError
+
+        data = fitsio.read(mockfile_lya, columns=columns, upper=True, ext=1)
+
+        ra_lya = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec_lya = data['DEC'].astype('f8')
+        zz_lya = data['Z'].astype('f4')
+        mag_lya = data['MAG_G'].astype('f4') # g-band
+        nobj_lya = len(ra_lya)
+        log.info('Read {} objects from {}.'.format(nobj_lya, mockfile_lya))
+
+        files.append(mockfile_lya)
+        n_per_file.append(nobj_lya)
+
+        objid_lya = np.arange(nobj_lya, dtype='i8')
+        mockid_lya = make_mockid(objid_lya, [n_per_file[1]])
+
+        # Join the QSO + Lya samples, cutting at zcut (=2.1)
+        ra = np.concatenate((ra, ra_lya))
+        dec = np.concatenate((dec, dec_lya))
+        zz  = np.concatenate((zz, zz_lya))
+        mag = np.concatenate((mag, mag_lya))
+        objid = np.concatenate((objid, objid_lya))
+        mockid = np.concatenate((mockid, mockid_lya))
+        nobj = len(ra)
+
+        log.info('Combined QSO+Lya sample has {} targets.'.format(nobj))
+        
     if bounds is not None:
         min_ra, max_ra, min_dec, max_dec = bounds
         cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
         if np.count_nonzero(cut) == 0:
             log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
             raise ValueError
+        objid = objid[cut]
+        mockid = mockid[cut]
         ra = ra[cut]
         dec = dec[cut]
         zz = zz[cut]
         nobj = len(ra)
         log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    # Cut the QSO sample to z<2.1
-    if target_name == 'QSO':
-        cut = (zz > 0) * (zz < 2.1)
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} QSOs in redshift range 0.0<z<2.1'.format(nobj))
-
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
+    
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
     seed = rand.randint(2**32, size=nobj)
@@ -618,8 +653,14 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         elif target_name == 'QSO':
             """Selected in the r-band with g-r, r-z, and W1-W2 colors."""
-            out.update({'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
-                        'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
+            replace = np.where(mag == -1)[0]
+            if len(replace) > 0:
+                mag[replace] = mags[:, 1] # r-band
+            
+            out.update({
+                'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
+                #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
+                'MAG': mag, 'FILTERNAME': 'decam2014-r'}) # Lya is normalized in the g-band
 
         else:
             log.fatal('Unrecognized target type {}!'.format(target_name))

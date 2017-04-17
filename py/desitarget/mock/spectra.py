@@ -386,10 +386,14 @@ class MockSpectra(object):
                 input_meta[inkey] = data[datakey][index]
 
             flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
+                                                              lya=True,
                                                               nocolorcuts=True,
                                                               verbose=self.verbose)
+            import pdb ; pdb.set_trace()
+
         elif mockformat.lower() == 'lya':
             # Build spectra for Lyman-alpha QSOs.
+            # Deprecated!
             from astropy.table import vstack
             from desisim.lya_spectra import get_spectra
             from desitarget.mock.io import decode_rownum_filenum
