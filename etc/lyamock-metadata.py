@@ -6,6 +6,8 @@
 import os
 import numpy as np
 from glob import glob
+import multiprocessing
+
 import fitsio
 
 from astropy.table import Table, Column, vstack
@@ -14,9 +16,6 @@ from desispec.io.util import fitsheader, write_bintable
 from desiutil.log import get_logger
 log = get_logger()
 
-import multiprocessing
-nproc = max(1, multiprocessing.cpu_count() // 2)
-    
 def _lyapath():
     return os.path.join(os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'v0.0.2')
 
@@ -48,10 +47,13 @@ def _read_lya(lyafile):
 
     return dat
 
-def read_lya(nread=None):
-    """Read the Lyman-alpha mocks."""
+def read_lya(indir, nproc, nread=None):
+    """Read the Lyman-alpha mocks.
+    
+    Returns filelist, metadata table
+    """
 
-    lyafiles = glob(os.path.join(_lyapath(), 'simpleSpec_*.fits.gz'))
+    lyafiles = sorted(glob(os.path.join(indir, 'simpleSpec_*.fits.gz')))
     if nread:
         lyafiles = lyafiles[:nread]
     log.info('Reading metadata for {} Lya files'.format(len(lyafiles)))
@@ -60,12 +62,36 @@ def read_lya(nread=None):
     dat = p.map(_read_lya, lyafiles)
     p.close()
     
-    return vstack(dat)
+    #- Add mapping of target to -> mockfile,rownum
+    filemap = Table()
+    filemap['MOCKFILE'] = [os.path.basename(x) for x in lyafiles]
+    filemap['MOCKFILEID'] = np.arange(len(lyafiles), dtype=np.int16)
+    for i, xdat in enumerate(dat):
+        xdat['MOCKFILEID'] = np.ones(len(xdat), dtype=np.int16) * i
+        xdat['MOCKHDUNUM'] = np.arange(1, len(xdat)+1, dtype=np.int32)
+    
+    return vstack(dat), filemap
 
 if __name__ == '__main__':
+    import argparse
+    
+    _nproc = multiprocessing.cpu_count() // 2
+    parser = argparse.ArgumentParser(usage = "%(prog)s [options]")
+    parser.add_argument("-i", "--indir", type=str,  help="input data")
+    parser.add_argument("-o", "--output", type=str,  help="output file")
+    parser.add_argument("--nproc", type=int,  help="output file", default=_nproc)
+    args = parser.parse_args()
 
-    data = read_lya()
+    if args.indir is None:
+        args.indir = _lyapath()
 
-    metafile = os.path.join(_lyapath(), 'metadata-simpleSpec.fits')
-    log.info('Writing {}'.format(metafile))
-    write_bintable(metafile, data, extname='METADATA', clobber=True)
+    if args.output is None:
+        args.output = 'metadata-simpleSpec.fits'
+
+    log.info('Reading mocks from {}'.format(args.indir))
+    data, filemap = read_lya(args.indir, nproc=args.nproc)
+
+    log.info('Writing {}'.format(args.output))
+    write_bintable(args.output, data, extname='METADATA', clobber=True)
+    header = dict(MOCKDIR = os.path.abspath(args.indir))
+    write_bintable(args.output, filemap, extname='FILEMAP', header=header)
