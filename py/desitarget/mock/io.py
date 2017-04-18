@@ -211,7 +211,7 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=None, magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -329,7 +329,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
-               bounds=None, magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -455,7 +455,8 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-                       lya=None, bounds=None, magcut=None, nproc=None):
+                       lya=None, bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
+                       nproc=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -524,34 +525,18 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             Velocity dispersion (km/s) (only for ELG, LRG).
 
     """
-    if target_name == 'SKY':
-        mockfile = mock_dir_name
-        columns = ['RA', 'DEC']
-    else:
-        mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.upper()))
-        columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
-
+    mockfile = mock_dir_name
     try:
         os.stat(mockfile)
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    data = fitsio.read(mockfile, columns=columns, upper=True, ext=1)
-
-    ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
     
-    if target_name == 'SKY':
-        zz = np.zeros(len(ra), dtype='f4')
-    else:
-        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
-    del data
-
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    mag = np.repeat(-1, nobj) # placeholder
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
 
     files = list()
     n_per_file = list()
@@ -560,33 +545,44 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+        
+    if target_name == 'SKY':
+        zz = np.zeros(nobj, dtype='f4')
+    else:
+        data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
+        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+        del data
     
+    mag = np.repeat(-1, nobj) # placeholder
+
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
 
-        log.info('Adding Lyman-alpha targets.')
-
-        #truespectype = np.repeat('QSO', nobj)
-        #templatetype = np.repeat('QSO', nobj)
-        #templatesubtype = np.repeat('', nobj)
+        log.info('  Adding Lya QSOs.')
 
         mockfile_lya = lya['mock_dir_name']
-        columns = ['RA', 'DEC', 'Z', 'MAG_G']
-
         try:
             os.stat(mockfile_lya)
         except:
             log.fatal('Mock file {} not found!'.format(mockfile_lya))
             raise IOError
 
-        data = fitsio.read(mockfile_lya, columns=columns, upper=True, ext=1)
-
-        ra_lya = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
-        dec_lya = data['DEC'].astype('f8')
-        zz_lya = data['Z'].astype('f4')
-        mag_lya = data['MAG_G'].astype('f4') # g-band
-        nobj_lya = len(ra_lya)
-        log.info('Read {} objects from {}.'.format(nobj_lya, mockfile_lya))
+        radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj_lya = len(radec)
 
         files.append(mockfile_lya)
         n_per_file.append(nobj_lya)
@@ -594,33 +590,35 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         objid_lya = np.arange(nobj_lya, dtype='i8')
         mockid_lya = make_mockid(objid_lya, [n_per_file[1]])
 
-        # Join the QSO + Lya samples, cutting at zcut (=2.1)
-        ra = np.concatenate((ra, ra_lya))
-        dec = np.concatenate((dec, dec_lya))
-        zz  = np.concatenate((zz, zz_lya))
-        mag = np.concatenate((mag, mag_lya))
-        objid = np.concatenate((objid, objid_lya))
-        mockid = np.concatenate((mockid, mockid_lya))
-        nobj = len(ra)
+        cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+        nobj_lya = len(cut)
+        if nobj_lya == 0:
+            log.warning('  No Lya QSOs in range RA={}, {}, Dec={}, {}!'.format(min_ra, max_ra, min_dec, max_dec))
+        else:
+            log.info('  Trimmed to {} Lya QSOs in range RA={}, {}, Dec={}, {}'.format(nobj_lya, min_ra, max_ra, min_dec, max_dec))
 
-        log.info('Combined QSO+Lya sample has {} targets.'.format(nobj))
+            objid_lya = objid_lya[cut]
+            mockid_lya = mockid_lya[cut]
+            ra_lya = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+            dec_lya = radec['DEC'][cut].astype('f8')
+            del radec
+
+            data = fitsio.read(mockfile_lya, columns=['Z', 'MAG_G'], upper=True, ext=1, rows=cut)
+            zz_lya = data['Z'].astype('f4')
+            mag_lya = data['MAG_G'].astype('f4') # g-band
+
+            # Join the QSO + Lya samples
+            ra = np.concatenate((ra, ra_lya))
+            dec = np.concatenate((dec, dec_lya))
+            zz  = np.concatenate((zz, zz_lya))
+            mag = np.concatenate((mag, mag_lya))
+            objid = np.concatenate((objid, objid_lya))
+            mockid = np.concatenate((mockid, mockid_lya))
+            nobj = len(ra)
+
+        log.info('The combined QSO sample has {} targets.'.format(nobj))
         
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        objid = objid[cut]
-        mockid = mockid[cut]
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-    
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
-
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
@@ -675,7 +673,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     return out
 
 def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
-                          bounds=None, magcut=None, nproc=None):
+                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -744,9 +742,40 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
+
     f = h5py.File(mockfile)
     ra  = f['Data/ra'][...].astype('f8') % 360.0
     dec = f['Data/dec'][...].astype('f8')
+    nobj = len(radec)
+
+    files = list()
+    files.append(mockfile)
+    n_per_file = list()
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((ra >= min_ra) * (ra < max_ra) * (dec >= min_dec) * (dec <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+    
+    
+    
+
+    
     zz = f['Data/z_obs'][...].astype('f8')
     rmag = f['Data/app_mag'][...].astype('f8')
     absmag = f['Data/abs_mag'][...].astype('f8')
@@ -832,7 +861,7 @@ def _load_galaxia_file(mockfile):
             'LOGG': logg, 'FEH': feh}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-                 bounds=None, magcut=None, nproc=1):
+                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
     """ Read and concatenate the MWS_MAIN mock files.
 
     Parameters
@@ -1039,7 +1068,7 @@ def _load_lya_file(mockfile):
     return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': zz, 'MAG_G': mag_g}
 
 def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
-             bounds=None, magcut=None, nproc=1):
+             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
     """ Read and concatenate the LYA mock files.
 
     Parameters

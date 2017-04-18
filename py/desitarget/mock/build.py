@@ -57,7 +57,7 @@ class BrickInfo(object):
     """Gather information on all the bricks.
 
     """
-    def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 359.99, -89.99, 89.99),
+    def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 360.0, -90.0, 90.0),
                  bricksize=0.25, decals_brick_info=None, target_names=None):
         """Initialize the class.
 
@@ -508,6 +508,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
+    import pdb ; pdb.set_trace()
+
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -517,8 +519,12 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         mockformat = params['sources'][source_name]['format']
 
         source_data = source_data_all[source_name]     # data (ra, dec, etc.)
-        nobj = len(source_data['RA'])
 
+        # If there are no sources, keep going.
+        if not bool(source_data):
+            continue
+        
+        nobj = len(source_data['RA'])
         targets = empty_targets_table(nobj)
         truth = empty_truth_table(nobj)
         trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
