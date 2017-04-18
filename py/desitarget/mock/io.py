@@ -636,6 +636,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
+        import pdb ; pdb.set_trace()
+
         out.update({'GR': mags[:, 0]-mags[:, 1], 'RZ': mags[:, 1]-mags[:, 2],
                     'RW1': mags[:, 1]-mags[:, 3], 'W1W2': mags[:, 3]-mags[:, 4]})
 

@@ -332,8 +332,12 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U10'))
     targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj,
                               data=np.zeros((nobj, 6)), dtype='f4'))
     targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj,
@@ -522,9 +526,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(len(brickname), source_name,
-                                                                          len(unique_bricks),
-                                                                          bricksize, bricksize))
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning {:g} deg2.'.format(len(brickname), source_name,
+                                                                                             len(unique_bricks),
+                                                                                             bricksize, bricksize,
+                                                                                             len(unique_bricks) * bricksize**2))
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
