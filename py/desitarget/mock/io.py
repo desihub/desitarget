@@ -105,7 +105,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         read_function = 'read_{}'.format(source_format)
 
         log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
-        log.info('Mock file/path {} to be read with mock.io.{}'.format(mock_dir_name, read_function))
+        log.info('Reading {} with mock.io.{}'.format(mock_dir_name, read_function))
 
         func = globals()[read_function]
         if 'LYA' in params['sources'][source_name].keys():

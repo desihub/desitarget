@@ -581,11 +581,32 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         if 'density' in params['sources'][source_name].keys():
             if verbose:
                 print()
+
             density = params['sources'][source_name]['density']
             log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+            if target_name == 'QSO':
+                # Distinguish between the Lyman-alpha and tracer QSOs
+                if 'LYA' in params['sources'][source_name].keys():
+                    density_lya = params['sources'][source_name]['LYA']['density']
+                    zcut = params['sources'][source_name]['LYA']['zcut']
+                    tracer = np.where(truth['TRUEZ'] < zcut)[0]
+                    lya = np.where(truth['TRUEZ'] >= zcut)[0]
+                    if len(tracer) > 0:
+                        SelectTargets.density_select(targets[tracer], truth[tracer], source_name=source_name,
+                                                     target_name=target_name, density=density)
+                    if len(lya) > 0:
+                        SelectTargets.density_select(targets[lya], truth[lya], source_name=source_name,
+                                                     target_name=target_name, density=density_lya)
 
-            SelectTargets.density_select(targets, truth, source_name=source_name,
-                                         target_name=target_name, density=density)
+                    #import pdb ; pdb.set_trace()
+
+                else:
+                    SelectTargets.density_select(targets, truth, source_name=source_name,
+                                                 target_name=target_name, density=density)
+                    
+            else:
+                SelectTargets.density_select(targets, truth, source_name=source_name,
+                                             target_name=target_name, density=density)            
 
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
             if len(keep) == 0:

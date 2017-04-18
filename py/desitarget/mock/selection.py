@@ -285,6 +285,11 @@ class SelectTargets(object):
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux, optical=True)
 
+        # There is an issue where higher-redshift QSOs (those with Lyman-alpha
+        # forest) are being rejected by the optical color-cuts, so temporarily
+        # keep all the QSOs.
+        qso = np.ones(len(targets)) # select everything!
+
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
@@ -346,6 +351,9 @@ class SelectTargets(object):
                     frac_toss = 1.0 - frac_keep
                     toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
                     targets['DESI_TARGET'][toss] = 0 
+
+                #import pdb ; pdb.set_trace()
+
 
     def contaminants_select(self, targets, truth, source_name, target_name, contam):
         """Downsample contaminants to a desired number density in targets/deg2."""

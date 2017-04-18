@@ -385,12 +385,14 @@ class MockSpectra(object):
                                       ('SEED', 'MAG', 'Z')):
                 input_meta[inkey] = data[datakey][index]
 
+            # We could potentially save a little time by not computing the Lya
+            # forest for low-redshift quasars, but for simplicity do it for all
+            # of them since the code is reasonably fast.
             flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
-                                                              lya=True,
+                                                              lyaforest=True,
                                                               nocolorcuts=True,
                                                               verbose=self.verbose)
-            import pdb ; pdb.set_trace()
-
+                
         elif mockformat.lower() == 'lya':
             # Build spectra for Lyman-alpha QSOs.
             # Deprecated!
