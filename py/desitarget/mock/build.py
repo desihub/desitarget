@@ -561,6 +561,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
 
+        if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+            for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                        'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+                targets[key] = source_data[key]
+
         truth['MOCKID'] = source_data['MOCKID']
         truth['TRUEZ'] = source_data['Z'].astype('f4')
         truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']

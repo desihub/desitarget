@@ -636,33 +636,37 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
-        import pdb ; pdb.set_trace()
+        out.update({'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+                    'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
 
-        out.update({'GR': mags[:, 0]-mags[:, 1], 'RZ': mags[:, 1]-mags[:, 2],
-                    'RW1': mags[:, 1]-mags[:, 3], 'W1W2': mags[:, 3]-mags[:, 4]})
+        if target_name in ('ELG', 'LRG'):
+            out.update({
+                'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'], 
+                'SHAPEDEV_R': mags['dev_r'], 'SHAPEDEV_E1': mags['dev_e1'], 'SHAPEDEV_E2': mags['dev_e2']
+                })
 
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
             vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
-                        'VDISP': vdisp, 'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
+                        'VDISP': vdisp, 'MAG': mags['r'], 'FILTERNAME': 'decam2014-r'})
 
         elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
             vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
-                        'VDISP': vdisp, 'MAG': mags[:, 2], 'FILTERNAME': 'decam2014-z'})
+                        'VDISP': vdisp, 'MAG': mags['z'], 'FILTERNAME': 'decam2014-z'})
 
         elif target_name == 'QSO':
             """Selected in the r-band with g-r, r-z, and W1-W2 colors."""
             replace = np.where(mag == -1)[0]
             if len(replace) > 0:
-                mag[replace] = mags[:, 1] # r-band
+                mag[replace] = mags['r'] # r-band
             
             out.update({
                 'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
                 #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
-                'MAG': mag, 'FILTERNAME': 'decam2014-r'}) # Lya is normalized in the g-band
+                'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
 
         else:
             log.fatal('Unrecognized target type {}!'.format(target_name))
