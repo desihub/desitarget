@@ -171,7 +171,7 @@ class MockSpectra(object):
         self.bgs_templates = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
         self.elg_templates = ELG(wave=self.wave, normfilter='decam2014-r')
         self.lrg_templates = LRG(wave=self.wave, normfilter='decam2014-z')
-        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-r')
+        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.lya_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
         self.wd_da_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DA')

@@ -661,7 +661,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             """Selected in the r-band with g-r, r-z, and W1-W2 colors."""
             replace = np.where(mag == -1)[0]
             if len(replace) > 0:
-                mag[replace] = mags['r'] # r-band
+                mag[replace] = mags['g'] # g-band
             
             out.update({
                 'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
