@@ -272,43 +272,6 @@ class BrickInfo(object):
 
         return brick_info
 
-def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None):
-    '''Add SHAPEDEV_R and SHAPEEXP_R from a real target catalog.'''
-
-    if random_state is None:
-        random_state = np.random.RandomState()
-
-    n = len(mocktargets)
-
-    for objtype in ('ELG', 'LRG', 'QSO'):
-        mask = desi_mask.mask(objtype)
-        #- indices where mock (ii) and real (jj) match the mask
-        ii = np.where((mocktargets['DESI_TARGET'] & mask) != 0)[0]
-        jj = np.where((realtargets['DESI_TARGET'] & mask) != 0)[0]
-        if len(jj) == 0:
-            log.warning('Real target catalog missing {}'.format(objtype))
-            raise ValueError
-
-        #- Which random jj should be used to fill in values for ii?
-        kk = jj[random_state.randint(0, len(jj), size=len(ii))]
-        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
-        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
-
-    for objtype in ('BGS_FAINT', 'BGS_BRIGHT'):
-        mask = bgs_mask.mask(objtype)
-        #- indices where mock (ii) and real (jj) match the mask
-        ii = np.where((mocktargets['BGS_TARGET'] & mask) != 0)[0]
-        jj = np.where((realtargets['BGS_TARGET'] & mask) != 0)[0]
-        if len(jj) == 0:
-            log.warning('Real target catalog missing {}'.format(objtype))
-            raise ValueError
-
-        #- Which jj should be used to fill in values for ii?
-        #- NOTE: not filling in BGS or MWS fluxes, only shapes
-        kk = jj[random_state.randint(0, len(jj), size=len(ii))]
-        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
-        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
-
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.  The required output columns in order
     for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
@@ -667,9 +630,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth['TARGETID'] = targetid
     targets['TARGETID'] = targetid
     targets['SUBPRIORITY'] = rand.uniform(0.0, 1.0, size=ntarget)
-
-    if realtargets is not None:
-        add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
     try:
