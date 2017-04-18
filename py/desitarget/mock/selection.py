@@ -246,11 +246,11 @@ class SelectTargets(object):
         for oo in self.mws_mask.MWS_MAIN.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (mws_main != 0) * self.obsconditions.mask(oo)
 
-        mws_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
+        mws_main_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
         targets['MWS_TARGET'] |= (mws_main_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
         targets['DESI_TARGET'] |= (mws_main_very_faint != 0) * self.desi_mask.MWS_ANY
         for oo in self.mws_mask.MWS_MAIN_VERY_FAINT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (mws_main != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (mws_main_very_faint != 0) * self.obsconditions.mask(oo)
 
         # Select standard stars.
         self._std_select(targets, truth)
