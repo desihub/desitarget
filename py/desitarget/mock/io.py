@@ -746,9 +746,9 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     min_ra, max_ra, min_dec, max_dec = bounds
 
     f = h5py.File(mockfile)
-    ra  = f['Data/ra'][...].astype('f8') % 360.0
+    ra  = f['Data/ra'][...].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = f['Data/dec'][...].astype('f8')
-    nobj = len(radec)
+    nobj = len(ra)
 
     files = list()
     files.append(mockfile)
@@ -758,7 +758,8 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    cut = np.where((ra >= min_ra) * (ra < max_ra) * (dec >= min_dec) * (dec <= max_dec))[0]
+    these = (ra >= min_ra) * (ra < max_ra) * (dec >= min_dec) * (dec <= max_dec)
+    cut = np.where(these)[0]
     nobj = len(cut)
     if nobj == 0:
         log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
@@ -768,61 +769,31 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
 
     objid = objid[cut]
     mockid = mockid[cut]
-    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
-    dec = radec['DEC'][cut].astype('f8')
-    del radec
-    
-    
-    
 
-    
-    zz = f['Data/z_obs'][...].astype('f8')
-    rmag = f['Data/app_mag'][...].astype('f8')
-    absmag = f['Data/abs_mag'][...].astype('f8')
-    gr = f['Data/g_r'][...].astype('f8')
+    zz = f['Data/z_obs'][these].astype('f4')
+    rmag = f['Data/app_mag'][these].astype('f4')
+    absmag = f['Data/abs_mag'][these].astype('f4')
+    gr = f['Data/g_r'][these].astype('f4')
     f.close()
-
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        rmag = rmag[cut]
-        absmag = absmag[cut]
-        gr = gr[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
 
     if magcut is not None:
         cut = rmag < magcut
         if np.count_nonzero(cut) == 0:
-            log.fatal('No objects with r < {}!'.format(magcut))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        rmag = rmag[cut]
-        absmag = absmag[cut]
-        gr = gr[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
+            log.warning('No objects with r < {}!'.format(magcut))
+            return dict()
+        else:
+            objid = objid[cut]
+            mockid = mockid[cut]
+            ra = ra[cut]
+            dec = dec[cut]
+            zz = zz[cut]
+            rmag = rmag[cut]
+            absmag = absmag[cut]
+            gr = gr[cut]
+            nobj = len(ra)
+            log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
-
     seed = rand.randint(2**32, size=nobj)
     vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
 
