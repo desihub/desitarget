@@ -34,9 +34,6 @@ class SelectTargets(object):
         self.wise_extcoeff = (0.184, 0.113, 0.0241, 0.00910)
         self.sdss_extcoeff = (4.239, 3.303, 2.285, 1.698, 1.263)
 
-        #self.mws_scale = 10**(-0.4*(23.4-19.6))
-        #self.log.info('Using a constant factor to scale the MWS to fainter magnitudes!')
-
     def _star_select(self, targets, truth):
         """Select stellar (faint and bright) contaminants for the extragalactic
         targets.
@@ -313,7 +310,7 @@ class SelectTargets(object):
         for oo in self.desi_mask.SKY.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
 
-    def density_select(self, targets, truth, source_name, target_name, density):
+    def density_select(self, targets, truth, source_name, target_name, density=None):
         """Downsample a target sample to a desired number density in targets/deg2."""
         nobj = len(targets)
 
@@ -331,10 +328,9 @@ class SelectTargets(object):
 
             n_in_brick = len(onbrick)
             if n_in_brick == 0:
-                self.log.warning('No objects on brick {}, which should not happen!'.format(thisbrick))
-                raise ValueError
-
-            if density:
+                self.log.warning('No {}s on brick {}.'.format(target_name, thisbrick))
+                
+            if density and n_in_brick > 0:
                 mock_density = n_in_brick / brick_area
                 desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * density)
 
@@ -351,9 +347,6 @@ class SelectTargets(object):
                     frac_toss = 1.0 - frac_keep
                     toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
                     targets['DESI_TARGET'][toss] = 0 
-
-                #import pdb ; pdb.set_trace()
-
 
     def contaminants_select(self, targets, truth, source_name, target_name, contam):
         """Downsample contaminants to a desired number density in targets/deg2."""

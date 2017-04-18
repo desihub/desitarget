@@ -386,11 +386,6 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     if (len(brickindx) != 1):
         log.fatal('No matching brick {}! This should not happen...'.format(thisbrick))
         raise ValueError
-        #_targets = empty_targets_table()
-        #_truth = empty_truth_table()
-        #_trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
-        #_onbrick = np.array([], dtype=int)
-        #return [_targets, _truth, _trueflux, _onbrick]
 
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
@@ -503,6 +498,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
+        print()
+        
     source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
@@ -525,9 +522,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), source_name,
-                                                                                 len(unique_bricks),
-                                                                                 bricksize, bricksize))
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(len(brickname), source_name,
+                                                                          len(unique_bricks),
+                                                                          bricksize, bricksize))
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
@@ -583,7 +580,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 print()
 
             density = params['sources'][source_name]['density']
-            log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+            if target_name != 'QSO':
+                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+                
             if target_name == 'QSO':
                 # Distinguish between the Lyman-alpha and tracer QSOs
                 if 'LYA' in params['sources'][source_name].keys():
@@ -592,13 +591,14 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                     tracer = np.where(truth['TRUEZ'] < zcut)[0]
                     lya = np.where(truth['TRUEZ'] >= zcut)[0]
                     if len(tracer) > 0:
+                        log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
                         SelectTargets.density_select(targets[tracer], truth[tracer], source_name=source_name,
                                                      target_name=target_name, density=density)
+                        print()
                     if len(lya) > 0:
                         SelectTargets.density_select(targets[lya], truth[lya], source_name=source_name,
                                                      target_name=target_name, density=density_lya)
-
-                    #import pdb ; pdb.set_trace()
+                        log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
 
                 else:
                     SelectTargets.density_select(targets, truth, source_name=source_name,
@@ -626,8 +626,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
 
-    #import pdb ; pdb.set_trace()
-
     # Finally downsample contaminants.  The way this is being done isn't idea
     # because in principle an object could be a contaminant in one target class
     # (and be tossed) but be a contaminant for another target class and be kept.
@@ -652,7 +650,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    #import pdb ; pdb.set_trace()
     # Finally assign TARGETIDs, subpriorities, and shapes and fluxes.
     ntarget = len(targets)
 
