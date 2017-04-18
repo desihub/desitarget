@@ -555,6 +555,8 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
         FoMthresh: If this is passed, then run apply_XD_globalerror and
             return the Figure of Merits calculated for the ELGs in a file
             "FoM.fits" in the current working directory.
+            for RF, use a negative Threshold, abs(FoMthresh) is used as a 
+            probability cut
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object

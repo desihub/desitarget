@@ -2,6 +2,12 @@
 desitarget Change Log
 =====================
 
+
+(2017-04-18)
+-----------
+* Add Random Forest selection for ELG in the sandbox
+
+
 0.11.1 (Unreleased)
 -------------------
 
