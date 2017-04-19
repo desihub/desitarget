@@ -508,7 +508,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
-    import pdb ; pdb.set_trace()
+    #import pdb ; pdb.set_trace()
 
     # Loop over each source / object type.
     alltargets = list()
@@ -637,7 +637,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         alltrueflux.append(trueflux)
         print()
 
-    # Consolidate across all the mocks.  
+    # Consolidate across all the mocks.
+    if len(alltargets) == 0:
+        log.info('No targets; all done.')
+        return
+
     targets = vstack(alltargets)
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)

@@ -18,6 +18,7 @@ from scipy import constants
 from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desispec.brick import brickname as get_brickname_from_radec
+from desispec.brick import Bricks
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
@@ -278,12 +279,36 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG',
-            'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
+    
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
 
-    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+
+    cols = ['RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
+    data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
     mag = data['MAGG'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
@@ -291,35 +316,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     feh = data['FEH'].astype('f4')
     templatesubtype = data['SPECTRALTYPE']
 
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        feh = feh[cut]
-        templatesubtype = templatesubtype[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
-
     seed = rand.randint(2**32, size=nobj)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
@@ -393,46 +390,43 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    cols = ['RA','DEC','RADIALVELOCITY', 'G_SDSS',
-            'TEFF', 'LOGG', 'SPECTRALTYPE']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
+    
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
 
-    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+
+    cols = ['RADIALVELOCITY', 'G_SDSS', 'TEFF', 'LOGG', 'SPECTRALTYPE']
+    data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
     mag = data['G_SDSS'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
     logg = data['LOGG'].astype('f4')
     templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
 
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        templatesubtype = templatesubtype[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
-
     seed = rand.randint(2**32, size=nobj)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
@@ -893,15 +887,14 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             Number of mock targets per file.
 
     """
-    import multiprocessing
-    #nproc = max(1, multiprocessing.cpu_count() // 2)
+    min_ra, max_ra, min_dec, max_dec = bounds
 
     if False:
         iter_mock_files = iter_files(mock_dir_name, 'allsky', ext='fits')
     else:
         from glob import glob
         log.warning('Temporary hack using glob because I am having problems with iter_files.')
-        iter_mock_files = glob(mock_dir_name+'/*/*/*.fits')
+        iter_mock_files = glob(mock_dir_name+'/*/*/*/*.fits')
 
     file_list = list(iter_mock_files)
     nfiles = len(iter_mock_files)
@@ -918,6 +911,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     # Leaving this code here for the moment in case we fine a workaround
 
     if False:
+        import multiprocessing
         p = multiprocessing.Pool(nproc)
         target_list = p.map(_load_galaxia_file, file_list)
         p.close()
@@ -959,9 +953,17 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     nobj = len(ra)
     log.info('Read {} objects from {} mock files.'.format(nobj, nfiles))
 
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
+    if bounds is not None:        
         cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+        bb = fitsio.read(file_list[3], ext=1, upper=True, columns=['RA','DEC'])
+
+        import matplotlib.pyplot as plt
+        plt.scatter(ra, dec)
+        plt.scatter(bb['RA'], bb['DEC'])
+        plt.scatter(ra[cut], dec[cut])
+        plt.show()
+        import pdb ; pdb.set_trace()
+
         if np.count_nonzero(cut) == 0:
             log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
             raise ValueError
@@ -993,6 +995,33 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         feh = feh[cut]
         nobj = len(ra)
         log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
+
+    # Figure out which mock files to read based on the input boundaries.
+    brickfile = os.path.join(mock_dir_name, 'bricks.fits')
+    try:
+        os.stat(brickfile)
+    except:
+        log.fatal('Brick information file {} not found!'.format(brickfile))
+        raise IOError
+
+    bricks, header = fitsio.read(brickfile, extname='BRICKS', upper=True, header=True, columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+        
+    these = np.where((bricks['RA1'] >= (min_ra-bricksize/2)) *
+                     (bricks['RA2'] < (max_ra+bricksize/2)) *
+                     (bricks['DEC1'] >= (min_dec-bricksize/2)) *
+                     (bricks['DEC2'] <= (max_dec+bricksize/2)))[0]
+    
+    these = np.where((bricks['RA1'] >= (min_ra-bricksize/2)) * (bricks['RA2'] < (max_ra+bricksize/2)) * (bricks['DEC1'] >= (min_dec-bricksize/2)) * (bricks['DEC2'] <= (max_dec+bricksize/2)))[0]
+
+    these = np.where((bricks['RA1'] < min_ra) * (bricks['RA2'] > max_ra) * (bricks['DEC1'] < min_dec) * (bricks['DEC2'] > max_dec))[0]
+    
+    bb = np.where((min_ra > bricks['RA1']) * (max_ra < bricks['RA2']))[0]
+
+
+    bb = np.where((min_dec > bricks['DEC1']) & (max_dec < bricks['DEC2']) & (bricks['RA1'] >= min_ra) & (bricks['RA2'] <= (max_ra+bricksize)))[0]
+
+
+
 
     mockid = make_mockid(objid, n_per_file)
     seed = rand.randint(2**32, size=nobj)
