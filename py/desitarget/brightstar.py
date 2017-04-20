@@ -29,6 +29,8 @@ from desitarget import desi_mask, targetid_mask
 
 from desiutil import depend
 
+from desispec import brick
+
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
 
@@ -178,6 +180,55 @@ def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
     return collection
 
 
+def brickid(ra,dec,bricksize=0.25):
+    """Return the BRICKID for a given location
+    
+    Parameters
+    ----------
+    ra : array_like. 
+        The Right Ascensions of the locations of interest
+    dec : array_like. 
+        The Declinations of the locations of interest
+    bricksize : :class:`float`, optional
+        The longest size of the brick
+
+    Returns
+    -------
+    brickid : array_like. 
+        The legacysurvey BRICKID at the locations of interest
+    """
+    
+    #ADM set up the brick class from desispec
+    b = brick.Bricks(bricksize=bricksize)
+
+    #ADM record whether the user wanted non-array behavior
+    inscalar = np.isscalar(ra)
+
+    #ADM enforce array behavior
+    ra = np.atleast_1d(ra)
+    dec = np.atleast_1d(dec)
+
+    #ADM the brickrow based on the declination
+    brickrow = ((dec+90.0+bricksize/2)/bricksize).astype(int)
+
+    #ADM the brickcolumn based on the RA
+    ncol = b._ncol_per_row[brickrow]
+    brickcol = (ra/360.0 * ncol).astype(int)
+
+    #ADM the total number of BRICKIDs at the START of a given row
+    ncolsum = np.cumsum(np.append(0,b._ncol_per_row))
+
+    #ADM the BRICKID is just the sum of the number of columns up until
+    #ADM the row of interest, and the number of columns along that row
+    #ADM accounting for the indexes of the columns starting at 0
+    brickid = ncolsum[brickrow] + brickcol + 1
+
+    #ADM returns the brickid as a scalar or array (depending on what was passed)
+    if inscalar:
+        return brickid[0]
+    return brickid
+
+
 def max_objid_bricks(targs):
     """For a set of targets, return the maximum value of BRICK_OBJID in each BRICK_ID
 
@@ -284,7 +335,7 @@ def sphere_circle_ra_off(theta,centdec,declocs):
     return  np.degrees(offrar)
 
 
-def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
+def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
     Parameters
@@ -482,7 +533,7 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
     return ldict, bdict
 
 
-def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=True):
+def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=False):
     """Make a bright star mask from a structure of bright stars drawn from the sweeps
 
     Parameters
@@ -762,7 +813,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     return np.hstack(ra), np.hstack(dec)
 
 
-def append_safe_targets(targs,starmask,drstring=None):
+def append_safe_targets(targs,starmask,drstring):
     """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
@@ -773,6 +824,7 @@ def append_safe_targets(targs,starmask,drstring=None):
         A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
     drstring : :class:`str`, optional
         The imaging data release for the targets as a 9-string (i.e. 'dr3      ') to update TARGETID
+        If this is not passed, then SAFE (BADSKY) targets will be generated, but target bits will not be meaningful
 
     Returns
     -------
@@ -787,7 +839,7 @@ def append_safe_targets(targs,starmask,drstring=None):
         - Currently hard-coded to create an additional 10,000 safe locations per sq. deg. of mask. What is the 
           correct number per sq. deg. (Npersqdeg) for DESI is an open question.
     """
-    
+
     #ADM Number of safe locations per sq. deg. of each mask in starmask
     Npersqdeg = 10000
 
@@ -802,7 +854,13 @@ def append_safe_targets(targs,starmask,drstring=None):
     safes["RA"] = ra
     safes["DEC"] = dec
 
-    #ADM if the data release string was passed
+    #ADM set SKY in the TARGETID for safe locations
+    safes["TARGETID"] |= targetid_mask.SKY
+
+    #ADM set the bit for SAFE locations in DESITARGET
+    safes["DESI_TARGET"] = desi_mask.BADSKY
+
+    #ADM if the data release string was passed then add the brick-based bit information
     if drstring is not None:
         #ADM turn the string into the integer of the release
         drint = int(drstring[2:])
@@ -811,14 +869,11 @@ def append_safe_targets(targs,starmask,drstring=None):
         #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
         safes["TARGETID"] = drint << bit
 
-    #ADM set SKY in the TARGETID for safe locations
-    safes["TARGETID"] |= targetid_mask.SKY
+        #ADM read in the Data Release bricks file
+        rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
+        drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
 
-    #ADM count how many targets are in each brick on BRICKID
 
-
-    #ADM set the bit for SAFE locations in DESITARGET
-    safes["DESI_TARGET"] = desi_mask.BADSKY
 
     #ADM return the input targs with the SAFE targets appended
     return np.hstack([targs,safes])
@@ -858,7 +913,7 @@ def set_target_bits(targs,starmask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
+def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
     """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
