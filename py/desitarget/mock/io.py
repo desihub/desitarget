@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import numpy as np
+from glob import glob
 
 import fitsio
 from scipy import constants
@@ -797,7 +798,10 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
             'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '',
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def _load_galaxia_file(mockfile):
+def _load_galaxia_file(args):
+    return load_galaxia_file(*args)
+
+def load_galaxia_file(target_name, mockfile, bounds):
     """Multiprocessing support routine for read_galaxia.  Read each individual mock
     galaxia file.
 
@@ -808,12 +812,35 @@ def _load_galaxia_file(mockfile):
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    cols = ['RA','DEC','V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS',
-            'TEFF', 'LOGG', 'FEH']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+    min_ra, max_ra, min_dec, max_dec = bounds
 
-    ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    log.info('  Reading {}'.format(mockfile))
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
+    print(nobj)
+
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+
+    cols = ['V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
+    data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
     mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
     mag_obs = data['SDSSR_OBS'].astype('f4')     # SDSS r-band, observed
@@ -821,9 +848,9 @@ def _load_galaxia_file(mockfile):
     logg = data['LOGG'].astype('f4')
     feh = data['FEH'].astype('f4')
 
-    return {'OBJID': np.arange(len(ra), dtype='i8'), 'RA': ra, 'DEC': dec,
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec,
             'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
-            'LOGG': logg, 'FEH': feh}
+            'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
                  bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
@@ -887,114 +914,9 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             Number of mock targets per file.
 
     """
+    import multiprocessing
+    
     min_ra, max_ra, min_dec, max_dec = bounds
-
-    if False:
-        iter_mock_files = iter_files(mock_dir_name, 'allsky', ext='fits')
-    else:
-        from glob import glob
-        log.warning('Temporary hack using glob because I am having problems with iter_files.')
-        iter_mock_files = glob(mock_dir_name+'/*/*/*/*.fits')
-
-    file_list = list(iter_mock_files)
-    nfiles = len(iter_mock_files)
-
-    if nfiles == 0:
-        log.fatal('Unable to find files in {}'.format(mock_dir_name))
-        raise ValueError
-
-    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks due
-    # to python issue https://bugs.python.org/issue17560 where Pool.map can't
-    # return objects with more then 2**32-1 bytes:
-    # multiprocessing.pool.MaybeEncodingError: Error sending result: Reason:
-    # 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
-    # Leaving this code here for the moment in case we fine a workaround
-
-    if False:
-        import multiprocessing
-        p = multiprocessing.Pool(nproc)
-        target_list = p.map(_load_galaxia_file, file_list)
-        p.close()
-    else:
-        target_list = list()
-        for mock_file in iter_mock_files:
-            target_list.append(_load_galaxia_file(mock_file))
-
-    # Concatenate all the dictionaries into a single dictionary, in an order
-    # determined by np.argsort applied to the base name of each path in
-    # file_list.
-    file_order = np.argsort([os.path.basename(x) for x in file_list])
-
-    log.info('Combining mock files.')
-    full_data   = dict()
-    if len(target_list) > 0:
-        for k in list(target_list[0]): # iterate over keys
-            #log.info(' -- {}'.format(k))
-            data_list_this_key = list()
-            for itarget in file_order: # append all the arrays corresponding to a given key
-                data_list_this_key.append(target_list[itarget][k])
-
-            full_data[k] = np.concatenate(data_list_this_key) #consolidate data dictionary
-
-        # Count number of points per file
-        k          = list(target_list[0])[0] # pick the first available column
-        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-        ofile_list = [file_list[itarget] for itarget in file_order]
-
-    ra = full_data['RA']
-    dec = full_data['DEC']
-    zz = full_data['Z']
-    mag = full_data['MAG']
-    mag_obs = full_data['MAG_OBS']
-    objid = full_data['OBJID']
-    teff = full_data['TEFF']
-    logg = full_data['LOGG']
-    feh = full_data['FEH']
-    nobj = len(ra)
-    log.info('Read {} objects from {} mock files.'.format(nobj, nfiles))
-
-    if bounds is not None:        
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        bb = fitsio.read(file_list[3], ext=1, upper=True, columns=['RA','DEC'])
-
-        import matplotlib.pyplot as plt
-        plt.scatter(ra, dec)
-        plt.scatter(bb['RA'], bb['DEC'])
-        plt.scatter(ra[cut], dec[cut])
-        plt.show()
-        import pdb ; pdb.set_trace()
-
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        mag_obs = mag_obs[cut]
-        objid = objid[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        feh = feh[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    if magcut is not None:
-        cut = mag < magcut
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects with r < {}!'.format(magcut))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        mag_obs = mag_obs[cut]
-        objid = objid[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        feh = feh[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
 
     # Figure out which mock files to read based on the input boundaries.
     brickfile = os.path.join(mock_dir_name, 'bricks.fits')
@@ -1004,26 +926,101 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Brick information file {} not found!'.format(brickfile))
         raise IOError
 
-    bricks, header = fitsio.read(brickfile, extname='BRICKS', upper=True, header=True, columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+    #hdr = fitsio.read_header(brickfile, ext=0)
+    #bricksize = hdr['BRICKSIZ']
+    brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
+                            columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+    these = []
+    for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
+        these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
+                                (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
         
-    these = np.where((bricks['RA1'] >= (min_ra-bricksize/2)) *
-                     (bricks['RA2'] < (max_ra+bricksize/2)) *
-                     (bricks['DEC1'] >= (min_dec-bricksize/2)) *
-                     (bricks['DEC2'] <= (max_dec+bricksize/2)))[0]
+    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
+                            (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
+                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
+                            (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    these = np.unique( np.concatenate(these) )
     
-    these = np.where((bricks['RA1'] >= (min_ra-bricksize/2)) * (bricks['RA2'] < (max_ra+bricksize/2)) * (bricks['DEC1'] >= (min_dec-bricksize/2)) * (bricks['DEC2'] <= (max_dec+bricksize/2)))[0]
+    if len(these) == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
 
-    these = np.where((bricks['RA1'] < min_ra) * (bricks['RA2'] > max_ra) * (bricks['DEC1'] < min_dec) * (bricks['DEC2'] > max_dec))[0]
+    file_list = []
+    bricks = brickinfo['BRICKNAME'][these]
+    for bb in bricks:
+        bb = bb.decode('utf-8') # This will probably break in Python2 ??
+        file_list.append( glob(os.path.join(mock_dir_name, 'bricks', '???', bb, 'allsky_galaxia_desi_{}.fits'.format(bb))) )
+    file_list = list( np.concatenate(file_list) )
+    nfiles = len(file_list)
+
+    if nfiles == 0:
+        log.warning('No files found in {}!'.format(mock_dir_name))
+        return dict()
+
+    # Multiprocess the I/O
+    mpargs = list()
+    for ff in file_list:
+        mpargs.append((target_name, ff, bounds))
+        
+    if nproc > 1:
+        p = multiprocessing.Pool(nproc)
+        data1 = p.map(_load_galaxia_file, mpargs)
+        p.close()
+    else:
+        data1 = list()
+        for args in mpargs:
+            data1.append(_load_galaxia_file(args))
+
+    data = dict()
+    if len(data1) == 0:
+        log.warning('Something went wrong and no {} files were read.'.format(target_name))
+        return data
+
+    for k in data1[0].keys():
+        data[k] = np.concatenate([dd[k] for dd in data1])
+    del data1
+
+    objid = data['OBJID']
+    mockid = data['MOCKID']
+    ra = data['RA']
+    dec = data['DEC']
+    zz = data['Z']
+    mag = data['MAG']
+    mag_obs = data['MAG_OBS']
+    teff = data['TEFF']
+    logg = data['LOGG']
+    feh = data['FEH']
+    files = data['FILES']
+    n_per_file = data['N_PER_FILE']
+    nobj = len(ra)
+    del data
     
-    bb = np.where((min_ra > bricks['RA1']) * (max_ra < bricks['RA2']))[0]
+    log.info('Read {} {}s from {} files in range RA={}, {}, Dec={}, {}'.format(
+        nobj, target_name, nfiles, min_ra, max_ra, min_dec, max_dec))
 
+    #import matplotlib.pyplot as plt
+    #plt.scatter(ra, dec)
+    #plt.show()
+    
+    if magcut is not None:
+        cut = mag < magcut
+        if np.count_nonzero(cut) == 0:
+            log.warning('No objects with r < {}!'.format(magcut))
+            return dict()
+        else:
+            mockid = mockid[cut]
+            objid = objid[cut]
+            ra = ra[cut]
+            dec = dec[cut]
+            zz = zz[cut]
+            mag = mag[cut]
+            mag_obs = mag_obs[cut]
+            teff = teff[cut]
+            logg = logg[cut]
+            feh = feh[cut]
+            nobj = len(ra)
+            log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
-    bb = np.where((min_dec > bricks['DEC1']) & (max_dec < bricks['DEC2']) & (bricks['RA1'] >= min_ra) & (bricks['RA2'] <= (max_ra+bricksize)))[0]
-
-
-
-
-    mockid = make_mockid(objid, n_per_file)
     seed = rand.randint(2**32, size=nobj)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
@@ -1031,7 +1028,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
-            'FILES': ofile_list, 'N_PER_FILE': n_per_file}
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 def _load_lya_file(mockfile):
     """Multiprocessing support routine for read_galaxia.  Reach each individual mock
