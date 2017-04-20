@@ -2,16 +2,18 @@
 desitarget Change Log
 =====================
 
-
-(2017-04-18)
------------
-* Add Random Forest selection for ELG in the sandbox
-
-
 0.11.1 (Unreleased)
 -------------------
 
-* No changes yet
+* Significant expansion of the mocks-to-targets code [`PR #173`_]:
+  * Better and more graceful error handling.
+  * Now includes contaminants.
+  * Much better memory handling (by cutting on RA,Dec boundaries).
+  * Updated QA notebook.
+* Add Random Forest selection for ELG in the sandbox [`PR #174`_].
+
+.. _`PR #173`: https://github.com/desihub/desitarget/pull/173
+.. _`PR #174`: https://github.com/desihub/desitarget/pull/174
 
 0.11.0 (2017-04-14)
 -------------------
