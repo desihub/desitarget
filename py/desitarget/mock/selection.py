@@ -334,16 +334,12 @@ class SelectTargets(object):
         """Downsample a target sample to a desired number density in targets/deg2."""
         nobj = len(targets)
 
+        brick_area = float(self.brick_info['BRICKAREA'][0])
         unique_bricks = list(set(targets['BRICKNAME']))
         n_brick = len(unique_bricks)
 
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
-            if len(brickindx) == 0:
-                self.log.warning('No matching brick {}!'.format(thisbrick))
-                raise ValueError
-            brick_area = float(self.brick_info['BRICKAREA'][brickindx])
-
             onbrick = np.where((targets['BRICKNAME'] == thisbrick) * (truth['CONTAM_TARGET'] == 0))[0]
 
             n_in_brick = len(onbrick)
@@ -374,13 +370,10 @@ class SelectTargets(object):
 
         unique_bricks = list(set(targets['BRICKNAME']))
         n_brick = len(unique_bricks)
+        brick_area = float(self.brick_info['BRICKAREA'][0])
 
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
-            if len(brickindx) == 0:
-                self.log.warning('No matching brick {}!'.format(thisbrick))
-                raise ValueError
-            brick_area = float(self.brick_info['BRICKAREA'][brickindx])
 
             for contam_name in contam.keys():
 

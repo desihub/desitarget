@@ -382,13 +382,8 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
-
-    if (len(brickindx) != 1):
-        log.fatal('No matching brick {}! This should not happen...'.format(thisbrick))
-        raise ValueError
 
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
@@ -480,7 +475,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
                   params['subset']['min_dec'], params['subset']['max_dec'])
     else:
-        bounds = (0.0, 359.99, -89.99, 89.99)
+        bounds = (0.0, 360.0, -90.0, 90.0)
 
     for src in params['sources'].keys():
         params['sources'][src].update({'bounds': bounds})
@@ -507,8 +502,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
-    #import pdb ; pdb.set_trace()
-
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -531,8 +524,17 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (roughly) {:g} deg2.'.format(
-            len(brickname), source_name, len(unique_bricks), bricksize, bricksize, len(unique_bricks) * bricksize**2))
+
+        # Quickly check that info on all the bricks are here.
+        for thisbrick in unique_bricks:
+            brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+            if (len(brickindx) != 1):
+                log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+                raise ValueError
+        skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
+        
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
 
         #import matplotlib.pyplot as plt
         #plt.scatter(brick_info['RA1'], brick_info['DEC1'])
@@ -540,10 +542,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         #plt.scatter(source_data['RA'], source_data['DEC'], alpha=0.1)
         #plt.show()
         #import pdb ; pdb.set_trace()
-        #for thisbrick in unique_bricks:
-        #    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-        #    if (len(brickindx) != 1):
-        #        import pdb ; pdb.set_trace()
         
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -679,7 +677,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    # Finally assign TARGETIDs, subpriorities, and shapes and fluxes.
+    # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
 
     targetid = rand.randint(2**62, size=ntarget)
@@ -731,7 +729,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
-                                                                          outbricksize, outbricksize))
+                                                                      outbricksize, outbricksize))
     # Create the RA-slice directories, if necessary and then initialize the output header.
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
