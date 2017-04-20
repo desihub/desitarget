@@ -975,13 +975,15 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         for args in mpargs:
             data1.append(_load_galaxia_file(args))
 
+    # Remove empty dictionaries and then consolidate.
     data = dict()
+    data1 = [dd for dd in data1 if dd]
+    if len(data1) == 0:
+        return data
+
     for k in data1[0].keys():
         data[k] = np.concatenate([dd[k] for dd in data1])
     del data1
-
-    if len(data) == 0:
-        return data
 
     objid = data['OBJID']
     mockid = data['MOCKID']
