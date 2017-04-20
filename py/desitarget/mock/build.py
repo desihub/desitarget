@@ -387,7 +387,6 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     nobj = len(onbrick)
 
     if (len(brickindx) != 1):
-        import pdb ; pdb.set_trace()
         log.fatal('No matching brick {}! This should not happen...'.format(thisbrick))
         raise ValueError
 

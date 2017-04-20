@@ -757,14 +757,18 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     cut = np.where(these)[0]
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(
+            target_name, min_ra, max_ra, min_dec, max_dec))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(
+            nobj, target_name, min_ra, max_ra, min_dec, max_dec))
 
     objid = objid[cut]
     mockid = mockid[cut]
-
+    ra = ra[cut]
+    dec = dec[cut]
+    
     zz = f['Data/z_obs'][these].astype('f4')
     rmag = f['Data/app_mag'][these].astype('f4')
     absmag = f['Data/abs_mag'][these].astype('f4')
