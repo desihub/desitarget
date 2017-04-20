@@ -100,8 +100,7 @@ class BrickInfo(object):
         brick_info['DEC2'] =   []
         brick_info['BRICKAREA'] =  []
 
-        i_rows = np.where((B._edges_dec < max_dec) & (B._edges_dec >= min_dec))[0]
-
+        i_rows = np.where(((B._edges_dec+self.bricksize) >= min_dec) & ((B._edges_dec-self.bricksize) <= max_dec))[0]
         for i_row in i_rows:
             j_col_min = int((min_ra)/360 * B._ncol_per_row[i_row])
             j_col_max = int((max_ra)/360 * B._ncol_per_row[i_row])
@@ -126,7 +125,7 @@ class BrickInfo(object):
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
 
-        log.info('Generating brick information for {} brick(s) with boundaries RA={}, {}, Dec={}, {} and bricksize {} deg.'.\
+        log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
                  format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
                         self.bounds[2], self.bounds[3], self.bricksize))
 
@@ -388,6 +387,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     nobj = len(onbrick)
 
     if (len(brickindx) != 1):
+        import pdb ; pdb.set_trace()
         log.fatal('No matching brick {}! This should not happen...'.format(thisbrick))
         raise ValueError
 
@@ -532,10 +532,20 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning {:g} deg2.'.format(len(brickname), source_name,
-                                                                                             len(unique_bricks),
-                                                                                             bricksize, bricksize,
-                                                                                             len(unique_bricks) * bricksize**2))
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (roughly) {:g} deg2.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize, len(unique_bricks) * bricksize**2))
+
+        #import matplotlib.pyplot as plt
+        #plt.scatter(brick_info['RA1'], brick_info['DEC1'])
+        #plt.scatter(brick_info['RA2'], brick_info['DEC2'])
+        #plt.scatter(source_data['RA'], source_data['DEC'], alpha=0.1)
+        #plt.show()
+        #import pdb ; pdb.set_trace()
+        #for thisbrick in unique_bricks:
+        #    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+        #    if (len(brickindx) != 1):
+        #        import pdb ; pdb.set_trace()
+        
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
