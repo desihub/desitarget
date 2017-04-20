@@ -39,7 +39,10 @@ def fileid_filename(source_data, output_dir):
     returns mapping dictionary map[mockanme][filenum] = filepath
 
     '''
-    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
+    outfile = os.path.join(output_dir, 'map_id_filename.txt')
+    log.info('Writing {}'.format(outfile))
+    
+    out = open(outfile, 'w')
     map_id_name = {}
     for k in source_data.keys():
         map_id_name[k] = {}
@@ -499,8 +502,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         print()
         
     source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
-    # map_fileid_filename = fileid_filename(source_data_all, output_dir)
+    map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
+
+    import pdb ; pdb.set_trace()
 
     # Loop over each source / object type.
     alltargets = list()

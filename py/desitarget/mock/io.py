@@ -998,14 +998,10 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     n_per_file = data['N_PER_FILE']
     nobj = len(ra)
     del data
-    
+
     log.info('Read {} {}s from {} files in range RA={}, {}, Dec={}, {}'.format(
         nobj, target_name, nfiles, min_ra, max_ra, min_dec, max_dec))
 
-    #import matplotlib.pyplot as plt
-    #plt.scatter(ra, dec)
-    #plt.show()
-    
     if magcut is not None:
         cut = mag < magcut
         if np.count_nonzero(cut) == 0:

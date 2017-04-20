@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.11.1 (Unreleased)
+0.12.0 (Unreleased)
 -------------------
 
 * Significant expansion of the mocks-to-targets code [`PR #173`_]:
