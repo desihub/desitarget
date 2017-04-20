@@ -47,11 +47,12 @@ def fileid_filename(source_data, output_dir):
     for k in source_data.keys():
         map_id_name[k] = {}
         data = source_data[k]
-        filenames = data['FILES']
-        n_files = len(filenames)
-        for i in range(n_files):
-            map_id_name[k][i] = filenames[i]
-            out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
+        if 'FILES' in data.keys():
+            filenames = data['FILES']
+            n_files = len(filenames)
+            for i in range(n_files):
+                map_id_name[k][i] = filenames[i]
+                out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
     out.close()
 
     return map_id_name
@@ -505,8 +506,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
-    import pdb ; pdb.set_trace()
-
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -541,13 +540,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
             len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
 
-        #import matplotlib.pyplot as plt
-        #plt.scatter(brick_info['RA1'], brick_info['DEC1'])
-        #plt.scatter(brick_info['RA2'], brick_info['DEC2'])
-        #plt.scatter(source_data['RA'], source_data['DEC'], alpha=0.1)
-        #plt.show()
-        #import pdb ; pdb.set_trace()
-        
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
         def _update_spectra_status(result):
