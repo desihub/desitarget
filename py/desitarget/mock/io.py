@@ -821,7 +821,6 @@ def load_galaxia_file(target_name, mockfile, bounds):
     log.info('  Reading {}'.format(mockfile))
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     nobj = len(radec)
-    print(nobj)
 
     files = list()
     n_per_file = list()
@@ -834,7 +833,6 @@ def load_galaxia_file(target_name, mockfile, bounds):
     cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
         return dict()
 
     objid = objid[cut]
@@ -934,26 +932,50 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     #bricksize = hdr['BRICKSIZ']
     brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
                             columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+
+    # There's gotta be a smarter way to do this...
     these = []
     for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
         these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
                                 (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
-        
+
+    # Bricks in the middle.
     these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
                             (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
                             (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
                             (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    # Left column
+    these.append( np.where( (brickinfo['RA1'] <= min_ra) * (brickinfo['RA2'] >= min_ra) *
+                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    # Right column
+    these.append( np.where( (brickinfo['RA1'] <= max_ra) * (brickinfo['RA2'] >= max_ra) *
+                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    # Top row
+    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
+                            (brickinfo['DEC1'] <= max_dec) * (brickinfo['DEC2'] >= max_dec) )[0] )
+    # Bottom row
+    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
+                            (brickinfo['DEC1'] <= min_dec) * (brickinfo['DEC2'] >= min_dec) )[0] )
     these = np.unique( np.concatenate(these) )
     
     if len(these) == 0:
         log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
         return dict()
 
+    if target_name.upper() == 'FAINTSTAR':
+        suffix = '_superfaint'
+    else:
+        suffix = ''
+        
     file_list = []
     bricks = brickinfo['BRICKNAME'][these]
     for bb in bricks:
         bb = bb.decode('utf-8') # This will probably break in Python2 ??
-        file_list.append( glob(os.path.join(mock_dir_name, 'bricks', '???', bb, 'allsky_galaxia_desi_{}.fits'.format(bb))) )
+        ff = os.path.join(mock_dir_name, 'bricks', '???', bb, 'allsky_galaxia{}_desi_{}.fits'.format(suffix, bb))
+        if os.path.isfile:
+            file_list.append( glob(ff) )
+        else:
+            log.warning('Missing file {}'.format(ff))
     file_list = list( np.concatenate(file_list) )
     nfiles = len(file_list)
 
@@ -979,6 +1001,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     data = dict()
     data1 = [dd for dd in data1 if dd]
     if len(data1) == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
         return data
 
     for k in data1[0].keys():
@@ -1002,6 +1025,34 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     log.info('Read {} {}s from {} files in range RA={}, {}, Dec={}, {}'.format(
         nobj, target_name, nfiles, min_ra, max_ra, min_dec, max_dec))
+
+    # Debugging plot that I would like to keep here for now.
+    if False:
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Polygon
+        verts = [(min_ra, min_dec), (max_ra, min_dec), (max_ra, max_dec), (min_ra, max_dec)]
+        fig, ax = plt.subplots()
+        ax.scatter(ra, dec, alpha=0.2)
+        ax.add_patch(Polygon(verts, fill=False, color='red', ls='--'))
+        for tt in these:
+            verts = [
+                (brickinfo['RA1'][tt], brickinfo['DEC1'][tt]), (brickinfo['RA2'][tt], brickinfo['DEC1'][tt]),
+                (brickinfo['RA2'][tt], brickinfo['DEC2'][tt]), (brickinfo['RA1'][tt], brickinfo['DEC2'][tt])
+                ]
+            #print(verts)
+            ax.add_patch(Polygon(verts, fill=False, color='green', ls='--'))
+        mm = np.arange(len(brickinfo))
+        for tt in mm:
+            verts = [
+                (brickinfo['RA1'][tt], brickinfo['DEC1'][tt]), (brickinfo['RA2'][tt], brickinfo['DEC1'][tt]),
+                (brickinfo['RA2'][tt], brickinfo['DEC2'][tt]), (brickinfo['RA1'][tt], brickinfo['DEC2'][tt])
+                ]
+            ax.add_patch(Polygon(verts, fill=False, color='black', ls='-', lw=2))
+        ax.set_xlim(min_ra-5, max_ra+5)
+        ax.set_ylim(min_dec-5, max_dec+5)
+        ax.margins(0.05)
+        plt.show(block=False)
+        import pdb ; pdb.set_trace()
 
     if magcut is not None:
         cut = mag < magcut
