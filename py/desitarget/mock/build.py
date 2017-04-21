@@ -39,16 +39,20 @@ def fileid_filename(source_data, output_dir):
     returns mapping dictionary map[mockanme][filenum] = filepath
 
     '''
-    out = open(os.path.join(output_dir, 'map_id_filename.txt'), 'w')
+    outfile = os.path.join(output_dir, 'map_id_filename.txt')
+    log.info('Writing {}'.format(outfile))
+    
+    out = open(outfile, 'w')
     map_id_name = {}
     for k in source_data.keys():
         map_id_name[k] = {}
         data = source_data[k]
-        filenames = data['FILES']
-        n_files = len(filenames)
-        for i in range(n_files):
-            map_id_name[k][i] = filenames[i]
-            out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
+        if 'FILES' in data.keys():
+            filenames = data['FILES']
+            n_files = len(filenames)
+            for i in range(n_files):
+                map_id_name[k][i] = filenames[i]
+                out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
     out.close()
 
     return map_id_name
@@ -57,7 +61,7 @@ class BrickInfo(object):
     """Gather information on all the bricks.
 
     """
-    def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 359.99, -89.99, 89.99),
+    def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 360.0, -90.0, 90.0),
                  bricksize=0.25, decals_brick_info=None, target_names=None):
         """Initialize the class.
 
@@ -100,12 +104,10 @@ class BrickInfo(object):
         brick_info['DEC2'] =   []
         brick_info['BRICKAREA'] =  []
 
-        i_rows = np.where((B._edges_dec < (max_dec+B._bricksize)) &
-                          (B._edges_dec > (min_dec-B._bricksize)))[0]
-
+        i_rows = np.where(((B._edges_dec+self.bricksize) >= min_dec) & ((B._edges_dec-self.bricksize) <= max_dec))[0]
         for i_row in i_rows:
-            j_col_min = int((min_ra )/360 * B._ncol_per_row[i_row])
-            j_col_max = int((max_ra )/360 * B._ncol_per_row[i_row])
+            j_col_min = int((min_ra)/360 * B._ncol_per_row[i_row])
+            j_col_max = int((max_ra)/360 * B._ncol_per_row[i_row])
 
             for j_col in range(j_col_min, j_col_max+1):
                 brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
@@ -127,7 +129,7 @@ class BrickInfo(object):
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
 
-        log.info('Generating brick information for {} brick(s) with boundaries RA={}, {}, Dec={}, {} and bricksize {} deg.'.\
+        log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
                  format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
                         self.bounds[2], self.bounds[3], self.bricksize))
 
@@ -333,8 +335,12 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U10'))
     targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
     targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj,
                               data=np.zeros((nobj, 6)), dtype='f4'))
     targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj,
@@ -350,11 +356,12 @@ def empty_truth_table(nobj=1):
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
+    truth.add_column(Column(name='CONTAM_TARGET', length=nobj, dtype='i8'))
 
     truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype=(str, 10))) # GALAXY, QSO, STAR, etc.
-    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype=(str, 10))) # ELG, BGS, STAR, WD, etc.
-    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype=(str, 10))) # DA, DB, etc.
+    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
+    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='U10')) # ELG, BGS, STAR, WD, etc.
+    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='U10')) # DA, DB, etc.
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
@@ -379,18 +386,8 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
-
-    if (len(brickindx) != 1):
-        log.fatal('No matching brick {}! This should not happen...'.format(thisbrick))
-        raise ValueError
-        #_targets = empty_targets_table()
-        #_truth = empty_truth_table()
-        #_trueflux = np.zeros((1, len(Spectra.wave)), dtype='f4')
-        #_onbrick = np.array([], dtype=int)
-        #return [_targets, _truth, _trueflux, _onbrick]
 
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
@@ -482,7 +479,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
                   params['subset']['min_dec'], params['subset']['max_dec'])
     else:
-        bounds = (0.0, 359.99, -89.99, 89.99)
+        bounds = (0.0, 360.0, -90.0, 90.0)
 
     for src in params['sources'].keys():
         params['sources'][src].update({'bounds': bounds})
@@ -503,8 +500,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Print info about the mocks we will be loading and then load them.
     if verbose:
         mockio.print_all_mocks_info(params)
+        print()
+        
     source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
-    # map_fileid_filename = fileid_filename(source_data_all, output_dir)
+    map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
     # Loop over each source / object type.
@@ -512,12 +511,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     alltruth = list()
     alltrueflux = list()
     for source_name in params['sources'].keys():
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG, BADQSO)
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
 
         source_data = source_data_all[source_name]     # data (ra, dec, etc.)
-        nobj = len(source_data['RA'])
 
+        # If there are no sources, keep going.
+        if not bool(source_data):
+            continue
+        
+        nobj = len(source_data['RA'])
         targets = empty_targets_table(nobj)
         truth = empty_truth_table(nobj)
         trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
@@ -525,9 +528,17 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-        log.info('Assigned {} {} objects to {} unique {}x{} deg2 bricks.'.format(len(brickname), source_name,
-                                                                                 len(unique_bricks),
-                                                                                 bricksize, bricksize))
+
+        # Quickly check that info on all the bricks are here.
+        for thisbrick in unique_bricks:
+            brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+            if (len(brickindx) != 1):
+                log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+                raise ValueError
+        skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
+        
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -560,39 +571,110 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         targets['DEC'] = source_data['DEC']
         targets['BRICKNAME'] = brickname
 
+        if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+            for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                        'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+                targets[key] = source_data[key]
+
         truth['MOCKID'] = source_data['MOCKID']
         truth['TRUEZ'] = source_data['Z'].astype('f4')
         truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
         truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
         truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
 
-        # Select targets and get the targeting bits.
+        # Select targets.
         selection_function = '{}_select'.format(target_name.lower())
         getattr(SelectTargets, selection_function)(targets, truth)
 
-        targkeep = np.where(targets['DESI_TARGET'] != 0)[0]
-
+        keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        if len(keep) == 0:
+            log.warning('No {} targets identified!'.format(target_name))
+        else:
+            targets = targets[keep]
+            truth = truth[keep]
+            trueflux = trueflux[keep, :]
+            
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
+            if verbose:
+                print()
+
             density = params['sources'][source_name]['density']
-            log.info('Downsampling to desired target density {} targets/deg2.'.format(density))
-            denskeep = SelectTargets.density_select(targets[targkeep], density=density,
-                                                    sourcename=source_name)
-            keep = targkeep[denskeep]
-        else:
-            keep = targkeep
+            if target_name != 'QSO':
+                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+                
+            if target_name == 'QSO':
+                # Distinguish between the Lyman-alpha and tracer QSOs
+                if 'LYA' in params['sources'][source_name].keys():
+                    density_lya = params['sources'][source_name]['LYA']['density']
+                    zcut = params['sources'][source_name]['LYA']['zcut']
+                    tracer = np.where(truth['TRUEZ'] < zcut)[0]
+                    lya = np.where(truth['TRUEZ'] >= zcut)[0]
+                    if len(tracer) > 0:
+                        log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+                        SelectTargets.density_select(targets[tracer], truth[tracer], source_name=source_name,
+                                                     target_name=target_name, density=density)
+                        print()
+                    if len(lya) > 0:
+                        SelectTargets.density_select(targets[lya], truth[lya], source_name=source_name,
+                                                     target_name=target_name, density=density_lya)
+                        log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
 
-        alltargets.append(targets[keep])
-        alltruth.append(truth[keep])
-        alltrueflux.append(trueflux[keep, :])
+                else:
+                    SelectTargets.density_select(targets, truth, source_name=source_name,
+                                                 target_name=target_name, density=density)
+                    
+            else:
+                SelectTargets.density_select(targets, truth, source_name=source_name,
+                                             target_name=target_name, density=density)            
 
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                log.warning('All {} targets rejected!'.format(target_name))
+            else:
+                targets = targets[keep]
+                truth = truth[keep]
+                trueflux = trueflux[keep, :]
+
+        alltargets.append(targets)
+        alltruth.append(truth)
+        alltrueflux.append(trueflux)
         print()
 
-    # Consolidate across all the mocks and then assign TARGETIDs, subpriorities,
-    # and shapes and fluxes.
+    # Consolidate across all the mocks.
+    if len(alltargets) == 0:
+        log.info('No targets; all done.')
+        return
+
     targets = vstack(alltargets)
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
+
+    # Finally downsample contaminants.  The way this is being done isn't idea
+    # because in principle an object could be a contaminant in one target class
+    # (and be tossed) but be a contaminant for another target class and be kept.
+    # But I think this is mostly OK.
+    for source_name in params['sources'].keys():
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+        
+        if 'contam' in params['sources'][source_name].keys():
+            if verbose:
+                print()
+            log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
+            
+            contam = params['sources'][source_name]['contam']
+            SelectTargets.contaminants_select(targets, truth, source_name=source_name,
+                                              target_name=target_name, contam=contam)
+            
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                log.warning('All {} contaminants rejected!'.format(target_name))
+            else:
+                targets = targets[keep]
+                truth = truth[keep]
+                trueflux = trueflux[keep, :]
+
+    # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
 
     targetid = rand.randint(2**62, size=ntarget)
@@ -614,7 +696,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     nsky = len(isky)
     if nsky:
         log.info('Writing {}'.format(skyfile))
-        write_bintable(skyfile, targets[isky], extname='SKY')
+        write_bintable(skyfile, targets[isky], extname='SKY', clobber=True)
 
         log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
         notsky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) == 0)[0]
@@ -644,7 +726,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
-                                                                          outbricksize, outbricksize))
+                                                                      outbricksize, outbricksize))
     # Create the RA-slice directories, if necessary and then initialize the output header.
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
