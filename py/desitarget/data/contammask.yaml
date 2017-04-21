@@ -1,0 +1,19 @@
+#- Bit definitions for contaminating objects.
+
+contam_mask:
+    - [BGS_IS_STAR, 0, "BGS_IS_STAR"]
+
+    - [ELG_IS_STAR, 3, "ELG_IS_STAR"]
+    - [ELG_IS_QSO,  4, "ELG_IS_QSO"]
+
+    - [LRG_IS_STAR, 7, "LRG_IS_STAR"]
+
+    - [QSO_IS_STAR,   10, "QSO_IS_STAR"]
+    - [QSO_IS_ELG,    11, "QSO_IS_ELG"]
+    - [QSO_IS_LRG,    12, "QSO_IS_LRG"]
+    - [QSO_IS_GALAXY, 13, "Either QSO_IS_ELG or QSO_IS_LRG bit is set"]
+
+    - [BGS_CONTAM, 20, "Any BGS_IS_* bit is set"]
+    - [ELG_CONTAM, 21, "Any ELG_IS_* bit is set"]
+    - [LRG_CONTAM, 22, "Any LRG_IS_* bit is set"]
+    - [QSO_CONTAM, 23, "Any QSO_IS_* bit is set"]

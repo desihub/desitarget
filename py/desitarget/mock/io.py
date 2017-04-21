@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import numpy as np
+from glob import glob
 
 import fitsio
 from scipy import constants
@@ -18,6 +19,7 @@ from scipy import constants
 from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desispec.brick import brickname as get_brickname_from_radec
+from desispec.brick import Bricks
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
@@ -55,7 +57,7 @@ def print_all_mocks_info(params):
             The different kind of sources are stored under the 'sources' key.
 
     """
-    log.info('The following populations and paths are specified:')
+    log.info('Paths and targets:')
     for source_name in params['sources'].keys():
         source_format = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['mock_dir_name']
@@ -105,11 +107,16 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         read_function = 'read_{}'.format(source_format)
 
         log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
-        log.info('Mock file/path {} to be read with mock.io.{}'.format(mock_dir_name, read_function))
+        log.info('Reading {} with mock.io.{}'.format(mock_dir_name, read_function))
 
         func = globals()[read_function]
-        result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                      bounds=bounds, magcut=magcut, nproc=nproc)
+        if 'LYA' in params['sources'][source_name].keys():
+            result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                          bounds=bounds, magcut=magcut, nproc=nproc, lya=params['sources'][source_name]['LYA'])
+        else:
+            result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                          bounds=bounds, magcut=magcut, nproc=nproc)
+
         source_data_all[source_name] = result
         print()
 
@@ -206,7 +213,7 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=None, magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -273,12 +280,36 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    cols = ['RA','DEC','RADIALVELOCITY', 'MAGG',
-            'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
+    
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
 
-    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+
+    cols = ['RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
+    data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
     mag = data['MAGG'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
@@ -286,35 +317,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     feh = data['FEH'].astype('f4')
     templatesubtype = data['SPECTRALTYPE']
 
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        feh = feh[cut]
-        templatesubtype = templatesubtype[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
-
     seed = rand.randint(2**32, size=nobj)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
@@ -324,7 +327,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
-               bounds=None, magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -388,46 +391,43 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    cols = ['RA','DEC','RADIALVELOCITY', 'G_SDSS',
-            'TEFF', 'LOGG', 'SPECTRALTYPE']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
+    
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
 
-    ra = data['RA'].astype('f8') % 360.0 #enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+
+    cols = ['RADIALVELOCITY', 'G_SDSS', 'TEFF', 'LOGG', 'SPECTRALTYPE']
+    data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
     mag = data['G_SDSS'].astype('f4') # SDSS g-band
     teff = data['TEFF'].astype('f4')
     logg = data['LOGG'].astype('f4')
     templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
 
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        templatesubtype = templatesubtype[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    files = list()
-    files.append(mockfile)
-    n_per_file = list()
-    n_per_file.append(nobj)
-
-    objid = np.arange(nobj, dtype='i8')
-    mockid = make_mockid(objid, n_per_file)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
-
     seed = rand.randint(2**32, size=nobj)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
@@ -450,7 +450,8 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-               bounds=None, magcut=None, nproc=None):
+                       lya=None, bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
+                       nproc=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -470,6 +471,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         Magnitude cut to apply to the sample (not used here).
     nproc : int
         Number of cores to use for reading (not used here).
+    lya : dictionary
+        Information on the Lyman-alpha mock to read.
 
     Returns
     -------
@@ -517,75 +520,100 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             Velocity dispersion (km/s) (only for ELG, LRG).
 
     """
-    if target_name == 'SKY':
-        mockfile = mock_dir_name
-        columns = ['RA', 'DEC']
-    else:
-        from pathlib import Path
-        f = Path(mock_dir_name)
-        if f.is_file():
-            mockfile = mock_dir_name
-        else:
-            mockfile = os.path.join(mock_dir_name, '{}.fits'.format(target_name.upper()))
-
-        columns = ['RA', 'DEC', 'Z_COSMO', 'DZ_RSD']
-
+    mockfile = mock_dir_name
     try:
         os.stat(mockfile)
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    if False:
-        log.warning('Reading a random subset of sources for testing!')
-        nrows = fitsio.FITS(mockfile)[1].get_nrows()
-        rows = rand.randint(0, nrows, 100000)
-        data = fitsio.read(mockfile, columns=columns, upper=True, rows=rows)
-    else:
-        data = fitsio.read(mockfile, columns=columns, upper=True)
-
-    ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
     
-    if target_name == 'SKY':
-        zz = np.zeros(len(ra), dtype='f4')
-    else:
-        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
-    del data
-
-    nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    # Cut the QSO sample to z<2.1
-    if target_name == 'QSO':
-        cut = (zz > 0) * (zz < 2.1)
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} QSOs in redshift range 0.0<z<2.1'.format(nobj))
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
 
     files = list()
-    files.append(mockfile)
     n_per_file = list()
+    files.append(mockfile)
     n_per_file.append(nobj)
 
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
-    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+        
+    if target_name == 'SKY':
+        zz = np.zeros(nobj, dtype='f4')
+    else:
+        data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
+        zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+        del data
+    
+    mag = np.repeat(-1, nobj) # placeholder
+
+    # Combine the QSO and Lyman-alpha samples.
+    if target_name == 'QSO' and lya:
+
+        log.info('  Adding Lya QSOs.')
+
+        mockfile_lya = lya['mock_dir_name']
+        try:
+            os.stat(mockfile_lya)
+        except:
+            log.fatal('Mock file {} not found!'.format(mockfile_lya))
+            raise IOError
+
+        radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj_lya = len(radec)
+
+        files.append(mockfile_lya)
+        n_per_file.append(nobj_lya)
+
+        objid_lya = np.arange(nobj_lya, dtype='i8')
+        mockid_lya = make_mockid(objid_lya, [n_per_file[1]])
+
+        cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+        nobj_lya = len(cut)
+        if nobj_lya == 0:
+            log.warning('  No Lya QSOs in range RA={}, {}, Dec={}, {}!'.format(min_ra, max_ra, min_dec, max_dec))
+        else:
+            log.info('  Trimmed to {} Lya QSOs in range RA={}, {}, Dec={}, {}'.format(nobj_lya, min_ra, max_ra, min_dec, max_dec))
+
+            objid_lya = objid_lya[cut]
+            mockid_lya = mockid_lya[cut]
+            ra_lya = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+            dec_lya = radec['DEC'][cut].astype('f8')
+            del radec
+
+            data = fitsio.read(mockfile_lya, columns=['Z', 'MAG_G'], upper=True, ext=1, rows=cut)
+            zz_lya = data['Z'].astype('f4')
+            mag_lya = data['MAG_G'].astype('f4') # g-band
+
+            # Join the QSO + Lya samples
+            ra = np.concatenate((ra, ra_lya))
+            dec = np.concatenate((dec, dec_lya))
+            zz  = np.concatenate((zz, zz_lya))
+            mag = np.concatenate((mag, mag_lya))
+            objid = np.concatenate((objid, objid_lya))
+            mockid = np.concatenate((mockid, mockid_lya))
+            nobj = len(ra)
+
+        log.info('The combined QSO sample has {} targets.'.format(nobj))
+        
+    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
@@ -601,25 +629,37 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
-        out.update({'GR': mags[:, 0]-mags[:, 1], 'RZ': mags[:, 1]-mags[:, 2],
-                    'RW1': mags[:, 1]-mags[:, 3], 'W1W2': mags[:, 3]-mags[:, 4]})
+        out.update({'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+                    'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
+
+        if target_name in ('ELG', 'LRG'):
+            out.update({
+                'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'], 
+                'SHAPEDEV_R': mags['dev_r'], 'SHAPEDEV_E1': mags['dev_e1'], 'SHAPEDEV_E2': mags['dev_e2']
+                })
 
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
             vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
-                        'VDISP': vdisp, 'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
+                        'VDISP': vdisp, 'MAG': mags['r'], 'FILTERNAME': 'decam2014-r'})
 
         elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
             vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
-                        'VDISP': vdisp, 'MAG': mags[:, 2], 'FILTERNAME': 'decam2014-z'})
+                        'VDISP': vdisp, 'MAG': mags['z'], 'FILTERNAME': 'decam2014-z'})
 
         elif target_name == 'QSO':
             """Selected in the r-band with g-r, r-z, and W1-W2 colors."""
-            out.update({'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
-                        'MAG': mags[:, 1], 'FILTERNAME': 'decam2014-r'})
+            replace = np.where(mag == -1)[0]
+            if len(replace) > 0:
+                mag[replace] = mags['g'] # g-band
+            
+            out.update({
+                'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
+                #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
+                'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
 
         else:
             log.fatal('Unrecognized target type {}!'.format(target_name))
@@ -628,7 +668,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     return out
 
 def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
-                          bounds=None, magcut=None, nproc=None):
+                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -697,46 +737,13 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
+    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
+    min_ra, max_ra, min_dec, max_dec = bounds
+
     f = h5py.File(mockfile)
-    ra  = f['Data/ra'][...].astype('f8') % 360.0
+    ra  = f['Data/ra'][...].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = f['Data/dec'][...].astype('f8')
-    zz = f['Data/z_obs'][...].astype('f8')
-    rmag = f['Data/app_mag'][...].astype('f8')
-    absmag = f['Data/abs_mag'][...].astype('f8')
-    gr = f['Data/g_r'][...].astype('f8')
-    f.close()
-
     nobj = len(ra)
-    log.info('Read {} objects from {}.'.format(nobj, mockfile))
-
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        rmag = rmag[cut]
-        absmag = absmag[cut]
-        gr = gr[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-
-    if magcut is not None:
-        cut = rmag < magcut
-        if np.count_nonzero(cut) == 0:
-            log.fatal('No objects with r < {}!'.format(magcut))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        rmag = rmag[cut]
-        absmag = absmag[cut]
-        gr = gr[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects with r < {}.'.format(nobj, magcut))
 
     files = list()
     files.append(mockfile)
@@ -745,8 +752,47 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
 
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
-    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
+    these = (ra >= min_ra) * (ra < max_ra) * (dec >= min_dec) * (dec <= max_dec)
+    cut = np.where(these)[0]
+    nobj = len(cut)
+    if nobj == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(
+            target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+    else:
+        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(
+            nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = ra[cut]
+    dec = dec[cut]
+    
+    zz = f['Data/z_obs'][these].astype('f4')
+    rmag = f['Data/app_mag'][these].astype('f4')
+    absmag = f['Data/abs_mag'][these].astype('f4')
+    gr = f['Data/g_r'][these].astype('f4')
+    f.close()
+
+    if magcut is not None:
+        cut = rmag < magcut
+        if np.count_nonzero(cut) == 0:
+            log.warning('No objects with r < {}!'.format(magcut))
+            return dict()
+        else:
+            objid = objid[cut]
+            mockid = mockid[cut]
+            ra = ra[cut]
+            dec = dec[cut]
+            zz = zz[cut]
+            rmag = rmag[cut]
+            absmag = absmag[cut]
+            gr = gr[cut]
+            nobj = len(ra)
+            log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
+
+    brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
     seed = rand.randint(2**32, size=nobj)
     vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
 
@@ -756,7 +802,10 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
             'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '',
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def _load_galaxia_file(mockfile):
+def _load_galaxia_file(args):
+    return load_galaxia_file(*args)
+
+def load_galaxia_file(target_name, mockfile, bounds):
     """Multiprocessing support routine for read_galaxia.  Read each individual mock
     galaxia file.
 
@@ -767,12 +816,33 @@ def _load_galaxia_file(mockfile):
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    cols = ['RA','DEC','V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS',
-            'TEFF', 'LOGG', 'FEH']
-    data = fitsio.read(mockfile, ext=1, upper=True, columns=cols)
+    min_ra, max_ra, min_dec, max_dec = bounds
 
-    ra = data['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
-    dec = data['DEC'].astype('f8')
+    log.info('  Reading {}'.format(mockfile))
+    radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+    nobj = len(radec)
+
+    files = list()
+    n_per_file = list()
+    files.append(mockfile)
+    n_per_file.append(nobj)
+
+    objid = np.arange(nobj, dtype='i8')
+    mockid = make_mockid(objid, n_per_file)
+
+    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    nobj = len(cut)
+    if nobj == 0:
+        return dict()
+
+    objid = objid[cut]
+    mockid = mockid[cut]
+    ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+    dec = radec['DEC'][cut].astype('f8')
+    del radec
+
+    cols = ['V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
+    data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
     mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
     mag_obs = data['SDSSR_OBS'].astype('f4')     # SDSS r-band, observed
@@ -780,12 +850,12 @@ def _load_galaxia_file(mockfile):
     logg = data['LOGG'].astype('f4')
     feh = data['FEH'].astype('f4')
 
-    return {'OBJID': np.arange(len(ra), dtype='i8'), 'RA': ra, 'DEC': dec,
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec,
             'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
-            'LOGG': logg, 'FEH': feh}
+            'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-                 bounds=None, magcut=None, nproc=1):
+                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
     """ Read and concatenate the MWS_MAIN mock files.
 
     Parameters
@@ -847,90 +917,162 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     """
     import multiprocessing
-    #nproc = max(1, multiprocessing.cpu_count() // 2)
+    
+    min_ra, max_ra, min_dec, max_dec = bounds
 
-    if False:
-        iter_mock_files = iter_files(mock_dir_name, 'allsky', ext='fits')
+    # Figure out which mock files to read based on the input boundaries.
+    brickfile = os.path.join(mock_dir_name, 'bricks.fits')
+    try:
+        os.stat(brickfile)
+    except:
+        log.fatal('Brick information file {} not found!'.format(brickfile))
+        raise IOError
+
+    #hdr = fitsio.read_header(brickfile, ext=0)
+    #bricksize = hdr['BRICKSIZ']
+    brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
+                            columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+
+    # There's gotta be a smarter way to do this...
+    these = []
+    for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
+        these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
+                                (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
+
+    # Bricks in the middle.
+    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
+                            (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
+                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
+                            (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    # Left column
+    these.append( np.where( (brickinfo['RA1'] <= min_ra) * (brickinfo['RA2'] >= min_ra) *
+                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    # Right column
+    these.append( np.where( (brickinfo['RA1'] <= max_ra) * (brickinfo['RA2'] >= max_ra) *
+                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    # Top row
+    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
+                            (brickinfo['DEC1'] <= max_dec) * (brickinfo['DEC2'] >= max_dec) )[0] )
+    # Bottom row
+    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
+                            (brickinfo['DEC1'] <= min_dec) * (brickinfo['DEC2'] >= min_dec) )[0] )
+    these = np.unique( np.concatenate(these) )
+    
+    if len(these) == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return dict()
+
+    if target_name.upper() == 'FAINTSTAR':
+        suffix = '_superfaint'
     else:
-        from glob import glob
-        log.warning('Temporary hack using glob because I am having problems with iter_files.')
-        iter_mock_files = glob(mock_dir_name+'/*/*/*.fits')
-
-    file_list = list(iter_mock_files)
-    nfiles = len(iter_mock_files)
+        suffix = ''
+        
+    file_list = []
+    bricks = brickinfo['BRICKNAME'][these]
+    for bb in bricks:
+        bb = bb.decode('utf-8') # This will probably break in Python2 ??
+        ff = os.path.join(mock_dir_name, 'bricks', '???', bb, 'allsky_galaxia{}_desi_{}.fits'.format(suffix, bb))
+        if os.path.isfile:
+            file_list.append( glob(ff) )
+        else:
+            log.warning('Missing file {}'.format(ff))
+    file_list = list( np.concatenate(file_list) )
+    nfiles = len(file_list)
 
     if nfiles == 0:
-        log.fatal('Unable to find files in {}'.format(mock_dir_name))
-        raise ValueError
+        log.warning('No files found in {}!'.format(mock_dir_name))
+        return dict()
 
-    # Multiprocessing parallel I/O, but this fails for galaxia 0.0.2 mocks due
-    # to python issue https://bugs.python.org/issue17560 where Pool.map can't
-    # return objects with more then 2**32-1 bytes:
-    # multiprocessing.pool.MaybeEncodingError: Error sending result: Reason:
-    # 'error("'i' format requires -2147483648 <= number <= 2147483647",)'
-    # Leaving this code here for the moment in case we fine a workaround
-
-    if False:
+    # Multiprocess the I/O
+    mpargs = list()
+    for ff in file_list:
+        mpargs.append((target_name, ff, bounds))
+        
+    if nproc > 1:
         p = multiprocessing.Pool(nproc)
-        target_list = p.map(_load_galaxia_file, file_list)
+        data1 = p.map(_load_galaxia_file, mpargs)
         p.close()
     else:
-        target_list = list()
-        for mock_file in iter_mock_files:
-            target_list.append(_load_galaxia_file(mock_file))
+        data1 = list()
+        for args in mpargs:
+            data1.append(_load_galaxia_file(args))
 
-    # Concatenate all the dictionaries into a single dictionary, in an order
-    # determined by np.argsort applied to the base name of each path in
-    # file_list.
-    file_order = np.argsort([os.path.basename(x) for x in file_list])
+    # Remove empty dictionaries and then consolidate.
+    data = dict()
+    data1 = [dd for dd in data1 if dd]
+    if len(data1) == 0:
+        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        return data
 
-    log.info('Combining mock files.')
-    full_data   = dict()
-    if len(target_list) > 0:
-        for k in list(target_list[0]): # iterate over keys
-            #log.info(' -- {}'.format(k))
-            data_list_this_key = list()
-            for itarget in file_order: # append all the arrays corresponding to a given key
-                data_list_this_key.append(target_list[itarget][k])
+    for k in data1[0].keys():
+        data[k] = np.concatenate([dd[k] for dd in data1])
+    del data1
 
-            full_data[k] = np.concatenate(data_list_this_key) #consolidate data dictionary
-
-        # Count number of points per file
-        k          = list(target_list[0])[0] # pick the first available column
-        n_per_file = [len(target_list[itarget][k]) for itarget in file_order]
-        ofile_list = [file_list[itarget] for itarget in file_order]
-
-    ra = full_data['RA']
-    dec = full_data['DEC']
-    zz = full_data['Z']
-    mag = full_data['MAG']
-    mag_obs = full_data['MAG_OBS']
-    objid = full_data['OBJID']
-    teff = full_data['TEFF']
-    logg = full_data['LOGG']
-    feh = full_data['FEH']
+    objid = data['OBJID']
+    mockid = data['MOCKID']
+    ra = data['RA']
+    dec = data['DEC']
+    zz = data['Z']
+    mag = data['MAG']
+    mag_obs = data['MAG_OBS']
+    teff = data['TEFF']
+    logg = data['LOGG']
+    feh = data['FEH']
+    files = data['FILES']
+    n_per_file = data['N_PER_FILE']
     nobj = len(ra)
-    log.info('Read {} objects from {} mock files.'.format(nobj, nfiles))
+    del data
 
-    if bounds is not None:
-        min_ra, max_ra, min_dec, max_dec = bounds
-        cut = (ra >= min_ra) * (ra <= max_ra) * (dec >= min_dec) * (dec <= max_dec)
+    log.info('Read {} {}s from {} files in range RA={}, {}, Dec={}, {}'.format(
+        nobj, target_name, nfiles, min_ra, max_ra, min_dec, max_dec))
+
+    # Debugging plot that I would like to keep here for now.
+    if False:
+        import matplotlib.pyplot as plt
+        from matplotlib.patches import Polygon
+        verts = [(min_ra, min_dec), (max_ra, min_dec), (max_ra, max_dec), (min_ra, max_dec)]
+        fig, ax = plt.subplots()
+        ax.scatter(ra, dec, alpha=0.2)
+        ax.add_patch(Polygon(verts, fill=False, color='red', ls='--'))
+        for tt in these:
+            verts = [
+                (brickinfo['RA1'][tt], brickinfo['DEC1'][tt]), (brickinfo['RA2'][tt], brickinfo['DEC1'][tt]),
+                (brickinfo['RA2'][tt], brickinfo['DEC2'][tt]), (brickinfo['RA1'][tt], brickinfo['DEC2'][tt])
+                ]
+            #print(verts)
+            ax.add_patch(Polygon(verts, fill=False, color='green', ls='--'))
+        mm = np.arange(len(brickinfo))
+        for tt in mm:
+            verts = [
+                (brickinfo['RA1'][tt], brickinfo['DEC1'][tt]), (brickinfo['RA2'][tt], brickinfo['DEC1'][tt]),
+                (brickinfo['RA2'][tt], brickinfo['DEC2'][tt]), (brickinfo['RA1'][tt], brickinfo['DEC2'][tt])
+                ]
+            ax.add_patch(Polygon(verts, fill=False, color='black', ls='-', lw=2))
+        ax.set_xlim(min_ra-5, max_ra+5)
+        ax.set_ylim(min_dec-5, max_dec+5)
+        ax.margins(0.05)
+        plt.show(block=False)
+        import pdb ; pdb.set_trace()
+
+    if magcut is not None:
+        cut = mag < magcut
         if np.count_nonzero(cut) == 0:
-            log.fatal('No objects in range RA={}, {}, Dec={}, {}!'.format(nobj, min_ra, max_ra, min_dec, max_dec))
-            raise ValueError
-        ra = ra[cut]
-        dec = dec[cut]
-        zz = zz[cut]
-        mag = mag[cut]
-        mag_obs = mag_obs[cut]
-        objid = objid[cut]
-        teff = teff[cut]
-        logg = logg[cut]
-        feh = feh[cut]
-        nobj = len(ra)
-        log.info('Trimmed to {} objects in range RA={}, {}, Dec={}, {}'.format(nobj, min_ra, max_ra, min_dec, max_dec))
+            log.warning('No objects with r < {}!'.format(magcut))
+            return dict()
+        else:
+            mockid = mockid[cut]
+            objid = objid[cut]
+            ra = ra[cut]
+            dec = dec[cut]
+            zz = zz[cut]
+            mag = mag[cut]
+            mag_obs = mag_obs[cut]
+            teff = teff[cut]
+            logg = logg[cut]
+            feh = feh[cut]
+            nobj = len(ra)
+            log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
-    mockid = make_mockid(objid, n_per_file)
     seed = rand.randint(2**32, size=nobj)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
@@ -938,7 +1080,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
-            'FILES': ofile_list, 'N_PER_FILE': n_per_file}
+            'FILES': files, 'N_PER_FILE': n_per_file}
 
 def _load_lya_file(mockfile):
     """Multiprocessing support routine for read_galaxia.  Reach each individual mock
@@ -975,7 +1117,7 @@ def _load_lya_file(mockfile):
     return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': zz, 'MAG_G': mag_g}
 
 def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
-             bounds=None, magcut=None, nproc=1):
+             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
     """ Read and concatenate the LYA mock files.
 
     Parameters

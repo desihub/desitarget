@@ -171,7 +171,7 @@ class MockSpectra(object):
         self.bgs_templates = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
         self.elg_templates = ELG(wave=self.wave, normfilter='decam2014-r')
         self.lrg_templates = LRG(wave=self.wave, normfilter='decam2014-z')
-        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-r')
+        self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.lya_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
         self.wd_da_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DA')
@@ -291,6 +291,7 @@ class MockSpectra(object):
                                  data['LOGG'][index],
                                  data['FEH'][index])).T
             _, templateid = self.tree.query(objtype, alldata)
+            
         elif mockformat.lower() == 'galaxia':
             alldata = np.vstack((data['TEFF'][index],
                                  data['LOGG'][index],
@@ -314,6 +315,13 @@ class MockSpectra(object):
 
     def mws_main(self, data, index=None, mockformat='galaxia'):
         """Generate spectra for the MWS_MAIN sample.
+
+        """
+        flux, meta = self.mws(data, index=index, mockformat=mockformat)
+        return flux, meta
+
+    def faintstar(self, data, index=None, mockformat='galaxia'):
+        """Generate spectra for the FAINTSTAR (faint stellar) sample.
 
         """
         flux, meta = self.mws(data, index=index, mockformat=mockformat)
@@ -377,11 +385,17 @@ class MockSpectra(object):
                                       ('SEED', 'MAG', 'Z')):
                 input_meta[inkey] = data[datakey][index]
 
+            # We could potentially save a little time by not computing the Lya
+            # forest for low-redshift quasars, but for simplicity do it for all
+            # of them since the code is reasonably fast.
             flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
+                                                              lyaforest=True,
                                                               nocolorcuts=True,
                                                               verbose=self.verbose)
+                
         elif mockformat.lower() == 'lya':
             # Build spectra for Lyman-alpha QSOs.
+            # Deprecated!
             from astropy.table import vstack
             from desisim.lya_spectra import get_spectra
             from desitarget.mock.io import decode_rownum_filenum

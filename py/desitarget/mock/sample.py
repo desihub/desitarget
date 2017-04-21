@@ -10,6 +10,9 @@ selection critera.
 
 from __future__ import print_function, division
 
+from desiutil.log import get_logger
+log = get_logger()
+
 class SampleGMM(object):
     """Sample magnitudes based on target type (i.e. LRG, ELG, QSO, BGS).
 
@@ -44,17 +47,31 @@ class SampleGMM(object):
         self.random_state = random_state
 
     def sample(self, target_type='LRG', n_targets=1):
-        if target_type == 'BGS':
-            return self.bgsmodel.sample(n_targets, self.random_state).astype('f4')
-        elif target_type == 'ELG':
-            return self.elgmodel.sample(n_targets, self.random_state).astype('f4')
-        elif target_type == 'LRG':
-            return self.lrgmodel.sample(n_targets, self.random_state).astype('f4')
-        elif target_type == 'QSO':
-            return self.qsomodel.sample(n_targets, self.random_state).astype('f4')
-        else:
+        import numpy as np
+
+        if target_type not in ('BGS', 'ELG', 'LRG', 'QSO'):
             log.fatal('Unknown object type {}!'.format(target_type))
             raise ValueError
+
+        # Generate a sample of magnitudes/shapes of size n_targets.
+        if target_type == 'BGS':
+            params = self.bgsmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'ELG':
+            params = self.elgmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'LRG':
+            params = self.lrgmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'QSO':
+            params = self.qsomodel.sample(n_targets, self.random_state).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        if target_type != 'QSO':
+            tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( n_targets, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
 
 def sample_mag_shape(target_type, n_targets, random_state=None):
     """Sample magnitudes and shapes based on target type (i.e. LRG, ELG, QSO, BGS).
@@ -102,8 +119,9 @@ def sample_mag_shape(target_type, n_targets, random_state=None):
 
     if target_type == 'QSO':
 
-        samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8'),
-        ('w1', 'f8'), ('w2', 'f8'), ('w3', 'f8'), ('w4', 'f8')])
+        samp = np.empty(n_targets, dtype=[('g', 'f4'), ('r', 'f4'), ('z', 'f4'),
+                                          ('w1', 'f4'), ('w2', 'f4'), ('w3', 'f4'),
+                                          ('w4', 'f4')])
 
         samp['g'] = params[:,0]
         samp['r'] = params[:,1]
@@ -115,10 +133,10 @@ def sample_mag_shape(target_type, n_targets, random_state=None):
 
     else:
 
-        samp = np.empty(n_targets, dtype=[('g', 'f8'), ('r', 'f8'), ('z', 'f8'),
-        ('w1', 'f8'), ('w2', 'f8'), ('w3', 'f8'), ('w4', 'f8'),  ('exp_r', 'f8'),
-        ('exp_e1', 'f8'), ('exp_e2', 'f8'), ('dev_r', 'f8'), ('dev_e1', 'f8'),
-        ('dev_e2', 'f8')])
+        samp = np.empty(n_targets, dtype=[('g', 'f4'), ('r', 'f4'), ('z', 'f4'), ('w1', 'f4'),
+                                          ('w2', 'f4'), ('w3', 'f4'), ('w4', 'f4'),
+                                          ('exp_r', 'f4'), ('exp_e1', 'f4'), ('exp_e2', 'f4'),
+                                          ('dev_r', 'f4'), ('dev_e1', 'f4'), ('dev_e2', 'f4')])
 
         samp['g'] = params[:,0]
         samp['r'] = params[:,1]
