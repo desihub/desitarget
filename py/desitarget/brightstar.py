@@ -764,7 +764,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     return np.hstack(ra), np.hstack(dec)
 
 
-def append_safe_targets(targs,starmask,drstring):
+def append_safe_targets(targs,starmask,drstring=None):
     """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
