@@ -858,7 +858,7 @@ def append_safe_targets(targs,starmask,drstring):
     safes["TARGETID"] |= targetid_mask.SKY
 
     #ADM set the bit for SAFE locations in DESITARGET
-    safes["DESI_TARGET"] = desi_mask.BADSKY
+    safes["DESI_TARGET"] |= desi_mask.BADSKY
 
     #ADM if the data release string was passed then add the brick-based bit information
     if drstring is not None:
@@ -867,14 +867,43 @@ def append_safe_targets(targs,starmask,drstring):
         #ADM find the bit corresponding to DR in the TARGETID mask (x in 2**x, not 2**x itself)
         bit = len(np.binary_repr(targetid_mask.DR))-1
         #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
-        safes["TARGETID"] = drint << bit
+        safes["TARGETID"] |= drint << bit
 
+        #ADM add the brick information for the SAFE/BADSKY targets
+        b = brick.Bricks(bricksize=0.25)
+        safes["BRICKID"] = b.brickid(safes["RA"],safes["DEC"])
+        safes["BRICKNAME"] = b.brickname(safes["RA"],safes["DEC"])
+
+        #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
         #ADM read in the Data Release bricks file
         rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
         drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
+        #ADM the BRICK IDs that are populated for this DR
+        drbrickids = b.brickid(drbricks["ra"],drbricks["dec"])
+        #ADM the maximum possible BRICKID at bricksize=0.25
+        brickmax = 662174
+        #ADM create a histogram of how many SAFE/BADSKY objects are in each brick
+        hsafes = np.histogram(safes["BRICKID"],range=[0,brickmax+1],bins=brickmax+1)[0]
+        #ADM create a histogram of how many objects are in each brick in this DR
+        hnobjs = np.zeros(len(hsafes),dtype=int)
+        hnobjs[drbrickids] = drbricks["nobjs"]
+        #ADM make each OBJID for a SAFE/BADSKY +1 higher than any other OBJID in the DR
+        safes["BRICK_OBJID"] = hnobjs[safes["BRICKID"]] + 1
+        #ADM sort the safes array on BRICKID
+        safes = safes[safes["BRICKID"].argsort()]
+        #ADM remove zero entries from the histogram of BRICKIDs in safes, for speed
+        hsafes = hsafes[np.where(hsafes > 0)]
+        #ADM the count by which to augment each OBJID to make unique OBJIDs for safes
+        objsadd = np.hstack([ np.arange(i) for i in hsafes ])
+        #ADM finalize the OBJID for each SAFE target
+        safes["BRICK_OBJID"] += objsadd
 
-
-
+        #ADM finally, update the TARGETID with the OBJID and the BRICKID
+        #ADM have to convert BRICKID to int64 (it's only int32 as standard)
+        safes["TARGETID"] |= safes["BRICK_OBJID"]
+        bit = len(np.binary_repr(targetid_mask.BRICKID))-1
+        safes["TARGETID"] |= safes["BRICKID"].astype("int64") << bit
+        
     #ADM return the input targs with the SAFE targets appended
     return np.hstack([targs,safes])
 

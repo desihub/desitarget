@@ -147,6 +147,7 @@ obsmask:
 #- Bits that can be set in TARGETID. See the schema at
 #- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
 targetid_mask:
+    - [BRICKID,    22, "RIGHTMOST bit that indicates BRICKID (BRICKID encompasses bits 22-41 inclusive"]
     - [DR,         42, "RIGHTMOST bit that indicates Data Release (DR encompasses bits 42-47 inclusive"]
     - [MOCK,       48, "this target is a mock target"]
     - [SKY,        49, "this target is a sky fiber target"]
