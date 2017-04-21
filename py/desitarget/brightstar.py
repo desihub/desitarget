@@ -764,7 +764,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     return np.hstack(ra), np.hstack(dec)
 
 
-def append_safe_targets(targs,starmask,drstring=None):
+def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
     """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
@@ -776,6 +776,10 @@ def append_safe_targets(targs,starmask,drstring=None):
     drstring : :class:`str`, optional
         The imaging data release for the targets as a 9-string (i.e. 'dr3      ') to update TARGETID
         If this is not passed, then SAFE (BADSKY) targets will be generated, but target bits will not be meaningful
+    drbricks : :class:`recarray`, optional
+        A rec array containing at least the "ra", "dec" and "nobjs" columns from a survey bricks file for the passed 
+        Data Release. This is typically used for testing only, as the code can determine the NERSC location of 
+        a survey bricks file directly from drstring
 
     Returns
     -------
@@ -827,8 +831,9 @@ def append_safe_targets(targs,starmask,drstring=None):
 
         #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
         #ADM read in the Data Release bricks file
-        rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
-        drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
+        if drbricks is None:
+            rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
+            drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
         #ADM the BRICK IDs that are populated for this DR
         drbrickids = b.brickid(drbricks["ra"],drbricks["dec"])
         #ADM the maximum possible BRICKID at bricksize=0.25
