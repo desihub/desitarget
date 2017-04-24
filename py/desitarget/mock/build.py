@@ -383,17 +383,18 @@ def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
-def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand):
+def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra,
+                         select_targets_function, source_data, rand):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
 
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
-
-    trueflux, meta = getattr(Spectra, target_name.lower())(source_data, index=onbrick, mockformat=mockformat)
 
     for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
@@ -417,7 +418,36 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=1.0/np.sqrt(targets['DECAM_DEPTH'][:, band]))
 
-    return [targets, truth, trueflux, onbrick]
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key] = source_data[key][onbrick]
+
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key] = source_data[key][onbrick]
+
+    for key, source_key in zip( ['MOCKID', 'TRUEZ', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'Z', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key] = source_data[source_key][onbrick]
+        else:
+            truth[key] = np.repeat(source_data[source_key], nobj)
+
+    # Build the spectra and select targets.
+    trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
+
+    select_targets_function(targets, truth)
+
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+    if len(keep) == 0:
+        log.warning('No {} targets identified!'.format(target_name))
+    else:
+        log.debug('Selected {} targets.'.format(len(keep)))
+        targets = targets[keep]
+        truth = truth[keep]
+        trueflux = trueflux[keep, :]
+
+    return [targets, truth, trueflux]
 
 def _write_onebrick(writeargs):
     """Filler function for the multiprocessing."""
@@ -453,6 +483,17 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
 
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
+def _create_raslices(output_dir, ioutput_dir, brickname):
+    """Create the RA-slice directories, if necessary."""
+    
+    for odir in (output_dir, ioutput_dir):
+        radir = np.array(['{}'.format(os.path.join(odir, name[:3])) for name in brickname])
+        for thisradir in list(set(radir)):
+            try:
+                os.stat(thisradir)
+            except:
+                os.makedirs(thisradir)
+                
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                   clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
     """
@@ -534,16 +575,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
-    # Create the RA-slice directories, if necessary and then initialize the output header.
-    for odir in (output_dir, ioutput_dir):
-        radir = np.array(['{}'.format(os.path.join(odir, name[:3])) for name in targets['BRICKNAME']])
-        for thisradir in list(set(radir)):
-            try:
-                os.stat(thisradir)
-            except:
-                os.makedirs(thisradir)
-                
-
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -557,19 +588,23 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # If there are no sources, keep going.
         if not bool(source_data):
             continue
-        
-        nobj = len(source_data['RA'])
-        targets = empty_targets_table(nobj)
-        truth = empty_truth_table(nobj)
-        trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
+
+        selection_function = '{}_select'.format(target_name.lower())
+        select_targets_function = getattr(SelectTargets, selection_function)
+
+        #nobj = len(source_data['RA'])
+        #targets = empty_targets_table(nobj)
+        #truth = empty_truth_table(nobj)
+        #trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
 
+        # Create the RA-slice output directories, if necessary.
+        _create_raslices(output_dir, ioutput_dir, unique_bricks)
 
-
-        # Quickly check that info on all the bricks are here.
+        # Quickly check that all the brick info is here.
         for thisbrick in unique_bricks:
             brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
             if (len(brickindx) != 1):
@@ -591,48 +626,50 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
         specargs = list()
         for thisbrick in unique_bricks:
-            specargs.append((target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand))
+            specargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
+                              Spectra, select_targets_function, source_data, rand) )
 
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
             with pool:
-                out = pool.map(_get_spectra_onebrick, specargs, reduce=_update_spectra_status)
+                out = pool.map(_get_spectra_onebrick, specargs,
+                               reduce=_update_spectra_status)
         else:
             out = list()
             for ii in range(len(unique_bricks)):
-                out.append(_update_spectra_status(_get_spectra_onebrick(specargs[ii])))
+                out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
 
-        for ii in range(len(unique_bricks)):
-            targets[out[ii][3]] = out[ii][0]
-            truth[out[ii][3]] = out[ii][1]
-            trueflux[out[ii][3], :] = out[ii][2]
-
-        targets['RA'] = source_data['RA']
-        targets['DEC'] = source_data['DEC']
-        targets['BRICKNAME'] = brickname
-
-        if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-            for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                        'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-                targets[key] = source_data[key]
-
-        truth['MOCKID'] = source_data['MOCKID']
-        truth['TRUEZ'] = source_data['Z'].astype('f4')
-        truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
-        truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
-        truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
+        #for ii in range(len(unique_bricks)):
+        #    targets[out[ii][3]] = out[ii][0]
+        #    truth[out[ii][3]] = out[ii][1]
+        #    trueflux[out[ii][3], :] = out[ii][2]
+        #
+        #targets['RA'] = source_data['RA']
+        #targets['DEC'] = source_data['DEC']
+        #targets['BRICKNAME'] = brickname
+        #
+        #if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        #    for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+        #                'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+        #        targets[key] = source_data[key]
+        #
+        #truth['MOCKID'] = source_data['MOCKID']
+        #truth['TRUEZ'] = source_data['Z'].astype('f4')
+        #truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
+        #truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
+        #truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
 
         # Select targets.
-        selection_function = '{}_select'.format(target_name.lower())
-        getattr(SelectTargets, selection_function)(targets, truth)
+        #selection_function = '{}_select'.format(target_name.lower())
+        #getattr(SelectTargets, selection_function)(targets, truth)
 
-        keep = np.where(targets['DESI_TARGET'] != 0)[0]
-        if len(keep) == 0:
-            log.warning('No {} targets identified!'.format(target_name))
-        else:
-            targets = targets[keep]
-            truth = truth[keep]
-            trueflux = trueflux[keep, :]
+        #keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        #if len(keep) == 0:
+        #    log.warning('No {} targets identified!'.format(target_name))
+        #else:
+        #    targets = targets[keep]
+        #    truth = truth[keep]
+        #    trueflux = trueflux[keep, :]
             
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
@@ -716,6 +753,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
+    import pdb ; pdb.set_trace()
 
     targetid = rand.randint(2**62, size=ntarget)
     truth['TARGETID'] = targetid
