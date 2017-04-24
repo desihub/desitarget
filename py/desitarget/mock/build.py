@@ -13,6 +13,7 @@ pyprof2calltree -k -i mock.dat &
 from __future__ import (absolute_import, division, print_function)
 
 import os
+import shutil
 from time import time
 
 import yaml
@@ -453,7 +454,7 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  bricksize=0.25, outbricksize=0.25, nproc=1):
+                  clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
     """
     Write
 
@@ -461,6 +462,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
         realtargets (optional): real target catalog table, e.g. from DR3
+        clobber (optional): delete files in the "intermediate" directory
         nproc (optional): number of parallel processes to use (default 4)
 
     Returns:
@@ -471,7 +473,33 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
       If nproc == 1 use serial instead of parallel code.
 
     """
+    if params is None or output_dir is None:
+        log.fatal('Required inputs params and output_dir not given!')
+        raise ValueError
+    
+    # Initialize the random seed
     rand = np.random.RandomState(seed)
+
+    # Create the output directories and clean them up if necessary.
+    ioutput_dir = os.path.normpath(output_dir)+'-i'
+
+    print()
+    for odir in (output_dir, ioutput_dir):
+        try:
+            os.stat(odir)
+            if os.listdir(odir):
+                if clobber:
+                    shutil.rmtree(odir)
+                    log.info('Cleaning directory {}'.format(odir))
+                    os.makedirs(odir)
+                else:
+                    log.warning('Output directory {} is not empty; please set clobber=True.'.format(odir))
+                    return
+        except:
+            log.info('Creating directory {}'.format(odir))
+            os.makedirs(odir)
+    log.info('Writing to output directory {} and intermediate output directory {}'.format(output_dir, ioutput_dir))
+    print()
 
     # Add the ra,dec boundaries to the parameters dictionary for each source, so
     # we can check the target densities, below.
@@ -506,6 +534,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
+    # Create the RA-slice directories, if necessary and then initialize the output header.
+    for odir in (output_dir, ioutput_dir):
+        radir = np.array(['{}'.format(os.path.join(odir, name[:3])) for name in targets['BRICKNAME']])
+        for thisradir in list(set(radir)):
+            try:
+                os.stat(thisradir)
+            except:
+                os.makedirs(thisradir)
+                
+
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -528,6 +566,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
+
+
 
         # Quickly check that info on all the bricks are here.
         for thisbrick in unique_bricks:
@@ -727,6 +767,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
                                                                       outbricksize, outbricksize))
+    
     # Create the RA-slice directories, if necessary and then initialize the output header.
     radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
     for thisradir in list(set(radir)):
