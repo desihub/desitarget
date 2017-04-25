@@ -821,10 +821,8 @@ def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
     if drstring is not None:
         #ADM turn the string into the integer of the release by identifying the trailing integers
         drint = int(re.match(r"([a-z]+)([0-9]+)", drstring, re.I).groups()[1])
-        #ADM find the bit corresponding to DR in the TARGETID mask (x in 2**x, not 2**x itself)
-        bit = len(np.binary_repr(targetid_mask.DR))-1
         #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
-        safes["TARGETID"] |= drint << bit
+        safes["TARGETID"] |= drint << targetid_mask.DR.firstbit
 
         #ADM add the brick information for the SAFE/BADSKY targets
         b = brick.Bricks(bricksize=0.25)
@@ -859,8 +857,7 @@ def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
         #ADM finally, update the TARGETID with the OBJID and the BRICKID
         #ADM have to convert BRICKID to int64 (it's only int32 as standard)
         safes["TARGETID"] |= safes["BRICK_OBJID"]
-        bit = len(np.binary_repr(targetid_mask.BRICKID))-1
-        safes["TARGETID"] |= safes["BRICKID"].astype("int64") << bit
+        safes["TARGETID"] |= safes["BRICKID"].astype("int64") << targetid_mask.BRICKID.firstbit
         
     #ADM return the input targs with the SAFE targets appended
     return np.hstack([targs,safes])
