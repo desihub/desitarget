@@ -59,11 +59,11 @@ def print_all_mocks_info(params):
     """
     log.info('Paths and targets:')
     for source_name in params['sources'].keys():
-        source_format = params['sources'][source_name]['format']
+        mockformat = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['mock_dir_name']
         target_name = params['sources'][source_name]['target_name']
         log.info('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
-                                                                                  source_format,
+                                                                                  mockformat,
                                                                                   target_name,
                                                                                   source_path))
 
@@ -95,7 +95,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
     for source_name in sorted(params['sources'].keys()):
 
         target_name = params['sources'][source_name]['target_name']
-        source_format = params['sources'][source_name]['format']
+        mockformat = params['sources'][source_name]['format']
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
         bounds = params['sources'][source_name]['bounds']
 
@@ -104,9 +104,9 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         else:
             magcut = None
 
-        read_function = 'read_{}'.format(source_format)
+        read_function = 'read_{}'.format(mockformat)
 
-        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
         log.info('Reading {} with mock.io.{}'.format(mock_dir_name, read_function))
 
         func = globals()[read_function]

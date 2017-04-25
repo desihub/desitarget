@@ -16,10 +16,11 @@ import os
 import shutil
 from time import time
 
-import yaml
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table, Column, vstack
+
+from desiutil.log import get_logger, DEBUG
 
 from desispec.io.util import fitsheader, write_bintable
 from desispec.brick import brickname as get_brickname_from_radec
@@ -29,8 +30,6 @@ import desitarget.mock.selection as mockselect
 from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
-
-from desiutil.log import get_logger, DEBUG
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -260,6 +259,7 @@ class BrickInfo(object):
         append into brick_info.
 
         """
+        import yaml
         filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
         td = yaml.load(filein)
         target_desimodel = {}
@@ -633,30 +633,47 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
-    log.info('Initializing the MockSpectra and SelectTargets classes.')
+    log.info('Initializing the MockSpectra and SelectTargets Classes.')
     Spectra = MockSpectra(rand=rand, verbose=verbose)
     SelectTargets = mockselect.SelectTargets(logger=log, rand=rand,
                                              brick_info=brick_info)
     print()
 
-    # Print info about the mocks we will be loading and then load them.
-    if verbose:
-        mockio.print_all_mocks_info(params)
-        print()
-        
-    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
-    map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
-    print()
+    ## Print info about the mocks we will be loading and then load them.
+    #if verbose:
+    #    mockio.print_all_mocks_info(params)
+    #    print()
+    #source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
+    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
+    #print()
 
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
     alltrueflux = list()
     for source_name in params['sources'].keys():
+        # Read the mock catalog.
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
+        #source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
-        source_data = source_data_all[source_name]     # data (ra, dec, etc.)
+        mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        if 'magcut' in params['sources'][source_name].keys():
+            magcut = params['sources'][source_name]['magcut']
+        else:
+            magcut = None
+
+        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+        log.info('Reading {} with mock.io.{}'.format(mock_dir_name, mockread_function))
+
+        if 'LYA' in params['sources'][source_name].keys():
+            source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                            bounds=bounds, magcut=magcut, nproc=nproc,
+                                            lya=params['sources'][source_name]['LYA'])
+        else:
+            source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                            bounds=bounds, magcut=magcut, nproc=nproc)
 
         # If there are no sources, keep going.
         if not bool(source_data):
@@ -810,6 +827,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     if realtargets is not None:
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
+
+    # Write out the fileid-->filename mapping.  This doesn't work right now.
+    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
     try:
