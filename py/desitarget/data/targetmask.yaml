@@ -147,10 +147,12 @@ obsmask:
 #- Bits that can be set in TARGETID. See the schema at
 #- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
 targetid_mask:
-    - [BRICKID,    22, "RIGHTMOST bit that indicates BRICKID (BRICKID encompasses bits 22-41 inclusive"]
-    - [DR,         42, "RIGHTMOST bit that indicates Data Release (DR encompasses bits 42-47 inclusive"]
-    - [MOCK,       48, "this target is a mock target"]
-    - [SKY,        49, "this target is a sky fiber target"]
+    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",            {nbits: 22}]
+    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)",       {nbits: 20}]
+    - [DR,         42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-47 inclusive)",        {nbits: 6}]
+    - [MOCK,       48, "this target is a mock target",                                                         {nbits: 1}]
+    - [SKY,        49, "this target is a sky fiber target",                                                    {nbits: 1}]
+    - [RESERVED,   50, "RIGHMOST bit for left over bit space in TARGETID (encompasses bits 50-63 inclusive)", {nbits: 14}]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
