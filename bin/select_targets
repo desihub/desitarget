@@ -41,7 +41,7 @@ if len(infiles) == 0:
     sys.exit(1)
 
 #ADM record the DATA RELEASE as a 9-string
-drstring = "{:9}".format(fitsio.read_header(infiles[0], 0)["DECALSDR"].lower())
+drstring = fitsio.read_header(infiles[0], 0)["DECALSDR"].lower()
 
 if ns.check:
     print('Check input files...')

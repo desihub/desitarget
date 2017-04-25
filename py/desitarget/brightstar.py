@@ -16,6 +16,7 @@ from glob import glob
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import os
+import re
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse, Rectangle
@@ -774,8 +775,9 @@ def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
     starmask : :class:`recarray`
         A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
     drstring : :class:`str`, optional
-        The imaging data release for the targets as a 9-string (i.e. 'dr3      ') to update TARGETID
-        If this is not passed, then SAFE (BADSKY) targets will be generated, but target bits will not be meaningful
+        The imaging data release for the targets as a string consisting of characters followed by trailing integers
+        (of any length; e.g. 'dr3') to update TARGETID. If this is not passed, then SAFE (BADSKY) targets will be
+        generated, but target bits will not be meaningful. The first element of the string must be a character.
     drbricks : :class:`recarray`, optional
         A rec array containing at least the "ra", "dec" and "nobjs" columns from a survey bricks file for the passed 
         Data Release. This is typically used for testing only, as the code can determine the NERSC location of 
@@ -817,8 +819,8 @@ def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
 
     #ADM if the data release string was passed then add the brick-based bit information
     if drstring is not None:
-        #ADM turn the string into the integer of the release
-        drint = int(drstring[2:])
+        #ADM turn the string into the integer of the release by identifying the trailing integers
+        drint = int(re.match(r"([a-z]+)([0-9]+)", drstring, re.I).groups()[1])
         #ADM find the bit corresponding to DR in the TARGETID mask (x in 2**x, not 2**x itself)
         bit = len(np.binary_repr(targetid_mask.DR))-1
         #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
@@ -911,7 +913,9 @@ def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
     drstring : :class:`str`, optional
-        Pass the imaging data release for the targets as a 9-string (i.e. 'dr3      ')
+        The imaging data release for the targets as a string consisting of characters followed by trailing integers
+        (of any length; e.g. 'dr3') to update TARGETID. If this is not passed, then SAFE (BADSKY) targets will be
+        generated, but target bits will not be meaningful. The first element of the string must be a character.
     bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z".
         Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
