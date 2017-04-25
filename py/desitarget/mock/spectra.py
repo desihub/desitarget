@@ -448,6 +448,6 @@ class MockSpectra(object):
         for inkey, datakey in zip(('SEED', 'REDSHIFT'),
                                   ('SEED', 'Z')):
             meta[inkey] = data[datakey][index]
-        flux = np.zeros((nobj, len(self.wave)), dtype='f4')
+        flux = np.zeros((nobj, len(self.wave)), dtype='i1')
 
         return flux, meta

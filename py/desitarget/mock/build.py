@@ -9,6 +9,8 @@ Build a truth catalog (including spectra) and a targets catalog for the mocks.
 time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
 pyprof2calltree -k -i mock.dat &
 
+/usr/bin/time -l select_mock_targets -c qatargets_input.yaml --output_dir new --nproc 4 --seed 111 --verbose --clobber
+
 """
 from __future__ import (absolute_import, division, print_function)
 
@@ -435,6 +437,11 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         else:
             truth[key] = np.repeat(source_data[source_key], nobj)
 
+    # Sky targets are a special case.
+    if target_name == 'sky':
+        select_targets_function(targets, truth)
+        return [targets, truth]
+
     # For FAINTSTAR targets, preselect stars that are going to pass target
     # selection cuts without actually generating spectra, in order to save
     # memory and time.
@@ -561,6 +568,12 @@ def _create_raslices(output_dir, ioutput_dir, brickname):
             except:
                 os.makedirs(thisradir)
                 
+try:
+    from memory_profiler import profile
+except:
+    pass
+
+@profile
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                   clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
     """
@@ -639,14 +652,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                                              brick_info=brick_info)
     print()
 
-    ## Print info about the mocks we will be loading and then load them.
-    #if verbose:
-    #    mockio.print_all_mocks_info(params)
-    #    print()
-    #source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
-    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
-    #print()
-
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -663,17 +668,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         else:
             magcut = None
 
-        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
         log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
-        log.info('Reading {} with mock.io.{}'.format(mock_dir_name, mockread_function))
+        log.info('Reading {}'.format(mock_dir_name))
 
+        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
         if 'LYA' in params['sources'][source_name].keys():
-            source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                                            bounds=bounds, magcut=magcut, nproc=nproc,
-                                            lya=params['sources'][source_name]['LYA'])
+            lya = params['sources'][source_name]['LYA']
         else:
-            source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                                            bounds=bounds, magcut=magcut, nproc=nproc)
+            lya = None
+        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                        bounds=bounds, magcut=magcut, nproc=nproc, lya=lya)
 
         # If there are no sources, keep going.
         if not bool(source_data):
@@ -681,11 +685,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
         selection_function = '{}_select'.format(target_name.lower())
         select_targets_function = getattr(SelectTargets, selection_function)
-
-        #nobj = len(source_data['RA'])
-        #targets = empty_targets_table(nobj)
-        #truth = empty_truth_table(nobj)
-        #trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
@@ -728,18 +727,22 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
         # Unpack the results removing any possible bricks without targets.
         out = list(zip(*out))
+
+        # SKY are a special case of targets without trueflux.
         targets = vstack(out[0])
         truth = vstack(out[1])
-        trueflux = np.concatenate(out[2])
+        if target_name.upper() != 'SKY':
+            trueflux = np.concatenate(out[2])
+        
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                continue
+            
+            targets = targets[keep]
+            truth = truth[keep]
+            trueflux = trueflux[keep, :]
         del out
         
-        keep = np.where(targets['DESI_TARGET'] != 0)[0]
-        if len(keep) == 0:
-            continue
-        targets = targets[keep]
-        truth = truth[keep]
-        trueflux = trueflux[keep, :]
-
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
             density = params['sources'][source_name]['density']
@@ -777,14 +780,20 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             else:
                 targets = targets[keep]
                 truth = truth[keep]
-                trueflux = trueflux[keep, :]
+                if target_name.upper() != 'SKY':
+                    trueflux = trueflux[keep, :]
 
-        alltargets.append(targets)
-        alltruth.append(truth)
-        alltrueflux.append(trueflux)
+        if target_name.upper() == 'SKY':
+            skytruth = truth
+            skytargets = targets
+        else:
+            alltargets.append(targets)
+            alltruth.append(truth)
+            alltrueflux.append(trueflux)
         print()
 
     # Consolidate across all the mocks.
+    #if len(alltargets) == 0 and len(skytargets) == 0:
     if len(alltargets) == 0:
         log.info('No targets; all done.')
         return
@@ -832,12 +841,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
     # Write out the sky catalog.  Should we write "truth.fits" as well?!?
-    try:
-        os.stat(output_dir)
-    except:
-        os.makedirs(output_dir)
-
     skyfile = os.path.join(output_dir, 'sky.fits')
+    import pdb ; pdb.set_trace()
+
     isky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) != 0)[0]
     nsky = len(isky)
     if nsky:

@@ -213,7 +213,8 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
+               lya=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -327,7 +328,8 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
+               lya=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -450,8 +452,8 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-                       lya=None, bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
-                       nproc=None):
+                       bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
+                       nproc=None, lya=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -668,7 +670,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     return out
 
 def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
-                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
+                          lya=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -855,7 +858,8 @@ def load_galaxia_file(target_name, mockfile, bounds):
             'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
+                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1,
+                 lya=None):
     """ Read and concatenate the MWS_MAIN mock files.
 
     Parameters
@@ -1117,7 +1121,8 @@ def _load_lya_file(mockfile):
     return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': zz, 'MAG_G': mag_g}
 
 def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
-             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
+             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1,
+             lya=None):
     """ Read and concatenate the LYA mock files.
 
     Parameters
