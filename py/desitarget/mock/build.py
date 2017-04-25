@@ -396,9 +396,8 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
 
-    for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key] = meta[key]
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key] = source_data[key][onbrick]
 
     for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
         targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
@@ -406,21 +405,20 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
     targets['EBV'] = brick_info['EBV'][brickindx]
 
-    # Perturb the photometry based on the variance on this brick.  Hack!  Assume
-    # a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3 nanomaggies) in the
-    # WISE bands for now.
-    wise_onesigma = np.zeros((nobj, 2))
-    wise_onesigma[:, 0] = 1.2
-    wise_onesigma[:, 1] = 0.3
-    targets['WISE_FLUX'] = truth['WISE_FLUX'] + rand.normal(scale=wise_onesigma)
+    # Use the point-source depth for point sources, although this should really
+    # be tied to the morphology.
+    if 'star' in target_name or 'qso' in target_name:
+        depthkey = 'DECAM_DEPTH'
+    else:
+        depthkey = 'DECAM_GALDEPTH'
+    with np.errstate(divide='ignore'):                        
+        decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
 
-    for band in (1, 2, 4):
-        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-          rand.normal(scale=1.0/np.sqrt(targets['DECAM_DEPTH'][:, band]))
+    # Hack!  Assume a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3
+    # nanomaggies) in the WISE bands for now.
+    wise_onesigma = np.array([1.2, 0.3])
 
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key] = source_data[key][onbrick]
-
+    # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
         for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
@@ -433,16 +431,81 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         else:
             truth[key] = np.repeat(source_data[source_key], nobj)
 
-    # Build the spectra and select targets.
+    # For FAINTSTAR targets, preselect stars that are going to pass target
+    # selection cuts without actually generating spectra, in order to save
+    # memory and time.
+    if target_name == 'faintstar':
+        if mockformat.lower() == 'galaxia':
+            alldata = np.vstack((source_data['TEFF'][onbrick],
+                                 source_data['LOGG'][onbrick],
+                                 source_data['FEH'][onbrick])).T
+            _, templateid = Spectra.tree.query('STAR', alldata)
+            templateid = templateid.flatten()
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
+
+        for band in (0, 1):
+            truth['WISE_FLUX'][:, band] = Spectra.tree.star_wise_flux[templateid, band] * normmag
+            targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
+              rand.normal(scale=wise_onesigma[band], size=nobj)
+            
+        for band in (1, 2, 4):
+            truth['DECAM_FLUX'][:, band] = Spectra.tree.star_decam_flux[templateid, band] * normmag
+            targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
+              rand.normal(scale=decam_onesigma[band], size=nobj)
+
+        select_targets_function(targets, truth)
+
+        keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        nobj = len(keep)
+        if nobj == 0:
+            log.warning('No {} targets identified!'.format(target_name))
+            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
+        else:
+            onbrick = onbrick[keep]
+            truth = truth[keep]
+            targets = targets[keep]
+        
+        # Temporary debugging plot.
+        if False:
+            import matplotlib.pyplot as plt
+            gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
+            rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
+            gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
+            rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+            plt.scatter(rz1, gr1)
+            plt.scatter(rz, gr, alpha=0.5)
+            plt.scatter(rz[keep], gr[keep], edgecolor='k')
+            plt.xlim(-0.5, 2)
+            plt.ylim(-0.5, 2)
+            plt.show()
+        
+    # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
+
+    for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key] = meta[key]
+
+    # Perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    for band in (0, 1):
+        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
+          rand.normal(scale=wise_onesigma[band], size=nobj)
+    for band in (1, 2, 4):
+        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
+          rand.normal(scale=decam_onesigma[band], size=nobj)
 
     select_targets_function(targets, truth)
 
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
-    if len(keep) == 0:
+    nobj = len(keep)
+    if nobj == 0:
         log.warning('No {} targets identified!'.format(target_name))
     else:
-        log.debug('Selected {} targets.'.format(len(keep)))
+        log.info('Selected {} targets.'.format(nobj))
         targets = targets[keep]
         truth = truth[keep]
         trueflux = trueflux[keep, :]
@@ -503,7 +566,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
         realtargets (optional): real target catalog table, e.g. from DR3
-        clobber (optional): delete files in the "intermediate" directory
+        clobber (optional): delete files in the output directory (mandatory if not empty)
         nproc (optional): number of parallel processes to use (default 4)
 
     Returns:
@@ -522,10 +585,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     rand = np.random.RandomState(seed)
 
     # Create the output directories and clean them up if necessary.
-    ioutput_dir = os.path.normpath(output_dir)+'-i'
+    #ioutput_dir = os.path.normpath(output_dir)+'-i'
 
     print()
-    for odir in (output_dir, ioutput_dir):
+    #for odir in (output_dir, ioutput_dir):
+    for odir in np.atleast_1d(output_dir):
         try:
             os.stat(odir)
             if os.listdir(odir):
@@ -539,7 +603,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         except:
             log.info('Creating directory {}'.format(odir))
             os.makedirs(odir)
-    log.info('Writing to output directory {} and intermediate output directory {}'.format(output_dir, ioutput_dir))
+    log.info('Writing to output directory {}'.format(output_dir))
+    #log.info('Writing to output directory {} and intermediate output directory {}'.format(output_dir, ioutput_dir))
     print()
 
     # Add the ra,dec boundaries to the parameters dictionary for each source, so
@@ -600,9 +665,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
-
-        # Create the RA-slice output directories, if necessary.
-        _create_raslices(output_dir, ioutput_dir, unique_bricks)
+        print(unique_bricks)
 
         # Quickly check that all the brick info is here.
         for thisbrick in unique_bricks:
@@ -639,38 +702,20 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             for ii in range(len(unique_bricks)):
                 out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
 
-        #for ii in range(len(unique_bricks)):
-        #    targets[out[ii][3]] = out[ii][0]
-        #    truth[out[ii][3]] = out[ii][1]
-        #    trueflux[out[ii][3], :] = out[ii][2]
-        #
-        #targets['RA'] = source_data['RA']
-        #targets['DEC'] = source_data['DEC']
-        #targets['BRICKNAME'] = brickname
-        #
-        #if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        #    for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-        #                'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-        #        targets[key] = source_data[key]
-        #
-        #truth['MOCKID'] = source_data['MOCKID']
-        #truth['TRUEZ'] = source_data['Z'].astype('f4')
-        #truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
-        #truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
-        #truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
+        # Unpack the results removing any possible bricks without targets.
+        out = list(zip(*out))
+        targets = vstack(out[0])
+        truth = vstack(out[1])
+        trueflux = np.concatenate(out[2])
+        del out
+        
+        keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        if len(keep) == 0:
+            continue
+        targets = target[keep]
+        truth = truth[keep]
+        trueflux = trueflux[keep, :]
 
-        # Select targets.
-        #selection_function = '{}_select'.format(target_name.lower())
-        #getattr(SelectTargets, selection_function)(targets, truth)
-
-        #keep = np.where(targets['DESI_TARGET'] != 0)[0]
-        #if len(keep) == 0:
-        #    log.warning('No {} targets identified!'.format(target_name))
-        #else:
-        #    targets = targets[keep]
-        #    truth = truth[keep]
-        #    trueflux = trueflux[keep, :]
-            
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
             if verbose:
@@ -713,6 +758,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
+        import pdb ; pdb.set_trace()
+        
         alltargets.append(targets)
         alltruth.append(truth)
         alltrueflux.append(trueflux)
@@ -753,7 +800,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
-    import pdb ; pdb.set_trace()
 
     targetid = rand.randint(2**62, size=ntarget)
     truth['TARGETID'] = targetid
@@ -807,7 +853,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                                                                       outbricksize, outbricksize))
     
     # Create the RA-slice directories, if necessary and then initialize the output header.
-    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
+    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in unique_bricks])
     for thisradir in list(set(radir)):
         try:
             os.stat(thisradir)

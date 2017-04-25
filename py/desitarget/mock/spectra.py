@@ -20,12 +20,12 @@ class TemplateKDTree(object):
 
     """
     def __init__(self):
+        from speclite import filters
         from scipy.spatial import KDTree
 
         self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
         self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)
         self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
-        self.star_meta = read_basis_templates(objtype='STAR', onlymeta=True)
         self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)
         self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
         self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
@@ -33,11 +33,27 @@ class TemplateKDTree(object):
         self.bgs_tree = KDTree(self._bgs())
         self.elg_tree = KDTree(self._elg())
         #self.lrg_tree = KDTree(self._lrg())
-        self.star_tree = KDTree(self._star())
         #self.qso_tree = KDTree(self._qso())
         self.wd_da_tree = KDTree(self._wd_da())
         self.wd_db_tree = KDTree(self._wd_db())
 
+        # Stars are a special case.  Read the full set of spectra and synthesize
+        # DECaLS/WISE fluxes.
+        star_normfilter = 'decam2014-r'
+        decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
+
+        star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR')
+        star_maggies_table = decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
+
+        star_maggies = np.zeros( (len(star_meta), len(decamwise)) )
+        for ff, key in enumerate(star_maggies_table.columns):
+            star_maggies[:, ff] = star_maggies_table[key] / star_maggies_table[star_normfilter] # maggies
+        self.star_decam_flux = star_maggies[:, :6]
+        self.star_wise_flux = star_maggies[:, 6:8]
+        
+        self.star_meta = star_meta
+        self.star_tree = KDTree(self._star())
+                
     def _bgs(self):
         """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r).  This needs to
         be generalized to accommodate other mocks!
