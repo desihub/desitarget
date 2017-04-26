@@ -430,17 +430,19 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
             targets[key] = source_data[key][onbrick]
 
-    for key, source_key in zip( ['MOCKID', 'TRUEZ', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'Z', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
         if isinstance(source_data[source_key], np.ndarray):
             truth[key] = source_data[source_key][onbrick]
         else:
             truth[key] = np.repeat(source_data[source_key], nobj)
 
-    # Sky targets are a special case.
+    # Sky targets are a special case without redshifts.
     if target_name == 'sky':
         select_targets_function(targets, truth)
         return [targets, truth]
+
+    truth['TRUEZ'] = source_data['Z'][onbrick]
 
     # For FAINTSTAR targets, preselect stars that are going to pass target
     # selection cuts without actually generating spectra, in order to save
@@ -496,7 +498,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
 
-    for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+    for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key] = meta[key]
 
@@ -516,7 +518,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     if nobj == 0:
         log.warning('No {} targets identified!'.format(target_name.upper()))
     else:
-        log.debug('Selected {} targets.'.format(nobj))
+        log.debug('Selected {} {}s on brick {}.'.format(nobj, target_name.upper(), thisbrick))
         targets = targets[keep]
         truth = truth[keep]
         trueflux = trueflux[keep, :]
@@ -728,7 +730,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         # Unpack the results removing any possible bricks without targets.
         out = list(zip(*out))
 
-        # SKY are a special case of targets without trueflux.
+        # SKY are a special case of targets without truth or trueflux.
         targets = vstack(out[0])
         truth = vstack(out[1])
         if target_name.upper() != 'SKY':
@@ -792,8 +794,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             alltrueflux.append(trueflux)
         print()
 
-    # Consolidate across all the mocks.
-    #if len(alltargets) == 0 and len(skytargets) == 0:
+    # Consolidate across all the mocks.  Note that the code quits if alltargets
+    #is zero-length, even if skytargets is non-zero length. In other words, if
+    #the parameter file only contains SKY the code will quit anyway.
     if len(alltargets) == 0:
         log.info('No targets; all done.')
         return
@@ -802,7 +805,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
 
-    # Finally downsample contaminants.  The way this is being done isn't idea
+    # Finally downsample contaminants.  The way this is being done isn't ideal
     # because in principle an object could be a contaminant in one target class
     # (and be tossed) but be a contaminant for another target class and be kept.
     # But I think this is mostly OK.
@@ -815,6 +818,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
             
             contam = params['sources'][source_name]['contam']
+
             SelectTargets.contaminants_select(targets, truth, source_name=source_name,
                                               target_name=target_name, contam=contam)
             
@@ -826,39 +830,37 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    # Finally assign TARGETIDs and subpriorities.
-    ntarget = len(targets)
-
-    targetid = rand.randint(2**62, size=ntarget)
-    truth['TARGETID'] = targetid
-    targets['TARGETID'] = targetid
-    targets['SUBPRIORITY'] = rand.uniform(0.0, 1.0, size=ntarget)
-
-    if realtargets is not None:
-        add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
-
     # Write out the fileid-->filename mapping.  This doesn't work right now.
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
-    # Write out the sky catalog.  Should we write "truth.fits" as well?!?
-    skyfile = os.path.join(output_dir, 'sky.fits')
-    import pdb ; pdb.set_trace()
+    # Deprecated:  add mock shapes and fluxes from the real target catalog.
+    if realtargets is not None:
+        add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
-    isky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) != 0)[0]
-    nsky = len(isky)
-    if nsky:
-        log.info('Writing {}'.format(skyfile))
-        write_bintable(skyfile, targets[isky], extname='SKY', clobber=True)
+    # Finally assign TARGETIDs and subpriorities.
+    ntarget = len(targets)
+    nsky = len(skytargets)
 
-        log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
-        notsky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) == 0)[0]
-        if len(notsky) > 0:
-            targets = targets[notsky]
-            truth = truth[notsky]
-            trueflux = trueflux[notsky, :]
-        else:
-            log.info('Only SKY targets; returning.')
-            return
+    targetid = rand.randint(2**62, size=ntarget + nsky)
+    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
+
+    truth['TARGETID'] = targetid[:ntarget]
+    targets['TARGETID'] = targetid[:ntarget]
+    targets['SUBPRIORITY'] = subpriority[:ntarget]
+
+    # Write out the sky catalog.
+    if nsky > 0:
+        skyfile = os.path.join(output_dir, 'sky.fits')
+        
+        skytargets['TARGETID'] = targetid[ntarget:ntarget+nsky]
+        skytargets['SUBPRIORITY'] = subpriority[ntarget:ntarget+nsky]
+
+        if np.sum((skytargets['DESI_TARGET'] & desi_mask.SKY) != 0) != nsky:
+            log.fatal('Lost SKY targets somewhere!')
+            raise ValueError
+
+        log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
+        write_bintable(skyfile, skytargets, extname='SKY', clobber=True)
         print()
 
     # Write out the dark- and bright-time standard stars.  White dwarf standards

@@ -557,18 +557,14 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     dec = radec['DEC'][cut].astype('f8')
     del radec
         
-    if target_name == 'SKY':
-        zz = np.zeros(nobj, dtype='f4')
-    else:
+    if target_name != 'SKY':
         data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
         zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+        mag = np.zeros_like(zz) - 1 # placeholder
         del data
-    
-    mag = np.repeat(-1, nobj) # placeholder
 
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
-
         log.info('  Adding Lya QSOs.')
 
         mockfile_lya = lya['mock_dir_name']
@@ -619,7 +615,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
-    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 
            'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
            'N_PER_FILE': n_per_file}
 
@@ -631,7 +627,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
-        out.update({'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+        out.update({'Z': zz, 'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
                     'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
 
         if target_name in ('ELG', 'LRG'):
