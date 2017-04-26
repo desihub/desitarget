@@ -20,6 +20,7 @@ from scipy.optimize import leastsq
 from . import __version__ as desitarget_version
 
 from desiutil import depend
+from desiutil.log import get_logger, DEBUG
 import warnings
 
 def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray, random_state=None):
@@ -49,6 +50,8 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
     """
     if random_state is None:
         random_state = np.random.RandomState()
+        
+    log = get_logger()
 
     #ADM check some impacts are as expected
     dts = ["DEPTH_G","GALDEPTH_G","DEPTH_R","GALDEPTH_R","DEPTH_Z","GALDEPTH_Z","EBV"]
@@ -69,7 +72,7 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
     if not targettype in tts:
         fluc = np.ones(nbricks)
         mess = "fluctuations for targettype {} are set to one".format(targettype)
-        warnings.warn(mess, RuntimeWarning)
+        log.warning(mess)
         return fluc
 
     #ADM the target fluctuations are actually called FLUC_* in the model dictionary

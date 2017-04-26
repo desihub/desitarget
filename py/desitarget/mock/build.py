@@ -570,12 +570,8 @@ def _create_raslices(output_dir, ioutput_dir, brickname):
             except:
                 os.makedirs(thisradir)
                 
-try:
-    from memory_profiler import profile
-except:
-    pass
-
-@profile
+#from memory_profiler import profile
+#@profile
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                   clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
     """
