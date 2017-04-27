@@ -22,6 +22,7 @@ parser.add_argument('--bricksize', '-b', help='Size of the imaging bricks (deg)'
 parser.add_argument('--outbricksize', '-o', help='Desired size of the output bricks', type=float, default=0.25)
 parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 
+parser.add_argument('--clobber', action='store_true', help='Remove intermediate files.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 args = parser.parse_args()
 
@@ -50,7 +51,7 @@ else:
 # Construct Targets and Truth files
 targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
               verbose=args.verbose, nproc=args.nproc, bricksize=args.bricksize,
-              outbricksize=args.outbricksize)
+              outbricksize=args.outbricksize, clobber=args.clobber)
 
 log.info('All done!')
 

@@ -9,16 +9,20 @@ Build a truth catalog (including spectra) and a targets catalog for the mocks.
 time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
 pyprof2calltree -k -i mock.dat &
 
+/usr/bin/time -l select_mock_targets -c qatargets_input.yaml --output_dir new --nproc 4 --seed 111 --verbose --clobber
+
 """
 from __future__ import (absolute_import, division, print_function)
 
 import os
+import shutil
 from time import time
 
-import yaml
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table, Column, vstack
+
+from desiutil.log import get_logger, DEBUG
 
 from desispec.io.util import fitsheader, write_bintable
 from desispec.brick import brickname as get_brickname_from_radec
@@ -29,10 +33,7 @@ from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
-from desiutil.log import get_logger, DEBUG
-log = get_logger(DEBUG)
-
-def fileid_filename(source_data, output_dir):
+def fileid_filename(source_data, output_dir, log):
     '''
     Outputs text file with mapping between mock filenum and file on disk
 
@@ -62,7 +63,7 @@ class BrickInfo(object):
 
     """
     def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 360.0, -90.0, 90.0),
-                 bricksize=0.25, decals_brick_info=None, target_names=None):
+                 bricksize=0.25, decals_brick_info=None, target_names=None, log=None):
         """Initialize the class.
 
         Args:
@@ -74,6 +75,11 @@ class BrickInfo(object):
           target_names : list of targets (e.g., BGS, ELG, etc.)
 
         """
+        if log:
+            self.log = log
+        else:
+            self.log = get_logger()
+            
         if random_state is None:
             random_state = np.random.RandomState()
         self.random_state = random_state
@@ -129,9 +135,9 @@ class BrickInfo(object):
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
 
-        log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
-                 format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
-                        self.bounds[2], self.bounds[3], self.bricksize))
+        self.log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
+                      format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
+                             self.bounds[2], self.bounds[3], self.bricksize))
 
         return brick_info
 
@@ -255,6 +261,7 @@ class BrickInfo(object):
         append into brick_info.
 
         """
+        import yaml
         filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
         td = yaml.load(filein)
         target_desimodel = {}
@@ -382,21 +389,21 @@ def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
-def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand):
+def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra,
+                         select_targets_function, source_data, rand, log):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
 
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
 
-    trueflux, meta = getattr(Spectra, target_name.lower())(source_data, index=onbrick, mockformat=mockformat)
-
-    for key in ('TEMPLATEID', 'SEED', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key] = meta[key]
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key] = source_data[key][onbrick]
 
     for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
         targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
@@ -404,25 +411,125 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
     targets['EBV'] = brick_info['EBV'][brickindx]
 
-    # Perturb the photometry based on the variance on this brick.  Hack!  Assume
-    # a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3 nanomaggies) in the
-    # WISE bands for now.
-    wise_onesigma = np.zeros((nobj, 2))
-    wise_onesigma[:, 0] = 1.2
-    wise_onesigma[:, 1] = 0.3
-    targets['WISE_FLUX'] = truth['WISE_FLUX'] + rand.normal(scale=wise_onesigma)
+    # Use the point-source depth for point sources, although this should really
+    # be tied to the morphology.
+    if 'star' in target_name or 'qso' in target_name:
+        depthkey = 'DECAM_DEPTH'
+    else:
+        depthkey = 'DECAM_GALDEPTH'
+    with np.errstate(divide='ignore'):                        
+        decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
 
+    # Hack!  Assume a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3
+    # nanomaggies) in the WISE bands for now.
+    wise_onesigma = np.array([1.2, 0.3])
+
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key] = source_data[key][onbrick]
+
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key] = source_data[source_key][onbrick]
+        else:
+            truth[key] = np.repeat(source_data[source_key], nobj)
+
+    # Sky targets are a special case without redshifts.
+    if target_name == 'sky':
+        select_targets_function(targets, truth)
+        return [targets, truth]
+
+    truth['TRUEZ'] = source_data['Z'][onbrick]
+
+    # For FAINTSTAR targets, preselect stars that are going to pass target
+    # selection cuts without actually generating spectra, in order to save
+    # memory and time.
+    if target_name == 'faintstar':
+        if mockformat.lower() == 'galaxia':
+            alldata = np.vstack((source_data['TEFF'][onbrick],
+                                 source_data['LOGG'][onbrick],
+                                 source_data['FEH'][onbrick])).T
+            _, templateid = Spectra.tree.query('STAR', alldata)
+            templateid = templateid.flatten()
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
+
+        for band in (0, 1):
+            truth['WISE_FLUX'][:, band] = Spectra.tree.star_wise_flux[templateid, band] * normmag
+            targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
+              rand.normal(scale=wise_onesigma[band], size=nobj)
+            
+        for band in (1, 2, 4):
+            truth['DECAM_FLUX'][:, band] = Spectra.tree.star_decam_flux[templateid, band] * normmag
+            targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
+              rand.normal(scale=decam_onesigma[band], size=nobj)
+
+        select_targets_function(targets, truth)
+
+        keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        nobj = len(keep)
+        if nobj == 0:
+            log.warning('No {} targets identified!'.format(target_name.upper()))
+            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
+        else:
+            onbrick = onbrick[keep]
+            truth = truth[keep]
+            targets = targets[keep]
+
+        # Temporary debugging plot.
+        if False:
+            import matplotlib.pyplot as plt
+            gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
+            rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
+            gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
+            rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+            plt.scatter(rz1, gr1)
+            plt.scatter(rz, gr, alpha=0.5)
+            plt.scatter(rz[keep], gr[keep], edgecolor='k')
+            plt.xlim(-0.5, 2)
+            plt.ylim(-0.5, 2)
+            plt.show()
+        
+    # Finally build the spectra and select targets.
+    trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
+
+    for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key] = meta[key]
+
+    # Perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    for band in (0, 1):
+        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
+          rand.normal(scale=wise_onesigma[band], size=nobj)
     for band in (1, 2, 4):
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-          rand.normal(scale=1.0/np.sqrt(targets['DECAM_DEPTH'][:, band]))
+          rand.normal(scale=decam_onesigma[band], size=nobj)
 
-    return [targets, truth, trueflux, onbrick]
+    select_targets_function(targets, truth)
+
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+    nobj = len(keep)
+    if nobj == 0:
+        log.warning('No {} targets identified!'.format(target_name.upper()))
+    else:
+        log.debug('Selected {} {}s on brick {}.'.format(nobj, target_name.upper(), thisbrick))
+        targets = targets[keep]
+        truth = truth[keep]
+        trueflux = trueflux[keep, :]
+
+    return [targets, truth, trueflux]
 
 def _write_onebrick(writeargs):
     """Filler function for the multiprocessing."""
     return write_onebrick(*writeargs)
 
-def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_dir):
+def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_dir, log):
     """Wrapper function to write out files on a single brick."""
 
     onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
@@ -452,8 +559,21 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
 
     write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
+def _create_raslices(output_dir, ioutput_dir, brickname):
+    """Create the RA-slice directories, if necessary."""
+    
+    for odir in (output_dir, ioutput_dir):
+        radir = np.array(['{}'.format(os.path.join(odir, name[:3])) for name in brickname])
+        for thisradir in list(set(radir)):
+            try:
+                os.stat(thisradir)
+            except:
+                os.makedirs(thisradir)
+                
+#from memory_profiler import profile
+#@profile
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  bricksize=0.25, outbricksize=0.25, nproc=1):
+                  clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
     """
     Write
 
@@ -461,6 +581,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         params: dict of source definitions.
         output_dir: location for intermediate mtl files.
         realtargets (optional): real target catalog table, e.g. from DR3
+        clobber (optional): delete files in the output directory (mandatory if not empty)
         nproc (optional): number of parallel processes to use (default 4)
 
     Returns:
@@ -471,7 +592,39 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
       If nproc == 1 use serial instead of parallel code.
 
     """
+    if params is None or output_dir is None:
+        log.fatal('Required inputs params and output_dir not given!')
+        raise ValueError
+
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+    
+    # Initialize the random seed
     rand = np.random.RandomState(seed)
+
+    # Create the output directories and clean them up if necessary.
+    #ioutput_dir = os.path.normpath(output_dir)+'-i'
+
+    #for odir in (output_dir, ioutput_dir):
+    for odir in np.atleast_1d(output_dir):
+        try:
+            os.stat(odir)
+            if os.listdir(odir):
+                if clobber:
+                    shutil.rmtree(odir)
+                    #log.info('Cleaning directory {}'.format(odir))
+                    os.makedirs(odir)
+                else:
+                    log.warning('Output directory {} is not empty; please set clobber=True.'.format(odir))
+                    return
+        except:
+            log.info('Creating directory {}'.format(odir))
+            os.makedirs(odir)
+    log.info('Writing to output directory {}'.format(output_dir))
+    #log.info('Writing to output directory {} and intermediate output directory {}'.format(output_dir, ioutput_dir))
+    print()
 
     # Add the ra,dec boundaries to the parameters dictionary for each source, so
     # we can check the target densities, below.
@@ -487,23 +640,14 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Build the brick information structure.
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
-                           target_names=list(params['sources'].keys())).build_brickinfo()
+                           target_names=list(params['sources'].keys()), log=log).build_brickinfo()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
-    log.info('Initializing the MockSpectra and SelectTargets classes.')
+    log.info('Initializing the MockSpectra and SelectTargets Classes.')
     Spectra = MockSpectra(rand=rand, verbose=verbose)
     SelectTargets = mockselect.SelectTargets(logger=log, rand=rand,
                                              brick_info=brick_info)
-    print()
-
-    # Print info about the mocks we will be loading and then load them.
-    if verbose:
-        mockio.print_all_mocks_info(params)
-        print()
-        
-    source_data_all = mockio.load_all_mocks(params, rand=rand, bricksize=bricksize, nproc=nproc)
-    map_fileid_filename = fileid_filename(source_data_all, output_dir)
     print()
 
     # Loop over each source / object type.
@@ -511,25 +655,40 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     alltruth = list()
     alltrueflux = list()
     for source_name in params['sources'].keys():
+        # Read the mock catalog.
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
+        #source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
-        source_data = source_data_all[source_name]     # data (ra, dec, etc.)
+        mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        if 'magcut' in params['sources'][source_name].keys():
+            magcut = params['sources'][source_name]['magcut']
+        else:
+            magcut = None
+
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+        log.info('Reading {}'.format(mock_dir_name))
+
+        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+        if 'LYA' in params['sources'][source_name].keys():
+            lya = params['sources'][source_name]['LYA']
+        else:
+            lya = None
+        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                        bounds=bounds, magcut=magcut, nproc=nproc, lya=lya)
 
         # If there are no sources, keep going.
         if not bool(source_data):
             continue
-        
-        nobj = len(source_data['RA'])
-        targets = empty_targets_table(nobj)
-        truth = empty_truth_table(nobj)
-        trueflux = np.zeros((nobj, len(Spectra.wave)), dtype='f4')
+
+        selection_function = '{}_select'.format(target_name.lower())
+        select_targets_function = getattr(SelectTargets, selection_function)
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
 
-        # Quickly check that info on all the bricks are here.
+        # Quickly check that all the brick info is here.
         for thisbrick in unique_bricks:
             brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
             if (len(brickindx) != 1):
@@ -551,54 +710,39 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
         specargs = list()
         for thisbrick in unique_bricks:
-            specargs.append((target_name, mockformat, thisbrick, brick_info, Spectra, source_data, rand))
+            specargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
+                              Spectra, select_targets_function, source_data, rand, log) )
 
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
             with pool:
-                out = pool.map(_get_spectra_onebrick, specargs, reduce=_update_spectra_status)
+                out = pool.map(_get_spectra_onebrick, specargs,
+                               reduce=_update_spectra_status)
         else:
             out = list()
             for ii in range(len(unique_bricks)):
-                out.append(_update_spectra_status(_get_spectra_onebrick(specargs[ii])))
+                out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
 
-        for ii in range(len(unique_bricks)):
-            targets[out[ii][3]] = out[ii][0]
-            truth[out[ii][3]] = out[ii][1]
-            trueflux[out[ii][3], :] = out[ii][2]
+        # Unpack the results removing any possible bricks without targets.
+        out = list(zip(*out))
 
-        targets['RA'] = source_data['RA']
-        targets['DEC'] = source_data['DEC']
-        targets['BRICKNAME'] = brickname
-
-        if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-            for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                        'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-                targets[key] = source_data[key]
-
-        truth['MOCKID'] = source_data['MOCKID']
-        truth['TRUEZ'] = source_data['Z'].astype('f4')
-        truth['TEMPLATETYPE'] = source_data['TEMPLATETYPE']
-        truth['TEMPLATESUBTYPE'] = source_data['TEMPLATESUBTYPE']
-        truth['TRUESPECTYPE'] = source_data['TRUESPECTYPE']
-
-        # Select targets.
-        selection_function = '{}_select'.format(target_name.lower())
-        getattr(SelectTargets, selection_function)(targets, truth)
-
-        keep = np.where(targets['DESI_TARGET'] != 0)[0]
-        if len(keep) == 0:
-            log.warning('No {} targets identified!'.format(target_name))
-        else:
+        # SKY are a special case of targets without truth or trueflux.
+        targets = vstack(out[0])
+        truth = vstack(out[1])
+        if target_name.upper() != 'SKY':
+            trueflux = np.concatenate(out[2])
+        
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                continue
+            
             targets = targets[keep]
             truth = truth[keep]
             trueflux = trueflux[keep, :]
-            
+        del out
+        
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
-            if verbose:
-                print()
-
             density = params['sources'][source_name]['density']
             if target_name != 'QSO':
                 log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
@@ -634,14 +778,21 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             else:
                 targets = targets[keep]
                 truth = truth[keep]
-                trueflux = trueflux[keep, :]
+                if target_name.upper() != 'SKY':
+                    trueflux = trueflux[keep, :]
 
-        alltargets.append(targets)
-        alltruth.append(truth)
-        alltrueflux.append(trueflux)
+        if target_name.upper() == 'SKY':
+            skytruth = truth
+            skytargets = targets
+        else:
+            alltargets.append(targets)
+            alltruth.append(truth)
+            alltrueflux.append(trueflux)
         print()
 
-    # Consolidate across all the mocks.
+    # Consolidate across all the mocks.  Note that the code quits if alltargets
+    #is zero-length, even if skytargets is non-zero length. In other words, if
+    #the parameter file only contains SKY the code will quit anyway.
     if len(alltargets) == 0:
         log.info('No targets; all done.')
         return
@@ -650,7 +801,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
 
-    # Finally downsample contaminants.  The way this is being done isn't idea
+    # Finally downsample contaminants.  The way this is being done isn't ideal
     # because in principle an object could be a contaminant in one target class
     # (and be tossed) but be a contaminant for another target class and be kept.
     # But I think this is mostly OK.
@@ -663,6 +814,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
             
             contam = params['sources'][source_name]['contam']
+
             SelectTargets.contaminants_select(targets, truth, source_name=source_name,
                                               target_name=target_name, contam=contam)
             
@@ -674,39 +826,37 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    # Finally assign TARGETIDs and subpriorities.
-    ntarget = len(targets)
+    # Write out the fileid-->filename mapping.  This doesn't work right now.
+    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
-    targetid = rand.randint(2**62, size=ntarget)
-    truth['TARGETID'] = targetid
-    targets['TARGETID'] = targetid
-    targets['SUBPRIORITY'] = rand.uniform(0.0, 1.0, size=ntarget)
-
+    # Deprecated:  add mock shapes and fluxes from the real target catalog.
     if realtargets is not None:
         add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
-    # Write out the sky catalog.  Should we write "truth.fits" as well?!?
-    try:
-        os.stat(output_dir)
-    except:
-        os.makedirs(output_dir)
+    # Finally assign TARGETIDs and subpriorities.
+    ntarget = len(targets)
+    nsky = len(skytargets)
 
-    skyfile = os.path.join(output_dir, 'sky.fits')
-    isky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) != 0)[0]
-    nsky = len(isky)
-    if nsky:
-        log.info('Writing {}'.format(skyfile))
-        write_bintable(skyfile, targets[isky], extname='SKY', clobber=True)
+    targetid = rand.randint(2**62, size=ntarget + nsky)
+    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
 
-        log.info('Removing {} SKY targets from targets, truth, and trueflux.'.format(nsky))
-        notsky = np.where((targets['DESI_TARGET'] & desi_mask.SKY) == 0)[0]
-        if len(notsky) > 0:
-            targets = targets[notsky]
-            truth = truth[notsky]
-            trueflux = trueflux[notsky, :]
-        else:
-            log.info('Only SKY targets; returning.')
-            return
+    truth['TARGETID'] = targetid[:ntarget]
+    targets['TARGETID'] = targetid[:ntarget]
+    targets['SUBPRIORITY'] = subpriority[:ntarget]
+
+    # Write out the sky catalog.
+    if nsky > 0:
+        skyfile = os.path.join(output_dir, 'sky.fits')
+        
+        skytargets['TARGETID'] = targetid[ntarget:ntarget+nsky]
+        skytargets['SUBPRIORITY'] = subpriority[ntarget:ntarget+nsky]
+
+        if np.sum((skytargets['DESI_TARGET'] & desi_mask.SKY) != 0) != nsky:
+            log.fatal('Lost SKY targets somewhere!')
+            raise ValueError
+
+        log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
+        write_bintable(skyfile, skytargets, extname='SKY', clobber=True)
         print()
 
     # Write out the dark- and bright-time standard stars.  White dwarf standards
@@ -721,14 +871,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
         else:
             log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
+    print()
 
     # Write out the brick-level files (if any).
     targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
     unique_bricks = list(set(targets['BRICKNAME']))
     log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
                                                                       outbricksize, outbricksize))
+    
     # Create the RA-slice directories, if necessary and then initialize the output header.
-    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in targets['BRICKNAME']])
+    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in unique_bricks])
     for thisradir in list(set(radir)):
         try:
             os.stat(thisradir)
@@ -757,7 +909,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     writeargs = list()
     for thisbrick in unique_bricks:
-        writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir))
+        writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir, log))
 
     if nproc > 1:
         pool = sharedmem.MapReduce(np=nproc)

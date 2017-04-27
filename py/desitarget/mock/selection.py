@@ -352,8 +352,8 @@ class SelectTargets(object):
 
                 frac_keep = desired_density / mock_density
                 if frac_keep > 1.0:
-                    self.log.warning('Brick {}: mock density {:.0f}/deg2 lower than desired {:.0f}/deg2; keeping all targets.'.format(
-                        thisbrick, mock_density, desired_density))
+                    self.log.warning('{} density {:.0f}/deg2 lower than desired {:.0f}/deg2 on brick {}.'.format(
+                        target_name.upper(), mock_density, desired_density, thisbrick))
 
                 else:
                     self.log.debug('Downsampling {}s from {:.0f} to {:.0f} targets/deg2.'.format(source_name,
@@ -389,8 +389,8 @@ class SelectTargets(object):
 
                     frac_keep = desired_density / contam_density
                     if frac_keep > 1.0:
-                        self.log.warning('Brick {}: contaminant density {:.0f}/deg2 lower than desired {:.0f}/deg2; keeping all contaminants.'.format(
-                            thisbrick, contam_density, desired_density))
+                        self.log.warning('{} contaminant density {:.0f}/deg2 lower than desired {:.0f}/deg2 on brick {}.'.format(
+                            target_name.upper(), contam_density, desired_density, thisbrick))
 
                     else:
                         self.log.debug('Downsampling {}/{} contaminants from {:.0f} to {:.0f} targets/deg2.'.format(target_name,

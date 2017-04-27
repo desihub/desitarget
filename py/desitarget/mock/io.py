@@ -59,11 +59,11 @@ def print_all_mocks_info(params):
     """
     log.info('Paths and targets:')
     for source_name in params['sources'].keys():
-        source_format = params['sources'][source_name]['format']
+        mockformat = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['mock_dir_name']
         target_name = params['sources'][source_name]['target_name']
         log.info('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
-                                                                                  source_format,
+                                                                                  mockformat,
                                                                                   target_name,
                                                                                   source_path))
 
@@ -95,7 +95,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
     for source_name in sorted(params['sources'].keys()):
 
         target_name = params['sources'][source_name]['target_name']
-        source_format = params['sources'][source_name]['format']
+        mockformat = params['sources'][source_name]['format']
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
         bounds = params['sources'][source_name]['bounds']
 
@@ -104,9 +104,9 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         else:
             magcut = None
 
-        read_function = 'read_{}'.format(source_format)
+        read_function = 'read_{}'.format(mockformat)
 
-        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
         log.info('Reading {} with mock.io.{}'.format(mock_dir_name, read_function))
 
         func = globals()[read_function]
@@ -213,7 +213,8 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
+               lya=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -327,7 +328,8 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
+               lya=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -450,8 +452,8 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-                       lya=None, bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
-                       nproc=None):
+                       bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
+                       nproc=None, lya=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -555,18 +557,14 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     dec = radec['DEC'][cut].astype('f8')
     del radec
         
-    if target_name == 'SKY':
-        zz = np.zeros(nobj, dtype='f4')
-    else:
+    if target_name != 'SKY':
         data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
         zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+        mag = np.zeros_like(zz) - 1 # placeholder
         del data
-    
-    mag = np.repeat(-1, nobj) # placeholder
 
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
-
         log.info('  Adding Lya QSOs.')
 
         mockfile_lya = lya['mock_dir_name']
@@ -617,7 +615,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
-    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 
            'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
            'N_PER_FILE': n_per_file}
 
@@ -629,7 +627,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
-        out.update({'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+        out.update({'Z': zz, 'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
                     'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
 
         if target_name in ('ELG', 'LRG'):
@@ -668,7 +666,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     return out
 
 def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
-                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
+                          lya=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -855,7 +854,8 @@ def load_galaxia_file(target_name, mockfile, bounds):
             'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
+                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1,
+                 lya=None):
     """ Read and concatenate the MWS_MAIN mock files.
 
     Parameters
@@ -1117,7 +1117,8 @@ def _load_lya_file(mockfile):
     return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': zz, 'MAG_G': mag_g}
 
 def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
-             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
+             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1,
+             lya=None):
     """ Read and concatenate the LYA mock files.
 
     Parameters
