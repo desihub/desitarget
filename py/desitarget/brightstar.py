@@ -16,6 +16,7 @@ from glob import glob
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 import os
+import re
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse, Rectangle
@@ -25,12 +26,14 @@ from . import __version__ as desitarget_version
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget import desi_mask
+from desitarget import desi_mask, targetid_mask
+
+from desiutil import depend
+
+from desispec import brick
 
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
-    """
-    Make a scatter plot of circles.
-    Similar to plt.scatter, but the size of circles are in data scale.
+    """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
 
     Parameters
     ----------
@@ -66,7 +69,7 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
 
     References
     ----------
-    With thanks to https://gist.github.com/synnick/5088216
+    With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
     """
 
     if np.isscalar(c):
@@ -99,7 +102,192 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     return collection
 
 
-def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
+def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
+    """Make a scatter plot of ellipses
+
+    Parameters
+    ----------
+    x, y : scalar or array_like, shape (n, )
+        Center of ellipses.
+    w, h : scalar or array_like, shape (n, )
+        Total length (diameter) of horizontal/vertical axis.
+        `h` is set to be equal to `w` by default, ie. circle.
+    rot : scalar or array_like, shape (n, )
+        Rotation in degrees (anti-clockwise).
+    c : color or sequence of color, optional, default : 'b'
+        `c` can be a single color format string, or a sequence of color
+        specifications of length `N`, or a sequence of `N` numbers to be
+        mapped to colors using the `cmap` and `norm` specified via kwargs.
+        Note that `c` should not be a single numeric RGB or RGBA sequence
+        because that is indistinguishable from an array of values
+        to be colormapped. (If you insist, use `color` instead.)
+        `c` can be a 2-D array in which the rows are RGB or RGBA, however.
+    vmin, vmax : scalar, optional, default: None
+        `vmin` and `vmax` are used in conjunction with `norm` to normalize
+        luminance data.  If either are `None`, the min and max of the
+        color array is used.
+    kwargs : `~matplotlib.collections.Collection` properties
+        Eg. alpha, edgecolor(ec), facecolor(fc), linewidth(lw), linestyle(ls),
+        norm, cmap, transform, etc.
+
+    Returns
+    -------
+    paths : `~matplotlib.collections.PathCollection`
+
+    Examples
+    --------
+    a = np.arange(11)
+    ellipses(a, a, w=4, h=a, rot=a*30, c=a, alpha=0.5, ec='none')
+    plt.colorbar()
+
+    References
+    ----------
+    With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
+    """
+
+    if np.isscalar(c):
+        kwargs.setdefault('color', c)
+        c = None
+
+    if 'fc' in kwargs:
+        kwargs.setdefault('facecolor', kwargs.pop('fc'))
+    if 'ec' in kwargs:
+        kwargs.setdefault('edgecolor', kwargs.pop('ec'))
+    if 'ls' in kwargs:
+        kwargs.setdefault('linestyle', kwargs.pop('ls'))
+    if 'lw' in kwargs:
+        kwargs.setdefault('linewidth', kwargs.pop('lw'))
+    # You can set `facecolor` with an array for each patch,
+    # while you can only set `facecolors` with a value for all.
+
+    if h is None:
+        h = w
+
+    zipped = np.broadcast(x, y, w, h, rot)
+    patches = [Ellipse((x_, y_), w_, h_, rot_)
+               for x_, y_, w_, h_, rot_ in zipped]
+    collection = PatchCollection(patches, **kwargs)
+    if c is not None:
+        c = np.broadcast_to(c, zipped.shape).ravel()
+        collection.set_array(c)
+        collection.set_clim(vmin, vmax)
+
+    ax = plt.gca()
+    ax.add_collection(collection)
+    ax.autoscale_view()
+    plt.draw_if_interactive()
+    if c is not None:
+        plt.sci(collection)
+    return collection
+
+
+def max_objid_bricks(targs):
+    """For a set of targets, return the maximum value of BRICK_OBJID in each BRICK_ID
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+
+    Returns
+    -------
+    maxobjid : :class:`dictionary`
+        A dictionary with keys for each unique BRICKID and values of the maximum OBJID in that brick
+    """
+    
+    #ADM the maximum BRICKID in the passed target set
+    brickmax = np.max(targs["BRICKID"])
+
+    #ADM how many OBJIDs are in each unique brick, starting from 0 and ordered on BRICKID
+    h = np.histogram(targs["BRICKID"],range=[0,brickmax],bins=brickmax)[0]
+    #ADM remove zero entries from the histogram
+    h = h[np.where(h > 0)]
+    #ADM the index of the maximum OBJID in eacn brick if the bricks are ordered on BRICKID and OBJID
+    maxind = np.cumsum(h)-1
+
+    #ADM an array of BRICKID, OBJID sorted first on BRICKID and then on OBJID within each BRICKID
+    ordered = np.array(sorted(zip(targs["BRICKID"],targs["BRICK_OBJID"]), key=lambda x: (x[0], x[1])))
+
+    #ADM return a dictionary of the maximum OBJID (values) for each BRICKID (keys)
+    return dict(ordered[maxind])
+
+
+def cap_area(theta):
+    """True area of a circle of a given radius drawn on the surface of a sphere
+
+    Parameters
+    ----------
+    theta : array_like
+        (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
+        
+    Returns
+    -------
+    area : array_like
+       surface area on the sphere included within the passed angular radius
+
+    Notes
+    -----
+        - The approximate formula pi*theta**2 is only accurate to ~0.0025% at 1o, ~0.25% at 10o,
+          sufficient for bright star mask purposes. But the equation in this function is more general.
+        - We recast the input array as float64 to circumvent precision issues with np.cos()
+          when radii of only a few arcminutes are passed
+        - Even for passed radii of 1 (0.1) arcsec, float64 is sufficiently precise to give the correct
+          area to ~0.00043 (~0.043%) using np.cos()
+    """
+
+    #ADM recast input array as float64
+    theta = theta.astype('<f8')
+    
+    #ADM factor to convert steradians to sq.deg.
+    st2sq = 180.*180./np.pi/np.pi
+
+    #ADM return area
+    return st2sq*2*np.pi*(1-(np.cos(np.radians(theta))))
+
+
+def sphere_circle_ra_off(theta,centdec,declocs):
+    """Offsets in RA needed for given declinations in order to draw a (small) circle on the sphere
+
+    Parameters
+    ----------
+    theta : :class:`float`
+        (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
+        
+    centdec : :class:`float`
+        declination of the center of the circle to be drawn on the sphere (in DEGREES)
+
+    declocs : array_like
+        declinations of positions on the boundary of the circle at which to calculate RA offsets (in DEGREES)
+
+    Returns
+    -------
+    raoff : array_like
+        offsets in RA that correspond to the passed dec locations for the given dec circle center (IN DEGREES)
+
+    Notes
+    -----
+        - This function is ambivalent to the SIGN of the offset. In other words, it can only draw the semi-circle
+          in theta from -90o->90o, which corresponds to offsets in the POSITIVE RA direction. The user must determine
+          which offsets are to the negative side of the circle, or call this function twice.
+    """
+
+    #ADM convert the input angles from degrees to radians
+    thetar = np.radians(theta)
+    centdecr = np.radians(centdec)
+    declocsr = np.radians(declocs)
+
+    #ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g. converting
+    #ADM to Cartesian coordinates and using dot products). The answer is the arccos of the following:
+    cosoffrar = (np.cos(thetar) - (np.sin(centdecr)*np.sin(declocsr))) / (np.cos(centdecr)*np.cos(declocsr))
+
+    #ADM catch cases where the offset angle is very close to 0 
+    offrar = np.arccos(np.clip(cosoffrar,-1,1))
+
+    #ADM return the angular offsets in degrees
+    return  np.degrees(offrar)
+
+
+def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
     Parameters
@@ -224,18 +412,18 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
     Returns
     -------
-    :class:`recarray`
+    :class:`dictionary`
         dictionary of the fraction of bricks containing a star of a given
         magnitude in a given band as function of Galactic l Keys are mag
         bin CENTERS, values are arrays running from 0->1 to 359->360
-    :class:`recarray`
+    :class:`dictionary`
         dictionary of the fraction of bricks containing a star of a given
         magnitude in a given band as function of Galactic b. Keys are mag
         bin CENTERS, values are arrays running from -90->-89 to 89->90
 
     Notes
     -----
-    converts using coordinates of the brick center, so is an approximation
+        - converts using coordinates of the brick center, so is an approximation
 
     """
     #ADM histogram bin edges in Galactic coordinates at resolution of 1 degree
@@ -297,7 +485,7 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
     return ldict, bdict
 
 
-def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=True):
+def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=False):
     """Make a bright star mask from a structure of bright stars drawn from the sweeps
 
     Parameters
@@ -327,17 +515,20 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     Returns
     -------
     :class:`recarray`
-        The bright star mask in the form RA,DEC,TARGETID,RADIUS (may also be written to file if outfilename is passed)
-        radius is in ARCMINUTES
+        The bright star mask in the form RA, DEC, TARGETID, IN_RADIUS, NEAR_RADIUS (may also be written to file
+        if "outfilename" is passed)
+        The radii are in ARCMINUTES
         TARGETID is as calculated in desitarget.targets.py
 
     Notes
     -----
-    Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band):
-
-    R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
-
-    It's an open question as to what the correct radius is for DESI observations
+        - IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
+        - NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
+        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
+          the NEAR_RADIUS:
+          R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
+          and half that radius to set the IN_RADIUS.
+        - It's an open question as to what the correct radii are for DESI observations
 
     """
 
@@ -375,16 +566,18 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     fluxmax =  np.max(objs["DECAM_FLUX"][...,bandint],axis=1)
     mags = 22.5-2.5*np.log10(fluxmax)
 
-    #ADM convert the largest magnitude into a radius. This will require more consideration
-    #ADM to determine the truly correct numbers for DESI
-    radius = (0.0802*mags*mags - 1.860*mags + 11.625)
+    #ADM convert the largest magnitude into radii for "in" and "near" bright objects. This will require 
+    #ADM more consideration to determine the truly correct numbers for DESI
+    near_radius = (0.0802*mags*mags - 1.860*mags + 11.625)
+    in_radius = 0.5*(0.0802*mags*mags - 1.860*mags + 11.625)
 
     #ADM calculate the TARGETID
     targetid = objs['BRICKID'].astype(np.int64)*1000000 + objs['OBJID']
 
     #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
     done = objs[['RA','DEC']].copy()
-    done = rfn.append_fields(done,["TARGETID","RADIUS"],[targetid,radius],usemask=False,dtypes=['>i8','<f4'])
+    done = rfn.append_fields(done,["TARGETID","IN_RADIUS","NEAR_RADIUS"],[targetid,in_radius,near_radius],
+                             usemask=False,dtypes=['>i8','<f8','<f8'])
 
     if outfilename is not None:
         fitsio.write(outfilename, done, clobber=True)
@@ -392,7 +585,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     return done
 
 
-def plot_mask(mask,limits=None,over=False):
+def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
     """Make a plot of a mask and either display it or retain the plot object for over-plotting
 
     Parameters
@@ -401,9 +594,15 @@ def plot_mask(mask,limits=None,over=False):
         A mask constructed by make_bright_star_mask (or read in from file in the make_bright_star_mask format)
     limits : :class:`list`, optional
         A list defining the RA/Dec limits of the plot as would be passed to matplotlib.pyplot.axis
+    radius : :class: `str`, optional
+        Which of the mask radii to plot ("IN_RADIUS" or "NEAR_RADIUS"). Both can be plotted by calling
+        this function twice with show=False the first time and over=True the second time                    
     over : :class:`boolean`
-        If False, then don't "show" the plot, so that the plotting commands can be combined with
-        other matplotlib commands to save the figure, over-plot targets etc.
+        If True, then don't set-up the plot commands. Just issue the command to plot the mask so that the 
+        mask will be over-plotted on any existing plot (of targets etc.)
+    show : :class:`boolean`
+        If True, then display the plot, Otherwise, just execute the plot commands so it can be shown or
+        saved to file later              
 
     Returns
     -------
@@ -411,22 +610,26 @@ def plot_mask(mask,limits=None,over=False):
     """
 
     #ADM set up the plot
-    plt.figure(figsize=(8,8))
-    ax = plt.subplot(aspect='equal')
-    plt.xlabel('RA (o)')
-    plt.ylabel('Dec (o)')
-
-    if limits is not None:
-        plt.axis(limits)
-
-    #ADM draw circle patches from the mask information converting radius to degrees
-    out = circles(mask["RA"], mask["DEC"], mask["RADIUS"]/60., alpha=0.2, edgecolor='none')
-
     if not over:
+        plt.figure(figsize=(8,8))
+        ax = plt.subplot(aspect='equal')
+        plt.xlabel('RA (o)')
+        plt.ylabel('Dec (o)')
+
+        if limits is not None:
+            plt.axis(limits)
+
+    #ADM draw ellipse patches from the mask information converting radius to degrees
+    #ADM include the cos(dec) term to expand the RA semi-major axis at higher declination
+    #ADM note the "ellipses" takes the diameter, not the radius
+    minoraxis = mask[radius]/60.
+    majoraxis = minoraxis/np.cos(np.radians(mask["DEC"]))
+    out = ellipses(mask["RA"], mask["DEC"], 2*majoraxis, 2*minoraxis, alpha=0.2, edgecolor='none')
+
+    if show:
         plt.show()
 
     return
-
 
 def is_in_bright_star(targs,starmask):
     """Determine whether a set of targets is in a bright star mask
@@ -440,11 +643,16 @@ def is_in_bright_star(targs,starmask):
 
     Returns
     -------
-        mask : array_like. True if target is in a bright star mask
+    in_mask : array_like. 
+        True for array entries that correspond to a target that is IN a bright star mask
+    near_mask : array_like. 
+        True for array entries that correspond to a target that is NEAR a bright star mask
+
     """
 
     #ADM initialize an array of all False (nothing is yet in a star mask)
-    done = np.zeros(len(targs), dtype=bool)
+    in_mask = np.zeros(len(targs), dtype=bool)
+    near_mask = np.zeros(len(targs), dtype=bool)
 
     #ADM turn the coordinates of the masks and the targets into SkyCoord objects
     ctargs = SkyCoord(targs["RA"]*u.degree, targs["DEC"]*u.degree)
@@ -453,22 +661,206 @@ def is_in_bright_star(targs,starmask):
     #ADM this is the largest search radius we should need to consider
     #ADM in the future an obvious speed up is to split on radius
     #ADM as large radii are rarer but take longer
-    maxrad = max(starmask["RADIUS"])*u.arcmin
+    maxrad = max(starmask["NEAR_RADIUS"])*u.arcmin
 
     #ADM coordinate match the star masks and the targets
     idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs,maxrad)
 
     #ADM catch the case where nothing fell in a mask
     if len(idstars) == 0:
-        return done
+        return in_mask, near_mask
 
     #ADM for a matching star mask, find the angular separations that are less than the mask radius
-    w = np.where(d2d.arcmin < starmask[idstars]["RADIUS"])
+    w_in = np.where(d2d.arcmin < starmask[idstars]["IN_RADIUS"])
+    w_near = np.where(d2d.arcmin < starmask[idstars]["NEAR_RADIUS"])
 
     #ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
-    done[idtargs[w]] = 'True'
+    in_mask[idtargs[w_in]] = 'True'
+    near_mask[idtargs[w_near]] = 'True'
 
-    return done
+    return in_mask, near_mask
+
+def is_bright_star(targs,starmask):
+    """Determine whether any of a set of targets are, themselves, a bright star mask
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+
+    Returns
+    -------
+    is_mask : array_like. 
+        True for array entries that correspond to targets that are, themselves, a bright star mask
+
+    """
+
+    #ADM initialize an array of all False (nothing yet has been shown to correspond to a star mask)
+    is_mask = np.zeros(len(targs), dtype=bool)
+
+    #ADM calculate the TARGETID for the targets
+    targetid = targs['BRICKID'].astype(np.int64)*1000000 + targs['BRICK_OBJID']
+
+    #ADM super-fast set-based look-up of which TARGETIDs are matches between the masks and the targets
+    matches = set(starmask["TARGETID"]).intersection(set(targetid))
+    #ADM determine the indexes of the targets that have a TARGETID in matches
+    w_mask = [ index for index, item in enumerate(targetid) if item in matches ]
+
+    #ADM w_mask now contains the target indices that match to a bright star mask on TARGETID
+    is_mask[w_mask] = 'True'
+
+    return is_mask
+
+def generate_safe_locations(starmask,Npersqdeg):
+    """Given a bright star mask, generate SAFE (BADSKY) locations at its periphery
+
+    Parameters
+    ----------
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by :mod:`desitarget.brightstar.make_bright_star_mask`
+    npersqdeg : :class:`int`
+        The number of safe locations to generate per square degree of each mask
+
+    Returns
+    -------
+    ra : array_like. 
+        The Right Ascensions of the SAFE (BADSKY) locations
+    dec : array_like. 
+        The Declinations of the SAFE (BADSKY) locations
+
+    Notes
+    -----
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
+    """
+    
+    #ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
+    radius = 1.001*starmask["IN_RADIUS"]/60.
+
+    #ADM determine the area of each mask
+    area = cap_area(radius)
+
+    #ADM determine the number of SAFE locations to assign to each
+    #ADM mask given the passed number of locations per sq. deg.
+    Nsafe = np.ceil(area*Npersqdeg).astype('i')
+
+    #ADM determine Nsafe Dec offsets equally spaced around the perimeter for each mask
+    offdec = [ rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
+
+    #ADM use offsets to determine DEC positions
+    dec = starmask["DEC"] + offdec
+
+    #ADM determine the offsets in RA at these Decs given the mask center Dec
+    offrapos =  [ sphere_circle_ra_off(th,cen,declocs) for th,cen,declocs in zip(radius,starmask["DEC"],dec) ]
+
+    #ADM determine which of the RA offsets are in the positive direction
+    sign = [ np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in Nsafe ]
+
+    #ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
+    offra = [ o*s for o,s in zip(offrapos,sign) ]
+    ra = starmask["RA"] + offra
+
+    #ADM have to turn the generated locations into 1-D arrays before returning them
+    return np.hstack(ra), np.hstack(dec)
+
+
+def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
+    """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
+
+    Parameters
+    ----------
+    targs : :class:`recarray`
+        A recarray of targets as made by desitarget.cuts.select_targets
+    starmask : :class:`recarray`
+        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+    drstring : :class:`str`, optional
+        The imaging data release for the targets as a string consisting of characters followed by trailing integers
+        (of any length; e.g. 'dr3') to update TARGETID. If this is not passed, then SAFE (BADSKY) targets will be
+        generated, but target bits will not be meaningful. The first element of the string must be a character.
+    drbricks : :class:`recarray`, optional
+        A rec array containing at least the "ra", "dec" and "nobjs" columns from a survey bricks file for the passed 
+        Data Release. This is typically used for testing only, as the code can determine the NERSC location of 
+        a survey bricks file directly from drstring
+
+    Returns
+    -------
+        The original recarray of targets (targs) is returned with additional SAFE (BADSKY) targets appended to it
+
+    Notes
+    -----
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
+          on the SAFE (BADSKY) locations
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348 for more details
+          on setting the SKY bit in TARGETID
+        - Currently hard-coded to create an additional 10,000 safe locations per sq. deg. of mask. What is the 
+          correct number per sq. deg. (Npersqdeg) for DESI is an open question.
+    """
+
+    #ADM Number of safe locations per sq. deg. of each mask in starmask
+    Npersqdeg = 10000
+
+    #ADM generate SAFE locations at the periphery of the star masks appropriate to a density of Npersqdeg
+    ra, dec = generate_safe_locations(starmask,Npersqdeg)
+
+    #ADM duplicate the targs rec array with a number of rows equal to the generated safe locations
+    nrows = len(ra)
+    safes = np.zeros(nrows, dtype=targs.dtype)
+
+    #ADM populate the safes recarray with the RA/Dec of the SAFE locations
+    safes["RA"] = ra
+    safes["DEC"] = dec
+
+    #ADM set SKY in the TARGETID for safe locations
+    safes["TARGETID"] |= targetid_mask.SKY
+
+    #ADM set the bit for SAFE locations in DESITARGET
+    safes["DESI_TARGET"] |= desi_mask.BADSKY
+
+    #ADM if the data release string was passed then add the brick-based bit information
+    if drstring is not None:
+        #ADM turn the string into the integer of the release by identifying the trailing integers
+        drint = int(re.match(r"([a-z]+)([0-9]+)", drstring, re.I).groups()[1])
+        #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
+        safes["TARGETID"] |= drint << targetid_mask.DR.firstbit
+
+        #ADM add the brick information for the SAFE/BADSKY targets
+        b = brick.Bricks(bricksize=0.25)
+        safes["BRICKID"] = b.brickid(safes["RA"],safes["DEC"])
+        safes["BRICKNAME"] = b.brickname(safes["RA"],safes["DEC"])
+
+        #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
+        #ADM read in the Data Release bricks file
+        if drbricks is None:
+            rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
+            drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
+        #ADM the BRICK IDs that are populated for this DR
+        drbrickids = b.brickid(drbricks["ra"],drbricks["dec"])
+        #ADM the maximum possible BRICKID at bricksize=0.25
+        brickmax = 662174
+        #ADM create a histogram of how many SAFE/BADSKY objects are in each brick
+        hsafes = np.histogram(safes["BRICKID"],range=[0,brickmax+1],bins=brickmax+1)[0]
+        #ADM create a histogram of how many objects are in each brick in this DR
+        hnobjs = np.zeros(len(hsafes),dtype=int)
+        hnobjs[drbrickids] = drbricks["nobjs"]
+        #ADM make each OBJID for a SAFE/BADSKY +1 higher than any other OBJID in the DR
+        safes["BRICK_OBJID"] = hnobjs[safes["BRICKID"]] + 1
+        #ADM sort the safes array on BRICKID
+        safes = safes[safes["BRICKID"].argsort()]
+        #ADM remove zero entries from the histogram of BRICKIDs in safes, for speed
+        hsafes = hsafes[np.where(hsafes > 0)]
+        #ADM the count by which to augment each OBJID to make unique OBJIDs for safes
+        objsadd = np.hstack([ np.arange(i) for i in hsafes ])
+        #ADM finalize the OBJID for each SAFE target
+        safes["BRICK_OBJID"] += objsadd
+
+        #ADM finally, update the TARGETID with the OBJID and the BRICKID
+        #ADM have to convert BRICKID to int64 (it's only int32 as standard)
+        safes["TARGETID"] |= safes["BRICK_OBJID"]
+        safes["TARGETID"] |= safes["BRICKID"].astype("int64") << targetid_mask.BRICKID.firstbit
+        
+    #ADM return the input targs with the SAFE targets appended
+    return np.hstack([targs,safes])
 
 
 def set_target_bits(targs,starmask):
@@ -487,31 +879,40 @@ def set_target_bits(targs,starmask):
 
     Notes
     -----
-    - Currently sets IN_BRIGHT_OBJECT but should also match on the TARGETID to set BRIGHT_OBJECT bit
-    - Should also set NEAR_BRIGHT_OBJECT at an appropriate radius in is_in_bright_star
-    - See :mod:`desitarget.targetmask` for the definition of each bit
+        - Sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT via coordinate matches to the mask centers and radii
+        - Sets BRIGHT_OBJECT via an index match on TARGETID (defined as TARGETID = BRICKID*1000000 + OBJID)
+
+    See :mod:`desitarget.targetmask` for the definition of each bit
     """
 
-    in_bright_object = is_in_bright_star(targs,starmask)
+    bright_object = is_bright_star(targs,starmask)
+    in_bright_object, near_bright_object = is_in_bright_star(targs,starmask)
 
     desi_target = targs["DESI_TARGET"].copy()
+
+    desi_target |= bright_object * desi_mask.BRIGHT_OBJECT
     desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
+    desi_target |= near_bright_object * desi_mask.NEAR_BRIGHT_OBJECT
 
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=True):
-    """Add bits for whether objects are in a bright star mask to list of targets
+def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
+    """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
     ----------
     targs : :class:`str` or recarray
         A recarray of targets created by desitarget.cuts.select_targets OR a filename of
         a file that contains such a set of targets
-    instarmaskfile : :class=`str`, optional
+    instarmaskfile : :class:`str`, optional
         An input bright star mask created by desitarget.brightstar.make_bright_star_mask
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
+    drstring : :class:`str`, optional
+        The imaging data release for the targets as a string consisting of characters followed by trailing integers
+        (of any length; e.g. 'dr3') to update TARGETID. If this is not passed, then SAFE (BADSKY) targets will be
+        generated, but target bits will not be meaningful. The first element of the string must be a character.
     bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z".
         Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
@@ -534,12 +935,15 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
     Returns
     -------
     targets numpy structured array
-        the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits.
+        the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits
+        and SAFE (BADSKY) sky locations added around the perimeter of the bright star mask.
 
     Notes
     -----
-    Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
-    (not including 5-10 minutes to build the star mask from scratch)
+        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
+          about SAFE (BADSKY) locations
+        - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
+        - (not including 5-10 minutes to build the star mask from scratch)
     """
 
     t0 = time()
@@ -561,14 +965,32 @@ def mask_targets(targs,instarmaskfile=None,bands="GRZ",maglim=[10,10,10],numproc
         starmask = fitsio.read(instarmaskfile)
 
     if verbose:
-        print('Number of targets {}...t={:.1f}s'.format(len(targs), time()-t0))
+        ntargsin = len(targs)
+        print('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
         print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
+    #ADM generate SAFE locations and add them to the target list
+    targs = append_safe_targets(targs,starmask,drstring=drstring)
+    
+    if verbose:
+        print('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
+
+    #ADM update the bits depending on whether targets are in a mask
     dt = set_target_bits(targs,starmask)
     done = targs.copy()
     done["DESI_TARGET"] = dt
+
+    #ADM remove any SAFE locations that are in bright masks (because they aren't really safe)
+    w = np.where(  ((done["DESI_TARGET"] & desi_mask.BADSKY) == 0)  | 
+                   ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
+    if len(w[0]) > 0:
+        done = done[w]
+
+    if verbose:
+        print("...of these, {} SAFE (BADSKY) locations aren't in masks...t={:.1f}s".format(len(done)-ntargsin, time()-t0))
 
     if verbose:
         print('Finishing up...t={:.1f}s'.format(time()-t0))
 
     return done
+ 

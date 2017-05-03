@@ -5,6 +5,11 @@ desitarget Change Log
 0.12.0 (Unreleased)
 -------------------
 
+* Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
+  * Generate SAFE/BADSKY locations around mask perimeters
+  * Set the target bits (including TARGETID) for SAFE/BADSKY sky locations
+  * Set a NEAR_RADIUS warning for objects close to (but not in) a mask
+  * Plot more realistic mask shapes by using ellipses
 * Significant expansion of the mocks-to-targets code [`PR #173`_ and `PR #177`_]:
   * Better and more graceful error handling.
   * Now includes contaminants.
@@ -14,6 +19,7 @@ desitarget Change Log
 
 .. _`PR #173`: https://github.com/desihub/desitarget/pull/173
 .. _`PR #174`: https://github.com/desihub/desitarget/pull/174
+.. _`PR #176`: https://github.com/desihub/desitarget/pull/176
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
 
 0.11.0 (2017-04-14)

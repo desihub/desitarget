@@ -52,8 +52,8 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3, 1]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
         
-        #- change one target to a SAFE target and confirm priority=0 not 1
-        self.targets['DESI_TARGET'][0] = Mx.SAFE
+        #- change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
+        self.targets['DESI_TARGET'][0] = Mx.BADSKY
         mtl = make_mtl(self.targets, self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
         self.assertEqual(mtl['PRIORITY'][0], 0)

@@ -106,7 +106,7 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
-def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=False):
+def write_targets(filename, data, drstring=None, indir=None, qso_selection=None, sandboxcuts=False):
     """Write a target catalogue.
 
     Args:
@@ -121,6 +121,9 @@ def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=Fa
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     depend.setdep(hdr, 'sandboxcuts', sandboxcuts)
+    if drstring is not None:
+        depend.setdep(hdr, 'photcat  ', drstring)
+
     if indir is not None:
         depend.setdep(hdr, 'tractor-files', indir)
 
