@@ -23,6 +23,9 @@ class TemplateKDTree(object):
         from speclite import filters
         from scipy.spatial import KDTree
 
+        self.decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
+        self.grz = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z')
+
         self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
         self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)
         self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
@@ -37,10 +40,11 @@ class TemplateKDTree(object):
         self.wd_da_tree = KDTree(self._wd_da())
         self.wd_db_tree = KDTree(self._wd_db())
 
+        self.elg_templatephot()
+
         # Stars are a special case.  Read the full set of spectra and synthesize
         # DECaLS/WISE fluxes.
         star_normfilter = 'decam2014-r'
-        decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
 
         star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR')
         star_maggies_table = decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
@@ -53,7 +57,48 @@ class TemplateKDTree(object):
         
         self.star_meta = star_meta
         self.star_tree = KDTree(self._star())
-                
+
+    def __get_colors_onez(self, args):
+        """Filler function to synthesize photometry at a given redshift"""
+        return _get_colors_onez(self, *args)
+
+    def _get_colors_onez(self, 
+
+    def elg_templatephot(self):
+        """Read the full set of templates and then synthesize photometry on a grid of
+        redshift.
+
+        """
+        flux, wave, meta = read_basis_templates(objtype='ELG')
+        nt = len(meta)
+
+        zmin, zmax, dz = 0.0, 2.0, 0.1
+        nz = np.round( (zmax - zmin) / dz ).astype('i2')
+
+        colors = dict(
+            redshift = np.linspace(0.0, 2.0, nz),
+            gr = np.zeros( (nt, nz) ),
+            rz = np.zeros( (nt, nz) )
+            )
+
+        from time import time
+        t0 = time()
+        for iz, red in enumerate(colors['redshift']):
+            print(iz)
+            zwave = wave.astype('float') * (1 + red)
+            phot = self.grz.get_ab_maggies(flux, zwave, mask_invalid=False)
+            colors['gr'][:, iz] = -2.5 * np.log10( phot['decam2014-g'] / phot['decam2014-r'] )
+            colors['rz'][:, iz] = -2.5 * np.log10( phot['decam2014-r'] / phot['decam2014-z'] )
+        print( (time() - t0) / 60 )
+
+        import matplotlib.pyplot as plt
+        for tt in range(nt):
+            plt.scatter(colors['rz'][tt, :], colors['gr'][tt, :])
+        plt.xlim(-0.5, 2.0) ;  plt.ylim(-0.5, 2.0)
+        plt.show()
+
+        import pdb ; pdb.set_trace()
+        
     def _bgs(self):
         """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r).  This needs to
         be generalized to accommodate other mocks!
@@ -73,6 +118,15 @@ class TemplateKDTree(object):
         rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
         #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
         return np.vstack((zobj, gr, rz)).T
+
+    #def _elg(self):
+    #    """Quantities we care about: redshift, g-r, r-z."""
+    #    
+    #    zobj = self.elg_meta['Z'].data
+    #    gr = self.elg_meta['DECAM_G'].data - self.elg_meta['DECAM_R'].data
+    #    rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
+    #    #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
+    #    return np.vstack((zobj, gr, rz)).T
 
     def _lrg(self):
         """Quantities we care about: r-z, r-W1."""
