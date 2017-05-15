@@ -11,17 +11,31 @@ Functions dealing with assigning template spectra to mock targets.
 from __future__ import (absolute_import, division, print_function)
 
 import numpy as np
-from time import time
+import multiprocessing
 
 from desisim.io import read_basis_templates, empty_metatable
+
+def _get_colors_onez(args):
+    """Filler function to synthesize photometry at a given redshift"""
+    return get_colors_onez(*args)
+
+def get_colors_onez(z, flux, wave, filt):
+    print(z)
+    zwave = wave.astype('float') * (1 + z)
+    phot = filt.get_ab_maggies(flux, zwave, mask_invalid=False)
+    gr = -2.5 * np.log10( phot['decam2014-g'] / phot['decam2014-r'] )
+    rz = -2.5 * np.log10( phot['decam2014-r'] / phot['decam2014-z'] )
+    return [gr, rz]
 
 class TemplateKDTree(object):
     """Build a KD Tree for each object type.
 
     """
-    def __init__(self):
+    def __init__(self, nproc=1):
         from speclite import filters
         from scipy.spatial import KDTree
+
+        self.nproc = nproc
 
         self.decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
         self.grz = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z')
@@ -58,12 +72,6 @@ class TemplateKDTree(object):
         self.star_meta = star_meta
         self.star_tree = KDTree(self._star())
 
-    def __get_colors_onez(self, args):
-        """Filler function to synthesize photometry at a given redshift"""
-        return _get_colors_onez(self, *args)
-
-    def _get_colors_onez(self, 
-
     def elg_templatephot(self):
         """Read the full set of templates and then synthesize photometry on a grid of
         redshift.
@@ -81,18 +89,34 @@ class TemplateKDTree(object):
             rz = np.zeros( (nt, nz) )
             )
 
+        #from time import time
+        #t0 = time()
+        #for iz, red in enumerate(colors['redshift']):
+        #    print(iz)
+        #    zwave = wave.astype('float') * (1 + red)
+        #    phot = self.grz.get_ab_maggies(flux, zwave, mask_invalid=False)
+        #    colors['gr'][:, iz] = -2.5 * np.log10( phot['decam2014-g'] / phot['decam2014-r'] )
+        #    colors['rz'][:, iz] = -2.5 * np.log10( phot['decam2014-r'] / phot['decam2014-z'] )
+        #print( (time() - t0) / 60 )
+
         from time import time
         t0 = time()
-        for iz, red in enumerate(colors['redshift']):
-            print(iz)
-            zwave = wave.astype('float') * (1 + red)
-            phot = self.grz.get_ab_maggies(flux, zwave, mask_invalid=False)
-            colors['gr'][:, iz] = -2.5 * np.log10( phot['decam2014-g'] / phot['decam2014-r'] )
-            colors['rz'][:, iz] = -2.5 * np.log10( phot['decam2014-r'] / phot['decam2014-z'] )
+        zargs = list()
+        for red in colors['redshift']:
+            zargs.append( (red, flux, wave, self.grz) )
+
+        if self.nproc > 1:
+            pool = multiprocessing.Pool(self.nproc)
+            result = pool.map( _get_colors_onez, zargs )
+            pool.close()
+        else:
+            result = list()
+            for onearg in zargs:
+                result.append( _get_colors_onez(onearg) )
         print( (time() - t0) / 60 )
 
         import matplotlib.pyplot as plt
-        for tt in range(nt):
+        for tt in range(10):
             plt.scatter(colors['rz'][tt, :], colors['gr'][tt, :])
         plt.xlim(-0.5, 2.0) ;  plt.ylim(-0.5, 2.0)
         plt.show()
@@ -214,11 +238,12 @@ class MockSpectra(object):
     ToDo (@moustakas): apply Galactic extinction.
 
     """
-    def __init__(self, wavemin=None, wavemax=None, dw=0.2, rand=None, verbose=False):
+    def __init__(self, wavemin=None, wavemax=None, dw=0.2, nproc=1,
+                 rand=None, verbose=False):
 
         from desimodel.io import load_throughput
         
-        self.tree = TemplateKDTree()
+        self.tree = TemplateKDTree(nproc=nproc)
 
         # Build a default (buffered) wavelength vector.
         if wavemin is None:
