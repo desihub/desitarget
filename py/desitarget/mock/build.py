@@ -419,11 +419,16 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     else:
         depthkey = 'DECAM_GALDEPTH'
     with np.errstate(divide='ignore'):                        
-        decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
+        #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
+        decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
 
-    # Hack!  Assume a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    #   all bricks:  http://legacysurvey.org/dr3/description
+    decam_onesigma = 10**(0.4 * (22.5 - np.array([0.0, 24.7, 23.9, 0.0, 23.0, 0.0])) ) / 5
+
+    # Hack! Assume a constant depth (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3
     # nanomaggies) in the WISE bands for now.
-    wise_onesigma = np.array([1.2, 0.3])
+    wise_onesigma = 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )
 
     # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
@@ -491,10 +496,11 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
             rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
             plt.scatter(rz1, gr1)
             plt.scatter(rz, gr, alpha=0.5)
-            plt.scatter(rz[keep], gr[keep], edgecolor='k')
+            #plt.scatter(rz[keep], gr[keep], edgecolor='k')
             plt.xlim(-0.5, 2)
             plt.ylim(-0.5, 2)
             plt.show()
+            import pdb ; pdb.set_trace()
         
     # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
@@ -512,6 +518,33 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=decam_onesigma[band], size=nobj)
 
+    if True:
+        import matplotlib.pyplot as plt
+        def elg_colorbox(ax):
+            """Draw the ELG selection box."""
+            from matplotlib.patches import Polygon
+            grlim = ax.get_ylim()
+            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+            verts = [(rzmin, grlim[0]),
+                     (rzmin, np.polyval(coeff0, rzmin)),
+                     (rzpivot, np.polyval(coeff1, rzpivot)),
+                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
+                     ]
+            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
+        gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
+        rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
+        gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
+        rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+        fig, ax = plt.subplots()
+        ax.scatter(rz1, gr1, color='red')
+        ax.scatter(rz, gr, alpha=0.5, color='green')
+        ax.set_xlim(-0.5, 2)
+        ax.set_ylim(-0.5, 2)
+        elg_colorbox(ax)
+        plt.show()
+        import pdb ; pdb.set_trace()
+        
     if 'BOSS_STD' in source_data.keys():
         boss_std = source_data['BOSS_STD'][onbrick]
     else:
