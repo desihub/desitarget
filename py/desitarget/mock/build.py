@@ -18,6 +18,7 @@ import os
 import shutil
 from time import time
 
+import healpy
 import numpy as np
 from astropy.io import fits
 from astropy.table import Table, Column, vstack
@@ -573,6 +574,48 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
 
     #write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
+def _write_onehealpix(writeargs):
+    """Filler function for the multiprocessing."""
+    return write_onehealpix(*writeargs)
+
+def write_onehealpix(subdir, pixelnum, inpixel, nside, targets, truth,
+                     trueflux, truthhdr, wave, output_dir, log):
+    """Wrapper function to write out files in a single healpix pixel."""
+
+    targetsfile = os.path.join(subdir, 'targets-{}-{}.fits'.format(nside, pixelnum))
+    truthfile = os.path.join(subdir, 'truth-{}-{}.fits'.format(nside, pixelnum))
+    truthspecfile = os.path.join(subdir, 'truth-spectra-{}-{}.fits'.format(nside, pixelnum))
+
+    log.info('Writing {}'.format(targetsfile))
+    try:
+        targets[inpixel].write(targetsfile, overwrite=True)
+    except:
+        targets[inpixel].write(targetsfile, clobber=True)
+
+    #log.info('Writing {}'.format(truthfile))
+    try:
+        truth[inpixel].write(truthfile, overwrite=True)
+    except:
+        truth[inpixel].write(truthfile, clobber=True)
+
+    #log.info('Writing {}'.format(truthspecfile))
+    hx = fits.HDUList()
+    hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
+    hdu.header['BUNIT'] = 'Angstrom'
+    hdu.header['AIRORVAC'] = 'vac'
+    hx.append(hdu)
+
+    hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
+    hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+    hx.append(hdu)
+    
+    try:
+        hx.writeto(truthspecfile, overwrite=True)
+    except:
+        hx.writeto(truthspecfile, clobber=True)
+
+    #write_bintable(truthfile, truth[inpixel], extname='TRUTH')
+
 def _create_raslices(output_dir, ioutput_dir, brickname):
     """Create the RA-slice directories, if necessary."""
     
@@ -587,7 +630,7 @@ def _create_raslices(output_dir, ioutput_dir, brickname):
 #from memory_profiler import profile
 #@profile
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
+                  clobber=False, bricksize=0.25, nside=64, nproc=1):
     """
     Write
 
@@ -890,48 +933,77 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
     print()
 
-    # Write out the brick-level files (if any).
-    targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
-    unique_bricks = list(set(targets['BRICKNAME']))
-    log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
-                                                                      outbricksize, outbricksize))
-    
-    # Create the RA-slice directories, if necessary and then initialize the output header.
-    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in unique_bricks])
-    for thisradir in list(set(radir)):
-        try:
-            os.stat(thisradir)
-        except:
-            os.makedirs(thisradir)
-
     if seed is None:
         seed1 = 'None'
     else:
         seed1 = seed
     truthhdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed'),
-        BRICKSZ = (outbricksize, 'brick size (deg)')
+        SEED = (seed1, 'initial random seed')
+        #BRICKSZ = (outbricksize, 'brick size (deg)')
         #BUNIT = ('Angstrom', 'wavelength units'),
         #AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
 
-    nbrick = np.zeros((), dtype='i8')
-    t0 = time()
-    def _update_write_status(result):
-        if verbose and nbrick % 5 == 0 and nbrick > 0:
-            rate = nbrick / (time() - t0)
-            print('Writing {} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
-        nbrick[...] += 1
-        return result
+    # Write out targets by healpix pixels based on the grouping
+    #   {output_dir}/{subdir}/truth-{nside}-{ipix}.fits
+    # where subdir = ipix // (nside // 2)
+    pixels = healpy.ang2pix(nside, np.radians(90-targets['DEC']),
+                            np.radians(targets['RA']), nest=True)
+    unique_pixels = list(set(pixels))
 
     writeargs = list()
-    for thisbrick in unique_bricks:
-        writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir, log))
+    for pixelnum in unique_pixels:
+        subdir = os.path.join( output_dir, str(pixelnum // (nside // 2)) )
+        try:
+            os.stat(subdir)
+        except:
+            os.makedirs(subdir)
+
+        inpixel = np.where(pixelnum == pixels)[0]
+        writeargs.append((subdir, pixelnum, inpixel, nside, targets, truth, trueflux,
+                          truthhdr, Spectra.wave, output_dir, log))
 
     if nproc > 1:
         pool = sharedmem.MapReduce(np=nproc)
         with pool:
-            pool.map(_write_onebrick, writeargs, reduce=_update_write_status)
+            pool.map(_write_onehealpix, writeargs)
     else:
-        for ii in range(len(unique_bricks)):
-            _update_write_status(_write_onebrick(writeargs[ii]))
+        for args in writeargs:
+            _write_onehealpix(args)
+
+    import pdb ; pdb.set_trace()
+    
+    ## Write out the brick-level files (if any).
+    #targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
+    #unique_bricks = list(set(targets['BRICKNAME']))
+    #log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
+    #                                                                  outbricksize, outbricksize))
+    #
+    ## Create the RA-slice directories, if necessary and then initialize the output header.
+    #radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in unique_bricks])
+    #for thisradir in list(set(radir)):
+    #    try:
+    #        os.stat(thisradir)
+    #    except:
+    #        os.makedirs(thisradir)
+    #
+    #nbrick = np.zeros((), dtype='i8')
+    #t0 = time()
+    #def _update_write_status(result):
+    #    if verbose and nbrick % 5 == 0 and nbrick > 0:
+    #        rate = nbrick / (time() - t0)
+    #        print('Writing {} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
+    #    nbrick[...] += 1
+    #    return result
+    #
+    #writeargs = list()
+    #for thisbrick in unique_bricks:
+    #    writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir, log))
+    #
+    #if nproc > 1:
+    #    pool = sharedmem.MapReduce(np=nproc)
+    #    with pool:
+    #        pool.map(_write_onebrick, writeargs, reduce=_update_write_status)
+    #else:
+    #    for ii in range(len(unique_bricks)):
+    #        _update_write_status(_write_onebrick(writeargs[ii]))

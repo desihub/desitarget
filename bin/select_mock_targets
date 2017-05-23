@@ -19,7 +19,7 @@ parser.add_argument('--realtargets', '-r', help='Path to real target catalog', t
 parser.add_argument('--seed', '-s', help='Seed for random number generation', type=int, default=None)
 parser.add_argument('--bricksize', '-b', help='Size of the imaging bricks (deg)',
                     type=float, default=0.25)
-parser.add_argument('--outbricksize', '-o', help='Desired size of the output bricks', type=float, default=0.25)
+parser.add_argument('--nside', help='Resolution of the (output) healpix pixels', type=int, default=64)
 parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 
 parser.add_argument('--clobber', action='store_true', help='Remove intermediate files.')
@@ -48,10 +48,14 @@ if args.realtargets is not None:
 else:
     realtargets = None
 
+if args.nside < 2:
+    log.fatal('NSIDE={} must be >=2'.format(args.nside))
+    raise Exception()
+
 # Construct Targets and Truth files
 targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
               verbose=args.verbose, nproc=args.nproc, bricksize=args.bricksize,
-              outbricksize=args.outbricksize, clobber=args.clobber)
+              nside=args.nside, clobber=args.clobber)
 
 log.info('All done!')
 
