@@ -511,7 +511,11 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=decam_onesigma[band], size=nobj)
 
-    select_targets_function(targets, truth)
+    if 'BOSS_STD' in source_data.keys():
+        boss_std = source_data['BOSS_STD'][onbrick]
+    else:
+        boss_std = None
+    select_targets_function(targets, truth, boss_std=boss_std)
 
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
     nobj = len(keep)
@@ -537,27 +541,37 @@ def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_d
     radir = os.path.join(output_dir, thisbrick[:3])
     targetsfile = os.path.join(radir, 'targets-{}.fits'.format(thisbrick))
     truthfile = os.path.join(radir, 'truth-{}.fits'.format(thisbrick))
-    log.info('Writing {}.'.format(truthfile))
+    truthspecfile = os.path.join(radir, 'truth-spectra-{}.fits'.format(thisbrick))
 
+    log.info('Writing {}'.format(targetsfile))
     try:
         targets[onbrick].write(targetsfile, overwrite=True)
     except:
         targets[onbrick].write(targetsfile, clobber=True)
 
+    #log.info('Writing {}'.format(truthfile))
+    try:
+        truth[onbrick].write(truthfile, overwrite=True)
+    except:
+        truth[onbrick].write(truthfile, clobber=True)
+
+    #log.info('Writing {}'.format(truthspecfile))
     hx = fits.HDUList()
     hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
+    hdu.header['BUNIT'] = 'Angstrom'
+    hdu.header['AIRORVAC'] = 'vac'
     hx.append(hdu)
 
     hdu = fits.ImageHDU(trueflux[onbrick, :].astype(np.float32), name='FLUX')
     hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
     hx.append(hdu)
-
+    
     try:
-        hx.writeto(truthfile, overwrite=True)
+        hx.writeto(truthspecfile, overwrite=True)
     except:
-        hx.writeto(truthfile, clobber=True)
+        hx.writeto(truthspecfile, clobber=True)
 
-    write_bintable(truthfile, truth[onbrick], extname='TRUTH')
+    #write_bintable(truthfile, truth[onbrick], extname='TRUTH')
 
 def _create_raslices(output_dir, ioutput_dir, brickname):
     """Create the RA-slice directories, if necessary."""
@@ -676,8 +690,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             lya = None
         source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
                                         bounds=bounds, magcut=magcut, nproc=nproc, lya=lya)
-
-        import pdb ; pdb.set_trace()
 
         # If there are no sources, keep going.
         if not bool(source_data):
@@ -837,7 +849,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
-    nsky = len(skytargets)
+    try:
+        nsky = len(skytargets)
+    except:
+        nsky = 0
 
     targetid = rand.randint(2**62, size=ntarget + nsky)
     subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
@@ -895,9 +910,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         seed1 = seed
     truthhdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed'),
-        BRICKSZ = (outbricksize, 'brick size (deg)'),
-        BUNIT = ('Angstrom', 'wavelength units'),
-        AIRORVAC = ('vac', 'vacuum wavelengths')
+        BRICKSZ = (outbricksize, 'brick size (deg)')
+        #BUNIT = ('Angstrom', 'wavelength units'),
+        #AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
 
     nbrick = np.zeros((), dtype='i8')

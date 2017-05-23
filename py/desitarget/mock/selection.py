@@ -89,7 +89,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
-    def _std_select(self, targets, truth):
+    def _std_select(self, targets, truth, boss_std=None):
         """Select bright- and dark-time standard stars."""
         from desitarget.cuts import isFSTD
 
@@ -105,23 +105,35 @@ class SelectTargets(object):
         fracflux = np.zeros_like(targets['DECAM_FLUX']).T     # No contamination from neighbors.
         objtype = np.repeat('PSF', len(targets)).astype('U3') # Right data type?!?
 
-        # Select dark-time FSTD targets.
-        fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                      decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux)
+        # Select dark-time FSTD targets.  Temporary hack to use the BOSS
+        # standard-star selection algorith.
+        if boss_std is None:
+            fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                          decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux)
+        else:
+            rbright, rfaint = 16, 19
+            fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+
         targets['DESI_TARGET'] |= (fstd != 0) * self.desi_mask.STD_FSTAR
         for oo in self.desi_mask.STD_FSTAR.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (fstd != 0) * self.obsconditions.mask(oo)
 
-        # Select bright-time FSTD targets.
-        fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                             decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux,
-                             bright=True)
+        # Select bright-time FSTD targets.  Temporary hack to use the BOSS
+        # standard-star selection algorith.
+        if boss_std is None:
+            fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                                 decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux,
+                                 bright=True)
+        else:
+            rbright, rfaint = 14, 17
+            fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+
         targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
         for oo in self.desi_mask.STD_BRIGHT.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(oo)
 
         
-    def bgs_select(self, targets, truth):
+    def bgs_select(self, targets, truth, boss_std=None):
         """Select BGS targets.  Note that obsconditions for BGS_ANY are set to BRIGHT
         only. Is this what we want?
 
@@ -146,7 +158,7 @@ class SelectTargets(object):
         for oo in self.bgs_mask.BGS_FAINT.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(oo)
 
-    def elg_select(self, targets, truth):
+    def elg_select(self, targets, truth, boss_std=None):
         """Select ELG targets and contaminants."""
         from desitarget.cuts import isELG, isQSO_colors
 
@@ -177,12 +189,12 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_GALAXY
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
-    def faintstar_select(self, targets, truth):
+    def faintstar_select(self, targets, truth, boss_std=None):
         """Select faint stellar contaminants for the extragalactic targets.""" 
 
         self._star_select(targets, truth)
 
-    def lrg_select(self, targets, truth):
+    def lrg_select(self, targets, truth, boss_std=None):
         """Select LRG targets."""
         from desitarget.cuts import isLRG, isQSO_colors
 
@@ -213,7 +225,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_GALAXY
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
-    def mws_main_select(self, targets, truth):
+    def mws_main_select(self, targets, truth, boss_std=None):
         """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
         contaminants for extragalactic targets.  The selection here eventually
         will be done with Gaia (I think).
@@ -253,12 +265,12 @@ class SelectTargets(object):
             targets['OBSCONDITIONS'] |= (mws_main_very_faint != 0) * self.obsconditions.mask(oo)
 
         # Select standard stars.
-        self._std_select(targets, truth)
+        self._std_select(targets, truth, boss_std=boss_std)
         
         # Select bright stellar contaminants for the extragalactic targets.
         self._star_select(targets, truth)
 
-    def mws_nearby_select(self, targets, truth):
+    def mws_nearby_select(self, targets, truth, boss_std=None):
         """Select MWS_NEARBY targets.  The selection eventually will be done with Gaia,
         so for now just do a "perfect" selection.
 
@@ -271,7 +283,7 @@ class SelectTargets(object):
         for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (mws_nearby != 0) * self.obsconditions.mask(oo)
 
-    def mws_wd_select(self, targets, truth):
+    def mws_wd_select(self, targets, truth, boss_std=None):
         """Select MWS_WD and STD_WD targets.  The selection eventually will be done with
         Gaia, so for now just do a "perfect" selection here.
 
@@ -290,7 +302,7 @@ class SelectTargets(object):
         for oo in self.desi_mask.STD_WD.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (std_wd != 0) * self.obsconditions.mask(oo)
 
-    def qso_select(self, targets, truth):
+    def qso_select(self, targets, truth, boss_std=None):
         """Select QSO targets and contaminants."""
         from desitarget.cuts import isQSO_colors, isELG
 
@@ -323,7 +335,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_QSO
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
-    def sky_select(self, targets, truth):
+    def sky_select(self, targets, truth, boss_std=None):
         """Select SKY targets."""
 
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
