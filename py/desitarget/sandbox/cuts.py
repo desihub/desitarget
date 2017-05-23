@@ -68,9 +68,26 @@ def write_fom_targets(targets, FoM, desi_target, bgs_target, mws_target):
 
     return
 
+def isLRG_pre2017v0(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+    """Initial version of LRG cuts superceded in early 2017"""
+
+     if primary is None:
+         primary = np.ones_like(rflux, dtype='?')
+
+     lrg = primary.copy()
+     lrg &= zflux > 10**((22.5-20.46)/2.5)  # z<20.46
+     lrg &= zflux > rflux * 10**(1.5/2.5)   # (r-z)>1.5
+     lrg &= w1flux > 0                      # W1flux>0
+     #- clip to avoid warnings from negative numbers raised to fractional powers
+     rflux = rflux.clip(0)
+     zflux = zflux.clip(0)
+     lrg &= w1flux * rflux**(1.8-1.0) > zflux**1.8 * 10**(-1.0/2.5)
+
+     return lrg
+
 def isLRG_2016v3_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
-    """See :func:`~desitarget.sandbox.cuts.isLRG_2016v3` for details.
+    """See :func:`~desitarget.sandbox.cuts.isLRG2016v3` for details.
     This function applies just the flux and color cuts.
     """
     if primary is None:
