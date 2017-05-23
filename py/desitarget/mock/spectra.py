@@ -48,7 +48,9 @@ class TemplateKDTree(object):
 
         # Read all the stellar spectra and synthesize DECaLS/WISE fluxes.
         self.star_phot()
+
         #self.elg_phot()
+        #self.elg_kcorr = read_basis_templates(objtype='ELG', onlykcorr=True)
 
         self.bgs_tree = KDTree(self._bgs())
         self.elg_tree = KDTree(self._elg())
@@ -328,6 +330,89 @@ class MockSpectra(object):
             _, templateid = self.tree.query(objtype, alldata)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        if True:
+            import matplotlib.pyplot as plt
+            def elg_colorbox(ax):
+                """Draw the ELG selection box."""
+                from matplotlib.patches import Polygon
+                grlim = ax.get_ylim()
+                coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+                rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+                verts = [(rzmin, grlim[0]),
+                         (rzmin, np.polyval(coeff0, rzmin)),
+                         (rzpivot, np.polyval(coeff1, rzpivot)),
+                         ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
+                         ]
+                ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
+
+            fig, ax = plt.subplots()
+            ax.scatter(data['RZ'][index], data['GR'][index])
+            ax.set_xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+            elg_colorbox(ax)
+            plt.show()
+            import pdb ; pdb.set_trace()
+
+        input_meta['TEMPLATEID'] = templateid
+        flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,
+                                                          nocolorcuts=True, novdisp=True,
+                                                          verbose=self.verbose)
+
+        return flux, meta
+
+    def elg_test(self, data, index=None, mockformat='gaussianfield'):
+        """Test script -- generate spectra for the ELG sample.
+
+        Currently only the GaussianField mock sample is supported.  DATA needs
+        to have Z, GR, RZ, VDISP, and SEED, which are assigned in
+        mock.io.read_gaussianfield.  See also TemplateKDTree.elg().
+
+        """
+        objtype = 'ELG'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            input_meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() == 'gaussianfield':
+            alldata = np.vstack((data['Z'][index],
+                                 data['GR'][index],
+                                 data['RZ'][index])).T
+            _, templateid = self.tree.query(objtype, alldata)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        import matplotlib.pyplot as plt
+        from scipy.interpolate import interp1d
+
+        f1 = interp1d(np.squeeze(self.tree.elg_kcorr['REDSHIFT']), np.squeeze(self.tree.elg_kcorr['GR']), axis=0)
+        gr = f1(data['Z'][index])
+        plt.plot(np.squeeze(self.tree.elg_kcorr['REDSHIFT']), np.squeeze(self.tree.elg_kcorr['GR'])[:, 500])
+        plt.scatter(data['Z'][index], gr[:, 500], marker='x', color='red', s=15)
+        plt.show()
+
+        def elg_colorbox(ax):
+            """Draw the ELG selection box."""
+            from matplotlib.patches import Polygon
+            grlim = ax.get_ylim()
+            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+            verts = [(rzmin, grlim[0]),
+                     (rzmin, np.polyval(coeff0, rzmin)),
+                     (rzpivot, np.polyval(coeff1, rzpivot)),
+                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
+                     ]
+            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
+
+        fig, ax = plt.subplots()
+        ax.scatter(data['RZ'][index], data['GR'][index])
+        ax.set_xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+        elg_colorbox(ax)
+        plt.show()
+        import pdb ; pdb.set_trace()
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,

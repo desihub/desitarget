@@ -627,11 +627,11 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
-        import pdb ; pdb.set_trace()
-        import matplotlib.pyplot as plt
-        plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
-        plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
-        plt.show()
+        #import pdb ; pdb.set_trace()
+        #import matplotlib.pyplot as plt
+        #plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
+        #plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+        #plt.show()
 
         out.update({'Z': zz, 'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
                     'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
