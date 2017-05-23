@@ -923,9 +923,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # not yet supported.
     for suffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
         stdfile = os.path.join(output_dir, 'standards-{}.fits'.format(suffix))
-        #istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-        #        (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
-        istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
+        istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
+        #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
         if np.count_nonzero(istd) > 0:
             log.info('Writing {}'.format(stdfile))
             write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
@@ -971,39 +971,3 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         for args in writeargs:
             _write_onehealpix(args)
 
-    import pdb ; pdb.set_trace()
-    
-    ## Write out the brick-level files (if any).
-    #targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
-    #unique_bricks = list(set(targets['BRICKNAME']))
-    #log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
-    #                                                                  outbricksize, outbricksize))
-    #
-    ## Create the RA-slice directories, if necessary and then initialize the output header.
-    #radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in unique_bricks])
-    #for thisradir in list(set(radir)):
-    #    try:
-    #        os.stat(thisradir)
-    #    except:
-    #        os.makedirs(thisradir)
-    #
-    #nbrick = np.zeros((), dtype='i8')
-    #t0 = time()
-    #def _update_write_status(result):
-    #    if verbose and nbrick % 5 == 0 and nbrick > 0:
-    #        rate = nbrick / (time() - t0)
-    #        print('Writing {} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
-    #    nbrick[...] += 1
-    #    return result
-    #
-    #writeargs = list()
-    #for thisbrick in unique_bricks:
-    #    writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir, log))
-    #
-    #if nproc > 1:
-    #    pool = sharedmem.MapReduce(np=nproc)
-    #    with pool:
-    #        pool.map(_write_onebrick, writeargs, reduce=_update_write_status)
-    #else:
-    #    for ii in range(len(unique_bricks)):
-    #        _update_write_status(_write_onebrick(writeargs[ii]))
