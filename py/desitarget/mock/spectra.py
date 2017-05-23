@@ -121,7 +121,6 @@ class TemplateKDTree(object):
             plt.scatter(colors['rz'][tt, :], colors['gr'][tt, :])
         plt.xlim(-0.5, 2.0) ;  plt.ylim(-0.5, 2.0)
         plt.show()
-
         import pdb ; pdb.set_trace()
         
     def _bgs(self):
@@ -331,7 +330,7 @@ class MockSpectra(object):
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        if True:
+        if False:
             import matplotlib.pyplot as plt
             def elg_colorbox(ax):
                 """Draw the ELG selection box."""
