@@ -37,9 +37,6 @@ class TemplateKDTree(object):
 
         self.nproc = nproc
 
-        self.decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
-        self.grz = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z')
-
         self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
         self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)
         self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
@@ -47,17 +44,22 @@ class TemplateKDTree(object):
         self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
         self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
 
+        self.decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
+
+        # Read all the stellar spectra and synthesize DECaLS/WISE fluxes.
+        self.star_phot()
+        #self.elg_phot()
+
         self.bgs_tree = KDTree(self._bgs())
         self.elg_tree = KDTree(self._elg())
         #self.lrg_tree = KDTree(self._lrg())
         #self.qso_tree = KDTree(self._qso())
+        self.star_tree = KDTree(self._star())
         self.wd_da_tree = KDTree(self._wd_da())
         self.wd_db_tree = KDTree(self._wd_db())
 
-        #self.elg_templatephot()
-
-        # Stars are a special case.  Read the full set of spectra and synthesize
-        # DECaLS/WISE fluxes.
+    def star_phot(self):
+        """Synthesize photometry for the full set of stellar templates."""
         star_normfilter = 'decam2014-r'
 
         star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR')
@@ -70,13 +72,10 @@ class TemplateKDTree(object):
         self.star_wise_flux = star_maggies[:, 6:8]
         
         self.star_meta = star_meta
-        self.star_tree = KDTree(self._star())
 
-    def elg_templatephot(self):
-        """Read the full set of templates and then synthesize photometry on a grid of
-        redshift.
-
-        """
+    def elg_kcorr(self):
+        """Compute K-corrections for the ELG templates on a grid of redshift."""
+        
         flux, wave, meta = read_basis_templates(objtype='ELG')
         nt = len(meta)
 
