@@ -54,16 +54,16 @@ class TemplateKDTree(object):
         self.wd_da_tree = KDTree(self._wd_da())
         self.wd_db_tree = KDTree(self._wd_db())
 
-        self.elg_templatephot()
+        #self.elg_templatephot()
 
         # Stars are a special case.  Read the full set of spectra and synthesize
         # DECaLS/WISE fluxes.
         star_normfilter = 'decam2014-r'
 
         star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR')
-        star_maggies_table = decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
+        star_maggies_table = self.decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
 
-        star_maggies = np.zeros( (len(star_meta), len(decamwise)) )
+        star_maggies = np.zeros( (len(star_meta), len(self.decamwise)) )
         for ff, key in enumerate(star_maggies_table.columns):
             star_maggies[:, ff] = star_maggies_table[key] / star_maggies_table[star_normfilter] # maggies
         self.star_decam_flux = star_maggies[:, :6]

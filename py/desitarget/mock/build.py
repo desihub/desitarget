@@ -677,6 +677,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
                                         bounds=bounds, magcut=magcut, nproc=nproc, lya=lya)
 
+        import pdb ; pdb.set_trace()
+
         # If there are no sources, keep going.
         if not bool(source_data):
             continue
