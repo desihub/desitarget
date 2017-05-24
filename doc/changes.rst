@@ -5,6 +5,7 @@ desitarget Change Log
 0.12.0 (Unreleased)
 -------------------
 
+* Updated LRG cuts significantly to match proposed shift in LRG target density [`PR #179`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
   * Generate SAFE/BADSKY locations around mask perimeters
   * Set the target bits (including TARGETID) for SAFE/BADSKY sky locations
@@ -21,6 +22,7 @@ desitarget Change Log
 .. _`PR #174`: https://github.com/desihub/desitarget/pull/174
 .. _`PR #176`: https://github.com/desihub/desitarget/pull/176
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
+.. _`PR #179`: https://github.com/desihub/desitarget/pull/179
 
 0.11.0 (2017-04-14)
 -------------------
