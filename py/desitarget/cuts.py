@@ -630,7 +630,9 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     #ADM remove handful of NaN values from DCHISQ values and make them unselectable
     w = np.where(deltaChi2 != deltaChi2)
-    deltaChi2[w] = -1e6
+    #ADM this is to catch the single-object case
+    if len(w[0]) > 0:
+        deltaChi2[w] = -1e6
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
@@ -871,7 +873,6 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        print('working on file {}'.format(filename))
         desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
