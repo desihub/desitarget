@@ -32,7 +32,7 @@ import desitarget.mock.io as mockio
 from desitarget.mock.selection import SelectTargets
 from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -481,13 +481,6 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
         keep = np.where(targets['DESI_TARGET'] != 0)[0]
         nobj = len(keep)
-        if nobj == 0:
-            log.warning('No {} targets identified!'.format(target_name.upper()))
-            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
-        else:
-            onbrick = onbrick[keep]
-            truth = truth[keep]
-            targets = targets[keep]
 
         # Temporary debugging plot.
         if False:
@@ -496,14 +489,22 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
             rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
             gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
             rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
-            plt.scatter(rz1, gr1)
-            plt.scatter(rz, gr, alpha=0.5)
-            #plt.scatter(rz[keep], gr[keep], edgecolor='k')
-            plt.xlim(-0.5, 2)
-            plt.ylim(-0.5, 2)
+            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none')
+            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
+            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none')
+            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k')
+            plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
             plt.show()
             import pdb ; pdb.set_trace()
         
+        if nobj == 0:
+            log.warning('No {} targets identified!'.format(target_name.upper()))
+            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
+        else:
+            onbrick = onbrick[keep]
+            truth = truth[keep]
+            targets = targets[keep]
+
     # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
 
@@ -920,7 +921,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    import pdb ; pdb.set_trace()
+    #print( np.sum( (targets['DESI_TARGET'] & desi_mask.MWS_ANY) != 0) )
+    #import pdb ; pdb.set_trace()
     # Write out the fileid-->filename mapping.  This doesn't work right now.
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
@@ -989,8 +991,31 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                             np.radians(targets['RA']), nest=True)
     unique_pixels = list(set(pixels))
 
+    """basedir/8-{superpix}/64-{pixnum}/filename-64-{pixnum}.fits
+
+    where pixnum is the nside=64 nested pixel number, and superpix = pixnum /
+    4**3.
+
+    I'm not completely convinced that will be user friendly, but it does have
+    the advantages that:
+
+    * <1000 subdirectories at any level
+    
+    * everything under a 8-{superpix} subdirectory is grouped on the sky (unlike
+      the case if we just did subdir = pixnum//100 or something like that that
+      is easier to calculate in your head but breaks spatial grouping).
+
+    * nside=8 is 53.7 deg2 which seems likely for a viable sub-unit to process
+      at NERSC per job
+
+    * nside=64 is 0.84 deg2 which seems like a viable sized sub-unit for
+      grouping targets
+    """
+
     writeargs = list()
     for pixelnum in unique_pixels:
+        #superpix = pixelnum / 4**3
+        #subdir = os.path.join( output_dir, '8-{}'.format(superpix), '64-{}'.format(pixelnum) )
         subdir = os.path.join( output_dir, str(pixelnum // (nside // 2)) )
         try:
             os.stat(subdir)

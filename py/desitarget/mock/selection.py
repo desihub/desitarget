@@ -393,12 +393,12 @@ class SelectTargets(object):
                 onbrick = np.where(
                     (targets['BRICKNAME'] == thisbrick) *
                     #(targets['DESI_TARGET'] == 0) *
-                    (truth['CONTAM_TARGET'] & self.contam_mask.mask('{}_IS_{}'.format(target_name.upper(), contam_name.upper())) != 0)
+                    (truth['CONTAM_TARGET'] & self.contam_mask.mask('{}_IS_{}'.format(target_name, contam_name)) != 0)
                     )[0]
                 n_in_brick = len(onbrick)
 
                 if n_in_brick == 0:
-                    self.log.warning('No {} contaminants on brick {}.'.format(contam_name, thisbrick))
+                    self.log.warning('No {}_IS_{} contaminants on brick {}.'.format(target_name, contam_name, thisbrick))
                 
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
@@ -406,8 +406,8 @@ class SelectTargets(object):
 
                     frac_keep = desired_density / contam_density
                     if frac_keep > 1.0:
-                        self.log.warning('{} contaminant density {:.0f}/deg2 lower than desired {:.0f}/deg2 on brick {}.'.format(
-                            target_name.upper(), contam_density, desired_density, thisbrick))
+                        self.log.warning('Density {:.0f}/deg2 (N={:g}) of {} contaminants lower than desired {:.0f}/deg2 on brick {}.'.format(
+                            contam_density, n_in_brick, contam_name.upper(), desired_density, thisbrick))
 
                     else:
                         frac_toss = 1.0 - frac_keep
