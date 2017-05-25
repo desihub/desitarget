@@ -3,13 +3,14 @@
 from __future__ import print_function, division
 
 import os
+import sys
 import argparse
 import yaml
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 
-from desitarget.mock.build import targets_truth
+from desitarget.mock.build import targets_truth, join_targets_truth
 from desispec.log import get_logger, DEBUG
 
 parser = argparse.ArgumentParser()
@@ -22,6 +23,7 @@ parser.add_argument('--bricksize', '-b', help='Size of the imaging bricks (deg)'
 parser.add_argument('--nside', help='Resolution of the (output) healpix pixels', type=int, default=64)
 parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 
+parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir and build QA.')
 parser.add_argument('--clobber', action='store_true', help='Remove intermediate files.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 args = parser.parse_args()
@@ -29,7 +31,12 @@ args = parser.parse_args()
 if args.verbose:
     log = get_logger(DEBUG)
 else:
-    log = get_logger(DEBUG)
+    log = get_logger()
+
+if args.join:
+    join_targets_truth(args.output_dir, nside=args.nside, verbose=args.verbose,
+                       clobber=args.clobber, qaplots=True)
+    sys.exit(1)
 
 if not os.path.exists(args.config):
     log.fatal('No configuration file {} found.'.format(args.config))
