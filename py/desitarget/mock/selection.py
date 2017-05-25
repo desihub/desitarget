@@ -47,7 +47,7 @@ class SelectTargets(object):
         w1flux = targets['WISE_FLUX'][..., 0]
         w2flux = targets['WISE_FLUX'][..., 1]
 
-        # Select faint stellar contaminants for BGS_FAINT targets.
+        # Select stellar contaminants for BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
@@ -58,7 +58,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
 
-        # Select faint stellar contaminants for ELG targets.
+        # Select stellar contaminants for ELG targets.
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
@@ -68,7 +68,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
-        # Select faint stellar contaminants for LRG targets.
+        # Select stellar contaminants for LRG targets.
         lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
@@ -78,7 +78,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
 
-        # Select faint stellar contaminants for QSO targets.
+        # Select stellar contaminants for QSO targets.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
@@ -177,17 +177,18 @@ class SelectTargets(object):
 
         # Select ELG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
-        # contaminants.
+        # contaminants.  To make sure we don't reduce the number density of true
+        # ELGs, demand that the QSO contaminants are not also selected as ELGs.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=False) # Note optical=False!
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (qso != 0) * (elg == 0) * self.obsconditions.mask(oo)
             
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_ELG
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_GALAXY
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
+        truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_IS_ELG
+        truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_IS_GALAXY
+        truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_CONTAM
 
     def faintstar_select(self, targets, truth, boss_std=None):
         """Select faint stellar contaminants for the extragalactic targets.""" 
@@ -213,17 +214,18 @@ class SelectTargets(object):
 
         # Select LRG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
-        # contaminants.
+        # contaminants.  To make sure we don't reduce the number density of true
+        # LRGs, demand that the QSO contaminants are not also selected as LRGs.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=False) # Note optical=False!
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (qso != 0) * (lrg == 0) * self.obsconditions.mask(oo)
 
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_LRG
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_GALAXY
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
+        truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_LRG
+        truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_GALAXY
+        truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_CONTAM
 
     def mws_main_select(self, targets, truth, boss_std=None):
         """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
@@ -390,13 +392,14 @@ class SelectTargets(object):
             for contam_name in contam.keys():
                 onbrick = np.where(
                     (targets['BRICKNAME'] == thisbrick) *
-                    (targets['DESI_TARGET'] == 0) *
+                    #(targets['DESI_TARGET'] == 0) *
                     (truth['CONTAM_TARGET'] & self.contam_mask.mask('{}_IS_{}'.format(target_name.upper(), contam_name.upper())) != 0)
                     )[0]
                 n_in_brick = len(onbrick)
 
-                import pdb ; pdb.set_trace()
-                        
+                if n_in_brick == 0:
+                    self.log.warning('No {} contaminants on brick {}.'.format(contam_name, thisbrick))
+                
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
                     desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * contam[contam_name])
@@ -407,14 +410,13 @@ class SelectTargets(object):
                             target_name.upper(), contam_density, desired_density, thisbrick))
 
                     else:
-                        self.log.debug('Downsampling {}_IS_{} contaminants from {:.0f} to {:.0f} targets/deg2.'.format(target_name,
-                                                                                                                       contam_name,
-                                                                                                                       contam_density,
-                                                                                                                       desired_density))
-
                         frac_toss = 1.0 - frac_keep
-                        toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
-                        
+                        ntoss = int( np.ceil( n_in_brick * frac_toss ) )
+
+                        self.log.info('Downsampling {}_IS_{} contaminants from {:.0f} to {:.0f} targets/deg2 (N={:g} to N={:g}) on brick {}.'.format(
+                            target_name, contam_name, contam_density, desired_density, n_in_brick, n_in_brick - ntoss, thisbrick))
+
                         # This isn't quite right because we occassionally throw
                         # away too many other "real" targets.
+                        toss = self.rand.choice(onbrick, ntoss, replace=False)
                         targets['DESI_TARGET'][toss] = 0 

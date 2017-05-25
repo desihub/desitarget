@@ -887,8 +887,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             alltrueflux.append(trueflux)
         print()
 
-    import pdb ; pdb.set_trace()
-    
     # Consolidate across all the mocks.  Note that the code quits if alltargets
     #is zero-length, even if skytargets is non-zero length. In other words, if
     #the parameter file only contains SKY the code will quit anyway.
@@ -908,14 +906,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         
         if 'contam' in params['sources'][source_name].keys():
-            if verbose:
-                print()
             log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
-            
             contam = params['sources'][source_name]['contam']
 
             Selection.contaminants_select(targets, truth, source_name=source_name,
-                                              target_name=target_name, contam=contam)
+                                          target_name=target_name, contam=contam)
             
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
             if len(keep) == 0:
