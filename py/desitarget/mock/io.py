@@ -623,7 +623,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     if target_name == 'SKY':
         out.update({'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': ''})
     else:
-        log.info('Sampling from Gaussian mixture model.')
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
 
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]

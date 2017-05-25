@@ -29,7 +29,7 @@ from desispec.io.util import fitsheader, write_bintable
 from desispec.brick import brickname as get_brickname_from_radec
 
 import desitarget.mock.io as mockio
-import desitarget.mock.selection as mockselect
+from desitarget.mock.selection import SelectTargets
 from desitarget.mock.spectra import MockSpectra
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
@@ -398,6 +398,8 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
 
+    brickarea = brick_info['BRICKAREA'][brickindx][0]
+
     # Initialize the output targets and truth catalogs and populate them with
     # the quantities of interest.
     targets = empty_targets_table(nobj)
@@ -518,7 +520,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=decam_onesigma[band], size=nobj)
 
-    if True:
+    if False:
         import matplotlib.pyplot as plt
         def elg_colorbox(ax):
             """Draw the ELG selection box."""
@@ -553,6 +555,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
     nobj = len(keep)
+
     if nobj == 0:
         log.warning('No {} targets identified!'.format(target_name.upper()))
     else:
@@ -736,8 +739,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the MockSpectra and SelectTargets Classes.')
     Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
-    SelectTargets = mockselect.SelectTargets(logger=log, rand=rand,
-                                             brick_info=brick_info)
+    Selection = SelectTargets(logger=log, rand=rand,
+                              brick_info=brick_info)
     print()
 
     # Loop over each source / object type.
@@ -772,19 +775,21 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             continue
 
         selection_function = '{}_select'.format(target_name.lower())
-        select_targets_function = getattr(SelectTargets, selection_function)
+        select_targets_function = getattr(Selection, selection_function)
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
 
         # Quickly check that all the brick info is here.
+        skyarea = 0.0
         for thisbrick in unique_bricks:
             brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+            skyarea = skyarea + brick_info['BRICKAREA'][brickindx][0]
             if (len(brickindx) != 1):
                 log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
                 raise ValueError
-        skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
+        #skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
         
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
             len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
@@ -830,7 +835,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             truth = truth[keep]
             trueflux = trueflux[keep, :]
         del out
-        
+
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
             density = params['sources'][source_name]['density']
@@ -842,27 +847,29 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 if 'LYA' in params['sources'][source_name].keys():
                     density_lya = params['sources'][source_name]['LYA']['density']
                     zcut = params['sources'][source_name]['LYA']['zcut']
-                    tracer = np.where(truth['TRUEZ'] < zcut)[0]
-                    lya = np.where(truth['TRUEZ'] >= zcut)[0]
+                    tracer = truth['TRUEZ'] < zcut
+                    lya = truth['TRUEZ'] >= zcut
                     if len(tracer) > 0:
                         log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                        SelectTargets.density_select(targets[tracer], truth[tracer], source_name=source_name,
-                                                     target_name=target_name, density=density)
+                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
+                                                 density=density, subset=tracer)
                         print()
                     if len(lya) > 0:
-                        SelectTargets.density_select(targets[lya], truth[lya], source_name=source_name,
-                                                     target_name=target_name, density=density_lya)
                         log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
+                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
+                                                 density=density_lya, subset=lya)
 
                 else:
-                    SelectTargets.density_select(targets, truth, source_name=source_name,
-                                                 target_name=target_name, density=density)
+                    Selection.density_select(targets, truth, source_name=source_name,
+                                             target_name=target_name, density=density)
                     
             else:
-                SelectTargets.density_select(targets, truth, source_name=source_name,
-                                             target_name=target_name, density=density)            
+                Selection.density_select(targets, truth, source_name=source_name,
+                                         target_name=target_name, density=density)            
 
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            #keep = np.where( np.any( ((targets['DESI_TARGET'] != 0), (truth['CONTAM_TARGET'] != 0)), axis=0) )[0]
+
             if len(keep) == 0:
                 log.warning('All {} targets rejected!'.format(target_name))
             else:
@@ -880,6 +887,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             alltrueflux.append(trueflux)
         print()
 
+    import pdb ; pdb.set_trace()
+    
     # Consolidate across all the mocks.  Note that the code quits if alltargets
     #is zero-length, even if skytargets is non-zero length. In other words, if
     #the parameter file only contains SKY the code will quit anyway.
@@ -905,7 +914,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             
             contam = params['sources'][source_name]['contam']
 
-            SelectTargets.contaminants_select(targets, truth, source_name=source_name,
+            Selection.contaminants_select(targets, truth, source_name=source_name,
                                               target_name=target_name, contam=contam)
             
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
@@ -916,6 +925,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
+    import pdb ; pdb.set_trace()
     # Write out the fileid-->filename mapping.  This doesn't work right now.
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
