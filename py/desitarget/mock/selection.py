@@ -47,7 +47,7 @@ class SelectTargets(object):
         w1flux = targets['WISE_FLUX'][..., 0]
         w2flux = targets['WISE_FLUX'][..., 1]
 
-        # Select faint stellar contaminants for BGS_FAINT targets.
+        # Select stellar contaminants for BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
@@ -58,7 +58,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
 
-        # Select faint stellar contaminants for ELG targets.
+        # Select stellar contaminants for ELG targets.
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
@@ -68,7 +68,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
-        # Select faint stellar contaminants for LRG targets.
+        # Select stellar contaminants for LRG targets.
         lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
@@ -78,7 +78,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
 
-        # Select faint stellar contaminants for QSO targets.
+        # Select stellar contaminants for QSO targets.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
@@ -89,7 +89,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
-    def _std_select(self, targets, truth):
+    def _std_select(self, targets, truth, boss_std=None):
         """Select bright- and dark-time standard stars."""
         from desitarget.cuts import isFSTD
 
@@ -105,23 +105,35 @@ class SelectTargets(object):
         fracflux = np.zeros_like(targets['DECAM_FLUX']).T     # No contamination from neighbors.
         objtype = np.repeat('PSF', len(targets)).astype('U3') # Right data type?!?
 
-        # Select dark-time FSTD targets.
-        fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                      decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux)
+        # Select dark-time FSTD targets.  Temporary hack to use the BOSS
+        # standard-star selection algorith.
+        if boss_std is None:
+            fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                          decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux)
+        else:
+            rbright, rfaint = 16, 19
+            fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+
         targets['DESI_TARGET'] |= (fstd != 0) * self.desi_mask.STD_FSTAR
         for oo in self.desi_mask.STD_FSTAR.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (fstd != 0) * self.obsconditions.mask(oo)
 
-        # Select bright-time FSTD targets.
-        fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                             decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux,
-                             bright=True)
+        # Select bright-time FSTD targets.  Temporary hack to use the BOSS
+        # standard-star selection algorith.
+        if boss_std is None:
+            fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                                 decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux,
+                                 bright=True)
+        else:
+            rbright, rfaint = 14, 17
+            fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+
         targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
         for oo in self.desi_mask.STD_BRIGHT.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(oo)
 
         
-    def bgs_select(self, targets, truth):
+    def bgs_select(self, targets, truth, boss_std=None):
         """Select BGS targets.  Note that obsconditions for BGS_ANY are set to BRIGHT
         only. Is this what we want?
 
@@ -146,7 +158,7 @@ class SelectTargets(object):
         for oo in self.bgs_mask.BGS_FAINT.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(oo)
 
-    def elg_select(self, targets, truth):
+    def elg_select(self, targets, truth, boss_std=None):
         """Select ELG targets and contaminants."""
         from desitarget.cuts import isELG, isQSO_colors
 
@@ -165,24 +177,25 @@ class SelectTargets(object):
 
         # Select ELG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
-        # contaminants.
+        # contaminants.  To make sure we don't reduce the number density of true
+        # ELGs, demand that the QSO contaminants are not also selected as ELGs.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=False) # Note optical=False!
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (qso != 0) * (elg == 0) * self.obsconditions.mask(oo)
             
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_ELG
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_GALAXY
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
+        truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_IS_ELG
+        truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_IS_GALAXY
+        truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_CONTAM
 
-    def faintstar_select(self, targets, truth):
+    def faintstar_select(self, targets, truth, boss_std=None):
         """Select faint stellar contaminants for the extragalactic targets.""" 
 
         self._star_select(targets, truth)
 
-    def lrg_select(self, targets, truth):
+    def lrg_select(self, targets, truth, boss_std=None):
         """Select LRG targets."""
         from desitarget.cuts import isLRG, isQSO_colors
 
@@ -201,19 +214,20 @@ class SelectTargets(object):
 
         # Select LRG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
-        # contaminants.
+        # contaminants.  To make sure we don't reduce the number density of true
+        # LRGs, demand that the QSO contaminants are not also selected as LRGs.
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                            w2flux=w2flux, optical=False) # Note optical=False!
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO_SOUTH
         for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
+            targets['OBSCONDITIONS'] |= (qso != 0) * (lrg == 0) * self.obsconditions.mask(oo)
 
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_LRG
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_GALAXY
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
+        truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_LRG
+        truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_GALAXY
+        truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_CONTAM
 
-    def mws_main_select(self, targets, truth):
+    def mws_main_select(self, targets, truth, boss_std=None):
         """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
         contaminants for extragalactic targets.  The selection here eventually
         will be done with Gaia (I think).
@@ -253,12 +267,12 @@ class SelectTargets(object):
             targets['OBSCONDITIONS'] |= (mws_main_very_faint != 0) * self.obsconditions.mask(oo)
 
         # Select standard stars.
-        self._std_select(targets, truth)
+        self._std_select(targets, truth, boss_std=boss_std)
         
         # Select bright stellar contaminants for the extragalactic targets.
         self._star_select(targets, truth)
 
-    def mws_nearby_select(self, targets, truth):
+    def mws_nearby_select(self, targets, truth, boss_std=None):
         """Select MWS_NEARBY targets.  The selection eventually will be done with Gaia,
         so for now just do a "perfect" selection.
 
@@ -271,7 +285,7 @@ class SelectTargets(object):
         for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (mws_nearby != 0) * self.obsconditions.mask(oo)
 
-    def mws_wd_select(self, targets, truth):
+    def mws_wd_select(self, targets, truth, boss_std=None):
         """Select MWS_WD and STD_WD targets.  The selection eventually will be done with
         Gaia, so for now just do a "perfect" selection here.
 
@@ -290,7 +304,7 @@ class SelectTargets(object):
         for oo in self.desi_mask.STD_WD.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= (std_wd != 0) * self.obsconditions.mask(oo)
 
-    def qso_select(self, targets, truth):
+    def qso_select(self, targets, truth, boss_std=None):
         """Select QSO targets and contaminants."""
         from desitarget.cuts import isQSO_colors, isELG
 
@@ -301,11 +315,6 @@ class SelectTargets(object):
         w2flux = targets['WISE_FLUX'][..., 1]
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux, optical=True)
-
-        # There is an issue where higher-redshift QSOs (those with Lyman-alpha
-        # forest) are being rejected by the optical color-cuts, so temporarily
-        # keep all the QSOs.
-        qso = np.ones(len(targets)) # select everything!
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
@@ -323,24 +332,29 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_QSO
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
-    def sky_select(self, targets, truth):
+    def sky_select(self, targets, truth, boss_std=None):
         """Select SKY targets."""
 
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
         for oo in self.desi_mask.SKY.obsconditions.split('|'):
             targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
 
-    def density_select(self, targets, truth, source_name, target_name, density=None):
+    def density_select(self, targets, truth, source_name, target_name, density=None, subset=None):
         """Downsample a target sample to a desired number density in targets/deg2."""
         nobj = len(targets)
 
-        brick_area = float(self.brick_info['BRICKAREA'][0])
         unique_bricks = list(set(targets['BRICKNAME']))
         n_brick = len(unique_bricks)
 
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
-            onbrick = np.where((targets['BRICKNAME'] == thisbrick) * (truth['CONTAM_TARGET'] == 0))[0]
+            brick_area = float(self.brick_info['BRICKAREA'][brickindx][0])
+
+            if subset is None:
+                onbrick = np.where( (targets['BRICKNAME'] == thisbrick) )[0]
+            else:
+                onbrick = np.where( (targets['BRICKNAME'] == thisbrick) * subset )[0]
+            #onbrick = np.where((targets['BRICKNAME'] == thisbrick) * (truth['CONTAM_TARGET'] == 0))[0]
 
             n_in_brick = len(onbrick)
             if n_in_brick == 0:
@@ -352,17 +366,17 @@ class SelectTargets(object):
 
                 frac_keep = desired_density / mock_density
                 if frac_keep > 1.0:
-                    self.log.warning('{} density {:.0f}/deg2 lower than desired {:.0f}/deg2 on brick {}.'.format(
-                        target_name.upper(), mock_density, desired_density, thisbrick))
-
+                    self.log.warning('Density {:.0f}/deg2 (N={:g}) lower than desired {:.0f}/deg2 on brick {}.'.format(
+                        mock_density, n_in_brick, desired_density, thisbrick))
                 else:
-                    self.log.debug('Downsampling {}s from {:.0f} to {:.0f} targets/deg2.'.format(source_name,
-                                                                                                 mock_density,
-                                                                                                 desired_density))
-
                     frac_toss = 1.0 - frac_keep
-                    toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
-                    targets['DESI_TARGET'][toss] = 0 
+                    ntoss = int( np.ceil( n_in_brick * frac_toss ) )
+
+                    self.log.info('Downsampling from {:.0f} to {:.0f} targets/deg2 (N={:g} to N={:g}) on brick {}.'.format(
+                        mock_density, desired_density, n_in_brick, n_in_brick - ntoss, thisbrick))
+                    
+                    toss = self.rand.choice(onbrick, ntoss, replace=False)
+                    targets['DESI_TARGET'][toss] = 0
 
     def contaminants_select(self, targets, truth, source_name, target_name, contam):
         """Downsample contaminants to a desired number density in targets/deg2."""
@@ -370,36 +384,39 @@ class SelectTargets(object):
 
         unique_bricks = list(set(targets['BRICKNAME']))
         n_brick = len(unique_bricks)
-        brick_area = float(self.brick_info['BRICKAREA'][0])
 
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
+            brick_area = float(self.brick_info['BRICKAREA'][brickindx][0])
 
             for contam_name in contam.keys():
-
                 onbrick = np.where(
                     (targets['BRICKNAME'] == thisbrick) *
-                    (truth['CONTAM_TARGET'] & self.contam_mask.mask('{}_IS_{}'.format(target_name.upper(), contam_name.upper())) != 0)
+                    #(targets['DESI_TARGET'] == 0) *
+                    (truth['CONTAM_TARGET'] & self.contam_mask.mask('{}_IS_{}'.format(target_name, contam_name)) != 0)
                     )[0]
                 n_in_brick = len(onbrick)
 
+                if n_in_brick == 0:
+                    self.log.warning('No {}_IS_{} contaminants on brick {}.'.format(target_name, contam_name, thisbrick))
+                
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
                     desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * contam[contam_name])
 
                     frac_keep = desired_density / contam_density
                     if frac_keep > 1.0:
-                        self.log.warning('{} contaminant density {:.0f}/deg2 lower than desired {:.0f}/deg2 on brick {}.'.format(
-                            target_name.upper(), contam_density, desired_density, thisbrick))
+                        self.log.warning('Density {:.0f}/deg2 (N={:g}) of {} contaminants lower than desired {:.0f}/deg2 on brick {}.'.format(
+                            contam_density, n_in_brick, contam_name.upper(), desired_density, thisbrick))
 
                     else:
-                        self.log.debug('Downsampling {}/{} contaminants from {:.0f} to {:.0f} targets/deg2.'.format(target_name,
-                                                                                                                    contam_name,
-                                                                                                                    contam_density,
-                                                                                                                    desired_density))
-
                         frac_toss = 1.0 - frac_keep
-                        toss = self.rand.choice(onbrick, int( np.ceil( n_in_brick * frac_toss ) ), replace=False)
+                        ntoss = int( np.ceil( n_in_brick * frac_toss ) )
+
+                        self.log.info('Downsampling {}_IS_{} contaminants from {:.0f} to {:.0f} targets/deg2 (N={:g} to N={:g}) on brick {}.'.format(
+                            target_name, contam_name, contam_density, desired_density, n_in_brick, n_in_brick - ntoss, thisbrick))
+
                         # This isn't quite right because we occassionally throw
                         # away too many other "real" targets.
+                        toss = self.rand.choice(onbrick, ntoss, replace=False)
                         targets['DESI_TARGET'][toss] = 0 

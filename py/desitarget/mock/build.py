@@ -15,23 +15,12 @@ pyprof2calltree -k -i mock.dat &
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import shutil
-from time import time
 
 import numpy as np
-from astropy.io import fits
 from astropy.table import Table, Column, vstack
 
 from desiutil.log import get_logger, DEBUG
-
-from desispec.io.util import fitsheader, write_bintable
-from desispec.brick import brickname as get_brickname_from_radec
-
-import desitarget.mock.io as mockio
-import desitarget.mock.selection as mockselect
-from desitarget.mock.spectra import MockSpectra
-from desitarget.internal import sharedmem
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -397,6 +386,8 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
 
+    brickarea = brick_info['BRICKAREA'][brickindx][0]
+
     # Initialize the output targets and truth catalogs and populate them with
     # the quantities of interest.
     targets = empty_targets_table(nobj)
@@ -418,11 +409,16 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     else:
         depthkey = 'DECAM_GALDEPTH'
     with np.errstate(divide='ignore'):                        
-        decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
+        #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
+        decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
 
-    # Hack!  Assume a constant depth (22.3-->1.2 nanomaggies, 23.8-->0.3
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    #   all bricks:  http://legacysurvey.org/dr3/description
+    decam_onesigma = 10**(0.4 * (22.5 - np.array([0.0, 24.7, 23.9, 0.0, 23.0, 0.0])) ) / 5
+
+    # Hack! Assume a constant depth (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3
     # nanomaggies) in the WISE bands for now.
-    wise_onesigma = np.array([1.2, 0.3])
+    wise_onesigma = 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )
 
     # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
@@ -473,13 +469,6 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
         keep = np.where(targets['DESI_TARGET'] != 0)[0]
         nobj = len(keep)
-        if nobj == 0:
-            log.warning('No {} targets identified!'.format(target_name.upper()))
-            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
-        else:
-            onbrick = onbrick[keep]
-            truth = truth[keep]
-            targets = targets[keep]
 
         # Temporary debugging plot.
         if False:
@@ -488,13 +477,22 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
             rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
             gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
             rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
-            plt.scatter(rz1, gr1)
-            plt.scatter(rz, gr, alpha=0.5)
-            plt.scatter(rz[keep], gr[keep], edgecolor='k')
-            plt.xlim(-0.5, 2)
-            plt.ylim(-0.5, 2)
+            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none')
+            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
+            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none')
+            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k')
+            plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
             plt.show()
+            import pdb ; pdb.set_trace()
         
+        if nobj == 0:
+            log.warning('No {} targets identified!'.format(target_name.upper()))
+            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
+        else:
+            onbrick = onbrick[keep]
+            truth = truth[keep]
+            targets = targets[keep]
+
     # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
 
@@ -511,10 +509,42 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
           rand.normal(scale=decam_onesigma[band], size=nobj)
 
-    select_targets_function(targets, truth)
+    if False:
+        import matplotlib.pyplot as plt
+        def elg_colorbox(ax):
+            """Draw the ELG selection box."""
+            from matplotlib.patches import Polygon
+            grlim = ax.get_ylim()
+            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+            verts = [(rzmin, grlim[0]),
+                     (rzmin, np.polyval(coeff0, rzmin)),
+                     (rzpivot, np.polyval(coeff1, rzpivot)),
+                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
+                     ]
+            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
+        gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
+        rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
+        gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
+        rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+        fig, ax = plt.subplots()
+        ax.scatter(rz1, gr1, color='red')
+        ax.scatter(rz, gr, alpha=0.5, color='green')
+        ax.set_xlim(-0.5, 2)
+        ax.set_ylim(-0.5, 2)
+        elg_colorbox(ax)
+        plt.show()
+        import pdb ; pdb.set_trace()
+        
+    if 'BOSS_STD' in source_data.keys():
+        boss_std = source_data['BOSS_STD'][onbrick]
+    else:
+        boss_std = None
+    select_targets_function(targets, truth, boss_std=boss_std)
 
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
     nobj = len(keep)
+
     if nobj == 0:
         log.warning('No {} targets identified!'.format(target_name.upper()))
     else:
@@ -530,34 +560,92 @@ def _write_onebrick(writeargs):
     return write_onebrick(*writeargs)
 
 def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_dir, log):
-    """Wrapper function to write out files on a single brick."""
+    """Wrapper function to write out files on a single brick.
+
+    """
+    from astropy.io import fits
 
     onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
 
     radir = os.path.join(output_dir, thisbrick[:3])
     targetsfile = os.path.join(radir, 'targets-{}.fits'.format(thisbrick))
     truthfile = os.path.join(radir, 'truth-{}.fits'.format(thisbrick))
-    log.info('Writing {}.'.format(truthfile))
+    truthspecfile = os.path.join(radir, 'truth-spectra-{}.fits'.format(thisbrick))
 
+    log.info('Writing {}'.format(targetsfile))
     try:
         targets[onbrick].write(targetsfile, overwrite=True)
     except:
         targets[onbrick].write(targetsfile, clobber=True)
 
+    #log.info('Writing {}'.format(truthfile))
+    try:
+        truth[onbrick].write(truthfile, overwrite=True)
+    except:
+        truth[onbrick].write(truthfile, clobber=True)
+
+    #log.info('Writing {}'.format(truthspecfile))
     hx = fits.HDUList()
     hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
+    hdu.header['BUNIT'] = 'Angstrom'
+    hdu.header['AIRORVAC'] = 'vac'
     hx.append(hdu)
 
     hdu = fits.ImageHDU(trueflux[onbrick, :].astype(np.float32), name='FLUX')
     hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
     hx.append(hdu)
-
+    
     try:
-        hx.writeto(truthfile, overwrite=True)
+        hx.writeto(truthspecfile, overwrite=True)
     except:
-        hx.writeto(truthfile, clobber=True)
+        hx.writeto(truthspecfile, clobber=True)
 
-    write_bintable(truthfile, truth[onbrick], extname='TRUTH')
+    #write_bintable(truthfile, truth[onbrick], extname='TRUTH')
+
+def _write_onehealpix(writeargs):
+    """Filler function for the multiprocessing."""
+    return write_onehealpix(*writeargs)
+
+def write_onehealpix(subdir, pixnum, inpixel, nside, targets, truth,
+                     trueflux, truthhdr, wave, output_dir, log):
+    """Wrapper function to write out files in a single healpix pixel.
+
+    """
+    from astropy.io import fits
+
+    targetsfile = os.path.join(subdir, 'targets-{}-{}.fits'.format(nside, pixnum))
+    truthfile = os.path.join(subdir, 'truth-{}-{}.fits'.format(nside, pixnum))
+    truthspecfile = os.path.join(subdir, 'spectra-truth-{}-{}.fits'.format(nside, pixnum))
+
+    log.info('Writing {}'.format(targetsfile))
+    try:
+        targets[inpixel].write(targetsfile, overwrite=True)
+    except:
+        targets[inpixel].write(targetsfile, clobber=True)
+
+    #log.info('Writing {}'.format(truthfile))
+    try:
+        truth[inpixel].write(truthfile, overwrite=True)
+    except:
+        truth[inpixel].write(truthfile, clobber=True)
+
+    #log.info('Writing {}'.format(truthspecfile))
+    hx = fits.HDUList()
+    hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
+    hdu.header['BUNIT'] = 'Angstrom'
+    hdu.header['AIRORVAC'] = 'vac'
+    hx.append(hdu)
+
+    hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
+    hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+    hx.append(hdu)
+    
+    try:
+        hx.writeto(truthspecfile, overwrite=True)
+    except:
+        hx.writeto(truthspecfile, clobber=True)
+
+    #write_bintable(truthfile, truth[inpixel], extname='TRUTH')
 
 def _create_raslices(output_dir, ioutput_dir, brickname):
     """Create the RA-slice directories, if necessary."""
@@ -573,7 +661,7 @@ def _create_raslices(output_dir, ioutput_dir, brickname):
 #from memory_profiler import profile
 #@profile
 def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  clobber=False, bricksize=0.25, outbricksize=0.25, nproc=1):
+                  clobber=False, bricksize=0.25, nside=64, nproc=1):
     """
     Write
 
@@ -592,6 +680,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
       If nproc == 1 use serial instead of parallel code.
 
     """
+    import healpy
+    import shutil
+    from time import time
+
+    from desispec.io.util import fitsheader, write_bintable
+    import desitarget.mock.io as mockio
+    from desitarget.mock.selection import SelectTargets
+    from desitarget.mock.spectra import MockSpectra
+    from desitarget.internal import sharedmem
+    
     if params is None or output_dir is None:
         log.fatal('Required inputs params and output_dir not given!')
         raise ValueError
@@ -645,9 +743,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the MockSpectra and SelectTargets Classes.')
-    Spectra = MockSpectra(rand=rand, verbose=verbose)
-    SelectTargets = mockselect.SelectTargets(logger=log, rand=rand,
-                                             brick_info=brick_info)
+    Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
+    Selection = SelectTargets(logger=log, rand=rand,
+                              brick_info=brick_info)
     print()
 
     # Loop over each source / object type.
@@ -682,19 +780,21 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             continue
 
         selection_function = '{}_select'.format(target_name.lower())
-        select_targets_function = getattr(SelectTargets, selection_function)
+        select_targets_function = getattr(Selection, selection_function)
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
         unique_bricks = list(set(brickname))
 
         # Quickly check that all the brick info is here.
+        skyarea = 0.0
         for thisbrick in unique_bricks:
             brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+            skyarea = skyarea + brick_info['BRICKAREA'][brickindx][0]
             if (len(brickindx) != 1):
                 log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
                 raise ValueError
-        skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
+        #skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
         
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
             len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
@@ -740,7 +840,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             truth = truth[keep]
             trueflux = trueflux[keep, :]
         del out
-        
+
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
             density = params['sources'][source_name]['density']
@@ -752,27 +852,29 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 if 'LYA' in params['sources'][source_name].keys():
                     density_lya = params['sources'][source_name]['LYA']['density']
                     zcut = params['sources'][source_name]['LYA']['zcut']
-                    tracer = np.where(truth['TRUEZ'] < zcut)[0]
-                    lya = np.where(truth['TRUEZ'] >= zcut)[0]
+                    tracer = truth['TRUEZ'] < zcut
+                    lya = truth['TRUEZ'] >= zcut
                     if len(tracer) > 0:
                         log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                        SelectTargets.density_select(targets[tracer], truth[tracer], source_name=source_name,
-                                                     target_name=target_name, density=density)
+                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
+                                                 density=density, subset=tracer)
                         print()
                     if len(lya) > 0:
-                        SelectTargets.density_select(targets[lya], truth[lya], source_name=source_name,
-                                                     target_name=target_name, density=density_lya)
                         log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
+                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
+                                                 density=density_lya, subset=lya)
 
                 else:
-                    SelectTargets.density_select(targets, truth, source_name=source_name,
-                                                 target_name=target_name, density=density)
+                    Selection.density_select(targets, truth, source_name=source_name,
+                                             target_name=target_name, density=density)
                     
             else:
-                SelectTargets.density_select(targets, truth, source_name=source_name,
-                                             target_name=target_name, density=density)            
+                Selection.density_select(targets, truth, source_name=source_name,
+                                         target_name=target_name, density=density)            
 
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            #keep = np.where( np.any( ((targets['DESI_TARGET'] != 0), (truth['CONTAM_TARGET'] != 0)), axis=0) )[0]
+
             if len(keep) == 0:
                 log.warning('All {} targets rejected!'.format(target_name))
             else:
@@ -809,14 +911,11 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         
         if 'contam' in params['sources'][source_name].keys():
-            if verbose:
-                print()
             log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
-            
             contam = params['sources'][source_name]['contam']
 
-            SelectTargets.contaminants_select(targets, truth, source_name=source_name,
-                                              target_name=target_name, contam=contam)
+            Selection.contaminants_select(targets, truth, source_name=source_name,
+                                          target_name=target_name, contam=contam)
             
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
             if len(keep) == 0:
@@ -826,6 +925,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
+    #print( np.sum( (targets['DESI_TARGET'] & desi_mask.MWS_ANY) != 0) )
+    #import pdb ; pdb.set_trace()
     # Write out the fileid-->filename mapping.  This doesn't work right now.
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
@@ -835,7 +936,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
 
     # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
-    nsky = len(skytargets)
+    try:
+        nsky = len(skytargets)
+    except:
+        nsky = 0
 
     targetid = rand.randint(2**62, size=ntarget + nsky)
     subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
@@ -863,9 +967,9 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # not yet supported.
     for suffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
         stdfile = os.path.join(output_dir, 'standards-{}.fits'.format(suffix))
-        #istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-        #        (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
-        istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
+        istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
+        #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
         if np.count_nonzero(istd) > 0:
             log.info('Writing {}'.format(stdfile))
             write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
@@ -873,48 +977,103 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
     print()
 
-    # Write out the brick-level files (if any).
-    targets['BRICKNAME'] = get_brickname_from_radec(targets['RA'], targets['DEC'], bricksize=outbricksize)
-    unique_bricks = list(set(targets['BRICKNAME']))
-    log.info('Writing out {} targets to {} {}x{} deg2 bricks.'.format(len(targets), len(unique_bricks),
-                                                                      outbricksize, outbricksize))
-    
-    # Create the RA-slice directories, if necessary and then initialize the output header.
-    radir = np.array(['{}'.format(os.path.join(output_dir, name[:3])) for name in unique_bricks])
-    for thisradir in list(set(radir)):
-        try:
-            os.stat(thisradir)
-        except:
-            os.makedirs(thisradir)
-
     if seed is None:
         seed1 = 'None'
     else:
         seed1 = seed
     truthhdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed'),
-        BRICKSZ = (outbricksize, 'brick size (deg)'),
-        BUNIT = ('Angstrom', 'wavelength units'),
-        AIRORVAC = ('vac', 'vacuum wavelengths')
+        SEED = (seed1, 'initial random seed')
+        #BRICKSZ = (outbricksize, 'brick size (deg)')
+        #BUNIT = ('Angstrom', 'wavelength units'),
+        #AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
 
-    nbrick = np.zeros((), dtype='i8')
-    t0 = time()
-    def _update_write_status(result):
-        if verbose and nbrick % 5 == 0 and nbrick > 0:
-            rate = nbrick / (time() - t0)
-            print('Writing {} bricks; {:.1f} bricks / sec'.format(nbrick, rate))
-        nbrick[...] += 1
-        return result
+    # Write out targets by healpix pixels based on the grouping
+    #   {output_dir}/{subdir}/truth-{nside}-{ipix}.fits
+    # where subdir = ipix // (nside // 2)
+    pixels = healpy.ang2pix(nside, np.radians(90-targets['DEC']),
+                            np.radians(targets['RA']), nest=True)
+    unique_pixels = list(set(pixels))
+
+    """basedir/8-{superpix}/64-{pixnum}/filename-64-{pixnum}.fits
+
+    where pixnum is the nside=64 nested pixel number, and superpix = pixnum /
+    4**3.
+
+    I'm not completely convinced that will be user friendly, but it does have
+    the advantages that:
+
+    * <1000 subdirectories at any level
+    
+    * everything under a 8-{superpix} subdirectory is grouped on the sky (unlike
+      the case if we just did subdir = pixnum//100 or something like that that
+      is easier to calculate in your head but breaks spatial grouping).
+
+    * nside=8 is 53.7 deg2 which seems likely for a viable sub-unit to process
+      at NERSC per job
+
+    * nside=64 is 0.84 deg2 which seems like a viable sized sub-unit for
+      grouping targets
+    """
 
     writeargs = list()
-    for thisbrick in unique_bricks:
-        writeargs.append((thisbrick, targets, truth, trueflux, truthhdr, Spectra.wave, output_dir, log))
+    for pixnum in unique_pixels:
+        superpix = pixnum // 4**3
+        subdir = os.path.join( output_dir, '8-{}'.format(superpix), '64-{}'.format(pixnum) )
+        #subdir = os.path.join( output_dir, str(pixnum // (nside // 2)) )
+        try:
+            os.stat(subdir)
+        except:
+            os.makedirs(subdir)
+
+        inpixel = np.where(pixnum == pixels)[0]
+        writeargs.append((subdir, pixnum, inpixel, nside, targets, truth, trueflux,
+                          truthhdr, Spectra.wave, output_dir, log))
 
     if nproc > 1:
         pool = sharedmem.MapReduce(np=nproc)
         with pool:
-            pool.map(_write_onebrick, writeargs, reduce=_update_write_status)
+            pool.map(_write_onehealpix, writeargs)
     else:
-        for ii in range(len(unique_bricks)):
-            _update_write_status(_write_onebrick(writeargs[ii]))
+        for args in writeargs:
+            _write_onehealpix(args)
+
+def join_targets_truth(output_dir, nside=64, verbose=True, clobber=False):
+    """Combine all the target and truth catalogs generated by targets_truth into a
+    monolithic targets.fits and truth.fits files
+
+    time select_mock_targets --output_dir debug --join
+
+    """
+    import fitsio
+    from glob import glob
+
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+
+    targets, truth = [], []
+
+    subdirs = [dd for dd in os.listdir(output_dir) if os.path.isdir( os.path.join(output_dir, dd) ) ]
+    
+    for subdir in np.atleast_1d(subdirs):
+        alltargfile = np.array( glob(os.path.join(output_dir, subdir, '*-*', 'targets-*-*.fits') ) )
+        alltruthfile = np.array( glob(os.path.join(output_dir, subdir, '*-*', 'truth-*-*.fits') ) )
+
+        for targfile, truthfile in zip( np.atleast_1d(alltargfile), np.atleast_1d(alltruthfile) ):
+            log.info('Reading {}'.format(targfile))
+            targets.append( Table(fitsio.read(targfile, ext=1)) )
+            truth.append( Table(fitsio.read(truthfile, ext=1)) )
+        
+    targets = vstack( targets )
+    truth = vstack( truth )
+
+    for outfile, cat in zip( (os.path.join(output_dir, 'targets.fits'),
+                              os.path.join(output_dir, 'truth.fits')), (targets, truth) ):
+        log.info('Writing {}'.format(outfile))
+        try:
+            cat.write(outfile, overwrite=True)
+        except:
+            cat.write(outfile, clobber=True)
+
