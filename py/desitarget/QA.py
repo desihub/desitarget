@@ -82,7 +82,7 @@ def targets_on_boundary(targets,downsample=True):
     return isamp[hull.vertices]
     
 
-def polygons_within_boundary(boundverts,polyverts):
+def is_polygon_within_boundary(boundverts,polyverts):
     """Check whether a list of polygons are with the boundary of a survey
 
     Parameters
@@ -140,8 +140,20 @@ def polygons_within_boundary(boundverts,polyverts):
     #ADM an array of Trues and Falses for the output. Default to True.
     boolwithin = np.ones(len(polyverts),dtype='bool')
 
-    #ADM The algorithm is to check the direction of the proplanes) that              
-    
+    #ADM loop through each of the boundary vertices, starting with the final vertex to ensure that
+    #ADM we traverse the entire boundary. Could make this faster by dropping polygons as soon as we
+    #ADM find a negative vertex, but it's fairly quick as is
+    for i in range(-1,len(boundverts)-1):
+        #ADM The algorithm is to check the direction of the projection (dot product) of each vertex of each polygon
+        #ADM onto each vector normal (cross product) to the geodesics (planes) that map out the survey boundary
+        #ADM If this projection is positive, then we "turned left" to get to the polygon vertex, assuming the convex
+        #ADM hull is ordered counter-clockwise
+        test = inner1d(np.cross(boundverts[i],boundverts[i+1]),polyverts)
+        #ADM if any of the vertices are not a left-turn from (within the) boundary points, set to False
+        boolwithin[np.where(np.any(test < 0, axis=1))] = False
+
+    return boolwithin
+
 
 def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray, random_state=None):
     """Based on depth or E(B-V) values for a brick, generate target fluctuations
