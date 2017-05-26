@@ -81,6 +81,66 @@ def targets_on_boundary(targets,downsample=True):
 
     return isamp[hull.vertices]
     
+
+def polygons_within_boundary(boundverts,polyverts):
+    """Check whether a list of polygons are with the boundary of a survey
+
+    Parameters
+    ----------
+    boundverts : :class:`float array`
+       A COUNTER-CLOCKWISE ordered array of vectors representing the Cartesian coordinates of the vertices 
+       of the complex hull (boundary) of a survey, e.g.
+
+       array([[x1,  y1,  z1],      Vertex 1 on survey boundary
+              [x2,  y2,  z2],      Vertex 2 of survey boundary
+              [x3,  y3,  z3],      Vertex 3 of survey boundary
+              [x4,  y4,  z4],      Vertex 4 of survey boundary
+              [x5,  y5,  z5],      Vertex 5 of survey boundary
+
+              ..............
+              ..............
+              ..............
+
+              [xN,  yN,  zN]])     Vertex N of survey boundary
+    polyverts : :class:`float array'`
+       An array of N M-vectors representing the Cartesian coordinates of the vertices of each
+       polygon. For instance, M=4 would represent "rectangular" vertices drawn on the sphere:
+
+       array([[[x1,  y1,  z1],       Vertex 1 of first Rectangle
+               [x2,  y2,  z2],       Vertex 2 of first Rectangle
+               [x3,  y3,  z3],       Vertex 3 of first Rectangle
+               [x4,  y4,  z4]],      Vertex 4 of first Rectangle
+
+               ..............
+               ..............
+               ..............
+
+              [[Nx1, Ny1,  Nz1],     Vertex 1 of Nth Rectangle
+               [Nx2, Ny2,  Nz2],     Vertex 2 of Nth Rectangle
+               [Nx3, Ny3,  Nz3],     Vertex 3 of Nth Rectangle
+               [Nx4, Ny4,  Nz4]]])   Vertex 4 of Nth Rectangle
+
+    Returns
+    -------
+    :class:`boolean array`
+       An array the same length as polyvertices (i.e. the "number of rectangles") that is True for
+       polygons that are FULLY within the boundary and False for polygons that are not within the boundary
+
+    Notes
+    -----
+    Strictly, as we only test whether the vertices of the polygons are all within the boundary, there can be 
+    corner cases where a small amount of a polygon edge intersects the boundary. Testing the vertices should be good 
+    enough for desitarget QA, though.
+    """
+
+    #ADM recast inputs as float64 as the inner1d ufunc does not support higher-bit floats
+    boundverts = boundverts.astype('f8')
+    polyverts = polyverts.astype('f8')
+
+    #ADM an array of Trues and Falses for the output. Default to True.
+    boolwithin = np.ones(len(polyverts),dtype='bool')
+
+    #ADM The algorithm is to check the direction of the proplanes) that              
     
 
 def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray, random_state=None):
