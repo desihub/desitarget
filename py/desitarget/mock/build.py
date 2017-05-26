@@ -15,23 +15,11 @@ pyprof2calltree -k -i mock.dat &
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import shutil
-from time import time
 
-import healpy
 import numpy as np
-from astropy.io import fits
 from astropy.table import Table, Column, vstack
 
 from desiutil.log import get_logger, DEBUG
-
-from desispec.io.util import fitsheader, write_bintable
-from desispec.brick import brickname as get_brickname_from_radec
-
-import desitarget.mock.io as mockio
-from desitarget.mock.selection import SelectTargets
-from desitarget.mock.spectra import MockSpectra
-from desitarget.internal import sharedmem
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 
 def fileid_filename(source_data, output_dir, log):
@@ -572,7 +560,10 @@ def _write_onebrick(writeargs):
     return write_onebrick(*writeargs)
 
 def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_dir, log):
-    """Wrapper function to write out files on a single brick."""
+    """Wrapper function to write out files on a single brick.
+
+    """
+    from astropy.io import fits
 
     onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
 
@@ -617,7 +608,10 @@ def _write_onehealpix(writeargs):
 
 def write_onehealpix(subdir, pixnum, inpixel, nside, targets, truth,
                      trueflux, truthhdr, wave, output_dir, log):
-    """Wrapper function to write out files in a single healpix pixel."""
+    """Wrapper function to write out files in a single healpix pixel.
+
+    """
+    from astropy.io import fits
 
     targetsfile = os.path.join(subdir, 'targets-{}-{}.fits'.format(nside, pixnum))
     truthfile = os.path.join(subdir, 'truth-{}-{}.fits'.format(nside, pixnum))
@@ -686,6 +680,16 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
       If nproc == 1 use serial instead of parallel code.
 
     """
+    import healpy
+    import shutil
+    from time import time
+
+    from desispec.io.util import fitsheader, write_bintable
+    import desitarget.mock.io as mockio
+    from desitarget.mock.selection import SelectTargets
+    from desitarget.mock.spectra import MockSpectra
+    from desitarget.internal import sharedmem
+    
     if params is None or output_dir is None:
         log.fatal('Required inputs params and output_dir not given!')
         raise ValueError
