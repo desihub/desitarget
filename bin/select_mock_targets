@@ -10,7 +10,7 @@ import yaml
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 
-from desitarget.mock.build import targets_truth, join_targets_truth
+from desitarget.mock.build import targets_truth
 from desispec.log import get_logger, DEBUG
 
 parser = argparse.ArgumentParser()
@@ -23,7 +23,8 @@ parser.add_argument('--bricksize', '-b', help='Size of the imaging bricks (deg)'
 parser.add_argument('--nside', help='Resolution of the (output) healpix pixels', type=int, default=64)
 parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 
-parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir and build QA.')
+parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
+parser.add_argument('--qa', action='store_true', help='Generate QA plots from the joined target and truth files in output_dir.')
 parser.add_argument('--clobber', action='store_true', help='Remove intermediate files.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 args = parser.parse_args()
@@ -34,8 +35,13 @@ else:
     log = get_logger()
 
 if args.join:
-    join_targets_truth(args.output_dir, nside=args.nside, verbose=args.verbose,
-                       clobber=args.clobber, qaplots=True)
+    from desitarget.mock.build import join_targets_truth
+    join_targets_truth(args.output_dir, nside=args.nside, verbose=args.verbose, clobber=args.clobber)
+    sys.exit(1)
+
+if args.qa:
+    from desitarget.mock.QA import qa_targets_truth
+    qa_targets_truth(args.output_dir, verbose=args.verbose, clobber=args.clobber)
     sys.exit(1)
 
 if not os.path.exists(args.config):
