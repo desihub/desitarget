@@ -25,6 +25,25 @@ from desiutil import depend
 from desiutil.log import get_logger, DEBUG
 import warnings
 
+def sph2car(ra, dec):
+    """Convert RA and Dec to a Cartesian vector """
+
+    phi = np.radians(np.asarray(ra))
+    theta = np.radians(90.0 - np.asarray(dec))
+
+    r = np.sin(theta)
+    x = r * np.cos(phi)
+    y = r * np.sin(phi)
+    z = np.cos(theta)
+
+    #ADM treat vectors smaller than our tolerance as zero
+    tol = 1e-15
+    x = np.where(np.abs(x) > tol,x,0)
+    y = np.where(np.abs(y) > tol,y,0)
+    z = np.where(np.abs(z) > tol,z,0)
+
+    return np.array((x, y, z)).T
+
 
 def targets_on_boundary(targets,downsample=True):
     """Create the convex hull (boundary) of the survey from an input rec array of targets
