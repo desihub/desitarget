@@ -13,13 +13,19 @@ import os
 import numpy as np
 import warnings
 
-def target_density(cat):
+def target_density(cat, nside=128):
     """Determine the target density by grouping targets in healpix pixels.  The code
     below was code shamelessly taken from desiutil.plot.plot_sky_binned (by
     D. Kirkby).
+    
+    Args:
+        cat: Table with columns RA and DEC
+    
+    Optional:
+        nside: healpix nside, integer power of 2
 
-    nside = 64 corresponds to about 0.210 deg2, about a factor of 3 larger
-    than the nominal imaging brick area (0.25x0.25=0.625 deg2), as determined 
+    nside = 128 corresponds to about 0.210 deg2, about a factor of 3 larger
+    than the nominal imaging brick area (0.25x0.25=0.0625 deg2), as determined 
     by this snippet of code:
 
       max_bin_area = 0.5
@@ -33,7 +39,6 @@ def target_density(cat):
     """
     import healpy as hp
         
-    nside = 128
     npix = hp.nside2npix(nside)
     bin_area = hp.nside2pixarea(nside, degrees=True)
 

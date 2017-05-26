@@ -16,11 +16,13 @@ desitarget Change Log
   * Much better memory usage.
   * Updated QA notebook.
 * Add Random Forest selection for ELG in the sandbox [`PR #174`_].
+* Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 
 .. _`PR #173`: https://github.com/desihub/desitarget/pull/173
 .. _`PR #174`: https://github.com/desihub/desitarget/pull/174
 .. _`PR #176`: https://github.com/desihub/desitarget/pull/176
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
+.. _`PR #181`: https://github.com/desihub/desitarget/pull/181
 
 0.11.0 (2017-04-14)
 -------------------
