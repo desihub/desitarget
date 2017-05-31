@@ -5,6 +5,7 @@ desitarget Change Log
 0.12.0 (Unreleased)
 -------------------
 
+* Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Updated LRG cuts significantly to match proposed shift in LRG target density [`PR #179`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
   * Generate SAFE/BADSKY locations around mask perimeters
@@ -23,6 +24,7 @@ desitarget Change Log
 .. _`PR #176`: https://github.com/desihub/desitarget/pull/176
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
 .. _`PR #179`: https://github.com/desihub/desitarget/pull/179
+.. _`PR #181`: https://github.com/desihub/desitarget/pull/181
 
 0.11.0 (2017-04-14)
 -------------------

@@ -623,9 +623,33 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     if target_name == 'SKY':
         out.update({'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': ''})
     else:
-        log.info('Sampling from Gaussian mixture model.')
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
+
+        # Temporary hack to deal with the lower-than average ELG target densities.
+        if target_name == 'ELG':
+            from desitarget.cuts import isELG
+            niter, maxiter, fracelg = 0, 5, 0.0
+            while fracelg < 0.98 and niter < maxiter:
+                gflux, rflux, zflux = [10**(0.4*(22.5-mags[b])) for b in 'grz']
+                iselg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+                fracelg = np.sum(iselg)/nobj
+                #print(niter, fracelg)
+
+                need = np.where(iselg == False)[0]
+                if len(need) > 0:
+                    newmags = GMM.sample(target_name, len(need))
+                    mags[need] = newmags
+                
+                niter = niter + 1
+
+            #import matplotlib.pyplot as plt
+            #plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
+            #plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+            #plt.show()
+            #import pdb ; pdb.set_trace()
 
         out.update({'Z': zz, 'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
                     'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
@@ -840,7 +864,9 @@ def load_galaxia_file(target_name, mockfile, bounds):
     dec = radec['DEC'][cut].astype('f8')
     del radec
 
-    cols = ['V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
+    cols = ['V_HELIO',
+            'SDSSU_TRUE_NODUST', 'SDSSG_TRUE_NODUST', 'SDSSR_TRUE_NODUST', 'SDSSI_TRUE_NODUST', 'SDSSZ_TRUE_NODUST',
+            'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
     data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
     mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
@@ -849,7 +875,31 @@ def load_galaxia_file(target_name, mockfile, bounds):
     logg = data['LOGG'].astype('f4')
     feh = data['FEH'].astype('f4')
 
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec,
+    def select_sdss_std(umag, gmag, rmag, imag, zmag, obs_rmag=None):
+        """Select standard stars using SDSS photometry and the BOSS selection.
+        
+        According to http://www.sdss.org/dr12/algorithms/boss_std_ts the r-band
+        magnitude for the magnitude cuts is the extinction corrected magnitude.
+    
+        """
+        umg_cut = ((umag - gmag) - 0.82)**2
+        gmr_cut = ((gmag - rmag) - 0.30)**2
+        rmi_cut = ((rmag - imag) - 0.09)**2
+        imz_cut = ((imag - zmag) - 0.02)**2
+    
+        is_std = np.sqrt((umg_cut + gmr_cut + rmi_cut + imz_cut)) < 0.08
+    
+        if obs_rmag is not None:
+            is_std &= (15.0 < obs_rmag) & (obs_rmag < 19)
+        
+        return is_std
+
+    # Use extinction-corrected SDSS mags 
+    istd = select_sdss_std(data['SDSSU_TRUE_NODUST'], data['SDSSG_TRUE_NODUST'],
+                           data['SDSSR_TRUE_NODUST'], data['SDSSI_TRUE_NODUST'],
+                           data['SDSSZ_TRUE_NODUST'], obs_rmag=None)
+    
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': istd, 
             'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
             'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
@@ -1012,6 +1062,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     mockid = data['MOCKID']
     ra = data['RA']
     dec = data['DEC']
+    boss_std = data['BOSS_STD']
     zz = data['Z']
     mag = data['MAG']
     mag_obs = data['MAG_OBS']
@@ -1064,6 +1115,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             objid = objid[cut]
             ra = ra[cut]
             dec = dec[cut]
+            boss_std = boss_std[cut]
             zz = zz[cut]
             mag = mag[cut]
             mag_obs = mag_obs[cut]
@@ -1076,8 +1128,8 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
-            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': boss_std, 
+            'Z': zz, 'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
             'FILES': files, 'N_PER_FILE': n_per_file}
