@@ -884,8 +884,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                     trueflux = trueflux[keep, :]
 
         if target_name.upper() == 'SKY':
-            skytruth = truth
-            skytargets = targets
+            skytruth = truth.copy()
+            skytargets = targets.copy()
         else:
             alltargets.append(targets)
             alltruth.append(truth)
