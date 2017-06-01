@@ -121,10 +121,11 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1, healpixels=None, 
         func = globals()[read_function]
         if 'LYA' in params['sources'][source_name].keys():
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                          bounds=bounds, magcut=magcut, nproc=nproc, lya=params['sources'][source_name]['LYA'])
+                          magcut=magcut, nproc=nproc, bounds=bounds, 
+                          lya=params['sources'][source_name]['LYA'])
         else:
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                          healpixels=healpixels, nside=nside, magcut=magcut, nproc=nproc)
+                          magcut=magcut, nproc=nproc, healpixels=healpixels, nside=nside)
 
         source_data_all[source_name] = result
         print()
@@ -453,8 +454,8 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-                       bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
-                       nproc=None, lya=None):
+                       healpixels=None, nside=None, 
+                       magcut=None, nproc=None, lya=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -468,8 +469,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -531,8 +534,6 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         raise IOError
 
     # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
-    min_ra, max_ra, min_dec, max_dec = bounds
-    
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     nobj = len(radec)
 
@@ -544,13 +545,24 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    log.info('Assigning healpix pixels with nside = {}'.format(nside))
+    allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+    cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
+
+    #cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    #nobj = len(cut)
+    #if nobj == 0:
+    #    log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+    #    return dict()
+    #else:
+    #    log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
 
     objid = objid[cut]
     mockid = mockid[cut]

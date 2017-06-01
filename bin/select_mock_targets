@@ -5,15 +5,17 @@ from __future__ import print_function, division
 import os
 import sys
 import argparse
-import yaml
 
-import multiprocessing
-nproc = multiprocessing.cpu_count() // 2
+import yaml
+import healpy as hp
 
 from desitarget.mock.build import targets_truth
 from desispec.log import get_logger, DEBUG
-from desimodel.healpix import tiles2pix
+from desimodel.footprint import tiles2pix
 import desimodel.io
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--config', '-c',default='input.yaml')
@@ -22,8 +24,11 @@ parser.add_argument('--realtargets', '-r', help='Path to real target catalog', t
 parser.add_argument('--seed', '-s', help='Seed for random number generation', type=int, default=None)
 parser.add_argument('--bricksize', '-b', help='Size of the imaging bricks (deg)',
                     type=float, default=0.25)
+
+parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
 parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=8)
 parser.add_argument('--nside_outfiles', help='Group output files with this healpix resolution', type=int, default=64)
+
 parser.add_argument('--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
@@ -61,15 +66,20 @@ if args.nside < 2 or args.nside_outfiles < 2:
     log.fatal('NSIDE = {} and NSIDE_OUTFILES = {} must be >=2'.format(args.nside, args.nside_outfiles))
     raise Exception()
 
-area = hp.nside2pixarea(args.nside, degrees=True)
-log.info('Grouping targets by healpix pixels with nside = {} and corresponding area = {:.3f} deg2'.format(
-    args.nside, area))
-
 area_outfiles = hp.nside2pixarea(args.nside_outfiles, degrees=True)
 log.info('Will write output files into healpix pixels with nside = {} and corresponding area = {:.3f} deg2'.format(
     args.nside_outfiles, area_outfiles))
 
-healpixels = tiles2pix(args.nside)
+area = hp.nside2pixarea(args.nside, degrees=True)
+log.info('Grouping targets by healpix pixels with nside = {} and corresponding area = {:.3f} deg2'.format(
+    args.nside, area))
+
+if args.healpixels:
+    healpixels = args.healpixels
+    log.info('Restricting footprint to input healpix pixels {}.  ** Please be sure these were computed with input nside = {}! **'.format(
+        healpixels, args.nside))
+else:
+    healpixels = tiles2pix(args.nside)
 
 # Optionally read the "real" target catalog.
 if args.realtargets is not None:
