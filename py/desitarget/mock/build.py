@@ -124,6 +124,8 @@ class BrickInfo(object):
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
 
+        import pdb ; pdb.set_trace()
+
         self.log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
                       format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
                              self.bounds[2], self.bounds[3], self.bricksize))
@@ -732,6 +734,13 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     log.info('Writing to output directory {}'.format(output_dir))
     print()
 
+    ## Read the ra, dec boundaries from the parameter dictionary or work them out
+    ## from the input healpixels (the latter which is the default).
+    #if healpixels and nside:
+    #    corners = hp.boundaries(nside, pix, step=1, nest=True)
+    #    corner_theta, corner_phi = hp.vec2ang(corners.T)
+    #    corner_ra, corner_dec = np.degrees(corner_phi), np.degrees(np.pi/2 - corner_theta)
+
     ## Add the ra,dec boundaries to the parameters dictionary for each source, so
     ## we can check the target densities, below.
     #if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
@@ -739,14 +748,15 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     #              params['subset']['min_dec'], params['subset']['max_dec'])
     #else:
     #    bounds = (0.0, 360.0, -90.0, 90.0)
+    #for src in params['sources'].keys():
+    #    params['sources'][src].update({'bounds': bounds})
 
-    for src in params['sources'].keys():
-        params['sources'][src].update({'bounds': bounds})
 
     # Build the brick information structure.
-    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
+    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], healpixels=healpixels, nside=nside,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys()), log=log).build_brickinfo()
+    import pdb ; pdb.set_trace()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
