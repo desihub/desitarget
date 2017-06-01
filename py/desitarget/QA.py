@@ -45,8 +45,56 @@ def sph2car(ra, dec):
     return np.array((x, y, z)).T
 
 
-def targets_on_boundary(targets,downsample=True):
-    """Create the convex hull (boundary) of the survey from an input rec array of targets
+def area_of_hull(ras,decs,nhulls):
+    """Determine the area of a convex hull from an array of RA, Dec points that define that hull
+    
+    Parameters
+    ----------
+    ras : :class:`~numpy.array`
+        Right Ascensions of the points in the convex hull (boundary)
+    decs : :class:`~numpy.array`
+        Declinations of the points in the convex hull (boundary)
+    nhulls : :class:`int`
+        The number of hulls the user thinks they passed, to check each hull occupies a row
+        not a column
+
+    Returns
+    -------
+    :class:`float`
+        The area of the convex hull (drawn on the surface of the sphere), in the supplied units
+
+    Notes
+    -----
+    If a 2-D array of RAs and Decs representing multiple convex hulls is passed, than the 
+    output will be a 1-D array of areas. Each hull must occupy the rows, e.g. for a
+    set of RAs for 2 identical hulls with 15 points on the boundary, this would be the
+    correct array ordering:
+
+    array([[ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
+             7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
+             7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ],
+           [ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
+             7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
+             7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ]])
+
+    Note that this is only an approximation, because it uses the average latitude
+
+    """
+
+    if ras.ndim > 1 and ras.shape[0] != nhulls:
+        raise IOError('Your array contains {} hulls. Perhaps you meant to pass its tranposition?'.format(ras.shape[0]))
+
+    endras = np.roll(ras,-1)
+    enddecs = np.roll(decs,-1)
+
+    areas = np.abs(0.5*np.sum(ras*enddecs - decs*endras,axis=ras.ndim-1))
+    areas = np.abs(0.5*np.sum((endras+ras)*(enddecs-decs),axis=ras.ndim-1))
+
+    return areas
+
+
+def targets_on_hull(targets,downsample=False):
+    """Create the convex hull (boundary) of an area from an input rec array of targets
     
     Parameters
     ----------
@@ -83,7 +131,7 @@ def targets_on_boundary(targets,downsample=True):
     
 
 def is_polygon_within_boundary(boundverts,polyverts):
-    """Check whether a list of polygons are with the boundary of a survey
+    """Check whether a list of polygons are within the boundary of a convex hull
 
     Parameters
     ----------
