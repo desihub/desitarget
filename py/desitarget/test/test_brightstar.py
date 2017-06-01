@@ -9,7 +9,7 @@ from astropy import units as u
 
 from desitarget import brightstar, desi_mask, targetid_mask
 
-from desispec import brick
+from desiutil import brick
 
 class TestBRIGHTSTAR(unittest.TestCase):
 

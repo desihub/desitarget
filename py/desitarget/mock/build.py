@@ -85,7 +85,7 @@ class BrickInfo(object):
 
         [Doesn't this functionality exist elsewhere?!?]
         """
-        from desispec.brick import Bricks
+        from desiutil.brick import Bricks
         min_ra, max_ra, min_dec, max_dec = self.bounds
 
         B = Bricks(bricksize=self.bricksize)
