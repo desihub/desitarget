@@ -87,10 +87,10 @@ def area_of_hull(ras,decs,nhulls):
     endras = np.roll(ras,-1)
     enddecs = np.roll(decs,-1)
 
-    areas = np.abs(0.5*np.sum(ras*enddecs - decs*endras,axis=ras.ndim-1))
-    areas = np.abs(0.5*np.sum((endras+ras)*(enddecs-decs),axis=ras.ndim-1))
+    areas1 = np.abs(0.5*np.sum(ras*enddecs - decs*endras,axis=ras.ndim-1))
+    areas2 = np.abs(0.5*np.sum((endras+ras)*(enddecs-decs),axis=ras.ndim-1))
 
-    return areas
+    return areas1, areas2
 
 
 def targets_on_hull(targets,downsample=False):
