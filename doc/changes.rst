@@ -5,7 +5,7 @@ desitarget Change Log
 0.12.0 (Unreleased)
 -------------------
 
-* Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` (`PR #XXX`_].
+* Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` (`PR #182`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
   * Generate SAFE/BADSKY locations around mask perimeters
@@ -24,7 +24,7 @@ desitarget Change Log
 .. _`PR #176`: https://github.com/desihub/desitarget/pull/176
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
 .. _`PR #181`: https://github.com/desihub/desitarget/pull/181
-.. _`PR #XXX`: https://github.com/desihub/desitarget/pull/
+.. _`PR #XXX`: https://github.com/desihub/desitarget/pull/182
 
 0.11.0 (2017-04-14)
 -------------------
