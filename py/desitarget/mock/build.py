@@ -660,24 +660,37 @@ def _create_raslices(output_dir, ioutput_dir, brickname):
                 
 #from memory_profiler import profile
 #@profile
-def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  clobber=False, bricksize=0.25, nside=64, nproc=1):
-    """
-    Write
+def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=True,
+                  clobber=False, bricksize=0.25, nproc=1, nside_outfiles=64,
+                  healpixels=None, nside=None):
+    """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
+    (with, e.g., the true redshift) for use in simulations.
 
     Args:
-        params: dict of source definitions.
-        output_dir: location for intermediate mtl files.
-        realtargets (optional): real target catalog table, e.g. from DR3
-        clobber (optional): delete files in the output directory (mandatory if not empty)
-        nproc (optional): number of parallel processes to use (default 4)
+        params : dict
+            Source parameters.
+        output_dir : str
+            Output directory (default '.').
+        realtargets : astropy.table
+            Real target catalog table, e.g. from DR3 (deprecated!).
+        clobber : boolean
+            Remove existing files in the output_dir (mandatory if not empty).
+        bricksize : float
+            Brick size for assigning bricknames, which should match the imaging
+            team value (default 0.25 deg).
+        nproc : int
+            Number of parallel processes to use (default 1).
+        nside_outfiles : int
+            Group output files into healpixels with resolution nside_outfiles
+            (default 64).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels.
+        nside : int
+            Healpix resolution corresponding to healpixels.
 
     Returns:
-      targets:
-      truth:
-
-    Notes:
-      If nproc == 1 use serial instead of parallel code.
+        A variety of fits files are written to output_dir.
 
     """
     import healpy
@@ -690,47 +703,42 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     from desitarget.mock.spectra import MockSpectra
     from desitarget.internal import sharedmem
     
-    if params is None or output_dir is None:
-        log.fatal('Required inputs params and output_dir not given!')
-        raise ValueError
-
     if verbose:
         log = get_logger(DEBUG)
     else:
         log = get_logger()
     
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
     # Initialize the random seed
     rand = np.random.RandomState(seed)
 
     # Create the output directories and clean them up if necessary.
-    #ioutput_dir = os.path.normpath(output_dir)+'-i'
-
-    #for odir in (output_dir, ioutput_dir):
-    for odir in np.atleast_1d(output_dir):
-        try:
-            os.stat(odir)
-            if os.listdir(odir):
-                if clobber:
-                    shutil.rmtree(odir)
-                    #log.info('Cleaning directory {}'.format(odir))
-                    os.makedirs(odir)
-                else:
-                    log.warning('Output directory {} is not empty; please set clobber=True.'.format(odir))
-                    return
-        except:
-            log.info('Creating directory {}'.format(odir))
-            os.makedirs(odir)
+    try:
+        os.stat(output_dir)
+        if os.listdir(output_dir):
+            if clobber:
+                shutil.rmtree(output_dir)
+                #log.info('Cleaning directory {}'.format(output_dir))
+                os.makedirs(output_dir)
+            else:
+                log.warning('Output directory {} is not empty; please set clobber=True.'.format(output_dir))
+                return
+    except:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)
     log.info('Writing to output directory {}'.format(output_dir))
-    #log.info('Writing to output directory {} and intermediate output directory {}'.format(output_dir, ioutput_dir))
     print()
 
-    # Add the ra,dec boundaries to the parameters dictionary for each source, so
-    # we can check the target densities, below.
-    if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
-        bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
-                  params['subset']['min_dec'], params['subset']['max_dec'])
-    else:
-        bounds = (0.0, 360.0, -90.0, 90.0)
+    ## Add the ra,dec boundaries to the parameters dictionary for each source, so
+    ## we can check the target densities, below.
+    #if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
+    #    bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
+    #              params['subset']['min_dec'], params['subset']['max_dec'])
+    #else:
+    #    bounds = (0.0, 360.0, -90.0, 90.0)
 
     for src in params['sources'].keys():
         params['sources'][src].update({'bounds': bounds})
@@ -773,7 +781,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         else:
             lya = None
         source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                                        bounds=bounds, magcut=magcut, nproc=nproc, lya=lya)
+                                        magcut=magcut, nproc=nproc, lya=lya, healpixels=healpixels,
+                                        nside=nside_big)
 
         # If there are no sources, keep going.
         if not bool(source_data):

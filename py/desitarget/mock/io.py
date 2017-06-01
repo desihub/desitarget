@@ -20,6 +20,7 @@ from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desispec.brick import brickname as get_brickname_from_radec
 from desispec.brick import Bricks
+from desimodel.footprint import radec2pix
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
@@ -67,7 +68,7 @@ def print_all_mocks_info(params):
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
+def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1, healpixels=None, nside=None):
     """Read all the mocks.
 
     Parameters
@@ -76,6 +77,14 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         The different kind of sources are stored under the 'sources' key.
     rand : numpy.RandomState
         RandomState object used for the random number generation.
+    bricksize : float
+        Size of each (imaging) brick in deg.
+    nproc : int
+        Number of cores to use for reading (default 1).
+    healpixels : numpy.ndarray or numpy.int64
+        Only read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
 
     Returns
     -------
@@ -97,7 +106,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         target_name = params['sources'][source_name]['target_name']
         mockformat = params['sources'][source_name]['format']
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
-        bounds = params['sources'][source_name]['bounds']
+        #bounds = params['sources'][source_name]['bounds']
 
         if 'magcut' in params['sources'][source_name].keys():
             magcut = params['sources'][source_name]['magcut']
@@ -115,23 +124,10 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
                           bounds=bounds, magcut=magcut, nproc=nproc, lya=params['sources'][source_name]['LYA'])
         else:
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                          bounds=bounds, magcut=magcut, nproc=nproc)
+                          healpixels=healpixels, nside=nside, magcut=magcut, nproc=nproc)
 
         source_data_all[source_name] = result
         print()
-
-        #if target_name not in loaded_mocks: # not sure if this is right
-        ##if this_name not in loaded_mocks.keys():
-        #    loaded_mocks.append(target_name)
-        #
-        #    func = globals()[read_function]
-        #    result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-        #                  bounds=bounds, magcut=magcut)
-        #    source_data_all[source_name] = result
-        #    print()
-        #else:
-        #    #log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
-        #    source_data_all[target_name] = source_data_all[loaded_mocks[target_name]]
 
     log.info('Loaded {} mock catalog(s).'.format(len(source_data_all)))
     return source_data_all
@@ -213,8 +209,7 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None,
-               lya=None):
+               healpixels=None, nside=None, magcut=None, nproc=None, lya=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -228,8 +223,10 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -281,9 +278,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
-    min_ra, max_ra, min_dec, max_dec = bounds
-    
+    # Read the ra,dec coordinates, generate mockid, and then cut on healpixels.
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     nobj = len(radec)
 
@@ -294,6 +289,12 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
+
+    pix = radec2pix(radec['RA'], radec['DEC'])
+    
+    import pdb ; pdb.set_trace()
+
+
 
     cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
     nobj = len(cut)
