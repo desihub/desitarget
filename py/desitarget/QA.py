@@ -51,9 +51,9 @@ def area_of_hull(ras,decs,nhulls):
     Parameters
     ----------
     ras : :class:`~numpy.array`
-        Right Ascensions of the points in the convex hull (boundary)
+        Right Ascensions of the points in the convex hull (boundary) in DEGREES
     decs : :class:`~numpy.array`
-        Declinations of the points in the convex hull (boundary)
+        Declinations of the points in the convex hull (boundary) in DEGREES
     nhulls : :class:`int`
         The number of hulls the user thinks they passed, to check each hull occupies a row
         not a column
@@ -61,36 +61,56 @@ def area_of_hull(ras,decs,nhulls):
     Returns
     -------
     :class:`float`
-        The area of the convex hull (drawn on the surface of the sphere), in the supplied units
+        The area of the convex hull (drawn on the surface of the sphere) in SQUARE DEGREES
 
     Notes
     -----
-    If a 2-D array of RAs and Decs representing multiple convex hulls is passed, than the 
-    output will be a 1-D array of areas. Each hull must occupy the rows, e.g. for a
-    set of RAs for 2 identical hulls with 15 points on the boundary, this would be the
-    correct array ordering:
+        - If a 2-D array of RAs and Decs representing multiple convex hulls is passed, than the 
+          output will be a 1-D array of areas. Each hull must occupy the rows, e.g. for a
+          set of RAs for 2 identical hulls with 15 points on the boundary, this would be the
+          correct array ordering:
 
-    array([[ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
-             7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
-             7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ],
-           [ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
-             7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
-             7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ]])
+          array([[ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
+                   7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
+                   7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ],
+                 [ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
+                   7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
+                   7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ]])
 
-    Note that this is only an approximation, because it uses the average latitude
+        - This is only an approximation, because it uses the average latitude. See, e.g.:
 
+              https://trs.jpl.nasa.gov/bitstream/handle/2014/41271/07-0286.pdf
+
+          but it's accurate (to millionths of a per cent) for areas of a few sq. deg.
+
+        - This routine will fail at the poles. So, decs should never be passed as -90. or 90.
     """
 
     if ras.ndim > 1 and ras.shape[0] != nhulls:
         raise IOError('Your array contains {} hulls. Perhaps you meant to pass its tranposition?'.format(ras.shape[0]))
 
-    endras = np.roll(ras,-1)
-    enddecs = np.roll(decs,-1)
+    #ADM try to catch polar cases (this won't catch areas of larger than a few degrees,
+    #ADM but this routine is inaccurate for large hulls anyway)
+    if np.max(np.abs(decs)) >= 89.:
+        raise IOError('You passed a declination of > 89o or < -89o. This routine does not work at or over the poles')
+    
+    #ADM ensure RAs run from 0 -> 360
+    ras%=360
 
-    areas1 = np.abs(0.5*np.sum(ras*enddecs - decs*endras,axis=ras.ndim-1))
-    areas2 = np.abs(0.5*np.sum((endras+ras)*(enddecs-decs),axis=ras.ndim-1))
+    #ADM we'll loop over pairs of vertices around the hull
+    startras = np.roll(ras,+1,axis=1)
+    endras = np.roll(ras,-1,axis=1)
+    
+    rawidth = startras-endras
+    #ADM To deal with wraparound issues, assume that any "large" RA intervals cross RA=0
+    w = np.where(rawidth < -180.)
+    rawidth[w] -= -360.
+    w = np.where(rawidth > 180.)
+    rawidth[w] -= 360.
 
-    return areas1, areas2
+    spharea = np.abs(0.5*np.sum(rawidth*np.degrees(np.sin(np.radians(decs))),axis=1))
+
+    return spharea
 
 
 def targets_on_hull(targets,downsample=False):
