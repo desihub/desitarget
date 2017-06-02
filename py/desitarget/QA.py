@@ -98,8 +98,9 @@ def area_of_hull(ras,decs,nhulls):
     ras%=360
 
     #ADM we'll loop over pairs of vertices around the hull
-    startras = np.roll(ras,+1,axis=1)
-    endras = np.roll(ras,-1,axis=1)
+    #ADM the axis command means that both 1-d and n-dimensional arrays can be passed
+    startras = np.roll(ras,+1,axis=ras.ndim-1)
+    endras = np.roll(ras,-1,axis=ras.ndim-1)
     
     rawidth = startras-endras
     #ADM To deal with wraparound issues, assume that any "large" RA intervals cross RA=0
@@ -108,7 +109,7 @@ def area_of_hull(ras,decs,nhulls):
     w = np.where(rawidth > 180.)
     rawidth[w] -= 360.
 
-    spharea = np.abs(0.5*np.sum(rawidth*np.degrees(np.sin(np.radians(decs))),axis=1))
+    spharea = np.abs(0.5*np.sum(rawidth*np.degrees(np.sin(np.radians(decs))),axis=ras.ndim-1))
 
     return spharea
 
