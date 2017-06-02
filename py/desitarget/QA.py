@@ -23,7 +23,9 @@ from . import __version__ as desitarget_version
 
 from desiutil import brick
 from desiutil.log import get_logger, DEBUG
-import warnings
+import warnings, itertools
+import matplotlib.pyplot as plt
+
 
 def sph2car(ra, dec):
     """Convert RA and Dec to a Cartesian vector """
@@ -198,15 +200,13 @@ def remove_fractional_bricks(targs,frac=0.9,bricksize=0.25):
     bareas = np.array([ b.brickarea(ras[0],decs[0]) for ras, decs in zip(raperbrick, decperbrick) ])
     
     #ADM find the bricks where the areas suggest the hulls are more than "frac" complete
-    w = np.where(hareas/bareas > 0.9)
+    w = np.where(hareas/bareas > frac)
     outindexes = [ indexperbrick[i] for i in w[0] ]
 
     #ADM unroll the outindexes array and return the targets in the "complete" bricks
-    unroll = np.array([index for brick in outindexes for index in brick])
+    unroll = np.array(list(itertools.chain.from_iterable(outindexes)))
     
     return targs[unroll]
-
-
 
 
 def is_polygon_within_boundary(boundverts,polyverts):
@@ -469,7 +469,6 @@ def fit_quad(x,y,plot=False):
     err = np.array(err)
 
     if plot:
-        import matplotlib.pyplot as plt
         #ADM generate a model
         step = 0.01*(max(x)-min(x))
         xmod = step*np.arange(100)+min(x)
