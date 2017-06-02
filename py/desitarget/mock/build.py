@@ -720,16 +720,16 @@ def _write_onehealpix(writeargs):
     """Filler function for the multiprocessing."""
     return write_onehealpix(*writeargs)
 
-def write_onehealpix(subdir, pixnum, inpixel, nside, targets, truth,
-                     trueflux, truthhdr, wave, output_dir, log):
+def write_onehealpix(output_dir, pixnum, inpixel, nside, targets, truth,
+                     trueflux, truthhdr, wave, log):
     """Wrapper function to write out files in a single healpix pixel.
 
     """
     from astropy.io import fits
 
-    targetsfile = os.path.join(subdir, 'targets-{}-{}.fits'.format(nside, pixnum))
-    truthfile = os.path.join(subdir, 'truth-{}-{}.fits'.format(nside, pixnum))
-    truthspecfile = os.path.join(subdir, 'spectra-truth-{}-{}.fits'.format(nside, pixnum))
+    targetsfile = os.path.join(output_dir, 'targets-{}-{}.fits'.format(nside, pixnum))
+    truthfile = os.path.join(output_dir, 'truth-{}-{}.fits'.format(nside, pixnum))
+    truthspecfile = os.path.join(output_dir, 'spectra-truth-{}-{}.fits'.format(nside, pixnum))
 
     log.info('Writing {}'.format(targetsfile))
     try:
@@ -775,8 +775,7 @@ def _create_raslices(output_dir, ioutput_dir, brickname):
 #from memory_profiler import profile
 #@profile
 def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=True,
-                  clobber=False, bricksize=0.25, nproc=1, nside_outfiles=64,
-                  healpixels=None, nside=8):
+                  clobber=False, bricksize=0.25, nproc=1, nside=16, healpixels=None):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
     (with, e.g., the true redshift) for use in simulations.
 
@@ -845,6 +844,21 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         os.makedirs(output_dir)
     log.info('Writing to output directory {}'.format(output_dir))
     print()
+
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(nside))
+
+    areaperpix = hp.nside2pixarea(args.nside, degrees=True)
+    log.info('Grouping targets by healpix pixels with nside = {} and corresponding area = {:.3f} deg2/pixel'.format(
+        args.nside, areaperpix))
+
+    area_outfiles = hp.nside2pixarea(args.nside_outfiles, degrees=True)
+    log.info('Will write output files into healpix pixels with nside = {} and corresponding area = {:.3f} deg2/pixel'.format(
+        nside_outfiles, area_outfiles))
+
+    skyarea = len(healpixels) * hp.nside2pixarea(nside, degrees=True)
+    log.info('Total sky area = {} deg2.'.format(skyarea))
 
     ## Read the ra, dec boundaries from the parameter dictionary or work them out
     ## from the input healpixels (the latter which is the default).
@@ -928,22 +942,14 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         unique_bricks = list(set(brickname))
 
         # Quickly check that all the brick info is here.
-        skyarea = 0.0
         for thisbrick in unique_bricks:
             brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-            skyarea = skyarea + brick_info['BRICKAREA'][brickindx][0]
             if (len(brickindx) != 1):
                 log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
                 raise ValueError
-        #skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
         
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
-            len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
-
-        import pdb ; pdb.set_trace()
-        
-        pix = radec2pix(nside, source_data['RA'], source_data['DEC'])
-        
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -1134,47 +1140,14 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         #AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
 
-    # Write out targets by healpix pixels based on the grouping
-    #   {output_dir}/{subdir}/truth-{nside}-{ipix}.fits
-    # where subdir = ipix // (nside // 2)
-    pixels = hp.ang2pix(nside, np.radians(90-targets['DEC']),
-                        np.radians(targets['RA']), nest=True)
-    unique_pixels = list(set(pixels))
-
-    """basedir/8-{superpix}/64-{pixnum}/filename-64-{pixnum}.fits
-
-    where pixnum is the nside=64 nested pixel number, and superpix = pixnum /
-    4**3.
-
-    I'm not completely convinced that will be user friendly, but it does have
-    the advantages that:
-
-    * <1000 subdirectories at any level
-    
-    * everything under a 8-{superpix} subdirectory is grouped on the sky (unlike
-      the case if we just did subdir = pixnum//100 or something like that that
-      is easier to calculate in your head but breaks spatial grouping).
-
-    * nside=8 is 53.7 deg2 which seems likely for a viable sub-unit to process
-      at NERSC per job
-
-    * nside=64 is 0.84 deg2 which seems like a viable sized sub-unit for
-      grouping targets
-    """
-
+    # Write out targets by healpix pixels in the format:
+    ##  {output_dir}/{nside}-{pixnum}/filename-{nside}-{pixnum}.fits
+    #   {output_dir}/filename-{nside}-{pixnum}.fits
     writeargs = list()
-    for pixnum in unique_pixels:
-        superpix = pixnum // 4**3
-        subdir = os.path.join( output_dir, '8-{}'.format(superpix), '64-{}'.format(pixnum) )
-        #subdir = os.path.join( output_dir, str(pixnum // (nside // 2)) )
-        try:
-            os.stat(subdir)
-        except:
-            os.makedirs(subdir)
-
-        inpixel = np.where(pixnum == pixels)[0]
-        writeargs.append((subdir, pixnum, inpixel, nside, targets, truth, trueflux,
-                          truthhdr, Spectra.wave, output_dir, log))
+    for pixnum in healpixels:
+        inpixel = np.where(pixnum == healpixels)[0]
+        writeargs.append((output_dir, pixnum, inpixel, nside, targets, truth,
+                          trueflux, truthhdr, Spectra.wave, log))
 
     if nproc > 1:
         pool = sharedmem.MapReduce(np=nproc)

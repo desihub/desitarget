@@ -66,14 +66,6 @@ if args.nside < 2 or args.nside_outfiles < 2:
     log.fatal('NSIDE = {} and NSIDE_OUTFILES = {} must be >=2'.format(args.nside, args.nside_outfiles))
     raise Exception()
 
-area_outfiles = hp.nside2pixarea(args.nside_outfiles, degrees=True)
-log.info('Will write output files into healpix pixels with nside = {} and corresponding area = {:.3f} deg2'.format(
-    args.nside_outfiles, area_outfiles))
-
-area = hp.nside2pixarea(args.nside, degrees=True)
-log.info('Grouping targets by healpix pixels with nside = {} and corresponding area = {:.3f} deg2'.format(
-    args.nside, area))
-
 if args.healpixels:
     healpixels = args.healpixels
     log.info('Restricting footprint to input healpix pixels {}.  ** Please be sure these were computed with input nside = {}! **'.format(
