@@ -44,7 +44,7 @@ env:
         - DESIUTIL_VERSION=1.9.3
         - DESISPEC_VERSION=0.11.0
         - DESISIM_VERSION=master
-        - DESIMODEL_VERSION=0.4.4
+        - DESIMODEL_VERSION=master
         - SPECLITE_VERSION=0.5
         - MAIN_CMD='python setup.py'
         # These packages will always be installed.

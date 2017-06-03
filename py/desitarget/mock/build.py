@@ -793,14 +793,11 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             team value (default 0.25 deg).
         nproc : int
             Number of parallel processes to use (default 1).
-        nside_outfiles : int
-            Group output files into healpixels with resolution nside_outfiles
-            (default 64).
+        nside : int
+            Healpix resolution corresponding to healpixels (default 16).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
             this set (array) of healpix pixels.
-        nside : int
-            Healpix resolution corresponding to healpixels (default 8).
 
     Returns:
         A variety of fits files are written to output_dir.
@@ -850,15 +847,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         healpixels = np.arange(hp.nside2npix(nside))
 
     areaperpix = hp.nside2pixarea(args.nside, degrees=True)
-    log.info('Grouping targets by healpix pixels with nside = {} and corresponding area = {:.3f} deg2/pixel'.format(
-        args.nside, areaperpix))
-
-    area_outfiles = hp.nside2pixarea(args.nside_outfiles, degrees=True)
-    log.info('Will write output files into healpix pixels with nside = {} and corresponding area = {:.3f} deg2/pixel'.format(
-        nside_outfiles, area_outfiles))
-
-    skyarea = len(healpixels) * hp.nside2pixarea(nside, degrees=True)
-    log.info('Total sky area = {} deg2.'.format(skyarea))
+    skyarea = len(healpixels) * areaperpix
+    log.info('Grouping into {} healpixel(s) (nside = {}, {} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), args.nside, areaperpix, skyarea))
 
     ## Read the ra, dec boundaries from the parameter dictionary or work them out
     ## from the input healpixels (the latter which is the default).
