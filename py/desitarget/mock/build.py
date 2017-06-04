@@ -164,7 +164,7 @@ class BrickInfo(object):
             allpix = radec2pix(self.nside, brick_info[corners[0]], brick_info[corners[1]])
             these.append(np.where( np.in1d(allpix, self.healpixels)*1 )[0])
 
-        these = np.unique(np.concatenate(these))
+        these = np.unique( np.concatenate(these) )
         nbrick = len(these)
         
         self.log.info('Generating brick information for {} brick(s) with bricksize {:g} deg in healpixels {} with nside = {}.'.\
@@ -791,7 +791,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         # Read the mock catalog.
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
-        #source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
         if 'magcut' in params['sources'][source_name].keys():
@@ -810,6 +809,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
                                         magcut=magcut, nproc=nproc, lya=lya,
                                         healpixels=healpixels, nside=nside)
+
+        import pdb ; pdb.set_trace()
         
         # If there are no sources, keep going.
         if not bool(source_data):

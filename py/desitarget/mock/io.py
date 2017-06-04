@@ -991,35 +991,42 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
                             columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
 
+    these = []
+    for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
+        allpix = radec2pix(nside, brickinfo[corners[0]], brickinfo[corners[1]])
+        these.append(np.where( np.in1d(allpix, healpixels)*1 )[0])
+        
+    these = np.unique( np.concatenate(these) )
+
     import pdb ; pdb.set_trace()
 
-    # There's gotta be a smarter way to do this...
-    these = []
-    for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
-        these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
-                                (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
-
-    # Bricks in the middle.
-    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
-                            (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
-                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
-                            (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    # Left column
-    these.append( np.where( (brickinfo['RA1'] <= min_ra) * (brickinfo['RA2'] >= min_ra) *
-                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    # Right column
-    these.append( np.where( (brickinfo['RA1'] <= max_ra) * (brickinfo['RA2'] >= max_ra) *
-                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    # Top row
-    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
-                            (brickinfo['DEC1'] <= max_dec) * (brickinfo['DEC2'] >= max_dec) )[0] )
-    # Bottom row
-    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
-                            (brickinfo['DEC1'] <= min_dec) * (brickinfo['DEC2'] >= min_dec) )[0] )
-    these = np.unique( np.concatenate(these) )
+    ## There's gotta be a smarter way to do this...
+    #these = []
+    #for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
+    #    these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
+    #                            (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
+    #
+    ## Bricks in the middle.
+    #these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
+    #                        (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
+    #                        (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
+    #                        (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    ## Left column
+    #these.append( np.where( (brickinfo['RA1'] <= min_ra) * (brickinfo['RA2'] >= min_ra) *
+    #                        (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    ## Right column
+    #these.append( np.where( (brickinfo['RA1'] <= max_ra) * (brickinfo['RA2'] >= max_ra) *
+    #                        (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
+    ## Top row
+    #these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
+    #                        (brickinfo['DEC1'] <= max_dec) * (brickinfo['DEC2'] >= max_dec) )[0] )
+    ## Bottom row
+    #these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
+    #                        (brickinfo['DEC1'] <= min_dec) * (brickinfo['DEC2'] >= min_dec) )[0] )
+    #these = np.unique( np.concatenate(these) )
     
     if len(these) == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
 
     if target_name.upper() == 'FAINTSTAR':
@@ -1061,7 +1068,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     data = dict()
     data1 = [dd for dd in data1 if dd]
     if len(data1) == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return data
 
     for k in data1[0].keys():
@@ -1084,8 +1091,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     nobj = len(ra)
     del data
 
-    log.info('Read {} {}s from {} files in range RA={}, {}, Dec={}, {}'.format(
-        nobj, target_name, nfiles, min_ra, max_ra, min_dec, max_dec))
+    log.info('Read {} {}s from {} files in healpixels {}.'.format(nobj, target_name, nfiles, healpixels))
 
     # Debugging plot that I would like to keep here for now.
     if False:
