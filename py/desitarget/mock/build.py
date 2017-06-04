@@ -157,7 +157,8 @@ class BrickInfo(object):
         #these = np.array(these)
         #for k in brick_info.keys():
         #    brick_info[k] = brick_info[k][these]
-                
+
+        # I think this is going to fail for small enough healpixels...
         these = []
         for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
             allpix = radec2pix(self.nside, brick_info[corners[0]], brick_info[corners[1]])
