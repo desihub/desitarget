@@ -42,7 +42,7 @@ env:
         # - SCIPY_VERSION=0.17
         - ASTROPY_VERSION=1.2.1
         - DESIUTIL_VERSION=1.9.3
-        - DESISPEC_VERSION=0.11.0
+        - DESISPEC_VERSION=master
         - DESISIM_VERSION=master
         - DESIMODEL_VERSION=master
         - SPECLITE_VERSION=0.5

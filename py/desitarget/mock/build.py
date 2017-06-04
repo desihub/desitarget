@@ -85,95 +85,19 @@ class BrickInfo(object):
         self.target_names = target_names
 
     def _bricks2pix(self, brick_info):
-        '''
-        Returns sorted array of pixels that overlap the tiles
-    
-        Args:
-            nside: integer healpix nside, 2**k where 0 < k < 30
-    
-        Optional:
-            tiles:
-                array-like integer tile IDs; or
-                integer tile ID; or
-                Table-like with RA,DEC columns; or
-                None to use all DESI tiles from desimodel.io.load_tiles()
-            radius: tile radius in degrees;
-                if None use desimodel.focalplane.get_tile_radius_deg()
-            per_tile: if True, return a list of arrays of pixels per tile
-    
-        Returns pixels:
-            integer array of pixel numbers that cover these tiles; or
-            if per_tile is True, returns list of arrays such that pixels[i]
-                is an array of pixel numbers covering tiles[i]
+        '''Returns sorted array of healpixels that overlap the input brick_info.
+
         '''
         import healpy as hp
-        if tiles is None:
-            import desimodel.io
-            tiles = desimodel.io.load_tiles()
-    
-        if radius is None:
-            import desimodel.focalplane
-            radius = desimodel.focalplane.get_tile_radius_deg()
-    
-        theta, phi = np.radians(90-brick_info['DEC']), np.radians(tiles['RA'])
+
+        radius = np.radians(2 * self.bricksize) # be conservative
+        
+        theta, phi = np.radians(90-brick_info['DEC']), np.radians(brick_info['RA'])
         vec = hp.ang2vec(theta, phi)
-        ipix = [hp.query_disc(nside, vec[i], radius=np.radians(radius),
-                    inclusive=True, nest=True) for i in range(len(tiles))]
-        if per_tile:
-            return ipix
-        else:
-            return np.sort(np.unique(np.concatenate(ipix)))
+        ipix = [hp.query_disc(self.nside, vec[i], radius=radius, inclusive=True,
+                              nest=True) for i in range(len(brick_info['RA']))]
 
-    def _old_generate_brick_info(self):
-        """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
-        max_dec).
-
-        [Doesn't this functionality exist elsewhere?!?]
-        """
-        from desispec.brick import Bricks
-        min_ra, max_ra, min_dec, max_dec = self.bounds
-
-        B = Bricks(bricksize=self.bricksize)
-        brick_info = {}
-        brick_info['BRICKNAME'] = []
-        brick_info['RA'] = []
-        brick_info['DEC'] =  []
-        brick_info['RA1'] =  []
-        brick_info['RA2'] =  []
-        brick_info['DEC1'] =  []
-        brick_info['DEC2'] =   []
-        brick_info['BRICKAREA'] =  []
-
-        i_rows = np.where(((B._edges_dec+self.bricksize) >= min_dec) & ((B._edges_dec-self.bricksize) <= max_dec))[0]
-        for i_row in i_rows:
-            j_col_min = int((min_ra)/360 * B._ncol_per_row[i_row])
-            j_col_max = int((max_ra)/360 * B._ncol_per_row[i_row])
-
-            for j_col in range(j_col_min, j_col_max+1):
-                brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
-
-                brick_info['RA'].append(B._center_ra[i_row][j_col])
-                brick_info['DEC'].append(B._center_dec[i_row])
-
-                brick_info['RA1'].append(B._edges_ra[i_row][j_col])
-                brick_info['DEC1'].append(B._edges_dec[i_row])
-
-                brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
-                brick_info['DEC2'].append(B._edges_dec[i_row+1])
-
-                brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1])
-                brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) -
-                               np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
-                brick_info['BRICKAREA'].append(brick_area)
-
-        for k in brick_info.keys():
-            brick_info[k] = np.array(brick_info[k])
-
-        self.log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
-                      format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
-                             self.bounds[2], self.bounds[3], self.bricksize))
-
-        return brick_info
+        return ipix
 
     def generate_brick_info(self):
         """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
@@ -201,7 +125,6 @@ class BrickInfo(object):
             j_cols = np.arange( len(B._brickname[i_row]) )
             
             for j_col in j_cols:
-
                 brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
 
                 brick_info['RA'].append(B._center_ra[i_row][j_col])
@@ -222,21 +145,25 @@ class BrickInfo(object):
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
 
-        allpix = radec2pix(self.nside, brick_info['RA1'], brick_info['DEC1'])
-        c1 = np.where( np.in1d(allpix, self.healpixels)*1 )[0]
+        ## This is too slow!
+        #ipix = self._bricks2pix(brick_info)
+        #these = []
+        #for ii, thesepix in enumerate(ipix):
+        #    cnt = np.count_nonzero( np.in1d(thesepix, self.healpixels) )
+        #    if cnt > 0:
+        #        these.append(ii)
+        #    if ii == 332608:
+        #        import pdb ; pdb.set_trace()
+        #these = np.array(these)
+        #for k in brick_info.keys():
+        #    brick_info[k] = brick_info[k][these]
+                
+        these = []
+        for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
+            allpix = radec2pix(self.nside, brick_info[corners[0]], brick_info[corners[1]])
+            these.append(np.where( np.in1d(allpix, self.healpixels)*1 )[0])
 
-        allpix = radec2pix(self.nside, brick_info['RA1'], brick_info['DEC2'])
-        c2 = np.where( np.in1d(allpix, self.healpixels)*1 )[0]
-
-        allpix = radec2pix(self.nside, brick_info['RA2'], brick_info['DEC2'])
-        c3 = np.where( np.in1d(allpix, self.healpixels)*1 )[0]
-
-        allpix = radec2pix(self.nside, brick_info['RA2'], brick_info['DEC1'])
-        c4 = np.where( np.in1d(allpix, self.healpixels)*1 )[0]
-
-        these = np.unique( np.concatenate( (c1, c2, c3, c4) ) )
-        for k in brick_info.keys():
-            brick_info[k] = brick_info[k][these]
+        these = np.unique(np.concatenate(these))
         nbrick = len(these)
         
         self.log.info('Generating brick information for {} brick(s) with bricksize {:g} deg in healpixels {} with nside = {}.'.\
@@ -786,8 +713,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             Output directory (default '.').
         realtargets : astropy.table
             Real target catalog table, e.g. from DR3 (deprecated!).
-        clobber : boolean
-            Remove existing files in the output_dir (mandatory if not empty).
         bricksize : float
             Brick size for assigning bricknames, which should match the imaging
             team value (default 0.25 deg).
@@ -826,19 +751,13 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     rand = np.random.RandomState(seed)
 
     # Create the output directories and clean them up if necessary.
-    try:
-        os.stat(output_dir)
+    if os.path.exists(output_dir):
         if os.listdir(output_dir):
-            if clobber:
-                shutil.rmtree(output_dir)
-                #log.info('Cleaning directory {}'.format(output_dir))
-                os.makedirs(output_dir)
-            else:
-                log.warning('Output directory {} is not empty; please set clobber=True.'.format(output_dir))
-                return
-    except:
+            log.warning('Bewar: output directory {} is not empty.'.format(output_dir))
+    else:
         log.info('Creating directory {}'.format(output_dir))
         os.makedirs(output_dir)
+        
     log.info('Writing to output directory {}'.format(output_dir))
     print()
 
@@ -846,41 +765,11 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     if healpixels is None:
         healpixels = np.arange(hp.nside2npix(nside))
 
-    areaperpix = hp.nside2pixarea(args.nside, degrees=True)
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
     skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), args.nside, areaperpix, skyarea))
+    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, skyarea))
 
-    ## Read the ra, dec boundaries from the parameter dictionary or work them out
-    ## from the input healpixels (the latter which is the default).
-    #if healpixels and nside:
-    #    corners = hp.boundaries(nside, healpixels, step=1, nest=True)
-    #    corner_theta, corner_phi = hp.vec2ang(corners.T)
-    #    corner_ra, corner_dec = np.degrees(corner_phi), np.degrees(np.pi/2 - corner_theta)
-    #    bounds = (corner_ra.min(), corner_ra.max(), corner_dec.min(), corner_dec.max())
-    #elif ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
-    #    bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
-    #              params['subset']['min_dec'], params['subset']['max_dec'])
-    #else:
-    #    bounds = (0.0, 360.0, -90.0, 90.0)
-        
-    #for src in params['sources'].keys():
-    #    params['sources'][src].update({'bounds': bounds})
-
-    ## Add the ra,dec boundaries to the parameters dictionary for each source, so
-    ## we can check the target densities, below.
-    #if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
-    #    bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
-    #              params['subset']['min_dec'], params['subset']['max_dec'])
-    #else:
-    #    bounds = (0.0, 360.0, -90.0, 90.0)
-    #for src in params['sources'].keys():
-    #    params['sources'][src].update({'bounds': bounds})
-
-    # Build the brick information structure.
-    #brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds, 
-    #                       bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
-    #                       target_names=list(params['sources'].keys()), log=log).build_brickinfo()
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], healpixels=healpixels, nside=nside,
                            bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
                            target_names=list(params['sources'].keys()), log=log).build_brickinfo()
@@ -937,6 +826,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
             if (len(brickindx) != 1):
                 log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+                import pdb ; pdb.set_trace()
+                plt.scatter(source_data['RA'], source_data['DEC']) ; plt.scatter(brick_info['RA'], brick_info['DEC']) ; plt.show()
                 raise ValueError
         
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
@@ -1068,8 +959,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    #print( np.sum( (targets['DESI_TARGET'] & desi_mask.MWS_ANY) != 0) )
-    #import pdb ; pdb.set_trace()
     # Write out the fileid-->filename mapping.  This doesn't work right now.
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
@@ -1126,13 +1015,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         seed1 = seed
     truthhdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed')
-        #BRICKSZ = (outbricksize, 'brick size (deg)')
-        #BUNIT = ('Angstrom', 'wavelength units'),
-        #AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
 
     # Write out targets by healpix pixels in the format:
-    ##  {output_dir}/{nside}-{pixnum}/filename-{nside}-{pixnum}.fits
     #   {output_dir}/filename-{nside}-{pixnum}.fits
     writeargs = list()
     for pixnum in healpixels:
