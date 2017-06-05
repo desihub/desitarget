@@ -20,7 +20,10 @@ from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desiutil.brick import brickname as get_brickname_from_radec
 from desiutil.brick import Bricks
+<<<<<<< HEAD
 from desimodel.footprint import radec2pix
+=======
+>>>>>>> master
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)

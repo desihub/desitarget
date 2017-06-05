@@ -107,6 +107,10 @@ class BrickInfo(object):
 
         """
         from desiutil.brick import Bricks
+<<<<<<< HEAD
+=======
+        min_ra, max_ra, min_dec, max_dec = self.bounds
+>>>>>>> master
 
         B = Bricks(bricksize=self.bricksize)
         brick_info = {}
