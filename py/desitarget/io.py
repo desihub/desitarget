@@ -20,11 +20,18 @@ from desiutil import depend
 tscolumns = [
     'RELEASE', 'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
     'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-    'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
-    'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
-    'WISE_FLUX', 'WISE_MW_TRANSMISSION',
-    'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
+    'FLUX_G', 'FLUX_R', 'FLUX_Z', 
+    'FLUX_IVAR_G', 'FLUX_IVAR_R', 'FLUX_IVAR_Z', 
+    'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
+    'FRACFLUX_G', 'FRACFLUX_R', 'FRACFLUX_Z',
+    'NOBS_G', 'NOBS_R', 'NOBS_Z', 
+    'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z'
+    'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'
+    'FLUX_W1', 'FLUX_W2', 'FLUX_W3', 'FLUX_W4'
+    'FLUX_IVAR_W1', 'FLUX_IVAR_W2', 'FLUX_IVAR_W3', 'FLUX_IVAR_W4'
+    'MW_TRANSMISSION_W1', 'MW_TRANSMISSION_W2', 
+    'MW_TRANSMISSION_W3', 'MW_TRANSMISSION_W4'
+    'SHAPEDEV_R', 'SHAPEEXP_R', 'DCHISQ',
     ]
 
 def read_tractor(filename, header=False, columns=None):
@@ -59,6 +66,11 @@ def read_tractor(filename, header=False, columns=None):
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
 
+    hdr = fx[1].read_header()
+    if (columns is None) and ('RELEASE' not in fxcolnames):
+        #ADM if RELEASE doesn't exist, then we're pre-DR3, so rewrite the input
+        #ADM columns completely to correspond to the DR4+ data model
+
     data = fx[1].read(columns=readcolumns)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
@@ -76,7 +88,6 @@ def read_tractor(filename, header=False, columns=None):
             data[colname] = np.char.rstrip(data[colname])
 
     if header:
-        hdr = fx[1].read_header()
         fx.close()
         return data, hdr
     else:
