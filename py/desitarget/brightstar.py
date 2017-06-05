@@ -28,9 +28,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
 
-from desiutil import depend
-
-from desispec import brick
+from desiutil import depend, brick
 
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
