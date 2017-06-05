@@ -824,7 +824,7 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
     drint = np.max(targs['RELEASE']//1000)
     #ADM check the targets all have the same release
     checker = np.min(targs['RELEASE']//1000)
-    if drint ne checker:
+    if drint != checker:
         raise IOError('Objects from multiple data releases in same input numpy array?!')
 
     #ADM left-shift the DR integer to the binary location appropriate to DR in TARGETID

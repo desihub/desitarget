@@ -18,7 +18,7 @@ from . import gitversion
 from desiutil import depend
 
 tscolumns = [
-    'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
+    'RELEASE', 'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
     'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
     'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
@@ -120,7 +120,7 @@ def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=Fa
     drint = np.max(data['RELEASE']//1000)
     #ADM check the targets all have the same release                                                                                                                        
     checker = np.min(data['RELEASE']//1000)
-    if drint ne checker:
+    if drint != checker:
         raise IOError('Objects from multiple data releases in same input numpy array?!')
     drstring = 'dr'+str(drint)
 
