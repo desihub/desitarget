@@ -765,7 +765,7 @@ def generate_safe_locations(starmask,Npersqdeg):
     return np.hstack(ra), np.hstack(dec)
 
 
-def append_safe_targets(targs,starmask,nside=64,drbricks=None):
+def append_safe_targets(targs,starmask,nside=None,drbricks=None):
     """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
@@ -827,7 +827,7 @@ def append_safe_targets(targs,starmask,nside=64,drbricks=None):
     if drint ne checker:
         raise IOError('Objects from multiple data releases in same input directory?!')
 
-    #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
+    #ADM left-shift the DR integer to the binary location appropriate to DR in TARGETID
     safes["TARGETID"] |= drint << targetid_mask.DR.firstbit
 
     #ADM add the brick information for the SAFE/BADSKY targets
@@ -835,35 +835,38 @@ def append_safe_targets(targs,starmask,nside=64,drbricks=None):
     safes["BRICKID"] = b.brickid(safes["RA"],safes["DEC"])
     safes["BRICKNAME"] = b.brickname(safes["RA"],safes["DEC"])
 
+    #ADM the string version of the data release (to find directories for brick information)
+    drstring = 'dr'+str(drint)
+
     #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
     #ADM read in the Data Release bricks file
-        if drbricks is None:
-            rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
-            drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
-        #ADM the BRICK IDs that are populated for this DR
-        drbrickids = b.brickid(drbricks["ra"],drbricks["dec"])
-        #ADM the maximum possible BRICKID at bricksize=0.25
-        brickmax = 662174
-        #ADM create a histogram of how many SAFE/BADSKY objects are in each brick
-        hsafes = np.histogram(safes["BRICKID"],range=[0,brickmax+1],bins=brickmax+1)[0]
-        #ADM create a histogram of how many objects are in each brick in this DR
-        hnobjs = np.zeros(len(hsafes),dtype=int)
-        hnobjs[drbrickids] = drbricks["nobjs"]
-        #ADM make each OBJID for a SAFE/BADSKY +1 higher than any other OBJID in the DR
-        safes["BRICK_OBJID"] = hnobjs[safes["BRICKID"]] + 1
-        #ADM sort the safes array on BRICKID
-        safes = safes[safes["BRICKID"].argsort()]
-        #ADM remove zero entries from the histogram of BRICKIDs in safes, for speed
-        hsafes = hsafes[np.where(hsafes > 0)]
-        #ADM the count by which to augment each OBJID to make unique OBJIDs for safes
-        objsadd = np.hstack([ np.arange(i) for i in hsafes ])
-        #ADM finalize the OBJID for each SAFE target
-        safes["BRICK_OBJID"] += objsadd
+    if drbricks is None:
+        rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
+        drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
+    #ADM the BRICK IDs that are populated for this DR
+    drbrickids = b.brickid(drbricks["ra"],drbricks["dec"])
+    #ADM the maximum possible BRICKID at bricksize=0.25
+    brickmax = 662174
+    #ADM create a histogram of how many SAFE/BADSKY objects are in each brick
+    hsafes = np.histogram(safes["BRICKID"],range=[0,brickmax+1],bins=brickmax+1)[0]
+    #ADM create a histogram of how many objects are in each brick in this DR
+    hnobjs = np.zeros(len(hsafes),dtype=int)
+    hnobjs[drbrickids] = drbricks["nobjs"]
+    #ADM make each OBJID for a SAFE/BADSKY +1 higher than any other OBJID in the DR
+    safes["BRICK_OBJID"] = hnobjs[safes["BRICKID"]] + 1
+    #ADM sort the safes array on BRICKID
+    safes = safes[safes["BRICKID"].argsort()]
+    #ADM remove zero entries from the histogram of BRICKIDs in safes, for speed
+    hsafes = hsafes[np.where(hsafes > 0)]
+    #ADM the count by which to augment each OBJID to make unique OBJIDs for safes
+    objsadd = np.hstack([ np.arange(i) for i in hsafes ])
+    #ADM finalize the OBJID for each SAFE target
+    safes["BRICK_OBJID"] += objsadd
 
-        #ADM finally, update the TARGETID with the OBJID and the BRICKID
-        #ADM have to convert BRICKID to int64 (it's only int32 as standard)
-        safes["TARGETID"] |= safes["BRICK_OBJID"]
-        safes["TARGETID"] |= safes["BRICKID"].astype("int64") << targetid_mask.BRICKID.firstbit
+    #ADM finally, update the TARGETID with the OBJID and the BRICKID
+    #ADM have to convert BRICKID to int64 (it's only int32 as standard)
+    safes["TARGETID"] |= safes["BRICK_OBJID"]
+    safes["TARGETID"] |= safes["BRICKID"].astype("int64") << targetid_mask.BRICKID.firstbit
         
     #ADM return the input targs with the SAFE targets appended
     return np.hstack([targs,safes])
@@ -903,7 +906,7 @@ def set_target_bits(targs,starmask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
+def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
     """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
@@ -915,10 +918,8 @@ def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,
         An input bright star mask created by desitarget.brightstar.make_bright_star_mask
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
-    drstring : :class:`str`, optional
-        The imaging data release for the targets as a string consisting of characters followed by trailing integers
-        (of any length; e.g. 'dr3') to update TARGETID. If this is not passed, then SAFE (BADSKY) targets will be
-        generated, but target bits will not be meaningful. The first element of the string must be a character.
+    nside : :class:`integer`
+        The HEALPix nside used throughout the DESI data model
     bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z".
         Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
@@ -976,7 +977,7 @@ def mask_targets(targs,instarmaskfile=None,drstring=None,bands="GRZ",maglim=[10,
         print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
     #ADM generate SAFE locations and add them to the target list
-    targs = append_safe_targets(targs,starmask,drstring=drstring)
+    targs = append_safe_targets(targs,starmask,nside=nside)
     
     if verbose:
         print('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
