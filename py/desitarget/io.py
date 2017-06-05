@@ -17,6 +17,16 @@ from . import gitversion
 
 from desiutil import depend
 
+oldtscolumns = [
+    'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
+    'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
+    'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
+    'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
+    'WISE_FLUX', 'WISE_MW_TRANSMISSION',
+    'WISE_FLUX_IVAR',
+    'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
+    ]
+
 tscolumns = [
     'RELEASE', 'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
     'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
