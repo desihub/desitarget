@@ -30,6 +30,8 @@ from desitarget import desi_mask, targetid_mask
 
 from desiutil import depend, brick
 
+import healpy as hp
+
 def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
 
@@ -763,23 +765,20 @@ def generate_safe_locations(starmask,Npersqdeg):
     return np.hstack(ra), np.hstack(dec)
 
 
-def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
+def append_safe_targets(targs,starmask,nside=64,drbricks=None):
     """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
     ----------
     targs : :class:`recarray`
         A recarray of targets as made by desitarget.cuts.select_targets
+    nside : :class:`integer`
+        The HEALPix nside used throughout the DESI data model
     starmask : :class:`recarray`
         A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
-    drstring : :class:`str`, optional
-        The imaging data release for the targets as a string consisting of characters followed by trailing integers
-        (of any length; e.g. 'dr3') to update TARGETID. If this is not passed, then SAFE (BADSKY) targets will be
-        generated, but target bits will not be meaningful. The first element of the string must be a character.
     drbricks : :class:`recarray`, optional
-        A rec array containing at least the "ra", "dec" and "nobjs" columns from a survey bricks file for the passed 
-        Data Release. This is typically used for testing only, as the code can determine the NERSC location of 
-        a survey bricks file directly from drstring
+        A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
+        for the passed Data Release. This is typically used for testing only.
 
     Returns
     -------
@@ -793,6 +792,7 @@ def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
           on setting the SKY bit in TARGETID
         - Currently hard-coded to create an additional 10,000 safe locations per sq. deg. of mask. What is the 
           correct number per sq. deg. (Npersqdeg) for DESI is an open question.
+        - Perhaps we should move the default nside to a config file, somewhere?
     """
 
     #ADM Number of safe locations per sq. deg. of each mask in starmask
@@ -809,26 +809,34 @@ def append_safe_targets(targs,starmask,drstring=None,drbricks=None):
     safes["RA"] = ra
     safes["DEC"] = dec
 
+    #ADM populate the HEALPIX pixel for the locations in the SAFES array
+    theta, phi = np.radians(90-dec), np.radians(ra)
+    safes["HPXPIXEL"] = hp.ang2pix(nside, theta, phi, nest=True)
+
     #ADM set SKY in the TARGETID for safe locations
     safes["TARGETID"] |= targetid_mask.SKY
 
     #ADM set the bit for SAFE locations in DESITARGET
     safes["DESI_TARGET"] |= desi_mask.BADSKY
 
-    #ADM if the data release string was passed then add the brick-based bit information
-    if drstring is not None:
-        #ADM turn the string into the integer of the release by identifying the trailing integers
-        drint = int(re.match(r"([a-z]+)([0-9]+)", drstring, re.I).groups()[1])
-        #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
-        safes["TARGETID"] |= drint << targetid_mask.DR.firstbit
+    #ADM the data release as an integer (don't record the full release information as these
+    #ADM aren't real targets
+    drint = np.max(targs['RELEASE']//1000)
+    #ADM check the targets all have the same release
+    checker = np.min(targs['RELEASE']//1000)
+    if drint ne checker:
+        raise IOError('Objects from multiple data releases in same input directory?!')
 
-        #ADM add the brick information for the SAFE/BADSKY targets
-        b = brick.Bricks(bricksize=0.25)
-        safes["BRICKID"] = b.brickid(safes["RA"],safes["DEC"])
-        safes["BRICKNAME"] = b.brickname(safes["RA"],safes["DEC"])
+    #ADM left-shift that integer to the binary location appropriate to DR in TARGETID
+    safes["TARGETID"] |= drint << targetid_mask.DR.firstbit
 
-        #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
-        #ADM read in the Data Release bricks file
+    #ADM add the brick information for the SAFE/BADSKY targets
+    b = brick.Bricks(bricksize=0.25)
+    safes["BRICKID"] = b.brickid(safes["RA"],safes["DEC"])
+    safes["BRICKNAME"] = b.brickname(safes["RA"],safes["DEC"])
+
+    #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
+    #ADM read in the Data Release bricks file
         if drbricks is None:
             rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
             drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")

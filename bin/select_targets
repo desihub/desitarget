@@ -40,9 +40,6 @@ if len(infiles) == 0:
     print('FATAL: no sweep or tractor files found')
     sys.exit(1)
 
-#ADM record the DATA RELEASE as a 9-string
-drstring = fitsio.read_header(infiles[0], 0)["DECALSDR"].lower()
-
 if ns.check:
     print('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
