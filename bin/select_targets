@@ -51,7 +51,7 @@ else:
     if ns.starmask:
         targets = mask_targets(targets, instarmaskfile=ns.starmask)
 
-    io.write_targets(ns.dest, targets, drstring=drstring, indir=ns.src,
+    io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
 
     print('{} targets written to {}'.format(len(targets), ns.dest))

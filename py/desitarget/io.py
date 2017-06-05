@@ -106,7 +106,7 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
-def write_targets(filename, data, drstring=None, indir=None, qso_selection=None, sandboxcuts=False):
+def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=False):
     """Write a target catalogue.
 
     Args:
@@ -115,14 +115,21 @@ def write_targets(filename, data, drstring=None, indir=None, qso_selection=None,
 
     """
     # FIXME: assert data and tsbits schema
+    #ADM use RELEASE to determine the release string for the input targets
+
+    drint = np.max(data['RELEASE']//1000)
+    #ADM check the targets all have the same release                                                                                                                        
+    checker = np.min(data['RELEASE']//1000)
+    if drint ne checker:
+        raise IOError('Objects from multiple data releases in same input numpy array?!')
+    drstring = 'dr'+str(drint)
 
     #- Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     depend.setdep(hdr, 'sandboxcuts', sandboxcuts)
-    if drstring is not None:
-        depend.setdep(hdr, 'photcat  ', drstring)
+    depend.setdep(hdr, 'photcat  ', drstring)
 
     if indir is not None:
         depend.setdep(hdr, 'tractor-files', indir)
