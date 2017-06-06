@@ -115,6 +115,7 @@ def convert_to_old_data_model(fx,DR3=False,columns=None):
             data[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:,bandnum-1]
         
     #ADM remove the old column names
+    decamcols.append('DECAM_DEPTH')
     decamcols = [ 'DECAM_'+ col for col in decamcols ]
     wisecols = [ 'WISE_'+ col for col in wisecols ]
     rmcols = np.append(decamcols,wisecols)
