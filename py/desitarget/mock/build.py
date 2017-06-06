@@ -84,7 +84,7 @@ class BrickInfo(object):
         '''
         import healpy as hp
 
-        radius = np.radians(2 * self.bricksize) # be conservative
+        radius = np.radians(self.bricksize) # be conservative
         
         theta, phi = np.radians(90-brick_info['DEC']), np.radians(brick_info['RA'])
         vec = hp.ang2vec(theta, phi)
@@ -143,32 +143,6 @@ class BrickInfo(object):
                       format(nbrick, self.bricksize))
 
         return brick_info
-
-        ## Restrict to the bricks overlapping the input healpixels.
-        ## This is too slow!
-        #ipix = self._bricks2pix(brick_info)
-        #these = []
-        #for ii, thesepix in enumerate(ipix):
-        #    cnt = np.count_nonzero( np.in1d(thesepix, self.healpixels) )
-        #    if cnt > 0:
-        #        these.append(ii)
-        #    if ii == 332608:
-        #        import pdb ; pdb.set_trace()
-        #these = np.array(these)
-        #for k in brick_info.keys():
-        #    brick_info[k] = brick_info[k][these]
-
-        ## I think this is going to fail for small enough healpixels...
-        #these = []
-        #for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
-        #    allpix = radec2pix(self.nside, brick_info[corners[0]], brick_info[corners[1]])
-        #    these.append(np.where( np.in1d(allpix, self.healpixels)*1 )[0])
-        #these = np.unique( np.concatenate(these) )
-        #nbrick = len(these)
-        #
-        #self.log.info('Generating brick information for {} brick(s) with bricksize {:g} deg in healpixels {} with nside = {}.'.\
-        #              format(nbrick, self.bricksize, self.healpixels, self.nside))
-        #return brick_info
 
     def extinction_across_bricks(self, brick_info):
         """Estimates E(B-V) across bricks.
@@ -820,13 +794,23 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         unique_bricks = list(set(brickname))
 
         # Quickly check that all the brick info is here.
-        #for thisbrick in unique_bricks:
-            #brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-            #if (len(brickindx) != 1):
-            #    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
-            #    import pdb ; pdb.set_trace()
-            #    plt.scatter(source_data['RA'], source_data['DEC']) ; plt.scatter(brick_info['RA'], brick_info['DEC']) ; plt.show()
-            #    raise ValueError
+        if False:
+            for thisbrick in unique_bricks:
+                brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+                if (len(brickindx) != 1):
+                    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+                    ww = np.where( (brick_info['RA'] > source_data['RA'].min()) *
+                                   (brick_info['RA'] < source_data['RA'].max()) *
+                                   (brick_info['DEC'] > source_data['DEC'].min()) *
+                                   (brick_info['DEC'] < source_data['DEC'].max()) )[0]
+                    print(brick_info['BRICKNAME'][ww])
+                    import matplotlib.pyplot as plt
+                    plt.scatter(source_data['RA'], source_data['DEC'])
+                    plt.scatter(brick_info['RA'], brick_info['DEC'])
+                    plt.xlim(source_data['RA'].min()-0.2, source_data['RA'].max()+0.2)
+                    plt.ylim(source_data['DEC'].min()-0.2, source_data['DEC'].max()+0.3)
+                    plt.show()
+                    import pdb ; pdb.set_trace()
         
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
             len(brickname), source_name, len(unique_bricks), bricksize, bricksize))

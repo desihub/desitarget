@@ -977,8 +977,9 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     """
     import multiprocessing
+    import healpy as hp
     
-    # Figure out which mock files to read based on the input boundaries.
+    # Figure out which mock files to read based on the input healpixels.
     brickfile = os.path.join(mock_dir_name, 'bricks.fits')
     try:
         os.stat(brickfile)
@@ -986,45 +987,22 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Brick information file {} not found!'.format(brickfile))
         raise IOError
 
-    #hdr = fitsio.read_header(brickfile, ext=0)
-    #bricksize = hdr['BRICKSIZ']
+    hdr = fitsio.read_header(brickfile, ext=0)
     brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
-                            columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+                            columns=['BRICKNAME', 'RA', 'DEC'])
+
+    radius = np.sqrt(2) * np.radians(hdr['BRICKSIZ']) / 2
+    theta, phi = np.radians(90-brickinfo['DEC']), np.radians(brickinfo['RA'])
+    vec = hp.ang2vec(theta, phi)
+    ipix = [hp.query_disc(nside, vec[i], radius=radius, inclusive=True,
+                          nest=True) for i in range(len(brickinfo))]
 
     these = []
-    for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
-        allpix = radec2pix(nside, brickinfo[corners[0]], brickinfo[corners[1]])
-        these.append(np.where( np.in1d(allpix, healpixels)*1 )[0])
-        
-    these = np.unique( np.concatenate(these) )
+    for ii, thesepix in enumerate(ipix):
+        if np.count_nonzero( np.in1d(thesepix, healpixels) ) > 0:
+            these.append(ii)
+    these = np.unique(np.array(these))
 
-    import pdb ; pdb.set_trace()
-
-    ## There's gotta be a smarter way to do this...
-    #these = []
-    #for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
-    #    these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
-    #                            (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
-    #
-    ## Bricks in the middle.
-    #these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
-    #                        (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
-    #                        (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
-    #                        (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    ## Left column
-    #these.append( np.where( (brickinfo['RA1'] <= min_ra) * (brickinfo['RA2'] >= min_ra) *
-    #                        (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    ## Right column
-    #these.append( np.where( (brickinfo['RA1'] <= max_ra) * (brickinfo['RA2'] >= max_ra) *
-    #                        (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    ## Top row
-    #these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
-    #                        (brickinfo['DEC1'] <= max_dec) * (brickinfo['DEC2'] >= max_dec) )[0] )
-    ## Bottom row
-    #these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
-    #                        (brickinfo['DEC1'] <= min_dec) * (brickinfo['DEC2'] >= min_dec) )[0] )
-    #these = np.unique( np.concatenate(these) )
-    
     if len(these) == 0:
         log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
@@ -1038,11 +1016,13 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     bricks = brickinfo['BRICKNAME'][these]
     for bb in bricks:
         bb = bb.decode('utf-8') # This will probably break in Python2 ??
-        ff = os.path.join(mock_dir_name, 'bricks', '???', bb, 'allsky_galaxia{}_desi_{}.fits'.format(suffix, bb))
-        if os.path.isfile:
-            file_list.append( glob(ff) )
+        ff = os.path.join(mock_dir_name, 'bricks', '???', bb,
+                          'allsky_galaxia{}_desi_{}.fits'.format(suffix, bb))
+        if len(glob(ff)) == 1:
+            file_list.append(glob(ff))
         else:
             log.warning('Missing file {}'.format(ff))
+
     file_list = list( np.concatenate(file_list) )
     nfiles = len(file_list)
 
@@ -1097,10 +1077,17 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     if False:
         import matplotlib.pyplot as plt
         from matplotlib.patches import Polygon
-        verts = [(min_ra, min_dec), (max_ra, min_dec), (max_ra, max_dec), (min_ra, max_dec)]
+        brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
+                                columns=['BRICKNAME', 'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2'])
         fig, ax = plt.subplots()
         ax.scatter(ra, dec, alpha=0.2)
-        ax.add_patch(Polygon(verts, fill=False, color='red', ls='--'))
+        for pix in healpixels:
+            corners = hp.boundaries(nside, pix, step=1, nest=True)
+            corner_theta, corner_phi = hp.vec2ang(corners.T)
+            corner_ra, corner_dec = np.degrees(corner_phi), np.degrees(np.pi/2 - corner_theta)
+            min_ra, max_ra, min_dec, max_dec = corner_ra.min(), corner_ra.max(), corner_dec.min(), corner_dec.max()
+            verts = np.vstack( (corner_ra, corner_dec) ).T
+            ax.add_patch(Polygon(verts, fill=False, ls='--'))
         for tt in these:
             verts = [
                 (brickinfo['RA1'][tt], brickinfo['DEC1'][tt]), (brickinfo['RA2'][tt], brickinfo['DEC1'][tt]),
