@@ -637,27 +637,28 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
         # Temporary hack to deal with the lower-than average ELG target densities.
-        if target_name == 'ELG':
-            from desitarget.cuts import isELG
-            niter, maxiter, fracelg = 0, 5, 0.0
-            while fracelg < 0.98 and niter < maxiter:
-                gflux, rflux, zflux = [10**(0.4*(22.5-mags[b])) for b in 'grz']
-                iselg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
-                fracelg = np.sum(iselg)/nobj
-                #print(niter, fracelg)
-
-                need = np.where(iselg == False)[0]
-                if len(need) > 0:
-                    newmags = GMM.sample(target_name, len(need))
-                    mags[need] = newmags
-                
-                niter = niter + 1
-
-            #import matplotlib.pyplot as plt
-            #plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
-            #plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
-            #plt.show()
-            #import pdb ; pdb.set_trace()
+        if False:
+            if target_name == 'ELG':
+                from desitarget.cuts import isELG
+                niter, maxiter, fracelg = 0, 5, 0.0
+                while fracelg < 0.98 and niter < maxiter:
+                    gflux, rflux, zflux = [10**(0.4*(22.5-mags[b])) for b in 'grz']
+                    iselg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+                    fracelg = np.sum(iselg)/nobj
+                    #print(niter, fracelg)
+    
+                    need = np.where(iselg == False)[0]
+                    if len(need) > 0:
+                        newmags = GMM.sample(target_name, len(need))
+                        mags[need] = newmags
+                    
+                    niter = niter + 1
+    
+                #import matplotlib.pyplot as plt
+                #plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
+                #plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+                #plt.show()
+                #import pdb ; pdb.set_trace()
 
         out.update({'Z': zz, 'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
                     'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
