@@ -6,11 +6,6 @@ desitarget.mock.build
 
 Build a truth catalog (including spectra) and a targets catalog for the mocks.
 
-time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
-pyprof2calltree -k -i mock.dat &
-
-/usr/bin/time -l select_mock_targets -c qatargets_input.yaml --output_dir new --nproc 4 --seed 111 --verbose --clobber
-
 """
 from __future__ import (absolute_import, division, print_function)
 
@@ -20,7 +15,6 @@ import numpy as np
 from astropy.table import Table, Column, vstack
 
 from desiutil.log import get_logger, DEBUG
-from desimodel.footprint import radec2pix
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 
 def fileid_filename(source_data, output_dir, log):
@@ -569,51 +563,6 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
-def _write_onehealpix(writeargs):
-    """Filler function for the multiprocessing."""
-    return write_onehealpix(*writeargs)
-
-def write_onehealpix(output_dir, pixnum, inpixel, nside, targets, truth,
-                     trueflux, truthhdr, wave, log):
-    """Wrapper function to write out files in a single healpix pixel.
-
-    """
-    from astropy.io import fits
-
-    targetsfile = os.path.join(output_dir, 'targets-{}-{}.fits'.format(nside, pixnum))
-    truthfile = os.path.join(output_dir, 'truth-{}-{}.fits'.format(nside, pixnum))
-    truthspecfile = os.path.join(output_dir, 'spectra-truth-{}-{}.fits'.format(nside, pixnum))
-
-    log.info('Writing {}'.format(targetsfile))
-    try:
-        targets[inpixel].write(targetsfile, overwrite=True)
-    except:
-        targets[inpixel].write(targetsfile, clobber=True)
-
-    #log.info('Writing {}'.format(truthfile))
-    try:
-        truth[inpixel].write(truthfile, overwrite=True)
-    except:
-        truth[inpixel].write(truthfile, clobber=True)
-
-    #log.info('Writing {}'.format(truthspecfile))
-    hx = fits.HDUList()
-    hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
-    hdu.header['BUNIT'] = 'Angstrom'
-    hdu.header['AIRORVAC'] = 'vac'
-    hx.append(hdu)
-
-    hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
-    hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
-    hx.append(hdu)
-    
-    try:
-        hx.writeto(truthspecfile, overwrite=True)
-    except:
-        hx.writeto(truthspecfile, clobber=True)
-
-    #write_bintable(truthfile, truth[inpixel], extname='TRUTH')
-
 #from memory_profiler import profile
 #@profile
 def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=True,
@@ -644,14 +593,16 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
 
     """
     import healpy as hp
-    import shutil
     from time import time
+
+    from astropy.io import fits
 
     from desispec.io.util import fitsheader, write_bintable
     import desitarget.mock.io as mockio
     from desitarget.mock.selection import SelectTargets
     from desitarget.mock.spectra import MockSpectra
     from desitarget.internal import sharedmem
+    from desimodel.footprint import radec2pix
     
     if verbose:
         log = get_logger(DEBUG)
@@ -852,7 +803,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
 
     # Consolidate across all the mocks.  Note that the code quits if alltargets
     #is zero-length, even if skytargets is non-zero length. In other words, if
-    #the parameter file only contains SKY the code will quit anyway.
+    #the parameter file only contains SKY the code will (wrongly) quit anyway.
     if len(alltargets) == 0:
         log.info('No targets; all done.')
         return
@@ -865,7 +816,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     # because in principle an object could be a contaminant in one target class
     # (and be tossed) but be a contaminant for another target class and be kept.
     # But I think this is mostly OK.
-    for source_name in params['sources'].keys():
+    for source_name in sorted(params['sources'].keys()):
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         
         if 'contam' in params['sources'][source_name].keys():
@@ -904,35 +855,15 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     targets['TARGETID'] = targetid[:ntarget]
     targets['SUBPRIORITY'] = subpriority[:ntarget]
 
-    # Write out the sky catalog.
     if nsky > 0:
-        skyfile = os.path.join(output_dir, 'sky.fits')
-        
         skytargets['TARGETID'] = targetid[ntarget:ntarget+nsky]
         skytargets['SUBPRIORITY'] = subpriority[ntarget:ntarget+nsky]
 
-        if np.sum((skytargets['DESI_TARGET'] & desi_mask.SKY) != 0) != nsky:
-            log.fatal('Lost SKY targets somewhere!')
-            raise ValueError
+    if np.sum((skytargets['DESI_TARGET'] & desi_mask.SKY) != 0) != nsky:
+        log.fatal('Lost SKY targets somewhere!')
+        raise ValueError
 
-        log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
-        write_bintable(skyfile, skytargets, extname='SKY', clobber=True)
-        print()
-
-    # Write out the dark- and bright-time standard stars.  White dwarf standards
-    # not yet supported.
-    for suffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-        stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(suffix, nside))
-        istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
-        #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
-        if np.count_nonzero(istd) > 0:
-            log.info('Writing {}'.format(stdfile))
-            write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
-        else:
-            log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
-    print()
-
+    # Write the final catalogs out by healpixel.
     if seed is None:
         seed1 = 'None'
     else:
@@ -941,21 +872,69 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         SEED = (seed1, 'initial random seed')
         ))
 
-    # Write out targets by healpix pixels in the format:
-    #   {output_dir}/filename-{nside}-{pixnum}.fits
-    writeargs = list()
     for pixnum in healpixels:
-        inpixel = np.where(pixnum == healpixels)[0]
-        writeargs.append((output_dir, pixnum, inpixel, nside, targets, truth,
-                          trueflux, truthhdr, Spectra.wave, log))
+        healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
-    if nproc > 1:
-        pool = sharedmem.MapReduce(np=nproc)
-        with pool:
-            pool.map(_write_onehealpix, writeargs)
-    else:
-        for args in writeargs:
-            _write_onehealpix(args)
+        # Write out the sky catalog.
+        if nsky > 0:
+            skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+            isky = pixnum == skypix
+            if np.count_nonzero(isky) > 0:
+                skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+            
+                log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
+                write_bintable(skyfile, skytargets[isky], extname='SKY', clobber=True)
+
+        # Write out the dark- and bright-time standard stars.
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+            stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+
+            istd = (pixnum == targpix) *
+                ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                  (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0
+            #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
+
+            if np.count_nonzero(istd) > 0:
+                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
+                write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
+            else:
+                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
+
+        # Finally write out the rest of the targets.
+        targetsfile = os.path.join(output_dir, 'targets-{}.fits'.format(healsuffix))
+        truthfile = os.path.join(output_dir, 'truth-{}.fits'.format(healsuffix))
+        truthspecfile = os.path.join(output_dir, 'spectra-truth-{}.fits'.format(healsuffix))
+
+        inpixel = (pixnum == targpix)
+        if np.count_nonzero(inpixel) > 0:
+            log.info('Writing {}'.format(targetsfile))
+            try:
+                targets[inpixel].write(targetsfile, overwrite=True)
+            except:
+                targets[inpixel].write(targetsfile, clobber=True)
+        
+            log.info('Writing {}'.format(truthfile))
+            try:
+                truth[inpixel].write(truthfile, overwrite=True)
+            except:
+                truth[inpixel].write(truthfile, clobber=True)
+        
+            log.info('Writing {}'.format(truthspecfile))
+            hx = fits.HDUList()
+            hdu = fits.ImageHDU(Spectra.wave.astype(np.float32), name='WAVE', header=truthhdr)
+            hdu.header['BUNIT'] = 'Angstrom'
+            hdu.header['AIRORVAC'] = 'vac'
+            hx.append(hdu)
+        
+            hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
+            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+            hx.append(hdu)
+            
+            try:
+                hx.writeto(truthspecfile, overwrite=True)
+            except:
+                hx.writeto(truthspecfile, clobber=True)
 
 def join_targets_truth(output_dir, nside=8, verbose=True, clobber=False):
     """Combine all the target and truth catalogs generated by targets_truth into a
