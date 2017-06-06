@@ -494,20 +494,18 @@ def unextinct_fluxes(objects):
     else:
         result = np.zeros(len(objects), dtype=dtype)
 
-#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files. 
-#ADM Can remove comment if DR4/DR5 run OK.
+#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files,
+#ADM the comment can be removed if DR4/DR5 run OK. It's just here as a reminder.
 #    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
 #                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
-    result['GFLUX'] = dered_decam_flux[..., 1]
-    result['RFLUX'] = dered_decam_flux[..., 2]
-    result['ZFLUX'] = dered_decam_flux[..., 4]
+    result['GFLUX'] = objects['FLUX_G'] / objects['MW_TRANSMISSION_G']
+    result['RFLUX'] = objects['FLUX_R'] / objects['MW_TRANSMISSION_R']
+    result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
 
-#ADM Hack for DR3 because of some corrupt sweeps/Tractor files REMOVE ONCE SWEEPS ARE FIXED!!!
-#    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
-    dered_wise_flux =  np.divide(objects['WISE_FLUX'] , objects['WISE_MW_TRANSMISSION'],
-                                 where=objects['WISE_MW_TRANSMISSION']!=0)
-    result['W1FLUX'] = dered_wise_flux[..., 0]
-    result['W2FLUX'] = dered_wise_flux[..., 1]
+#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files,
+#ADM the comment can be removed if DR4/DR5 run OK. It's just here as a reminder.
+    result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
+    result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -546,7 +544,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    obs_rflux = objects['DECAM_FLUX'][..., 2] # observed r-band flux (used for F standards, below)
+    obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
@@ -557,9 +555,15 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
 
-    decam_fracflux = objects['DECAM_FRACFLUX'].T # note transpose
-    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+    gfracflux = objects['FRACFLUX_G'].T # note transpose
+    rfracflux = objects['FRACFLUX_R'].T # note transpose
+    zfracflux = objects['FRACFLUX_Z'].T # note transpose
+
+    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
+    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
+    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
+    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
+    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
@@ -584,7 +588,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                          w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                         wise_snr=wise_snr)
+                         w1snr=w1snr)
     elif qso_selection == 'randomforest':
         qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                  w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
