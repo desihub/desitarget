@@ -66,6 +66,7 @@ tsdtypes = [
 #ADM this is an empty array of the ts data model columns and dtypes
 tsdatamodel = np.zeros(0, dtype = list(zip(tscolumns,tsdtypes)))
 
+
 def convert_to_old_data_model(fx,DR3=False,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
 
@@ -74,7 +75,7 @@ def convert_to_old_data_model(fx,DR3=False,columns=None):
     fx : :class:`str`
         Open file object corresponding to one Tractor or sweeps file.
     DR3 : :class:`bool`, optional, defaults to False
-        ``True`` if the files is from DR3, False if it's DR1 or DR2
+        ``True`` if the file is from DR3, False if it's DR2
     columns: :class:`list`, optional
         the desired Tractor catalog columns to read
 
@@ -85,8 +86,8 @@ def convert_to_old_data_model(fx,DR3=False,columns=None):
 
     Notes
     -----
-        - Anything pre-DR3 is assumed to be DR2, so this breaks
-          backwards-compatability with DR1
+        - Anything pre-DR3 is assumed to be DR2 (we'd already broken
+          backwards-compatability with DR1 because of DECAM_DEPTH)
     """
     indata = fx[1].read(columns=columns)
 
@@ -96,7 +97,7 @@ def convert_to_old_data_model(fx,DR3=False,columns=None):
     dts = list(zip(*tsdatamodel[np.array(diffcols)].dtype.descr))[1]
 
     #ADM add the new columns to the old data rec array...
-    data = rfn.append_fields(indata,diffcols,np.zeros((len(diffcols),len(indata))),dtypes=dts,cusemask=False)
+    data = rfn.append_fields(indata,diffcols,np.zeros((len(diffcols),len(indata))),dtypes=dts,usemask=False)
     
     #ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model
     decamcols = ['FLUX','MW_TRANSMISSION','FRACFLUX','FLUX_IVAR','NOBS','GALDEPTH']
@@ -128,6 +129,7 @@ def convert_to_old_data_model(fx,DR3=False,columns=None):
 
     return outdata
     
+
 def read_tractor(filename, header=False, columns=None):
     """Read a tractor catalogue file.
 
