@@ -45,14 +45,35 @@ tscolumns = [
     'SHAPEDEV_R', 'SHAPEEXP_R', 'DCHISQ',
     ]
 
-def convert_to_old_data_model(fx,dr3=False,columns=None)
+#ADM this is in the same order as tscolumns
+tsdtypes = [
+    '>i4', '>i4', 'S8', '<i4', 'S4',
+    '>f8', '>f4', '>f8', '>f4',
+    '>f4', '>f4', '>f4', 
+    '>f4', '>f4', '>f4', 
+    '>f4', '>f4', '>f4',
+    '>f4', '>f4', '>f4',
+    '>i2', '>i2', '>i2', 
+    '>f4', '>f4', '>f4',
+    '>f4', '>f4', '>f4',
+    '>f4', '>f4', '>f4', '>f4',
+    '>f4', '>f4', '>f4', '>f4',
+    '>f4', '>f4', 
+    '>f4', '>f4',
+    '>f4', '>f4', '>f4',
+    ]
+
+#ADM this is an empty array of the ts data model columns and dtypes
+tsdatamodel = np.zeros(0, dtype = list(zip(tscolumns,tsdtypes)))
+
+def convert_to_old_data_model(fx,DR3=False,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
 
     Parameters
     ----------
     fx : :class:`str`
         Open file object corresponding to one Tractor or sweeps file.
-    dr3 : :class:`bool`, optional, defaults to False
+    DR3 : :class:`bool`, optional, defaults to False
         ``True`` if the files is from DR3, False if it's DR1 or DR2
     columns: :class:`list`, optional
         the desired Tractor catalog columns to read
@@ -67,18 +88,46 @@ def convert_to_old_data_model(fx,dr3=False,columns=None)
         - Anything pre-DR3 is assumed to be DR2, so this breaks
           backwards-compatability with DR1
     """
-    indata = fx[1].read(columns=readcolumns)
+    indata = fx[1].read(columns=columns)
 
-    #ADM the different columns between the current and the old data model
+    #ADM the different column names between the current and the old data model
     diffcols = list(set(tscolumns) - set(oldtscolumns))
+    #ADM and the data types for these columns
+    dts = list(zip(*tsdatamodel[np.array(diffcols)].dtype.descr))[1]
 
     #ADM add the new columns to the old data rec array...
-    data = rfn.append_fields(indata,diffcols,np.zeros((len(diffcols),len(indata))),usemask=False)
+    data = rfn.append_fields(indata,diffcols,np.zeros((len(diffcols),len(indata))),dtypes=dts,cusemask=False)
     
-    #ADM ...and populate them
-    data["MW_TRANSMISSION_Z"] = indata["DECAM_MW_TRANSMISSION"][:,4]
+    #ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model
+    decamcols = ['FLUX','MW_TRANSMISSION','FRACFLUX','FLUX_IVAR','NOBS','GALDEPTH']
+    decambands = 'UGRIZ'
+    for bandnum in [1,2,4]:
+        for colstring in decamcols:
+            data[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:,bandnum]
+        #ADM treat DECAM_DEPTH separately as the syntax is slightly different
+        data["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:,bandnum]
 
+    #ADM change the WISE columns from the old (2-D array) to new (named 1-D array) data model
+    wisecols = ['FLUX','MW_TRANSMISSION','FLUX_IVAR']
+    for bandnum in [1,2,3,4]:
+        for colstring in wisecols:
+            data[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:,bandnum-1]
+        
+    #ADM remove the old column names
+    decamcols = [ 'DECAM_'+ col for col in decamcols ]
+    wisecols = [ 'WISE_'+ col for col in wisecols ]
+    rmcols = np.append(decamcols,wisecols)
+    outdata = rfn.drop_fields(data,rmcols)
 
+    #ADM we also need to include the RELEASE, based on whether DR3 was passed or not
+    if DR3:
+        outdata['RELEASE'] = 3000
+        return outdata
+    
+    outdata['RELEASE'] = 2000
+
+    return outdata
+    
 def read_tractor(filename, header=False, columns=None):
     """Read a tractor catalogue file.
 
@@ -105,23 +154,22 @@ def read_tractor(filename, header=False, columns=None):
 
     if columns is None:
         readcolumns = list(tscolumns)
+        #ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model
+        if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
+            readcolumns = list(oldtscolumns)
     else:
         readcolumns = list(columns)
-    #ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model
-    if ('RELEASE' not in fxcolnames):
-        old = True
-        readcolumns = list(oldtscolumns)
         
     #- tractor files have BRICK_PRIMARY; sweep files don't
     if (columns is None) and \
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
 
-    if old:
+    if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
         #ADM If DECALSDR is in hdr.keys(), these are DR3 data. Otherwise assume DR2.
         #ADM This breaks backwards-compatability with DR1, which we've deprecated
-        data = convert_to_old_data_model(fx,dr3='DECALSDR' in hdr.keys(),columns=readcolumns)
+        data = convert_to_old_data_model(fx,DR3='DECALSDR' in hdr.keys(),columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
 
