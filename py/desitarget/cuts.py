@@ -295,7 +295,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
                objtype=None, primary=None):
     """Cuts based QSO target selection
 
@@ -304,8 +304,10 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         deltaChi2: array_like
             chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        wise_snr: array_like[ntargets, 2]
-            S/N in the W1 and W2 bands.
+        w1snr: array_like[ntargets]
+            S/N in the W1 band.
+        w2snr: array_like[ntargets]
+            S/N in the W2 band.
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -317,14 +319,14 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
 
     Notes:
         Uses isQSO_colors() to make color cuts first, then applies
-            wise_snr, deltaChi2, and optionally primary and objtype cuts
+            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
 
     """
     qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                        w1flux=w1flux, w2flux=w2flux)
 
-    qso &= wise_snr[..., 0] > 4
-    qso &= wise_snr[..., 1] > 2
+    qso &= w1snr > 4
+    qso &= w2snr > 2
 
     qso &= deltaChi2>40.
 
@@ -588,7 +590,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                          w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                         w1snr=w1snr)
+                         w1snr=w1snr, w2snr=w2snr)
     elif qso_selection == 'randomforest':
         qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                  w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
@@ -598,10 +600,12 @@ def apply_cuts(objects, qso_selection='randomforest'):
     #ADM Make sure to pass all of the needed columns! At one point we stopped
     #ADM passing objtype, which meant no standards were being returned.
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux
+                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr
                   obs_rflux=obs_rflux, objtype=objtype)
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux
+                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
 
     # Construct the targetflag bits; currently our only cuts are DECam based
