@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.12.0 (Unreleased)
+0.12.1 (Unreleased)
+-------------------
+
+* No changes yet
+
+0.12.0 (2017-06-05)
 -------------------
 
 * Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` (`PR #182`_].
