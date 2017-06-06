@@ -115,10 +115,11 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
 
     return fstd
 
+
 def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, 
            gfracflux=None, rfracflux=None, zfracflux=None,
            gsnr=None, rsnr=None, zsnr=None,
-           objtype=None, decam_snr=None, obs_rflux=None, bright=False):
+           objtype=None, obs_rflux=None, bright=False):
     """Select FSTD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isFSTD_colors() for additional info.
 
@@ -486,8 +487,9 @@ def unextinct_fluxes(objects):
     Calculate unextincted DECam and WISE fluxes
 
     Args:
-        objects: array or Table with columns DECAM_FLUX, DECAM_MW_TRANSMISSION,
-            WISE_FLUX, and WISE_MW_TRANSMISSION
+        objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z, 
+            MW_TRANSMISSION_G, MW_TRANSMISSION_R, MW_TRANSMISSION_Z,
+            FLUX_W1, FLUX_W2, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2
 
     Returns:
         array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX
@@ -691,7 +693,7 @@ def check_input_files(infiles, numproc=4, verbose=False):
         cols = [
             'BRICKID',
 #            'RA_IVAR', 'DEC_IVAR',
-            'DECAM_MW_TRANSMISSION',
+            'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
 #            'WISE_FLUX',
 #            'WISE_MW_TRANSMISSION','DCHISQ'
             ]
