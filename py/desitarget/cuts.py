@@ -607,12 +607,12 @@ def apply_cuts(objects, qso_selection='randomforest'):
     #ADM Make sure to pass all of the needed columns! At one point we stopped
     #ADM passing objtype, which meant no standards were being returned.
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux
-                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr
+                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype)
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux
-                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr
+                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
 
     # Construct the targetflag bits; currently our only cuts are DECam based
