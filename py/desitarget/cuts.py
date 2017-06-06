@@ -38,7 +38,6 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     Returns:
         mask : array_like. True if and only the object is an LRG
             target.
-
     """
     #----- Luminous Red Galaxies
     if primary is None:
@@ -96,7 +95,6 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
 
     Returns:
         mask : boolean array, True if the object has colors like an FSTD
-
     """
 
     if primary is None:
@@ -117,7 +115,9 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
 
     return fstd
 
-def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None,
+def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, 
+           gfracflux=None, rfracflux=None, zfracflux=None,
+           gsnr=None, rsnr=None, zsnr=None,
            objtype=None, decam_snr=None, obs_rflux=None, bright=False):
     """Select FSTD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isFSTD_colors() for additional info.
@@ -125,6 +125,11 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
           The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gfracflux, rfracflux, zfracflux: array_like
+          Profile-weight fraction of the flux from other sources divided by the 
+          total flux in g, r and z bands.
+        gsnr, rsnr, zsnr: array_like
+          The signal-to-noise ratio in g, r, and z bands.
         primary: array_like or None
           If given, the BRICK_PRIMARY column of the catalogue.
         bright: apply magnitude cuts for "bright" conditions; otherwise, choose
@@ -132,11 +137,6 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
 
     Returns:
         mask : boolean array, True if the object has colors like an FSTD
-
-    Notes:
-        The full FSTD target selection also includes PSF-like and fracflux
-        cuts; this function is only cuts on the colors.
-
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -148,11 +148,16 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
     # Apply type=PSF, fracflux, and S/N cuts.
     fstd &= _psflike(objtype)
 
+    #ADM probably a more elegant way to do this, coded it like this for
+    #ADM data model transition from 2-D to 1-D arrays
+    fracflux = [gfracflux, rfracflux, zfracflux]
+    snr = [gsnr, rsnr, zsnr]
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore') # fracflux can be Inf/NaN
-        for j in (1, 2, 4):  # g, r, z
-            fstd &= decam_fracflux[j] < 0.04
-            fstd &= decam_snr[..., j] > 10
+        for j in (0, 1, 2):  # g, r, z
+            fstd &= fracflux[j] < 0.04
+            fstd &= snr[j] > 10
 
     # Observed flux; no Milky Way extinction
     if obs_rflux is None:
