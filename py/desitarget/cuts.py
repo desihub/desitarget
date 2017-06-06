@@ -786,6 +786,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         if numproc==1, use serial code instead of parallel
 
     """
+    print('new DM')
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
