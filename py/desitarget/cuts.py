@@ -494,10 +494,10 @@ def unextinct_fluxes(objects):
     else:
         result = np.zeros(len(objects), dtype=dtype)
 
-#ADM Hack for DR3 because of some corrupt sweeps/Tractor files REMOVE ONCE SWEEPS ARE FIXED!!!
-#    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
-    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
-                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
+#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files. 
+#ADM Can remove comment if DR4/DR5 run OK.
+#    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
+#                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
     result['GFLUX'] = dered_decam_flux[..., 1]
     result['RFLUX'] = dered_decam_flux[..., 2]
     result['ZFLUX'] = dered_decam_flux[..., 4]

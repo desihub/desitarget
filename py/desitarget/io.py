@@ -67,14 +67,14 @@ tsdtypes = [
 tsdatamodel = np.zeros(0, dtype = list(zip(tscolumns,tsdtypes)))
 
 
-def convert_to_old_data_model(fx,DR3=False,columns=None):
+def convert_to_old_data_model(fx,DR3=True,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
 
     Parameters
     ----------
     fx : :class:`str`
         Open file object corresponding to one Tractor or sweeps file.
-    DR3 : :class:`bool`, optional, defaults to False
+    DR3 : :class:`bool`, optional, defaults to True
         ``True`` if the file is from DR3, False if it's DR2
     columns: :class:`list`, optional
         the desired Tractor catalog columns to read
@@ -170,9 +170,8 @@ def read_tractor(filename, header=False, columns=None):
 
     if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
-        #ADM If DECALSDR is in hdr.keys(), these are DR3 data. Otherwise assume DR2.
-        #ADM This breaks backwards-compatability with DR1, which we've deprecated
-        data = convert_to_old_data_model(fx,DR3='DECALSDR' in hdr.keys(),columns=readcolumns)
+        #ADM we default to writing RELEASE = 3000 ("DR3 or before data')
+        data = convert_to_old_data_model(fx,DR3=True,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
 
