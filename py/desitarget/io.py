@@ -10,6 +10,7 @@ This file knows how to write a TS catalogue.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
+import numpy.lib.recfunctions as rfn
 import fitsio
 import os, re
 from . import __version__ as desitarget_version
@@ -35,14 +36,48 @@ tscolumns = [
     'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
     'FRACFLUX_G', 'FRACFLUX_R', 'FRACFLUX_Z',
     'NOBS_G', 'NOBS_R', 'NOBS_Z', 
-    'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z'
-    'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'
-    'FLUX_W1', 'FLUX_W2', 'FLUX_W3', 'FLUX_W4'
-    'FLUX_IVAR_W1', 'FLUX_IVAR_W2', 'FLUX_IVAR_W3', 'FLUX_IVAR_W4'
+    'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+    'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
+    'FLUX_W1', 'FLUX_W2', 'FLUX_W3', 'FLUX_W4',
+    'FLUX_IVAR_W1', 'FLUX_IVAR_W2', 'FLUX_IVAR_W3', 'FLUX_IVAR_W4',
     'MW_TRANSMISSION_W1', 'MW_TRANSMISSION_W2', 
-    'MW_TRANSMISSION_W3', 'MW_TRANSMISSION_W4'
+    'MW_TRANSMISSION_W3', 'MW_TRANSMISSION_W4',
     'SHAPEDEV_R', 'SHAPEEXP_R', 'DCHISQ',
     ]
+
+def convert_to_old_data_model(fx,dr3=False,columns=None)
+    """Read data from open Tractor/sweeps file and convert to DR4+ data model
+
+    Parameters
+    ----------
+    fx : :class:`str`
+        Open file object corresponding to one Tractor or sweeps file.
+    dr3 : :class:`bool`, optional, defaults to False
+        ``True`` if the files is from DR3, False if it's DR1 or DR2
+    columns: :class:`list`, optional
+        the desired Tractor catalog columns to read
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Array with the tractor schema, uppercase field names.
+
+    Notes
+    -----
+        - Anything pre-DR3 is assumed to be DR2, so this breaks
+          backwards-compatability with DR1
+    """
+    indata = fx[1].read(columns=readcolumns)
+
+    #ADM the different columns between the current and the old data model
+    diffcols = list(set(tscolumns) - set(oldtscolumns))
+
+    #ADM add the new columns to the old data rec array...
+    data = rfn.append_fields(indata,diffcols,np.zeros((len(diffcols),len(indata))),usemask=False)
+    
+    #ADM ...and populate them
+    data["MW_TRANSMISSION_Z"] = indata["DECAM_MW_TRANSMISSION"][:,4]
+
 
 def read_tractor(filename, header=False, columns=None):
     """Read a tractor catalogue file.
@@ -50,7 +85,7 @@ def read_tractor(filename, header=False, columns=None):
     Parameters
     ----------
     filename : :class:`str`
-        File name of one tractor file.
+        File name of one Tractor or sweeps file.
     header : :class:`bool`, optional
         If ``True``, return (data, header) instead of just data.
     columns: :class:`list`, optional
@@ -64,24 +99,31 @@ def read_tractor(filename, header=False, columns=None):
     """
     check_fitsio_version()
 
+    fx = fitsio.FITS(filename, upper=True)
+    fxcolnames = fx[1].get_colnames()
+    hdr = fx[1].read_header()
+
     if columns is None:
         readcolumns = list(tscolumns)
     else:
         readcolumns = list(columns)
-
-    fx = fitsio.FITS(filename, upper=True)
+    #ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model
+    if ('RELEASE' not in fxcolnames):
+        old = True
+        readcolumns = list(oldtscolumns)
+        
     #- tractor files have BRICK_PRIMARY; sweep files don't
-    fxcolnames = fx[1].get_colnames()
     if (columns is None) and \
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
 
-    hdr = fx[1].read_header()
-    if (columns is None) and ('RELEASE' not in fxcolnames):
-        #ADM if RELEASE doesn't exist, then we're pre-DR3, so rewrite the input
-        #ADM columns completely to correspond to the DR4+ data model
-
-    data = fx[1].read(columns=readcolumns)
+    if old:
+        #ADM Rewrite the data completely to correspond to the DR4+ data model.
+        #ADM If DECALSDR is in hdr.keys(), these are DR3 data. Otherwise assume DR2.
+        #ADM This breaks backwards-compatability with DR1, which we've deprecated
+        data = convert_to_old_data_model(fx,dr3='DECALSDR' in hdr.keys(),columns=readcolumns)
+    else:
+        data = fx[1].read(columns=readcolumns)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
     if len(data) == 0:
