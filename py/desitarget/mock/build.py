@@ -759,7 +759,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     alltargets = list()
     alltruth = list()
     alltrueflux = list()
-    for source_name in params['sources'].keys():
+    for source_name in sorted(params['sources'].keys()):
         # Read the mock catalog.
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
