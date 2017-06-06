@@ -52,16 +52,13 @@ class BrickInfo(object):
     """Gather information on all the bricks.
 
     """
-    #def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 360.0, -90.0, 90.0),
-    def __init__(self, random_state=None, dust_dir=None, healpixels=None, nside=8,
-                 #bounds=(0.0, 360.0, -90.0, 90.0),
-                 bricksize=0.25, decals_brick_info=None, target_names=None, log=None):
+    def __init__(self, random_state=None, dust_dir=None, bricksize=0.25,
+                 decals_brick_info=None, target_names=None, log=None):
         """Initialize the class.
 
         Args:
           random_state : random number generator object
           dust_dir : path where the E(B-V) maps are stored
-          bounds : brick boundaries
           bricksize : brick size (default 0.25 deg, square)
           decals_brick_info : filename of the DECaLS brick information structure
           target_names : list of targets (e.g., BGS, ELG, etc.)
@@ -77,9 +74,6 @@ class BrickInfo(object):
         self.random_state = random_state
 
         self.dust_dir = dust_dir
-        #self.bounds = bounds
-        self.healpixels = healpixels
-        self.nside = nside
         self.bricksize = bricksize
         self.decals_brick_info = decals_brick_info
         self.target_names = target_names
@@ -107,10 +101,6 @@ class BrickInfo(object):
 
         """
         from desiutil.brick import Bricks
-<<<<<<< HEAD
-=======
-        min_ra, max_ra, min_dec, max_dec = self.bounds
->>>>>>> master
 
         B = Bricks(bricksize=self.bricksize)
         brick_info = {}
@@ -145,10 +135,16 @@ class BrickInfo(object):
                                np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
                 brick_info['BRICKAREA'].append(brick_area)
 
-        # Restrict to the bricks overlapping the input healpixels.
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
+        nbrick = len(brick_info['RA'])
 
+        self.log.info('Generated brick information for {} brick(s) with bricksize {:g} deg.'.\
+                      format(nbrick, self.bricksize))
+
+        return brick_info
+
+        ## Restrict to the bricks overlapping the input healpixels.
         ## This is too slow!
         #ipix = self._bricks2pix(brick_info)
         #these = []
@@ -162,19 +158,17 @@ class BrickInfo(object):
         #for k in brick_info.keys():
         #    brick_info[k] = brick_info[k][these]
 
-        # I think this is going to fail for small enough healpixels...
-        these = []
-        for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
-            allpix = radec2pix(self.nside, brick_info[corners[0]], brick_info[corners[1]])
-            these.append(np.where( np.in1d(allpix, self.healpixels)*1 )[0])
-
-        these = np.unique( np.concatenate(these) )
-        nbrick = len(these)
-        
-        self.log.info('Generating brick information for {} brick(s) with bricksize {:g} deg in healpixels {} with nside = {}.'.\
-                      format(nbrick, self.bricksize, self.healpixels, self.nside))
-
-        return brick_info
+        ## I think this is going to fail for small enough healpixels...
+        #these = []
+        #for corners in ('RA1', 'DEC1'), ('RA1', 'DEC2'), ('RA2', 'DEC2'), ('RA2', 'DEC1'):
+        #    allpix = radec2pix(self.nside, brick_info[corners[0]], brick_info[corners[1]])
+        #    these.append(np.where( np.in1d(allpix, self.healpixels)*1 )[0])
+        #these = np.unique( np.concatenate(these) )
+        #nbrick = len(these)
+        #
+        #self.log.info('Generating brick information for {} brick(s) with bricksize {:g} deg in healpixels {} with nside = {}.'.\
+        #              format(nbrick, self.bricksize, self.healpixels, self.nside))
+        #return brick_info
 
     def extinction_across_bricks(self, brick_info):
         """Estimates E(B-V) across bricks.
@@ -313,7 +307,7 @@ class BrickInfo(object):
         brick_info.update(self.extinction_across_bricks(brick_info))   # add extinction
         brick_info.update(self.depths_across_bricks(brick_info))       # add depths
         brick_info.update(self.fluctuations_across_bricks(brick_info)) # add number density fluctuations
-        brick_info.update(self.targetinfo())                           # add nominal target densities
+        #brick_info.update(self.targetinfo())                           # add nominal target densities
 
         return brick_info
 
@@ -775,9 +769,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
         len(healpixels), nside, areaperpix, skyarea))
 
-    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], healpixels=healpixels, nside=nside,
-                           bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
-                           target_names=list(params['sources'].keys()), log=log).build_brickinfo()
+    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
+                           decals_brick_info=params['decals_brick_info'], log=log,
+                           target_names=list(params['sources'].keys())).build_brickinfo()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
@@ -814,8 +808,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
                                         magcut=magcut, nproc=nproc, lya=lya,
                                         healpixels=healpixels, nside=nside)
 
-        import pdb ; pdb.set_trace()
-        
         # If there are no sources, keep going.
         if not bool(source_data):
             continue
@@ -828,13 +820,13 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         unique_bricks = list(set(brickname))
 
         # Quickly check that all the brick info is here.
-        for thisbrick in unique_bricks:
-            brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-            if (len(brickindx) != 1):
-                log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
-                import pdb ; pdb.set_trace()
-                plt.scatter(source_data['RA'], source_data['DEC']) ; plt.scatter(brick_info['RA'], brick_info['DEC']) ; plt.show()
-                raise ValueError
+        #for thisbrick in unique_bricks:
+            #brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+            #if (len(brickindx) != 1):
+            #    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+            #    import pdb ; pdb.set_trace()
+            #    plt.scatter(source_data['RA'], source_data['DEC']) ; plt.scatter(brick_info['RA'], brick_info['DEC']) ; plt.show()
+            #    raise ValueError
         
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
             len(brickname), source_name, len(unique_bricks), bricksize, bricksize))

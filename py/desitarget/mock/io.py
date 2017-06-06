@@ -20,10 +20,7 @@ from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
 from desiutil.brick import brickname as get_brickname_from_radec
 from desiutil.brick import Bricks
-<<<<<<< HEAD
 from desimodel.footprint import radec2pix
-=======
->>>>>>> master
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
@@ -788,7 +785,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     mockid = make_mockid(objid, n_per_file)
 
     log.info('Assigning healpix pixels with nside = {}'.format(nside))
-    allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+    allpix = radec2pix(nside, ra, dec)
     these = np.in1d(allpix, healpixels)
     cut = np.where( these*1 )[0]
 
