@@ -732,6 +732,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             for ii in range(len(unique_bricks)):
                 out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
 
+        del source_data, brick_info # memory clean-up
+
         # Unpack the results removing any possible bricks without targets.
         out = list(zip(*out))
 
@@ -859,10 +861,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         skytargets['TARGETID'] = targetid[ntarget:ntarget+nsky]
         skytargets['SUBPRIORITY'] = subpriority[ntarget:ntarget+nsky]
 
-    if np.sum((skytargets['DESI_TARGET'] & desi_mask.SKY) != 0) != nsky:
-        log.fatal('Lost SKY targets somewhere!')
-        raise ValueError
-
     # Write the final catalogs out by healpixel.
     if seed is None:
         seed1 = 'None'
@@ -890,9 +888,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
             stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
 
-            istd = (pixnum == targpix) *
-                ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-                  (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0
+            istd = (pixnum == targpix) * ( (
+                (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
             #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
 
             if np.count_nonzero(istd) > 0:
