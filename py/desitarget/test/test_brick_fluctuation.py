@@ -30,7 +30,7 @@ class TestBrickFluctuation(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
-        self.brick_info = build.BrickInfo(bounds=(0.0, 1.0, -1.0, 1.0))
+        self.brick_info = build.BrickInfo()
         self.b = self.brick_info.generate_brick_info()
         self.depth = self.brick_info.depths_across_bricks(self.b)
 
@@ -40,7 +40,7 @@ class TestBrickFluctuation(unittest.TestCase):
             self.assertTrue(k in keys)
             self.assertTrue(isinstance(self.b[k], np.ndarray))
         self.assertTrue(np.all((self.b['RA']<self.b['RA2']) & (self.b['RA']>self.b['RA1'])))
-        self.assertTrue(np.all((self.b['DEC']<self.b['DEC2']) & (self.b['DEC']>self.b['DEC1'])))
+        self.assertTrue(np.all((self.b['DEC']<=self.b['DEC2']) & (self.b['DEC']>=self.b['DEC1'])))
 
     def test_generate_depths(self):
         keys = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']
