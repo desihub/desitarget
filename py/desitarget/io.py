@@ -208,12 +208,16 @@ def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=Fa
     # FIXME: assert data and tsbits schema
     #ADM use RELEASE to determine the release string for the input targets
 
-    drint = np.max(data['RELEASE']//1000)
-    #ADM check the targets all have the same release                                                                                                                        
-    checker = np.min(data['RELEASE']//1000)
-    if drint != checker:
-        raise IOError('Objects from multiple data releases in same input numpy array?!')
-    drstring = 'dr'+str(drint)
+    if len(data) == 0:
+        #ADM if there are no targets, then we don't know the Data Release
+        drstring = 'unknowndr'
+    else:
+        drint = np.max(data['RELEASE']//1000)
+        #ADM check the targets all have the same release                                                                                                                        
+        checker = np.min(data['RELEASE']//1000)
+        if drint != checker:
+            raise IOError('Objects from multiple data releases in same input numpy array?!')
+        drstring = 'dr'+str(drint)
 
     #- Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
