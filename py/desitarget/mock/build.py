@@ -873,7 +873,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         ))
 
     for pixnum in healpixels:
-        healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        healsuffix = '{}-{}'.format(nside, pixnum)
         targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
         # Write out the sky catalog.
