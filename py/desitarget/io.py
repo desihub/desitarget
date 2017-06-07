@@ -71,7 +71,6 @@ def convert_to_old_data_model(fx,columns=None):
           backwards-compatability with DR1 because of DECAM_DEPTH but
           this now breaks backwards-compatability with DR2)
     """
-    start = time()
     indata = fx[1].read(columns=columns)
 
     #ADM the number of objects in the input rec array
@@ -80,8 +79,18 @@ def convert_to_old_data_model(fx,columns=None):
     #ADM the column names that haven't changed between the current and the old data model
     sharedcols = list(set(tscolumns).intersection(oldtscolumns))
 
+    #ADM the data types for the new data model
+    dt = tsdatamodel.dtype
+
+    #ADM need to add BRICKPRIMARY and its data type, if it was passed as a column of interest
+    if ('BRICK_PRIMARY' in columns):
+        sharedcols.append('BRICK_PRIMARY')
+        dd = dt.descr
+        dd.append(('BRICK_PRIMARY', '?'))
+        dt = np.dtype(dd)
+
     #ADM create a new numpy array with the fields from the new data model...
-    outdata = np.empty(nrows, dtype=tsdatamodel.dtype)
+    outdata = np.empty(nrows, dtype=dt)
     
     #ADM ...and populate them with the passed columns of data
     for col in sharedcols:

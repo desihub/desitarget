@@ -583,6 +583,8 @@ def apply_cuts(objects, qso_selection='randomforest'):
     dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[...,0] - dchisq[...,1]
 
+    print(objects.dtype)
+
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
         primary = objects['BRICK_PRIMARY']
