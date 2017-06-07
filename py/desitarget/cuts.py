@@ -52,6 +52,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     zflux = zflux.clip(0)
     lrg &= w1flux * rflux**(1.8-1.0) > zflux**1.8 * 10**(-1.0/2.5)
 
+    print(rflux,zflux,w1flux,lrg)
+
     return lrg
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
