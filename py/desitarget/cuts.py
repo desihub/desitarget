@@ -553,10 +553,16 @@ def apply_cuts(objects, qso_selection='randomforest'):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
+    print("ADM")
+    objects = objects[np.where( (objects["OBJID"]==741) | (objects["OBJID"]==745) )]
+    print("ADM")
+
     obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
+
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
+    print(flux)
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
