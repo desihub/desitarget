@@ -10,11 +10,11 @@ This file knows how to write a TS catalogue.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
-import numpy.lib.recfunctions as rfn
 import fitsio
 import os, re
 from . import __version__ as desitarget_version
 from . import gitversion
+from time import time
 
 from desiutil import depend
 
@@ -44,10 +44,11 @@ tsdatamodel = np.array([], dtype=[
     ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
     ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
     ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
-    ('SHAPEDEV_R', '>f4'), ('SHAPEEXP_R', '>f4'), ('DCHISQ', '>f4')
+    ('SHAPEDEV_R', '>f4'), ('SHAPEEXP_R', '>f4'), ('DCHISQ', '>f4', (5,))
     ])
 
 tscolumns = list(tsdatamodel.dtype.names)
+
 
 def convert_to_old_data_model(fx,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
@@ -56,8 +57,6 @@ def convert_to_old_data_model(fx,columns=None):
     ----------
     fx : :class:`str`
         Open file object corresponding to one Tractor or sweeps file.
-    DR3 : :class:`bool`, optional, defaults to True
-        ``True`` if the file is from DR3, False if it's DR2
     columns: :class:`list`, optional
         the desired Tractor catalog columns to read
 
@@ -72,37 +71,36 @@ def convert_to_old_data_model(fx,columns=None):
           backwards-compatability with DR1 because of DECAM_DEPTH but
           this now breaks backwards-compatability with DR2)
     """
+    start = time()
     indata = fx[1].read(columns=columns)
 
-    #ADM the different column names between the current and the old data model
-    diffcols = list(set(tscolumns) - set(oldtscolumns))
-    #ADM and the data types for these columns
-    dts = list(zip(*tsdatamodel[np.array(diffcols)].dtype.descr))[1]
+    #ADM the number of objects in the input rec array
+    nrows = len(indata)
 
-    #ADM add the new columns to the old data rec array...
-    data = rfn.append_fields(indata,diffcols,np.zeros((len(diffcols),len(indata))),dtypes=dts,usemask=False)
+    #ADM the column names that haven't changed between the current and the old data model
+    sharedcols = list(set(tscolumns).intersection(oldtscolumns))
+
+    #ADM create a new numpy array with the fields from the new data model...
+    outdata = np.empty(nrows, dtype=tsdatamodel.dtype)
     
+    #ADM ...and populate them with the passed columns of data
+    for col in sharedcols:
+        outdata[col] = indata[col]
+
     #ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model
     decamcols = ['FLUX','MW_TRANSMISSION','FRACFLUX','FLUX_IVAR','NOBS','GALDEPTH']
     decambands = 'UGRIZ'
     for bandnum in [1,2,4]:
         for colstring in decamcols:
-            data[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:,bandnum]
+            outdata[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:,bandnum]
         #ADM treat DECAM_DEPTH separately as the syntax is slightly different
-        data["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:,bandnum]
+        outdata["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:,bandnum]
 
     #ADM change the WISE columns from the old (2-D array) to new (named 1-D array) data model
     wisecols = ['FLUX','MW_TRANSMISSION','FLUX_IVAR']
     for bandnum in [1,2,3,4]:
         for colstring in wisecols:
-            data[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:,bandnum-1]
-        
-    #ADM remove the old column names
-    decamcols.append('DECAM_DEPTH')
-    decamcols = [ 'DECAM_'+ col for col in decamcols ]
-    wisecols = [ 'WISE_'+ col for col in wisecols ]
-    rmcols = np.append(decamcols,wisecols)
-    outdata = rfn.drop_fields(data,rmcols)
+            outdata[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:,bandnum-1]
 
     #ADM we also need to include the RELEASE, which we'll always assume is DR3
     #ADM (deprecating anything from before DR3)
