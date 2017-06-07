@@ -553,10 +553,6 @@ def apply_cuts(objects, qso_selection='randomforest'):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    print("ADM")
-    objects = objects[np.where( (objects["OBJID"]==741) | (objects["OBJID"]==745) )]
-    print("ADM")
-
     obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
 
     #- undo Milky Way extinction
@@ -583,8 +579,6 @@ def apply_cuts(objects, qso_selection='randomforest'):
     dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[...,0] - dchisq[...,1]
 
-    print(objects.dtype)
-
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
         primary = objects['BRICK_PRIMARY']
@@ -593,8 +587,6 @@ def apply_cuts(objects, qso_selection='randomforest'):
             primary = True
         else:
             primary = np.ones_like(objects, dtype=bool)
-
-    print(primary)
 
     lrg = isLRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
 
@@ -795,9 +787,6 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         if numproc==1, use serial code instead of parallel
 
     """
-    print("ADM")
-    print('new DM')
-    print("ADM")
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
