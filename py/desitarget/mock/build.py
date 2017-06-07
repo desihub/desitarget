@@ -619,7 +619,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     # Create the output directories and clean them up if necessary.
     if os.path.exists(output_dir):
         if os.listdir(output_dir):
-            log.warning('Bewar: output directory {} is not empty.'.format(output_dir))
+            log.warning('Output directory {} is not empty.'.format(output_dir))
     else:
         log.info('Creating directory {}'.format(output_dir))
         os.makedirs(output_dir)
@@ -732,7 +732,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             for ii in range(len(unique_bricks)):
                 out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
 
-        del source_data, brick_info # memory clean-up
+        del source_data # memory clean-up
 
         # Unpack the results removing any possible bricks without targets.
         out = list(zip(*out))
@@ -802,6 +802,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             alltruth.append(truth)
             alltrueflux.append(trueflux)
         print()
+
+    del brick_info # memory clean-up
 
     # Consolidate across all the mocks.  Note that the code quits if alltargets
     #is zero-length, even if skytargets is non-zero length. In other words, if
