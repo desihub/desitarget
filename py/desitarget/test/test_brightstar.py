@@ -9,7 +9,7 @@ from astropy import units as u
 
 from desitarget import brightstar, desi_mask, targetid_mask
 
-from desispec import brick
+from desiutil import brick
 
 class TestBRIGHTSTAR(unittest.TestCase):
 
@@ -133,7 +133,6 @@ class TestBRIGHTSTAR(unittest.TestCase):
             print("mask position and radius (arcmin)",self.mask[i])
             self.assertTrue(np.max(sep[w] - sep[w[0]]) < 1e-15*u.deg)
 
-    @unittest.skip("until desispec is tagged so that desispec.brick.Bricks.brickid() runs in Travis")
     def test_targetid(self):
         """Test SKY/DR/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
         """
@@ -166,13 +165,17 @@ class TestBRIGHTSTAR(unittest.TestCase):
         #ADM check that the OBJIDs proceed from "nobjs" in self.drbricks
         rmostbit = targetid_mask.OBJID.firstbit
         lmostbit = targetid_mask.OBJID.firstbit + targetid_mask.OBJID.nbits
-        objidset = np.array([ int(bintargids[0][-lmostbit:-rmostbit],2) for bintargid in bintargids ])
+        #ADM guard against the fact that when written the rmostbit for OBJID is 0
+        if rmostbit == 0:
+            objidset = np.array([ int(bintargid[-lmostbit:],2) for bintargid in bintargids ])
+        else:
+            objidset = np.array([ int(bintargid[-lmostbit:-rmostbit],2) for bintargid in bintargids ])
         objidshould = self.drbricks["nobjs"]+np.arange(len(objidset))+1
         self.assertTrue(np.all(objidset == objidshould))
 
         #ADM finally check that the BRICKIDs are all 330368
         rmostbit = targetid_mask.BRICKID.firstbit
-        lmostbit = targetid_mask.BRICKD.firstbit + targetid_mask.BRICKID.nbits
+        lmostbit = targetid_mask.BRICKID.firstbit + targetid_mask.BRICKID.nbits
         brickidset = np.array([ int(bintargid[-lmostbit:-rmostbit],2) for bintargid in bintargids ])
         self.assertTrue(np.all(brickidset == 330368))
 
