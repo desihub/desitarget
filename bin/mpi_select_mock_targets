@@ -1,0 +1,80 @@
+#!/usr/bin/env python
+
+"""
+MPI wrapper for select_mock_targets
+"""
+
+#- Initialize MPI ASAP, then proceed
+from __future__ import absolute_import, division, print_function
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
+import sys, os
+import numpy as np
+import argparse
+import subprocess
+
+from astropy.table import Table
+import desimodel.footprint
+from desiutil.log import get_logger, DEBUG
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-c', '--config', default='input.yaml')
+parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type=str, default='./')
+parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
+parser.add_argument('-n', '--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
+parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=64)
+parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
+parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
+parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
+args = parser.parse_args()
+
+if args.verbose:
+    log = get_logger(DEBUG)
+else:
+    log = get_logger()
+
+if rank == 0:
+    if args.tiles.endswith('.ecsv'):
+        tiles = Table.read(args.tiles, format='ascii.ecsv')
+    else:
+        tiles = Table.read(args.tiles)
+
+    pixels = desimodel.footprint.tiles2pix(args.nside, tiles[0:10])
+    # TODO: add logic to skip pixels that are already processed
+    log.info('Processing {} pixels covering {} tiles'.format(len(pixels), len(tiles)))
+else:
+    pixels = None
+
+comm.barrier()
+pixels = comm.bcast(pixels, root=0)
+
+iedges = np.linspace(0, len(pixels), size+1, dtype=int)
+if rank == 0:
+    for i in range(len(iedges)-1):
+        log.info('rank {} processes {} pixels'.format(i, iedges[i+1]-iedges[i]))
+comm.barrier()
+
+if iedges[rank] < iedges[rank+1]:
+    cmd = list()
+    cmd.append('select_mock_targets')
+    cmd.append('--config {}'.format(args.config))
+    cmd.append('--output_dir {}'.format(args.output_dir))
+    if args.seed is not None:
+        cmd.append('--seed {}'.format(args.seed))
+    cmd.append('--nproc {}'.format(args.nproc))
+    cmd.append('--nside {}'.format(args.nside))
+    if args.realtargets is not None:
+        cmd.append('--realtargets {}'.format(args.realtargets))
+    if args.verbose:
+        cmd.append('--verbose')
+    pixlist = ' '.join([str(x) for x in pixels[iedges[rank]:iedges[rank+1]]])
+    cmd.append('--healpixels {}'.format(pixlist))
+    cmd = ' '.join(cmd)
+    log.debug('rank {} running {}'.format(rank, cmd))
+    subprocess.call(cmd.split())

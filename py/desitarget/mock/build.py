@@ -16,6 +16,7 @@ from astropy.table import Table, Column, vstack
 
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+import desitarget.mock.io
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -732,7 +733,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             for ii in range(len(unique_bricks)):
                 out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
 
-        del source_data, brick_info # memory clean-up
+        del source_data # memory clean-up
 
         # Unpack the results removing any possible bricks without targets.
         out = list(zip(*out))
@@ -871,7 +872,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         ))
 
     for pixnum in healpixels:
-        healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        # healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
+        os.makedirs(outdir, exist_ok=True)
         targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
         # Write out the sky catalog.
@@ -879,14 +882,16 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
             isky = pixnum == skypix
             if np.count_nonzero(isky) > 0:
-                skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+                # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+                skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
             
                 log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
                 write_bintable(skyfile, skytargets[isky], extname='SKY', clobber=True)
 
         # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-            stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+            # stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
 
             istd = (pixnum == targpix) * ( (
                 (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
@@ -900,9 +905,13 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
                 log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
 
         # Finally write out the rest of the targets.
-        targetsfile = os.path.join(output_dir, 'targets-{}.fits'.format(healsuffix))
-        truthfile = os.path.join(output_dir, 'truth-{}.fits'.format(healsuffix))
-        truthspecfile = os.path.join(output_dir, 'spectra-truth-{}.fits'.format(healsuffix))
+        # targetsfile = os.path.join(output_dir, 'targets-{}.fits'.format(healsuffix))
+        # truthfile = os.path.join(output_dir, 'truth-{}.fits'.format(healsuffix))
+        # truthspecfile = os.path.join(output_dir, 'spectra-truth-{}.fits'.format(healsuffix))
+
+        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
+        truthspecfile = mockio.findfile('spectra_truth', nside, pixnum, basedir=output_dir)
 
         inpixel = (pixnum == targpix)
         if np.count_nonzero(inpixel) > 0:

@@ -49,6 +49,19 @@ except TypeError:
     #
     C_LIGHT = 299792458.0/1000.0
 
+def get_healpix_dir(nside, pixnum, basedir='.'):
+    subdir = str(pixnum // 100)
+    return os.path.abspath(os.path.join(basedir, subdir))
+
+def findfile(filetype, nside, pixnum, basedir='.'):
+    '''
+    TODO: document
+    '''
+    path = get_healpix_dir(nside, pixnum, basedir=basedir)
+    filename = '{filetype}-{nside}-{pixnum}.fits'.format(
+        filetype=filetype, nside=nside, pixnum=pixnum)
+    return os.path.join(path, filename)
+
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
 

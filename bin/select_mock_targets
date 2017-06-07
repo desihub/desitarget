@@ -5,6 +5,7 @@ from __future__ import print_function, division
 import os
 import sys
 import argparse
+import time
 
 import yaml
 import healpy as hp
@@ -33,6 +34,8 @@ if args.verbose:
     log = get_logger(DEBUG)
 else:
     log = get_logger()
+
+log.info('Starting select_mock_targets at {}'.format(time.asctime()))
 
 if args.join:
     from desitarget.mock.build import join_targets_truth
@@ -75,9 +78,10 @@ else:
     realtargets = None
 
 # Construct Targets and Truth files
+log.info('Calling targets_truth at {}'.format(time.asctime()))
 targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
               verbose=args.verbose, nproc=args.nproc, nside=args.nside,
               healpixels=healpixels)
 
-log.info('All done!')
+log.info('All done at {}'.format(time.asctime()))
 
