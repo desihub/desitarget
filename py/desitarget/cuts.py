@@ -52,8 +52,6 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     zflux = zflux.clip(0)
     lrg &= w1flux * rflux**(1.8-1.0) > zflux**1.8 * 10**(-1.0/2.5)
 
-    print(rflux,zflux,w1flux,lrg)
-
     return lrg
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
@@ -561,10 +559,9 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
 
-
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
-    print(flux)
+
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
@@ -594,6 +591,8 @@ def apply_cuts(objects, qso_selection='randomforest'):
             primary = True
         else:
             primary = np.ones_like(objects, dtype=bool)
+
+    print(primary)
 
     lrg = isLRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
 
@@ -794,7 +793,9 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         if numproc==1, use serial code instead of parallel
 
     """
+    print("ADM")
     print('new DM')
+    print("ADM")
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
