@@ -28,46 +28,28 @@ oldtscolumns = [
     'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
     ]
 
-tscolumns = [
-    'RELEASE', 'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
-    'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-    'FLUX_G', 'FLUX_R', 'FLUX_Z', 
-    'FLUX_IVAR_G', 'FLUX_IVAR_R', 'FLUX_IVAR_Z', 
-    'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
-    'FRACFLUX_G', 'FRACFLUX_R', 'FRACFLUX_Z',
-    'NOBS_G', 'NOBS_R', 'NOBS_Z', 
-    'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-    'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
-    'FLUX_W1', 'FLUX_W2', 'FLUX_W3', 'FLUX_W4',
-    'FLUX_IVAR_W1', 'FLUX_IVAR_W2', 'FLUX_IVAR_W3', 'FLUX_IVAR_W4',
-    'MW_TRANSMISSION_W1', 'MW_TRANSMISSION_W2', 
-    'MW_TRANSMISSION_W3', 'MW_TRANSMISSION_W4',
-    'SHAPEDEV_R', 'SHAPEEXP_R', 'DCHISQ',
-    ]
+#ADM this is an empty array of the full TS data model columns and dtypes
+tsdatamodel = np.array([], dtype=[
+    ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'), 
+    ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'), 
+    ('DEC', '>f8'), ('DEC_IVAR', '>f4'), 
+    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
+    ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'), 
+    ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
+    ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'), 
+    ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'), 
+    ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'), 
+    ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'), 
+    ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'), 
+    ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
+    ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
+    ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
+    ('SHAPEDEV_R', '>f4'), ('SHAPEEXP_R', '>f4'), ('DCHISQ', '>f4')
+    ])
 
-#ADM this is in the same order as tscolumns
-tsdtypes = [
-    '>i4', '>i4', 'S8', '<i4', 'S4',
-    '>f8', '>f4', '>f8', '>f4',
-    '>f4', '>f4', '>f4', 
-    '>f4', '>f4', '>f4', 
-    '>f4', '>f4', '>f4',
-    '>f4', '>f4', '>f4',
-    '>i2', '>i2', '>i2', 
-    '>f4', '>f4', '>f4',
-    '>f4', '>f4', '>f4',
-    '>f4', '>f4', '>f4', '>f4',
-    '>f4', '>f4', '>f4', '>f4',
-    '>f4', '>f4', 
-    '>f4', '>f4',
-    '>f4', '>f4', '>f4',
-    ]
+tscolumns = list(tsdatamodel.dtype.names)
 
-#ADM this is an empty array of the ts data model columns and dtypes
-tsdatamodel = np.zeros(0, dtype = list(zip(tscolumns,tsdtypes)))
-
-
-def convert_to_old_data_model(fx,DR3=True,columns=None):
+def convert_to_old_data_model(fx,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
 
     Parameters
@@ -86,8 +68,9 @@ def convert_to_old_data_model(fx,DR3=True,columns=None):
 
     Notes
     -----
-        - Anything pre-DR3 is assumed to be DR2 (we'd already broken
-          backwards-compatability with DR1 because of DECAM_DEPTH)
+        - Anything pre-DR3 is assumed to be DR3 (we'd already broken
+          backwards-compatability with DR1 because of DECAM_DEPTH but
+          this now breaks backwards-compatability with DR2)
     """
     indata = fx[1].read(columns=columns)
 
@@ -121,12 +104,9 @@ def convert_to_old_data_model(fx,DR3=True,columns=None):
     rmcols = np.append(decamcols,wisecols)
     outdata = rfn.drop_fields(data,rmcols)
 
-    #ADM we also need to include the RELEASE, based on whether DR3 was passed or not
-    if DR3:
-        outdata['RELEASE'] = 3000
-        return outdata
-    
-    outdata['RELEASE'] = 2000
+    #ADM we also need to include the RELEASE, which we'll always assume is DR3
+    #ADM (deprecating anything from before DR3)
+    outdata['RELEASE'] = 3000
 
     return outdata
     
@@ -171,7 +151,7 @@ def read_tractor(filename, header=False, columns=None):
     if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
         #ADM we default to writing RELEASE = 3000 ("DR3 or before data')
-        data = convert_to_old_data_model(fx,DR3=True,columns=readcolumns)
+        data = convert_to_old_data_model(fx,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
 
