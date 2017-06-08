@@ -156,7 +156,8 @@ def read_tractor(filename, header=False, columns=None):
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
 
-    if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
+    if (columns is None) and \
+       (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
         #ADM we default to writing RELEASE = 3000 ("DR3 or before data')
         data = convert_from_old_data_model(fx,columns=readcolumns)
