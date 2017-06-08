@@ -14,7 +14,8 @@ import fitsio
 import os, re
 from . import __version__ as desitarget_version
 from . import gitversion
-from time import time
+import numpy.lib.recfunctions as rfn
+import healpy as hp
 
 from desiutil import depend
 
@@ -50,7 +51,7 @@ tsdatamodel = np.array([], dtype=[
 tscolumns = list(tsdatamodel.dtype.names)
 
 
-def convert_to_old_data_model(fx,columns=None):
+def convert_from_old_data_model(fx,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
 
     Parameters
@@ -158,7 +159,7 @@ def read_tractor(filename, header=False, columns=None):
     if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
         #ADM we default to writing RELEASE = 3000 ("DR3 or before data')
-        data = convert_to_old_data_model(fx,columns=readcolumns)
+        data = convert_from_old_data_model(fx,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
 
@@ -206,17 +207,21 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
-def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=False):
+def write_targets(filename, data, indir=None, qso_selection=None, 
+                  sandboxcuts=False, nside=None):
     """Write a target catalogue.
 
-    Args:
-        filename : output target selection file
-        data     : numpy structured array of targets to save
-
+    Parameters
+    ----------
+    filename : output target selection file
+    data     : numpy structured array of targets to save
+    nside: :class:`int`
+        If passed, add a column to the targets array popluated 
+        with HEALPix pixels at resolution nside
     """
     # FIXME: assert data and tsbits schema
-    #ADM use RELEASE to determine the release string for the input targets
 
+    #ADM use RELEASE to determine the release string for the input targets
     if len(data) == 0:
         #ADM if there are no targets, then we don't know the Data Release
         drstring = 'unknowndr'
@@ -243,6 +248,15 @@ def write_targets(filename, data, indir=None, qso_selection=None, sandboxcuts=Fa
         depend.setdep(hdr, 'qso-selection', 'unknown')
     else:
         depend.setdep(hdr, 'qso-selection', qso_selection)
+
+    #ADM Add HEALPix column, if requested by input
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data,'HPXPIXEL',hppix,usemask=False)
+        depend.setdep(hdr, 'HPXNSIDE', nside)
+        depend.setdep(hdr, 'HPXNEST', True)
+#        depend.setdep(hdr, 'HPXNEST', True)
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
