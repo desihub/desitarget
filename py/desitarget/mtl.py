@@ -72,9 +72,9 @@ def make_mtl(targets, zcat=None, trim=False):
     # Assign priorities
     mtl['PRIORITY'] = calc_priority(ztargets)
 
-    # If priority went to 0 or 1, then NUMOBS_MORE should also be 0
+    # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
-    ii = (mtl['PRIORITY'] <= 1)
+    ii = (mtl['PRIORITY'] <= 2)
     print('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
 
     mtl['NUMOBS_MORE'][ii] = 0

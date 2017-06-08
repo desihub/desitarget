@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.12.0 (Unreleased)
+0.12.1 (Unreleased)
+-------------------
+
+* No changes yet
+
+0.12.0 (2017-06-05)
 -------------------
 
 * Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` (`PR #182`_].
@@ -18,6 +23,8 @@ desitarget Change Log
   * Much better memory usage.
   * Updated QA notebook.
 * Add Random Forest selection for ELG in the sandbox [`PR #174`_].
+* Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
+* Set specific DONE, OBS, and DONOTOBSERVE priorities [`PR #184`_].
 
 .. _`PR #173`: https://github.com/desihub/desitarget/pull/173
 .. _`PR #174`: https://github.com/desihub/desitarget/pull/174
@@ -25,6 +32,7 @@ desitarget Change Log
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
 .. _`PR #181`: https://github.com/desihub/desitarget/pull/181
 .. _`PR #182`: https://github.com/desihub/desitarget/pull/182
+.. _`PR #184`: https://github.com/desihub/desitarget/pull/184
 
 0.11.0 (2017-04-14)
 -------------------
