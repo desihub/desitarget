@@ -556,6 +556,8 @@ class MockSpectra(object):
             index = np.arange(len(data['Z']))
         nobj = len(index)
 
+        import pdb ; pdb.set_trace()
+
         if mockformat.lower() == 'gaussianfield':
             # Build spectra for tracer QSOs.
             input_meta = empty_metatable(nmodel=nobj, objtype=objtype)

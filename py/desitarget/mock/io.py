@@ -580,10 +580,13 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             log.fatal('Mock file {} not found!'.format(mockfile_lya))
             raise IOError
 
-        radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC'], upper=True, ext=1)
+        lyainfo = fitsio.read(mockfile_lya, upper=True, ext=2)
+        radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID'], upper=True, ext=1)
         nobj_lya = len(radec)
 
-        files.append(mockfile_lya)
+        lyafiles = lyainfo['MOCKFILE'][radec['MOCKFILEID']]
+
+        files.append(lyafiles)
         n_per_file.append(nobj_lya)
 
         objid_lya = np.arange(nobj_lya, dtype='i8')
@@ -594,9 +597,9 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         nobj_lya = len(cut)
         if nobj_lya == 0:
-            log.warning('No Lya QSOs in healpixels {}!'.format(target_name, healpixels))
+            log.warning('No Lya QSOs in healpixels {}!'.format(healpixels))
         else:
-            log.info('Trimmed to {} Lya QSOs in healpixels {}'.format(nobj, target_name, healpixels))
+            log.info('Trimmed to {} Lya QSOs in healpixels {}'.format(nobj_lya, healpixels))
 
             objid_lya = objid_lya[cut]
             mockid_lya = mockid_lya[cut]
@@ -604,7 +607,9 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             dec_lya = radec['DEC'][cut].astype('f8')
             del radec
 
-            data = fitsio.read(mockfile_lya, columns=['Z', 'MAG_G'], upper=True, ext=1, rows=cut)
+            data = fitsio.read(mockfile_lya, columns=['Z', 'MAG_G', 'MOCKFILEID', 'MOCKHDUNUM'],
+                               upper=True, ext=1, rows=cut)
+            
             zz_lya = data['Z'].astype('f4')
             mag_lya = data['MAG_G'].astype('f4') # g-band
 
@@ -617,6 +622,9 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             mockid = np.concatenate((mockid, mockid_lya))
             nobj = len(ra)
 
+            lyafiles = [os.path.join( os.path.dirname(mockfile), ff.decode('utf-8')) for ff in lyafiles[cut]]
+            lyahdu = data['MOCKHDUNUM']
+            
         log.info('The combined QSO sample has {} targets.'.format(nobj))
         
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
@@ -691,6 +699,9 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
                 'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
                 #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
                 'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
+
+            if lya:
+                out.update({'LYAFILES': lyafiles, 'LYAHDU': lyahdu})
 
         else:
             log.fatal('Unrecognized target type {}!'.format(target_name))
@@ -1138,19 +1149,21 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def _load_lya_file(mockfile):
-    """Multiprocessing support routine for read_galaxia.  Reach each individual mock
-    Lyman-alpha file.
+def _load_lya_file(lyafile, hdu):
+    """Multiprocessing support routine to read the individual mock Lyman-alpha
+    files.
 
     """
     try:
-        os.stat(mockfile)
+        os.stat(lyafile)
     except:
-        log.fatal('Mock file {} not found!'.format(mockfile))
+        log.fatal('Lya file {} not found!'.format(lyafile))
         raise IOError
 
-    log.info('Reading {}.'.format(mockfile))
-    h = fitsio.FITS(mockfile)
+    log.info('Reading HDU {} from {}.'.format(lyafile))
+    
+    
+    h = fitsio.FITS(lyafile)
     heads = [head.read_header() for head in h]
 
     nn = len(heads) - 1 # the first item in heads is empty
