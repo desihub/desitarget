@@ -6,11 +6,6 @@ desitarget.mock.build
 
 Build a truth catalog (including spectra) and a targets catalog for the mocks.
 
-time python -m cProfile -o mock.dat /usr/local/repos/desihub/desitarget/bin/select_mock_targets -c mock_moustakas.yaml -s 333 --nproc 1 --output_dir proftest
-pyprof2calltree -k -i mock.dat &
-
-/usr/bin/time -l select_mock_targets -c qatargets_input.yaml --output_dir new --nproc 4 --seed 111 --verbose --clobber
-
 """
 from __future__ import (absolute_import, division, print_function)
 
@@ -21,6 +16,7 @@ from astropy.table import Table, Column, vstack
 
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+import desitarget.mock.io
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -51,14 +47,13 @@ class BrickInfo(object):
     """Gather information on all the bricks.
 
     """
-    def __init__(self, random_state=None, dust_dir=None, bounds=(0.0, 360.0, -90.0, 90.0),
-                 bricksize=0.25, decals_brick_info=None, target_names=None, log=None):
+    def __init__(self, random_state=None, dust_dir=None, bricksize=0.25,
+                 decals_brick_info=None, target_names=None, log=None):
         """Initialize the class.
 
         Args:
           random_state : random number generator object
           dust_dir : path where the E(B-V) maps are stored
-          bounds : brick boundaries
           bricksize : brick size (default 0.25 deg, square)
           decals_brick_info : filename of the DECaLS brick information structure
           target_names : list of targets (e.g., BGS, ELG, etc.)
@@ -74,19 +69,33 @@ class BrickInfo(object):
         self.random_state = random_state
 
         self.dust_dir = dust_dir
-        self.bounds = bounds
         self.bricksize = bricksize
         self.decals_brick_info = decals_brick_info
         self.target_names = target_names
+
+    def _bricks2pix(self, brick_info):
+        '''Returns sorted array of healpixels that overlap the input brick_info.
+
+        '''
+        import healpy as hp
+
+        radius = np.radians(self.bricksize) # be conservative
+        
+        theta, phi = np.radians(90-brick_info['DEC']), np.radians(brick_info['RA'])
+        vec = hp.ang2vec(theta, phi)
+        ipix = [hp.query_disc(self.nside, vec[i], radius=radius, inclusive=True,
+                              nest=True) for i in range(len(brick_info['RA']))]
+
+        return ipix
 
     def generate_brick_info(self):
         """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
         max_dec).
 
         [Doesn't this functionality exist elsewhere?!?]
+
         """
         from desiutil.brick import Bricks
-        min_ra, max_ra, min_dec, max_dec = self.bounds
 
         B = Bricks(bricksize=self.bricksize)
         brick_info = {}
@@ -99,12 +108,12 @@ class BrickInfo(object):
         brick_info['DEC2'] =   []
         brick_info['BRICKAREA'] =  []
 
-        i_rows = np.where(((B._edges_dec+self.bricksize) >= min_dec) & ((B._edges_dec-self.bricksize) <= max_dec))[0]
-        for i_row in i_rows:
-            j_col_min = int((min_ra)/360 * B._ncol_per_row[i_row])
-            j_col_max = int((max_ra)/360 * B._ncol_per_row[i_row])
+        i_rows = np.arange( len(B._center_dec) )
 
-            for j_col in range(j_col_min, j_col_max+1):
+        for i_row in i_rows:
+            j_cols = np.arange( len(B._brickname[i_row]) )
+            
+            for j_col in j_cols:
                 brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
 
                 brick_info['RA'].append(B._center_ra[i_row][j_col])
@@ -123,10 +132,10 @@ class BrickInfo(object):
 
         for k in brick_info.keys():
             brick_info[k] = np.array(brick_info[k])
+        nbrick = len(brick_info['RA'])
 
-        self.log.info('Generating brick information for {} brick(s) with boundaries RA={:g}, {:g}, Dec={:g}, {:g} and bricksize {:g} deg.'.\
-                      format(len(brick_info['BRICKNAME']), self.bounds[0], self.bounds[1],
-                             self.bounds[2], self.bounds[3], self.bricksize))
+        self.log.info('Generated brick information for {} brick(s) with bricksize {:g} deg.'.\
+                      format(nbrick, self.bricksize))
 
         return brick_info
 
@@ -251,8 +260,8 @@ class BrickInfo(object):
 
         """
         import yaml
-        filein = open(os.getenv('DESIMODEL')+'/data/targets/targets.dat')
-        td = yaml.load(filein)
+        with open(os.path.join( os.getenv('DESIMODEL'), 'data', 'targets', 'targets.yaml' ), 'r') as filein:
+            td = yaml.load(filein)
         target_desimodel = {}
         for t in td.keys():
             if 'ntarget' in t.upper():
@@ -267,7 +276,7 @@ class BrickInfo(object):
         brick_info.update(self.extinction_across_bricks(brick_info))   # add extinction
         brick_info.update(self.depths_across_bricks(brick_info))       # add depths
         brick_info.update(self.fluctuations_across_bricks(brick_info)) # add number density fluctuations
-        brick_info.update(self.targetinfo())                           # add nominal target densities
+        #brick_info.update(self.targetinfo())                           # add nominal target densities
 
         return brick_info
 
@@ -555,190 +564,82 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
-def _write_onebrick(writeargs):
-    """Filler function for the multiprocessing."""
-    return write_onebrick(*writeargs)
-
-def write_onebrick(thisbrick, targets, truth, trueflux, truthhdr, wave, output_dir, log):
-    """Wrapper function to write out files on a single brick.
-
-    """
-    from astropy.io import fits
-
-    onbrick = np.where(targets['BRICKNAME'] == thisbrick)[0]
-
-    radir = os.path.join(output_dir, thisbrick[:3])
-    targetsfile = os.path.join(radir, 'targets-{}.fits'.format(thisbrick))
-    truthfile = os.path.join(radir, 'truth-{}.fits'.format(thisbrick))
-    truthspecfile = os.path.join(radir, 'truth-spectra-{}.fits'.format(thisbrick))
-
-    log.info('Writing {}'.format(targetsfile))
-    try:
-        targets[onbrick].write(targetsfile, overwrite=True)
-    except:
-        targets[onbrick].write(targetsfile, clobber=True)
-
-    #log.info('Writing {}'.format(truthfile))
-    try:
-        truth[onbrick].write(truthfile, overwrite=True)
-    except:
-        truth[onbrick].write(truthfile, clobber=True)
-
-    #log.info('Writing {}'.format(truthspecfile))
-    hx = fits.HDUList()
-    hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
-    hdu.header['BUNIT'] = 'Angstrom'
-    hdu.header['AIRORVAC'] = 'vac'
-    hx.append(hdu)
-
-    hdu = fits.ImageHDU(trueflux[onbrick, :].astype(np.float32), name='FLUX')
-    hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
-    hx.append(hdu)
-    
-    try:
-        hx.writeto(truthspecfile, overwrite=True)
-    except:
-        hx.writeto(truthspecfile, clobber=True)
-
-    #write_bintable(truthfile, truth[onbrick], extname='TRUTH')
-
-def _write_onehealpix(writeargs):
-    """Filler function for the multiprocessing."""
-    return write_onehealpix(*writeargs)
-
-def write_onehealpix(subdir, pixnum, inpixel, nside, targets, truth,
-                     trueflux, truthhdr, wave, output_dir, log):
-    """Wrapper function to write out files in a single healpix pixel.
-
-    """
-    from astropy.io import fits
-
-    targetsfile = os.path.join(subdir, 'targets-{}-{}.fits'.format(nside, pixnum))
-    truthfile = os.path.join(subdir, 'truth-{}-{}.fits'.format(nside, pixnum))
-    truthspecfile = os.path.join(subdir, 'spectra-truth-{}-{}.fits'.format(nside, pixnum))
-
-    log.info('Writing {}'.format(targetsfile))
-    try:
-        targets[inpixel].write(targetsfile, overwrite=True)
-    except:
-        targets[inpixel].write(targetsfile, clobber=True)
-
-    #log.info('Writing {}'.format(truthfile))
-    try:
-        truth[inpixel].write(truthfile, overwrite=True)
-    except:
-        truth[inpixel].write(truthfile, clobber=True)
-
-    #log.info('Writing {}'.format(truthspecfile))
-    hx = fits.HDUList()
-    hdu = fits.ImageHDU(wave.astype(np.float32), name='WAVE', header=truthhdr)
-    hdu.header['BUNIT'] = 'Angstrom'
-    hdu.header['AIRORVAC'] = 'vac'
-    hx.append(hdu)
-
-    hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
-    hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
-    hx.append(hdu)
-    
-    try:
-        hx.writeto(truthspecfile, overwrite=True)
-    except:
-        hx.writeto(truthspecfile, clobber=True)
-
-    #write_bintable(truthfile, truth[inpixel], extname='TRUTH')
-
-def _create_raslices(output_dir, ioutput_dir, brickname):
-    """Create the RA-slice directories, if necessary."""
-    
-    for odir in (output_dir, ioutput_dir):
-        radir = np.array(['{}'.format(os.path.join(odir, name[:3])) for name in brickname])
-        for thisradir in list(set(radir)):
-            try:
-                os.stat(thisradir)
-            except:
-                os.makedirs(thisradir)
-                
 #from memory_profiler import profile
 #@profile
-def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
-                  clobber=False, bricksize=0.25, nside=64, nproc=1):
-    """
-    Write
+def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=True,
+                  clobber=False, bricksize=0.25, nproc=1, nside=16, healpixels=None):
+    """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
+    (with, e.g., the true redshift) for use in simulations.
 
     Args:
-        params: dict of source definitions.
-        output_dir: location for intermediate mtl files.
-        realtargets (optional): real target catalog table, e.g. from DR3
-        clobber (optional): delete files in the output directory (mandatory if not empty)
-        nproc (optional): number of parallel processes to use (default 4)
+        params : dict
+            Source parameters.
+        output_dir : str
+            Output directory (default '.').
+        realtargets : astropy.table
+            Real target catalog table, e.g. from DR3 (deprecated!).
+        bricksize : float
+            Brick size for assigning bricknames, which should match the imaging
+            team value (default 0.25 deg).
+        nproc : int
+            Number of parallel processes to use (default 1).
+        nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels.
 
     Returns:
-      targets:
-      truth:
-
-    Notes:
-      If nproc == 1 use serial instead of parallel code.
+        A variety of fits files are written to output_dir.
 
     """
-    import healpy
-    import shutil
+    import healpy as hp
     from time import time
+
+    from astropy.io import fits
 
     from desispec.io.util import fitsheader, write_bintable
     import desitarget.mock.io as mockio
     from desitarget.mock.selection import SelectTargets
     from desitarget.mock.spectra import MockSpectra
     from desitarget.internal import sharedmem
+    from desimodel.footprint import radec2pix
     
-    if params is None or output_dir is None:
-        log.fatal('Required inputs params and output_dir not given!')
-        raise ValueError
-
     if verbose:
         log = get_logger(DEBUG)
     else:
         log = get_logger()
     
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
     # Initialize the random seed
     rand = np.random.RandomState(seed)
 
     # Create the output directories and clean them up if necessary.
-    #ioutput_dir = os.path.normpath(output_dir)+'-i'
-
-    #for odir in (output_dir, ioutput_dir):
-    for odir in np.atleast_1d(output_dir):
-        try:
-            os.stat(odir)
-            if os.listdir(odir):
-                if clobber:
-                    shutil.rmtree(odir)
-                    #log.info('Cleaning directory {}'.format(odir))
-                    os.makedirs(odir)
-                else:
-                    log.warning('Output directory {} is not empty; please set clobber=True.'.format(odir))
-                    return
-        except:
-            log.info('Creating directory {}'.format(odir))
-            os.makedirs(odir)
+    if os.path.exists(output_dir):
+        if os.listdir(output_dir):
+            log.warning('Output directory {} is not empty.'.format(output_dir))
+    else:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)
+        
     log.info('Writing to output directory {}'.format(output_dir))
-    #log.info('Writing to output directory {} and intermediate output directory {}'.format(output_dir, ioutput_dir))
     print()
 
-    # Add the ra,dec boundaries to the parameters dictionary for each source, so
-    # we can check the target densities, below.
-    if ('subset' in params.keys()) & (params['subset']['ra_dec_cut'] == True):
-        bounds = (params['subset']['min_ra'], params['subset']['max_ra'],
-                  params['subset']['min_dec'], params['subset']['max_dec'])
-    else:
-        bounds = (0.0, 360.0, -90.0, 90.0)
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(nside))
 
-    for src in params['sources'].keys():
-        params['sources'][src].update({'bounds': bounds})
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    skyarea = len(healpixels) * areaperpix
+    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, skyarea))
 
-    # Build the brick information structure.
-    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bounds=bounds,
-                           bricksize=bricksize, decals_brick_info=params['decals_brick_info'],
-                           target_names=list(params['sources'].keys()), log=log).build_brickinfo()
+    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
+                           decals_brick_info=params['decals_brick_info'], log=log,
+                           target_names=list(params['sources'].keys())).build_brickinfo()
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
@@ -752,11 +653,10 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     alltargets = list()
     alltruth = list()
     alltrueflux = list()
-    for source_name in params['sources'].keys():
+    for source_name in sorted(params['sources'].keys()):
         # Read the mock catalog.
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         mockformat = params['sources'][source_name]['format']
-        #source_data = source_data_all[source_name]     # data (ra, dec, etc.)
 
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
         if 'magcut' in params['sources'][source_name].keys():
@@ -773,7 +673,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         else:
             lya = None
         source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                                        bounds=bounds, magcut=magcut, nproc=nproc, lya=lya)
+                                        magcut=magcut, nproc=nproc, lya=lya,
+                                        healpixels=healpixels, nside=nside)
 
         # If there are no sources, keep going.
         if not bool(source_data):
@@ -787,17 +688,26 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
         unique_bricks = list(set(brickname))
 
         # Quickly check that all the brick info is here.
-        skyarea = 0.0
-        for thisbrick in unique_bricks:
-            brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-            skyarea = skyarea + brick_info['BRICKAREA'][brickindx][0]
-            if (len(brickindx) != 1):
-                log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
-                raise ValueError
-        #skyarea = brick_info['BRICKAREA'][0] * len(unique_bricks)
+        if False:
+            for thisbrick in unique_bricks:
+                brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+                if (len(brickindx) != 1):
+                    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+                    ww = np.where( (brick_info['RA'] > source_data['RA'].min()) *
+                                   (brick_info['RA'] < source_data['RA'].max()) *
+                                   (brick_info['DEC'] > source_data['DEC'].min()) *
+                                   (brick_info['DEC'] < source_data['DEC'].max()) )[0]
+                    print(brick_info['BRICKNAME'][ww])
+                    import matplotlib.pyplot as plt
+                    plt.scatter(source_data['RA'], source_data['DEC'])
+                    plt.scatter(brick_info['RA'], brick_info['DEC'])
+                    plt.xlim(source_data['RA'].min()-0.2, source_data['RA'].max()+0.2)
+                    plt.ylim(source_data['DEC'].min()-0.2, source_data['DEC'].max()+0.3)
+                    plt.show()
+                    import pdb ; pdb.set_trace()
         
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks spanning (approximately) {:.4g} deg2.'.format(
-            len(brickname), source_name, len(unique_bricks), bricksize, bricksize, skyarea))
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
 
         nbrick = np.zeros((), dtype='i8')
         t0 = time()
@@ -822,6 +732,8 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
             out = list()
             for ii in range(len(unique_bricks)):
                 out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
+
+        del source_data # memory clean-up
 
         # Unpack the results removing any possible bricks without targets.
         out = list(zip(*out))
@@ -884,17 +796,19 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                     trueflux = trueflux[keep, :]
 
         if target_name.upper() == 'SKY':
-            skytruth = truth
-            skytargets = targets
+            skytruth = truth.copy()
+            skytargets = targets.copy()
         else:
             alltargets.append(targets)
             alltruth.append(truth)
             alltrueflux.append(trueflux)
         print()
 
+    del brick_info # memory clean-up
+
     # Consolidate across all the mocks.  Note that the code quits if alltargets
     #is zero-length, even if skytargets is non-zero length. In other words, if
-    #the parameter file only contains SKY the code will quit anyway.
+    #the parameter file only contains SKY the code will (wrongly) quit anyway.
     if len(alltargets) == 0:
         log.info('No targets; all done.')
         return
@@ -907,7 +821,7 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     # because in principle an object could be a contaminant in one target class
     # (and be tossed) but be a contaminant for another target class and be kept.
     # But I think this is mostly OK.
-    for source_name in params['sources'].keys():
+    for source_name in sorted(params['sources'].keys()):
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
         
         if 'contam' in params['sources'][source_name].keys():
@@ -925,8 +839,6 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
 
-    #print( np.sum( (targets['DESI_TARGET'] & desi_mask.MWS_ANY) != 0) )
-    #import pdb ; pdb.set_trace()
     # Write out the fileid-->filename mapping.  This doesn't work right now.
     #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
 
@@ -948,97 +860,98 @@ def targets_truth(params, output_dir, realtargets=None, seed=None, verbose=True,
     targets['TARGETID'] = targetid[:ntarget]
     targets['SUBPRIORITY'] = subpriority[:ntarget]
 
-    # Write out the sky catalog.
     if nsky > 0:
-        skyfile = os.path.join(output_dir, 'sky.fits')
-        
         skytargets['TARGETID'] = targetid[ntarget:ntarget+nsky]
         skytargets['SUBPRIORITY'] = subpriority[ntarget:ntarget+nsky]
 
-        if np.sum((skytargets['DESI_TARGET'] & desi_mask.SKY) != 0) != nsky:
-            log.fatal('Lost SKY targets somewhere!')
-            raise ValueError
-
-        log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
-        write_bintable(skyfile, skytargets, extname='SKY', clobber=True)
-        print()
-
-    # Write out the dark- and bright-time standard stars.  White dwarf standards
-    # not yet supported.
-    for suffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-        stdfile = os.path.join(output_dir, 'standards-{}.fits'.format(suffix))
-        istd = ((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD'))) != 0
-        #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
-        if np.count_nonzero(istd) > 0:
-            log.info('Writing {}'.format(stdfile))
-            write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
-        else:
-            log.info('No {} standards found, {} not written.'.format(suffix.upper(), stdfile))
-    print()
-
+    # Write the final catalogs out by healpixel.
     if seed is None:
         seed1 = 'None'
     else:
         seed1 = seed
     truthhdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed')
-        #BRICKSZ = (outbricksize, 'brick size (deg)')
-        #BUNIT = ('Angstrom', 'wavelength units'),
-        #AIRORVAC = ('vac', 'vacuum wavelengths')
         ))
 
-    # Write out targets by healpix pixels based on the grouping
-    #   {output_dir}/{subdir}/truth-{nside}-{ipix}.fits
-    # where subdir = ipix // (nside // 2)
-    pixels = healpy.ang2pix(nside, np.radians(90-targets['DEC']),
-                            np.radians(targets['RA']), nest=True)
-    unique_pixels = list(set(pixels))
+    for pixnum in healpixels:
+        # healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
+        os.makedirs(outdir, exist_ok=True)
+        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
-    """basedir/8-{superpix}/64-{pixnum}/filename-64-{pixnum}.fits
+        # Write out the sky catalog.
+        if nsky > 0:
+            skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+            isky = pixnum == skypix
+            if np.count_nonzero(isky) > 0:
+                # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+                skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
+            
+                log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
+                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY', clobber=True)
+                os.rename(skyfile+'.tmp', skyfile)
 
-    where pixnum is the nside=64 nested pixel number, and superpix = pixnum /
-    4**3.
+        # Write out the dark- and bright-time standard stars.
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+            # stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
 
-    I'm not completely convinced that will be user friendly, but it does have
-    the advantages that:
+            istd = (pixnum == targpix) * ( (
+                (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
+            #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
 
-    * <1000 subdirectories at any level
-    
-    * everything under a 8-{superpix} subdirectory is grouped on the sky (unlike
-      the case if we just did subdir = pixnum//100 or something like that that
-      is easier to calculate in your head but breaks spatial grouping).
+            if np.count_nonzero(istd) > 0:
+                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD', clobber=True)
+                os.rename(stdfile+'.tmp', stdfile)
+            else:
+                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
 
-    * nside=8 is 53.7 deg2 which seems likely for a viable sub-unit to process
-      at NERSC per job
+        # Finally write out the rest of the targets.
+        # targetsfile = os.path.join(output_dir, 'targets-{}.fits'.format(healsuffix))
+        # truthfile = os.path.join(output_dir, 'truth-{}.fits'.format(healsuffix))
+        # truthspecfile = os.path.join(output_dir, 'spectra-truth-{}.fits'.format(healsuffix))
 
-    * nside=64 is 0.84 deg2 which seems like a viable sized sub-unit for
-      grouping targets
-    """
+        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
+        truthspecfile = mockio.findfile('spectra_truth', nside, pixnum, basedir=output_dir)
 
-    writeargs = list()
-    for pixnum in unique_pixels:
-        superpix = pixnum // 4**3
-        subdir = os.path.join( output_dir, '8-{}'.format(superpix), '64-{}'.format(pixnum) )
-        #subdir = os.path.join( output_dir, str(pixnum // (nside // 2)) )
-        try:
-            os.stat(subdir)
-        except:
-            os.makedirs(subdir)
+        inpixel = (pixnum == targpix)
+        npixtargets = np.count_nonzero(inpixel)
+        if npixtargets > 0:
+            log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
+            try:
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', overwrite=True)
+            except:
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', clobber=True)
+            os.rename(targetsfile+'.tmp', targetsfile)
+        
+            log.info('Writing {}'.format(truthfile))
+            try:
+                truth[inpixel].write(truthfile+'.tmp', format='fits', overwrite=True)
+            except:
+                truth[inpixel].write(truthfile+'.tmp', format='fits', clobber=True)
+            os.rename(truthfile+'.tmp', truthfile)
+        
+            log.info('Writing {}'.format(truthspecfile))
+            hx = fits.HDUList()
+            hdu = fits.ImageHDU(Spectra.wave.astype(np.float32), name='WAVE', header=truthhdr)
+            hdu.header['BUNIT'] = 'Angstrom'
+            hdu.header['AIRORVAC'] = 'vac'
+            hx.append(hdu)
+        
+            hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
+            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
+            hx.append(hdu)
+            
+            try:
+                hx.writeto(truthspecfile+'.tmp', overwrite=True)
+            except:
+                hx.writeto(truthspecfile+'.tmp', clobber=True)
+            os.rename(truthspecfile+'.tmp', truthspecfile)
 
-        inpixel = np.where(pixnum == pixels)[0]
-        writeargs.append((subdir, pixnum, inpixel, nside, targets, truth, trueflux,
-                          truthhdr, Spectra.wave, output_dir, log))
-
-    if nproc > 1:
-        pool = sharedmem.MapReduce(np=nproc)
-        with pool:
-            pool.map(_write_onehealpix, writeargs)
-    else:
-        for args in writeargs:
-            _write_onehealpix(args)
-
-def join_targets_truth(output_dir, nside=64, verbose=True, clobber=False):
+def join_targets_truth(output_dir, nside=8, verbose=True, clobber=False):
     """Combine all the target and truth catalogs generated by targets_truth into a
     monolithic targets.fits and truth.fits files
 
@@ -1055,11 +968,11 @@ def join_targets_truth(output_dir, nside=64, verbose=True, clobber=False):
 
     targets, truth = [], []
 
-    subdirs = [dd for dd in os.listdir(output_dir) if os.path.isdir( os.path.join(output_dir, dd) ) ]
+    healdirs = glob( os.path.join(output_dir, '{}-*'.format(nside)) )
     
-    for subdir in np.atleast_1d(subdirs):
-        alltargfile = np.array( glob(os.path.join(output_dir, subdir, '*-*', 'targets-*-*.fits') ) )
-        alltruthfile = np.array( glob(os.path.join(output_dir, subdir, '*-*', 'truth-*-*.fits') ) )
+    for hdir in np.atleast_1d(healdirs):
+        alltargfile = np.array( glob(os.path.join(hdir, 'targets-*-*.fits') ) )
+        alltruthfile = np.array( glob(os.path.join(hdir, 'truth-*-*.fits') ) )
 
         for targfile, truthfile in zip( np.atleast_1d(alltargfile), np.atleast_1d(alltruthfile) ):
             log.info('Reading {}'.format(targfile))

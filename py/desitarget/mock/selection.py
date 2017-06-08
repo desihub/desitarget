@@ -358,7 +358,7 @@ class SelectTargets(object):
 
             n_in_brick = len(onbrick)
             if n_in_brick == 0:
-                self.log.warning('No {}s on brick {}.'.format(target_name, thisbrick))
+                self.log.info('No {}s on brick {}.'.format(target_name, thisbrick))
                 
             if density and n_in_brick > 0:
                 mock_density = n_in_brick / brick_area
@@ -398,7 +398,7 @@ class SelectTargets(object):
                 n_in_brick = len(onbrick)
 
                 if n_in_brick == 0:
-                    self.log.warning('No {}_IS_{} contaminants on brick {}.'.format(target_name, contam_name, thisbrick))
+                    self.log.debug('No {}_IS_{} contaminants on brick {}.'.format(target_name, contam_name, thisbrick))
                 
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
