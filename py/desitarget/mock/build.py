@@ -918,19 +918,20 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         truthspecfile = mockio.findfile('spectra_truth', nside, pixnum, basedir=output_dir)
 
         inpixel = (pixnum == targpix)
-        if np.count_nonzero(inpixel) > 0:
-            log.info('Writing {}'.format(targetsfile))
+        npixtargets = np.count_nonzero(inpixel)
+        if npixtargets > 0:
+            log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
             try:
-                targets[inpixel].write(targetsfile+'.tmp', overwrite=True)
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', overwrite=True)
             except:
-                targets[inpixel].write(targetsfile+'.tmp', clobber=True)
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', clobber=True)
             os.rename(targetsfile+'.tmp', targetsfile)
         
             log.info('Writing {}'.format(truthfile))
             try:
-                truth[inpixel].write(truthfile+'.tmp', overwrite=True)
+                truth[inpixel].write(truthfile+'.tmp', format='fits', overwrite=True)
             except:
-                truth[inpixel].write(truthfile+'.tmp', clobber=True)
+                truth[inpixel].write(truthfile+'.tmp', format='fits', clobber=True)
             os.rename(truthfile+'.tmp', truthfile)
         
             log.info('Writing {}'.format(truthspecfile))
@@ -941,7 +942,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             hx.append(hdu)
         
             hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
-            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
             hx.append(hdu)
             
             try:
