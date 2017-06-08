@@ -688,8 +688,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
             #vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
             vdisp = np.zeros(nobj)
-            for bb in sort(set(brickname)):
-                these = np.where( bb = brickname )[0]
+            for bb in sorted(set(brickname)):
+                these = np.where( bb == brickname )[0]
                 vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
             
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
@@ -700,8 +700,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
             #vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
             vdisp = np.zeros(nobj)
-            for bb in sort(set(brickname)):
-                these = np.where( bb = brickname )[0]
+            for bb in sorted(set(brickname)):
+                these = np.where( bb == brickname )[0]
                 vdisp[these] = _sample_vdisp((2.3, 0.1), nmodel=len(these), rand=rand)
                 
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
@@ -862,8 +862,8 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     seed = rand.randint(2**32, size=nobj)
 
     vdisp = np.zeros(nobj)
-    for bb in sort(set(brickname)):
-        these = np.where( bb = brickname )[0]
+    for bb in sorted(set(brickname)):
+        these = np.where( bb == brickname )[0]
         vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
