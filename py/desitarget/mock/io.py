@@ -49,6 +49,39 @@ except TypeError:
     #
     C_LIGHT = 299792458.0/1000.0
 
+def get_healpix_dir(nside, pixnum, basedir='.'):
+    '''
+    Returns standardized path
+
+    Args:
+        nside: (int) healpix nside 2**k with 0<k<30
+        pixnum: (int) healpix NESTED pixel number for this nside
+
+    Optional:
+        basedir: (str) base directory
+
+    Note: may standardize with functions in desispec.io, but separate for now
+    '''
+    subdir = str(pixnum // 100)
+    return os.path.abspath(os.path.join(basedir, subdir, str(pixnum)))
+
+def findfile(filetype, nside, pixnum, basedir='.'):
+    '''
+    Returns standardized filepath
+
+    Args:
+        filetype: (str) file prefix, e.g. 'sky' or 'targets'
+        nside: (int) healpix nside 2**k with 0<k<30
+        pixnum: (int) healpix NESTED pixel number for this nside
+
+    Optional:
+        basedir: (str) base directory
+    '''
+    path = get_healpix_dir(nside, pixnum, basedir=basedir)
+    filename = '{filetype}-{nside}-{pixnum}.fits'.format(
+        filetype=filetype, nside=nside, pixnum=pixnum)
+    return os.path.join(path, filename)
+
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
 

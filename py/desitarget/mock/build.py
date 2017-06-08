@@ -16,6 +16,7 @@ from astropy.table import Table, Column, vstack, hstack
 
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+import desitarget.mock.io
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -820,7 +821,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
         ))
 
     for pixnum in healpixels:
-        healsuffix = '{}-{}'.format(nside, pixnum)
+        # healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
+        os.makedirs(outdir, exist_ok=True)
         targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
         # Write out the sky catalog.
@@ -828,14 +831,17 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
             isky = pixnum == skypix
             if np.count_nonzero(isky) > 0:
-                skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+                # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+                skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
             
                 log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
-                write_bintable(skyfile, skytargets[isky], extname='SKY', clobber=True)
+                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY', clobber=True)
+                os.rename(skyfile+'.tmp', skyfile)
 
         # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-            stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+            # stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
 
             istd = (pixnum == targpix) * ( (
                 (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
@@ -844,28 +850,36 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
-                write_bintable(stdfile, targets[istd], extname='STD', clobber=True)
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD', clobber=True)
+                os.rename(stdfile+'.tmp', stdfile)
             else:
                 log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
 
         # Finally write out the rest of the targets.
-        targetsfile = os.path.join(output_dir, 'targets-{}.fits'.format(healsuffix))
-        truthfile = os.path.join(output_dir, 'truth-{}.fits'.format(healsuffix))
-        truthspecfile = os.path.join(output_dir, 'spectra-truth-{}.fits'.format(healsuffix))
+        # targetsfile = os.path.join(output_dir, 'targets-{}.fits'.format(healsuffix))
+        # truthfile = os.path.join(output_dir, 'truth-{}.fits'.format(healsuffix))
+        # truthspecfile = os.path.join(output_dir, 'spectra-truth-{}.fits'.format(healsuffix))
+
+        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
+        truthspecfile = mockio.findfile('spectra_truth', nside, pixnum, basedir=output_dir)
 
         inpixel = (pixnum == targpix)
-        if np.count_nonzero(inpixel) > 0:
-            log.info('Writing {}'.format(targetsfile))
+        npixtargets = np.count_nonzero(inpixel)
+        if npixtargets > 0:
+            log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
             try:
-                targets[inpixel].write(targetsfile, overwrite=True)
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', overwrite=True)
             except:
-                targets[inpixel].write(targetsfile, clobber=True)
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', clobber=True)
+            os.rename(targetsfile+'.tmp', targetsfile)
         
             log.info('Writing {}'.format(truthfile))
             try:
-                truth[inpixel].write(truthfile, overwrite=True)
+                truth[inpixel].write(truthfile+'.tmp', format='fits', overwrite=True)
             except:
-                truth[inpixel].write(truthfile, clobber=True)
+                truth[inpixel].write(truthfile+'.tmp', format='fits', clobber=True)
+            os.rename(truthfile+'.tmp', truthfile)
         
             log.info('Writing {}'.format(truthspecfile))
             hx = fits.HDUList()
@@ -875,13 +889,14 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
             hx.append(hdu)
         
             hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
-            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/A'
+            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
             hx.append(hdu)
             
             try:
-                hx.writeto(truthspecfile, overwrite=True)
+                hx.writeto(truthspecfile+'.tmp', overwrite=True)
             except:
-                hx.writeto(truthspecfile, clobber=True)
+                hx.writeto(truthspecfile+'.tmp', clobber=True)
+            os.rename(truthspecfile+'.tmp', truthspecfile)
 
 def join_targets_truth(output_dir, nside=8, verbose=True, clobber=False):
     """Combine all the target and truth catalogs generated by targets_truth into a
