@@ -35,7 +35,8 @@ class TestBrickFluctuation(unittest.TestCase):
         self.depth = self.brick_info.depths_across_bricks(self.b)
 
     def test_generate_brick(self):
-        keys = ['BRICKNAME', 'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2', 'AREA']
+        keys = ['BRICKNAME', 'BRICKID', 'BRICKQ', 'BRICKROW', 'BRICKCOL',
+                'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2', 'AREA']
         for k in self.b.keys():
             self.assertTrue(k in keys)
             self.assertTrue(isinstance(self.b[k], np.ndarray))
