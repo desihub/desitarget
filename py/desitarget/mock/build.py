@@ -12,7 +12,7 @@ from __future__ import (absolute_import, division, print_function)
 import os
 
 import numpy as np
-from astropy.table import Table, Column, vstack
+from astropy.table import Table, Column, vstack, hstack
 
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
@@ -72,21 +72,6 @@ class BrickInfo(object):
         self.decals_brick_info = decals_brick_info
         self.target_names = target_names
 
-    def _bricks2pix(self, brick_info):
-        '''Returns sorted array of healpixels that overlap the input brick_info.
-
-        '''
-        import healpy as hp
-
-        radius = np.radians(self.bricksize) # be conservative
-        
-        theta, phi = np.radians(90-brick_info['DEC']), np.radians(brick_info['RA'])
-        vec = hp.ang2vec(theta, phi)
-        ipix = [hp.query_disc(self.nside, vec[i], radius=radius, inclusive=True,
-                              nest=True) for i in range(len(brick_info['RA']))]
-
-        return ipix
-
     def generate_brick_info(self):
         """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
         max_dec).
@@ -96,42 +81,8 @@ class BrickInfo(object):
         """
         from desiutil.brick import Bricks
 
-        B = Bricks(bricksize=self.bricksize)
-        brick_info = {}
-        brick_info['BRICKNAME'] = []
-        brick_info['RA'] = []
-        brick_info['DEC'] =  []
-        brick_info['RA1'] =  []
-        brick_info['RA2'] =  []
-        brick_info['DEC1'] =  []
-        brick_info['DEC2'] =   []
-        brick_info['BRICKAREA'] =  []
-
-        i_rows = np.arange( len(B._center_dec) )
-
-        for i_row in i_rows:
-            j_cols = np.arange( len(B._brickname[i_row]) )
-            
-            for j_col in j_cols:
-                brick_info['BRICKNAME'].append(B._brickname[i_row][j_col])
-
-                brick_info['RA'].append(B._center_ra[i_row][j_col])
-                brick_info['DEC'].append(B._center_dec[i_row])
-
-                brick_info['RA1'].append(B._edges_ra[i_row][j_col])
-                brick_info['DEC1'].append(B._edges_dec[i_row])
-
-                brick_info['RA2'].append(B._edges_ra[i_row][j_col+1])
-                brick_info['DEC2'].append(B._edges_dec[i_row+1])
-
-                brick_area = (brick_info['RA2'][-1]- brick_info['RA1'][-1])
-                brick_area *= (np.sin(brick_info['DEC2'][-1]*np.pi/180.) -
-                               np.sin(brick_info['DEC1'][-1]*np.pi/180.)) * 180 / np.pi
-                brick_info['BRICKAREA'].append(brick_area)
-
-        for k in brick_info.keys():
-            brick_info[k] = np.array(brick_info[k])
-        nbrick = len(brick_info['RA'])
+        brick_info = Bricks(bricksize=self.bricksize).to_table()
+        nbrick = len(brick_info)
 
         self.log.info('Generated brick information for {} brick(s) with bricksize {:g} deg.'.\
                       format(nbrick, self.bricksize))
@@ -149,7 +100,7 @@ class BrickInfo(object):
         from desitarget.mock import sfdmap
 
         #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
-        a = {}
+        a = Table()
         a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
 
         return a
@@ -199,7 +150,7 @@ class BrickInfo(object):
         fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
 
         names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
-        depths = {}
+        depths = Table()
         for name in names:
             fracs = self.random_state.random_sample(n_to_generate)
             depths[name] = np.interp(fracs, fractions[name], points[name])
@@ -226,13 +177,13 @@ class BrickInfo(object):
         Returns:
           fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
             corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
-            i.e. fluctuation[FLUC_DEPTH_G]['MWS'] holds the number density as a funtion
+            i.e. fluctuation[FLUC_DEPTH_G_MWS] holds the number density as a funtion
             is a dictionary with keys corresponding to the different galaxy types.
 
         """
         from desitarget.QA import generate_fluctuations
 
-        fluctuation = {}
+        fluctuation = Table()
 
         depth_available = []
     #   for k in brick_info.keys():
@@ -241,16 +192,13 @@ class BrickInfo(object):
                 depth_available.append(k)
 
         for depth in depth_available:
-            fluctuation['FLUC_'+depth] = {}
             for ttype in self.target_names:
-                fluctuation['FLUC_'+depth][ttype] = generate_fluctuations(self.decals_brick_info,
-                                                                          ttype,
-                                                                          depth,
-                                                                          brick_info[depth],
-                                                                          random_state=self.random_state)
+                fluctuation['FLUC_{}_{}'.format(depth, ttype)] = generate_fluctuations(
+                    self.decals_brick_info, ttype, depth, brick_info[depth].data,
+                    random_state=self.random_state
+                    )
                 #log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
                 #    ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
-
         return fluctuation
 
     def targetinfo(self):
@@ -261,7 +209,7 @@ class BrickInfo(object):
         import yaml
         with open(os.path.join( os.getenv('DESIMODEL'), 'data', 'targets', 'targets.yaml' ), 'r') as filein:
             td = yaml.load(filein)
-        target_desimodel = {}
+        target_desimodel = Table()
         for t in td.keys():
             if 'ntarget' in t.upper():
                 target_desimodel[t.upper()] = td[t]
@@ -270,12 +218,13 @@ class BrickInfo(object):
 
     def build_brickinfo(self):
         """Build the complete information structure."""
+        from astropy.table import hstack
 
         brick_info = self.generate_brick_info()
-        brick_info.update(self.extinction_across_bricks(brick_info))   # add extinction
-        brick_info.update(self.depths_across_bricks(brick_info))       # add depths
-        brick_info.update(self.fluctuations_across_bricks(brick_info)) # add number density fluctuations
-        #brick_info.update(self.targetinfo())                           # add nominal target densities
+        brick_info = hstack( (brick_info, self.extinction_across_bricks(brick_info)) )   # add extinction
+        brick_info = hstack( (brick_info, self.depths_across_bricks(brick_info)) )       # add depths
+        brick_info = hstack( (brick_info, self.fluctuations_across_bricks(brick_info)) ) # add number density fluctuations
+        #brick_info = hstack( (brick_info, self.targetinfo()) )                          # add nominal target densities
 
         return brick_info
 
@@ -393,8 +342,6 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
     onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
     nobj = len(onbrick)
-
-    brickarea = brick_info['BRICKAREA'][brickindx][0]
 
     # Initialize the output targets and truth catalogs and populate them with
     # the quantities of interest.

@@ -348,7 +348,7 @@ class SelectTargets(object):
 
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
-            brick_area = float(self.brick_info['BRICKAREA'][brickindx][0])
+            brick_area = float(self.brick_info['AREA'][brickindx][0])
 
             if subset is None:
                 onbrick = np.where( (targets['BRICKNAME'] == thisbrick) )[0]
@@ -362,7 +362,7 @@ class SelectTargets(object):
                 
             if density and n_in_brick > 0:
                 mock_density = n_in_brick / brick_area
-                desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * density)
+                desired_density = float(self.brick_info['FLUC_EBV_{}'.format(source_name)][brickindx] * density)
 
                 frac_keep = desired_density / mock_density
                 if frac_keep > 1.0:
@@ -387,7 +387,7 @@ class SelectTargets(object):
 
         for thisbrick in unique_bricks:
             brickindx = np.where(self.brick_info['BRICKNAME'] == thisbrick)[0]
-            brick_area = float(self.brick_info['BRICKAREA'][brickindx][0])
+            brick_area = float(self.brick_info['AREA'][brickindx][0])
 
             for contam_name in contam.keys():
                 onbrick = np.where(
@@ -402,7 +402,7 @@ class SelectTargets(object):
                 
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
-                    desired_density = float(self.brick_info['FLUC_EBV'][source_name][brickindx] * contam[contam_name])
+                    desired_density = float(self.brick_info['FLUC_EBV_{}'.format(source_name)][brickindx] * contam[contam_name])
 
                     frac_keep = desired_density / contam_density
                     if frac_keep > 1.0:
