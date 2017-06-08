@@ -300,7 +300,7 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.bgs_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True,
+                                                          nocolorcuts=True, novdisp=False,
                                                           verbose=self.verbose)
 
         return flux, meta
@@ -354,7 +354,7 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True,
+                                                          nocolorcuts=True, novdisp=False,
                                                           verbose=self.verbose)
 
         return flux, meta
@@ -415,7 +415,7 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.elg_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True,
+                                                          nocolorcuts=True, novdisp=False,
                                                           verbose=self.verbose)
 
         return flux, meta
@@ -446,7 +446,7 @@ class MockSpectra(object):
 
         input_meta['TEMPLATEID'] = templateid
         flux, _, meta = self.lrg_templates.make_templates(input_meta=input_meta,
-                                                          nocolorcuts=True, novdisp=True,
+                                                          nocolorcuts=True, novdisp=False,
                                                           verbose=self.verbose)
 
         return flux, meta

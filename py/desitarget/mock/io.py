@@ -446,12 +446,13 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     if rand is None:
         rand = np.random.RandomState()
 
-    fracvdisp = (0.1, 40)
+    #fracvdisp = (0.1, 40)
+    fracvdisp = (0.1, 1)
 
     nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
     vvdisp = 10**rand.normal(logvdisp_meansig[0], logvdisp_meansig[1], nvdisp)
     vdisp = rand.choice(vvdisp, nmodel)
-    
+
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
@@ -536,26 +537,26 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     # Read the ra,dec coordinates, generate mockid, and then restrict to the
     # desired healpixels.
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-    nobj_qso = len(radec)
+    nobj = len(radec)
 
     files = list()
     n_per_file = list()
     files.append(mockfile)
-    n_per_file.append(nobj_qso)
+    n_per_file.append(nobj)
 
-    objid = np.arange(nobj_qso, dtype='i8')
+    objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
     log.info('Assigning healpix pixels with nside = {}'.format(nside))
     allpix = radec2pix(nside, radec['RA'], radec['DEC'])
     cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
-    nobj_qso = len(cut)
-    if nobj_qso == 0:
+    nobj = len(cut)
+    if nobj == 0:
         log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj_qso, target_name, healpixels))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
     objid = objid[cut]
     mockid = mockid[cut]
@@ -570,6 +571,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         del data
 
     if target_name == 'QSO':
+        nobj_qso = nobj
         lyafiles_qso = np.repeat('', nobj_qso)
         lyahdu_qso = np.repeat([-1], nobj_qso)
 
@@ -683,13 +685,25 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
-            vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
+
+            #vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
+            vdisp = np.zeros(nobj)
+            for bb in sort(set(brickname)):
+                these = np.where( bb = brickname )[0]
+                vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
+            
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags['r'], 'FILTERNAME': 'decam2014-r'})
 
         elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
-            vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
+
+            #vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
+            vdisp = np.zeros(nobj)
+            for bb in sort(set(brickname)):
+                these = np.where( bb = brickname )[0]
+                vdisp[these] = _sample_vdisp((2.3, 0.1), nmodel=len(these), rand=rand)
+                
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags['z'], 'FILTERNAME': 'decam2014-z'})
 
@@ -846,7 +860,11 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
 
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
     seed = rand.randint(2**32, size=nobj)
-    vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
+
+    vdisp = np.zeros(nobj)
+    for bb in sort(set(brickname)):
+        these = np.where( bb = brickname )[0]
+        vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': rmag, 'VDISP': vdisp,
