@@ -551,32 +551,50 @@ class MockSpectra(object):
         Note: We need to make sure NORMFILTER matches!
 
         """
+        from desisim.lya_spectra import get_spectra
+        
         objtype = 'QSO'
         if index is None:
             index = np.arange(len(data['Z']))
         nobj = len(index)
 
-        import pdb ; pdb.set_trace()
-
         if mockformat.lower() == 'gaussianfield':
-            # Build spectra for tracer QSOs.
             input_meta = empty_metatable(nmodel=nobj, objtype=objtype)
             for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT'),
                                       ('SEED', 'MAG', 'Z')):
                 input_meta[inkey] = data[datakey][index]
 
-            # We could potentially save a little time by not computing the Lya
-            # forest for low-redshift quasars, but for simplicity do it for all
-            # of them since the code is reasonably fast.
-            flux, _, meta = self.qso_templates.make_templates(input_meta=input_meta,
-                                                              lyaforest=True,
-                                                              nocolorcuts=True,
-                                                              verbose=self.verbose)
+            # Build the tracer and Lya forest QSO spectra separately.
+            meta = empty_metatable(nmodel=nobj, objtype=objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+
+            lya = np.where( data['TEMPLATESUBTYPE'][index] == 'LYA' )[0]
+            tracer = np.where( data['TEMPLATESUBTYPE'][index] == '' )[0]
+
+            if len(tracer) > 0:
+                flux1, _, meta1 = self.qso_templates.make_templates(input_meta=input_meta[tracer],
+                                                                    lyaforest=False,
+                                                                    nocolorcuts=True,
+                                                                    verbose=self.verbose)
+                meta[tracer] = meta1
+                flux[tracer, :] = flux1
+
+            if len(lya) > 0:
+                alllyafile = data['LYAFILES'][index][lya]
+                alllyahdu = data['LYAHDU'][index][lya]
                 
+                for lyafile in sorted(set(alllyafile)):
+                    these = np.where( lyafile == alllyafile )[0]
+
+                    templateid = alllyahdu[these] - 1 # templateid is 0-indexed
+                    flux1, _, meta1 = get_spectra(lyafile, templateid=templateid, normfilter=data['FILTERNAME'],
+                                                  rand=self.rand, qso=self.lya_templates, nocolorcuts=True)
+                    meta1['SUBTYPE'] = 'LYA'
+                    meta[lya[these]] = meta1
+                    flux[lya[these], :] = flux1
+
         elif mockformat.lower() == 'lya':
-            # Build spectra for Lyman-alpha QSOs.
-            # Deprecated!
-            from astropy.table import vstack
+            # Build spectra for Lyman-alpha QSOs. Deprecated!
             from desisim.lya_spectra import get_spectra
             from desitarget.mock.io import decode_rownum_filenum
 

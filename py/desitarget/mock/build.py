@@ -631,7 +631,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
 
         # Assign spectra by parallel-processing the bricks.
         brickname = source_data['BRICKNAME']
-        unique_bricks = list(set(brickname))
+        unique_bricks = sorted(set(brickname))
 
         # Quickly check that all the brick info is here.
         if False:

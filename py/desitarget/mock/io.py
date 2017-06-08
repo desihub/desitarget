@@ -536,26 +536,26 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     # Read the ra,dec coordinates, generate mockid, and then restrict to the
     # desired healpixels.
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-    nobj = len(radec)
+    nobj_qso = len(radec)
 
     files = list()
     n_per_file = list()
     files.append(mockfile)
-    n_per_file.append(nobj)
+    n_per_file.append(nobj_qso)
 
-    objid = np.arange(nobj, dtype='i8')
+    objid = np.arange(nobj_qso, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
     log.info('Assigning healpix pixels with nside = {}'.format(nside))
     allpix = radec2pix(nside, radec['RA'], radec['DEC'])
     cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
-    nobj = len(cut)
-    if nobj == 0:
+    nobj_qso = len(cut)
+    if nobj_qso == 0:
         log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj_qso, target_name, healpixels))
 
     objid = objid[cut]
     mockid = mockid[cut]
@@ -568,6 +568,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
         mag = np.zeros_like(zz) - 1 # placeholder
         del data
+
+    if target_name == 'QSO':
+        lyafiles_qso = np.repeat('', nobj_qso)
+        lyahdu_qso = np.repeat([-1], nobj_qso)
 
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
@@ -584,9 +588,9 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID'], upper=True, ext=1)
         nobj_lya = len(radec)
 
-        lyafiles = lyainfo['MOCKFILE'][radec['MOCKFILEID']]
+        alllyafiles = lyainfo['MOCKFILE'][radec['MOCKFILEID']]
 
-        files.append(lyafiles)
+        files.append(alllyafiles)
         n_per_file.append(nobj_lya)
 
         objid_lya = np.arange(nobj_lya, dtype='i8')
@@ -614,16 +618,16 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             mag_lya = data['MAG_G'].astype('f4') # g-band
 
             # Join the QSO + Lya samples
-            ra = np.concatenate((ra, ra_lya))
-            dec = np.concatenate((dec, dec_lya))
-            zz  = np.concatenate((zz, zz_lya))
-            mag = np.concatenate((mag, mag_lya))
-            objid = np.concatenate((objid, objid_lya))
-            mockid = np.concatenate((mockid, mockid_lya))
+            ra = np.hstack((ra, ra_lya))
+            dec = np.hstack((dec, dec_lya))
+            zz  = np.hstack((zz, zz_lya))
+            mag = np.hstack((mag, mag_lya))
+            objid = np.hstack((objid, objid_lya))
+            mockid = np.hstack((mockid, mockid_lya))
             nobj = len(ra)
 
-            lyafiles = [os.path.join( os.path.dirname(mockfile), ff.decode('utf-8')) for ff in lyafiles[cut]]
-            lyahdu = data['MOCKHDUNUM']
+            lyafiles = np.hstack( (lyafiles_qso, np.array([os.path.join( os.path.dirname(mockfile_lya), ff.decode('utf-8')) for ff in alllyafiles[cut]])) )
+            lyahdu = np.hstack( (lyahdu_qso, data['MOCKHDUNUM']) )
             
         log.info('The combined QSO sample has {} targets.'.format(nobj))
         
@@ -694,14 +698,18 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             replace = np.where(mag == -1)[0]
             if len(replace) > 0:
                 mag[replace] = mags['g'] # g-band
-            
-            out.update({
-                'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
-                #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
-                'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
 
+            templatetype = np.repeat('QSO', nobj)
             if lya:
-                out.update({'LYAFILES': lyafiles, 'LYAHDU': lyahdu})
+                templatesubtype = np.hstack( (np.repeat('', nobj_qso), np.repeat('LYA', nobj_lya)) )
+            else:
+                templatesubtype = np.repeat('', nobj)
+                
+            out.update({
+                'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype, 
+                #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
+                'LYAFILES': lyafiles, 'LYAHDU': lyahdu, 
+                'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
 
         else:
             log.fatal('Unrecognized target type {}!'.format(target_name))
