@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-MPI wrapper for select_mock_targets
+MPI equivalent of select_mock_targets
 """
 
 #- Initialize MPI ASAP, then proceed
@@ -14,7 +14,6 @@ size = comm.Get_size()
 import sys, os
 import numpy as np
 import argparse
-import subprocess
 
 from astropy.table import Table
 import desimodel.footprint
@@ -34,12 +33,33 @@ parser.add_argument('--nside', help='Divide the DESI footprint into this healpix
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
+parser.add_argument('--no-check-env', action='store_true', help="Don't check NERSC environment variables")
 args = parser.parse_args()
 
 if args.verbose:
     log = get_logger(DEBUG)
 else:
     log = get_logger()
+
+#- NERSC environment check
+if 'NERSC_HOST' in os.environ and not args.no_check_env:
+    ok = True
+    if os.getenv('OMP_NUM_THREADS') not in ('1', '2'):
+        ok = False
+        if rank == 0:
+            log.error('You likely want $OMP_NUM_THREADS=1 at NERSC')
+    if os.getenv('MPICH_GNI_FORK_MODE') != 'FULLCOPY':
+        ok = False
+        if rank == 0:
+            log.error('You likely want $MPICH_GNI_FORK_MODE=FULLCOPY at NERSC')
+    if os.getenv('KMP_AFFINITY') != 'disabled':
+        ok = False
+        if rank == 0:
+            log.error('You likely want $KMP_AFFINITY=disabled at NERSC')
+    if not ok:
+        if rank == 0:
+            log.error('Either fix env or rerun with --no-check-env; exiting...')
+        sys.exit(1)
 
 #- Calculate which pixels cover these tiles and broadcast to all ranks
 if rank == 0:
@@ -49,7 +69,6 @@ if rank == 0:
         tiles = Table.read(args.tiles)
 
     pixels = desimodel.footprint.tiles2pix(args.nside, tiles)
-    # TODO: add logic to skip pixels that are already processed
     keep = list()
     for i, pixnum in enumerate(pixels):
         truthspecfile = mockio.findfile('spectra_truth', args.nside, pixnum, basedir=args.output_dir)
@@ -74,12 +93,13 @@ else:
 
 params = comm.bcast(params, root=0)
 
+#- Split the pixels into groups for each rank
 iedges = np.linspace(0, len(pixels), size+1, dtype=int)
 rankpix = pixels[iedges[rank]:iedges[rank+1]]
 log.info('rank {} processes {} pixels'.format(rank, iedges[rank+1]-iedges[rank]))
 if len(rankpix) > 0:
     #- Process in groups of 4 to balance mock reading overhead
-    #- vs. writing partial progress
+    #- vs. writing partial progress in case job times out
     n = 4
     for i in range(0, len(rankpix), n):
         targets_truth(params, args.output_dir, seed=args.seed, nside=args.nside,
