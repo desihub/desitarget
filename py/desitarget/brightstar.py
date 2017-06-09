@@ -809,10 +809,6 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
     safes["RA"] = ra
     safes["DEC"] = dec
 
-    #ADM populate the HEALPIX pixel for the locations in the SAFES array
-    theta, phi = np.radians(90-dec), np.radians(ra)
-    safes["HPXPIXEL"] = hp.ang2pix(nside, theta, phi, nest=True)
-
     #ADM set SKY in the TARGETID for safe locations
     safes["TARGETID"] |= targetid_mask.SKY
 
