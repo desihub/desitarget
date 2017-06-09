@@ -228,8 +228,9 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         drstring = 'unknowndr'
     else:
         drint = np.max(data['RELEASE']//1000)
-        #ADM check the targets all have the same release                                                                                                                        
+        #ADM check the targets all have the same release
         checker = np.min(data['RELEASE']//1000)
+        import pdb; pdb.set_trace()
         if drint != checker:
             raise IOError('Objects from multiple data releases in same input numpy array?!')
         drstring = 'dr'+str(drint)
