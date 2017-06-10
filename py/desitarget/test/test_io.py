@@ -62,7 +62,8 @@ class TestIO(unittest.TestCase):
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
-        columns = ['BX', 'BY']
+#        columns = ['BX', 'BY']
+        columns = ['RA', 'DEC']
         data = io.read_tractor(tractorfile, columns=columns)
         self.assertEqual(set(data.dtype.names), set(columns))
         data = io.read_tractor(tractorfile, columns=tuple(columns))

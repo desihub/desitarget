@@ -66,8 +66,9 @@ class TestCuts(unittest.TestCase):
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
-        wise_snr = targets['WISE_FLUX'] * np.sqrt(targets['WISE_FLUX_IVAR'])
-        dchisq = targets['DCHISQ'] 
+        w1snr = targets['FLUX_W1'] * np.sqrt(targets['FLUX_IVAR_W1'])
+        w2snr = targets['FLUX_W2'] * np.sqrt(targets['FLUX_IVAR_W2'])
+        dchisq = targets['DCHISQ']
         deltaChi2 = dchisq[...,0] - dchisq[...,1]
         if 'BRICK_PRIMARY' in targets.colnames:
             primary = targets['BRICK_PRIMARY']
@@ -94,9 +95,9 @@ class TestCuts(unittest.TestCase):
 
         #- Test that objtype and primary are optional
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=psftype, primary=primary)
+                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=None, primary=None)
+                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
