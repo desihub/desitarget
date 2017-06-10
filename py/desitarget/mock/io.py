@@ -18,8 +18,9 @@ from scipy import constants
 
 from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
-from desispec.brick import brickname as get_brickname_from_radec
-from desispec.brick import Bricks
+from desiutil.brick import brickname as get_brickname_from_radec
+from desiutil.brick import Bricks
+from desimodel.footprint import radec2pix
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)
@@ -48,6 +49,39 @@ except TypeError:
     #
     C_LIGHT = 299792458.0/1000.0
 
+def get_healpix_dir(nside, pixnum, basedir='.'):
+    '''
+    Returns standardized path
+
+    Args:
+        nside: (int) healpix nside 2**k with 0<k<30
+        pixnum: (int) healpix NESTED pixel number for this nside
+
+    Optional:
+        basedir: (str) base directory
+
+    Note: may standardize with functions in desispec.io, but separate for now
+    '''
+    subdir = str(pixnum // 100)
+    return os.path.abspath(os.path.join(basedir, subdir, str(pixnum)))
+
+def findfile(filetype, nside, pixnum, basedir='.'):
+    '''
+    Returns standardized filepath
+
+    Args:
+        filetype: (str) file prefix, e.g. 'sky' or 'targets'
+        nside: (int) healpix nside 2**k with 0<k<30
+        pixnum: (int) healpix NESTED pixel number for this nside
+
+    Optional:
+        basedir: (str) base directory
+    '''
+    path = get_healpix_dir(nside, pixnum, basedir=basedir)
+    filename = '{filetype}-{nside}-{pixnum}.fits'.format(
+        filetype=filetype, nside=nside, pixnum=pixnum)
+    return os.path.join(path, filename)
+
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
 
@@ -59,15 +93,15 @@ def print_all_mocks_info(params):
     """
     log.info('Paths and targets:')
     for source_name in params['sources'].keys():
-        source_format = params['sources'][source_name]['format']
+        mockformat = params['sources'][source_name]['format']
         source_path = params['sources'][source_name]['mock_dir_name']
         target_name = params['sources'][source_name]['target_name']
         log.info('source_name: {}\n format: {} \n target_name {} \n path: {}'.format(source_name,
-                                                                                  source_format,
+                                                                                  mockformat,
                                                                                   target_name,
                                                                                   source_path))
 
-def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
+def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1, healpixels=None, nside=None):
     """Read all the mocks.
 
     Parameters
@@ -76,6 +110,14 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
         The different kind of sources are stored under the 'sources' key.
     rand : numpy.RandomState
         RandomState object used for the random number generation.
+    bricksize : float
+        Size of each (imaging) brick in deg.
+    nproc : int
+        Number of cores to use for reading (default 1).
+    healpixels : numpy.ndarray or numpy.int64
+        Only read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
 
     Returns
     -------
@@ -95,43 +137,31 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1):
     for source_name in sorted(params['sources'].keys()):
 
         target_name = params['sources'][source_name]['target_name']
-        source_format = params['sources'][source_name]['format']
+        mockformat = params['sources'][source_name]['format']
         mock_dir_name = params['sources'][source_name]['mock_dir_name']
-        bounds = params['sources'][source_name]['bounds']
+        #bounds = params['sources'][source_name]['bounds']
 
         if 'magcut' in params['sources'][source_name].keys():
             magcut = params['sources'][source_name]['magcut']
         else:
             magcut = None
 
-        read_function = 'read_{}'.format(source_format)
+        read_function = 'read_{}'.format(mockformat)
 
-        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), source_format))
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
         log.info('Reading {} with mock.io.{}'.format(mock_dir_name, read_function))
 
         func = globals()[read_function]
         if 'LYA' in params['sources'][source_name].keys():
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                          bounds=bounds, magcut=magcut, nproc=nproc, lya=params['sources'][source_name]['LYA'])
+                          magcut=magcut, nproc=nproc, bounds=bounds, 
+                          lya=params['sources'][source_name]['LYA'])
         else:
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                          bounds=bounds, magcut=magcut, nproc=nproc)
+                          magcut=magcut, nproc=nproc, healpixels=healpixels, nside=nside)
 
         source_data_all[source_name] = result
         print()
-
-        #if target_name not in loaded_mocks: # not sure if this is right
-        ##if this_name not in loaded_mocks.keys():
-        #    loaded_mocks.append(target_name)
-        #
-        #    func = globals()[read_function]
-        #    result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-        #                  bounds=bounds, magcut=magcut)
-        #    source_data_all[source_name] = result
-        #    print()
-        #else:
-        #    #log.info('pointing towards the results of {} for {}'.format(loaded_mocks[this_name], source_name))
-        #    source_data_all[target_name] = source_data_all[loaded_mocks[target_name]]
 
     log.info('Loaded {} mock catalog(s).'.format(len(source_data_all)))
     return source_data_all
@@ -213,7 +243,7 @@ def make_mockid(objid, n_per_file):
     return encode_rownum_filenum(objid, filenum)
 
 def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+               healpixels=None, nside=None, magcut=None, nproc=None, lya=None):
     """Read a single-file GUMS-based mock of nearby (d<100 pc) normal stars (i.e.,
     no white dwarfs).
 
@@ -227,8 +257,10 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -280,9 +312,8 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
-    min_ra, max_ra, min_dec, max_dec = bounds
-    
+    # Read the ra,dec coordinates, generate mockid, and then restrict to the
+    # desired healpixels.
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     nobj = len(radec)
 
@@ -294,13 +325,16 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    log.info('Assigning healpix pixels with nside = {}'.format(nside))
+    allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+    cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
     objid = objid[cut]
     mockid = mockid[cut]
@@ -327,7 +361,7 @@ def read_100pc(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
-               bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+               healpixels=None, nside=None, magcut=None, nproc=None, lya=None):
     """Read a single-file GUMS-based mock of white dwarfs.
 
     Parameters
@@ -340,8 +374,10 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -391,9 +427,8 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
-    min_ra, max_ra, min_dec, max_dec = bounds
-    
+    # Read the ra,dec coordinates, generate mockid, and then restrict to the
+    # desired healpixels.
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     nobj = len(radec)
 
@@ -405,13 +440,16 @@ def read_wd(mock_dir_name, target_name='WD', rand=None, bricksize=0.25,
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    log.info('Assigning healpix pixels with nside = {}'.format(nside))
+    allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+    cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
     objid = objid[cut]
     mockid = mockid[cut]
@@ -441,17 +479,17 @@ def _sample_vdisp(logvdisp_meansig, nmodel=1, rand=None):
     if rand is None:
         rand = np.random.RandomState()
 
-    fracvdisp = (0.1, 40)
+    #fracvdisp = (0.1, 40)
+    fracvdisp = (0.1, 1)
 
     nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
     vvdisp = 10**rand.normal(logvdisp_meansig[0], logvdisp_meansig[1], nvdisp)
     vdisp = rand.choice(vvdisp, nmodel)
-    
+
     return vdisp
 
 def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
-                       lya=None, bounds=(0.0, 360.0, -90.0, 90.0), magcut=None,
-                       nproc=None):
+                       healpixels=None, nside=None, magcut=None, nproc=None, lya=None):
     """Reads the GaussianRandomField mocks for ELGs, LRGs, and QSOs.
 
     Parameters
@@ -465,8 +503,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -527,9 +567,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
-    min_ra, max_ra, min_dec, max_dec = bounds
-    
+    # Read the ra,dec coordinates, generate mockid, and then restrict to the
+    # desired healpixels.
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     nobj = len(radec)
 
@@ -541,13 +580,16 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    log.info('Assigning healpix pixels with nside = {}'.format(nside))
+    allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+    cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
     objid = objid[cut]
     mockid = mockid[cut]
@@ -555,18 +597,19 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     dec = radec['DEC'][cut].astype('f8')
     del radec
         
-    if target_name == 'SKY':
-        zz = np.zeros(nobj, dtype='f4')
-    else:
+    if target_name != 'SKY':
         data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
         zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+        mag = np.zeros_like(zz) - 1 # placeholder
         del data
-    
-    mag = np.repeat(-1, nobj) # placeholder
+
+    if target_name == 'QSO':
+        nobj_qso = nobj
+        lyafiles_qso = np.repeat('', nobj_qso)
+        lyahdu_qso = np.repeat([-1], nobj_qso)
 
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
-
         log.info('  Adding Lya QSOs.')
 
         mockfile_lya = lya['mock_dir_name']
@@ -576,21 +619,26 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             log.fatal('Mock file {} not found!'.format(mockfile_lya))
             raise IOError
 
-        radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC'], upper=True, ext=1)
+        lyainfo = fitsio.read(mockfile_lya, upper=True, ext=2)
+        radec = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID'], upper=True, ext=1)
         nobj_lya = len(radec)
 
-        files.append(mockfile_lya)
+        alllyafiles = lyainfo['MOCKFILE'][radec['MOCKFILEID']]
+
+        files.append(alllyafiles)
         n_per_file.append(nobj_lya)
 
         objid_lya = np.arange(nobj_lya, dtype='i8')
         mockid_lya = make_mockid(objid_lya, [n_per_file[1]])
 
-        cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
         nobj_lya = len(cut)
         if nobj_lya == 0:
-            log.warning('  No Lya QSOs in range RA={}, {}, Dec={}, {}!'.format(min_ra, max_ra, min_dec, max_dec))
+            log.warning('No Lya QSOs in healpixels {}!'.format(healpixels))
         else:
-            log.info('  Trimmed to {} Lya QSOs in range RA={}, {}, Dec={}, {}'.format(nobj_lya, min_ra, max_ra, min_dec, max_dec))
+            log.info('Trimmed to {} Lya QSOs in healpixels {}'.format(nobj_lya, healpixels))
 
             objid_lya = objid_lya[cut]
             mockid_lya = mockid_lya[cut]
@@ -598,26 +646,31 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             dec_lya = radec['DEC'][cut].astype('f8')
             del radec
 
-            data = fitsio.read(mockfile_lya, columns=['Z', 'MAG_G'], upper=True, ext=1, rows=cut)
+            data = fitsio.read(mockfile_lya, columns=['Z', 'MAG_G', 'MOCKFILEID', 'MOCKHDUNUM'],
+                               upper=True, ext=1, rows=cut)
+            
             zz_lya = data['Z'].astype('f4')
             mag_lya = data['MAG_G'].astype('f4') # g-band
 
             # Join the QSO + Lya samples
-            ra = np.concatenate((ra, ra_lya))
-            dec = np.concatenate((dec, dec_lya))
-            zz  = np.concatenate((zz, zz_lya))
-            mag = np.concatenate((mag, mag_lya))
-            objid = np.concatenate((objid, objid_lya))
-            mockid = np.concatenate((mockid, mockid_lya))
+            ra = np.hstack((ra, ra_lya))
+            dec = np.hstack((dec, dec_lya))
+            zz  = np.hstack((zz, zz_lya))
+            mag = np.hstack((mag, mag_lya))
+            objid = np.hstack((objid, objid_lya))
+            mockid = np.hstack((mockid, mockid_lya))
             nobj = len(ra)
 
+            lyafiles = np.hstack( (lyafiles_qso, np.array([os.path.join( os.path.dirname(mockfile_lya), ff.decode('utf-8')) for ff in alllyafiles[cut]])) )
+            lyahdu = np.hstack( (lyahdu_qso, data['MOCKHDUNUM']) )
+            
         log.info('The combined QSO sample has {} targets.'.format(nobj))
         
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
-    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 
            'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
            'N_PER_FILE': n_per_file}
 
@@ -625,11 +678,36 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     if target_name == 'SKY':
         out.update({'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': ''})
     else:
-        log.info('Sampling from Gaussian mixture model.')
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+
         GMM = SampleGMM(random_state=rand)
         mags = GMM.sample(target_name, nobj) # [g, r, z, w1, w2, w3, w4]
 
-        out.update({'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+        # Temporary hack to deal with the lower-than average ELG target densities.
+        if False:
+            if target_name == 'ELG':
+                from desitarget.cuts import isELG
+                niter, maxiter, fracelg = 0, 5, 0.0
+                while fracelg < 0.98 and niter < maxiter:
+                    gflux, rflux, zflux = [10**(0.4*(22.5-mags[b])) for b in 'grz']
+                    iselg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+                    fracelg = np.sum(iselg)/nobj
+                    #print(niter, fracelg)
+    
+                    need = np.where(iselg == False)[0]
+                    if len(need) > 0:
+                        newmags = GMM.sample(target_name, len(need))
+                        mags[need] = newmags
+                    
+                    niter = niter + 1
+    
+                #import matplotlib.pyplot as plt
+                #plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
+                #plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+                #plt.show()
+                #import pdb ; pdb.set_trace()
+
+        out.update({'Z': zz, 'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
                     'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2']})
 
         if target_name in ('ELG', 'LRG'):
@@ -640,13 +718,25 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         if target_name == 'ELG':
             """Selected in the r-band with g-r, r-z colors."""
-            vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
+
+            #vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
+            vdisp = np.zeros(nobj)
+            for bb in sorted(set(brickname)):
+                these = np.where( bb == brickname )[0]
+                vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
+            
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags['r'], 'FILTERNAME': 'decam2014-r'})
 
         elif target_name == 'LRG':
             """Selected in the z-band with r-z, r-W1 colors."""
-            vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
+
+            #vdisp = _sample_vdisp((2.3, 0.1), nmodel=nobj, rand=rand)
+            vdisp = np.zeros(nobj)
+            for bb in sorted(set(brickname)):
+                these = np.where( bb == brickname )[0]
+                vdisp[these] = _sample_vdisp((2.3, 0.1), nmodel=len(these), rand=rand)
+                
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags['z'], 'FILTERNAME': 'decam2014-z'})
 
@@ -655,10 +745,17 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             replace = np.where(mag == -1)[0]
             if len(replace) > 0:
                 mag[replace] = mags['g'] # g-band
-            
+
+            templatetype = np.repeat('QSO', nobj)
+            if lya:
+                templatesubtype = np.hstack( (np.repeat('', nobj_qso), np.repeat('LYA', nobj_lya)) )
+            else:
+                templatesubtype = np.repeat('', nobj)
+                
             out.update({
-                'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
+                'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype, 
                 #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
+                'LYAFILES': lyafiles, 'LYAHDU': lyahdu, 
                 'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
 
         else:
@@ -668,7 +765,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     return out
 
 def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize=0.25,
-                          bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=None):
+                          healpixels=None, nside=None, magcut=None, nproc=None, lya=None):
     """ Reads the MXXL mock of BGS galaxies.
 
     Parameters
@@ -681,8 +778,10 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -737,9 +836,8 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
 
-    # Read the ra,dec coordinates, generate mockid, and then cut on bounds.
-    min_ra, max_ra, min_dec, max_dec = bounds
-
+    # Read the ra,dec coordinates, generate mockid, and then restrict to the
+    # desired healpixels.
     f = h5py.File(mockfile)
     ra  = f['Data/ra'][...].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = f['Data/dec'][...].astype('f8')
@@ -753,16 +851,17 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    these = (ra >= min_ra) * (ra < max_ra) * (dec >= min_dec) * (dec <= max_dec)
-    cut = np.where(these)[0]
+    log.info('Assigning healpix pixels with nside = {}'.format(nside))
+    allpix = radec2pix(nside, ra, dec)
+    these = np.in1d(allpix, healpixels)
+    cut = np.where( these*1 )[0]
+
     nobj = len(cut)
     if nobj == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(
-            target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
     else:
-        log.info('Trimmed to {} {}s in range RA={}, {}, Dec={}, {}'.format(
-            nobj, target_name, min_ra, max_ra, min_dec, max_dec))
+        log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
     objid = objid[cut]
     mockid = mockid[cut]
@@ -794,7 +893,11 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
 
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
     seed = rand.randint(2**32, size=nobj)
-    vdisp = _sample_vdisp((1.9, 0.15), nmodel=nobj, rand=rand)
+
+    vdisp = np.zeros(nobj)
+    for bb in sorted(set(brickname)):
+        these = np.where( bb == brickname )[0]
+        vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
 
     return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
             'BRICKNAME': brickname, 'SEED': seed, 'MAG': rmag, 'VDISP': vdisp,
@@ -805,7 +908,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
 def _load_galaxia_file(args):
     return load_galaxia_file(*args)
 
-def load_galaxia_file(target_name, mockfile, bounds):
+def load_galaxia_file(target_name, mockfile, healpixels, nside):
     """Multiprocessing support routine for read_galaxia.  Read each individual mock
     galaxia file.
 
@@ -815,8 +918,6 @@ def load_galaxia_file(target_name, mockfile, bounds):
     except:
         log.fatal('Mock file {} not found!'.format(mockfile))
         raise IOError
-
-    min_ra, max_ra, min_dec, max_dec = bounds
 
     log.info('  Reading {}'.format(mockfile))
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
@@ -830,7 +931,9 @@ def load_galaxia_file(target_name, mockfile, bounds):
     objid = np.arange(nobj, dtype='i8')
     mockid = make_mockid(objid, n_per_file)
 
-    cut = np.where((radec['RA'] >= min_ra) * (radec['RA'] < max_ra) * (radec['DEC'] >= min_dec) * (radec['DEC'] <= max_dec))[0]
+    allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+    cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
     nobj = len(cut)
     if nobj == 0:
         return dict()
@@ -841,7 +944,9 @@ def load_galaxia_file(target_name, mockfile, bounds):
     dec = radec['DEC'][cut].astype('f8')
     del radec
 
-    cols = ['V_HELIO', 'SDSSR_TRUE_NODUST', 'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
+    cols = ['V_HELIO',
+            'SDSSU_TRUE_NODUST', 'SDSSG_TRUE_NODUST', 'SDSSR_TRUE_NODUST', 'SDSSI_TRUE_NODUST', 'SDSSZ_TRUE_NODUST',
+            'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
     data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
     zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
     mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
@@ -850,12 +955,36 @@ def load_galaxia_file(target_name, mockfile, bounds):
     logg = data['LOGG'].astype('f4')
     feh = data['FEH'].astype('f4')
 
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec,
+    def select_sdss_std(umag, gmag, rmag, imag, zmag, obs_rmag=None):
+        """Select standard stars using SDSS photometry and the BOSS selection.
+        
+        According to http://www.sdss.org/dr12/algorithms/boss_std_ts the r-band
+        magnitude for the magnitude cuts is the extinction corrected magnitude.
+    
+        """
+        umg_cut = ((umag - gmag) - 0.82)**2
+        gmr_cut = ((gmag - rmag) - 0.30)**2
+        rmi_cut = ((rmag - imag) - 0.09)**2
+        imz_cut = ((imag - zmag) - 0.02)**2
+    
+        is_std = np.sqrt((umg_cut + gmr_cut + rmi_cut + imz_cut)) < 0.08
+    
+        if obs_rmag is not None:
+            is_std &= (15.0 < obs_rmag) & (obs_rmag < 19)
+        
+        return is_std
+
+    # Use extinction-corrected SDSS mags 
+    istd = select_sdss_std(data['SDSSU_TRUE_NODUST'], data['SDSSG_TRUE_NODUST'],
+                           data['SDSSR_TRUE_NODUST'], data['SDSSI_TRUE_NODUST'],
+                           data['SDSSZ_TRUE_NODUST'], obs_rmag=None)
+    
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': istd, 
             'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
             'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
 def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
-                 bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
+                 healpixels=None, nside=None, magcut=None, nproc=1, lya=None):
     """ Read and concatenate the MWS_MAIN mock files.
 
     Parameters
@@ -868,8 +997,10 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         RandomState object used for the random number generation.
     bricksize : float
         Size of each brick in deg.
-    bounds : 4-element tuple
-        Restrict the sample to bounds = (min_ra, max_ra, min_dec, max_dec).
+    healpixels : numpy.ndarray or numpy.int64
+        Restrict the sample to read objects within this list of healpix pixel numbers.
+    nside : int
+        Healpix resolution for input healpixels.
     magcut : float
         Magnitude cut to apply to the sample (not used here).
     nproc : int
@@ -917,10 +1048,9 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
 
     """
     import multiprocessing
+    import healpy as hp
     
-    min_ra, max_ra, min_dec, max_dec = bounds
-
-    # Figure out which mock files to read based on the input boundaries.
+    # Figure out which mock files to read based on the input healpixels.
     brickfile = os.path.join(mock_dir_name, 'bricks.fits')
     try:
         os.stat(brickfile)
@@ -928,38 +1058,24 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         log.fatal('Brick information file {} not found!'.format(brickfile))
         raise IOError
 
-    #hdr = fitsio.read_header(brickfile, ext=0)
-    #bricksize = hdr['BRICKSIZ']
+    hdr = fitsio.read_header(brickfile, ext=0)
     brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
-                            columns=['BRICKNAME', 'RA1', 'RA2', 'DEC1', 'DEC2'])
+                            columns=['BRICKNAME', 'RA', 'DEC'])
 
-    # There's gotta be a smarter way to do this...
+    radius = np.sqrt(2) * np.radians(hdr['BRICKSIZ']) / 2
+    theta, phi = np.radians(90-brickinfo['DEC']), np.radians(brickinfo['RA'])
+    vec = hp.ang2vec(theta, phi)
+    ipix = [hp.query_disc(nside, vec[i], radius=radius, inclusive=True,
+                          nest=True) for i in range(len(brickinfo))]
+
     these = []
-    for corners in ( (min_ra, min_dec), (max_ra, min_dec), (min_ra, max_dec), (max_ra, max_dec) ):
-        these.append( np.where( (brickinfo['RA1'] <= corners[0]) * (brickinfo['RA2'] >= corners[0]) *
-                                (brickinfo['DEC1'] <= corners[1]) * (brickinfo['DEC2'] >= corners[1]) )[0] )
+    for ii, thesepix in enumerate(ipix):
+        if np.count_nonzero( np.in1d(thesepix, healpixels) ) > 0:
+            these.append(ii)
+    these = np.unique(np.array(these))
 
-    # Bricks in the middle.
-    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA1'] >= min_ra) *
-                            (brickinfo['RA2'] <= max_ra) * (brickinfo['RA2'] <= max_ra) *
-                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC1'] >= min_dec) *
-                            (brickinfo['DEC2'] <= max_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    # Left column
-    these.append( np.where( (brickinfo['RA1'] <= min_ra) * (brickinfo['RA2'] >= min_ra) *
-                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    # Right column
-    these.append( np.where( (brickinfo['RA1'] <= max_ra) * (brickinfo['RA2'] >= max_ra) *
-                            (brickinfo['DEC1'] >= min_dec) * (brickinfo['DEC2'] <= max_dec) )[0] )
-    # Top row
-    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
-                            (brickinfo['DEC1'] <= max_dec) * (brickinfo['DEC2'] >= max_dec) )[0] )
-    # Bottom row
-    these.append( np.where( (brickinfo['RA1'] >= min_ra) * (brickinfo['RA2'] <= max_ra) *
-                            (brickinfo['DEC1'] <= min_dec) * (brickinfo['DEC2'] >= min_dec) )[0] )
-    these = np.unique( np.concatenate(these) )
-    
     if len(these) == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return dict()
 
     if target_name.upper() == 'FAINTSTAR':
@@ -971,11 +1087,13 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     bricks = brickinfo['BRICKNAME'][these]
     for bb in bricks:
         bb = bb.decode('utf-8') # This will probably break in Python2 ??
-        ff = os.path.join(mock_dir_name, 'bricks', '???', bb, 'allsky_galaxia{}_desi_{}.fits'.format(suffix, bb))
-        if os.path.isfile:
-            file_list.append( glob(ff) )
+        ff = os.path.join(mock_dir_name, 'bricks', '???', bb,
+                          'allsky_galaxia{}_desi_{}.fits'.format(suffix, bb))
+        if len(glob(ff)) == 1:
+            file_list.append(glob(ff))
         else:
             log.warning('Missing file {}'.format(ff))
+
     file_list = list( np.concatenate(file_list) )
     nfiles = len(file_list)
 
@@ -986,7 +1104,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     # Multiprocess the I/O
     mpargs = list()
     for ff in file_list:
-        mpargs.append((target_name, ff, bounds))
+        mpargs.append((target_name, ff, healpixels, nside))
         
     if nproc > 1:
         p = multiprocessing.Pool(nproc)
@@ -1001,7 +1119,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     data = dict()
     data1 = [dd for dd in data1 if dd]
     if len(data1) == 0:
-        log.warning('No {}s in range RA={}, {}, Dec={}, {}!'.format(target_name, min_ra, max_ra, min_dec, max_dec))
+        log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
         return data
 
     for k in data1[0].keys():
@@ -1012,6 +1130,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     mockid = data['MOCKID']
     ra = data['RA']
     dec = data['DEC']
+    boss_std = data['BOSS_STD']
     zz = data['Z']
     mag = data['MAG']
     mag_obs = data['MAG_OBS']
@@ -1023,17 +1142,23 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     nobj = len(ra)
     del data
 
-    log.info('Read {} {}s from {} files in range RA={}, {}, Dec={}, {}'.format(
-        nobj, target_name, nfiles, min_ra, max_ra, min_dec, max_dec))
+    log.info('Read {} {}s from {} files in healpixels {}.'.format(nobj, target_name, nfiles, healpixels))
 
     # Debugging plot that I would like to keep here for now.
     if False:
         import matplotlib.pyplot as plt
         from matplotlib.patches import Polygon
-        verts = [(min_ra, min_dec), (max_ra, min_dec), (max_ra, max_dec), (min_ra, max_dec)]
+        brickinfo = fitsio.read(brickfile, extname='BRICKS', upper=True,
+                                columns=['BRICKNAME', 'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2'])
         fig, ax = plt.subplots()
         ax.scatter(ra, dec, alpha=0.2)
-        ax.add_patch(Polygon(verts, fill=False, color='red', ls='--'))
+        for pix in healpixels:
+            corners = hp.boundaries(nside, pix, step=1, nest=True)
+            corner_theta, corner_phi = hp.vec2ang(corners.T)
+            corner_ra, corner_dec = np.degrees(corner_phi), np.degrees(np.pi/2 - corner_theta)
+            min_ra, max_ra, min_dec, max_dec = corner_ra.min(), corner_ra.max(), corner_dec.min(), corner_dec.max()
+            verts = np.vstack( (corner_ra, corner_dec) ).T
+            ax.add_patch(Polygon(verts, fill=False, ls='--'))
         for tt in these:
             verts = [
                 (brickinfo['RA1'][tt], brickinfo['DEC1'][tt]), (brickinfo['RA2'][tt], brickinfo['DEC1'][tt]),
@@ -1064,6 +1189,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
             objid = objid[cut]
             ra = ra[cut]
             dec = dec[cut]
+            boss_std = boss_std[cut]
             zz = zz[cut]
             mag = mag[cut]
             mag_obs = mag_obs[cut]
@@ -1076,25 +1202,27 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
-            'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': boss_std, 
+            'Z': zz, 'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
             'FILES': files, 'N_PER_FILE': n_per_file}
 
-def _load_lya_file(mockfile):
-    """Multiprocessing support routine for read_galaxia.  Reach each individual mock
-    Lyman-alpha file.
+def _load_lya_file(lyafile, hdu):
+    """Multiprocessing support routine to read the individual mock Lyman-alpha
+    files.
 
     """
     try:
-        os.stat(mockfile)
+        os.stat(lyafile)
     except:
-        log.fatal('Mock file {} not found!'.format(mockfile))
+        log.fatal('Lya file {} not found!'.format(lyafile))
         raise IOError
 
-    log.info('Reading {}.'.format(mockfile))
-    h = fitsio.FITS(mockfile)
+    log.info('Reading HDU {} from {}.'.format(lyafile))
+    
+    
+    h = fitsio.FITS(lyafile)
     heads = [head.read_header() for head in h]
 
     nn = len(heads) - 1 # the first item in heads is empty
@@ -1117,7 +1245,8 @@ def _load_lya_file(mockfile):
     return {'OBJID': objid, 'RA': ra, 'DEC': dec, 'Z': zz, 'MAG_G': mag_g}
 
 def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
-             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1):
+             bounds=(0.0, 360.0, -90.0, 90.0), magcut=None, nproc=1,
+             lya=None):
     """ Read and concatenate the LYA mock files.
 
     Parameters

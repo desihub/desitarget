@@ -24,13 +24,13 @@ desi_mask:
     - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY}]
     - [STD_BRIGHT,  35, "F-type standard for BRIGHT conditions",
         {obsconditions: BRIGHT}]
+    - [BADSKY,      36, "Blank sky locations that are imperfect but still useable",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Related to bright object masking
     - [BRIGHT_OBJECT,       50, "Known bright object to avoid", {obsconditions: APOCALYPSE}]
     - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE", {obsconditions: APOCALYPSE}]
     - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
-            {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [SAFE,                53, "Safe location near bright object to be used if needed",
             {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- A bit for another survey is set
@@ -144,6 +144,16 @@ obsmask:
     - [MORE_ZGOOD,  4, "redshift known; need more observations"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
 
+#- Bits that can be set in TARGETID. See the schema at
+#- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+targetid_mask:
+    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",      {firstbit:  0, nbits: 22}]
+    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)", {firstbit: 22, nbits: 20}]
+    - [DR,         42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-47 inclusive)", {firstbit: 42, nbits: 6}]
+    - [MOCK,       48, "this target is a mock target",                                                  {firstbit: 48, nbits: 1}]
+    - [SKY,        49, "this target is a sky fiber target",                                             {firstbit: 49, nbits: 1}]
+    - [RESERVED,   50, "RIGHMOST bit for left over bit space (encompasses bits 50-63 inclusive)",       {firstbit: 50, nbits: 14}]
+
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
 #- NOTE: these aren't a bitmask, they are a mapping from bit -> priority
@@ -156,16 +166,16 @@ obsmask:
 priorities:
     #- Dark Survey: priorities 3000 - 3999
     desi_mask:
-        ELG: {UNOBS: 3000}
-        LRG: {UNOBS: 3200}
-        QSO: {UNOBS: 3400, MORE_ZGOOD: 3500}
+        ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
         LRG_SOUTH: SAME_AS_LRG
         ELG_SOUTH: SAME_AS_ELG
         QSO_SOUTH: SAME_AS_QSO
-        SAFE: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
+        BADSKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FSTAR:  -1
         STD_WD:     -1
@@ -183,22 +193,21 @@ priorities:
     #- Bright Galaxy Survey: priorities 2000-2999
     #- reobserving successes has lower priority than MWS
     bgs_mask:
-        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000}
-        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000}
+        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
-        BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
-        BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
-        BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
-        BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300}
+        BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
     mws_mask:
-        MWS_MAIN:            {UNOBS: 1500}
-        MWS_WD:              {UNOBS: 1600}
-        MWS_NEARBY:          {UNOBS: 1600}
+        MWS_MAIN:            {UNOBS: 1500,DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD:              {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_NEARBY:          {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_LOW_GAL_B:  SAME_AS_MWS_MAIN
-        MWS_MAIN_VERY_FAINT: {UNOBS: 1400}
-
+        MWS_MAIN_VERY_FAINT: {UNOBS: 1400, DONE: 2, OBS: 1, DONOTOBSERVE: 0}

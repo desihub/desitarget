@@ -69,6 +69,7 @@ mws_mask = BitMask('mws_mask', _bitdefs)
 bgs_mask = BitMask('bgs_mask', _bitdefs)
 obsconditions = BitMask('obsconditions', _bitdefs)
 obsmask = BitMask('obsmask', _bitdefs)
+targetid_mask = BitMask('targetid_mask', _bitdefs)
 
 #-------------------------------------------------------------------------
 #- Do some error checking that the bitmasks are consistent with each other
