@@ -803,7 +803,7 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
 
     #ADM duplicate the targs rec array with a number of rows equal to the generated safe locations
     nrows = len(ra)
-    safes = np.empty(nrows, dtype=targs.dtype)
+    safes = np.zeros(nrows, dtype=targs.dtype)
 
     #ADM populate the safes recarray with the RA/Dec of the SAFE locations
     safes["RA"] = ra
