@@ -143,7 +143,8 @@ autodoc_mock_imports = ['fitsio', 'desisim.io', 'numpy', 'numpy.lib.recfunctions
                         'matplotlib.patches', 'matplotlib.collections',
                         'desispec.brick', 'desispec.io', 'desispec.io.util',
                         'desiutil', 'desiutil.bitmask', 'desiutil.log',
-                        'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree']
+                        'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree',
+                        'astropy.units']
 
 # -- Options for HTML output ----------------------------------------------
 
