@@ -824,7 +824,7 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
         raise IOError('Objects from multiple data releases in same input numpy array?!')
 
     #ADM populate the RELEASE column for the SAFE locations
-    safes["RELEASE"] == drint*1000
+    safes["RELEASE"] = drint*1000
     
     #ADM left-shift the DR integer to the binary location appropriate to DR in TARGETID
     safes["TARGETID"] |= drint << targetid_mask.DR.firstbit
