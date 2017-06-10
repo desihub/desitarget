@@ -588,13 +588,21 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
+
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
-    objtype = objects['TYPE']
 
-    decam_ivar = objects['DECAM_FLUX_IVAR']
-    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+    objtype = objects['TYPE']
+    
+    gflux_ivar = objects['FLUX_IVAR_G']
+    rflux_ivar = objects['FLUX_IVAR_R']
+    zflux_ivar = objects['FLUX_IVAR_Z']
+
+    gflux_snr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
+    rflux_snr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
+    zflux_snr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
+
+    w1flux_snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
@@ -606,10 +614,10 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
             primary = np.ones_like(objects, dtype=bool)
 
     lrg = isLRG_2016v3(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                       gflux_ivar=decam_ivar[..., 1],
-                       rflux_snr=decam_snr[..., 2],
-                       zflux_snr=decam_snr[..., 4],
-                       w1flux_snr=wise_snr[..., 0],
+                       gflux_ivar=gflux_ivar,
+                       rflux_snr=rflux_snr,
+                       zflux_snr=zflux_snr,
+                       w1flux_snr=w1flux_snr,
                        primary=primary)
 
     if FoMthresh is not None:
