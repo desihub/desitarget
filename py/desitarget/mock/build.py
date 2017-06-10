@@ -16,7 +16,7 @@ from astropy.table import Table, Column, vstack, hstack
 
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
-import desitarget.mock.io
+import desitarget.mock.io as mockio
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -546,7 +546,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=T
     from astropy.io import fits
 
     from desispec.io.util import fitsheader, write_bintable
-    import desitarget.mock.io as mockio
     from desitarget.mock.selection import SelectTargets
     from desitarget.mock.spectra import MockSpectra
     from desitarget.internal import sharedmem
@@ -913,30 +912,31 @@ def join_targets_truth(output_dir='.', nside=64, healpixels=None, verbose=True):
     else:
         log = get_logger()
 
-    targets, truth = [], []
+    healdirs = [mockio.get_healpix_dir(nside, pixnum, basedir=output_dir) for pixnum in healpixels\
+                if os.path.isdir( mockio.get_healpix_dir(nside, pixnum, basedir=output_dir) )]
+    healdirs = np.array(healdirs)
 
-    healdirs = [get_healpix_dir(nside, pixnum, basedir=output_dir) for pixnum in healpixels]
-
-    import pdb ; pdb.set_trace()
-
+    if len(healdirs) == 0:
+        log.error('No output directories found.')
+        return
     
-    for hdir in np.atleast_1d(healdirs):
-        alltargfile = np.array( glob(os.path.join(hdir, 'targets-*-*.fits') ) )
-        alltruthfile = np.array( glob(os.path.join(hdir, 'truth-*-*.fits') ) )
-
-        for targfile, truthfile in zip( np.atleast_1d(alltargfile), np.atleast_1d(alltruthfile) ):
-            log.info('Reading {}'.format(targfile))
-            targets.append( Table(fitsio.read(targfile, ext=1)) )
-            truth.append( Table(fitsio.read(truthfile, ext=1)) )
+    targets, truth, std_bright, std_dark, sky = [], [], [], [], []
+    for prefix, cat in zip( ('targets', 'truth', 'standards-bright', 'standards-dark', 'sky'),
+                            (targets, truth, std_bright, std_dark, sky) ):
         
-    targets = vstack( targets )
-    truth = vstack( truth )
+        for hdir in np.atleast_1d(healdirs):
+            pixel = os.path.basename(hdir)
 
-    for outfile, cat in zip( (os.path.join(output_dir, 'targets.fits'),
-                              os.path.join(output_dir, 'truth.fits')), (targets, truth) ):
+            thisfile = os.path.join(hdir, '{}-{}-{}.fits'.format(prefix, nside, pixel) )
+            if os.path.isfile(thisfile):
+                log.info('Reading {}'.format(thisfile))
+                cat.append( Table(fitsio.read(thisfile, ext=1)) )
+            
+        cat = vstack(cat)
+
+        outfile = os.path.join(output_dir, '{}.fits'.format(prefix))
         log.info('Writing {}'.format(outfile))
         try:
             cat.write(outfile, overwrite=True)
         except:
             cat.write(outfile, clobber=True)
-

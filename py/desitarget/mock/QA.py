@@ -146,12 +146,13 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
         log.fatal('Mismatch in the number of objects in targets.fits (N={}) and truth.fits (N={})!'.format(nobj, len(truth)))
         raise ValueError
 
-    # Pick a reasonable healpix area.
-    area = targets['RA'].max() - targets['RA'].min()
-    area *=  ( np.sin( targets['DEC'].max()*np.pi/180.) -
-               np.sin( targets['DEC'].min()*np.pi/180.) ) * 180 / np.pi
-    log.info('Approximate (rectangular) area spanned by catalog = {:.2f} deg2'.format(area))
-    binarea = area / 10
+    ## Pick a reasonable healpix area.
+    #area = targets['RA'].max() - targets['RA'].min()
+    #area *=  ( np.sin( targets['DEC'].max()*np.pi/180.) -
+    #           np.sin( targets['DEC'].min()*np.pi/180.) ) * 180 / np.pi
+    #log.info('Approximate (rectangular) area spanned by catalog = {:.2f} deg2'.format(area))
+    #binarea = area / 10
+    binarea = 1.0
     
     htmlfile = os.path.join(qadir, 'index.html')
     log.info('Building {}'.format(htmlfile))
