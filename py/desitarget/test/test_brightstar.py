@@ -7,7 +7,7 @@ import numpy.lib.recfunctions as rfn
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from desitarget import brightstar, desi_mask, targetid_mask
+from desitarget import brightstar, desi_mask, targetid_mask, io
 
 from desiutil import brick
 
@@ -52,7 +52,6 @@ class TestBRIGHTSTAR(unittest.TestCase):
         self.drbricks["ra"] = 0.125
         self.drbricks["dec"] = 0.0
         self.drbricks["nobjs"] = 1000
-        self.drstring = 'dr3      '
 
         #ADM invent a mask with differing radii (1' and 20') and declinations
         self.mask = np.zeros(2, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f8')])
@@ -137,7 +136,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         """Test SKY/DR/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
         """
         #ADM append SAFE (BADSKY) locations around the periphery of the mask
-        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drstring=self.drstring,drbricks=self.drbricks)
+        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drbricks=self.drbricks)
 
         #ADM first check that the SKY bit and BADSKY bits are appropriately set
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
@@ -159,7 +158,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         rmostbit = targetid_mask.DR.firstbit
         lmostbit = targetid_mask.DR.firstbit + targetid_mask.DR.nbits
         drbitset = int(bintargids[0][-lmostbit:-rmostbit],2)
-        drbitshould = int(self.drstring[2:])
+        drbitshould = targs["RELEASE"][0] // 1000
         self.assertEqual(drbitset,drbitshould)
 
         #ADM check that the OBJIDs proceed from "nobjs" in self.drbricks
