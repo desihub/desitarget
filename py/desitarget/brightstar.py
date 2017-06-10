@@ -330,11 +330,11 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
 
     #ADM set bands to uppercase if passed as lower case
     bands = bands.upper()
-    #ADM the band as an integer location
-    bandint = np.array([ "UGRIZY".find(band) for band in bands ])
+    #ADM the band names as a flux array instead of a string
+    bandnames = np.array([ "FLUX_"+band for band in bands ])
 
-    if len(bandint) != len(maglim):
-        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandint),len(maglim)))
+    if len(bandnames) != len(maglim):
+        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bands),len(maglim)))
 
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
@@ -345,8 +345,10 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     def _get_bright_stars(filename):
         '''Retrieves bright stars from a sweeps/Tractor file'''
         objs = io.read_tractor(filename)
+        #ADM write the fluxes as an array instead of as named columns
+        fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
         #ADM Retain rows for which ANY band is brighter than maglim
-        w = np.where(np.any(objs["DECAM_FLUX"][...,bandint] > fluxlim,axis=1))
+        w = np.where(np.any(fluxes > fluxlim,axis=1))
         if len(w[0]) > 0:
             return objs[w]
 
@@ -432,14 +434,12 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
 
     #ADM set band to uppercase if passed as lower case
     band = band.upper()
-    #ADM the band as an integer location
-    bandint = "UGRIZY".find(band)
 
     #ADM read in the bright object file
     fx = fitsio.FITS(instarfile)
     objs = fx[1].read()
     #ADM convert fluxes in band of interest for each object to magnitudes
-    mags = 22.5-2.5*np.log10(objs["DECAM_FLUX"][...,bandint])
+    mags = 22.5-2.5*np.log10(objs["FLUX_"+band])
     #ADM Galactic l and b for each object of interest
     c = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree, frame='icrs')
     lobjs = c.galactic.l.degree
@@ -534,15 +534,16 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
 
     #ADM set bands to uppercase if passed as lower case
     bands = bands.upper()
-    #ADM the band as an integer location
-    bandint = np.array([ "UGRIZY".find(band) for band in bands ])
+    #ADM the band names and nobs columns as arrays instead of strings
+    bandnames = np.array([ "FLUX_"+band for band in bands ])
+    nobsnames = np.array([ "NOBS_"+band for band in bands ])
 
     #ADM force the input maglim to be a list (in case a single value was passed)
     if type(maglim) == type(16) or type(maglim) == type(16.):
         maglim = [maglim]
 
-    if len(bandint) != len(maglim):
-        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandint),len(maglim)))
+    if len(bandnames) != len(maglim):
+        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandnames),len(maglim)))
 
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
@@ -552,18 +553,23 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     else:
         objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename,verbose)
 
-    #ADM set any observations with NOBS = 0 to have zero flux so glitches don't end up as bright star masks
-    w = np.where(objs["DECAM_NOBS"] == 0)
+    #ADM write the fluxes and bands as arrays instead of named columns
+    fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
+    nobs = objs[nobsnames].view(objs[nobsnames].dtype[0]).reshape(objs[nobsnames].shape + (-1,))
+
+    #ADM set any observations with NOBS = 0 to have small flux so glitches don't end up as bright star masks. 
+    w = np.where(nobs == 0)
     if len(w[0]) > 0:
-        objs["DECAM_FLUX"][w] = 0.
+        fluxes[w] = 0.
 
     #ADM limit to the passed faint limit
-    w = np.where(np.any(objs["DECAM_FLUX"][...,bandint] > fluxlim,axis=1))
+    w = np.where(np.any(fluxes > fluxlim,axis=1))
+    fluxes = fluxes[w]
     objs = objs[w]
 
     #ADM grab the (GRZ) magnitudes for observations
     #ADM and record only the largest flux (smallest magnitude)
-    fluxmax =  np.max(objs["DECAM_FLUX"][...,bandint],axis=1)
+    fluxmax = np.max(fluxes,axis=1)
     mags = 22.5-2.5*np.log10(fluxmax)
 
     #ADM convert the largest magnitude into radii for "in" and "near" bright objects. This will require 
