@@ -20,15 +20,15 @@ desitarget Change Log
 * Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` [`PR #182`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
-  * Generate SAFE/BADSKY locations around mask perimeters
-  * Set the target bits (including TARGETID) for SAFE/BADSKY sky locations
-  * Set a NEAR_RADIUS warning for objects close to (but not in) a mask
-  * Plot more realistic mask shapes by using ellipses
+   * Generate SAFE/BADSKY locations around mask perimeters
+   * Set the target bits (including TARGETID) for SAFE/BADSKY sky locations
+   * Set a NEAR_RADIUS warning for objects close to (but not in) a mask
+   * Plot more realistic mask shapes by using ellipses
 * Significant expansion of the mocks-to-targets code [`PR #173`_ and `PR #177`_]:
-  * Better and more graceful error handling.
-  * Now includes contaminants.
-  * Much better memory usage.
-  * Updated QA notebook.
+   * Better and more graceful error handling.
+   * Now includes contaminants.
+   * Much better memory usage.
+   * Updated QA notebook.
 * Add Random Forest selection for ELG in the sandbox [`PR #174`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Set specific DONE, OBS, and DONOTOBSERVE priorities [`PR #184`_].
