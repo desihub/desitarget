@@ -10,7 +10,8 @@ desitarget Change Log
    * :mod:`desitarget.cuts` now always uses DR4-style column names and formats
    * :mod:`desitarget.brightstar` builds masks on DR4-style data, uses ``RELEASE`` to set DR
    * HEALPix pixel number (current nside=64) added to output target files
-   * ``select_targets`` passes around information related to ``HEALPix`` and ``RELEASE``
+   * ``select_targets`` passes around information related to ``HEALPix``
+   * unit tests that explicitly used columns and formats from the data model have been updated
 
 .. _`PR #189`: https://github.com/desihub/desitarget/pull/189
 
