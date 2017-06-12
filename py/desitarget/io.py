@@ -48,8 +48,6 @@ tsdatamodel = np.array([], dtype=[
     ('SHAPEDEV_R', '>f4'), ('SHAPEEXP_R', '>f4'), ('DCHISQ', '>f4', (5,))
     ])
 
-tscolumns = list(tsdatamodel.dtype.names)
-
 
 def convert_from_old_data_model(fx,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model
@@ -78,6 +76,7 @@ def convert_from_old_data_model(fx,columns=None):
     nrows = len(indata)
 
     #ADM the column names that haven't changed between the current and the old data model
+    tscolumns = list(tsdatamodel.dtype.names)
     sharedcols = list(set(tscolumns).intersection(oldtscolumns))
 
     #ADM the data types for the new data model
@@ -130,7 +129,7 @@ def read_tractor(filename, header=False, columns=None):
         If ``True``, return (data, header) instead of just data.
     columns: :class:`list`, optional
         Specify the desired Tractor catalog columns to read; defaults to
-        desitarget.io.tscolumns.
+        desitarget.io.tsdatamodel.dtype.names
 
     Returns
     -------
@@ -144,7 +143,7 @@ def read_tractor(filename, header=False, columns=None):
     hdr = fx[1].read_header()
 
     if columns is None:
-        readcolumns = list(tscolumns)
+        readcolumns = list(tsdatamodel.dtype.names)
         #ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model
         if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
             readcolumns = list(oldtscolumns)
