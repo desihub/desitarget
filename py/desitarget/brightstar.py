@@ -943,13 +943,13 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         instarmaskfile MUST BE PASSED
     verbose : :class:`bool`, optional
         Send to write progress to screen
-    drbricks : :class:``~numpy.ndarray`, optional
+    drbricks : :class:`~numpy.ndarray`, optional
         A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
         This is typically used for testing only.
 
     Returns
     -------
-    targets numpy structured array
+    :class:`~numpy.ndarray`
         the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits
         and SAFE (BADSKY) sky locations added around the perimeter of the bright star mask.
 
