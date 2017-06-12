@@ -107,18 +107,11 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
         log = get_logger()
 
     qadir = os.path.join(output_dir, 'qa')
-
-    try:
-        os.stat(qadir)
+    if os.path.exists(qadir):
         if os.listdir(qadir):
-            if clobber:
-                shutil.rmtree(qadir)
-                os.makedirs(qadir)
-            else:
-                log.warning('Output QA directory {} is not empty; please set clobber=True.'.format(qadir))
-                return
-    except:
-        log.info('Creating QA directory {}'.format(qadir))
+            log.warning('Output directory {} is not empty.'.format(qadir))
+    else:
+        log.info('Creating directory {}'.format(qadir))
         os.makedirs(qadir)
     log.info('Writing to output QA directory {}'.format(qadir))
 
@@ -146,11 +139,11 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
         log.fatal('Mismatch in the number of objects in targets.fits (N={}) and truth.fits (N={})!'.format(nobj, len(truth)))
         raise ValueError
 
-    ## Pick a reasonable healpix area.
-    #area = targets['RA'].max() - targets['RA'].min()
-    #area *=  ( np.sin( targets['DEC'].max()*np.pi/180.) -
-    #           np.sin( targets['DEC'].min()*np.pi/180.) ) * 180 / np.pi
-    #log.info('Approximate (rectangular) area spanned by catalog = {:.2f} deg2'.format(area))
+    # Pick a reasonable healpix area.
+    area = targets['RA'].max() - targets['RA'].min()
+    area *=  ( np.sin( targets['DEC'].max()*np.pi/180.) -
+               np.sin( targets['DEC'].min()*np.pi/180.) ) * 180 / np.pi
+    log.info('Approximate (rectangular) area spanned by catalog = {:.2f} deg2'.format(area))
     #binarea = area / 10
     binarea = 1.0
     
