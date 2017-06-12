@@ -58,7 +58,7 @@ class TestIO(unittest.TestCase):
         self.assertEqual(newobjects['TYPE'].dtype, np.dtype('S4'))
 
     def test_tractor_columns(self):
-        tscolumns = io.tscolumns + ['BRICK_PRIMARY',]
+        tscolumns = list(io.tsdatamodel.dtype.names) + ['BRICK_PRIMARY',]
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
