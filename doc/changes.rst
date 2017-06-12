@@ -5,12 +5,19 @@ desitarget Change Log
 0.12.1 (Unreleased)
 -------------------
 
-* No changes yet
+* Significant updated to handle transition from pre-DR4 to post-DR4 data model [`PR #189`_]:
+  * `~desitarget.io` can now read old DR3-style and new DR4-style tractor and sweeps files
+  * `~desitarget.cuts` now always uses DR4-style column names and formats
+  * `~desitarget.brightstar` builds masks on DR4-style data, uses ``RELEASE`` to set DR
+  * HEALPix pixel number (current nside=64) added to output target files
+  * ``select_targets`` passes around information related to ``HEALPix`` and ``RELEASE``
+
+.. _`PR #189`: https://github.com/desihub/desitarget/pull/189
 
 0.12.0 (2017-06-05)
 -------------------
 
-* Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` (`PR #182`_].
+* Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` [`PR #182`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
   * Generate SAFE/BADSKY locations around mask perimeters
