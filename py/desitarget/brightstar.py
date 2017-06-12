@@ -776,15 +776,15 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
 
     Parameters
     ----------
-    targs : :class:`recarray`
+    targs : :class:`~numpy.ndarray`
         A recarray of targets as made by desitarget.cuts.select_targets
     nside : :class:`integer`
         The HEALPix nside used throughout the DESI data model
-    starmask : :class:`recarray`
+    starmask : :class:`~numpy.ndarray`
         A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
-    drbricks : :class:`recarray`, optional
-        A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
-        for the passed Data Release. This is typically used for testing only.
+    drbricks : :class:`~numpy.ndarray`, optional
+        A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file. 
+        This is typically used for testing only.
 
     Returns
     -------
@@ -911,12 +911,12 @@ def set_target_bits(targs,starmask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
+def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False,drbricks=None):
     """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
     ----------
-    targs : :class:`str` or recarray
+    targs : :class:`str` or `~numpy.ndarray`
         A recarray of targets created by desitarget.cuts.select_targets OR a filename of
         a file that contains such a set of targets
     instarmaskfile : :class:`str`, optional
@@ -943,6 +943,9 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         instarmaskfile MUST BE PASSED
     verbose : :class:`bool`, optional
         Send to write progress to screen
+    drbricks : :class:``~numpy.ndarray`, optional
+        A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
+        This is typically used for testing only.
 
     Returns
     -------
@@ -982,7 +985,7 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
     #ADM generate SAFE locations and add them to the target list
-    targs = append_safe_targets(targs,starmask,nside=nside)
+    targs = append_safe_targets(targs,starmask,nside=nside,drbricks=drbricks)
     
     if verbose:
         print('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))

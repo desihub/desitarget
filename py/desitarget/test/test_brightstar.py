@@ -98,7 +98,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         """
         #ADM mask the targets, creating the mask
         targs = brightstar.mask_targets(self.masktargs,bands="RZ",maglim=[8,10],numproc=1,
-                                        rootdirname=self.bsdatadir,outfilename=self.testmaskfile)
+                                        rootdirname=self.bsdatadir,outfilename=self.testmaskfile,drbricks=self.drbricks)
         self.assertTrue(np.any(targs["DESI_TARGET"] != 0))
 
     def test_non_mask_targets(self):
@@ -109,7 +109,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         #ADM create the mask and write it to file
         mask = brightstar.make_bright_star_mask('RZ',[8,10],rootdirname=self.bsdatadir,outfilename=self.testmaskfile)
         #ADM mask the targets, reading in the mask
-        targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile)
+        targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile,drbricks=self.drbricks)
         #ADM none of the targets should have been masked
         self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BADSKY) != 0)))
 
@@ -117,7 +117,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         """Test that SAFE/BADSKY locations are equidistant from mask centers
         """
         #ADM append SAFE (BADSKY) locations around the perimeter of the mask
-        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask)
+        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drbricks=self.drbricks)
         #ADM restrict to just SAFE (BADSKY) locations
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
         safes = targs[np.where(skybitset)]
