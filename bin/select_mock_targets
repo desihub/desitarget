@@ -9,6 +9,7 @@ import time
 
 import yaml
 import healpy as hp
+from astropy.table import Table
 
 from desitarget.mock.build import targets_truth
 from desispec.log import get_logger, DEBUG
@@ -23,6 +24,7 @@ parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type
 parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
 parser.add_argument('-n', '--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=64)
+parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
 parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
@@ -37,34 +39,27 @@ else:
 
 log.info('Starting select_mock_targets at {}'.format(time.asctime()))
 
-if args.join:
-    from desitarget.mock.build import join_targets_truth
-    join_targets_truth(args.output_dir, nside=args.nside, verbose=args.verbose)
-    sys.exit(1)
-
-if args.qa:
-    from desitarget.mock.QA import qa_targets_truth
-    qa_targets_truth(args.output_dir, verbose=args.verbose)
-    sys.exit(1)
-
-if not os.path.exists(args.config):
-    log.fatal('No configuration file {} found.'.format(args.config))
-    raise Exception()
-
-# Read parameters from yaml file.
-log.info('Reading configuration file {}'.format(args.config))
-with open(args.config, 'r') as pfile:
-    params = yaml.load(pfile)
-
 # Divide the DESI footprint into healpix pixels.
 if args.nside < 2:
     log.fatal('NSIDE = {} must be >=2'.format(args.nside))
     raise Exception()
 
+if args.tiles and args.healpixels:
+    log.error('use --tiles or --healpixels but not both')
+    sys.exit(1)
+
+if args.tiles:
+    if args.tiles.endswith('.ecsv'):
+        tiles = Table.read(args.tiles, format='ascii.ecsv')
+    else:
+        tiles = Table.read(args.tiles)
+
+    log.info('{} tiles'.format(len(tiles)))
+    healpixels = tiles2pix(args.nside, tiles)
+
 if args.healpixels:
-    healpixels = args.healpixels
-    log.info('Restricting footprint to input healpix pixels {}.  ** Please be sure these were computed with input nside = {}! **'.format(
-        healpixels, args.nside))
+    healpixels = np.array(args.healpixels)
+    log.info('Restricting footprint to input healpix pixels {}.  ** Please be sure these were computed with input nside = {}! **'.format(healpixels, args.nside))
 else:
     healpixels = tiles2pix(args.nside) # full DESI footprint!
     log.info('Processing {} healpixels (nside = {}) over the full DESI footprint!'.format(len(healpixels), args.nside))
@@ -77,7 +72,26 @@ if args.realtargets is not None:
 else:
     realtargets = None
 
+if args.join:
+    from desitarget.mock.build import join_targets_truth
+    join_targets_truth(args.output_dir, nside=args.nside, healpixels=healpixels, verbose=args.verbose)
+    sys.exit(1)
+
+if args.qa:
+    from desitarget.mock.QA import qa_targets_truth
+    qa_targets_truth(args.output_dir, verbose=args.verbose)
+    sys.exit(1)
+
 # Construct Targets and Truth files
+if not os.path.exists(args.config):
+    log.fatal('No configuration file {} found.'.format(args.config))
+    raise Exception()
+
+# Read parameters from yaml file.
+log.info('Reading configuration file {}'.format(args.config))
+with open(args.config, 'r') as pfile:
+    params = yaml.load(pfile)
+
 log.info('Calling targets_truth at {}'.format(time.asctime()))
 targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
               verbose=args.verbose, nproc=args.nproc, nside=args.nside,
