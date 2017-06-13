@@ -10,8 +10,14 @@ Generate QA figures from the output of desitarget.mock.join_targets_truth.
 from __future__ import (absolute_import, division, print_function)
 
 import os
-import numpy as np
 import warnings
+
+import numpy as np
+import healpy as hp
+import matplotlib.pyplot as plt
+
+from desimodel.footprint import radec2pix
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 
 def target_density(cat, nside=128):
     """Determine the target density by grouping targets in healpix pixels.  The code
@@ -24,26 +30,13 @@ def target_density(cat, nside=128):
     Optional:
         nside: healpix nside, integer power of 2
 
-    nside = 128 corresponds to about 0.210 deg2, about a factor of 3 larger
-    than the nominal imaging brick area (0.25x0.25=0.0625 deg2), as determined 
-    by this snippet of code:
-
-      max_bin_area = 0.5
-      for n in range(1, 10):
-          nside = 2 ** n
-          bin_area = hp.nside2pixarea(nside, degrees=True)
-          print(nside, bin_area)
-          if bin_area <= max_bin_area:
-              break
-
     """
-    import healpy as hp
-        
     npix = hp.nside2npix(nside)
     bin_area = hp.nside2pixarea(nside, degrees=True)
 
-    pixels = hp.ang2pix(nside, np.radians(90 - cat['DEC']), 
-                        np.radians(cat['RA']), nest=False)
+    pixels = radec2pix(nside, cat['RA'], cat['DEC'])
+    #pixels = hp.ang2pix(nside, np.radians(90 - cat['DEC']), 
+    #                    np.radians(cat['RA']), nest=False)
     counts = np.bincount(pixels, weights=None, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
             
@@ -53,7 +46,6 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, qadir='.'):
     """Visualize the target density with a skymap and histogram.
     
     """
-    import matplotlib.pyplot as plt
     from desiutil.plots import init_sky, plot_sky_binned
     
     label = '{} (targets/deg$^2$)'.format(objtype)
@@ -69,6 +61,7 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, qadir='.'):
         plot_sky_binned(cat['RA'], cat['DEC'], max_bin_area=max_bin_area,
                         clip_lo='!1', cmap='jet', plot_type='healpix', 
                         label=label, basemap=basemap)
+        
     if targdens:
         dens = target_density(cat)
         ax[1].hist(dens, bins=100, histtype='stepfilled', alpha=0.6, label='Observed {} Density'.format(objtype))
@@ -84,18 +77,139 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, qadir='.'):
 
     return pngfile
 
+def qa_qso(targets, truth, qadir='.'):
+    """Detailed QA plots for QSOs."""
+    
+    dens = dict()
+    
+    these = np.where(targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0)[0]
+    dens['QSO_TARGETS'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] < 2.1))[0]
+    dens['QSO_TRACER'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] >= 2.1))[0]
+    dens['QSO_LYA'] = target_density(targets[these])
+    
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * 
+                     (truth['CONTAM_TARGET'] & contam_mask.mask('QSO_IS_GALAXY')) != 0)[0]
+    dens['QSO_IS_GALAXY'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * 
+                     (truth['CONTAM_TARGET'] & contam_mask.mask('QSO_IS_STAR')) != 0)[0]
+    dens['QSO_IS_STAR'] = target_density(targets[these])
+
+    bins = 50
+    lim = (0, 280)
+    
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    ax[0].hist(dens['QSO_TARGETS'], bins=bins, range=lim, label='All Targets',
+               color='k', lw=1, histtype='step')
+    ax[0].hist(dens['QSO_TRACER'], bins=bins, range=lim, alpha=0.6, ls='--',
+               lw=2, label='Tracer QSOs')#, histtype='step')
+    ax[0].hist(dens['QSO_LYA'], bins=bins, range=lim, lw=2, label='Lya QSOs')
+    ax[0].set_ylabel('Number of Healpixels')
+    ax[0].set_xlabel('Targets / deg$^2$')
+    ax[0].set_title('True QSOs')
+    ax[0].legend(loc='upper right')
+    
+    lim = (0, 100)
+    
+    #ax[1].hist(dens['QSO_TARGETS'], bins=bins, range=lim, label='All Targets',
+    #           color='k', lw=1, histtype='step')
+    ax[1].hist(dens['QSO_IS_STAR'], bins=bins, range=lim, alpha=0.3, label='QSO_IS_STAR')
+    ax[1].hist(dens['QSO_IS_GALAXY'], bins=bins, range=lim, alpha=0.5, label='QSO_IS_GALAXY')
+    ax[1].set_ylabel('Number of Healpixels')
+    ax[1].set_xlabel('Targets / deg$^2$')
+    ax[1].set_title('QSO Contaminants')
+    ax[1].legend(loc='upper right')
+
+    pngfile = os.path.join(qadir, '{}_detail_density.png'.format('qso'))
+    fig.savefig(pngfile)
+    
+    return pngfile
+
+def qa_elg(targets, truth, qadir='.'):
+    """Detailed QA plots for ELGs."""
+
+    dens_all = 2400
+    dens_loz = dens_all*0.05
+    dens_hiz = dens_all*0.05
+    dens_star = dens_all*0.1
+    dens_rightz = dens_all - dens_loz - dens_hiz - dens_star
+    
+    dens = dict()
+
+    these = np.where(targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0)[0]
+    dens['ELG_TARGETS'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0) *
+                     (truth['TRUEZ'] >= 0.6) * (truth['TRUEZ'] <= 1.6))[0]
+    dens['ELG_IS_RIGHTZ'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] < 0.6))[0]
+    dens['ELG_IS_LOZ'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] > 1.6))[0]
+    dens['ELG_IS_HIZ'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0) * 
+                     (truth['CONTAM_TARGET'] & contam_mask.mask('ELG_IS_STAR')) != 0)[0]
+    dens['ELG_IS_STAR'] = target_density(targets[these])
+
+    bins = 50
+    lim = (0, 3000)
+    
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    #line = ax[0].axvline(x=dens_all, ls='-')
+    ax[0].hist(dens['ELG_TARGETS'], bins=bins, range=lim, #color=line.get_color(),
+               color='k', lw=1, label='All Targets', histtype='step')
+    
+    #line = ax[0].axvline(x=dens_rightz, ls='--')
+    ax[0].hist(dens['ELG_IS_RIGHTZ'], bins=bins, range=lim, alpha=0.6, # color=line.get_color(), 
+               ls='--', lw=2, label='ELG (0.6<z<1.6)')#, histtype='step')
+    ax[0].set_ylabel('Number of Healpixels')
+    ax[0].set_xlabel('Targets / deg$^2$')
+    ax[0].set_title('True ELGs')
+    ax[0].legend(loc='upper left')
+
+    lim = (0, 300)
+    
+    #ax[1].hist(dens['ELG_TARGETS'], bins=bins, range=lim, label='All Targets',
+    #           color='k', lw=1, histtype='step')
+    #line = ax[1].axvline(x=dens_star, ls='-')
+    ax[1].hist(dens['ELG_IS_STAR'], bins=bins, range=lim, #color=line.get_color(), 
+               alpha=0.5, label='ELG_IS_STAR')
+
+    #line = ax[1].axvline(x=dens_loz, ls='-')
+    ax[1].hist(dens['ELG_IS_LOZ'], bins=bins, range=lim, #color=line.get_color(),
+               alpha=0.5, label='ELG_IS_LOZ (z<0.6)')
+
+    #line = ax[1].axvline(x=dens_hiz, ls='-')
+    ax[1].hist(dens['ELG_IS_HIZ'], bins=bins, range=lim, #color=line.get_color(),
+               alpha=0.5, label='ELG_IS_HIZ (z>1.6)')
+
+    ax[1].set_ylabel('Number of Healpixels')
+    ax[1].set_xlabel('Targets / deg$^2$')
+    ax[1].set_title('ELG Contaminants')
+    ax[1].legend(loc='upper right')
+
+    pngfile = os.path.join(qadir, '{}_detail_density.png'.format('elg'))
+    fig.savefig(pngfile)
+        
+    return pngfile
+
 def _img2html(html, pngfile, log):
     log.info('Writing {}'.format(pngfile))
     html.write('<a><img width=1024 src="{}" href="{}"></a>\n'.format(
         os.path.basename(pngfile), os.path.basename(pngfile) ))
 
-def qa_targets_truth(output_dir, verbose=True, clobber=False):
+def qa_targets_truth(output_dir, verbose=True):
     """Generate QA plots from the joined targets and truth catalogs.
 
     time select_mock_targets --output_dir debug --qa
 
     """
-    import shutil
     import fitsio
 
     from desiutil.log import get_logger, DEBUG
@@ -134,19 +248,23 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
     targets, truth, sky, stddark, stdbright = [cc for cc in cat]
 
     # Do some sanity checking of the catalogs.
-    nobj, nsky, ndark, nbright = len(targets), len(sky), len(stddark), len(stdbright)
+    nobj, nsky, ndark, nbright = [len(cc) for cc in (targets, sky, stddark, stdbright)]
     if nobj != len(truth):
-        log.fatal('Mismatch in the number of objects in targets.fits (N={}) and truth.fits (N={})!'.format(nobj, len(truth)))
+        log.fatal('Mismatch in the number of objects in targets.fits (N={}) and truth.fits (N={})!'.format(
+            nobj, len(truth)))
         raise ValueError
 
-    # Pick a reasonable healpix area.
-    area = targets['RA'].max() - targets['RA'].min()
-    area *=  ( np.sin( targets['DEC'].max()*np.pi/180.) -
-               np.sin( targets['DEC'].min()*np.pi/180.) ) * 180 / np.pi
-    log.info('Approximate (rectangular) area spanned by catalog = {:.2f} deg2'.format(area))
-    #binarea = area / 10
+    # Assign healpixels to estimate the area covered by the catalog.
+    nside = 256
+    npix = hp.nside2npix(nside)
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    pix = radec2pix(nside, targets['RA'], targets['DEC'])
+    counts = np.bincount(pix, weights=None, minlength=npix)
+    area = np.sum(counts > 10) * areaperpix
+    log.info('Approximate area spanned by catalog = {:.2f} deg2'.format(area))
+
     binarea = 1.0
-    
+
     htmlfile = os.path.join(qadir, 'index.html')
     log.info('Building {}'.format(htmlfile))
     html = open(htmlfile, 'w')
@@ -154,7 +272,7 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
     html.write('<h1>QA directory: {}</h1>\n'.format(qadir))
 
     html.write('<ul>\n')
-    html.write('<li>Approximate (rectangular) area = {:.2f} deg2</li>\n'.format(area))
+    html.write('<li>Approximate total area = {:.1f} deg2</li>\n'.format(area))
     html.write('<li>Science targets = {}</li>\n'.format(nobj))
     html.write('<li>Sky targets = {}</li>\n'.format(nsky))
     html.write('<li>Dark standards = {}</li>\n'.format(ndark))
@@ -172,21 +290,21 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
         for obj in ('ELG', 'LRG', 'QSO', 'BGS_ANY', 'MWS_ANY'):
             these = np.where((targets['DESI_TARGET'] & desi_mask.mask(obj)) != 0)[0]
             if len(these) > 0:
-                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir)
+                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                 _img2html(html, pngfile, log)
     
         html.write('<h3>Science targets - BGS_BRIGHT, BGS_FAINT</h3>\n')
         for obj in ('BGS_BRIGHT', 'BGS_FAINT'):
             these = np.where((targets['BGS_TARGET'] & bgs_mask.mask(obj)) != 0)[0]
             if len(these) > 0:
-                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir)
+                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                 _img2html(html, pngfile, log)
     
         html.write('<h3>Science targets - MWS_MAIN, MWS_MAIN_VERY_FAINT, MWS_NEARBY, MWS_WD</h3>\n')
         for obj in ('MWS_MAIN', 'MWS_MAIN_VERY_FAINT', 'MWS_NEARBY', 'MWS_WD'):
             these = np.where((targets['MWS_TARGET'] & mws_mask.mask(obj)) != 0)[0]
             if len(these) > 0:
-                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir)
+                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                 _img2html(html, pngfile, log)
         html.write('<hr>\n')
 
@@ -195,7 +313,7 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
         obj = 'SKY'
         these = np.where((sky['DESI_TARGET'] & desi_mask.mask(obj)) != 0)[0]
         if len(these) > 0:
-            pngfile = qadensity(targets[these], obj, targdens, qadir=qadir)
+            pngfile = qadensity(sky[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
             _img2html(html, pngfile, log)
         html.write('<hr>\n')
 
@@ -206,14 +324,25 @@ def qa_targets_truth(output_dir, verbose=True, clobber=False):
             if nn > 0:
                 these = np.where((cat['DESI_TARGET'] & desi_mask.mask(obj)) != 0)[0]
                 if len(these) > 0:
-                    pngfile = qadensity(cat[these], obj, targdens, qadir=qadir)
+                    pngfile = qadensity(cat[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                     _img2html(html, pngfile, log)
-        html.write('<hr>\n')
     
     html.write('<hr>\n')
-    
+    html.write('<hr>\n')
+
+    # Desired target densities, including contaminants.
+    html.write('<h2>Detailed target densities</h2>\n')
+
+    html.write('<h3>QSOs</h3>\n')
+    pngfile = qa_qso(targets, truth, qadir=qadir)
+    _img2html(html, pngfile, log)
+    html.write('<hr>\n')
+
+    html.write('<h3>ELGs</h3>\n')
+    pngfile = qa_elg(targets, truth, qadir=qadir)
+    _img2html(html, pngfile, log)
+
+    html.write('<hr>\n')
+
     html.write('</html></body>\n')
     html.close()
-
-    #import pdb ; pdb.set_trace()
-    #import sys ; sys.exit(1)
