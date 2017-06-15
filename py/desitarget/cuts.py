@@ -26,7 +26,97 @@ import desitarget.targets
 from desitarget import desi_mask, bgs_mask, mws_mask
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                        w2flux=None, ggood=None, primary=None):
+    """See :func:`~desitarget.cuts.isLRG` for details.
+    This function applies just the flux and color cuts.
+    """
+
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+        lrg = primary.copy()
+
+    if ggood is None:
+        ggood = np.ones_like(gflux, dtype='?')
+
+    # Basic flux and color cuts
+    lrg = primary.copy()
+    lrg &= (zflux > 10**(0.4*(22.5-20.4))) # z<20.4
+    lrg &= (zflux < 10**(0.4*(22.5-18))) # z>18
+    lrg &= (zflux < 10**(0.4*2.5)*rflux) # r-z<2.5
+    lrg &= (zflux > 10**(0.4*0.8)*rflux) # r-z>0.8
+
+    # The code below can overflow, since the fluxes are float32 arrays
+    # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
+    # this will overflow, and crash the code.
+    with np.errstate(over='ignore'):
+        # This is the star-galaxy separation cut
+        # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
+        lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
+
+        # Now for the work-horse sliding flux-color cut:
+        # mlrg2 = z-2*(r-z-1.2) < 19.6 -> 3*z < 19.6-2.4-2*r
+        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.6))*rflux**2)
+
+        # Another guard against bright & red outliers
+        # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
+        lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
+
+        # Finally, a cut to exclude the z<0.4 objects while retaining the elbow at
+        # z=0.4-0.5.  r-z>1.2 || (good_data_in_g and g-r>1.7).  Note that we do not
+        # require gflux>0.
+        lrg &= np.logical_or((zflux > 10**(0.4*1.2)*rflux), (ggood & (rflux>10**(0.4*1.7)*gflux)))
+
+    return lrg
+
+
+def isLRGnew(gflux=None, rflux=None, zflux=None, w1flux=None,
+          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          gflux_ivar=None, primary=None):
+    """Target Definition of LRG. Returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux, w1flux: array_like
+            The flux in nano-maggies of g, r, z and W1 bands.
+        gflux, rflux, zflux, w1flux: array_like
+            The signal-to-noise in the r, z and W1 bands defined as the flux
+            per band divided by sigma (flux x the sqrt of the inverse variance)
+        gflux_ivar: array_like
+            The inverse variance of the flux in g-band
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+    Returns:
+        mask : array_like. True if and only the object is an LRG
+            target.
+
+    Notes:
+        This is version 3 of the Eisenstein/Dawson Summer 2016 work on LRG target
+        selection, but anymask has been changed to allmask, which probably means
+        that the flux cuts need to be re-tuned.  That is, mlrg2<19.6 may need to
+        change to 19.5 or 19.4. --Daniel Eisenstein -- Jan 9, 2017
+    """
+    #----- Luminous Red Galaxies
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+        lrg = primary.copy()
+
+    # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
+    # used!).  Also note: We do not require gflux>0!  Objects can be very red.
+    lrg = primary.copy()
+    lrg &= (rflux_snr > 0) # and rallmask == 0
+    lrg &= (zflux_snr > 0) # and zallmask == 0
+    lrg &= (w1flux_snr > 4)
+    lrg &= (rflux > 0)
+    lrg &= (zflux > 0)
+    ggood = (gflux_ivar > 0) # and gallmask == 0
+
+    # Apply color, flux, and star-galaxy separation cuts
+    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                               w1flux=w1flux, ggood=ggood, primary=primary)
+
+    return lrg
+
+def isLRGold(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
@@ -565,6 +655,8 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
 
+    gfluxivar = objects['FLUX_IVAR_G']
+
     gfracflux = objects['FRACFLUX_G'].T # note transpose
     rfracflux = objects['FRACFLUX_R'].T # note transpose
     zfracflux = objects['FRACFLUX_Z'].T # note transpose
@@ -578,6 +670,8 @@ def apply_cuts(objects, qso_selection='randomforest'):
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[...,0] - dchisq[...,1]
+    #ADM some values of dchisq are NaN as of DR4; set to a ludicrously low number
+    deltaChi2[np.where(deltaChi2 != deltaChi2)] = -9e9
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
@@ -588,8 +682,10 @@ def apply_cuts(objects, qso_selection='randomforest'):
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg = isLRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
-
+    lrg = isLRGold(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
+#    lrg = isLRGnew(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+#                   gflux_ivar=gfluxivar,rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
