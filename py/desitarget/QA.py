@@ -990,7 +990,7 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
-def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="", qadir='.', galactic_plane_color=None):
+def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="radec", qadir='.', galactic_plane_color=None):
     """Visualize the target density with a skymap and histogram. First version lifted 
     shamelessly from desitarget.mock.QA (which was originally written by J. Moustakas)
 
@@ -1013,8 +1013,8 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="", qadi
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it.        
-    fileprefix : :class:`str`, optional, string to be added to the front of the output file name
-        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to "radec" for (RA/Dec)
+        string to be added to the front of the output file name
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     galactic_plane_color : :class:`str`, optional, defaults to None
@@ -1042,10 +1042,18 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="", qadi
                         clip_lo='!1', cmap='jet', plot_type='healpix', 
                         label=label, basemap=basemap)
     if targdens:
+        nbins=100
         dens = mockQA.target_density(cat)
-        ax[1].hist(dens, bins=100, histtype='stepfilled', alpha=0.6, label='Observed {} Density'.format(objtype))
+        #ADM histogram of the densities with nbins bins
+        h, bins = np.histogram(dens,bins=nbins)
+        #ADM the density value of the peak histogram bin
+        peak = np.mean(bins[np.argmax(h):np.argmax(h)+2])
+
+        ax[1].hist(dens, bins=100, histtype='stepfilled', alpha=0.6, 
+                   label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
         if objtype in targdens.keys():
-            ax[1].axvline(x=targdens[objtype], ls='--', color='k', label='Goal {} Density'.format(objtype))
+            ax[1].axvline(x=targdens[objtype], ls='--', color='k', 
+                          label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype,targdens[objtype]))
         ax[1].set_xlabel(label)
         ax[1].set_ylabel('Number of Healpixels')
         ax[1].legend(loc='upper left', frameon=False)
@@ -1119,6 +1127,8 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
     targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
                 'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0}
 
+    targdens = {'ELG': 2400}
+
     #ADM make a copy of the input array with RA and DEC changed to l and b in order to plot
     #ADM Galactic coordinates, and populate it
     galtargs = targs[['RA','DEC','DESI_TARGET']].copy()
@@ -1132,7 +1142,7 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
     for objtype in targdens:
         if 'LRG' in objtype:
             w = np.where(targs["DESI_TARGET"] & desi_mask['LRG'])
-        elif 'ALL' in targdens:
+        elif 'ALL' in objtype:
             w = np.arange(len(targs))
         else:
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
