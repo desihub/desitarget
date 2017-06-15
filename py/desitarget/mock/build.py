@@ -513,7 +513,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
 #from memory_profiler import profile
 #@profile
-def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=True,
+def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=False,
                   bricksize=0.25, nproc=1, nside=16, healpixels=None):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
     (with, e.g., the true redshift) for use in simulations.
