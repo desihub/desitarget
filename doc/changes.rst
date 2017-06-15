@@ -2,15 +2,23 @@
 desitarget Change Log
 =====================
 
-0.12.1 (Unreleased)
+0.13.0 (2017-06-15)
 -------------------
 
-* No changes yet
+* Fix bug when no Lya QSOs are on a brick [`PR #191`_].
+* Additional QA plots for mock target catalogs [`PR #190`_]
+* Additional debugging and support for healpix input to ``select_mock_targets`` [`PR #186`_].
+* Set specific DONE, OBS, and DONOTOBSERVE priorities [`PR #184`_].
+
+.. _`PR #184`: https://github.com/desihub/desitarget/pull/184
+.. _`PR #186`: https://github.com/desihub/desitarget/pull/186
+.. _`PR #190`: https://github.com/desihub/desitarget/pull/190
+.. _`PR #191`: https://github.com/desihub/desitarget/pull/191
 
 0.12.0 (2017-06-05)
 -------------------
 
-* Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` (`PR #182`_].
+* Changed refs to ``desispec.brick`` to its new location at :mod:`desiutil.brick` [`PR #182`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
   * Generate SAFE/BADSKY locations around mask perimeters
@@ -24,7 +32,6 @@ desitarget Change Log
   * Updated QA notebook.
 * Add Random Forest selection for ELG in the sandbox [`PR #174`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
-* Set specific DONE, OBS, and DONOTOBSERVE priorities [`PR #184`_].
 
 .. _`PR #173`: https://github.com/desihub/desitarget/pull/173
 .. _`PR #174`: https://github.com/desihub/desitarget/pull/174
@@ -32,7 +39,6 @@ desitarget Change Log
 .. _`PR #177`: https://github.com/desihub/desitarget/pull/177
 .. _`PR #181`: https://github.com/desihub/desitarget/pull/181
 .. _`PR #182`: https://github.com/desihub/desitarget/pull/182
-.. _`PR #184`: https://github.com/desihub/desitarget/pull/184
 
 0.11.0 (2017-04-14)
 -------------------
