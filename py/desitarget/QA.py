@@ -1066,6 +1066,7 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="radec",
 
     return pngfile
 
+
 def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
     """Make a full default set of DESI targeting QA plots given a passed set of targets
 
@@ -1126,8 +1127,6 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
     #ADM note that at this time we were in flux about switching to a new LRG density
     targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
                 'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0}
-
-    targdens = {'ELG': 2400}
 
     #ADM make a copy of the input array with RA and DEC changed to l and b in order to plot
     #ADM Galactic coordinates, and populate it
