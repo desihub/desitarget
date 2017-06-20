@@ -990,7 +990,7 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
-def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="radec", qadir='.', galactic_plane_color=None):
+def qadensity(cat, objtype, targdens=None, upclip=None, max_bin_area=1.0, fileprefix="radec", qadir='.', galactic_plane_color=None):
     """Visualize the target density with a skymap and histogram. First version lifted 
     shamelessly from desitarget.mock.QA (which was originally written by J. Moustakas)
 
@@ -1010,6 +1010,9 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="radec",
 
         if this is not None then a histogram of target densities is produced alongside the
         areal density plot
+    upclip : :class:`float`, optional, defaults to None
+        A  cutoff at which to clip the targets at the "high density" end to make plots 
+        conform to similar density scales, e.g.
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it.        
@@ -1039,17 +1042,20 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, fileprefix="radec",
         warnings.simplefilter('ignore')
         basemap = init_sky(galactic_plane_color=galactic_plane_color, ax=ax[0]);
         plot_sky_binned(cat['RA'], cat['DEC'], max_bin_area=max_bin_area,
-                        clip_lo='!1', cmap='jet', plot_type='healpix', 
+                        clip_lo='!1', clip_hi=upclip, cmap='jet', plot_type='healpix', 
                         label=label, basemap=basemap)
+
     if targdens:
         nbins=100
         dens = mockQA.target_density(cat)
+        if upclip:
+            dens = np.clip(dens,0,upclip)
         #ADM histogram of the densities with nbins bins
         h, bins = np.histogram(dens,bins=nbins)
         #ADM the density value of the peak histogram bin
         peak = np.mean(bins[np.argmax(h):np.argmax(h)+2])
 
-        ax[1].hist(dens, bins=100, histtype='stepfilled', alpha=0.6, 
+        ax[1].hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
                    label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
         if objtype in targdens.keys():
             ax[1].axvline(x=targdens[objtype], ls='--', color='k', 
@@ -1125,8 +1131,16 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
 
     #ADM The current default goal target densities for DESI (circa June 2017; may change)
     #ADM note that at this time we were in flux about switching to a new LRG density
-    targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
-                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0}
+    targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'ALL': 4410,
+                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
+
+#    targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
+#                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0}
+
+    #ADM clip the target densities at an upper density to improve plot edges
+    #ADM by rejecting highly dense outliers
+    upclipdict = {'ELG': 4000, 'OLD_LRG': 1000, 'NEW_LRG': 1300, 'QSO': 650, 'ALL': 8000,
+                  'STD_FSTAR': 300, 'STD_BRIGHT': 100, 'BGS_ANY': 5000}
 
     #ADM make a copy of the input array with RA and DEC changed to l and b in order to plot
     #ADM Galactic coordinates, and populate it
@@ -1147,12 +1161,12 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM RA/Dec based plots
-        qadensity(targs[w], objtype, targdens=targdens, max_bin_area=max_bin_area, 
-                      qadir=qadir, galactic_plane_color='k')
+        qadensity(targs[w], objtype, targdens=targdens, upclip=upclipdict[objtype],
+                  max_bin_area=max_bin_area, qadir=qadir, galactic_plane_color='k')
 
         #ADM Galactic l/b plots
-        qadensity(galtargs[w], objtype, targdens=targdens, max_bin_area=max_bin_area, 
-                      fileprefix='galactic', qadir=qadir)
+        qadensity(galtargs[w], objtype, targdens=targdens, upclip=upclipdict[objtype],
+                  max_bin_area=max_bin_area, fileprefix='galactic', qadir=qadir)
 
     if verbose:
         print('Done...t = {:.1f} sec'.format(time()-start))
