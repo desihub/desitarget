@@ -693,7 +693,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
             keep = np.where(targets['DESI_TARGET'] != 0)[0]
             if len(keep) == 0:
                 continue
-            
+
             targets = targets[keep]
             truth = truth[keep]
             trueflux = trueflux[keep, :]
