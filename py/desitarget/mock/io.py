@@ -607,6 +607,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         nobj_qso = nobj
         lyafiles_qso = np.repeat('', nobj_qso)
         lyahdu_qso = np.repeat([-1], nobj_qso)
+        templatetype_qso = np.repeat('QSO', nobj_qso)
+        templatesubtype = np.repeat('', nobj_qso)
 
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
@@ -637,6 +639,10 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         nobj_lya = len(cut)
         if nobj_lya == 0:
             log.warning('No Lya QSOs in healpixels {}!'.format(healpixels))
+            lyafiles = lyafiles_qso
+            lyahdu = lyahdu_qso
+            templatetype = templatetype_qso
+            templatesubtype = templatesubtype_qso
         else:
             log.info('Trimmed to {} Lya QSOs in healpixels {}'.format(nobj_lya, healpixels))
 
@@ -661,8 +667,12 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             mockid = np.hstack((mockid, mockid_lya))
             nobj = len(ra)
 
-            lyafiles = np.hstack( (lyafiles_qso, np.array([os.path.join( os.path.dirname(mockfile_lya), ff.decode('utf-8')) for ff in alllyafiles[cut]])) )
+            lyafiles = np.hstack( (lyafiles_qso, np.array([os.path.join(
+                os.path.dirname(mockfile_lya), ff.decode('utf-8')) for ff in alllyafiles[cut]])) )
             lyahdu = np.hstack( (lyahdu_qso, data['MOCKHDUNUM']) )
+
+            templatetype = np.hstack( (templatetype_qso, np.repeat('QSO', nobj_lya)) )
+            templatesubtype = np.hstack( (np.repeat('', nobj_qso), np.repeat('LYA', nobj_lya)) )
             
         log.info('The combined QSO sample has {} targets.'.format(nobj))
         
@@ -746,12 +756,6 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             if len(replace) > 0:
                 mag[replace] = mags['g'] # g-band
 
-            templatetype = np.repeat('QSO', nobj)
-            if lya:
-                templatesubtype = np.hstack( (np.repeat('', nobj_qso), np.repeat('LYA', nobj_lya)) )
-            else:
-                templatesubtype = np.repeat('', nobj)
-                
             out.update({
                 'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype, 
                 #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
