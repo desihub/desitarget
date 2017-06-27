@@ -18,8 +18,8 @@ from scipy import constants
 
 from desitarget.io import check_fitsio_version, iter_files
 from desitarget.mock.sample import SampleGMM
-from desispec.brick import brickname as get_brickname_from_radec
-from desispec.brick import Bricks
+from desiutil.brick import brickname as get_brickname_from_radec
+from desiutil.brick import Bricks
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger(DEBUG)

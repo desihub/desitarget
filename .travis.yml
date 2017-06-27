@@ -41,7 +41,7 @@ env:
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
         - ASTROPY_VERSION=1.2.1
-        - DESIUTIL_VERSION=1.9.3
+        - DESIUTIL_VERSION=1.9.4
         - DESISPEC_VERSION=0.11.0
         - DESISIM_VERSION=master
         - DESIMODEL_VERSION=0.4.4
