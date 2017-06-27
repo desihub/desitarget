@@ -624,8 +624,12 @@ def apply_cuts(objects, qso_selection='randomforest'):
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[...,0] - dchisq[...,1]
-    #ADM some values of dchisq are NaN as of DR4; set to a ludicrously low number
-    deltaChi2[np.where(deltaChi2 != deltaChi2)] = -9e9
+
+    #ADM remove handful of NaN values from DCHISQ values and make them unselectable
+    w = np.where(deltaChi2 != deltaChi2)
+    #ADM this is to catch the single-object case for unit tests
+    if len(w[0]) > 0:
+        deltaChi2[w] = -1e6
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
