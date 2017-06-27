@@ -108,7 +108,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (w1flux_snr > 4)
     lrg &= (rflux > 0)
     lrg &= (zflux > 0)
-    ggood = ( (gflux_ivar > 0) & gflux > 0) # and gallmask == 0
+    ggood = ( (gflux_ivar > 0) & (gflux > 0) ) # and gallmask == 0
 
     # Apply color, flux, and star-galaxy separation cuts
     lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
