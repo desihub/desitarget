@@ -25,7 +25,6 @@ from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget import desi_mask, bgs_mask, mws_mask
 
-
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
@@ -70,33 +69,53 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          gflux_ivar=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
+        gflux, rflux_snr, zflux_snr, w1flux_snr: array_like
+            The signal-to-noise in the r, z and W1 bands defined as the flux
+            per band divided by sigma (flux x the sqrt of the inverse variance)
+        gflux_ivar: array_like
+            The inverse variance of the flux in g-band
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
         mask : array_like. True if and only the object is an LRG
             target.
+
+    Notes:
+        This is version 3 of the Eisenstein/Dawson Summer 2016 work on LRG target
+        selection, but anymask has been changed to allmask, which probably means
+        that the flux cuts need to be re-tuned.  That is, mlrg2<19.6 may need to
+        change to 19.5 or 19.4. --Daniel Eisenstein -- Jan 9, 2017
     """
     #----- Luminous Red Galaxies
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
+        lrg = primary.copy()
 
+    # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
+    # used!).  Also note: We do not require gflux>0!  Objects can be very red.
     lrg = primary.copy()
-    lrg &= zflux > 10**((22.5-20.46)/2.5)  # z<20.46
-    lrg &= zflux > rflux * 10**(1.5/2.5)   # (r-z)>1.5
-    lrg &= w1flux > 0                      # W1flux>0
-    #- clip to avoid warnings from negative numbers raised to fractional powers
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    lrg &= w1flux * rflux**(1.8-1.0) > zflux**1.8 * 10**(-1.0/2.5)
+    lrg &= (rflux_snr > 0) # and rallmask == 0
+    lrg &= (zflux_snr > 0) # and zallmask == 0
+    lrg &= (w1flux_snr > 4)
+    lrg &= (rflux > 0)
+    lrg &= (zflux > 0)
+    ggood = (gflux_ivar > 0) # and gallmask == 0
+
+    # Apply color, flux, and star-galaxy separation cuts
+    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                               w1flux=w1flux, ggood=ggood, primary=primary)
 
     return lrg
+
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of ELG. Returning a boolean array.
@@ -640,9 +659,8 @@ def apply_cuts(objects, qso_selection='randomforest'):
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg = isLRG(primary=primary, zflux=zflux, rflux=rflux, w1flux=w1flux)
-#    lrg = isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-#                   gflux_ivar=gfluxivar,rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    lrg = isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                   gflux_ivar=gfluxivar,rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
     
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
