@@ -69,7 +69,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
