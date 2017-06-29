@@ -346,19 +346,31 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
 
     ####### Load variables. #######
     # Flux
-    gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1]
-    rflux = objs['DECAM_FLUX'][:][:,2]/objs['DECAM_MW_TRANSMISSION'][:][:,2]
-    zflux = objs['DECAM_FLUX'][:][:,4]/objs['DECAM_MW_TRANSMISSION'][:][:,4]
+    #ADM allow analyses for both the DR3 and DR4+ Data Model
+    if 'DECAM_FLUX' in objs.dtype.names:
+        gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1]
+        rflux = objs['DECAM_FLUX'][:][:,2]/objs['DECAM_MW_TRANSMISSION'][:][:,2]
+        zflux = objs['DECAM_FLUX'][:][:,4]/objs['DECAM_MW_TRANSMISSION'][:][:,4]
+    else:
+        gflux = objs['FLUX_G'] / objs['MW_TRANSMISSION_G']
+        rflux = objs['FLUX_R'] / objs['MW_TRANSMISSION_R']
+        zflux = objs['FLUX_Z'] / objs['MW_TRANSMISSION_Z']
     # mags
     #ADM added explicit capture of runtime warnings for zero and negative fluxes
     with np.errstate(invalid='ignore',divide='ignore'):
         g = (22.5 - 2.5*np.log10(gflux))
         r = (22.5 - 2.5*np.log10(rflux))
         z = (22.5 - 2.5*np.log10(zflux))
+        #ADM allow analyses for both the DR3 and DR4+ Data Model
         # Inver variance
-        givar = objs['DECAM_FLUX_IVAR'][:][:,1]
-        rivar = objs['DECAM_FLUX_IVAR'][:][:,2]
-        zivar = objs['DECAM_FLUX_IVAR'][:][:,4]
+        if 'DECAM_FLUX' in objs.dtype.names:
+            givar = objs['DECAM_FLUX_IVAR'][:][:,1]
+            rivar = objs['DECAM_FLUX_IVAR'][:][:,2]
+            zivar = objs['DECAM_FLUX_IVAR'][:][:,4]
+        else:
+            givar = objs['FLUX_IVAR_G']
+            rivar = objs['FLUX_IVAR_R']
+            zivar = objs['FLUX_IVAR_Z']
         # Color
         rz = (r-z); gr = (g-r)
 
