@@ -69,14 +69,14 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
 
     Args:
-        gflux, rflux, zflux, w1flux: array_like
-            The flux in nano-maggies of g, r, z and W1 bands.
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1 and W2 (if needed) bands.
         gflux, rflux, zflux, w1flux: array_like
             The signal-to-noise in the r, z and W1 bands defined as the flux
             per band divided by sigma (flux x the sqrt of the inverse variance)
@@ -111,8 +111,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     ggood = (gflux_ivar > 0) # and gallmask == 0
 
     # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                               w1flux=w1flux, ggood=ggood, primary=primary)
+    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                               w2flux=w2flux, ggood=ggood, primary=primary)
 
     return lrg
 
