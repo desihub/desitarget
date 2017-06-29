@@ -69,7 +69,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None):
     """Target Definition of LRG. Returning a boolean array.
@@ -111,8 +111,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     ggood = (gflux_ivar > 0) # and gallmask == 0
 
     # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                               w1flux=w1flux, ggood=ggood, primary=primary)
+    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                               w2flux=w2flux, ggood=ggood, primary=primary)
 
     return lrg
 
