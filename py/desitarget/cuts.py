@@ -660,7 +660,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
             primary = np.ones_like(objects, dtype=bool)
 
     lrg = isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                   gflux_ivar=gfluxivar,rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+                   gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
     
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
