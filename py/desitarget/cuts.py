@@ -895,7 +895,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,verbose=verbose)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
