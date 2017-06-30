@@ -19,6 +19,11 @@ import healpy as hp
 
 from desiutil import depend
 
+#ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South" 
+#ADM photometric system. This will expand with the definition of RELEASE in the 
+#ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched) 
+releasedict = {4000: 'N'}
+
 oldtscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
     'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
@@ -207,6 +212,42 @@ def fix_tractor_dr1_dtype(objects):
         return objects.astype(np.dtype(dt))
 
 
+def release_to_photsys(release):
+    """Convert RELEASE to PHOTSYS using the releasedict lookup table.
+
+    Parameters
+    ----------
+    objects : :class:`int`
+        RELEASE column from a numpy rec array of targets
+
+    Returns
+    -------
+    :class:`str`
+        'N' if the RELEASE corresponds to the northern photometric
+        system (MzLS+BASS) and 'S' if it's the southern system (DECaLS)
+        
+    Notes
+    -----
+    Defaults to 'U' if the system is not recognized
+    
+    """
+    #ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict
+    releasenums = np.array(list(releasedict.keys()))
+    photstrings = np.array(list(releasedict.values()))
+
+    #ADM an array with indices running from 0 to the maximum release number + 1
+    r2p = np.empty(np.max(releasenums)+1, dtype='|S1')
+
+    #ADM set each entry to 'U' for an unidentified photometric system
+    r2p[:] = 'U'
+
+    #ADM populate where the release numbers exist with the PHOTSYS
+    r2p[releasenums] = photstrings
+
+    #ADM return the PHOTSYS string that corresponds to each passed release number
+    return r2p[release]
+
+
 def write_targets(filename, data, indir=None, qso_selection=None, 
                   sandboxcuts=False, nside=None):
     """Write a target catalogue.
@@ -239,25 +280,28 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     depend.setdep(hdr, 'sandboxcuts', sandboxcuts)
-    depend.setdep(hdr, 'photcat  ', drstring)
+    depend.setdep(hdr, 'photcat', drstring)
 
     if indir is not None:
         depend.setdep(hdr, 'tractor-files', indir)
 
     if qso_selection is None:
-        print('ERROR: qso_selection method not specified for output file')
+        print('WARNING: qso_selection method not specified for output file')
         depend.setdep(hdr, 'qso-selection', 'unknown')
     else:
         depend.setdep(hdr, 'qso-selection', qso_selection)
 
-    #ADM Add HEALPix column, if requested by input
+    #ADM add HEALPix column, if requested by input
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
-        data = rfn.append_fields(data,'HPXPIXEL',hppix,usemask=False)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix,usemask=False)
         depend.setdep(hdr, 'HPXNSIDE', nside)
         depend.setdep(hdr, 'HPXNEST', True)
-#        depend.setdep(hdr, 'HPXNEST', True)
+
+    #ADM add PHOTSYS column, mapped from RELEASE
+    photsys = release_to_photsys(data["RELEASE"])
+    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)    
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 

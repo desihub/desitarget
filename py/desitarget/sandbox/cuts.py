@@ -575,7 +575,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
 
     return colors, r, DECaLSOK
 
-def apply_sandbox_cuts(objects,FoMthresh=None,verbose=False):
+def apply_sandbox_cuts(objects,FoMthresh=None):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -586,7 +586,6 @@ def apply_sandbox_cuts(objects,FoMthresh=None,verbose=False):
             "FoM.fits" in the current working directory.
             for RF, use a negative Threshold, abs(FoMthresh) is used as a 
             probability cut
-        verbose (optional): if True, print progress messages
 
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -602,9 +601,6 @@ def apply_sandbox_cuts(objects,FoMthresh=None,verbose=False):
     See desitarget.targetmask for the definition of each bit
 
     """
-
-    if verbose:
-        print("You're playing in the sandbox...")
 
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, str):

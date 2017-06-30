@@ -895,7 +895,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,verbose=verbose)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
@@ -920,12 +920,16 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
             if sandbox:
+                if verbose:
+                    print("You're in the sandbox...")
                 targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
             else:
                 targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
         if sandbox:
+            if verbose:
+                print("You're in the sandbox...")
             for x in infiles:
                 targets.append(_update_status(_select_sandbox_targets_file(x)))
         else:
