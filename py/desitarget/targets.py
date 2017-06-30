@@ -122,6 +122,36 @@ def encode_mtl_targetid(targets):
     return encoded_targetid
 
 ############################################################
+def encode_targetid(objid,brickid,release,mock,sky):
+    """Create the target id
+
+    Parameters
+    ----------
+    objid : :class:`int` or :class:`~numpy.ndarray`
+        The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    brickid : :class:`int` or :class:`~numpy.ndarray`
+        The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    release : :class:`int` or :class:`~numpy.ndarray`
+        The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    mock : :class:`int` or :class:`~numpy.ndarray`
+        1 if this object is a mock object (generated from 
+        mocks, not from real survey data), 0 otherwise
+    sky : :class:`int` or :class:`~numpy.ndarray`
+        1 if this object is a blank sky object, 0 otherwise
+    Returns
+    -------
+    :class:`int` or :class:`~numpy.ndarray` 
+        The TARGETID for DESI, encoded according to the bits listed in
+        :meth:`desitarget.targetid_mask`        
+
+    Notes
+    -----
+    see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+    """
+
+
+
+############################################################
 def encode_survey_source(survey,source,original_targetid):
     """
     """

@@ -217,19 +217,18 @@ def release_to_photsys(release):
 
     Parameters
     ----------
-    objects : :class:`int`
+    objects : :class:`int` or :class:`~numpy.ndarray`
         RELEASE column from a numpy rec array of targets
 
     Returns
     -------
-    :class:`str`
+    :class:`str` or :class:`~numpy.ndarray`
         'N' if the RELEASE corresponds to the northern photometric
         system (MzLS+BASS) and 'S' if it's the southern system (DECaLS)
         
     Notes
     -----
     Defaults to 'U' if the system is not recognized
-    
     """
     #ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict
     releasenums = np.array(list(releasedict.keys()))
