@@ -832,8 +832,8 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
     #ADM populate the RELEASE column for the SAFE locations
     safes["RELEASE"] = drint*1000
     
-    #ADM left-shift the DR integer to the binary location appropriate to DR in TARGETID
-    safes["TARGETID"] |= drint << targetid_mask.DR.bitnum
+    #ADM left-shift the RELEASE integer to the binary location appropriate to RELEASE in TARGETID
+    safes["TARGETID"] |= drint*1000 << targetid_mask.RELEASE.bitnum
 
     #ADM add the brick information for the SAFE/BADSKY targets
     b = brick.Bricks(bricksize=0.25)

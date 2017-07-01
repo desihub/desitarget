@@ -133,7 +133,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
             self.assertTrue(np.max(sep[w] - sep[w[0]]) < 1e-15*u.deg)
 
     def test_targetid(self):
-        """Test SKY/DR/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
+        """Test SKY/RELEASE/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
         """
         #ADM append SAFE (BADSKY) locations around the periphery of the mask
         targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drbricks=self.drbricks)
@@ -155,10 +155,10 @@ class TestBRIGHTSTAR(unittest.TestCase):
         bintargids = [ np.binary_repr(targid) for targid in targs["TARGETID"] ]        
 
         #ADM check that the data release is set (in a way unlike the normal bit-setting in brightstar.py)
-        rmostbit = targetid_mask.DR.bitnum
-        lmostbit = targetid_mask.DR.bitnum + targetid_mask.DR.nbits
+        rmostbit = targetid_mask.RELEASE.bitnum
+        lmostbit = targetid_mask.RELEASE.bitnum + targetid_mask.RELEASE.nbits
         drbitset = int(bintargids[0][-lmostbit:-rmostbit],2)
-        drbitshould = targs["RELEASE"][0] // 1000
+        drbitshould = targs["RELEASE"][0]
         self.assertEqual(drbitset,drbitshould)
 
         #ADM check that the OBJIDs proceed from "nobjs" in self.drbricks

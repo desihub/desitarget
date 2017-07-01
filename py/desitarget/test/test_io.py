@@ -73,21 +73,24 @@ class TestIO(unittest.TestCase):
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         sweepfile = io.list_sweepfiles(self.datadir)[0]
         data = io.read_tractor(sweepfile)
+        self.assertEqual(len(data), 6)  #- test data has 6 objects per file
         data = io.read_tractor(tractorfile)
         self.assertEqual(len(data), 6)  #- test data has 6 objects per file
         data, hdr = io.read_tractor(tractorfile, header=True)
         self.assertEqual(len(data), 6)  #- test data has 6 objects per file
 
+        #ADM check PHOTSYS got added in writing targets
         io.write_targets(self.testfile, data, indir=self.datadir)
-        ### d2, h2 = fits.getdata(self.testfile, header=True)
         #ADM use fits read wrapper in io to correctly handle whitespace
         d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
-        #
-        # Disabling this test because self.datadir may be too long to fit
-        # into a single FITS header line.
-        #
-        # self.assertEqual(h2['DEPVER02'], self.datadir)
-        self.assertEqual(data.dtype.names, d2.dtype.names)
+        self.assertEqual(list(data.dtype.names)+["PHOTSYS"], list(d2.dtype.names))
+
+        #ADM check PHOTSYS and HPXPIXEL got added writing targets with NSIDE request
+        io.write_targets(self.testfile, data, nside=64, indir=self.datadir)
+        #ADM use fits read wrapper in io to correctly handle whitespace
+        d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
+        self.assertEqual(list(data.dtype.names)+["HPXPIXEL","PHOTSYS"], list(d2.dtype.names))
+
         for column in data.dtype.names:
             self.assertTrue(np.all(data[column] == d2[column]))
 
