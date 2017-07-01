@@ -150,10 +150,10 @@ obsmask:
 targetid_mask:
     - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",      {nbits: 22}]
     - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)", {nbits: 20}]
-    - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-47 inclusive)", {nbits: 16}]
+    - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-57 inclusive)", {nbits: 16}]
     - [MOCK,       58, "this target is a mock target",                                                  {nbits: 1}]
     - [SKY,        59, "this target is a sky fiber target",                                             {nbits: 1}]
-    - [RESERVED,   60, "RIGHMOST bit for left over bit space (encompasses bits 50-63 inclusive)",       {nbits: 4}]
+    - [RESERVED,   60, "RIGHMOST bit for left over bit space (encompasses bits 60-63 inclusive)",       {nbits: 4}]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
