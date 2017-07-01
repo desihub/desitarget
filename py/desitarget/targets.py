@@ -149,26 +149,57 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
 
-    #ADM set up the empty TARGETID depending on whether an integer
-    #ADM or an array was passed
-    if isinstance(objid,(int,np.int32)):
-        nobjs = 1
-    else:
-        nobjs = len(objid)
-    targetid = np.zeros(nobjs,dtype='>i8')
+    #ADM determine the length of whichever value was passed that wasn't None
+    #ADM default to an integer (length 1)
+    nobjs = 1
+    inputs = [objid, brickid, release, sky, mock]
+    goodpar = [ input is not None for input in inputs ]
+    firstgoodpar = np.where(goodpar)[0][0]
+    if isinstance(inputs[firstgoodpar],np.ndarray):
+        nobjs = len(inputs[firstgoodpar])
 
-    #ADM set parameters that weren't passed to arrays
+    #ADM set parameters that weren't passed to zerod arrays
+    #ADM set integers that were passed to at least 1D arrays
     if objid is None:
         objid = np.zeros(nobjs,dtype='>i8')
+    else:
+        objid = np.atleast_1d(objid)
     if brickid is None:
         brickid = np.zeros(nobjs,dtype='>i8')
+    else:
+        brickid = np.atleast_1d(brickid)
     if release is None:
         release = np.zeros(nobjs,dtype='>i8')
+    else:
+        release = np.atleast_1d(release)
     if mock is None:
         mock = np.zeros(nobjs,dtype='>i8')
+    else:
+        mock = np.atleast_1d(mock)
     if sky is None:
         sky = np.zeros(nobjs,dtype='>i8')
+    else:
+        sky = np.atleast_1d(sky)
 
+    #ADM check none of the passed parameters exceed their bit-allowance
+    if not np.all(objid <= 2**targetid_mask.OBJID.nbits):
+        print('Invalid range when creating targetid: OBJID cannot exceed {}'.format(2**targetid_mask.OBJID.nbits))
+        raise Exception
+    if not np.all(brickid <= 2**targetid_mask.BRICKID.nbits):
+        print('Invalid range when creating targetid: BRICKID cannot exceed {}'.format(2**targetid_mask.BRICKID.nbits))
+        raise Exception
+    if not np.all(release <= 2**targetid_mask.RELEASE.nbits):
+        print('Invalid range when creating targetid: RELEASE cannot exceed {}'.format(2**targetid_mask.RELEASE.nbits))
+        raise Exception
+    if not np.all(mock <= 2**targetid_mask.MOCK.nbits):
+        print('Invalid range when creating targetid: MOCK cannot exceed {}'.format(2**targetid_mask.MOCK.nbits))
+        raise Exception
+    if not np.all(sky <= 2**targetid_mask.SKY.nbits):
+        print('Invalid range when creating targetid: SKY cannot exceed {}'.format(2**targetid_mask.SKY.nbits))
+        raise Exception
+
+    #ADM set up targetid as an array of 64-bit integers
+    targetid = np.zeros(nobjs,('<i8'))
     #ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
     #ADM remember to shift to type integer 64 to avoid casting
     targetid |= objid.astype('>i8') << targetid_mask.OBJID.bitnum
