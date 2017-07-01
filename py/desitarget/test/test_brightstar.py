@@ -155,15 +155,15 @@ class TestBRIGHTSTAR(unittest.TestCase):
         bintargids = [ np.binary_repr(targid) for targid in targs["TARGETID"] ]        
 
         #ADM check that the data release is set (in a way unlike the normal bit-setting in brightstar.py)
-        rmostbit = targetid_mask.DR.firstbit
-        lmostbit = targetid_mask.DR.firstbit + targetid_mask.DR.nbits
+        rmostbit = targetid_mask.DR.bitnum
+        lmostbit = targetid_mask.DR.bitnum + targetid_mask.DR.nbits
         drbitset = int(bintargids[0][-lmostbit:-rmostbit],2)
         drbitshould = targs["RELEASE"][0] // 1000
         self.assertEqual(drbitset,drbitshould)
 
         #ADM check that the OBJIDs proceed from "nobjs" in self.drbricks
-        rmostbit = targetid_mask.OBJID.firstbit
-        lmostbit = targetid_mask.OBJID.firstbit + targetid_mask.OBJID.nbits
+        rmostbit = targetid_mask.OBJID.bitnum
+        lmostbit = targetid_mask.OBJID.bitnum + targetid_mask.OBJID.nbits
         #ADM guard against the fact that when written the rmostbit for OBJID is 0
         if rmostbit == 0:
             objidset = np.array([ int(bintargid[-lmostbit:],2) for bintargid in bintargids ])
@@ -173,8 +173,8 @@ class TestBRIGHTSTAR(unittest.TestCase):
         self.assertTrue(np.all(objidset == objidshould))
 
         #ADM finally check that the BRICKIDs are all 330368
-        rmostbit = targetid_mask.BRICKID.firstbit
-        lmostbit = targetid_mask.BRICKID.firstbit + targetid_mask.BRICKID.nbits
+        rmostbit = targetid_mask.BRICKID.bitnum
+        lmostbit = targetid_mask.BRICKID.bitnum + targetid_mask.BRICKID.nbits
         brickidset = np.array([ int(bintargid[-lmostbit:-rmostbit],2) for bintargid in bintargids ])
         self.assertTrue(np.all(brickidset == 330368))
 

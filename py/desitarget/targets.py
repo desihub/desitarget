@@ -9,8 +9,7 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
-from desitarget import desi_mask, bgs_mask, mws_mask
-from desitarget import obsmask
+from desitarget import desi_mask, bgs_mask, mws_mask, targetid_mask
 
 ############################################################
 # TARGETID bit packing
@@ -122,34 +121,107 @@ def encode_mtl_targetid(targets):
     return encoded_targetid
 
 ############################################################
-def encode_targetid(objid,brickid,release,mock,sky):
-    """Create the target id
+def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
+    """Create the DESI TARGETID from input source and imaging information
 
     Parameters
     ----------
-    objid : :class:`int` or :class:`~numpy.ndarray`
+    objid : :class:`int` or :class:`~numpy.ndarray`, optional
         The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    brickid : :class:`int` or :class:`~numpy.ndarray`
+    brickid : :class:`int` or :class:`~numpy.ndarray`, optional
         The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    release : :class:`int` or :class:`~numpy.ndarray`
+    release : :class:`int` or :class:`~numpy.ndarray`, optional
         The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    mock : :class:`int` or :class:`~numpy.ndarray`
+    mock : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a mock object (generated from 
         mocks, not from real survey data), 0 otherwise
-    sky : :class:`int` or :class:`~numpy.ndarray`
+    sky : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a blank sky object, 0 otherwise
+
     Returns
     -------
+    :class:`~numpy.ndarray` 
+        The TARGETID for DESI, encoded according to the bits listed in
+        :meth:`desitarget.targetid_mask`        
+
+    Notes
+    -----
+    See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+    """
+
+    #ADM set up the empty TARGETID depending on whether an integer
+    #ADM or an array was passed
+    if isinstance(objid,(int,np.int32)):
+        nobjs = 1
+    else:
+        nobjs = len(objid)
+    targetid = np.zeros(nobjs,dtype='>i8')
+
+    #ADM set parameters that weren't passed to arrays
+    if objid is None:
+        objid = np.zeros(nobjs,dtype='>i8')
+    if brickid is None:
+        brickid = np.zeros(nobjs,dtype='>i8')
+    if release is None:
+        release = np.zeros(nobjs,dtype='>i8')
+    if mock is None:
+        mock = np.zeros(nobjs,dtype='>i8')
+    if sky is None:
+        sky = np.zeros(nobjs,dtype='>i8')
+
+    #ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
+    #ADM remember to shift to type integer 64 to avoid casting
+    targetid |= objid.astype('>i8') << targetid_mask.OBJID.bitnum
+    targetid |= brickid.astype('>i8') << targetid_mask.BRICKID.bitnum
+    targetid |= release.astype('>i8') << targetid_mask.RELEASE.bitnum
+    targetid |= mock.astype('>i8') << targetid_mask.MOCK.bitnum
+    targetid |= sky.astype('>i8') << targetid_mask.SKY.bitnum
+
+    return targetid
+
+############################################################
+def decode_targetid(targetid):
+    """break a DESI TARGETID into its constituent parts
+
+    Parameters
+    ----------
     :class:`int` or :class:`~numpy.ndarray` 
         The TARGETID for DESI, encoded according to the bits listed in
         :meth:`desitarget.targetid_mask`        
+
+    Returns
+    -------
+    objid : :class:`~numpy.ndarray`
+        The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    brickid : :class:`~numpy.ndarray`
+        The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    release : :class:`~numpy.ndarray`
+        The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    mock : :class:`~numpy.ndarray`
+        1 if this object is a mock object (generated from 
+        mocks, not from real survey data), 0 otherwise
+    sky : :class:`~numpy.ndarray`
+        1 if this object is a blank sky object, 0 otherwise
 
     Notes
     -----
     see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
 
+    #ADM retrieve each constituent value by left-shifting by the number of bits that comprise
+    #ADM the value, to the left-end of the value, and then right-shifting to the right-end
+    objid = (targetid & (2**targetid_mask.OBJID.nbits - 1 
+                         << targetid_mask.OBJID.bitnum)) >> targetid_mask.OBJID.bitnum
+    brickid = (targetid & (2**targetid_mask.BRICKID.nbits - 1 
+                           << targetid_mask.BRICKID.bitnum)) >> targetid_mask.BRICKID.bitnum
+    release = (targetid & (2**targetid_mask.RELEASE.nbits - 1 
+                           << targetid_mask.RELEASE.bitnum)) >> targetid_mask.RELEASE.bitnum
+    mock = (targetid & (2**targetid_mask.MOCK.nbits - 1 
+                        << targetid_mask.MOCK.bitnum)) >> targetid_mask.MOCK.bitnum
+    sky = (targetid & (2**targetid_mask.SKY.nbits - 1 
+                       << targetid_mask.SKY.bitnum)) >> targetid_mask.SKY.bitnum
 
+    return objid, brickid, release, mock, sky
 
 ############################################################
 def encode_survey_source(survey,source,original_targetid):
