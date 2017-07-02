@@ -12,6 +12,8 @@ desitarget Change Log
    * HEALPix pixel number (current nside=64) added to output target files
    * ``select_targets`` passes around information related to ``HEALPix``
    * unit tests that explicitly used columns and formats from the data model have been updated
+   * new 60-bit TARGETID schema that incorporates RELEASE column from imaging surveys
+   * column PHOTSYS added to output files, recording North or South for the photometric system
 
 .. _`PR #189`: https://github.com/desihub/desitarget/pull/189
 
