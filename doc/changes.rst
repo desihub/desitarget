@@ -8,12 +8,12 @@ desitarget Change Log
 * Significant updated to handle transition from pre-DR4 to post-DR4 data model [`PR #189`_]:
    * :mod:`desitarget.io` can now read old DR3-style and new DR4-style tractor and sweeps files
    * :mod:`desitarget.cuts` now always uses DR4-style column names and formats
+   * new 60-bit ``TARGETID`` schema that incorporates ``RELEASE`` column from imaging surveys
    * :mod:`desitarget.brightstar` builds masks on DR4-style data, uses ``RELEASE`` to set DR
    * HEALPix pixel number (current nside=64) added to output target files
    * ``select_targets`` passes around information related to ``HEALPix``
+   * column ``PHOTSYS`` added to output files, recording North or South for the photometric system
    * unit tests that explicitly used columns and formats from the data model have been updated
-   * new 60-bit TARGETID schema that incorporates RELEASE column from imaging surveys
-   * column PHOTSYS added to output files, recording North or South for the photometric system
 
 .. _`PR #189`: https://github.com/desihub/desitarget/pull/189
 
