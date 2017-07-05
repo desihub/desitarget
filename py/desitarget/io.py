@@ -294,7 +294,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
-        data = rfn.append_fields(data, 'HPXPIXEL', hppix,usemask=False)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         depend.setdep(hdr, 'HPXNSIDE', nside)
         depend.setdep(hdr, 'HPXNEST', True)
 
