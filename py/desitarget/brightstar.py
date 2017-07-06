@@ -27,6 +27,7 @@ from . import __version__ as desitarget_version
 from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
+from desitarget.targets import encode_targetid
 
 from desiutil import depend, brick
 
@@ -187,7 +188,7 @@ def max_objid_bricks(targs):
     Parameters
     ----------
     targs : :class:`recarray`
-        A recarray of targets as made by desitarget.cuts.select_targets
+        A recarray of targets as made by :mod:`desitarget.cuts.select_targets`
 
     Returns
     -------
@@ -518,7 +519,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         The bright star mask in the form RA, DEC, TARGETID, IN_RADIUS, NEAR_RADIUS (may also be written to file
         if "outfilename" is passed)
         The radii are in ARCMINUTES
-        TARGETID is as calculated in desitarget.targets.py
+        TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
 
     Notes
     -----
@@ -578,7 +579,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     in_radius = 0.5*(0.0802*mags*mags - 1.860*mags + 11.625)
 
     #ADM calculate the TARGETID
-    targetid = objs['BRICKID'].astype(np.int64)*1000000 + objs['OBJID']
+    targetid = encode_targetid(objid=objs['BRICK_OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
 
     #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
     done = objs[['RA','DEC']].copy()
@@ -707,7 +708,9 @@ def is_bright_star(targs,starmask):
     is_mask = np.zeros(len(targs), dtype=bool)
 
     #ADM calculate the TARGETID for the targets
-    targetid = targs['BRICKID'].astype(np.int64)*1000000 + targs['BRICK_OBJID']
+    targetid = encode_targetid(objid=targs['BRICK_OBJID'], 
+                               brickid=targs['BRICKID'], 
+                               release=targs['RELEASE'])
 
     #ADM super-fast set-based look-up of which TARGETIDs are matches between the masks and the targets
     matches = set(starmask["TARGETID"]).intersection(set(targetid))
@@ -815,32 +818,20 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
     safes["RA"] = ra
     safes["DEC"] = dec
 
-    #ADM set SKY in the TARGETID for safe locations
-    safes["TARGETID"] |= targetid_mask.SKY
-
     #ADM set the bit for SAFE locations in DESITARGET
     safes["DESI_TARGET"] |= desi_mask.BADSKY
-
-    #ADM the data release as an integer (don't record the full release information as these
-    #ADM aren't real targets
-    drint = np.max(targs['RELEASE']//1000)
-    #ADM check the targets all have the same release
-    checker = np.min(targs['RELEASE']//1000)
-    if drint != checker:
-        raise IOError('Objects from multiple data releases in same input numpy array?!')
-
-    #ADM populate the RELEASE column for the SAFE locations
-    safes["RELEASE"] = drint*1000
-    
-    #ADM left-shift the RELEASE integer to the binary location appropriate to RELEASE in TARGETID
-    safes["TARGETID"] |= drint*1000 << targetid_mask.RELEASE.bitnum
 
     #ADM add the brick information for the SAFE/BADSKY targets
     b = brick.Bricks(bricksize=0.25)
     safes["BRICKID"] = b.brickid(safes["RA"],safes["DEC"])
     safes["BRICKNAME"] = b.brickname(safes["RA"],safes["DEC"])
 
-    #ADM the string version of the data release (to find directories for brick information)
+    #ADM get the string version of the data release (to find directories for brick information)
+    drint = np.max(targs['RELEASE']//1000)
+    #ADM check the targets all have the same release
+    checker = np.min(targs['RELEASE']//1000)
+    if drint != checker:
+        raise IOError('Objects from multiple data releases in same input numpy array?!')
     drstring = 'dr'+str(drint)
 
     #ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
@@ -868,10 +859,10 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
     #ADM finalize the OBJID for each SAFE target
     safes["BRICK_OBJID"] += objsadd
 
-    #ADM finally, update the TARGETID with the OBJID and the BRICKID
-    #ADM have to convert BRICKID to int64 (it's only int32 as standard)
-    safes["TARGETID"] |= safes["BRICK_OBJID"]
-    safes["TARGETID"] |= safes["BRICKID"].astype("int64") << targetid_mask.BRICKID.bitnum
+    #ADM finally, update the TARGETID with the OBJID, the BRICKID, and the fact these are skies
+    safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'], 
+                                        brickid=safes['BRICKID']
+                                        sky=1)
         
     #ADM return the input targs with the SAFE targets appended
     return np.hstack([targs,safes])
@@ -894,7 +885,7 @@ def set_target_bits(targs,starmask):
     Notes
     -----
         - Sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT via coordinate matches to the mask centers and radii
-        - Sets BRIGHT_OBJECT via an index match on TARGETID (defined as TARGETID = BRICKID*1000000 + OBJID)
+        - Sets BRIGHT_OBJECT via an index match on TARGETID (defined as in :mod:`desitarget.targets.encode_targetid`)
 
     See :mod:`desitarget.targetmask` for the definition of each bit
     """

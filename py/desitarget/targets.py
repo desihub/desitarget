@@ -180,23 +180,23 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     #ADM set parameters that weren't passed to zerod arrays
     #ADM set integers that were passed to at least 1D arrays
     if objid is None:
-        objid = np.zeros(nobjs,dtype='>i8')
+        objid = np.zeros(nobjs,dtype='int64')
     else:
         objid = np.atleast_1d(objid)
     if brickid is None:
-        brickid = np.zeros(nobjs,dtype='>i8')
+        brickid = np.zeros(nobjs,dtype='int64')
     else:
         brickid = np.atleast_1d(brickid)
     if release is None:
-        release = np.zeros(nobjs,dtype='>i8')
+        release = np.zeros(nobjs,dtype='int64')
     else:
         release = np.atleast_1d(release)
     if mock is None:
-        mock = np.zeros(nobjs,dtype='>i8')
+        mock = np.zeros(nobjs,dtype='int64')
     else:
         mock = np.atleast_1d(mock)
     if sky is None:
-        sky = np.zeros(nobjs,dtype='>i8')
+        sky = np.zeros(nobjs,dtype='int64')
     else:
         sky = np.atleast_1d(sky)
 
@@ -218,14 +218,14 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
         raise Exception
 
     #ADM set up targetid as an array of 64-bit integers
-    targetid = np.zeros(nobjs,('<i8'))
+    targetid = np.zeros(nobjs,('int64'))
     #ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
     #ADM remember to shift to type integer 64 to avoid casting
-    targetid |= objid.astype('>i8') << targetid_mask.OBJID.bitnum
-    targetid |= brickid.astype('>i8') << targetid_mask.BRICKID.bitnum
-    targetid |= release.astype('>i8') << targetid_mask.RELEASE.bitnum
-    targetid |= mock.astype('>i8') << targetid_mask.MOCK.bitnum
-    targetid |= sky.astype('>i8') << targetid_mask.SKY.bitnum
+    targetid |= objid.astype('int64') << targetid_mask.OBJID.bitnum
+    targetid |= brickid.astype('int64') << targetid_mask.BRICKID.bitnum
+    targetid |= release.astype('int64') << targetid_mask.RELEASE.bitnum
+    targetid |= mock.astype('int64') << targetid_mask.MOCK.bitnum
+    targetid |= sky.astype('int64') << targetid_mask.SKY.bitnum
 
     #ADM if the main inputs were integers, return an integer
     if intpassed:
