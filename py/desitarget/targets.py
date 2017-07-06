@@ -140,14 +140,32 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
 
     Returns
     -------
-    :class:`~numpy.ndarray` 
+    :class:`int` or `~numpy.ndarray` 
         The TARGETID for DESI, encoded according to the bits listed in
-        :meth:`desitarget.targetid_mask`        
+        :meth:`desitarget.targetid_mask`. If an integer is passed, then an
+        integer is returned, otherwise an array is returned
 
     Notes
     -----
-    See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+        - This is set up with maximum flexibility so that mixes of integers 
+          and arrays can be passed, in case some value like BRICKID or SKY 
+          is the same for a set of objects. Consider, e.g.:
+
+              print(
+                  targets.decode_targetid(
+                      targets.encode_targetid(objid=np.array([234,12]),
+                                              brickid=np.array([234,12]),
+                                              release=4,
+                                              sky=[1,0]))
+                                              )
+
+        (array([234,12]), array([234,12]), array([4,4]), array([0,0]), array([1,0]))
+
+        - See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
+
+    #ADM a flag that tracks whether the main inputs were integers
+    intpassed = True
 
     #ADM determine the length of whichever value was passed that wasn't None
     #ADM default to an integer (length 1)
@@ -157,6 +175,7 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     firstgoodpar = np.where(goodpar)[0][0]
     if isinstance(inputs[firstgoodpar],np.ndarray):
         nobjs = len(inputs[firstgoodpar])
+        intpassed = False
 
     #ADM set parameters that weren't passed to zerod arrays
     #ADM set integers that were passed to at least 1D arrays
@@ -208,6 +227,9 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     targetid |= mock.astype('>i8') << targetid_mask.MOCK.bitnum
     targetid |= sky.astype('>i8') << targetid_mask.SKY.bitnum
 
+    #ADM if the main inputs were integers, return an integer
+    if intpassed:
+        return targetid[0]
     return targetid
 
 ############################################################
@@ -222,21 +244,23 @@ def decode_targetid(targetid):
 
     Returns
     -------
-    objid : :class:`~numpy.ndarray`
+    objid : :class:`int` or `~numpy.ndarray`
         The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    brickid : :class:`~numpy.ndarray`
+    brickid : :class:`int` or `~numpy.ndarray`
         The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    release : :class:`~numpy.ndarray`
+    release : :class:`int` or `~numpy.ndarray`
         The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    mock : :class:`~numpy.ndarray`
+    mock : :class:`int` or `~numpy.ndarray`
         1 if this object is a mock object (generated from 
         mocks, not from real survey data), 0 otherwise
-    sky : :class:`~numpy.ndarray`
+    sky : :class:`int` or `~numpy.ndarray`
         1 if this object is a blank sky object, 0 otherwise
 
     Notes
     -----
-    see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+        - if a 1-D array is passed, then an integer is returned. Otherwise an array
+          is returned
+        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
 
     #ADM retrieve each constituent value by left-shifting by the number of bits that comprise
