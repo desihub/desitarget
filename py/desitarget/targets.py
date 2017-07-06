@@ -499,7 +499,9 @@ def finalize(targets, desi_target, bgs_target, mws_target):
     #- OBJID in tractor files is only unique within the brick; rename and
     #- create a new unique TARGETID
     targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})
-    targetid = targets['BRICKID'].astype(np.int64)*1000000 + targets['BRICK_OBJID']
+    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                               brickid=targets['BRICKID'],
+                               release=targets['RELEASE'])
 
     #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,
