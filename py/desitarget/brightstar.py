@@ -861,7 +861,7 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
 
     #ADM finally, update the TARGETID with the OBJID, the BRICKID, and the fact these are skies
     safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'], 
-                                        brickid=safes['BRICKID']
+                                        brickid=safes['BRICKID'],
                                         sky=1)
         
     #ADM return the input targs with the SAFE targets appended
