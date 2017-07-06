@@ -155,11 +155,13 @@ class TestBRIGHTSTAR(unittest.TestCase):
         bintargids = [ np.binary_repr(targid) for targid in targs["TARGETID"] ]        
 
         #ADM check that the data release is set (in a way unlike the normal bit-setting in brightstar.py)
+        #ADM note that release should be zero for SAFE LOCATIONS
         rmostbit = targetid_mask.RELEASE.bitnum
         lmostbit = targetid_mask.RELEASE.bitnum + targetid_mask.RELEASE.nbits
         drbitset = int(bintargids[0][-lmostbit:-rmostbit],2)
         drbitshould = targs["RELEASE"][0]
         self.assertEqual(drbitset,drbitshould)
+        self.assertEqual(drbitset,0)
 
         #ADM check that the OBJIDs proceed from "nobjs" in self.drbricks
         rmostbit = targetid_mask.OBJID.bitnum

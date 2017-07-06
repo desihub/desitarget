@@ -579,7 +579,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     in_radius = 0.5*(0.0802*mags*mags - 1.860*mags + 11.625)
 
     #ADM calculate the TARGETID
-    targetid = encode_targetid(objid=objs['BRICK_OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
+    targetid = encode_targetid(objid=objs['OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
 
     #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
     done = objs[['RA','DEC']].copy()
