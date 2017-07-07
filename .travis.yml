@@ -55,13 +55,13 @@ env:
         # Additional conda channels to use.
         - CONDA_CHANNELS="openastronomy"
         # These packages will always be installed.
-        - CONDA_DEPENDENCIES='pyyaml qt=4'
+        - CONDA_DEPENDENCIES="pyyaml qt=4"
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES='pyyaml scipy matplotlib h5py coverage==3.7.1 requests healpy fitsio'
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib h5py coverage==3.7.1 pyyaml requests healpy fitsio"
         # These packages will always be installed.
-        - PIP_DEPENDENCIES=''
+        - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - PIP_ALL_DEPENDENCIES='coveralls speclite==${SPECLITE_VERSION}'
+        - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls"
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
         - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION} desimodel=${DESIMODEL_VERSION}"
