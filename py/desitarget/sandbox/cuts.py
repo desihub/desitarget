@@ -346,19 +346,31 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
 
     ####### Load variables. #######
     # Flux
-    gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1]
-    rflux = objs['DECAM_FLUX'][:][:,2]/objs['DECAM_MW_TRANSMISSION'][:][:,2]
-    zflux = objs['DECAM_FLUX'][:][:,4]/objs['DECAM_MW_TRANSMISSION'][:][:,4]
+    #ADM allow analyses for both the DR3 and DR4+ Data Model
+    if 'DECAM_FLUX' in objs.dtype.names:
+        gflux = objs['DECAM_FLUX'][:][:,1]/objs['DECAM_MW_TRANSMISSION'][:][:,1]
+        rflux = objs['DECAM_FLUX'][:][:,2]/objs['DECAM_MW_TRANSMISSION'][:][:,2]
+        zflux = objs['DECAM_FLUX'][:][:,4]/objs['DECAM_MW_TRANSMISSION'][:][:,4]
+    else:
+        gflux = objs['FLUX_G'] / objs['MW_TRANSMISSION_G']
+        rflux = objs['FLUX_R'] / objs['MW_TRANSMISSION_R']
+        zflux = objs['FLUX_Z'] / objs['MW_TRANSMISSION_Z']
     # mags
     #ADM added explicit capture of runtime warnings for zero and negative fluxes
     with np.errstate(invalid='ignore',divide='ignore'):
         g = (22.5 - 2.5*np.log10(gflux))
         r = (22.5 - 2.5*np.log10(rflux))
         z = (22.5 - 2.5*np.log10(zflux))
+        #ADM allow analyses for both the DR3 and DR4+ Data Model
         # Inver variance
-        givar = objs['DECAM_FLUX_IVAR'][:][:,1]
-        rivar = objs['DECAM_FLUX_IVAR'][:][:,2]
-        zivar = objs['DECAM_FLUX_IVAR'][:][:,4]
+        if 'DECAM_FLUX' in objs.dtype.names:
+            givar = objs['DECAM_FLUX_IVAR'][:][:,1]
+            rivar = objs['DECAM_FLUX_IVAR'][:][:,2]
+            zivar = objs['DECAM_FLUX_IVAR'][:][:,4]
+        else:
+            givar = objs['FLUX_IVAR_G']
+            rivar = objs['FLUX_IVAR_R']
+            zivar = objs['FLUX_IVAR_Z']
         # Color
         rz = (r-z); gr = (g-r)
 
@@ -574,6 +586,7 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
             "FoM.fits" in the current working directory.
             for RF, use a negative Threshold, abs(FoMthresh) is used as a 
             probability cut
+
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object
@@ -605,13 +618,21 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
+
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
-    objtype = objects['TYPE']
 
-    decam_ivar = objects['DECAM_FLUX_IVAR']
-    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+    objtype = objects['TYPE']
+    
+    gflux_ivar = objects['FLUX_IVAR_G']
+    rflux_ivar = objects['FLUX_IVAR_R']
+    zflux_ivar = objects['FLUX_IVAR_Z']
+
+    gflux_snr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
+    rflux_snr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
+    zflux_snr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
+
+    w1flux_snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
@@ -623,10 +644,10 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
             primary = np.ones_like(objects, dtype=bool)
 
     lrg = isLRG_2016v3(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                       gflux_ivar=decam_ivar[..., 1],
-                       rflux_snr=decam_snr[..., 2],
-                       zflux_snr=decam_snr[..., 4],
-                       w1flux_snr=wise_snr[..., 0],
+                       gflux_ivar=gflux_ivar,
+                       rflux_snr=rflux_snr,
+                       zflux_snr=zflux_snr,
+                       w1flux_snr=w1flux_snr,
                        primary=primary)
 
     if FoMthresh is not None:

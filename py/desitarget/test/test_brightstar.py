@@ -7,7 +7,7 @@ import numpy.lib.recfunctions as rfn
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from desitarget import brightstar, desi_mask, targetid_mask
+from desitarget import brightstar, desi_mask, targetid_mask, io
 
 from desiutil import brick
 
@@ -52,7 +52,6 @@ class TestBRIGHTSTAR(unittest.TestCase):
         self.drbricks["ra"] = 0.125
         self.drbricks["dec"] = 0.0
         self.drbricks["nobjs"] = 1000
-        self.drstring = 'dr3      '
 
         #ADM invent a mask with differing radii (1' and 20') and declinations
         self.mask = np.zeros(2, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f8')])
@@ -99,7 +98,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         """
         #ADM mask the targets, creating the mask
         targs = brightstar.mask_targets(self.masktargs,bands="RZ",maglim=[8,10],numproc=1,
-                                        rootdirname=self.bsdatadir,outfilename=self.testmaskfile)
+                                        rootdirname=self.bsdatadir,outfilename=self.testmaskfile,drbricks=self.drbricks)
         self.assertTrue(np.any(targs["DESI_TARGET"] != 0))
 
     def test_non_mask_targets(self):
@@ -110,7 +109,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         #ADM create the mask and write it to file
         mask = brightstar.make_bright_star_mask('RZ',[8,10],rootdirname=self.bsdatadir,outfilename=self.testmaskfile)
         #ADM mask the targets, reading in the mask
-        targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile)
+        targs = brightstar.mask_targets(self.testtargfile,instarmaskfile=self.testmaskfile,drbricks=self.drbricks)
         #ADM none of the targets should have been masked
         self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BADSKY) != 0)))
 
@@ -118,7 +117,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         """Test that SAFE/BADSKY locations are equidistant from mask centers
         """
         #ADM append SAFE (BADSKY) locations around the perimeter of the mask
-        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask)
+        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drbricks=self.drbricks)
         #ADM restrict to just SAFE (BADSKY) locations
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
         safes = targs[np.where(skybitset)]
@@ -134,10 +133,10 @@ class TestBRIGHTSTAR(unittest.TestCase):
             self.assertTrue(np.max(sep[w] - sep[w[0]]) < 1e-15*u.deg)
 
     def test_targetid(self):
-        """Test SKY/DR/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
+        """Test SKY/RELEASE/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
         """
         #ADM append SAFE (BADSKY) locations around the periphery of the mask
-        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drstring=self.drstring,drbricks=self.drbricks)
+        targs = brightstar.append_safe_targets(self.unmasktargs,self.mask,drbricks=self.drbricks)
 
         #ADM first check that the SKY bit and BADSKY bits are appropriately set
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
@@ -156,15 +155,17 @@ class TestBRIGHTSTAR(unittest.TestCase):
         bintargids = [ np.binary_repr(targid) for targid in targs["TARGETID"] ]        
 
         #ADM check that the data release is set (in a way unlike the normal bit-setting in brightstar.py)
-        rmostbit = targetid_mask.DR.firstbit
-        lmostbit = targetid_mask.DR.firstbit + targetid_mask.DR.nbits
+        #ADM note that release should be zero for SAFE LOCATIONS
+        rmostbit = targetid_mask.RELEASE.bitnum
+        lmostbit = targetid_mask.RELEASE.bitnum + targetid_mask.RELEASE.nbits
         drbitset = int(bintargids[0][-lmostbit:-rmostbit],2)
-        drbitshould = int(self.drstring[2:])
+        drbitshould = targs["RELEASE"][0]
         self.assertEqual(drbitset,drbitshould)
+        self.assertEqual(drbitset,0)
 
         #ADM check that the OBJIDs proceed from "nobjs" in self.drbricks
-        rmostbit = targetid_mask.OBJID.firstbit
-        lmostbit = targetid_mask.OBJID.firstbit + targetid_mask.OBJID.nbits
+        rmostbit = targetid_mask.OBJID.bitnum
+        lmostbit = targetid_mask.OBJID.bitnum + targetid_mask.OBJID.nbits
         #ADM guard against the fact that when written the rmostbit for OBJID is 0
         if rmostbit == 0:
             objidset = np.array([ int(bintargid[-lmostbit:],2) for bintargid in bintargids ])
@@ -174,8 +175,8 @@ class TestBRIGHTSTAR(unittest.TestCase):
         self.assertTrue(np.all(objidset == objidshould))
 
         #ADM finally check that the BRICKIDs are all 330368
-        rmostbit = targetid_mask.BRICKID.firstbit
-        lmostbit = targetid_mask.BRICKID.firstbit + targetid_mask.BRICKID.nbits
+        rmostbit = targetid_mask.BRICKID.bitnum
+        lmostbit = targetid_mask.BRICKID.bitnum + targetid_mask.BRICKID.nbits
         brickidset = np.array([ int(bintargid[-lmostbit:-rmostbit],2) for bintargid in bintargids ])
         self.assertTrue(np.all(brickidset == 330368))
 

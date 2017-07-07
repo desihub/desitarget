@@ -76,8 +76,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1 and W2 (if needed) bands.
-        gflux, rflux, zflux, w1flux: array_like
+            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
+        gflux, rflux_snr, zflux_snr, w1flux_snr: array_like
             The signal-to-noise in the r, z and W1 bands defined as the flux
             per band divided by sigma (flux x the sqrt of the inverse variance)
         gflux_ivar: array_like
@@ -158,7 +158,6 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
 
     Returns:
         mask : boolean array, True if the object has colors like an FSTD
-
     """
 
     if primary is None:
@@ -179,14 +178,22 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
 
     return fstd
 
-def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None,
-           objtype=None, decam_snr=None, obs_rflux=None, bright=False):
+
+def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, 
+           gfracflux=None, rfracflux=None, zfracflux=None,
+           gsnr=None, rsnr=None, zsnr=None,
+           objtype=None, obs_rflux=None, bright=False):
     """Select FSTD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isFSTD_colors() for additional info.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
           The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gfracflux, rfracflux, zfracflux: array_like
+          Profile-weight fraction of the flux from other sources divided by the 
+          total flux in g, r and z bands.
+        gsnr, rsnr, zsnr: array_like
+          The signal-to-noise ratio in g, r, and z bands.
         primary: array_like or None
           If given, the BRICK_PRIMARY column of the catalogue.
         bright: apply magnitude cuts for "bright" conditions; otherwise, choose
@@ -194,11 +201,6 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
 
     Returns:
         mask : boolean array, True if the object has colors like an FSTD
-
-    Notes:
-        The full FSTD target selection also includes PSF-like and fracflux
-        cuts; this function is only cuts on the colors.
-
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -210,11 +212,16 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, decam_fracflux=None
     # Apply type=PSF, fracflux, and S/N cuts.
     fstd &= _psflike(objtype)
 
+    #ADM probably a more elegant way to do this, coded it like this for
+    #ADM data model transition from 2-D to 1-D arrays
+    fracflux = [gfracflux, rfracflux, zfracflux]
+    snr = [gsnr, rsnr, zsnr]
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore') # fracflux can be Inf/NaN
-        for j in (1, 2, 4):  # g, r, z
-            fstd &= decam_fracflux[j] < 0.04
-            fstd &= decam_snr[..., j] > 10
+        for j in (0, 1, 2):  # g, r, z
+            fstd &= fracflux[j] < 0.04
+            fstd &= snr[j] > 10
 
     # Observed flux; no Milky Way extinction
     if obs_rflux is None:
@@ -357,7 +364,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
                objtype=None, primary=None):
     """Cuts based QSO target selection
 
@@ -366,8 +373,10 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         deltaChi2: array_like
             chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        wise_snr: array_like[ntargets, 2]
-            S/N in the W1 and W2 bands.
+        w1snr: array_like[ntargets]
+            S/N in the W1 band.
+        w2snr: array_like[ntargets]
+            S/N in the W2 band.
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -379,14 +388,14 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, wise_snr, deltaChi2,
 
     Notes:
         Uses isQSO_colors() to make color cuts first, then applies
-            wise_snr, deltaChi2, and optionally primary and objtype cuts
+            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
 
     """
     qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                        w1flux=w1flux, w2flux=w2flux)
 
-    qso &= wise_snr[..., 0] > 4
-    qso &= wise_snr[..., 1] > 2
+    qso &= w1snr > 4
+    qso &= w2snr > 2
 
     qso &= deltaChi2>40.
 
@@ -541,8 +550,9 @@ def unextinct_fluxes(objects):
     Calculate unextincted DECam and WISE fluxes
 
     Args:
-        objects: array or Table with columns DECAM_FLUX, DECAM_MW_TRANSMISSION,
-            WISE_FLUX, and WISE_MW_TRANSMISSION
+        objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z, 
+            MW_TRANSMISSION_G, MW_TRANSMISSION_R, MW_TRANSMISSION_Z,
+            FLUX_W1, FLUX_W2, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2
 
     Returns:
         array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX
@@ -556,20 +566,18 @@ def unextinct_fluxes(objects):
     else:
         result = np.zeros(len(objects), dtype=dtype)
 
-#ADM Hack for DR3 because of some corrupt sweeps/Tractor files REMOVE ONCE SWEEPS ARE FIXED!!!
-#    dered_decam_flux = objects['DECAM_FLUX'] / objects['DECAM_MW_TRANSMISSION']
-    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
-                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
-    result['GFLUX'] = dered_decam_flux[..., 1]
-    result['RFLUX'] = dered_decam_flux[..., 2]
-    result['ZFLUX'] = dered_decam_flux[..., 4]
+#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files,
+#ADM the comment can be removed if DR4/DR5 run OK. It's just here as a reminder.
+#    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
+#                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
+    result['GFLUX'] = objects['FLUX_G'] / objects['MW_TRANSMISSION_G']
+    result['RFLUX'] = objects['FLUX_R'] / objects['MW_TRANSMISSION_R']
+    result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
 
-#ADM Hack for DR3 because of some corrupt sweeps/Tractor files REMOVE ONCE SWEEPS ARE FIXED!!!
-#    dered_wise_flux = objects['WISE_FLUX'] / objects['WISE_MW_TRANSMISSION']
-    dered_wise_flux =  np.divide(objects['WISE_FLUX'] , objects['WISE_MW_TRANSMISSION'],
-                                 where=objects['WISE_MW_TRANSMISSION']!=0)
-    result['W1FLUX'] = dered_wise_flux[..., 0]
-    result['W2FLUX'] = dered_wise_flux[..., 1]
+#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files,
+#ADM the comment can be removed if DR4/DR5 run OK. It's just here as a reminder.
+    result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
+    result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -608,10 +616,11 @@ def apply_cuts(objects, qso_selection='randomforest'):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    obs_rflux = objects['DECAM_FLUX'][..., 2] # observed r-band flux (used for F standards, below)
+    obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
+
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
@@ -619,10 +628,17 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
 
-    decam_ivar = objects['DECAM_FLUX_IVAR']
-    decam_fracflux = objects['DECAM_FRACFLUX'].T # note transpose
-    decam_snr = objects['DECAM_FLUX'] * np.sqrt(objects['DECAM_FLUX_IVAR'])
-    wise_snr = objects['WISE_FLUX'] * np.sqrt(objects['WISE_FLUX_IVAR'])
+    gfluxivar = objects['FLUX_IVAR_G']
+
+    gfracflux = objects['FRACFLUX_G'].T # note transpose
+    rfracflux = objects['FRACFLUX_R'].T # note transpose
+    zfracflux = objects['FRACFLUX_Z'].T # note transpose
+
+    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
+    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
+    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
+    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
+    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
@@ -630,7 +646,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     #ADM remove handful of NaN values from DCHISQ values and make them unselectable
     w = np.where(deltaChi2 != deltaChi2)
-    #ADM this is to catch the single-object case
+    #ADM this is to catch the single-object case for unit tests
     if len(w[0]) > 0:
         deltaChi2[w] = -1e6
 
@@ -643,13 +659,9 @@ def apply_cuts(objects, qso_selection='randomforest'):
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg = isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                gflux_ivar=decam_ivar[..., 1],
-                rflux_snr=decam_snr[..., 2],
-                zflux_snr=decam_snr[..., 4],
-                w1flux_snr=wise_snr[..., 0],
-                primary=primary)
-
+    lrg = isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                   gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
@@ -658,7 +670,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                          w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                         wise_snr=wise_snr)
+                         w1snr=w1snr, w2snr=w2snr)
     elif qso_selection == 'randomforest':
         qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                  w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
@@ -668,10 +680,12 @@ def apply_cuts(objects, qso_selection='randomforest'):
     #ADM Make sure to pass all of the needed columns! At one point we stopped
     #ADM passing objtype, which meant no standards were being returned.
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype)
     fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  decam_fracflux=decam_fracflux, decam_snr=decam_snr,
+                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
 
     # Construct the targetflag bits; currently our only cuts are DECam based
@@ -752,7 +766,7 @@ def check_input_files(infiles, numproc=4, verbose=False):
         cols = [
             'BRICKID',
 #            'RA_IVAR', 'DEC_IVAR',
-            'DECAM_MW_TRANSMISSION',
+            'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
 #            'WISE_FLUX',
 #            'WISE_MW_TRANSMISSION','DCHISQ'
             ]
@@ -906,12 +920,16 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
             if sandbox:
+                if verbose:
+                    print("You're in the sandbox...")
                 targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
             else:
                 targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
         if sandbox:
+            if verbose:
+                print("You're in the sandbox...")
             for x in infiles:
                 targets.append(_update_status(_select_sandbox_targets_file(x)))
         else:

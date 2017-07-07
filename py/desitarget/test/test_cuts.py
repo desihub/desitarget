@@ -66,32 +66,27 @@ class TestCuts(unittest.TestCase):
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
-        wise_snr = targets['WISE_FLUX'] * np.sqrt(targets['WISE_FLUX_IVAR'])
-        dchisq = targets['DCHISQ'] 
+
+        gfluxivar = targets['FLUX_IVAR_G']
+
+        gsnr = targets['FLUX_G'] * np.sqrt(targets['FLUX_IVAR_G'])
+        rsnr = targets['FLUX_R'] * np.sqrt(targets['FLUX_IVAR_R'])
+        zsnr = targets['FLUX_Z'] * np.sqrt(targets['FLUX_IVAR_Z'])
+        w1snr = targets['FLUX_W1'] * np.sqrt(targets['FLUX_IVAR_W1'])
+        w2snr = targets['FLUX_W2'] * np.sqrt(targets['FLUX_IVAR_W2'])
+
+        dchisq = targets['DCHISQ']
         deltaChi2 = dchisq[...,0] - dchisq[...,1]
-        decam_ivar = targets['DECAM_FLUX_IVAR']
-        decam_snr = targets['DECAM_FLUX'] * np.sqrt(targets['DECAM_FLUX_IVAR'])
-        wise_snr = targets['WISE_FLUX'] * np.sqrt(targets['WISE_FLUX_IVAR'])
 
         if 'BRICK_PRIMARY' in targets.colnames:
             primary = targets['BRICK_PRIMARY']
         else:
             primary = np.ones_like(gflux, dtype='?')
 
-        lrg1 = cuts.isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                gflux_ivar=decam_ivar[..., 1],
-                rflux_snr=decam_snr[..., 2],
-                zflux_snr=decam_snr[..., 4],
-                w1flux_snr=wise_snr[..., 0],
-                primary=None)
-
-        lrg2 = cuts.isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                gflux_ivar=decam_ivar[..., 1],
-                rflux_snr=decam_snr[..., 2],
-                zflux_snr=decam_snr[..., 4],
-                w1flux_snr=wise_snr[..., 0],
-                primary=None)
-
+        lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                    gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+        lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                    gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
         self.assertTrue(np.all(lrg1==lrg2))
 
         elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
@@ -110,9 +105,9 @@ class TestCuts(unittest.TestCase):
 
         #- Test that objtype and primary are optional
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=psftype, primary=primary)
+                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, wise_snr=wise_snr, objtype=None, primary=None)
+                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)

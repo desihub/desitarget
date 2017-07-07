@@ -146,13 +146,14 @@ obsmask:
 
 #- Bits that can be set in TARGETID. See the schema at
 #- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+#- Updated to include RELEASE from the new DR4+ data model, circa June 30th, 2016
 targetid_mask:
-    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",      {firstbit:  0, nbits: 22}]
-    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)", {firstbit: 22, nbits: 20}]
-    - [DR,         42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-47 inclusive)", {firstbit: 42, nbits: 6}]
-    - [MOCK,       48, "this target is a mock target",                                                  {firstbit: 48, nbits: 1}]
-    - [SKY,        49, "this target is a sky fiber target",                                             {firstbit: 49, nbits: 1}]
-    - [RESERVED,   50, "RIGHMOST bit for left over bit space (encompasses bits 50-63 inclusive)",       {firstbit: 50, nbits: 14}]
+    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",      {nbits: 22}]
+    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)", {nbits: 20}]
+    - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-57 inclusive)", {nbits: 16}]
+    - [MOCK,       58, "this target is a mock target",                                                  {nbits: 1}]
+    - [SKY,        59, "this target is a sky fiber target",                                             {nbits: 1}]
+    - [RESERVED,   60, "RIGHMOST bit for left over bit space (encompasses bits 60-63 inclusive)",       {nbits: 4}]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.

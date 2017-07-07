@@ -9,8 +9,7 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
-from desitarget import desi_mask, bgs_mask, mws_mask
-from desitarget import obsmask
+from desitarget import desi_mask, bgs_mask, mws_mask, targetid_mask
 
 ############################################################
 # TARGETID bit packing
@@ -120,6 +119,164 @@ def encode_mtl_targetid(targets):
     # FIXME (APC): expensive...
     assert(len(np.unique(encoded_targetid)) == len(encoded_targetid))
     return encoded_targetid
+
+############################################################
+def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
+    """Create the DESI TARGETID from input source and imaging information
+
+    Parameters
+    ----------
+    objid : :class:`int` or :class:`~numpy.ndarray`, optional
+        The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    brickid : :class:`int` or :class:`~numpy.ndarray`, optional
+        The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    release : :class:`int` or :class:`~numpy.ndarray`, optional
+        The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    mock : :class:`int` or :class:`~numpy.ndarray`, optional
+        1 if this object is a mock object (generated from 
+        mocks, not from real survey data), 0 otherwise
+    sky : :class:`int` or :class:`~numpy.ndarray`, optional
+        1 if this object is a blank sky object, 0 otherwise
+
+    Returns
+    -------
+    :class:`int` or `~numpy.ndarray` 
+        The TARGETID for DESI, encoded according to the bits listed in
+        :meth:`desitarget.targetid_mask`. If an integer is passed, then an
+        integer is returned, otherwise an array is returned
+
+    Notes
+    -----
+        - This is set up with maximum flexibility so that mixes of integers 
+          and arrays can be passed, in case some value like BRICKID or SKY 
+          is the same for a set of objects. Consider, e.g.:
+
+              print(
+                  targets.decode_targetid(
+                      targets.encode_targetid(objid=np.array([234,12]),
+                                              brickid=np.array([234,12]),
+                                              release=4,
+                                              sky=[1,0]))
+                                              )
+
+        (array([234,12]), array([234,12]), array([4,4]), array([0,0]), array([1,0]))
+
+        - See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+    """
+
+    #ADM a flag that tracks whether the main inputs were integers
+    intpassed = True
+
+    #ADM determine the length of whichever value was passed that wasn't None
+    #ADM default to an integer (length 1)
+    nobjs = 1
+    inputs = [objid, brickid, release, sky, mock]
+    goodpar = [ input is not None for input in inputs ]
+    firstgoodpar = np.where(goodpar)[0][0]
+    if isinstance(inputs[firstgoodpar],np.ndarray):
+        nobjs = len(inputs[firstgoodpar])
+        intpassed = False
+
+    #ADM set parameters that weren't passed to zerod arrays
+    #ADM set integers that were passed to at least 1D arrays
+    if objid is None:
+        objid = np.zeros(nobjs,dtype='int64')
+    else:
+        objid = np.atleast_1d(objid)
+    if brickid is None:
+        brickid = np.zeros(nobjs,dtype='int64')
+    else:
+        brickid = np.atleast_1d(brickid)
+    if release is None:
+        release = np.zeros(nobjs,dtype='int64')
+    else:
+        release = np.atleast_1d(release)
+    if mock is None:
+        mock = np.zeros(nobjs,dtype='int64')
+    else:
+        mock = np.atleast_1d(mock)
+    if sky is None:
+        sky = np.zeros(nobjs,dtype='int64')
+    else:
+        sky = np.atleast_1d(sky)
+
+    #ADM check none of the passed parameters exceed their bit-allowance
+    if not np.all(objid <= 2**targetid_mask.OBJID.nbits):
+        print('Invalid range when creating targetid: OBJID cannot exceed {}'.format(2**targetid_mask.OBJID.nbits))
+        raise Exception
+    if not np.all(brickid <= 2**targetid_mask.BRICKID.nbits):
+        print('Invalid range when creating targetid: BRICKID cannot exceed {}'.format(2**targetid_mask.BRICKID.nbits))
+        raise Exception
+    if not np.all(release <= 2**targetid_mask.RELEASE.nbits):
+        print('Invalid range when creating targetid: RELEASE cannot exceed {}'.format(2**targetid_mask.RELEASE.nbits))
+        raise Exception
+    if not np.all(mock <= 2**targetid_mask.MOCK.nbits):
+        print('Invalid range when creating targetid: MOCK cannot exceed {}'.format(2**targetid_mask.MOCK.nbits))
+        raise Exception
+    if not np.all(sky <= 2**targetid_mask.SKY.nbits):
+        print('Invalid range when creating targetid: SKY cannot exceed {}'.format(2**targetid_mask.SKY.nbits))
+        raise Exception
+
+    #ADM set up targetid as an array of 64-bit integers
+    targetid = np.zeros(nobjs,('int64'))
+    #ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
+    #ADM remember to shift to type integer 64 to avoid casting
+    targetid |= objid.astype('int64') << targetid_mask.OBJID.bitnum
+    targetid |= brickid.astype('int64') << targetid_mask.BRICKID.bitnum
+    targetid |= release.astype('int64') << targetid_mask.RELEASE.bitnum
+    targetid |= mock.astype('int64') << targetid_mask.MOCK.bitnum
+    targetid |= sky.astype('int64') << targetid_mask.SKY.bitnum
+
+    #ADM if the main inputs were integers, return an integer
+    if intpassed:
+        return targetid[0]
+    return targetid
+
+############################################################
+def decode_targetid(targetid):
+    """break a DESI TARGETID into its constituent parts
+
+    Parameters
+    ----------
+    :class:`int` or :class:`~numpy.ndarray` 
+        The TARGETID for DESI, encoded according to the bits listed in
+        :meth:`desitarget.targetid_mask`        
+
+    Returns
+    -------
+    objid : :class:`int` or `~numpy.ndarray`
+        The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    brickid : :class:`int` or `~numpy.ndarray`
+        The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    release : :class:`int` or `~numpy.ndarray`
+        The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+    mock : :class:`int` or `~numpy.ndarray`
+        1 if this object is a mock object (generated from 
+        mocks, not from real survey data), 0 otherwise
+    sky : :class:`int` or `~numpy.ndarray`
+        1 if this object is a blank sky object, 0 otherwise
+
+    Notes
+    -----
+        - if a 1-D array is passed, then an integer is returned. Otherwise an array
+          is returned
+        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+    """
+
+    #ADM retrieve each constituent value by left-shifting by the number of bits that comprise
+    #ADM the value, to the left-end of the value, and then right-shifting to the right-end
+    objid = (targetid & (2**targetid_mask.OBJID.nbits - 1 
+                         << targetid_mask.OBJID.bitnum)) >> targetid_mask.OBJID.bitnum
+    brickid = (targetid & (2**targetid_mask.BRICKID.nbits - 1 
+                           << targetid_mask.BRICKID.bitnum)) >> targetid_mask.BRICKID.bitnum
+    release = (targetid & (2**targetid_mask.RELEASE.nbits - 1 
+                           << targetid_mask.RELEASE.bitnum)) >> targetid_mask.RELEASE.bitnum
+    mock = (targetid & (2**targetid_mask.MOCK.nbits - 1 
+                        << targetid_mask.MOCK.bitnum)) >> targetid_mask.MOCK.bitnum
+    sky = (targetid & (2**targetid_mask.SKY.nbits - 1 
+                       << targetid_mask.SKY.bitnum)) >> targetid_mask.SKY.bitnum
+
+    return objid, brickid, release, mock, sky
 
 ############################################################
 def encode_survey_source(survey,source,original_targetid):
@@ -342,7 +499,9 @@ def finalize(targets, desi_target, bgs_target, mws_target):
     #- OBJID in tractor files is only unique within the brick; rename and
     #- create a new unique TARGETID
     targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})
-    targetid = targets['BRICKID'].astype(np.int64)*1000000 + targets['BRICK_OBJID']
+    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                               brickid=targets['BRICKID'],
+                               release=targets['RELEASE'])
 
     #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,

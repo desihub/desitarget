@@ -15,6 +15,7 @@ warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
 from argparse import ArgumentParser
 ap = ArgumentParser()
@@ -40,9 +41,6 @@ if len(infiles) == 0:
     print('FATAL: no sweep or tractor files found')
     sys.exit(1)
 
-#ADM record the DATA RELEASE as a 9-string
-drstring = fitsio.read_header(infiles[0], 0)["DECALSDR"].lower()
-
 if ns.check:
     print('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
@@ -51,10 +49,10 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
     if ns.starmask:
-        targets = mask_targets(targets, instarmaskfile=ns.starmask, drstring=drstring)
+        targets = mask_targets(targets, instarmaskfile=ns.starmask, nside=nside)
 
-    io.write_targets(ns.dest, targets, drstring=drstring, indir=ns.src,
-        qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox)
+    io.write_targets(ns.dest, targets, indir=ns.src,
+        qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
 
     print('{} targets written to {}'.format(len(targets), ns.dest))
 

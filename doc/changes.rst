@@ -5,7 +5,17 @@ desitarget Change Log
 0.13.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Significant updated to handle transition from pre-DR4 to post-DR4 data model [`PR #189`_]:
+   * :mod:`desitarget.io` can now read old DR3-style and new DR4-style tractor and sweeps files
+   * :mod:`desitarget.cuts` now always uses DR4-style column names and formats
+   * new 60-bit ``TARGETID`` schema that incorporates ``RELEASE`` column from imaging surveys
+   * :mod:`desitarget.brightstar` builds masks on DR4-style data, uses ``RELEASE`` to set DR
+   * HEALPix pixel number (current nside=64) added to output target files
+   * ``select_targets`` passes around information related to ``HEALPix``
+   * column ``PHOTSYS`` added to output files, recording North or South for the photometric system
+   * unit tests that explicitly used columns and formats from the data model have been updated
+
+.. _`PR #189`: https://github.com/desihub/desitarget/pull/189
 
 0.13.0 (2017-06-15)
 -------------------
@@ -27,15 +37,15 @@ desitarget Change Log
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 * Updated LRG cuts significantly to match proposed shift in LRG target density [`PR #179`_].
 * Major expansion of bright object masking functionality (for circular masks) [`PR #176`_]:
-  * Generate SAFE/BADSKY locations around mask perimeters
-  * Set the target bits (including TARGETID) for SAFE/BADSKY sky locations
-  * Set a NEAR_RADIUS warning for objects close to (but not in) a mask
-  * Plot more realistic mask shapes by using ellipses
+   * Generate SAFE/BADSKY locations around mask perimeters
+   * Set the target bits (including TARGETID) for SAFE/BADSKY sky locations
+   * Set a NEAR_RADIUS warning for objects close to (but not in) a mask
+   * Plot more realistic mask shapes by using ellipses
 * Significant expansion of the mocks-to-targets code [`PR #173`_ and `PR #177`_]:
-  * Better and more graceful error handling.
-  * Now includes contaminants.
-  * Much better memory usage.
-  * Updated QA notebook.
+   * Better and more graceful error handling.
+   * Now includes contaminants.
+   * Much better memory usage.
+   * Updated QA notebook.
 * Add Random Forest selection for ELG in the sandbox [`PR #174`_].
 * Fix ELG and stdstar mock densities; add mock QA [`PR #181`_].
 
