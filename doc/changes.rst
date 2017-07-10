@@ -3,7 +3,7 @@ desitarget Change Log
 =====================
 
 0.14.1 (unreleased)
-------------------
+-------------------
 
 * no changes yet
 
