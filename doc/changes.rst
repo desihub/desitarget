@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.13.1 (unreleased)
+0.14.1 (unreleased)
+------------------
+
+* no changes yet
+
+0.14.0 (2017-07-10)
 -------------------
 
 * Significant updated to handle transition from pre-DR4 to post-DR4 data model [`PR #189`_]:
