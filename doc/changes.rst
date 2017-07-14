@@ -5,7 +5,10 @@ desitarget Change Log
 0.14.1 (unreleased)
 -------------------
 
-* Fix isLRG vs. isLRG_colors for mocks [`PR #200`_].
+* Changes for mocks [`PR #200`_]:
+  * Fix isLRG vs. isLRG_colors
+  * Correct random seeds when processing pix in parallel
+  * Misc other small bug fixes
 
 .. _`PR #200`: https://github.com/desihub/desitarget/pull/200
 
