@@ -5,7 +5,9 @@ desitarget Change Log
 0.14.1 (unreleased)
 -------------------
 
-* no changes yet
+* Fix isLRG vs. isLRG_colors for mocks [`PR #200`_].
+
+.. _`PR #200`: https://github.com/desihub/desitarget/pull/200
 
 0.14.0 (2017-07-10)
 -------------------
