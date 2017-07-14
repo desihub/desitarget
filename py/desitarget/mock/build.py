@@ -555,7 +555,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         log = get_logger(DEBUG)
     else:
         log = get_logger()
-    
+
     if params is None:
         log.fatal('Required params input not given!')
         raise ValueError
