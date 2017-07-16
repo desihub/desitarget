@@ -39,7 +39,7 @@ class SelectTargets(object):
         targets.
 
         """ 
-        from desitarget.cuts import isBGS_faint, isELG, isLRG, isQSO_colors
+        from desitarget.cuts import isBGS_faint, isELG, isLRG_colors, isQSO_colors
 
         gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
@@ -69,7 +69,8 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
         # Select stellar contaminants for LRG targets.
-        lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
+        lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux)
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
         for oo in self.desi_mask.LRG.obsconditions.split('|'):
@@ -197,7 +198,7 @@ class SelectTargets(object):
 
     def lrg_select(self, targets, truth, boss_std=None):
         """Select LRG targets."""
-        from desitarget.cuts import isLRG, isQSO_colors
+        from desitarget.cuts import isLRG_colors, isQSO_colors
 
         gflux = targets['DECAM_FLUX'][..., 1]
         rflux = targets['DECAM_FLUX'][..., 2]
@@ -205,7 +206,8 @@ class SelectTargets(object):
         w1flux = targets['WISE_FLUX'][..., 0]
         w2flux = targets['WISE_FLUX'][..., 1]
 
-        lrg = isLRG(rflux=rflux, zflux=zflux, w1flux=w1flux)
+        lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux)
 
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH

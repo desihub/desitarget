@@ -350,13 +350,13 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     truth = empty_truth_table(nobj)
 
     for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key] = source_data[key][onbrick]
+        targets[key][:] = source_data[key][onbrick]
 
     for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
         targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
     for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):
         targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
-    targets['EBV'] = brick_info['EBV'][brickindx]
+    targets['EBV'][:] = brick_info['EBV'][brickindx]
 
     # Use the point-source depth for point sources, although this should really
     # be tied to the morphology.
@@ -380,21 +380,21 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
         for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key] = source_data[key][onbrick]
+            targets[key][:] = source_data[key][onbrick]
 
     for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
                                 ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
         if isinstance(source_data[source_key], np.ndarray):
-            truth[key] = source_data[source_key][onbrick]
+            truth[key][:] = source_data[source_key][onbrick]
         else:
-            truth[key] = np.repeat(source_data[source_key], nobj)
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
 
     # Sky targets are a special case without redshifts.
     if target_name == 'sky':
         select_targets_function(targets, truth)
         return [targets, truth]
 
-    truth['TRUEZ'] = source_data['Z'][onbrick]
+    truth['TRUEZ'][:] = source_data['Z'][onbrick]
 
     # For FAINTSTAR targets, preselect stars that are going to pass target
     # selection cuts without actually generating spectra, in order to save
@@ -454,7 +454,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key] = meta[key]
+        truth[key][:] = meta[key]
 
     # Perturb the photometry based on the variance on this brick and apply
     # target selection.
@@ -555,7 +555,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         log = get_logger(DEBUG)
     else:
         log = get_logger()
-    
+
     if params is None:
         log.fatal('Required params input not given!')
         raise ValueError
@@ -802,13 +802,13 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     targetid = rand.randint(2**62, size=ntarget + nsky)
     subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
 
-    truth['TARGETID'] = targetid[:ntarget]
-    targets['TARGETID'] = targetid[:ntarget]
-    targets['SUBPRIORITY'] = subpriority[:ntarget]
+    truth['TARGETID'][:] = targetid[:ntarget]
+    targets['TARGETID'][:] = targetid[:ntarget]
+    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
 
     if nsky > 0:
-        skytargets['TARGETID'] = targetid[ntarget:ntarget+nsky]
-        skytargets['SUBPRIORITY'] = subpriority[ntarget:ntarget+nsky]
+        skytargets['TARGETID'][:] = targetid[ntarget:ntarget+nsky]
+        skytargets['SUBPRIORITY'][:] = subpriority[ntarget:ntarget+nsky]
 
     # Write the final catalogs out by healpixel.
     if seed is None:

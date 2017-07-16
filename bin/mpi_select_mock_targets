@@ -120,16 +120,22 @@ else:
 
 params = comm.bcast(params, root=0)
 
+#- Generate a different random seed for each pixel
+np.random.seed(args.seed)
+randseeds = np.random.randint(2**31, size=len(pixels))
+
 #- Split the pixels into groups for each rank
 iedges = np.linspace(0, len(pixels), size+1, dtype=int)
 rankpix = pixels[iedges[rank]:iedges[rank+1]]
+rankseeds = randseeds[iedges[rank]:iedges[rank+1]]
 log.info('rank {} processes {} pixels {}'.format(rank, iedges[rank+1]-iedges[rank], rankpix))
 
 if len(rankpix) > 0:
-    #- Process in groups of 4 to balance mock reading overhead
-    #- vs. writing partial progress in case job times out
-    n = 4
+    #- Process one pixel at a time to avoid blowing out memory, but structure
+    #- it in a way that we could expand to multiple pixels per call if/when
+    #- we use less memory.
+    n = 1
     for i in range(0, len(rankpix), n):
-        targets_truth(params, args.output_dir, seed=args.seed, nside=args.nside,
-                      nproc=args.nproc, verbose=args.verbose, clobber=True,
+        targets_truth(params, args.output_dir, seed=rankseeds[i], nside=args.nside,
+                      nproc=args.nproc, verbose=args.verbose,
                       healpixels=rankpix[i:i+n])

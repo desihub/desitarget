@@ -23,7 +23,7 @@ from desiutil.brick import Bricks
 from desimodel.footprint import radec2pix
 
 from desiutil.log import get_logger, DEBUG
-log = get_logger(DEBUG)
+log = get_logger()
 
 """How to distribute 52 user bits of targetid.
 
