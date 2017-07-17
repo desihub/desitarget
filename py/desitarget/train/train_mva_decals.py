@@ -130,7 +130,8 @@ def train_mva_decals(Step,debug=False):
 
 # files available on nersc
     modelDir='./'
-    dataDir='/global/project/projectdirs/desi/target/qso_training/'
+#    dataDir='/global/project/projectdirs/desi/target/qso_training/'
+    dataDir='./'
 
 # region of control   36<ra<42 is removed
     starTraining = dataDir+'star_dr3_nora36-42_normalized.fits' #dr3
@@ -155,7 +156,7 @@ def train_mva_decals(Step,debug=False):
         object_g,object_r,object_z,object_W1,object_W2 = magsExtFromFlux(object)
         nobjecttot = len(object)
         object_colors = colors(nobjecttot,nfeatures,object_g,object_r,object_z,object_W1,object_W2)
-
+        
     else :
         print('Unknown option')
         sys.exit()
@@ -308,6 +309,7 @@ def train_mva_decals(Step,debug=False):
         joblib.dump(rf, newDir+'bdt.pkl')
 
         myrf =  myRF(object_colors,newDir)
-        myrf.saveForest(modelDir+'rf_model_dr3.npz')
+        nTrees=200
+        myrf.saveForest(modelDir+'rf_model_dr3.npz',nTrees)
 
         sys.exit()

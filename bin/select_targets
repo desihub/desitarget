@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.cuts import select_targets, check_input_files, qso_selection_options
+from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightstar import mask_targets
 
 import warnings
@@ -28,6 +28,8 @@ ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target 
 ap.add_argument("--FoMthresh", type=float,help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
+ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
+                help="Method used in sandbox target for ELG")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int,
     help='number of concurrent processes to use [{}]'.format(nproc),
@@ -47,7 +49,7 @@ if ns.check:
     print('{} potentially corrupt files'.format(nbadfiles))
 else:
     targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
-                             qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh)
+                             qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
     if ns.starmask:
         targets = mask_targets(targets, instarmaskfile=ns.starmask, nside=nside)
 

@@ -477,7 +477,7 @@ def apply_XD_globalerror(objs, last_FoM, glim=23.8, rlim=23.4, zlim=22.4, gr_ref
     return iXD, FoM
 
 
-def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None, training='spectro'):
     """Target Definition of ELG using a random forest returning a boolean array.
 
     Args:
@@ -499,12 +499,13 @@ def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=No
     # build variables for random forest
     nfeatures=11 # number of variables in random forest
     nbEntries=rflux.size
-    colors, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
+    colors, g, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
 
     #Preselection to speed up the process, store the indexes
-    rMax = 23.4  # r<23.4
-
-    preSelection = np.where( (r<rMax) & DECaLSOK )
+    rMax = 23.5  # r<23.5
+    gMax = 23.8  # g<23.8 proxy of OII flux
+    
+    preSelection = np.where( (r<rMax) & (g<gMax) & DECaLSOK )
     colorsCopy = colors.copy()
     colorsReduced = colorsCopy[preSelection]
     colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
@@ -519,9 +520,19 @@ def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=No
 
     if (colorsReducedIndex.any()) :
         rf = myRF(colorsReduced,pathToRF)
-        fileName = pathToRF + '/rf_model_dr3_elg.npz'
+        if (training == 'spectro') :
+            # Training with VIPERS and DEEP2 Fileds 2,3,4
+            print (' === Trained with DEEP2 and VIPERS with spectro z == ')
+            fileName = pathToRF + '/rf_model_dr3_elg.npz' 
+            nTrees=200
+        elif  (training == 'photo') :  
+            # Training with HSC with photometric redshifts
+            print (' === Trained with HSC with photo z == ')
+            fileName = pathToRF + '/rf_model_dr3_elg_HSC.npz' 
+            nTrees=500
+        
         rf.loadForest(fileName)
-        objects_rf = rf.predict_proba()
+        objects_rf = rf.predict_proba(nTrees)
         # add random forest probability to preselected objects
         j=0
         for i in colorsReducedIndex :
@@ -533,6 +544,7 @@ def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=No
 
     elg = primary.copy()
     elg &= r<rMax
+    elg &= g<gMax
     elg &= DECaLSOK
 
 
@@ -558,7 +570,8 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
     W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
 
-    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+#    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & ((W1>0.) | (W2>0.))
 
     colors  = np.zeros((nbEntries,nfeatures))
     colors[:,0]=g-r
@@ -573,9 +586,9 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     colors[:,9]=W1-W2
     colors[:,10]=r
 
-    return colors, r, DECaLSOK
+    return colors, g, r, DECaLSOK
 
-def apply_sandbox_cuts(objects,FoMthresh=None):
+def apply_sandbox_cuts(objects,FoMthresh=None, MethodELG='XD'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -584,9 +597,11 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
         FoMthresh: If this is passed, then run apply_XD_globalerror and
             return the Figure of Merits calculated for the ELGs in a file
             "FoM.fits" in the current working directory.
-            for RF, use a negative Threshold, abs(FoMthresh) is used as a 
-            probability cut
-
+        MethodELG: Three methods available for ELGs
+            XD: Extreme deconvolution
+            RF_spectro: Random Forest trained with spectro z (VIPERS and DEEP2)
+            RF_photo: Random Forest trained with photo z (HSC)
+            
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object
@@ -651,13 +666,16 @@ def apply_sandbox_cuts(objects,FoMthresh=None):
                        primary=primary)
 
     if FoMthresh is not None:
-        if (FoMthresh>0.0) :
+        if (MethodELG=='XD') :
             elg, FoM = apply_XD_globalerror(objects, FoMthresh, glim=23.8, rlim=23.4, zlim=22.4, gr_ref=0.5,
                        rz_ref=0.5,reg_r=1e-4/(0.025**2 * 0.05),f_i=[1., 1., 0., 0.25, 0., 0.25, 0.],
                        gmin = 21., gmax = 24.)
-        else :
+        elif (MethodELG=='RF_photo') :
             elg, FoM = isELG_randomforest(pcut=abs(FoMthresh), primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                 w1flux=w1flux, w2flux=w2flux)    
+                                 w1flux=w1flux, w2flux=w2flux, training='photo')    
+        elif (MethodELG=='RF_spectro') :
+             elg, FoM = isELG_randomforest(pcut=abs(FoMthresh), primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                 w1flux=w1flux, w2flux=w2flux, training='spectro')    
 
     #- construct the targetflag bits
     #- Currently our only cuts are DECam based (i.e. South)

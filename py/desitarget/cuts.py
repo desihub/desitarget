@@ -831,9 +831,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
 
 
 qso_selection_options = ['colorcuts', 'randomforest']
+Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest',
-                   sandbox=False, FoMthresh=None):
+                   sandbox=False, FoMthresh=None, Method=None):
     """Process input files in parallel to select targets
 
     Args:
@@ -848,6 +849,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         FoMthresh (optional): if a value is passed then run apply_XD_globalerror for ELGs in
             the sandbox. This will write out an "FoM.fits" file for every ELG target
             in the sandbox directory.
+        Method (optional): Method used in sandbox    
 
     Returns:
         targets numpy structured array
@@ -895,7 +897,7 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
