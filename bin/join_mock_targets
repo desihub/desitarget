@@ -1,0 +1,30 @@
+#!/usr/bin/env python
+
+'''
+join mock targets and truth from individual pixels into summary tables
+'''
+
+from __future__ import absolute_import, division, print_function
+import argparse
+parser = argparse.ArgumentParser(usage = "{prog} [options]")
+parser.add_argument("--mockdir", type=str, required=True, help="input mock directory")
+parser.add_argument("--outdir", type=str,  help="output directory [default same as mockdir]")
+parser.add_argument("--force", action="store_true", help="rerun even if output files exist")
+parser.add_argument("--mpi", action="store_true", help="Use MPI parallelism")
+args = parser.parse_args()
+
+#- Establish MPI communication before other imports so SLURM knows we're alive
+if args.mpi:
+    from mpi4py import MPI
+    comm = MPI.COMM_WORLD
+else:
+    comm = None
+
+from desitarget.mock.build import join_targets_truth
+
+join_targets_truth(args.mockdir, outdir=args.outdir, force=args.force, comm=comm)
+
+
+
+
+
