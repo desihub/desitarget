@@ -378,13 +378,12 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    #   all bricks:  http://legacysurvey.org/dr3/description
-    decam_onesigma = 10**(0.4 * (22.5 - np.array([0.0, 24.7, 23.9, 0.0, 23.0, 0.0])) ) / 5
-
-    # Hack! Assume a constant depth (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3
-    # nanomaggies) in the WISE bands for now.
-    wise_onesigma = 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )
-
+    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
+    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
+    # for now.
+    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
+                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
+    
     # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
         for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
@@ -420,15 +419,10 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
         normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
 
-        for band in (0, 1):
-            truth['WISE_FLUX'][:, band] = Spectra.tree.star_wise_flux[templateid, band] * normmag
-            targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
-              rand.normal(scale=wise_onesigma[band], size=nobj)
-            
-        for band in (1, 2, 4):
-            truth['DECAM_FLUX'][:, band] = Spectra.tree.star_decam_flux[templateid, band] * normmag
-            targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-              rand.normal(scale=decam_onesigma[band], size=nobj)
+        for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+            truth[fluxkey][:] = getattr(Spectra.tree, fluxkey.lower())[templateid] * normmag
+            targets[fluxkey][:] = truth[fluxkey][:] + \
+              rand.normal(scale=onesigma[band], size=nobj)
 
         select_targets_function(targets, truth)
 
@@ -438,10 +432,10 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         # Temporary debugging plot.
         if False:
             import matplotlib.pyplot as plt
-            gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
-            rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
-            gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
-            rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+            gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+            rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+            gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+            rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
             plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none')
             plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
             plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none')
@@ -461,18 +455,14 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
 
-    for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key][:] = meta[key]
 
     # Perturb the photometry based on the variance on this brick and apply
     # target selection.
-    for band in (0, 1):
-        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
-          rand.normal(scale=wise_onesigma[band], size=nobj)
-    for band in (1, 2, 4):
-        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-          rand.normal(scale=decam_onesigma[band], size=nobj)
+    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
 
     if False:
         import matplotlib.pyplot as plt
@@ -488,10 +478,11 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
                      ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
                      ]
             ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
-        gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
-        rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
-        gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
-        rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        
         fig, ax = plt.subplots()
         ax.scatter(rz1, gr1, color='red')
         ax.scatter(rz, gr, alpha=0.5, color='green')
