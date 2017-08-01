@@ -287,18 +287,23 @@ def empty_targets_table(nobj=1):
     # Quantities mimicking a true targeting catalog (or inherited from the
     # mocks).
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U10'))
-    targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
-    targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj,
-                              data=np.zeros((nobj, 6)), dtype='f4'))
-    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj,
-                              data=np.zeros((nobj, 6)), dtype='f4'))
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
 
     return targets
@@ -320,8 +325,12 @@ def empty_truth_table(nobj=1):
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99))
-    truth.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
-    truth.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+    
+    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
 
     truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
     truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
