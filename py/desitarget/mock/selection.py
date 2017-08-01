@@ -41,11 +41,8 @@ class SelectTargets(object):
         """ 
         from desitarget.cuts import isBGS_faint, isELG, isLRG_colors, isQSO_colors
 
-        gflux = targets['DECAM_FLUX'][..., 1]
-        rflux = targets['DECAM_FLUX'][..., 2]
-        zflux = targets['DECAM_FLUX'][..., 4]
-        w1flux = targets['WISE_FLUX'][..., 0]
-        w2flux = targets['WISE_FLUX'][..., 1]
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
 
         # Select stellar contaminants for BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
@@ -94,11 +91,8 @@ class SelectTargets(object):
         """Select bright- and dark-time standard stars."""
         from desitarget.cuts import isFSTD
 
-        gflux = targets['DECAM_FLUX'][..., 1]
-        rflux = targets['DECAM_FLUX'][..., 2]
-        zflux = targets['DECAM_FLUX'][..., 4]
-        w1flux = targets['WISE_FLUX'][..., 0]
-        w2flux = targets['WISE_FLUX'][..., 1]
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
 
         obs_rflux = rflux * 10**(-0.4 * targets['EBV'] * self.decam_extcoeff[2]) # attenuate for dust
 
@@ -141,7 +135,7 @@ class SelectTargets(object):
         """
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
-        rflux = targets['DECAM_FLUX'][..., 2]
+        rflux = targets['FLUX_R']
 
         # Select BGS_BRIGHT targets.
         bgs_bright = isBGS_bright(rflux=rflux)
@@ -163,11 +157,8 @@ class SelectTargets(object):
         """Select ELG targets and contaminants."""
         from desitarget.cuts import isELG, isQSO_colors
 
-        gflux = targets['DECAM_FLUX'][..., 1]
-        rflux = targets['DECAM_FLUX'][..., 2]
-        zflux = targets['DECAM_FLUX'][..., 4]
-        w1flux = targets['WISE_FLUX'][..., 0]
-        w2flux = targets['WISE_FLUX'][..., 1]
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
         
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
 
@@ -200,11 +191,8 @@ class SelectTargets(object):
         """Select LRG targets."""
         from desitarget.cuts import isLRG_colors, isQSO_colors
 
-        gflux = targets['DECAM_FLUX'][..., 1]
-        rflux = targets['DECAM_FLUX'][..., 2]
-        zflux = targets['DECAM_FLUX'][..., 4]
-        w1flux = targets['WISE_FLUX'][..., 0]
-        w2flux = targets['WISE_FLUX'][..., 1]
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
 
         lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux)
@@ -247,11 +235,8 @@ class SelectTargets(object):
             faint &= rflux <= 10**( (22.5 - 19.0) / 2.5 )
             return faint
         
-        gflux = targets['DECAM_FLUX'][..., 1]
-        rflux = targets['DECAM_FLUX'][..., 2]
-        zflux = targets['DECAM_FLUX'][..., 4]
-        w1flux = targets['WISE_FLUX'][..., 0]
-        w2flux = targets['WISE_FLUX'][..., 1]
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
 
         # Select MWS_MAIN targets.
         mws_main = _isMWS_MAIN(rflux=rflux)
@@ -310,11 +295,9 @@ class SelectTargets(object):
         """Select QSO targets and contaminants."""
         from desitarget.cuts import isQSO_colors, isELG
 
-        gflux = targets['DECAM_FLUX'][..., 1]
-        rflux = targets['DECAM_FLUX'][..., 2]
-        zflux = targets['DECAM_FLUX'][..., 4]
-        w1flux = targets['WISE_FLUX'][..., 0]
-        w2flux = targets['WISE_FLUX'][..., 1]
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+          
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux, optical=True)
 
