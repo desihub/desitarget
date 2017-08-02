@@ -1113,9 +1113,8 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
 
     #ADM set the number of bins for the histogram (determined from trial and error)
     nbins = 80
-    #ADM the low density objects, the standard stars, look better with fewer bins
-    if np.max(dens < 200):
-        print(objtype)
+    #ADM low density objects (QSOs and standard stars) look better with fewer bins
+    if np.max(dens) < 500:
         nbins = 40
     #ADM the density value of the peak histogram bin
     h, b = np.histogram(dens,bins=nbins)
@@ -1166,6 +1165,11 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
     -------
     Nothing
         But a set of .png plots of target densities are written to qadir
+
+    Notes
+    -----
+    DESIMODEL must be set to find file of HEALPixels that overlap DESI footprint
+
     """
 
     #ADM set up the default logger from desiutil
@@ -1203,8 +1207,8 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
     weights = np.ones(len(targs))
     if weight:
         #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-#        pixweight = io.load_pixweight(nside)
-        pixweight = footprint.pixweight(nside,precision=0.01)
+        pixweight = io.load_pixweight(nside)
+#        pixweight = footprint.pixweight(nside,precision=0.01)
         #ADM determine what HEALPixels each target is in, to set the weights
         fracarea = pixweight[pix]
         #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
@@ -1236,8 +1240,8 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM make RA/Dec skymaps
-#        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
-#                max_bin_area=max_bin_area, qadir=qadir)
+        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
+                max_bin_area=max_bin_area, qadir=qadir)
 
         log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
