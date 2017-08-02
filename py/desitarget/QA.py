@@ -27,7 +27,6 @@ from . import __version__ as desitarget_version
 from desiutil import brick
 from desiutil.log import get_logger, DEBUG
 from desiutil.plots import init_sky, plot_sky_binned
-import desitarget.mock.QA as mockQA    
 from desitarget import desi_mask
 
 import warnings, itertools
@@ -990,8 +989,8 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
-def qadensity(cat, objtype, targdens=None, upclip=None, max_bin_area=1.0, fileprefix="radec", qadir='.', galactic_plane_color=None):
-    """Visualize the target density with a skymap and histogram. First version lifted 
+def qaskymap(cat, objtype, upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap", qadir='.'):
+    """Visualize the target density with a skymap. First version lifted 
     shamelessly from desitarget.mock.QA (which was originally written by J. Moustakas)
 
     Parameters
@@ -1000,72 +999,40 @@ def qadensity(cat, objtype, targdens=None, upclip=None, max_bin_area=1.0, filepr
         An array of targets that contains at least "RA" and "DEC" columns for coordinate
         information
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ELG) that appears in the targdens dictionary
-        and corresponds to the passed "cat"
-    targdens : :class:`dict`, optional, defaults to None
-        A dictionary that contains the target density goal for the passed objtype, e.g. as
-        of June 2017, something like:
-        
-           {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410}
-
-        if this is not None then a histogram of target densities is produced alongside the
-        areal density plot
+        The name of a DESI target class (e.g., ELG) that corresponds to the passed "cat"
     upclip : :class:`float`, optional, defaults to None
-        A  cutoff at which to clip the targets at the "high density" end to make plots 
-        conform to similar density scales, e.g.
+        A cutoff at which to clip the targets at the "high density" end to make plots 
+        conform to similar density scales
+    weights : :class:`~numpy.array`, optional, defaults to None
+        A weight for each of the passed targets (e.g., to upweight each target in a
+        partial pixel at the edge of the DESI footprint)
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
-        possible to this value without exceeding it.        
+        possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to "radec" for (RA/Dec)
         string to be added to the front of the output file name
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
-    galactic_plane_color : :class:`str`, optional, defaults to None
-        Color in which to plot the Galactic Plane using standard matplotlib colors (e.g. 'k'
-        for black). Defaults to not plotting the Plane
 
     Returns
     -------
     Nothing
         But a .png plot of target densities is written to qadir. The file is called:
-            {qadir}/{fileprefix}-{objtype}-target-density.png 
+            {qadir}/{fileprefix}-{objtype}.png 
     """
 
     label = '{} (targets/deg$^2$)'.format(objtype)
-    if targdens:
-        fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
-    else:
-        fig, ax = plt.subplots(1)
+    fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
        
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        basemap = init_sky(galactic_plane_color=galactic_plane_color, ax=ax[0]);
-        plot_sky_binned(cat['RA'], cat['DEC'], max_bin_area=max_bin_area,
+        basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+        plot_sky_binned(cat['RA'], cat['DEC'], weights=weights, max_bin_area=max_bin_area,
                         clip_lo='!1', clip_hi=upclip, cmap='jet', plot_type='healpix', 
                         label=label, basemap=basemap)
 
-    if targdens:
-        nbins=100
-        dens = mockQA.target_density(cat)
-        if upclip:
-            dens = np.clip(dens,0,upclip)
-        #ADM histogram of the densities with nbins bins
-        h, bins = np.histogram(dens,bins=nbins)
-        #ADM the density value of the peak histogram bin
-        peak = np.mean(bins[np.argmax(h):np.argmax(h)+2])
-
-        ax[1].hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
-                   label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
-        if objtype in targdens.keys():
-            ax[1].axvline(x=targdens[objtype], ls='--', color='k', 
-                          label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype,targdens[objtype]))
-        ax[1].set_xlabel(label)
-        ax[1].set_ylabel('Number of Healpixels')
-        ax[1].legend(loc='upper left', frameon=False)
-        fig.subplots_adjust(wspace=0.2)
-
-    pngfile = os.path.join(qadir, '{}-{}-target-density.png'.format(fileprefix,objtype))
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
     fig.savefig(pngfile)
 
     plt.close()
@@ -1073,7 +1040,112 @@ def qadensity(cat, objtype, targdens=None, upclip=None, max_bin_area=1.0, filepr
     return pngfile
 
 
-def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
+def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area=1.0, 
+            fileprefix="histo", qadir='.', catispix=False):
+    """Visualize the target density with a histogram of densities. First version taken 
+    shamelessly from desitarget.mock.QA (which was originally written by J. Moustakas)
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least "RA" and "DEC" columns for coordinate
+        information
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ELG) that corresponds to the passed "cat"
+    targdens : :class:`dictionary`, optional, defaults to None
+        A dictionary of DESI target classes and the goal density for that class. Used, if
+        passed, to label the goal density on the histogram plot        
+    upclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the targets at the "high density" end to make plots 
+        conform to similar density scales
+    weights : :class:`~numpy.array`, optional, defaults to None
+        A weight for each of the passed targets (e.g., to upweight each target in a
+        partial pixel at the edge of the DESI footprint)
+    max_bin_area : :class:`float`, optional, defaults to 1 degree
+        The bin size in the passed coordinates is chosen automatically to be as close as
+        possible to this value without exceeding it
+    fileprefix : :class:`str`, optional, defaults to "histo"
+        string to be added to the front of the output file name
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    catispix : :class:`boolean`, optional, defaults to False
+        If this is True, then `cat` corresponds to the HEALpixel numbers already
+        precomputed using `pixels = footprint.radec2pix(nside, cat["RA"], cat["DEC"])`
+        from the RAs and Decs ordered as for `weights`, rather than the catalog itself.
+        If this is True, then max_bin_area must correspond to the nside used to
+        precompute the pixel numbers
+
+    Returns
+    -------
+    Nothing
+        But a .png histogram of target densities is written to qadir. The file is called:
+            {qadir}/{fileprefix}-{objtype}.png 
+    """
+
+    import healpy as hp
+
+    #ADM determine the nside for the passed max_bin_area
+    for n in range(1, 25):
+        nside = 2 ** n
+        bin_area = hp.nside2pixarea(nside, degrees=True)
+        if bin_area <= max_bin_area:
+            break
+        
+    #ADM the number of HEALPixels and their area at this nside
+    npix = hp.nside2npix(nside)
+    bin_area = hp.nside2pixarea(nside, degrees=True)
+
+    #ADM the HEALPixel number for each RA/Dec (this call to desimodel
+    #ADM assumes nest=True, so "weights" should assume nest=True, too)
+    if catispix:
+        pixels = cat.copy()
+    else:
+        from desimodel import footprint
+        pixels = footprint.radec2pix(nside, cat["RA"], cat["DEC"])
+    counts = np.bincount(pixels, weights=weights, minlength=npix)
+    dens = counts[np.flatnonzero(counts)] / bin_area
+
+    label = '{} (targets/deg$^2$)'.format(objtype)
+
+    #ADM clip the targets to avoid high densities, if requested
+    if upclip:
+        dens = np.clip(dens,1,upclip)
+
+    #ADM set the number of bins for the histogram (determined from trial and error)
+    nbins = 80
+    #ADM the low density objects, the standard stars, look better with fewer bins
+    if np.max(dens < 200):
+        print(objtype)
+        nbins = 40
+    #ADM the density value of the peak histogram bin
+    h, b = np.histogram(dens,bins=nbins)
+    peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
+    ypeak = np.max(h)
+
+    #ADM set up and make the plot
+    plt.clf()
+    #ADM only plot to just less than upclip, to prevent displaying pile-ups in that bin
+    plt.xlim((0,0.95*upclip))
+    #ADM give a little space for labels on the y-axis
+    plt.ylim((0,ypeak*1.2))
+    plt.xlabel(label)
+    plt.ylabel('Number of HEALPixels')
+    plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
+             label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
+    if objtype in targdens.keys():
+        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k', 
+                    label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype,targdens[objtype]))
+    plt.legend(loc='upper left', frameon=False)
+
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile)
+
+    plt.close()
+
+    return pngfile
+
+
+def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
     """Make a full default set of DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1084,13 +1156,11 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
-    frac :class:`float`, optional, defaults to 100%
-        The areal threshold. Pixels that have areal coverage below this number will be removed
-        The default is to not remove pixels
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
-    verbose : :class:`bool`, optional, defaults to True
-        If True, then print logging messages to screen
+    weight : :class:`boolean`, optional, defaults to True
+        If this is set, weight pixels using the DESIMODEL HEALPix footprint file to
+        ameliorate under dense pixels at the footprint edges
 
     Returns
     -------
@@ -1098,11 +1168,23 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
         But a set of .png plots of target densities are written to qadir
     """
 
+    #ADM set up the default logger from desiutil
+    from desimodel import io, footprint
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
     start = time()
+    log.info('Starting...t = {:.1f}s'.format(time()-start))
 
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
         targs = fitsio.read(targs)
+        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+
+    #ADM restrict targets to just the DESI footprint
+#    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+#    targs = targs[indesi]
+    log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
     for n in range(1, 25):
@@ -1111,62 +1193,60 @@ def make_qa_plots(targs, max_bin_area=1.0, frac=1.0, qadir='.',verbose=True):
         if bin_area <= max_bin_area:
             break
 
-    if verbose:
-        print('Starting...t = {:.1f} sec'.format(time()-start))
+    #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
+    #ADM downstream
+    pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
+    log.info('Calculated HEALPixel for each target...t = {:.1f}s'
+             .format(time()-start))
 
-    #ADM add the HEALPix pixels at this NSIDE
-    theta, phi = np.radians(90-targs["DEC"]), np.radians(targs["RA"])
-    hppix = hp.ang2pix(nside, theta, phi, nest=True)
-    targs = rfn.append_fields(targs,'HPXFORQA',hppix,usemask=False)
+    #ADM set up the weight of each HEALPixel, if requested.
+    weights = np.ones(len(targs))
+    if weight:
+        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
+#        pixweight = io.load_pixweight(nside)
+        pixweight = footprint.pixweight(nside,precision=0.01)
+        #ADM determine what HEALPixels each target is in, to set the weights
+        fracarea = pixweight[pix]
+        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+        #ADM except for zero pixels, which are all outside of the footprint
+        w = np.where(fracarea == 0)
+        fracarea[w] = 1 #ADM to guard against division by zero warnings
+        weights = 1./fracarea
+        weights[w] = 0
 
-    if verbose:
-        print('Calculated HEALPix pixels...t = {:.1f} sec'.format(time()-start))
-
-    #ADM restrict to just areas filled above frac
-    if frac < 0.9999999:
-        targs = remove_fractional_pixels(targs,frac=frac,nside=nside)
-
-        if verbose:
-            print('Removed fractional pixels...t = {:.1f} sec'.format(time()-start))
+        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
+                 .format(time()-start))
 
     #ADM The current default goal target densities for DESI (circa June 2017; may change)
-    #ADM note that at this time we were in flux about switching to a new LRG density
-    targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'ALL': 4410,
+    targdens = {'ELG': 2400, 'LRG': 500, 'QSO': 260, 'ALL': 4410,
                 'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
 
-#    targdens = {'ELG': 2400, 'OLD_LRG': 350, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
+#    targdens = {'ELG': 2400, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
 #                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0}
 
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
-    upclipdict = {'ELG': 4000, 'OLD_LRG': 1000, 'NEW_LRG': 1300, 'QSO': 650, 'ALL': 8000,
-                  'STD_FSTAR': 300, 'STD_BRIGHT': 100, 'BGS_ANY': 5000}
-
-    #ADM make a copy of the input array with RA and DEC changed to l and b in order to plot
-    #ADM Galactic coordinates, and populate it
-    galtargs = targs[['RA','DEC','DESI_TARGET']].copy()
-    c = SkyCoord(ra=targs["RA"]*u.degree, dec=targs["DEC"]*u.degree)
-    galtargs["RA"] = c.galactic.l.value
-    galtargs["DEC"] = c.galactic.b.value
-
-    if verbose:
-        print('Calculated Galactic coordinates...t = {:.1f} sec'.format(time()-start))
+    upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
+                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500}
 
     for objtype in targdens:
-        if 'LRG' in objtype:
-            w = np.where(targs["DESI_TARGET"] & desi_mask['LRG'])
-        elif 'ALL' in objtype:
+        if 'ALL' in objtype:
             w = np.arange(len(targs))
         else:
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
-        #ADM RA/Dec based plots
-        qadensity(targs[w], objtype, targdens=targdens, upclip=upclipdict[objtype],
-                  max_bin_area=max_bin_area, qadir=qadir, galactic_plane_color='k')
+        #ADM make RA/Dec skymaps
+#        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
+#                max_bin_area=max_bin_area, qadir=qadir)
 
-        #ADM Galactic l/b plots
-        qadensity(galtargs[w], objtype, targdens=targdens, upclip=upclipdict[objtype],
-                  max_bin_area=max_bin_area, fileprefix='galactic', qadir=qadir)
+        log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-    if verbose:
-        print('Done...t = {:.1f} sec'.format(time()-start))
+        #ADM make histograms of densities. We already calculated the correctly 
+        #ADM ordered HEALPixels and so don't need to repeat that calculation
+        qahisto(pix[w], objtype, targdens=targdens, upclip=upclipdict[objtype], 
+                weights=weights[w], max_bin_area = max_bin_area, qadir=qadir, 
+                catispix=True)
+
+        log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+    log.info('Done...t = {:.1f}s'.format(time()-start))
