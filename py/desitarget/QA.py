@@ -1186,8 +1186,8 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
 
     #ADM restrict targets to just the DESI footprint
-#    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-#    targs = targs[indesi]
+    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+    targs = targs[indesi]
     log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
@@ -1240,8 +1240,8 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM make RA/Dec skymaps
-#        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
-#                max_bin_area=max_bin_area, qadir=qadir)
+        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
+                 max_bin_area=max_bin_area, qadir=qadir)
 
         log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
