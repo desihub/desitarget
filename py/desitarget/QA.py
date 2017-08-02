@@ -1144,7 +1144,46 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
     return pngfile
 
 
-def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
+def _javastring():
+    """Return a string that embeds a date in a webpage
+    """
+
+    js = '<SCRIPT LANGUAGE="JavaScript">
+
+    var months = new Array(13);
+    months[1] = "January";
+    months[2] = "February";
+    months[3] = "March";
+    months[4] = "April";
+    months[5] = "May";
+    months[6] = "June";
+    months[7] = "July";
+    months[8] = "August";
+    months[9] = "September";
+    months[10] = "October";
+    months[11] = "November";
+    months[12] = "December";
+    var dateObj = new Date(document.lastModified)
+    var lmonth = months[dateObj.getMonth() + 1]
+    var date = dateObj.getDate()
+    var fyear = dateObj.getYear()
+    if (fyear < 2000)
+    fyear = fyear + 1900
+    if (date == 1 || date == 21 || date == 31)
+    document.write(" " + lmonth + " " + date + "st, " + fyear)
+    else if (date == 2 || date == 22)
+    document.write(" " + lmonth + " " + date + "nd, " + fyear)
+    else if (date == 3 || date == 23)
+    document.write(" " + lmonth + " " + date + "rd, " + fyear)
+    else
+    document.write(" " + lmonth + " " + date + "th, " + fyear)
+    
+    </SCRIPT>)'
+
+    return js
+
+
+def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True):
     """Make a full default set of DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1152,6 +1191,9 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
     targs : :class:`~numpy.array` or `str`
         An array of targets in the DESI data model format. If a string is passed then the
         targets are read fron the file with the passed name (supply the full directory path)
+    targdens : :class:`dictionary`, optional, set automatically by the code if not passed
+        A dictionary of DESI target classes and the goal density for that class. Used to
+        label the goal density on histogram plots
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
@@ -1168,8 +1210,7 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
 
     Notes
     -----
-    DESIMODEL must be set to find file of HEALPixels that overlap DESI footprint
-
+    DESIMODEL must be set to find file of HEALPixels that overlap the DESI footprint
     """
 
     #ADM set up the default logger from desiutil
@@ -1178,7 +1219,7 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
     log = get_logger(DEBUG)
 
     start = time()
-    log.info('Starting...t = {:.1f}s'.format(time()-start))
+    log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
 
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
@@ -1186,8 +1227,8 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
 
     #ADM restrict targets to just the DESI footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-    targs = targs[indesi]
+#    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+#    targs = targs[indesi]
     log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
@@ -1222,11 +1263,9 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
                  .format(time()-start))
 
     #ADM The current default goal target densities for DESI (circa June 2017; may change)
-    targdens = {'ELG': 2400, 'LRG': 500, 'QSO': 260, 'ALL': 4410,
-                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
-
-#    targdens = {'ELG': 2400, 'NEW_LRG': 500, 'QSO': 260, 'SKY': 1400, 'ALL': 4410,
-#                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0}
+    if targdens is None:
+        targdens = {'ELG': 2400, 'LRG': 500, 'QSO': 260, 'ALL': 4410,
+                    'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
 
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
@@ -1240,8 +1279,8 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM make RA/Dec skymaps
-        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
-                 max_bin_area=max_bin_area, qadir=qadir)
+#        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
+#                 max_bin_area=max_bin_area, qadir=qadir)
 
         log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
@@ -1254,3 +1293,91 @@ def make_qa_plots(targs, max_bin_area=1.0, qadir='.', weight=True):
         log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
+
+
+def make_qa_page(targs, makeplots=True, max_bin_area = 1.0, qadir='.', weight=True):
+    """Create an HTML webpage called "desitargetqa.html" in which to embed QA plots
+
+    Parameters
+    ----------
+    targs : :class:`~numpy.array` or `str`
+        An array of targets in the DESI data model format. If a string is passed then the
+        targets are read fron the file with the passed name (supply the full directory path)
+    makeplots : :class:`boolean`, optional, default=True
+        If True, then create the plots as well as the webpage
+    max_bin_area : :class:`float`, optional, defaults to 1 degree
+        The bin size in the passed coordinates is chosen automatically to be as close as
+        possible to this value without exceeding it
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    weight : :class:`boolean`, optional, defaults to True
+        If this is set, weight pixels using the DESIMODEL HEALPix footprint file to
+        ameliorate under dense pixels at the footprint edges
+    Returns
+    -------
+    Nothing
+        But the page desitargetqa.html and associated plots is written to 'qadir'
+
+    Notes
+    -----
+    If making plots, then DESIMODEL must be set to find file of HEALPixels that 
+    overlap the DESI footprint
+    """
+    
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    start = time()
+    log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
+
+    #ADM if a filename was passed, read in the targets from that file
+    if isinstance(targs, str):
+        targs = fitsio.read(targs)
+        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+
+    #ADM make a DR string based on the RELEASE column
+    #ADM potentially there are multiple DRs in a file
+    DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+
+    #ADM set up the names of the target classes and their goal densities
+    targdens = {'ELG': 2400, 'LRG': 500, 'QSO': 260, 'ALL': 4410,
+                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
+    
+    #ADM set up the html file and write preamble to it
+    htmlfile = os.path.join(qadir, 'desitargetqa.html')
+
+    #ADM grab the magic string that writes the last-updated date to a webpage
+    js = _javastring()
+
+    html = open(htmlfile, 'w')
+    html.write('<html><body>\n')
+    html.write('<h1>DESI Targeting QA page ({}; last updated {})</h1>\n'.
+               format(DRs,js))
+
+    #ADM links to each collection of plots for each object type
+    html.write('Jump to a target class:\n')
+    html.write('<ul>\n')
+    for objtype in targdens.keys():
+        html.write('<A HREF="#{}"></A>\n'.format(objtype))
+
+    #ADM for each object type, make a subsection of the page
+    for objtype in targdens.keys():
+        html.write('<h2>{}s<\h2>\n'.format(objtype))
+        html.write('<A NAME="{}"></A>\n'.format(objtype))
+        html.write('<h3>Target density plots<\h3>\n')
+        html.write('<table COLS=2 WIDTH="100%">\n')
+        html.write('<tr>\n')
+        #ADM add the plots...
+        html.write('<td WIDTH="25%" align=center><img SRC="skymap-{}.png" height=120 width=160></a></center></td>\n'
+                   .format(objtype))
+        html.write('<td WIDTH="25%" align=center><img SRC="histo-{}.png" height=120 width=160></a></center></td>\n'
+                   .format(objtype))
+        html.write('<\tr>\n')
+        html.write('<\table>\n')
+
+    html.write('</html></body>\n')
+    html.close()
+
+    #ADM make the QA plots, if requested:
+    if makedir:
+        make_qa_plots(targs, targdens=targdens, max_bin_area=1.0, qadir='.', weight=True):
