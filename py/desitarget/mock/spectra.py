@@ -230,7 +230,49 @@ class TemplateKDTree(object):
                 raise ValueError
                 
         return dist, indx
+    
+class MockMagnitudes(object):
+    """
+    Generate mock magnitudes for each mock.
+    """
+    def __init__(self, nproc=1, rand=None, verbose=False):
+        self.rand = rand
+        self.verbose = verbose
+        
+    def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
+        """Generate magnitudes for BGS.
 
+        Currently only the MXXL (durham_mxxl_hdf5) mock is supported.  DATA
+        needs to have Z, SDSS_absmag_r01, SDSS_01gr, VDISP, and SEED, which are
+        assigned in mock.io.read_durham_mxxl_hdf5.  
+
+        """
+#['TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+#                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH']
+ 
+        objtype = 'BGS'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() != 'durham_mxxl_hdf5':
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = 0.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['TEFF'][:] = 0.0
+        meta['LOGG'][:] = 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = 0.0
+        meta['DECAM_FLUX'][:, 1] = 10**((22.5 - data['MAG'][index])/2.5) + 10**((22.5-data['SDSS_01gr'][index])/2.5) # g-band flux
+        meta['DECAM_FLUX'][:, 2] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
+        return meta
+    
 class MockSpectra(object):
     """Generate spectra for each type of mock.  Currently just choose the closest
     template; we can get fancier later.

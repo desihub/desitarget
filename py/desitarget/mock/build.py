@@ -336,6 +336,10 @@ def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
+def _get_magnitudes_onebrick(specargs):
+    """Filler function for the multiprocessing."""
+    return get_magnitudes_onebrick(*specargs)
+
 def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra,
                          select_targets_function, source_data, rand, log):
     """Wrapper function to generate spectra for all the objects on a single brick."""
@@ -511,6 +515,102 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
+
+def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magnitudes,
+                         select_targets_function, source_data, rand, log):
+    """Wrapper function to generate spectra for all the objects on a single brick."""
+
+    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+    onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
+    nobj = len(onbrick)
+
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj)
+
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key][:] = source_data[key][onbrick]
+
+    for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
+        targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
+    for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):
+        targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
+    targets['EBV'][:] = brick_info['EBV'][brickindx]
+
+    # Use the point-source depth for point sources, although this should really
+    # be tied to the morphology.
+    if 'star' in target_name or 'qso' in target_name:
+        depthkey = 'DECAM_DEPTH'
+    else:
+        depthkey = 'DECAM_GALDEPTH'
+    with np.errstate(divide='ignore'):                        
+        #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
+        decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
+
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    #   all bricks:  http://legacysurvey.org/dr3/description
+    decam_onesigma = 10**(0.4 * (22.5 - np.array([0.0, 24.7, 23.9, 0.0, 23.0, 0.0])) ) / 5
+
+    # Hack! Assume a constant depth (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3
+    # nanomaggies) in the WISE bands for now.
+    wise_onesigma = 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )
+
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key][:] = source_data[key][onbrick]
+
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][onbrick]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
+
+    # Sky targets are a special case without redshifts.
+    if target_name == 'sky':
+        select_targets_function(targets, truth)
+        return [targets, truth]
+
+    truth['TRUEZ'][:] = source_data['Z'][onbrick]
+
+    # Get the magnitudes
+    meta = getattr(Magnitudes, target_name)(source_data, index=onbrick, mockformat=mockformat)
+
+    for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
+
+    # Perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    for band in (0, 1):
+        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
+          rand.normal(scale=wise_onesigma[band], size=nobj)
+    for band in (1, 2, 4):
+        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
+          rand.normal(scale=decam_onesigma[band], size=nobj)
+
+        
+    if 'BOSS_STD' in source_data.keys():
+        boss_std = source_data['BOSS_STD'][onbrick]
+    else:
+        boss_std = None
+    select_targets_function(targets, truth, boss_std=boss_std)
+
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+    nobj = len(keep)
+
+    if nobj == 0:
+        log.warning('No {} targets identified!'.format(target_name.upper()))
+    else:
+        log.debug('Selected {} {}s on brick {}.'.format(nobj, target_name.upper(), thisbrick))
+        targets = targets[keep]
+        truth = truth[keep]
+
+    return [targets, truth]
+
 #from memory_profiler import profile
 #@profile
 def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
@@ -522,7 +622,7 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
 
     from desispec.io.util import fitsheader, write_bintable
     from desitarget.mock.selection import SelectTargets
-    from desitarget.mock.spectra import MockSpectra
+    from desitarget.mock.spectra import MockMagnitudes
     from desitarget.internal import sharedmem
     from desimodel.footprint import radec2pix
     
@@ -568,6 +668,7 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the SelectTargets Classes.')
 #    Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
+    Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
     Selection = SelectTargets(logger=log, rand=rand,
                               brick_info=brick_info)
     print()
@@ -612,6 +713,33 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
         log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
             len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
 
+        # Generate the magnitudes and run target selection
+        nbrick = np.zeros((), dtype='i8')
+        t0 = time()
+        def _update_magnitudes_status(result):
+            if nbrick % 10 == 0 and nbrick > 0:
+                rate = (time() - t0) / nbrick
+                log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
+            nbrick[...] += 1    # this is an in-place modification
+            return result
+
+        magargs = list()
+        for thisbrick in unique_bricks:
+            magargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
+                              Magnitudes, select_targets_function, source_data, rand, log) )
+
+        if nproc > 1:
+            pool = sharedmem.MapReduce(np=nproc)
+            with pool:
+                out = pool.map(_get_magnitudes_onebrick, magargs,
+                               reduce=_update_magnitudes_status)
+        else:
+            out = list()
+            for ii in range(len(unique_bricks)):
+                out.append( _update_magnitudes_status( _get_magnitudes_onebrick(magargs[ii]) ) )
+
+        del source_data # memory clean-up
+        
 
 def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=False,
                   bricksize=0.25, nproc=1, nside=16, healpixels=None):
