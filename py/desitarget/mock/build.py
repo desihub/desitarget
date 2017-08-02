@@ -564,6 +564,54 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
                            decals_brick_info=params['decals_brick_info'], log=log,
                            target_names=list(params['sources'].keys())).build_brickinfo()
 
+    # Initialize the Classes used to assign spectra and select targets.  Note:
+    # The default wavelength array gets initialized here, too.
+    log.info('Initializing the SelectTargets Classes.')
+#    Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
+    Selection = SelectTargets(logger=log, rand=rand,
+                              brick_info=brick_info)
+    print()
+
+    # Loop over each source / object type.
+    alltargets = list()
+    alltruth = list()
+    for source_name in sorted(params['sources'].keys()):
+        # Read the mock catalog.
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+        mockformat = params['sources'][source_name]['format']
+
+        mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        if 'magcut' in params['sources'][source_name].keys():
+            magcut = params['sources'][source_name]['magcut']
+        else:
+            magcut = None
+
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+        log.info('Reading {}'.format(mock_dir_name))
+
+        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+        if 'LYA' in params['sources'][source_name].keys():
+            lya = params['sources'][source_name]['LYA']
+        else:
+            lya = None
+        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                        magcut=magcut, nproc=nproc, lya=lya,
+                                        healpixels=healpixels, nside=nside)
+
+        # If there are no sources, keep going.
+        if not bool(source_data):
+            continue
+
+        selection_function = '{}_select'.format(target_name.lower())
+        select_targets_function = getattr(Selection, selection_function)
+
+        # Assign magnitudes by parallel-processing the bricks.
+        brickname = source_data['BRICKNAME']
+        unique_bricks = sorted(set(brickname))
+
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
+
 
 def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=False,
                   bricksize=0.25, nproc=1, nside=16, healpixels=None):
