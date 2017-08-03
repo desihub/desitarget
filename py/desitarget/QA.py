@@ -1148,6 +1148,27 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
     return pngfile
 
 
+def _load_targdens():
+    """Loads the target info dictionary as in desimodel.io.load_target_info and
+    extracts the target density information in a format useful for targeting QA plots
+    """
+
+    from desimodel import io
+    targdict = io.load_target_info()
+
+    targdens = {}
+    targdens['ELG'] = targdict['ntarget_elg']
+    targdens['LRG'] = targdict['ntarget_lrg']
+    targdens['QSO_ANY'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
+    targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
+    targdens['STD_FSTAR'] = 0
+    targdens['STD_BRIGHT'] = 0
+    #ADM set "ALL" to be the sum over all the target classes
+    targdens['ALL'] = sum(list(targdens.values()))
+
+    return targdens
+
+
 def _javastring():
     """Return a string that embeds a date in a webpage
     """
@@ -1265,10 +1286,9 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
         log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
 
-    #ADM The current default goal target densities for DESI (circa June 2017; may change)
+    #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
     if targdens is None:
-        targdens = {'ELG': 2400, 'LRG': 500, 'QSO': 260, 'ALL': 4410,
-                    'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
+        targdens = _load_targdens()
 
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
@@ -1342,9 +1362,9 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     #ADM potentially there are multiple DRs in a file
     DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
 
-    #ADM set up the names of the target classes and their goal densities
-    targdens = {'ELG': 2400, 'LRG': 500, 'QSO': 260, 'ALL': 4410,
-                'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
+    #ADM Set up the names of the target classes and their goal densities using
+    #ADM the goal target densities for DESI (read from the DESIMODEL defaults)
+    targdens = _load_targdens()
     
     #ADM set up the html file and write preamble to it
     htmlfile = os.path.join(qadir, 'index.html')
