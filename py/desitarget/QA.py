@@ -1159,7 +1159,7 @@ def _load_targdens():
     targdens = {}
     targdens['ELG'] = targdict['ntarget_elg']
     targdens['LRG'] = targdict['ntarget_lrg']
-    targdens['QSO_ANY'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
+    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FSTAR'] = 0
     targdens['STD_BRIGHT'] = 0
