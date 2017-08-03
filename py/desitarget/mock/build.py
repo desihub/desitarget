@@ -583,14 +583,14 @@ def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magn
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key][:] = meta[key]
 
-    # Perturb the photometry based on the variance on this brick and apply
+    # We don't perturb the photometry based on the variance on this brick and apply
     # target selection.
     for band in (0, 1):
-        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
-          rand.normal(scale=wise_onesigma[band], size=nobj)
+        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] 
+          # + rand.normal(scale=wise_onesigma[band], size=nobj)
     for band in (1, 2, 4):
-        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-          rand.normal(scale=decam_onesigma[band], size=nobj)
+        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] 
+          # + rand.normal(scale=decam_onesigma[band], size=nobj)
 
         
     if 'BOSS_STD' in source_data.keys():

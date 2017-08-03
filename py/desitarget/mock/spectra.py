@@ -247,9 +247,6 @@ class MockMagnitudes(object):
         assigned in mock.io.read_durham_mxxl_hdf5.  
 
         """
-#['TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
-#                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH']
- 
         objtype = 'BGS'
         if index is None:
             index = np.arange(len(data['Z']))
@@ -269,10 +266,58 @@ class MockMagnitudes(object):
         meta['LOGG'][:] = 0.0
         meta['FEH'][:] = 0.0
         meta['DECAM_FLUX'][:,:] = 0.0
-        meta['DECAM_FLUX'][:, 1] = 10**((22.5 - data['MAG'][index])/2.5) + 10**((22.5-data['SDSS_01gr'][index])/2.5) # g-band flux
         meta['DECAM_FLUX'][:, 2] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
+        meta['DECAM_FLUX'][:, 1] = meta['DECAM_FLUX'][:,2] + 10**((22.5-data['SDSS_01gr'][index])/2.5) # g-band flux
         return meta
     
+    def mws(self, data, index=None, mockformat='galaxia'):
+        """Generate magnitudes for the MWS_NEARBY and MWS_MAIN samples.
+
+        """
+        objtype = 'STAR'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
+            meta[inkey] = data[datakey][index]
+
+        if not (mockformat.lower() in ['100pc','galaxia']):
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = 0.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['TEFF'][:] = 0.0
+        meta['LOGG'][:] = 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0 # Negative fluxes should break code that use colors for the selection
+        meta['DECAM_FLUX'][:, 2] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
+        return meta
+                
+    def mws_nearby(self, data, index=None, mockformat='100pc'):
+        """Generate magnitudes for the MWS_NEARBY sample.
+
+        """
+        meta = self.mws(data, index=index, mockformat=mockformat)
+        return meta
+
+    def mws_main(self, data, index=None, mockformat='galaxia'):
+        """Generate magnitudes for the MWS_MAIN sample.
+
+        """
+        meta = self.mws(data, index=index, mockformat=mockformat)
+        return meta
+
+    def faintstar(self, data, index=None, mockformat='galaxia'):
+        """Generate magnitudes for the FAINTSTAR (faint stellar) sample.
+
+        """
+        meta = self.mws(data, index=index, mockformat=mockformat)
+        return meta
+        
 class MockSpectra(object):
     """Generate spectra for each type of mock.  Currently just choose the closest
     template; we can get fancier later.
