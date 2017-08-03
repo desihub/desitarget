@@ -12,7 +12,7 @@ import yaml
 import healpy as hp
 from astropy.table import Table
 
-from desitarget.mock.build import targets_truth
+from desitarget.mock.build import targets_truth, targets_truth_no_spectra
 from desispec.log import get_logger, DEBUG
 from desimodel.footprint import tiles2pix
 
@@ -31,6 +31,8 @@ parser.add_argument('--realtargets', '-r', help='Path to real target catalog', t
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
 parser.add_argument('--qa', action='store_true', help='Generate QA plots from the joined target and truth files in output_dir.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
+parser.add_argument('--no-spectra', action='store_true')
+
 args = parser.parse_args()
 
 if args.verbose:
@@ -94,9 +96,16 @@ with open(args.config, 'r') as pfile:
     params = yaml.load(pfile)
 
 log.info('Calling targets_truth at {}'.format(time.asctime()))
-targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
+
+if args.no_spectra:
+    targets_truth_no_spectra(params, args.output_dir, realtargets=realtargets, seed=args.seed,
               verbose=args.verbose, nproc=args.nproc, nside=args.nside,
               healpixels=healpixels)
+else:
+    targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
+              verbose=args.verbose, nproc=args.nproc, nside=args.nside,
+              healpixels=healpixels)
+
 
 log.info('All done at {}'.format(time.asctime()))
 
