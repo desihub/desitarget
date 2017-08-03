@@ -1404,10 +1404,10 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=left><img SRC="skymap-{}.png" height=450 width=700></a></left></td>\n'
-                   .format(objtype))
-        html.write('<td WIDTH="25%" align=left><img SRC="histo-{}.png" height=430 width=510></a></left></td>\n'
-                   .format(objtype))
+        html.write('<td WIDTH="25%" align=left><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" height=450 width=700></A></left></td>\n'
+                   .format(objtype,objtype))
+        html.write('<td WIDTH="25%" align=left><A HREF="histo-{}.png"><img SRC="histo-{}.png" height=430 width=510></A></left></td>\n'
+                   .format(objtype,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
