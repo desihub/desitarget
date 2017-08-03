@@ -142,9 +142,9 @@ class SelectTargets(object):
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
         rflux = targets['DECAM_FLUX'][..., 2]
-
         # Select BGS_BRIGHT targets.
         bgs_bright = isBGS_bright(rflux=rflux)
+
         targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
         targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
         targets['DESI_TARGET'] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
@@ -153,6 +153,7 @@ class SelectTargets(object):
 
         # Select BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
+
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
