@@ -993,7 +993,67 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
-def qaskymap(cat, objtype, upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap", qadir='.'):
+def _load_targdens():
+    """Loads the target info dictionary as in desimodel.io.load_target_info and
+    extracts the target density information in a format useful for targeting QA plots
+    """
+
+    from desimodel import io
+    targdict = io.load_target_info()
+
+    targdens = {}
+    targdens['ELG'] = targdict['ntarget_elg']
+    targdens['LRG'] = targdict['ntarget_lrg']
+    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
+    targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
+    targdens['STD_FSTAR'] = 0
+    targdens['STD_BRIGHT'] = 0
+    #ADM set "ALL" to be the sum over all the target classes
+    targdens['ALL'] = sum(list(targdens.values()))
+
+    return targdens
+
+
+def _javastring():
+    """Return a string that embeds a date in a webpage
+    """
+
+    js = textwrap.dedent("""
+    <SCRIPT LANGUAGE="JavaScript">
+    var months = new Array(13);
+    months[1] = "January";
+    months[2] = "February";
+    months[3] = "March";
+    months[4] = "April";
+    months[5] = "May";
+    months[6] = "June";
+    months[7] = "July";
+    months[8] = "August";
+    months[9] = "September";
+    months[10] = "October";
+    months[11] = "November";
+    months[12] = "December";
+    var dateObj = new Date(document.lastModified)
+    var lmonth = months[dateObj.getMonth() + 1]
+    var date = dateObj.getDate()
+    var fyear = dateObj.getYear()
+    if (fyear < 2000)
+    fyear = fyear + 1900
+    if (date == 1 || date == 21 || date == 31)
+    document.write(" " + lmonth + " " + date + "st, " + fyear)
+    else if (date == 2 || date == 22)
+    document.write(" " + lmonth + " " + date + "nd, " + fyear)
+    else if (date == 3 || date == 23)
+    document.write(" " + lmonth + " " + date + "rd, " + fyear)
+    else
+    document.write(" " + lmonth + " " + date + "th, " + fyear)    
+    </SCRIPT>
+    """)
+
+    return js
+
+
+def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted 
     shamelessly from desitarget.mock.QA (which was originally written by J. Moustakas)
 
@@ -1004,6 +1064,8 @@ def qaskymap(cat, objtype, upclip=None, weights=None, max_bin_area=1.0, filepref
         information
     objtype : :class:`str`
         The name of a DESI target class (e.g., ELG) that corresponds to the passed "cat"
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
     upclip : :class:`float`, optional, defaults to None
         A cutoff at which to clip the targets at the "high density" end to make plots 
         conform to similar density scales
@@ -1015,8 +1077,6 @@ def qaskymap(cat, objtype, upclip=None, weights=None, max_bin_area=1.0, filepref
         possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to "radec" for (RA/Dec)
         string to be added to the front of the output file name
-    qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
 
     Returns
     -------
@@ -1041,11 +1101,11 @@ def qaskymap(cat, objtype, upclip=None, weights=None, max_bin_area=1.0, filepref
 
     plt.close()
 
-    return pngfile
+    return
 
 
-def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area=1.0, 
-            fileprefix="histo", qadir='.', catispix=False):
+def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, max_bin_area=1.0, 
+            fileprefix="histo", catispix=False):
     """Visualize the target density with a histogram of densities. First version taken 
     shamelessly from desitarget.mock.QA (which was originally written by J. Moustakas)
 
@@ -1056,6 +1116,8 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
         information
     objtype : :class:`str`
         The name of a DESI target class (e.g., ELG) that corresponds to the passed "cat"
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
     targdens : :class:`dictionary`, optional, defaults to None
         A dictionary of DESI target classes and the goal density for that class. Used, if
         passed, to label the goal density on the histogram plot        
@@ -1070,8 +1132,6 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
         possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to "histo"
         string to be added to the front of the output file name
-    qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
     catispix : :class:`boolean`, optional, defaults to False
         If this is True, then `cat` corresponds to the HEALpixel numbers already
         precomputed using `pixels = footprint.radec2pix(nside, cat["RA"], cat["DEC"])`
@@ -1145,85 +1205,82 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
 
     plt.close()
 
-    return pngfile
+    return
 
+def qacolor(cat, objtype, qadir='.', fileprefix="color"):
+    """Make color-based DESI targeting QA plots given a passed set of targets
 
-def _load_targdens():
-    """Loads the target info dictionary as in desimodel.io.load_target_info and
-    extracts the target density information in a format useful for targeting QA plots
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least "FLUX_G", "FLUX_R", "FLUX_Z" and 
+        "FLUX_W1", "FLUX_W2" columns for color information
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ELG) that corresponds to the passed "cat"
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to "color" for
+        string to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to qadir. The file is called:
+            {qadir}/{fileprefix}-{bands}-{objtype}.png 
+        where bands might be, e.g., "grz"
     """
 
-    from desimodel import io
-    targdict = io.load_target_info()
+    #ADM convenience function to retrieve and unextinct DESI fluxes
+    from desitarget.cuts import unextinct_fluxes
+    flux = unextinct_fluxes(cat)
+    #ADM convert to magnitudes (fluxes are in nanomaggies)
+    gmag = 22.5-2.5*np.log10(flux['GFLUX'])
+    rmag = 22.5-2.5*np.log10(flux['RFLUX'])
+    zmag = 22.5-2.5*np.log10(flux['ZFLUX'])
+    w1mag = 22.5-2.5*np.log10(flux['W1FLUX'])
+    w2mag = 22.5-2.5*np.log10(flux['W2FLUX'])
 
-    targdens = {}
-    targdens['ELG'] = targdict['ntarget_elg']
-    targdens['LRG'] = targdict['ntarget_lrg']
-    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
-    targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
-    targdens['STD_FSTAR'] = 0
-    targdens['STD_BRIGHT'] = 0
-    #ADM set "ALL" to be the sum over all the target classes
-    targdens['ALL'] = sum(list(targdens.values()))
+    #ADM set up and make the r-z, g-r plot
+    plt.clf()
+    plt.xlim((-4,4))
+    plt.ylim((-4,4))
+    plt.xlabel('r - z')
+    plt.ylabel('g - r')
+    plt.plot(rmag-zmag,gmag-rmag,'b.',label='(Unextincted) target colors for'.format(objtype))
+    plt.legend(loc='upper left', frameon=False)
+    pngfile = os.path.join(qadir, '{}-"grz"-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
 
-    return targdens
-
-
-def _javastring():
-    """Return a string that embeds a date in a webpage
-    """
-
-    js = textwrap.dedent("""
-    <SCRIPT LANGUAGE="JavaScript">
-    var months = new Array(13);
-    months[1] = "January";
-    months[2] = "February";
-    months[3] = "March";
-    months[4] = "April";
-    months[5] = "May";
-    months[6] = "June";
-    months[7] = "July";
-    months[8] = "August";
-    months[9] = "September";
-    months[10] = "October";
-    months[11] = "November";
-    months[12] = "December";
-    var dateObj = new Date(document.lastModified)
-    var lmonth = months[dateObj.getMonth() + 1]
-    var date = dateObj.getDate()
-    var fyear = dateObj.getYear()
-    if (fyear < 2000)
-    fyear = fyear + 1900
-    if (date == 1 || date == 21 || date == 31)
-    document.write(" " + lmonth + " " + date + "st, " + fyear)
-    else if (date == 2 || date == 22)
-    document.write(" " + lmonth + " " + date + "nd, " + fyear)
-    else if (date == 3 || date == 23)
-    document.write(" " + lmonth + " " + date + "rd, " + fyear)
-    else
-    document.write(" " + lmonth + " " + date + "th, " + fyear)    
-    </SCRIPT>
-    """)
-
-    return js
+    #ADM set up and make the r-z, r-W1 plot
+    plt.clf()
+    plt.xlim((-4,4))
+    plt.ylim((-4,4))
+    plt.xlabel('r - z')
+    plt.ylabel('r - W1')
+    plt.plot(rmag-zmag,rmag-W1mag,'k.',label='(Unextincted) target colors for'.format(objtype))
+    plt.legend(loc='upper left', frameon=False)
+    pngfile = os.path.join(qadir, '{}-"rzW1"-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
 
 
-def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True):
-    """Make a full default set of DESI targeting QA plots given a passed set of targets
+def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+    """Make DESI targeting QA plots given a passed set of targets
 
     Parameters
     ----------
     targs : :class:`~numpy.array` or `str`
         An array of targets in the DESI data model format. If a string is passed then the
         targets are read fron the file with the passed name (supply the full directory path)
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
     targdens : :class:`dictionary`, optional, set automatically by the code if not passed
         A dictionary of DESI target classes and the goal density for that class. Used to
         label the goal density on histogram plots
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
-    qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the DESIMODEL HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
@@ -1231,7 +1288,7 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
     Returns
     -------
     Nothing
-        But a set of .png plots of target densities are written to qadir
+        But a set of .png plots for target QA are written to qadir
 
     Notes
     -----
@@ -1244,7 +1301,7 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
     log = get_logger(DEBUG)
 
     start = time()
-    log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
+    log.info('Start making targeting QA density plots...t = {:.1f}s'.format(time()-start))
 
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
@@ -1302,20 +1359,24 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM make RA/Dec skymaps
-        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
-                 max_bin_area=max_bin_area, qadir=qadir)
+#        qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
+#                 weights=weights[w], max_bin_area=max_bin_area)
 
         log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
         #ADM make histograms of densities. We already calculated the correctly 
         #ADM ordered HEALPixels and so don't need to repeat that calculation
-        qahisto(pix[w], objtype, targdens=targdens, upclip=upclipdict[objtype], 
-                weights=weights[w], max_bin_area = max_bin_area, qadir=qadir, 
-                catispix=True)
+#        qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
+#                weights=weights[w], max_bin_area = max_bin_area, catispix=True)
 
         log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-    log.info('Done...t = {:.1f}s'.format(time()-start))
+        #ADM make color-color plots
+        qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
+
+        log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+    log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
 
 
 def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
@@ -1418,4 +1479,4 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, targdens=targdens, max_bin_area=max_bin_area, qadir=qadir, weight=weight)
+        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
