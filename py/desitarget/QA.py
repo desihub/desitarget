@@ -1037,7 +1037,7 @@ def qaskymap(cat, objtype, upclip=None, weights=None, max_bin_area=1.0, filepref
                         label=label, basemap=basemap)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
-    fig.savefig(pngfile)
+    fig.savefig(pngfile,bbox_inches='tight')
 
     plt.close()
 
@@ -1141,7 +1141,7 @@ def qahisto(cat, objtype, targdens=None, upclip=None, weights=None, max_bin_area
     plt.legend(loc='upper left', frameon=False)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile)
+    plt.savefig(pngfile,bbox_inches='tight')
 
     plt.close()
 
@@ -1299,7 +1299,7 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
 
 
 def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
-    """Create an HTML webpage called "desitargetqa.html" in which to embed QA plots
+    """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
     ----------
@@ -1347,40 +1347,54 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
                 'STD_FSTAR': 0, 'STD_BRIGHT': 0, 'BGS_ANY': 0} 
     
     #ADM set up the html file and write preamble to it
-    htmlfile = os.path.join(qadir, 'desitargetqa.html')
+    htmlfile = os.path.join(qadir, 'index.html')
 
     #ADM grab the magic string that writes the last-updated date to a webpage
     js = _javastring()
 
+    #ADM html preamble
     html = open(htmlfile, 'w')
     html.write('<html><body>\n')
-    html.write('<h1>DESI Targeting QA page ({})</h1>\n'.format(DRs))
-    html.write('<h3>Last updated {}</h3>\n'.format(js))
+    html.write('<h1>DESI Targeting QA pages ({})</h1>\n'.format(DRs))
 
     #ADM links to each collection of plots for each object type
     html.write('<b><i>Jump to a target class:</i></b>\n')
     html.write('<ul>\n')
     for objtype in targdens.keys():
-        html.write('<li><A HREF="#{}">{}</A>\n'.format(objtype,objtype))
+        html.write('<li><A HREF="{}.html">{}</A>\n'.format(objtype,objtype))
     html.write('</ul>\n')
 
-    #ADM for each object type, make a subsection of the page
-    for objtype in targdens.keys():
-        html.write('<h2>{}</h2>\n'.format(objtype))
-        html.write('<A NAME="{}"></A>\n'.format(objtype))
-        html.write('<h3>Target density plots</h3>\n')
+    #ADM html postamble
+    html.write('<b><i>Last updated {}</b></i>\n'.format(js))
+    html.write('</html></body>\n')
+    html.close()
+
+    #ADM for each object type, make a separate page
+    for objtype in targdens.keys():        
+        #ADM call each page by the target class name, stick it in the requested directory
+        htmlfile = os.path.join(qadir,'{}.html'.format(objtype))
+        html = open(htmlfile, 'w')
+
+        #ADM html preamble
+        html.write('<html><body>\n')
+        html.write('<h1>DESI Targeting QA pages - {} ({})</h1>\n'.format(objtype,DRs))
+
+        #ADM Target Densities
+        html.write('<h2>Target density plots</h2>\n')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=left><img SRC="skymap-{}.png" height=550 width=700></a></left></td>\n'
+        html.write('<td WIDTH="25%" align=left><img SRC="skymap-{}.png" height=450 width=700></a></left></td>\n'
                    .format(objtype))
-        html.write('<td WIDTH="25%" align=left><img SRC="histo-{}.png" height=400 width=480></a></left></td>\n'
+        html.write('<td WIDTH="25%" align=left><img SRC="histo-{}.png" height=430 width=510></a></left></td>\n'
                    .format(objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
-    html.write('</html></body>\n')
-    html.close()
+        #ADM html postamble
+        html.write('<b><i>Last updated {}</b></i>\n'.format(js))
+        html.write('</html></body>\n')
+        html.close()
 
     #ADM make the QA plots, if requested:
     if makeplots:
