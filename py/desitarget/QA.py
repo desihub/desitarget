@@ -18,6 +18,7 @@ from glob import glob
 from scipy.optimize import leastsq
 from scipy.spatial import ConvexHull
 import random
+import textwrap
 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -35,6 +36,7 @@ import matplotlib.pyplot as plt
 import healpy as hp
 
 import numpy.lib.recfunctions as rfn
+
 
 def sph2car(ra, dec):
     """Convert RA and Dec to a Cartesian vector """
@@ -430,6 +432,7 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
 
     return fluc
 
+
 def model_map(brickfilename,plot=False):
     """Make a model map of how 16,50,84 percentiles of brick depths and how targets fluctuate with brick depth and E(B-V)
 
@@ -726,6 +729,7 @@ def construct_QA_file(nrows):
             ('DENSITY_BAD_BGS','>f4'),('DENSITY_BAD_MWS','>f4'),
             ])
     return data
+
 
 def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/'):
     """Add brick-related information to a numpy array of brickids
@@ -1148,8 +1152,8 @@ def _javastring():
     """Return a string that embeds a date in a webpage
     """
 
-    js = '<SCRIPT LANGUAGE="JavaScript">
-
+    js = textwrap.dedent("""
+    <SCRIPT LANGUAGE="JavaScript">
     var months = new Array(13);
     months[1] = "January";
     months[2] = "February";
@@ -1176,9 +1180,9 @@ def _javastring():
     else if (date == 3 || date == 23)
     document.write(" " + lmonth + " " + date + "rd, " + fyear)
     else
-    document.write(" " + lmonth + " " + date + "th, " + fyear)
-    
-    </SCRIPT>)'
+    document.write(" " + lmonth + " " + date + "th, " + fyear)    
+    </SCRIPT>
+    """)
 
     return js
 
@@ -1227,8 +1231,8 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
 
     #ADM restrict targets to just the DESI footprint
-#    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-#    targs = targs[indesi]
+    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+    targs = targs[indesi]
     log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
@@ -1249,7 +1253,6 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
     if weight:
         #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
         pixweight = io.load_pixweight(nside)
-#        pixweight = footprint.pixweight(nside,precision=0.01)
         #ADM determine what HEALPixels each target is in, to set the weights
         fracarea = pixweight[pix]
         #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
@@ -1279,8 +1282,8 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM make RA/Dec skymaps
-#        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
-#                 max_bin_area=max_bin_area, qadir=qadir)
+        qaskymap(targs[w], objtype, upclip=upclipdict[objtype], weights=weights[w],
+                 max_bin_area=max_bin_area, qadir=qadir)
 
         log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
@@ -1295,7 +1298,7 @@ def make_qa_plots(targs, targdens=None, max_bin_area=1.0, qadir='.', weight=True
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
 
-def make_qa_page(targs, makeplots=True, max_bin_area = 1.0, qadir='.', weight=True):
+def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
     """Create an HTML webpage called "desitargetqa.html" in which to embed QA plots
 
     Parameters
@@ -1351,33 +1354,34 @@ def make_qa_page(targs, makeplots=True, max_bin_area = 1.0, qadir='.', weight=Tr
 
     html = open(htmlfile, 'w')
     html.write('<html><body>\n')
-    html.write('<h1>DESI Targeting QA page ({}; last updated {})</h1>\n'.
-               format(DRs,js))
+    html.write('<h1>DESI Targeting QA page ({})</h1>\n'.format(DRs))
+    html.write('<h3>Last updated {}</h3>\n'.format(js))
 
     #ADM links to each collection of plots for each object type
-    html.write('Jump to a target class:\n')
+    html.write('<b><i>Jump to a target class:</i></b>\n')
     html.write('<ul>\n')
     for objtype in targdens.keys():
-        html.write('<A HREF="#{}"></A>\n'.format(objtype))
+        html.write('<li><A HREF="#{}">{}</A>\n'.format(objtype,objtype))
+    html.write('</ul>\n')
 
     #ADM for each object type, make a subsection of the page
     for objtype in targdens.keys():
-        html.write('<h2>{}s<\h2>\n'.format(objtype))
+        html.write('<h2>{}</h2>\n'.format(objtype))
         html.write('<A NAME="{}"></A>\n'.format(objtype))
-        html.write('<h3>Target density plots<\h3>\n')
+        html.write('<h3>Target density plots</h3>\n')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=center><img SRC="skymap-{}.png" height=120 width=160></a></center></td>\n'
+        html.write('<td WIDTH="25%" align=left><img SRC="skymap-{}.png" height=550 width=700></a></left></td>\n'
                    .format(objtype))
-        html.write('<td WIDTH="25%" align=center><img SRC="histo-{}.png" height=120 width=160></a></center></td>\n'
+        html.write('<td WIDTH="25%" align=left><img SRC="histo-{}.png" height=400 width=480></a></left></td>\n'
                    .format(objtype))
-        html.write('<\tr>\n')
-        html.write('<\table>\n')
+        html.write('</tr>\n')
+        html.write('</table>\n')
 
     html.write('</html></body>\n')
     html.close()
 
     #ADM make the QA plots, if requested:
-    if makedir:
-        make_qa_plots(targs, targdens=targdens, max_bin_area=1.0, qadir='.', weight=True):
+    if makeplots:
+        make_qa_plots(targs, targdens=targdens, max_bin_area=max_bin_area, qadir=qadir, weight=weight)
