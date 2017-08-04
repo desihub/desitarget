@@ -1230,39 +1230,41 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         where bands might be, e.g., "grz"
     """
 
+    from matplotlib.colors import LogNorm
+
     #ADM convenience function to retrieve and unextinct DESI fluxes
     from desitarget.cuts import unextinct_fluxes
     flux = unextinct_fluxes(cat)
-    #ADM convert to magnitudes (fluxes are in nanomaggies)
-    with warnings.catch_warnings(): 
-        #ADM should be fine to catch warnings for plotting purposes
-        warnings.simplefilter('ignore')
-        gmag = 22.5-2.5*np.log10(flux['GFLUX'])
-        rmag = 22.5-2.5*np.log10(flux['RFLUX'])
-        zmag = 22.5-2.5*np.log10(flux['ZFLUX'])
-        W1mag = 22.5-2.5*np.log10(flux['W1FLUX'])
-        W2mag = 22.5-2.5*np.log10(flux['W2FLUX'])
 
-    #ADM set up and make the r-z, g-r plot
+    #ADM convert to magnitudes (fluxes are in nanomaggies)
+    #ADM should be fine to clip for plotting purposes
+    loclip = 1e-16
+    g = 22.5-2.5*np.log10(flux['GFLUX'].clip(loclip))
+    r = 22.5-2.5*np.log10(flux['RFLUX'].clip(loclip))
+    z = 22.5-2.5*np.log10(flux['ZFLUX'].clip(loclip))
+    W1 = 22.5-2.5*np.log10(flux['W1FLUX'].clip(loclip))
+    W2 = 22.5-2.5*np.log10(flux['W2FLUX'].clip(loclip))
+
+    #ADM set up the r-z, g-r plot
     plt.clf()
-    plt.xlim((-4,4))
-    plt.ylim((-4,4))
     plt.xlabel('r - z')
     plt.ylabel('g - r')
-    plt.plot(rmag-zmag,gmag-rmag,'b,',label='(Unextincted) target colors for'.format(objtype))
-    plt.legend(loc='upper left', frameon=False)
+    plt.set_cmap('inferno')
+    plt.hist2d(r-z,g-r,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+    plt.colorbar()
+    #ADM make the plot
     pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
-    #ADM set up and make the r-z, r-W1 plot
+    #ADM set up the r-z, r-W1 plot
     plt.clf()
-    plt.xlim((-4,4))
-    plt.ylim((-4,4))
     plt.xlabel('r - z')
     plt.ylabel('r - W1')
-    plt.plot(rmag-zmag,rmag-W1mag,'k,',label='(Unextincted) target colors for'.format(objtype))
-    plt.legend(loc='upper left', frameon=False)
+    plt.set_cmap('inferno')
+    plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+    plt.colorbar()
+    #ADM make the plot
     pngfile = os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
@@ -1362,15 +1364,15 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
 
         #ADM make RA/Dec skymaps
-#        qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
-#                 weights=weights[w], max_bin_area=max_bin_area)
+        qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
+                 weights=weights[w], max_bin_area=max_bin_area)
 
         log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
         #ADM make histograms of densities. We already calculated the correctly 
         #ADM ordered HEALPixels and so don't need to repeat that calculation
-#        qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
-#                weights=weights[w], max_bin_area = max_bin_area, catispix=True)
+        qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
+                weights=weights[w], max_bin_area = max_bin_area, catispix=True)
 
         log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
@@ -1476,7 +1478,7 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
         html.write('</table>\n')
 
         #ADM color-color plots
-        html.write('<h2>Color-color plots</h2>\n')
+        html.write('<h2>Color-color plots (corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
