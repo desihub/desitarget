@@ -436,11 +436,12 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
             rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
             gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
             rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none')
+            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', edgewidth=2, label='Noiseless Photometry')
             plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
-            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none')
-            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k')
+            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none', label='Noisy Photometry')
+            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k', edgewidth=2)
             plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+            plt.legend(loc='upper left')
             plt.show()
             import pdb ; pdb.set_trace()
         
@@ -484,11 +485,12 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
         
         fig, ax = plt.subplots()
-        ax.scatter(rz1, gr1, color='red')
-        ax.scatter(rz, gr, alpha=0.5, color='green')
+        ax.scatter(rz1, gr1, color='red', label='Noiseless Photometry')
+        ax.scatter(rz, gr, alpha=0.5, color='green', label='Noisy Photometry')
         ax.set_xlim(-0.5, 2)
         ax.set_ylim(-0.5, 2)
         elg_colorbox(ax)
+        ax.legend(loc='upper left')
         plt.show()
         import pdb ; pdb.set_trace()
         
@@ -880,7 +882,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
             hdu.header['AIRORVAC'] = 'vac'
             hx.append(hdu)
 
-            hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
+            hdu = fits.ImageHDU(trueflux[inpixel, :].value.astype(np.float32), name='FLUX')
             hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
             hx.append(hdu)
 
