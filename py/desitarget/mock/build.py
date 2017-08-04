@@ -119,7 +119,7 @@ class BrickInfo(object):
 
         Returns:
             depths (dictionary). keys include
-                'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
+                'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
                 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
                 The values ofr each key ar numpy arrays (float) with size equal to
                 the input ra, dec arrays.
@@ -129,28 +129,28 @@ class BrickInfo(object):
         dec = brick_info['DEC']
 
         n_to_generate = len(ra)
-        #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
+        #mean and std deviation of the difference between PSFDEPTH and GALDEPTH in the DR3 data.
         differences = {}
-        differences['DEPTH_G'] = [0.22263251, 0.059752077]
-        differences['DEPTH_R'] = [0.26939404, 0.091162138]
-        differences['DEPTH_Z'] = [0.34058815, 0.056099825]
+        differences['PSFDEPTH_G'] = [0.22263251, 0.059752077]
+        differences['PSFDEPTH_R'] = [0.26939404, 0.091162138]
+        differences['PSFDEPTH_Z'] = [0.34058815, 0.056099825]
 
         # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
 
         points = {}
-        points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+        points['PSFDEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
                       24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
-        points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+        points['PSFDEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
                       24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
-        points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+        points['PSFDEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
                       23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
 
         fractions = {}
-        fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-        fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-        fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+        fractions['PSFDEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['PSFDEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['PSFDEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
 
-        names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
+        names = ['PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z']
         depths = Table()
         for name in names:
             fracs = self.random_state.random_sample(n_to_generate)
@@ -161,7 +161,7 @@ class BrickInfo(object):
                 scale=differences[name][1], size=n_to_generate)
             depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
 
-            depths['GAL'+name] = depths[name] - depth_minus_galdepth
+            depths[name.replace('PSF', 'GAL')] = depths[name] - depth_minus_galdepth
             #log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
 
         return depths
@@ -173,7 +173,7 @@ class BrickInfo(object):
         Args:
           decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS.
           brick_info(Dictionary). Containts at least the following keys:
-            DEPTH_G(float) : array of depth magnitudes in the G band.
+            PSFDEPTH_G(float) : array of depth magnitudes in the G band.
 
         Returns:
           fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
@@ -189,7 +189,7 @@ class BrickInfo(object):
         depth_available = []
     #   for k in brick_info.keys():
         for k in ['GALDEPTH_R', 'EBV']:
-            if ('DEPTH' in k or 'EBV' in k):
+            if ('PSFDEPTH' in k or 'EBV' in k):
                 depth_available.append(k)
 
         for depth in depth_available:
@@ -361,21 +361,21 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     for key in ('RA', 'DEC', 'BRICKNAME'):
         targets[key][:] = source_data[key][onbrick]
 
-    for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
-        targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
-    for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):
-        targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
+    for depthkey in ('PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+                     'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
+        targets[depthkey][:] = brick_info[depthkey][brickindx]
     targets['EBV'][:] = brick_info['EBV'][brickindx]
 
     # Use the point-source depth for point sources, although this should really
     # be tied to the morphology.
     if 'star' in target_name or 'qso' in target_name:
-        depthkey = 'DECAM_DEPTH'
+        depthkey = 'PSFDEPTH'
     else:
-        depthkey = 'DECAM_GALDEPTH'
+        depthkey = 'GALDEPTH'
     with np.errstate(divide='ignore'):                        
         #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
-        decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
+        decam_onesigma = [10**(0.4 * (22.5 - targets['{}_{}'.format(depthkey, bb)][0]) ) / 5 for bb in ['G', 'R', 'Z']]
+        #decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth

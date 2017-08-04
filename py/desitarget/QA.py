@@ -252,20 +252,34 @@ def fluc_map(brickfilename):
 
     #ADM limit to just things with NEXP=3 in every band
     #ADM and that have reasonable depth values from the depth maps
-    w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) & (alldata['PSFDEPTH_G'] > -90) & (alldata['PSFDEPTH_R'] > -90) & (alldata['PSFDEPTH_Z'] > -90))
+    try:
+        w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) &
+                      (alldata['PSFDEPTH_G'] > -90) & (alldata['PSFDEPTH_R'] > -90) & (alldata['PSFDEPTH_Z'] > -90))
+    except:
+        w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) &
+                      (alldata['DEPTH_G'] > -90) & (alldata['DEPTH_R'] > -90) & (alldata['DEPTH_Z'] > -90))
     alldata = alldata[w]
 
     #ADM choose some necessary columns and rename density columns,
     #ADM which we'll now base on fluctuations around the median
+
+    #JM -- This will only work for DR3!
     cols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
-            'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+            'DEPTH_G','DEPTH_R','DEPTH_Z',
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
             'DENSITY_ALL', 'DENSITY_ELG', 'DENSITY_LRG',
             'DENSITY_QSO', 'DENSITY_LYA', 'DENSITY_BGS', 'DENSITY_MWS'
             ]
     data = alldata[cols]
-    newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+    #newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+    newcols = [
+            'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
+            'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
+            'FLUC_ALL', 'FLUC_ELG', 'FLUC_LRG',
+            'FLUC_QSO', 'FLUC_LYA', 'FLUC_BGS', 'FLUC_MWS'
+            ]
     data.dtype.names = newcols
 
     #ADM for each of the density columns loop through and replace
