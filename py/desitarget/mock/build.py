@@ -366,16 +366,14 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         targets[depthkey][:] = brick_info[depthkey][brickindx]
     targets['EBV'][:] = brick_info['EBV'][brickindx]
 
-    # Use the point-source depth for point sources, although this should really
-    # be tied to the morphology.
-    if 'star' in target_name or 'qso' in target_name:
-        depthkey = 'PSFDEPTH'
-    else:
-        depthkey = 'GALDEPTH'
-    with np.errstate(divide='ignore'):                        
-        #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
-        decam_onesigma = [10**(0.4 * (22.5 - targets['{}_{}'.format(depthkey, bb)][0]) ) / 5 for bb in ['G', 'R', 'Z']]
-        #decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
+    ## Use the point-source depth for point sources, although this should really
+    ## be tied to the morphology.
+    #if 'star' in target_name or 'qso' in target_name:
+    #    depthkey = 'PSFDEPTH'
+    #else:
+    #    depthkey = 'GALDEPTH'
+    #with np.errstate(divide='ignore'):                        
+    #    decam_onesigma = [10**(0.4 * (22.5 - targets['{}_{}'.format(depthkey, bb)][0]) ) / 5 for bb in ['G', 'R', 'Z']]
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth
@@ -420,7 +418,7 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
 
         for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-            truth[fluxkey][:] = getattr(Spectra.tree, fluxkey.lower())[templateid] * normmag
+            truth[fluxkey][:] = getattr( Spectra.tree, 'star_{}'.format(fluxkey.lower()) )[templateid] * normmag
             targets[fluxkey][:] = truth[fluxkey][:] + \
               rand.normal(scale=onesigma[band], size=nobj)
 

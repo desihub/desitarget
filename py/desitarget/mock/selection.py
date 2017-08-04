@@ -96,15 +96,17 @@ class SelectTargets(object):
 
         obs_rflux = rflux * 10**(-0.4 * targets['EBV'] * self.decam_extcoeff[2]) # attenuate for dust
 
-        snr = np.zeros_like(targets['DECAM_FLUX']) + 100      # Hack -- fixed S/N
-        fracflux = np.zeros_like(targets['DECAM_FLUX']).T     # No contamination from neighbors.
+        gsnr, rsnr, zsnr = gflux*0+100, rflux*0+100, zflux*0+100    # Hack -- fixed S/N
+        gfracflux, rfracflux, zfracflux = gflux*0, rflux*0, zflux*0 # # No contamination from neighbors.
         objtype = np.repeat('PSF', len(targets)).astype('U3') # Right data type?!?
 
         # Select dark-time FSTD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
         if boss_std is None:
             fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                          decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux)
+                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
+                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                          obs_rflux=obs_rflux)
         else:
             rbright, rfaint = 16, 19
             fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
@@ -117,8 +119,9 @@ class SelectTargets(object):
         # standard-star selection algorith.
         if boss_std is None:
             fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                                 decam_fracflux=fracflux, decam_snr=snr, obs_rflux=obs_rflux,
-                                 bright=True)
+                                 gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
+                                 gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                                 obs_rflux=obs_rflux, bright=True)
         else:
             rbright, rfaint = 14, 17
             fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
