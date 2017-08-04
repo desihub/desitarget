@@ -1234,11 +1234,14 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     from desitarget.cuts import unextinct_fluxes
     flux = unextinct_fluxes(cat)
     #ADM convert to magnitudes (fluxes are in nanomaggies)
-    gmag = 22.5-2.5*np.log10(flux['GFLUX'])
-    rmag = 22.5-2.5*np.log10(flux['RFLUX'])
-    zmag = 22.5-2.5*np.log10(flux['ZFLUX'])
-    w1mag = 22.5-2.5*np.log10(flux['W1FLUX'])
-    w2mag = 22.5-2.5*np.log10(flux['W2FLUX'])
+    with warnings.catch_warnings(): 
+        #ADM should be fine to catch warnings for plotting purposes
+        warnings.simplefilter('ignore')
+        gmag = 22.5-2.5*np.log10(flux['GFLUX'])
+        rmag = 22.5-2.5*np.log10(flux['RFLUX'])
+        zmag = 22.5-2.5*np.log10(flux['ZFLUX'])
+        W1mag = 22.5-2.5*np.log10(flux['W1FLUX'])
+        W2mag = 22.5-2.5*np.log10(flux['W2FLUX'])
 
     #ADM set up and make the r-z, g-r plot
     plt.clf()
@@ -1246,9 +1249,9 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.ylim((-4,4))
     plt.xlabel('r - z')
     plt.ylabel('g - r')
-    plt.plot(rmag-zmag,gmag-rmag,'b.',label='(Unextincted) target colors for'.format(objtype))
+    plt.plot(rmag-zmag,gmag-rmag,'b,',label='(Unextincted) target colors for'.format(objtype))
     plt.legend(loc='upper left', frameon=False)
-    pngfile = os.path.join(qadir, '{}-"grz"-{}.png'.format(fileprefix,objtype))
+    pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
@@ -1258,9 +1261,9 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.ylim((-4,4))
     plt.xlabel('r - z')
     plt.ylabel('r - W1')
-    plt.plot(rmag-zmag,rmag-W1mag,'k.',label='(Unextincted) target colors for'.format(objtype))
+    plt.plot(rmag-zmag,rmag-W1mag,'k,',label='(Unextincted) target colors for'.format(objtype))
     plt.legend(loc='upper left', frameon=False)
-    pngfile = os.path.join(qadir, '{}-"rzW1"-{}.png'.format(fileprefix,objtype))
+    pngfile = os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
@@ -1468,6 +1471,18 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
         html.write('<td WIDTH="25%" align=left><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" height=450 width=700></A></left></td>\n'
                    .format(objtype,objtype))
         html.write('<td WIDTH="25%" align=left><A HREF="histo-{}.png"><img SRC="histo-{}.png" height=430 width=510></A></left></td>\n'
+                   .format(objtype,objtype))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+
+        #ADM color-color plots
+        html.write('<h2>Color-color plots</h2>\n')
+        html.write('<table COLS=2 WIDTH="100%">\n')
+        html.write('<tr>\n')
+        #ADM add the plots...
+        html.write('<td WIDTH="25%" align=left><A HREF="color-grz-{}.png"><img SRC="color-rzW1-{}.png" height=500 width=600></A></left></td>\n'
+                   .format(objtype,objtype))
+        html.write('<td WIDTH="25%" align=left><A HREF="color-rzW1-{}.png"><img SRC="color-grz-{}.png" height=500 width=600></A></left></td>\n'
                    .format(objtype,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
