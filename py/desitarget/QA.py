@@ -97,6 +97,7 @@ def area_of_hull(ras,decs,nhulls):
           but it's accurate (to millionths of a per cent) for areas of a few sq. deg.
 
         - This routine will fail at the poles. So, decs should never be passed as -90. or 90.
+
     """
 
     if ras.ndim > 1 and ras.shape[0] != nhulls:
