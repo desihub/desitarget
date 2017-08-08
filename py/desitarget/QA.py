@@ -39,7 +39,8 @@ import numpy.lib.recfunctions as rfn
 
 
 def sph2car(ra, dec):
-    """Convert RA and Dec to a Cartesian vector """
+    """Convert RA and Dec to a Cartesian vector
+    """
 
     phi = np.radians(np.asarray(ra))
     theta = np.radians(90.0 - np.asarray(dec))
@@ -82,22 +83,16 @@ def area_of_hull(ras,decs,nhulls):
           output will be a 1-D array of areas. Each hull must occupy the rows, e.g. for a
           set of RAs for 2 identical hulls with 15 points on the boundary, this would be the
           correct array ordering:
-
           array([[ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
-                   7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
-                   7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ],
-                 [ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
-                   7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
-                   7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ]])
-
+          7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
+          7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ],
+          [ 7.14639156,  7.02689545,  7.01554989,  7.01027328,  7.01276138,
+          7.01444518,  7.0173733 ,  7.03278736,  7.22537629,  7.24887231,
+          7.25749704,  7.25629861,  7.25075961,  7.24776393,  7.2375672 ]])
         - This is only an approximation, because it uses the average latitude. See, e.g.:
-
-              https://trs.jpl.nasa.gov/bitstream/handle/2014/41271/07-0286.pdf
-
+          https://trs.jpl.nasa.gov/bitstream/handle/2014/41271/07-0286.pdf
           but it's accurate (to millionths of a per cent) for areas of a few sq. deg.
-
         - This routine will fail at the poles. So, decs should never be passed as -90. or 90.
-
     """
 
     if ras.ndim > 1 and ras.shape[0] != nhulls:
