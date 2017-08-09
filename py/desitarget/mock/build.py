@@ -275,25 +275,29 @@ def empty_targets_table(nobj=1):
     """
     targets = Table()
 
-    # Columns required for fiber assignment:
     # RELEASE
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
-    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
+    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
+    # TYPE
     targets.add_column(Column(name='RA', length=nobj, dtype='f8'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-
-    # Quantities mimicking a true targeting catalog (or inherited from the
-    # mocks).
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U10'))
+    # RA_IVAR
+    # DEC_IVAR
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
+    # FLUX_W3
+    # FLUX_W4
+    # FLUX_IVAR_G
+    # FLUX_IVAR_R
+    # FLUX_IVAR_Z
+    # FLUX_IVAR_W1
+    # FLUX_IVAR_W2
+    # FLUX_IVAR_W3
+    # FLUX_IVAR_W4
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
@@ -306,7 +310,20 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
+
+    #targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
+    #targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
+
+    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
 
     return targets
 
@@ -363,9 +380,12 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     for key in ('RA', 'DEC', 'BRICKNAME'):
         targets[key][:] = source_data[key][onbrick]
 
-    for key in ('BRICKID', 'EBV', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+    for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
                 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
         targets[key][:] = brick_info[key][brickindx]
+
+    # Assign unique OBJID values
+    targets['BRICK_OBJID'][:] = np.arange(nobj)
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth
@@ -791,15 +811,19 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     except:
         nsky = 0
 
-    targetid = rand.randint(2**62, size=ntarget + nsky)
-    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
-
-    truth['TARGETID'][:] = targetid[:ntarget]
-    targets['TARGETID'][:] = targetid[:ntarget]
-    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
+    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                               brickid=targets['BRICKID'], mock=1)
+    truth['TARGETID'][:] = targetid
+    targets['TARGETID'][:] = targetid
+    del targetid
 
     if nsky > 0:
-        skytargets['TARGETID'][:] = targetid[ntarget:ntarget+nsky]
+        skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
+                                                    brickid=skytargets['BRICKID'], mock=1, sky=1)
+
+    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
+    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
+    if nsky > 0:
         skytargets['SUBPRIORITY'][:] = subpriority[ntarget:ntarget+nsky]
 
     # Write the final catalogs out by healpixel.
@@ -872,7 +896,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
             hdu.header['AIRORVAC'] = 'vac'
             hx.append(hdu)
 
-            hdu = fits.ImageHDU(trueflux[inpixel, :].value.astype(np.float32), name='FLUX')
+            hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
             hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
             hx.append(hdu)
 
