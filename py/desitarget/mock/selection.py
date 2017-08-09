@@ -29,10 +29,6 @@ class SelectTargets(object):
         self.rand = rand
         self.brick_info = brick_info
 
-        self.decam_extcoeff = (3.995, 3.214, 2.165, 1.592, 1.211, 1.064) # extinction coefficients
-        self.wise_extcoeff = (0.184, 0.113, 0.0241, 0.00910)
-        self.sdss_extcoeff = (4.239, 3.303, 2.285, 1.698, 1.263)
-
     def _star_select(self, targets, truth):
         """Select stellar (faint and bright) contaminants for the extragalactic
         targets.
@@ -85,7 +81,7 @@ class SelectTargets(object):
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
 
-        obs_rflux = rflux * 10**(-0.4 * targets['EBV'] * self.decam_extcoeff[2]) # attenuate for dust
+        obs_rflux = rflux / targets['MW_TRANSMISSION_R'] # attenuate for Galactic dust
 
         gsnr, rsnr, zsnr = gflux*0+100, rflux*0+100, zflux*0+100    # Hack -- fixed S/N
         gfracflux, rfracflux, zfracflux = gflux*0, rflux*0, zflux*0 # # No contamination from neighbors.

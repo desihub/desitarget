@@ -17,6 +17,8 @@ from astropy.table import Table, Column, vstack, hstack
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 import desitarget.mock.io as mockio
+from desitarget.mock import sfdmap
+
 from desitarget.targets import encode_targetid
 
 def fileid_filename(source_data, output_dir, log):
@@ -99,8 +101,6 @@ class BrickInfo(object):
             least two keys 'RA' and 'DEC'.
 
         """
-        from desitarget.mock import sfdmap
-
         #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
         a = Table()
         a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
@@ -311,12 +311,12 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4'))
 
-    #targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
 
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
@@ -364,7 +364,7 @@ def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
-def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra,
+def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, dust_dir,
                          select_targets_function, source_data, rand, log):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
@@ -384,8 +384,14 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
                 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
         targets[key][:] = brick_info[key][brickindx]
 
-    # Assign unique OBJID values
+    # Assign unique OBJID values and reddenings.  See
+    #   http://legacysurvey.org/dr4/catalogs
     targets['BRICK_OBJID'][:] = np.arange(nobj)
+
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    targets['EBV'][:] = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * targets['EBV'])
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth
@@ -680,7 +686,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         specargs = list()
         for thisbrick in unique_bricks:
             specargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
-                              Spectra, select_targets_function, source_data, rand, log) )
+                              Spectra, params['dust_dir'], select_targets_function,
+                              source_data, rand, log) )
 
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
