@@ -44,7 +44,7 @@ class TestBrickFluctuation(unittest.TestCase):
         self.assertTrue(np.all((self.b['DEC']<=self.b['DEC2']) & (self.b['DEC']>=self.b['DEC1'])))
 
     def test_generate_depths(self):
-        keys = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']
+        keys = ['PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']
         for k in self.depth.keys():
             self.assertTrue(k in keys)
             self.assertTrue(isinstance(self.depth[k], np.ndarray))

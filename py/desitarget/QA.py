@@ -35,7 +35,7 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
         options are "ALL", "LYA", "MWS", "BGS", "QSO", "ELG", "LRG"
     depthtype : :class: `str`
         Name of the type of depth-and-band (or E(B-V)) for which to generate fluctuations
-        options are "DEPTH_G", "GALDEPTH_G", "DEPTH_R", "GALDEPTH_R", "DEPTH_Z", "GALDEPTH_Z"
+        options are "PSFDEPTH_G", "GALDEPTH_G", "PSFDEPTH_R", "GALDEPTH_R", "PSFDEPTH_Z", "GALDEPTH_Z"
         or pass "EBV" to generate fluctuations based off E(B-V) values
     depthorebvarray : :class:`float array`
         An array of brick depths (i.e. for N bricks, N realistic values of depth) or
@@ -54,7 +54,7 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
     log = get_logger()
 
     #ADM check some impacts are as expected
-    dts = ["DEPTH_G","GALDEPTH_G","DEPTH_R","GALDEPTH_R","DEPTH_Z","GALDEPTH_Z","EBV"]
+    dts = ["PSFDEPTH_G","GALDEPTH_G","PSFDEPTH_R","GALDEPTH_R","PSFDEPTH_Z","GALDEPTH_Z","EBV"]
     if not depthtype in dts:
         raise ValueError("depthtype must be one of {}".format(" ".join(dts)))
 
@@ -111,7 +111,7 @@ def model_map(brickfilename,plot=False):
         model of brick fluctuations, median, 16%, 84% for overall
         brick depth variations and variation of target density with
         depth and EBV (per band). The first level of the nested
-        dictionary are the keys DEPTH_G, DEPTH_R, DEPTH_Z, GALDEPTH_G,
+        dictionary are the keys PSFDEPTH_G, PSFDEPTH_R, PSFDEPTH_Z, GALDEPTH_G,
         GALDEPTH_R, GALDEPTH_Z, EBV. The second level are the keys PERC,
         which contains a list of values corresponding to the 16,50,84%
         fluctuations in that value of DEPTH or EBV per brick and the
@@ -131,7 +131,7 @@ def model_map(brickfilename,plot=False):
     cols = flucmap.dtype.names
     for col in cols:
         #ADM loop through each of the depth columns (PSF and GAL) and EBV
-        if re.search("DEPTH",col) or re.search("EBV",col):
+        if re.search("PSFDEPTH",col) or re.search("EBV",col):
             #ADM the percentiles for this DEPTH/EBV across the brick
             coldict = {"PERCS": np.percentile(flucmap[col],percs)}
             #ADM fit quadratic models to target density fluctuation vs. EBV and
@@ -252,11 +252,18 @@ def fluc_map(brickfilename):
 
     #ADM limit to just things with NEXP=3 in every band
     #ADM and that have reasonable depth values from the depth maps
-    w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) & (alldata['DEPTH_G'] > -90) & (alldata['DEPTH_R'] > -90) & (alldata['DEPTH_Z'] > -90))
+    try:
+        w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) &
+                      (alldata['PSFDEPTH_G'] > -90) & (alldata['PSFDEPTH_R'] > -90) & (alldata['PSFDEPTH_Z'] > -90))
+    except:
+        w = np.where( (alldata['NEXP_G'] > 2) & (alldata['NEXP_R'] > 2) & (alldata['NEXP_Z'] > 2) &
+                      (alldata['DEPTH_G'] > -90) & (alldata['DEPTH_R'] > -90) & (alldata['DEPTH_Z'] > -90))
     alldata = alldata[w]
 
     #ADM choose some necessary columns and rename density columns,
     #ADM which we'll now base on fluctuations around the median
+
+    #JM -- This will only work for DR3!
     cols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
             'DEPTH_G','DEPTH_R','DEPTH_Z',
@@ -265,7 +272,14 @@ def fluc_map(brickfilename):
             'DENSITY_QSO', 'DENSITY_LYA', 'DENSITY_BGS', 'DENSITY_MWS'
             ]
     data = alldata[cols]
-    newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+    #newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+    newcols = [
+            'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
+            'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
+            'FLUC_ALL', 'FLUC_ELG', 'FLUC_LRG',
+            'FLUC_QSO', 'FLUC_LYA', 'FLUC_BGS', 'FLUC_MWS'
+            ]
     data.dtype.names = newcols
 
     #ADM for each of the density columns loop through and replace
@@ -363,10 +377,10 @@ def construct_QA_file(nrows):
             ('RA1','>f4'),('RA2','>f4'),
             ('DEC1','>f4'),('DEC2','>f4'),
             ('EBV','>f4'),
-            ('DEPTH_G','>f4'),('DEPTH_R','>f4'),('DEPTH_Z','>f4'),
+            ('PSFDEPTH_G','>f4'),('PSFDEPTH_R','>f4'),('PSFDEPTH_Z','>f4'),
             ('GALDEPTH_G','>f4'),('GALDEPTH_R','>f4'),('GALDEPTH_Z','>f4'),
-            ('DEPTH_G_PERCENTILES','f4',(5)), ('DEPTH_R_PERCENTILES','f4',(5)),
-            ('DEPTH_Z_PERCENTILES','f4',(5)), ('GALDEPTH_G_PERCENTILES','f4',(5)),
+            ('PSFDEPTH_G_PERCENTILES','f4',(5)), ('PSFDEPTH_R_PERCENTILES','f4',(5)),
+            ('PSFDEPTH_Z_PERCENTILES','f4',(5)), ('GALDEPTH_G_PERCENTILES','f4',(5)),
             ('GALDEPTH_R_PERCENTILES','f4',(5)), ('GALDEPTH_Z_PERCENTILES','f4',(5)),
             ('NEXP_G','i2'),('NEXP_R','i2'),('NEXP_Z','i2'),
             ('DENSITY_ALL','>f4'),
@@ -439,9 +453,9 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     ----------
     instruc : :class:`recarray`
         numpy structured array containing at least
-        ['BRICKNAME','BRICKAREA','DEPTH_G','DEPTH_R','DEPTH_Z',
-        'GALDEPTH_G','GALDEPTH_R','GALDEPTH_Z','DEPTH_G_PERCENTILES',
-        'DEPTH_R_PERCENTILES','DEPTH_Z_PERCENTILES','GALDEPTH_G_PERCENTILES',
+        ['BRICKNAME','BRICKAREA','PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+        'GALDEPTH_G','GALDEPTH_R','GALDEPTH_Z','PSFDEPTH_G_PERCENTILES',
+        'PSFDEPTH_R_PERCENTILES','PSFDEPTH_Z_PERCENTILES','GALDEPTH_G_PERCENTILES',
         'GALDEPTH_R_PERCENTILES','GALDEPTH_Z_PERCENTILES']
         to populate with depths and areas
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -559,15 +573,15 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
 
     #ADM populate the depths and area
     instruc['BRICKAREA'] = np.array(areas)[matches]
-    instruc['DEPTH_G'] = np.array(depth_g)[matches]
-    instruc['DEPTH_R'] = np.array(depth_r)[matches]
-    instruc['DEPTH_Z'] = np.array(depth_z)[matches]
+    instruc['PSFDEPTH_G'] = np.array(depth_g)[matches]
+    instruc['PSFDEPTH_R'] = np.array(depth_r)[matches]
+    instruc['PSFDEPTH_Z'] = np.array(depth_z)[matches]
     instruc['GALDEPTH_G'] = np.array(galdepth_g)[matches]
     instruc['GALDEPTH_R'] = np.array(galdepth_r)[matches]
     instruc['GALDEPTH_Z'] = np.array(galdepth_z)[matches]
-    instruc['DEPTH_G_PERCENTILES'] = np.array(perc_g)[matches]
-    instruc['DEPTH_R_PERCENTILES'] = np.array(perc_r)[matches]
-    instruc['DEPTH_Z_PERCENTILES'] = np.array(perc_z)[matches]
+    instruc['PSFDEPTH_G_PERCENTILES'] = np.array(perc_g)[matches]
+    instruc['PSFDEPTH_R_PERCENTILES'] = np.array(perc_r)[matches]
+    instruc['PSFDEPTH_Z_PERCENTILES'] = np.array(perc_z)[matches]
     instruc['GALDEPTH_G_PERCENTILES'] = np.array(galperc_g)[matches]
     instruc['GALDEPTH_R_PERCENTILES'] = np.array(galperc_r)[matches]
     instruc['GALDEPTH_Z_PERCENTILES'] = np.array(galperc_z)[matches]

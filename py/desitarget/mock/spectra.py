@@ -44,7 +44,8 @@ class TemplateKDTree(object):
         self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
         self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
 
-        self.decamwise = filters.load_filters('decam2014-*', 'wise2010-W1', 'wise2010-W2')
+        self.decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
+                                              'wise2010-W1', 'wise2010-W2')
 
         # Read all the stellar spectra and synthesize DECaLS/WISE fluxes.
         self.star_phot()
@@ -70,8 +71,11 @@ class TemplateKDTree(object):
         star_maggies = np.zeros( (len(star_meta), len(self.decamwise)) )
         for ff, key in enumerate(star_maggies_table.columns):
             star_maggies[:, ff] = star_maggies_table[key] / star_maggies_table[star_normfilter] # maggies
-        self.star_decam_flux = star_maggies[:, :6]
-        self.star_wise_flux = star_maggies[:, 6:8]
+        self.star_flux_g = star_maggies[:, 0]
+        self.star_flux_r = star_maggies[:, 1]
+        self.star_flux_z = star_maggies[:, 2]
+        self.star_flux_w1 = star_maggies[:, 3]
+        self.star_flux_w2 = star_maggies[:, 4]
         
         self.star_meta = star_meta
 
