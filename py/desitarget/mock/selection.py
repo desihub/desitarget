@@ -18,13 +18,12 @@ class SelectTargets(object):
 
     """
     def __init__(self, logger=None, rand=None, brick_info=None):
-        from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, obsconditions
+        from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
-        self.obsconditions = obsconditions
 
         self.log = logger
         self.rand = rand
@@ -49,8 +48,6 @@ class SelectTargets(object):
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
-        for oo in self.bgs_mask.BGS_FAINT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(oo)
             
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
@@ -59,8 +56,6 @@ class SelectTargets(object):
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        for oo in self.desi_mask.ELG.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
@@ -70,8 +65,6 @@ class SelectTargets(object):
                            w1flux=w1flux, w2flux=w2flux)
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
-        for oo in self.desi_mask.LRG.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(oo)
 
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
@@ -81,8 +74,6 @@ class SelectTargets(object):
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
-        for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
 
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
@@ -112,8 +103,6 @@ class SelectTargets(object):
             fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
 
         targets['DESI_TARGET'] |= (fstd != 0) * self.desi_mask.STD_FSTAR
-        for oo in self.desi_mask.STD_FSTAR.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (fstd != 0) * self.obsconditions.mask(oo)
 
         # Select bright-time FSTD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
@@ -127,13 +116,9 @@ class SelectTargets(object):
             fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
 
         targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
-        for oo in self.desi_mask.STD_BRIGHT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(oo)
-
         
     def bgs_select(self, targets, truth, boss_std=None):
-        """Select BGS targets.  Note that obsconditions for BGS_ANY are set to BRIGHT
-        only. Is this what we want?
+        """Select BGS targets.
 
         """
         from desitarget.cuts import isBGS_bright, isBGS_faint
@@ -145,16 +130,12 @@ class SelectTargets(object):
         targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
         targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
         targets['DESI_TARGET'] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
-        for oo in self.bgs_mask.BGS_BRIGHT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (bgs_bright != 0) * self.obsconditions.mask(oo)
 
         # Select BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
-        for oo in self.bgs_mask.BGS_FAINT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(oo)
 
     def elg_select(self, targets, truth, boss_std=None):
         """Select ELG targets and contaminants."""
@@ -167,8 +148,6 @@ class SelectTargets(object):
 
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        for oo in self.desi_mask.ELG.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
         # Select ELG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
@@ -178,8 +157,6 @@ class SelectTargets(object):
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO_SOUTH
-        for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * (elg == 0) * self.obsconditions.mask(oo)
             
         truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_IS_ELG
         truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_IS_GALAXY
@@ -202,8 +179,6 @@ class SelectTargets(object):
 
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
-        for oo in self.desi_mask.LRG.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(oo)
 
         # Select LRG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
@@ -213,8 +188,6 @@ class SelectTargets(object):
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO_SOUTH
-        for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * (lrg == 0) * self.obsconditions.mask(oo)
 
         truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_LRG
         truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_GALAXY
@@ -247,14 +220,10 @@ class SelectTargets(object):
         
         targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
         targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
-        for oo in self.mws_mask.MWS_MAIN.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (mws_main != 0) * self.obsconditions.mask(oo)
 
         mws_main_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
         targets['MWS_TARGET'] |= (mws_main_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
         targets['DESI_TARGET'] |= (mws_main_very_faint != 0) * self.desi_mask.MWS_ANY
-        for oo in self.mws_mask.MWS_MAIN_VERY_FAINT.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (mws_main_very_faint != 0) * self.obsconditions.mask(oo)
 
         # Select standard stars.
         self._std_select(targets, truth, boss_std=boss_std)
@@ -272,8 +241,6 @@ class SelectTargets(object):
 
         targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
         targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
-        for oo in self.mws_mask.MWS_NEARBY.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (mws_nearby != 0) * self.obsconditions.mask(oo)
 
     def mws_wd_select(self, targets, truth, boss_std=None):
         """Select MWS_WD and STD_WD targets.  The selection eventually will be done with
@@ -285,14 +252,10 @@ class SelectTargets(object):
 
         targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
         targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
-        for oo in self.mws_mask.MWS_WD.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (mws_wd != 0) * self.obsconditions.mask(oo)
 
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
         targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
-        for oo in self.desi_mask.STD_WD.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (std_wd != 0) * self.obsconditions.mask(oo)
 
     def qso_select(self, targets, truth, boss_std=None):
         """Select QSO targets and contaminants."""
@@ -306,16 +269,12 @@ class SelectTargets(object):
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
-        for oo in self.desi_mask.QSO.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(oo)
 
         # Select QSO contaminants for ELG targets.  There'd be no morphology cut
         # and we're missing the WISE colors, so the density won't be right.
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        for oo in self.desi_mask.ELG.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(oo)
 
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_QSO
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
@@ -324,8 +283,6 @@ class SelectTargets(object):
         """Select SKY targets."""
 
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
-        for oo in self.desi_mask.SKY.obsconditions.split('|'):
-            targets['OBSCONDITIONS'] |= self.obsconditions.mask(oo)
 
     def density_select(self, targets, truth, source_name, target_name, density=None, subset=None):
         """Downsample a target sample to a desired number density in targets/deg2."""

@@ -269,7 +269,7 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None)
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.  The required output columns in order
     for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
-    MWS_TARGET, SUBPRIORITY and OBSCONDITIONS.  Everything else is gravy.
+    MWS_TARGET, and SUBPRIORITY.  Everything else is gravy.
 
     """
     targets = Table()
@@ -282,7 +282,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i4'))
 
     # Quantities mimicking a true targeting catalog (or inherited from the
     # mocks).
