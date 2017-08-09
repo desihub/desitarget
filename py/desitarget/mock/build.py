@@ -316,7 +316,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
 
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
@@ -389,9 +388,9 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     targets['BRICK_OBJID'][:] = np.arange(nobj)
 
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    targets['EBV'][:] = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
+    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * targets['EBV'])
+        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth
