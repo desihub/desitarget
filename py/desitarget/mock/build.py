@@ -835,15 +835,20 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         SEED = (seed1, 'initial random seed')
         ))
 
+    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
+    targets['HPXPIXEL'][:] = targpix
+
+    if nsky > 0:
+        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+        skytargets['HPXPIXEL'][:] = skygpix
+
     for pixnum in healpixels:
         # healsuffix = '{}-{}.fits'.format(nside, pixnum)
         outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
         os.makedirs(outdir, exist_ok=True)
-        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
         # Write out the sky catalog.
         if nsky > 0:
-            skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
             isky = pixnum == skypix
             if np.count_nonzero(isky) > 0:
                 # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
