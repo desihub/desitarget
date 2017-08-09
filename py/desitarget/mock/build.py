@@ -17,6 +17,7 @@ from astropy.table import Table, Column, vstack, hstack
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 import desitarget.mock.io as mockio
+from desitarget.targets import encode_targetid
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -275,6 +276,8 @@ def empty_targets_table(nobj=1):
     targets = Table()
 
     # Columns required for fiber assignment:
+    # RELEASE
+    targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8'))
@@ -360,19 +363,9 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     for key in ('RA', 'DEC', 'BRICKNAME'):
         targets[key][:] = source_data[key][onbrick]
 
-    for depthkey in ('PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-                     'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
-        targets[depthkey][:] = brick_info[depthkey][brickindx]
-    targets['EBV'][:] = brick_info['EBV'][brickindx]
-
-    ## Use the point-source depth for point sources, although this should really
-    ## be tied to the morphology.
-    #if 'star' in target_name or 'qso' in target_name:
-    #    depthkey = 'PSFDEPTH'
-    #else:
-    #    depthkey = 'GALDEPTH'
-    #with np.errstate(divide='ignore'):                        
-    #    decam_onesigma = [10**(0.4 * (22.5 - targets['{}_{}'.format(depthkey, bb)][0]) ) / 5 for bb in ['G', 'R', 'Z']]
+    for key in ('BRICKID', 'EBV', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
+        targets[key][:] = brick_info[key][brickindx]
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth
