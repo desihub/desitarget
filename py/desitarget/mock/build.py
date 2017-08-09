@@ -557,6 +557,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
 
     from astropy.io import fits
 
+    from desiutil import depend
     from desispec.io.util import fitsheader, write_bintable
     from desitarget.mock.selection import SelectTargets
     from desitarget.mock.spectra import MockSpectra
@@ -835,12 +836,18 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         SEED = (seed1, 'initial random seed')
         ))
 
+    targetshdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
+    depend.setdep(targetshdr, 'HPXNSIDE', nside)
+    depend.setdep(targetshdr, 'HPXNEST', True)
+
     targpix = radec2pix(nside, targets['RA'], targets['DEC'])
     targets['HPXPIXEL'][:] = targpix
 
     if nsky > 0:
         skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['HPXPIXEL'][:] = skygpix
+        skytargets['HPXPIXEL'][:] = skypix
 
     for pixnum in healpixels:
         # healsuffix = '{}-{}.fits'.format(nside, pixnum)
@@ -855,7 +862,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
                 skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
             
                 log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
-                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY', clobber=True)
+                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY',
+                               header=targetshdr, clobber=True)
                 os.rename(skyfile+'.tmp', skyfile)
 
         # Write out the dark- and bright-time standard stars.
@@ -870,7 +878,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
-                write_bintable(stdfile+'.tmp', targets[istd], extname='STD', clobber=True)
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
+                               header=targetshdr, clobber=True)
                 os.rename(stdfile+'.tmp', stdfile)
             else:
                 log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
@@ -884,10 +893,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         if npixtargets > 0:
             log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
             targets.meta['EXTNAME'] = 'TARGETS'
-            try:
-                targets[inpixel].write(targetsfile+'.tmp', format='fits', overwrite=True)
-            except:
-                targets[inpixel].write(targetsfile+'.tmp', format='fits', clobber=True)
+            write_bintable(targetsfile+'.tmp', targets[inpixel], extname='TARGETS',
+                           header=targetshdr, clobber=True)
             os.rename(targetsfile+'.tmp', targetsfile)
 
             log.info('Writing {}'.format(truthfile))
