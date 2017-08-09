@@ -5,6 +5,12 @@ desitarget Change Log
 0.15.0 (unreleased)
 -------------------
 
+* Updated :mod:`desitarget.QA` to produce QA plots [`PR #210`_]:
+  * Has a simple binary that runs the plot-making software in full
+  * Creates (weighted) 1-D and 2-D density plots 
+  * Makes color-color plots
+  * Produces a simple .html page that wraps the plots, e.g.
+    http://portal.nersc.gov/project/desi/users/adamyers/desitargetQA/
 * Changes for mocks [`PR #200`_]:
   * Fix isLRG vs. isLRG_colors
   * Correct random seeds when processing pix in parallel
@@ -12,6 +18,7 @@ desitarget Change Log
 * added ``mpi_select_mock_targets``
 
 .. _`PR #200`: https://github.com/desihub/desitarget/pull/200
+.. _`PR #210`: https://github.com/desihub/desitarget/pull/209
 
 0.14.0 (2017-07-10)
 -------------------
