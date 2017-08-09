@@ -838,13 +838,11 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
                 os.rename(skyfile+'.tmp', skyfile)
 
         # Write out the dark- and bright-time standard stars.
-        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT', 'STD_WD')):
             # stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
 
-            istd = (pixnum == targpix) * ( (
-                (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
+            istd = (pixnum == targpix) * ( ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) ) != 0)
             #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
 
             if np.count_nonzero(istd) > 0:
