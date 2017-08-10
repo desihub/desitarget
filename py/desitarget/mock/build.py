@@ -550,7 +550,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     from desitarget.mock.spectra import MockSpectra
     from desitarget.internal import sharedmem
     from desimodel.footprint import radec2pix
-    from desitarget import obscondtions
+    from desitarget import obsconditions
 
     if verbose:
         log = get_logger(DEBUG)
