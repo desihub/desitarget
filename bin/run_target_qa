@@ -1,0 +1,23 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+import fitsio
+
+from desitarget.QA import make_qa_page
+
+import warnings
+warnings.simplefilter('error')
+
+from argparse import ArgumentParser
+ap = ArgumentParser()
+ap.add_argument("src", help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr3.1-dr4.0-all-0.14.0.fits)")
+ap.add_argument("dest", help="Output directory to make QA webpage hierarchy (e.g. /project/projectdirs/desi/www/users/USERNAME/ will appear at http://portal.nersc.gov/project/desi/users/USERNAME)")
+
+ns = ap.parse_args()
+
+make_qa_page(ns.src,qadir=ns.dest)
+print('Targeting QA pages and plots written to {}'.format(ns.dest))
+
