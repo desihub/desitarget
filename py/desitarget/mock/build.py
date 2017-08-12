@@ -1042,3 +1042,151 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         mtl.meta['EXTNAME'] = 'MTL'
         mtl.write(tmpout, overwrite=True, format='fits')
         os.rename(tmpout, out_mtl)
+
+def _get_magnitudes_onebrick(specargs):
+    """Filler function for the multiprocessing."""
+    return get_spectra_onebrick(*specargs)
+
+def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, dust_dir,
+                         select_targets_function, source_data, rand, log):
+    """Wrapper function to generate magnitudes for all the objects on a single brick."""
+        
+def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
+                  bricksize=0.25, nproc=1, nside=16, healpixels=None):
+    """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
+    (with, e.g., the true redshift) for use in simulations.
+
+    Args:
+        params : dict
+            Source parameters.
+        output_dir : str
+            Output directory (default '.').
+        realtargets : astropy.table
+            Real target catalog table, e.g. from DR3 (deprecated!).
+        bricksize : float
+            Brick size for assigning bricknames, which should match the imaging
+            team value (default 0.25 deg).
+        nproc : int
+            Number of parallel processes to use (default 1).
+        nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels.
+
+    Returns:
+        A variety of fits files are written to output_dir.
+
+    """
+    import healpy as hp
+    from time import time
+
+    from astropy.io import fits
+
+    from desiutil import depend
+    from desispec.io.util import fitsheader, write_bintable
+    from desitarget.mock.selection import SelectTargets
+    from desitarget.mock.spectra import MockMagnitudes
+    from desitarget.internal import sharedmem
+    from desimodel.footprint import radec2pix
+    
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
+    # Initialize the random seed
+    rand = np.random.RandomState(seed)
+    # Create the output directories and clean them up if necessary.
+    if os.path.exists(output_dir):
+        if os.listdir(output_dir):
+            log.warning('Output directory {} is not empty.'.format(output_dir))
+    else:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)
+        
+    log.info('Writing to output directory {}'.format(output_dir))
+    print()
+
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(nside))
+
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    skyarea = len(healpixels) * areaperpix
+    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, skyarea))
+
+    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
+                           decals_brick_info=params['decals_brick_info'], log=log,
+                           target_names=list(params['sources'].keys())).build_brickinfo()
+
+    # Initialize the Classes used to assign spectra and select targets.  Note:
+    # The default wavelength array gets initialized here, too.
+    log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
+    Spectra = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+    Selection = SelectTargets(logger=log, rand=rand,
+                              brick_info=brick_info)
+    print()
+    # Loop over each source / object type.
+    alltargets = list()
+    alltruth = list()
+    for source_name in sorted(params['sources'].keys()):
+        # Read the mock catalog.
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+        mockformat = params['sources'][source_name]['format']
+
+        mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        if 'magcut' in params['sources'][source_name].keys():
+            magcut = params['sources'][source_name]['magcut']
+        else:
+            magcut = None
+
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+        log.info('Reading {}'.format(mock_dir_name))
+
+        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+        if 'LYA' in params['sources'][source_name].keys():
+            lya = params['sources'][source_name]['LYA']
+        else:
+            lya = None
+        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                        magcut=magcut, nproc=nproc, lya=lya,
+                                        healpixels=healpixels, nside=nside)
+
+        # If there are no sources, keep going.
+        if not bool(source_data):
+            continue
+            
+        selection_function = '{}_select'.format(target_name.lower())
+        select_targets_function = getattr(Selection, selection_function)
+
+        # Assign spectra by parallel-processing the bricks.
+        brickname = source_data['BRICKNAME']
+        unique_bricks = sorted(set(brickname))
+
+        # Quickly check that all the brick info is here.
+        if False:
+            for thisbrick in unique_bricks:
+                brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+                if (len(brickindx) != 1):
+                    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
+                    ww = np.where( (brick_info['RA'] > source_data['RA'].min()) *
+                                   (brick_info['RA'] < source_data['RA'].max()) *
+                                   (brick_info['DEC'] > source_data['DEC'].min()) *
+                                   (brick_info['DEC'] < source_data['DEC'].max()) )[0]
+                    print(brick_info['BRICKNAME'][ww])
+                    import matplotlib.pyplot as plt
+                    plt.scatter(source_data['RA'], source_data['DEC'])
+                    plt.scatter(brick_info['RA'], brick_info['DEC'])
+                    plt.xlim(source_data['RA'].min()-0.2, source_data['RA'].max()+0.2)
+                    plt.ylim(source_data['DEC'].min()-0.2, source_data['DEC'].max()+0.3)
+                    plt.show()
+                    import pdb ; pdb.set_trace()
+        
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))

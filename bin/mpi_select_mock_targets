@@ -18,7 +18,7 @@ import argparse
 from astropy.table import Table
 import desimodel.footprint
 from desiutil.log import get_logger, DEBUG
-from desitarget.mock.build import targets_truth
+from desitarget.mock.build import targets_truth, targets_truth_no_spectra
 import desitarget.mock.io as mockio
 
 import multiprocessing
@@ -36,6 +36,8 @@ parser.add_argument('--realtargets', '-r', help='Path to real target catalog', t
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 parser.add_argument('--no-check-env', action='store_true', help="Don't check NERSC environment variables")
 parser.add_argument('--sort-pixels', action='store_true', help="Sort pixels by galactic latitude")
+parser.add_argument('--no-spectra', action='store_true')
+
 args = parser.parse_args()
 
 if args.verbose:
@@ -136,6 +138,12 @@ if len(rankpix) > 0:
     #- we use less memory.
     n = 1
     for i in range(0, len(rankpix), n):
-        targets_truth(params, args.output_dir, seed=rankseeds[i], nside=args.nside,
-                      nproc=args.nproc, verbose=args.verbose,
-                      healpixels=rankpix[i:i+n])
+        if args.no_spectra:
+            targets_truth_no_spectra(params, args.output_dir, seed=rankseeds[i], nside=args.nside,
+                                     nproc=args.nproc, verbose=args.verbose,
+                                     healpixels=rankpix[i:i+n])
+        else:
+            targets_truth(params, args.output_dir, seed=rankseeds[i], nside=args.nside,
+                          nproc=args.nproc, verbose=args.verbose,
+                          healpixels=rankpix[i:i+n])
+ 

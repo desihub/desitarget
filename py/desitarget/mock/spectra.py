@@ -637,3 +637,11 @@ class MockSpectra(object):
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
 
         return flux, meta
+
+class MockMagnitudes(object):
+    """
+    Generate mock magnitudes for each mock.
+    """
+    def __init__(self, nproc=1, rand=None, verbose=False):
+        self.rand = rand
+        self.verbose = verbose
