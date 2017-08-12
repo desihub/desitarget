@@ -363,6 +363,10 @@ def _get_spectra_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onebrick(*specargs)
 
+def _get_magnitudes_onebrick(specargs):
+    """Filler function for the multiprocessing."""
+    return get_magnitudes_onebrick(*specargs)
+
 def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, dust_dir,
                          select_targets_function, source_data, rand, log):
     """Wrapper function to generate spectra for all the objects on a single brick."""
@@ -528,8 +532,423 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
+
+def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magnitudes,
+                         select_targets_function, source_data, rand, log):
+    """Wrapper function to generate spectra for all the objects on a single brick."""
+
+    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+    onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
+    nobj = len(onbrick)
+
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj)
+
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key][:] = source_data[key][onbrick]
+
+    for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
+        targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
+    for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):
+        targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
+    targets['EBV'][:] = brick_info['EBV'][brickindx]
+
+    # Use the point-source depth for point sources, although this should really
+    # be tied to the morphology.
+    if 'star' in target_name or 'qso' in target_name:
+        depthkey = 'DECAM_DEPTH'
+    else:
+        depthkey = 'DECAM_GALDEPTH'
+    with np.errstate(divide='ignore'):                        
+        #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
+        decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
+
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    #   all bricks:  http://legacysurvey.org/dr3/description
+    decam_onesigma = 10**(0.4 * (22.5 - np.array([0.0, 24.7, 23.9, 0.0, 23.0, 0.0])) ) / 5
+
+    # Hack! Assume a constant depth (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3
+    # nanomaggies) in the WISE bands for now.
+    wise_onesigma = 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )
+
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key][:] = source_data[key][onbrick]
+
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][onbrick]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
+
+    # Sky targets are a special case without redshifts.
+    if target_name == 'sky':
+        select_targets_function(targets, truth)
+        return [targets, truth]
+
+    truth['TRUEZ'][:] = source_data['Z'][onbrick]
+
+    # Get the magnitudes
+    meta = getattr(Magnitudes, target_name)(source_data, index=onbrick, mockformat=mockformat)
+
+    for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
+
+    # We don't perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    for band in (0, 1):
+        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] 
+          # + rand.normal(scale=wise_onesigma[band], size=nobj)
+    for band in (1, 2, 4):
+        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] 
+          # + rand.normal(scale=decam_onesigma[band], size=nobj)
+
+        
+    if 'BOSS_STD' in source_data.keys():
+        boss_std = source_data['BOSS_STD'][onbrick]
+    else:
+        boss_std = None
+    select_targets_function(targets, truth, boss_std=boss_std)
+
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+    nobj = len(keep)
+
+    if nobj == 0:
+        log.warning('No {} targets identified!'.format(target_name.upper()))
+    else:
+        log.debug('Selected {} {}s on brick {}.'.format(nobj, target_name.upper(), thisbrick))
+        targets = targets[keep]
+        truth = truth[keep]
+
+    return [targets, truth]
+
 #from memory_profiler import profile
 #@profile
+def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
+                  bricksize=0.25, nproc=1, nside=16, healpixels=None):
+    import healpy as hp
+    from time import time
+
+    from astropy.io import fits
+
+    from desispec.io.util import fitsheader, write_bintable
+    from desitarget.mock.selection import SelectTargets
+    from desitarget.mock.spectra import MockMagnitudes
+    from desitarget.internal import sharedmem
+    from desimodel.footprint import radec2pix
+    
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+        
+
+    log.info('We are NOT creating spectra for Targets+Truth!')
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
+    # Initialize the random seed
+    rand = np.random.RandomState(seed)
+
+    # Create the output directories and clean them up if necessary.
+    if os.path.exists(output_dir):
+        if os.listdir(output_dir):
+            log.warning('Output directory {} is not empty.'.format(output_dir))
+    else:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)
+        
+    log.info('Writing to output directory {}'.format(output_dir))
+    print()
+
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(nside))
+
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    skyarea = len(healpixels) * areaperpix
+    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, skyarea))
+
+    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
+                           decals_brick_info=params['decals_brick_info'], log=log,
+                           target_names=list(params['sources'].keys())).build_brickinfo()
+
+    # Initialize the Classes used to assign spectra and select targets.  Note:
+    # The default wavelength array gets initialized here, too.
+    log.info('Initializing the SelectTargets Classes.')
+#    Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
+    Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+    Selection = SelectTargets(logger=log, rand=rand,
+                              brick_info=brick_info)
+    print()
+
+    # Loop over each source / object type.
+    alltargets = list()
+    alltruth = list()
+    for source_name in sorted(params['sources'].keys()):
+        # Read the mock catalog.
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+        mockformat = params['sources'][source_name]['format']
+
+        mock_dir_name = params['sources'][source_name]['mock_dir_name']
+        if 'magcut' in params['sources'][source_name].keys():
+            magcut = params['sources'][source_name]['magcut']
+        else:
+            magcut = None
+
+        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+        log.info('Reading {}'.format(mock_dir_name))
+
+        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+        if 'LYA' in params['sources'][source_name].keys():
+            lya = params['sources'][source_name]['LYA']
+        else:
+            lya = None
+        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
+                                        magcut=magcut, nproc=nproc, lya=lya,
+                                        healpixels=healpixels, nside=nside)
+
+        # If there are no sources, keep going.
+        if not bool(source_data):
+            continue
+
+        selection_function = '{}_select'.format(target_name.lower())
+        select_targets_function = getattr(Selection, selection_function)
+
+        # Assign magnitudes by parallel-processing the bricks.
+        brickname = source_data['BRICKNAME']
+        unique_bricks = sorted(set(brickname))
+
+        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
+            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
+
+        # Generate the magnitudes and run target selection
+        nbrick = np.zeros((), dtype='i8')
+        t0 = time()
+        def _update_magnitudes_status(result):
+            if nbrick % 10 == 0 and nbrick > 0:
+                rate = (time() - t0) / nbrick
+                log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
+            nbrick[...] += 1    # this is an in-place modification
+            return result
+
+        magargs = list()
+        for thisbrick in unique_bricks:
+            magargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
+                              Magnitudes, select_targets_function, source_data, rand, log) )
+
+        if nproc > 1:
+            pool = sharedmem.MapReduce(np=nproc)
+            with pool:
+                out = pool.map(_get_magnitudes_onebrick, magargs,
+                               reduce=_update_magnitudes_status)
+        else:
+            out = list()
+            for ii in range(len(unique_bricks)):
+                out.append( _update_magnitudes_status( _get_magnitudes_onebrick(magargs[ii]) ) )
+
+        del source_data # memory clean-up
+
+        # Unpack the results removing any possible bricks without targets.
+        out = list(zip(*out))
+
+        # SKY are a special case of targets without truth 
+        targets = vstack(out[0])
+        truth = vstack(out[1])
+        if target_name.upper() != 'SKY':
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                continue
+
+            targets = targets[keep]
+            truth = truth[keep]
+        del out
+        
+        # Finally downsample based on the desired number density.
+        if 'density' in params['sources'][source_name].keys():
+            density = params['sources'][source_name]['density']
+            if target_name != 'QSO':
+                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+                
+            if target_name == 'QSO':
+                # Distinguish between the Lyman-alpha and tracer QSOs
+                if 'LYA' in params['sources'][source_name].keys():
+                    density_lya = params['sources'][source_name]['LYA']['density']
+                    zcut = params['sources'][source_name]['LYA']['zcut']
+                    tracer = truth['TRUEZ'] < zcut
+                    lya = truth['TRUEZ'] >= zcut
+                    if len(tracer) > 0:
+                        log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
+                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
+                                                 density=density, subset=tracer)
+                        print()
+                    if len(lya) > 0:
+                        log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
+                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
+                                                 density=density_lya, subset=lya)
+
+                else:
+                    Selection.density_select(targets, truth, source_name=source_name,
+                                             target_name=target_name, density=density)
+                    
+            else:
+                Selection.density_select(targets, truth, source_name=source_name,
+                                         target_name=target_name, density=density)            
+
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            #keep = np.where( np.any( ((targets['DESI_TARGET'] != 0), (truth['CONTAM_TARGET'] != 0)), axis=0) )[0]
+
+            if len(keep) == 0:
+                log.warning('All {} targets rejected!'.format(target_name))
+            else:
+                targets = targets[keep]
+                truth = truth[keep]
+                
+        if target_name.upper() == 'SKY':
+            skytruth = truth.copy()
+            skytargets = targets.copy()
+        else:
+            alltargets.append(targets)
+            alltruth.append(truth)
+        print()
+
+    del brick_info # memory clean-up
+    
+    # Consolidate across all the mocks.  Note that the code quits if alltargets
+    #is zero-length, even if skytargets is non-zero length. In other words, if
+    #the parameter file only contains SKY the code will (wrongly) quit anyway.
+    if len(alltargets) == 0:
+        log.info('No targets; all done.')
+        return
+
+    targets = vstack(alltargets)
+    truth = vstack(alltruth)
+    
+    # Finally downsample contaminants.  The way this is being done isn't ideal
+    # because in principle an object could be a contaminant in one target class
+    # (and be tossed) but be a contaminant for another target class and be kept.
+    # But I think this is mostly OK.
+    for source_name in sorted(params['sources'].keys()):
+        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+        
+        if 'contam' in params['sources'][source_name].keys():
+            log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
+            contam = params['sources'][source_name]['contam']
+
+            Selection.contaminants_select(targets, truth, source_name=source_name,
+                                          target_name=target_name, contam=contam)
+            
+            keep = np.where(targets['DESI_TARGET'] != 0)[0]
+            if len(keep) == 0:
+                log.warning('All {} contaminants rejected!'.format(target_name))
+            else:
+                targets = targets[keep]
+                truth = truth[keep]
+    # Write out the fileid-->filename mapping.  This doesn't work right now.
+    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
+
+    # Deprecated:  add mock shapes and fluxes from the real target catalog.
+    #if realtargets is not None:
+    #    add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
+
+    # Finally assign TARGETIDs and subpriorities.
+    ntarget = len(targets)
+    try:
+        nsky = len(skytargets)
+    except:
+        nsky = 0
+
+    targetid = rand.randint(2**62, size=ntarget + nsky)
+    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
+
+    truth['TARGETID'][:] = targetid[:ntarget]
+    targets['TARGETID'][:] = targetid[:ntarget]
+    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
+
+    if nsky > 0:
+        skytargets['TARGETID'][:] = targetid[ntarget:ntarget+nsky]
+        skytargets['SUBPRIORITY'][:] = subpriority[ntarget:ntarget+nsky]
+
+    # Write the final catalogs out by healpixel.
+    if seed is None:
+        seed1 = 'None'
+    else:
+        seed1 = seed
+    truthhdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
+
+    for pixnum in healpixels:
+        # healsuffix = '{}-{}.fits'.format(nside, pixnum)
+        outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
+        os.makedirs(outdir, exist_ok=True)
+        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
+
+        # Write out the sky catalog.
+        if nsky > 0:
+            skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+            isky = pixnum == skypix
+            if np.count_nonzero(isky) > 0:
+                # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
+                skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
+            
+                log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
+                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY', clobber=True)
+                os.rename(skyfile+'.tmp', skyfile)
+
+        # Write out the dark- and bright-time standard stars.
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+            # stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
+
+            istd = (pixnum == targpix) * ( (
+                (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
+            #istd = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
+
+            if np.count_nonzero(istd) > 0:
+                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD', clobber=True)
+                os.rename(stdfile+'.tmp', stdfile)
+            else:
+                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
+
+        # Finally write out the rest of the targets.
+        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
+
+        inpixel = (pixnum == targpix)
+        npixtargets = np.count_nonzero(inpixel)
+        if npixtargets > 0:
+            log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
+            targets.meta['EXTNAME'] = 'TARGETS'
+            try:
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', overwrite=True)
+            except:
+                targets[inpixel].write(targetsfile+'.tmp', format='fits', clobber=True)
+            os.rename(targetsfile+'.tmp', targetsfile)
+
+            log.info('Writing {}'.format(truthfile))
+            hx = fits.HDUList()
+            hdu = fits.convenience.table_to_hdu(truth[inpixel])
+            hdu.header['EXTNAME'] = 'TRUTH'
+            hx.append(hdu)
+
+
+            try:
+                hx.writeto(truthfile+'.tmp', overwrite=True)
+            except:
+                hx.writeto(truthfile+'.tmp', clobber=True)
+            os.rename(truthfile+'.tmp', truthfile)
+                
 def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=False,
                   bricksize=0.25, nproc=1, nside=16, healpixels=None):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
@@ -573,7 +992,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         log = get_logger(DEBUG)
     else:
         log = get_logger()
-
+        
     if params is None:
         log.fatal('Required params input not given!')
         raise ValueError

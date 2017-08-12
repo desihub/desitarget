@@ -234,7 +234,243 @@ class TemplateKDTree(object):
                 raise ValueError
                 
         return dist, indx
+    
+class MockMagnitudes(object):
+    """
+    Generate mock magnitudes for each mock.
+    """
+    def __init__(self, nproc=1, rand=None, verbose=False):
+        self.rand = rand
+        self.verbose = verbose
+        
+    def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
+        """Generate magnitudes for BGS.
 
+        Currently only the MXXL (durham_mxxl_hdf5) mock is supported.  DATA
+        needs to have Z, SDSS_absmag_r01, SDSS_01gr, VDISP, and SEED, which are
+        assigned in mock.io.read_durham_mxxl_hdf5.  
+
+        """
+        objtype = 'BGS'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() != 'durham_mxxl_hdf5':
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            return meta
+
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = -1.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['TEFF'][:] = 0.0
+        meta['LOGG'][:] = 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0
+        meta['DECAM_FLUX'][:, 2] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
+        meta['DECAM_FLUX'][:, 1] = 10**((22.5-(data['SDSS_01gr'][index] + data['MAG'][index]))/2.5) # g-band flux
+        return meta
+    
+
+    def mws(self, data, index=None, mockformat='galaxia'):
+        """Generate magnitudes for the MWS_NEARBY and MWS_MAIN samples.
+
+        """
+        objtype = 'STAR'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
+            meta[inkey] = data[datakey][index]
+
+        if not (mockformat.lower() in ['100pc','galaxia']):
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            return meta
+
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = -1.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0 
+        meta['DECAM_FLUX'][:, 2] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
+        return meta
+                
+    def mws_nearby(self, data, index=None, mockformat='100pc'):
+        """Generate magnitudes for the MWS_NEARBY sample.
+
+        """
+        meta = self.mws(data, index=index, mockformat=mockformat)
+        return meta
+
+    def mws_main(self, data, index=None, mockformat='galaxia'):
+        """Generate magnitudes for the MWS_MAIN sample.
+
+        """
+        meta = self.mws(data, index=index, mockformat=mockformat)
+        return meta
+
+    def faintstar(self, data, index=None, mockformat='galaxia'):
+        """Generate magnitudes for the FAINTSTAR (faint stellar) sample.
+
+        """
+        meta = self.mws(data, index=index, mockformat=mockformat)
+        return meta
+        
+    def elg(self, data, index=None, mockformat='gaussianfield'):
+        """Generate magnitudes for the ELG sample.
+
+        Currently only the GaussianField mock sample is supported.  DATA needs
+        to have Z, GR, RZ, VDISP, and SEED, which are assigned in
+        mock.io.read_gaussianfield.  
+
+        """
+        objtype = 'ELG'
+        if index is None:
+            index = np.arange(len(data['Z']))
+
+        meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() != 'gaussianfield':
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            return meta
+      
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = -1.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['TEFF'][:] = 0.0
+        meta['LOGG'][:] = 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0 
+        
+        meta['DECAM_FLUX'][:, 1] = 10**((22.5 - (data['GR'][index] + data['MAG'][index]))/2.5) # g-band flux
+        meta['DECAM_FLUX'][:, 2] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
+        meta['DECAM_FLUX'][:, 4] = 10**((22.5 - (data['MAG'][index] - data['RZ'][index]))/2.5) # z-band flux
+        return meta
+    
+    def lrg(self, data, index=None, mockformat='gaussianfield'):
+        """Generate magnitudes for the LRG sample.
+
+        Currently only the GaussianField mock sample is supported.  DATA needs
+        to have Z, GR, RZ, VDISP, and SEED, which are assigned in
+        mock.io.read_gaussianfield.  
+
+        """
+        objtype = 'LRG'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+
+        meta = empty_metatable(nmodel=len(index), objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() != 'gaussianfield':
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            return meta
+
+        
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = -1.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['TEFF'][:] = 0.0
+        meta['LOGG'][:] = 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0 
+        
+        meta['DECAM_FLUX'][:, 1] = 10**((22.5 - (data['GR'][index] + data['RZ'][index] + data['MAG'][index]))/2.5) # g-band flux  
+        meta['DECAM_FLUX'][:, 2] =  10**((22.5 - (data['MAG'][index] + data['RZ'][index]))/2.5) # r-band flux
+        meta['DECAM_FLUX'][:, 4] = 10**((22.5 - data['MAG'][index])/2.5) # z-band flux
+        meta['WISE_FLUX'][:, 0] = 10**((22.5 - (data['RZ'][index] + data['MAG'][index] - data['RW1'][index]))/2.5)# wise flux 1
+        meta['WISE_FLUX'][:, 1] = 10**((22.5 - (data['RZ'][index] + data['MAG'][index] - data['RW1'][index] - data['W1W2'][index]))/2.5)# wise flux 2
+        
+        return meta
+    
+    def qso(self, data, index=None, mockformat='gaussianfield'):
+        """Generate magnitudes for the QSO or QSO/LYA samples.
+
+        """
+        from desisim.lya_spectra import get_spectra
+        
+        objtype = 'QSO'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+        meta = empty_metatable(nmodel=nobj, objtype=objtype)
+
+        if mockformat.lower() != 'gaussianfield':
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            return meta
+        
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT'),
+                                      ('SEED', 'MAG', 'Z')):
+            meta[inkey] = data[datakey][index]
+        
+        meta['TEMPLATEID'][:] = -1
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = -1.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['TEFF'][:] = 0.0
+        meta['LOGG'][:] = 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0 
+
+        meta['DECAM_FLUX'][:, 1] = 10**((22.5 - data['MAG'][index])/2.5) # g-band flux
+        meta['DECAM_FLUX'][:, 2] = 10**((22.5 - (data['MAG'][index] - data['GR'][index]))/2.5) # r-band flux
+        meta['DECAM_FLUX'][:, 4] = 10**((22.5 - (data['MAG'][index] - data['GR'][index] - data['RZ'][index]))/2.5) # z-band flux
+        meta['WISE_FLUX'][:, 0] = 10**((22.5 - (data['MAG'][index] - data['GR'][index] - data['RW1'][index]))/2.5)# wise flux 1
+        meta['WISE_FLUX'][:, 1] = 10**((22.5 - (data['MAG'][index] - data['GR'][index] - data['RW1'][index] - data['W1W2'][index]))/2.5)# wise flux 2
+        
+        lya = np.where( data['TEMPLATESUBTYPE'][index] == 'LYA' )[0]                 
+        if len(lya) > 0:
+            meta['SUBTYPE'][lya] = 'LYA'
+                                       
+        return meta
+    def mws_wd(self, data, index=None, mockformat='wd'):
+        """Generate magnitudes for the MWS_WD sample.  Deal with DA vs DB white dwarfs
+        separately.
+
+        """
+        objtype = 'WD'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+
+        meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'SUBTYPE'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'TEMPLATESUBTYPE')):
+            meta[inkey] = data[datakey][index]
+
+        if mockformat.lower() != 'wd':
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            return meta
+            
+        for subtype in ('DA', 'DB'):
+            these = np.where(meta['SUBTYPE'] == subtype)[0]
+            if len(these) > 0:
+                meta['SUBTYPE'][these] = subtype    
+                meta['TEMPLATEID'][:] = -1
+        
+        meta['OIIFLUX'][:] = 0.0
+        meta['WISE_FLUX'][:,:] = -1.0
+        meta['HBETAFLUX'][:]= 0.0
+        meta['FEH'][:] = 0.0
+        meta['DECAM_FLUX'][:,:] = -1.0 
+
+        meta['DECAM_FLUX'][:, 1] = 10**((22.5 - data['MAG'][index])/2.5) # g-band flux
+        return meta
+    
 class MockSpectra(object):
     """Generate spectra for each type of mock.  Currently just choose the closest
     template; we can get fancier later.
