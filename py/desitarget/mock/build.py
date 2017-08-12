@@ -613,6 +613,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
                               brick_info=brick_info)
     print()
 
+    current_brick_ID = 0 
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -760,6 +761,12 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
                 if target_name.upper() != 'SKY':
                     trueflux = trueflux[keep, :]
 
+        #rewrite the target ID to be sure that it is unique in this brick
+        if len(targets):
+            new_brick_ID = current_brick_ID + len(targets)
+            targets['BRICK_OBJID'][:]= np.arange(current_brick_ID,new_brick_ID)
+            current_brick_ID = new_brick_ID
+            
         if target_name.upper() == 'SKY':
             skytruth = truth.copy()
             skytargets = targets.copy()
@@ -778,6 +785,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         log.info('No targets; all done.')
         return
 
+    
     targets = vstack(alltargets)
     truth = vstack(alltruth)
     trueflux = np.concatenate(alltrueflux)
@@ -1243,6 +1251,7 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
     Selection = SelectTargets(logger=log, rand=rand,
                               brick_info=brick_info)
     print()
+    current_brick_ID = 0
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -1342,6 +1351,7 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
             truth = truth[keep]
         del out
 
+        
         # Finally downsample based on the desired number density.
         if 'density' in params['sources'][source_name].keys():
             density = params['sources'][source_name]['density']
@@ -1382,6 +1392,12 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
                 targets = targets[keep]
                 truth = truth[keep]
 
+        # rewrite the target ID to be sure that it is unique in this brick
+        if len(targets):
+            new_brick_ID = current_brick_ID + len(targets)
+            targets['BRICK_OBJID'][:] = np.arange(current_brick_ID,new_brick_ID)
+            current_brick_ID = new_brick_ID
+                
         if target_name.upper() == 'SKY':
             skytruth = truth.copy()
             skytargets = targets.copy()
@@ -1389,6 +1405,8 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
             alltargets.append(targets)
             alltruth.append(truth)
         print()
+        
+      
 
     del brick_info # memory clean-up
 
