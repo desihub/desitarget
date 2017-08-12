@@ -17,6 +17,9 @@ from astropy.table import Table, Column, vstack, hstack
 from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 import desitarget.mock.io as mockio
+from desitarget.mock import sfdmap
+
+from desitarget.targets import encode_targetid
 
 def fileid_filename(source_data, output_dir, log):
     '''
@@ -98,8 +101,6 @@ class BrickInfo(object):
             least two keys 'RA' and 'DEC'.
 
         """
-        from desitarget.mock import sfdmap
-
         #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
         a = Table()
         a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
@@ -119,7 +120,7 @@ class BrickInfo(object):
 
         Returns:
             depths (dictionary). keys include
-                'DEPTH_G', 'DEPTH_R', 'DEPTH_Z',
+                'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
                 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
                 The values ofr each key ar numpy arrays (float) with size equal to
                 the input ra, dec arrays.
@@ -129,28 +130,28 @@ class BrickInfo(object):
         dec = brick_info['DEC']
 
         n_to_generate = len(ra)
-        #mean and std deviation of the difference between DEPTH and GALDEPTH in the DR3 data.
+        #mean and std deviation of the difference between PSFDEPTH and GALDEPTH in the DR3 data.
         differences = {}
-        differences['DEPTH_G'] = [0.22263251, 0.059752077]
-        differences['DEPTH_R'] = [0.26939404, 0.091162138]
-        differences['DEPTH_Z'] = [0.34058815, 0.056099825]
+        differences['PSFDEPTH_G'] = [0.22263251, 0.059752077]
+        differences['PSFDEPTH_R'] = [0.26939404, 0.091162138]
+        differences['PSFDEPTH_Z'] = [0.34058815, 0.056099825]
 
         # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
 
         points = {}
-        points['DEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+        points['PSFDEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
                       24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
-        points['DEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+        points['PSFDEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
                       24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
-        points['DEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+        points['PSFDEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
                       23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
 
         fractions = {}
-        fractions['DEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-        fractions['DEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-        fractions['DEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+        fractions['PSFDEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['PSFDEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['PSFDEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
 
-        names = ['DEPTH_G', 'DEPTH_R', 'DEPTH_Z']
+        names = ['PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z']
         depths = Table()
         for name in names:
             fracs = self.random_state.random_sample(n_to_generate)
@@ -161,7 +162,7 @@ class BrickInfo(object):
                 scale=differences[name][1], size=n_to_generate)
             depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
 
-            depths['GAL'+name] = depths[name] - depth_minus_galdepth
+            depths[name.replace('PSF', 'GAL')] = depths[name] - depth_minus_galdepth
             #log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
 
         return depths
@@ -173,7 +174,7 @@ class BrickInfo(object):
         Args:
           decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS.
           brick_info(Dictionary). Containts at least the following keys:
-            DEPTH_G(float) : array of depth magnitudes in the G band.
+            PSFDEPTH_G(float) : array of depth magnitudes in the G band.
 
         Returns:
           fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
@@ -189,7 +190,7 @@ class BrickInfo(object):
         depth_available = []
     #   for k in brick_info.keys():
         for k in ['GALDEPTH_R', 'EBV']:
-            if ('DEPTH' in k or 'EBV' in k):
+            if ('PSFDEPTH' in k or 'EBV' in k):
                 depth_available.append(k)
 
         for depth in depth_available:
@@ -269,37 +270,59 @@ def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None)
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.  The required output columns in order
     for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
-    MWS_TARGET, SUBPRIORITY and OBSCONDITIONS.  Everything else is gravy.
+    MWS_TARGET, and SUBPRIORITY.  Everything else is gravy.
 
     """
     targets = Table()
 
-    # Columns required for fiber assignment:
-    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    # RELEASE
+    targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
+    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
+    # TYPE
     targets.add_column(Column(name='RA', length=nobj, dtype='f8'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i4'))
-
-    # Quantities mimicking a true targeting catalog (or inherited from the
-    # mocks).
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U10'))
-    targets.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
-    targets.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+    # RA_IVAR
+    # DEC_IVAR
+    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
+    # FLUX_W3
+    # FLUX_W4
+    # FLUX_IVAR_G
+    # FLUX_IVAR_R
+    # FLUX_IVAR_Z
+    # FLUX_IVAR_W1
+    # FLUX_IVAR_W2
+    # FLUX_IVAR_W3
+    # FLUX_IVAR_W4
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='DECAM_DEPTH', shape=(6,), length=nobj,
-                              data=np.zeros((nobj, 6)), dtype='f4'))
-    targets.add_column(Column(name='DECAM_GALDEPTH', shape=(6,), length=nobj,
-                              data=np.zeros((nobj, 6)), dtype='f4'))
-    targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4'))
+
+    targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
+
+    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
 
     return targets
 
@@ -320,8 +343,12 @@ def empty_truth_table(nobj=1):
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99))
-    truth.add_column(Column(name='DECAM_FLUX', shape=(6,), length=nobj, dtype='f4'))
-    truth.add_column(Column(name='WISE_FLUX', shape=(2,), length=nobj, dtype='f4'))
+    
+    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
 
     truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
     truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
@@ -340,7 +367,7 @@ def _get_magnitudes_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_magnitudes_onebrick(*specargs)
 
-def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra,
+def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, dust_dir,
                          select_targets_function, source_data, rand, log):
     """Wrapper function to generate spectra for all the objects on a single brick."""
 
@@ -356,30 +383,26 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     for key in ('RA', 'DEC', 'BRICKNAME'):
         targets[key][:] = source_data[key][onbrick]
 
-    for band, depthkey in zip((1, 2, 4), ('DEPTH_G', 'DEPTH_R', 'DEPTH_Z')):
-        targets['DECAM_DEPTH'][:, band] = brick_info[depthkey][brickindx]
-    for band, depthkey in zip((1, 2, 4), ('GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z')):
-        targets['DECAM_GALDEPTH'][:, band] = brick_info[depthkey][brickindx]
-    targets['EBV'][:] = brick_info['EBV'][brickindx]
+    for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
+        targets[key][:] = brick_info[key][brickindx]
 
-    # Use the point-source depth for point sources, although this should really
-    # be tied to the morphology.
-    if 'star' in target_name or 'qso' in target_name:
-        depthkey = 'DECAM_DEPTH'
-    else:
-        depthkey = 'DECAM_GALDEPTH'
-    with np.errstate(divide='ignore'):                        
-        #decam_onesigma = 1.0 / np.sqrt(targets[depthkey][0, :]) # grab the first object
-        decam_onesigma = 10**(0.4 * (22.5 - targets[depthkey][0, :]) ) / 5
+    # Assign unique OBJID values and reddenings.  See
+    #   http://legacysurvey.org/dr4/catalogs
+    targets['BRICK_OBJID'][:] = np.arange(nobj)
+
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
 
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    #   all bricks:  http://legacysurvey.org/dr3/description
-    decam_onesigma = 10**(0.4 * (22.5 - np.array([0.0, 24.7, 23.9, 0.0, 23.0, 0.0])) ) / 5
-
-    # Hack! Assume a constant depth (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3
-    # nanomaggies) in the WISE bands for now.
-    wise_onesigma = 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )
-
+    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
+    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
+    # for now.
+    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
+                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
+    
     # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
         for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
@@ -415,15 +438,10 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
         normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
 
-        for band in (0, 1):
-            truth['WISE_FLUX'][:, band] = Spectra.tree.star_wise_flux[templateid, band] * normmag
-            targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
-              rand.normal(scale=wise_onesigma[band], size=nobj)
-            
-        for band in (1, 2, 4):
-            truth['DECAM_FLUX'][:, band] = Spectra.tree.star_decam_flux[templateid, band] * normmag
-            targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-              rand.normal(scale=decam_onesigma[band], size=nobj)
+        for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+            truth[fluxkey][:] = getattr( Spectra.tree, 'star_{}'.format(fluxkey.lower()) )[templateid] * normmag
+            targets[fluxkey][:] = truth[fluxkey][:] + \
+              rand.normal(scale=onesigma[band], size=nobj)
 
         select_targets_function(targets, truth)
 
@@ -433,15 +451,16 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
         # Temporary debugging plot.
         if False:
             import matplotlib.pyplot as plt
-            gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
-            rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
-            gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
-            rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
-            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none')
+            gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+            rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+            gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+            rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', edgewidth=2, label='Noiseless Photometry')
             plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
-            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none')
-            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k')
+            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none', label='Noisy Photometry')
+            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k', edgewidth=2)
             plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+            plt.legend(loc='upper left')
             plt.show()
             import pdb ; pdb.set_trace()
         
@@ -456,18 +475,14 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
     # Finally build the spectra and select targets.
     trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
 
-    for key in ('TEMPLATEID', 'MAG', 'DECAM_FLUX', 'WISE_FLUX',
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key][:] = meta[key]
 
     # Perturb the photometry based on the variance on this brick and apply
     # target selection.
-    for band in (0, 1):
-        targets['WISE_FLUX'][:, band] = truth['WISE_FLUX'][:, band] + \
-          rand.normal(scale=wise_onesigma[band], size=nobj)
-    for band in (1, 2, 4):
-        targets['DECAM_FLUX'][:, band] = truth['DECAM_FLUX'][:, band] + \
-          rand.normal(scale=decam_onesigma[band], size=nobj)
+    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
 
     if False:
         import matplotlib.pyplot as plt
@@ -483,16 +498,18 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
                      ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
                      ]
             ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
-        gr1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 1] / truth['DECAM_FLUX'][:, 2] )
-        rz1 = -2.5 * np.log10( truth['DECAM_FLUX'][:, 2] / truth['DECAM_FLUX'][:, 4] )
-        gr = -2.5 * np.log10( targets['DECAM_FLUX'][:, 1] / targets['DECAM_FLUX'][:, 2] )
-        rz = -2.5 * np.log10( targets['DECAM_FLUX'][:, 2] / targets['DECAM_FLUX'][:, 4] )
+        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        
         fig, ax = plt.subplots()
-        ax.scatter(rz1, gr1, color='red')
-        ax.scatter(rz, gr, alpha=0.5, color='green')
+        ax.scatter(rz1, gr1, color='red', label='Noiseless Photometry')
+        ax.scatter(rz, gr, alpha=0.5, color='green', label='Noisy Photometry')
         ax.set_xlim(-0.5, 2)
         ax.set_ylim(-0.5, 2)
         elg_colorbox(ax)
+        ax.legend(loc='upper left')
         plt.show()
         import pdb ; pdb.set_trace()
         
@@ -964,6 +981,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
 
     from astropy.io import fits
 
+    from desiutil import depend
     from desispec.io.util import fitsheader, write_bintable
     from desitarget.mock.selection import SelectTargets
     from desitarget.mock.spectra import MockSpectra
@@ -1086,7 +1104,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         specargs = list()
         for thisbrick in unique_bricks:
             specargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
-                              Spectra, select_targets_function, source_data, rand, log) )
+                              Spectra, params['dust_dir'], select_targets_function,
+                              source_data, rand, log) )
 
         if nproc > 1:
             pool = sharedmem.MapReduce(np=nproc)
@@ -1218,15 +1237,19 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     except:
         nsky = 0
 
-    targetid = rand.randint(2**62, size=ntarget + nsky)
-    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
-
-    truth['TARGETID'][:] = targetid[:ntarget]
-    targets['TARGETID'][:] = targetid[:ntarget]
-    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
+    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                               brickid=targets['BRICKID'], mock=1)
+    truth['TARGETID'][:] = targetid
+    targets['TARGETID'][:] = targetid
+    del targetid
 
     if nsky > 0:
-        skytargets['TARGETID'][:] = targetid[ntarget:ntarget+nsky]
+        skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
+                                                    brickid=skytargets['BRICKID'], mock=1, sky=1)
+
+    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
+    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
+    if nsky > 0:
         skytargets['SUBPRIORITY'][:] = subpriority[ntarget:ntarget+nsky]
 
     # Write the final catalogs out by healpixel.
@@ -1238,22 +1261,34 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         SEED = (seed1, 'initial random seed')
         ))
 
+    targetshdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
+    depend.setdep(targetshdr, 'HPXNSIDE', nside)
+    depend.setdep(targetshdr, 'HPXNEST', True)
+
+    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
+    targets['HPXPIXEL'][:] = targpix
+
+    if nsky > 0:
+        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+        skytargets['HPXPIXEL'][:] = skypix
+
     for pixnum in healpixels:
         # healsuffix = '{}-{}.fits'.format(nside, pixnum)
         outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
         os.makedirs(outdir, exist_ok=True)
-        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
         # Write out the sky catalog.
         if nsky > 0:
-            skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
             isky = pixnum == skypix
             if np.count_nonzero(isky) > 0:
                 # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
                 skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
             
                 log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
-                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY', clobber=True)
+                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY',
+                               header=targetshdr, clobber=True)
                 os.rename(skyfile+'.tmp', skyfile)
 
         # Write out the dark- and bright-time standard stars.
@@ -1268,7 +1303,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
-                write_bintable(stdfile+'.tmp', targets[istd], extname='STD', clobber=True)
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
+                               header=targetshdr, clobber=True)
                 os.rename(stdfile+'.tmp', stdfile)
             else:
                 log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
@@ -1282,10 +1318,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         if npixtargets > 0:
             log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
             targets.meta['EXTNAME'] = 'TARGETS'
-            try:
-                targets[inpixel].write(targetsfile+'.tmp', format='fits', overwrite=True)
-            except:
-                targets[inpixel].write(targetsfile+'.tmp', format='fits', clobber=True)
+            write_bintable(targetsfile+'.tmp', targets[inpixel], extname='TARGETS',
+                           header=targetshdr, clobber=True)
             os.rename(targetsfile+'.tmp', targetsfile)
 
             log.info('Writing {}'.format(truthfile))

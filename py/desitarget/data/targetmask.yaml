@@ -21,7 +21,7 @@ desi_mask:
     - [SKY,         32, "Blank sky locations",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [STD_FSTAR,   33, "F-type standard stars", {obsconditions: DARK|GRAY}]
-    - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY}]
+    - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY|BRIGHT}]
     - [STD_BRIGHT,  35, "F-type standard for BRIGHT conditions",
         {obsconditions: BRIGHT}]
     - [BADSKY,      36, "Blank sky locations that are imperfect but still useable",
