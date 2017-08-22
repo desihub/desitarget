@@ -12,6 +12,7 @@ class TestNumObs(unittest.TestCase):
             ('DESI_TARGET',np.int64),
             ('BGS_TARGET',np.int64),
             ('MWS_TARGET',np.int64),
+            ('NUMOBS',np.int32),
             ('DECAM_FLUX', '>f4', (6,)),
             ('DECAM_MW_TRANSMISSION', '>f4', (6,)),
         ]
