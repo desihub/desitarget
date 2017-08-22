@@ -458,14 +458,22 @@ def calc_numobs(targets):
     isqso = (targets['DESI_TARGET'] & desi_mask.QSO) != 0
     nobs[isqso] = 4
 
-    # FIXME (APC): Better not to hardcode all this here? Took out the following
-    # for compatibility with earlier MWS tests
-    # SJB: better to not hardcode (for BGS and LRGs too), but until that is
-    # refactored we still need to request 2 observations for BGS_FAINT
-    #- TBD: BGS Faint = 2 observations
+    # BGS: observe both BGS target classes once (and once only) on every epoch,
+    # regardless of how many times it has been observed on previous epochs.
+
+    # Priorities for MORE_ZWARN and MORE_ZGOOD are set in targetmask.yaml such
+    # that targets are reobserved at the same priority until they have a good
+    # redshift. Targets with good redshifts are still observed on subsequent
+    # epochs but with a priority below all other BGS and MWS targets. 
+
     if 'BGS_TARGET' in targets.dtype.names:
-       ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
-       nobs[ii] = np.maximum(nobs[ii], 2)
+        # This forces the calculation of nmore in targets.calc_priority (and
+        # ztargets['NOBS_MORE'] in mtl.make_mtl) to give nmore = 1 regardless
+        # of targets['NUMOBS']
+        ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
+        nobs[ii] = targets['NUMOBS'][ii]+1
+        ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_BRIGHT) != 0
+        nobs[ii] = targets['NUMOBS'][ii]+1
 
     return nobs
 
