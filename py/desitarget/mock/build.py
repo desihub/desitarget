@@ -15,7 +15,7 @@ import numpy as np
 from astropy.table import Table, Column, vstack, hstack
 
 from desiutil.log import get_logger, DEBUG
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask
 import desitarget.mock.io as mockio
 from desitarget.mock import sfdmap
 
@@ -826,13 +826,21 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     except:
         nsky = 0
 
+    #compute target healpixel number
+    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
+    targets['BRICK_OBJID'] = np.argsort(targets['RA']) + targpix
+    
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'], mock=1)
     truth['TARGETID'][:] = targetid
     targets['TARGETID'][:] = targetid
     del targetid
 
+    
+    
     if nsky > 0:
+        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+        skytargets['BRICK_OBJID'] = np.argsort(skytargets['RA']) + skypix
         skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
                                                     brickid=skytargets['BRICKID'], mock=1, sky=1)
 
@@ -856,7 +864,6 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     depend.setdep(targetshdr, 'HPXNSIDE', nside)
     depend.setdep(targetshdr, 'HPXNEST', True)
 
-    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
     targets['HPXPIXEL'][:] = targpix
 
     if nsky > 0:
@@ -974,6 +981,12 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
         log.info('Writing {}'.format(outfile))
         header = fitsio.read_header(infiles[0], ext)
         tmpout = outfile + '.tmp'
+        
+        # Remove duplicates
+        vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
+        if len(vals)!=len(data):
+            data = data[idx_start[count==1]]
+        
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
 
@@ -1455,13 +1468,20 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
     except:
         nsky = 0
 
+    #compute target healpixel number
+    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
+
+    targets['BRICK_OBJID'] = np.argsort(targets['RA']) + targpix
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'], mock=1)
+    
     truth['TARGETID'][:] = targetid
     targets['TARGETID'][:] = targetid
     del targetid
 
     if nsky > 0:
+        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+        skytargets['BRICK_OBJID'] = np.argsort(skytargets['RA']) + skypix
         skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
                                                     brickid=skytargets['BRICKID'], mock=1, sky=1)
 
@@ -1485,7 +1505,6 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
     depend.setdep(targetshdr, 'HPXNSIDE', nside)
     depend.setdep(targetshdr, 'HPXNEST', True)
 
-    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
     targets['HPXPIXEL'][:] = targpix
 
     if nsky > 0:
