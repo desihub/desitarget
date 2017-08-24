@@ -613,7 +613,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
                               brick_info=brick_info)
     print()
 
-    current_brick_ID = 0 
+    current_pixel_ID = 0 
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -763,9 +763,9 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
 
         #rewrite the target ID to be sure that it is unique in this brick
         if len(targets):
-            new_brick_ID = current_brick_ID + len(targets)
-            targets['BRICK_OBJID'][:]= np.arange(current_brick_ID,new_brick_ID)
-            current_brick_ID = new_brick_ID
+            new_pixel_ID = current_pixel_ID + len(targets)
+            targets['BRICK_OBJID'][:]= np.arange(current_pixel_ID,new_pixel_ID)
+            current_pixel_ID = new_pixel_ID
             
         if target_name.upper() == 'SKY':
             skytruth = truth.copy()
@@ -828,10 +828,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
 
     #compute target healpixel number
     targpix = radec2pix(nside, targets['RA'], targets['DEC'])
-    targets['BRICK_OBJID'] = np.argsort(targets['RA']) + targpix
-    
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targets['BRICKID'], mock=1)
+                               brickid=targpix, mock=1)
     truth['TARGETID'][:] = targetid
     targets['TARGETID'][:] = targetid
     del targetid
@@ -840,9 +838,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     
     if nsky > 0:
         skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['BRICK_OBJID'] = np.argsort(skytargets['RA']) + skypix
         skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
-                                                    brickid=skytargets['BRICKID'], mock=1, sky=1)
+                                                    brickid=skypix, mock=1, sky=1)
 
     subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
     targets['SUBPRIORITY'][:] = subpriority[:ntarget]
@@ -983,9 +980,9 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
         tmpout = outfile + '.tmp'
         
         # Remove duplicates
-        vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
-        if len(vals)!=len(data):
-            data = data[idx_start[count==1]]
+        #vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
+        #if len(vals)!=len(data):
+        #    data = data[idx_start[count==1]]
         
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
@@ -1264,7 +1261,7 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
     Selection = SelectTargets(logger=log, rand=rand,
                               brick_info=brick_info)
     print()
-    current_brick_ID = 0
+    current_pixel_ID = 0
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
@@ -1407,9 +1404,9 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
 
         # rewrite the target ID to be sure that it is unique in this brick
         if len(targets):
-            new_brick_ID = current_brick_ID + len(targets)
-            targets['BRICK_OBJID'][:] = np.arange(current_brick_ID,new_brick_ID)
-            current_brick_ID = new_brick_ID
+            new_pixel_ID = current_pixel_ID + len(targets)
+            targets['BRICK_OBJID'][:] = np.arange(current_pixel_ID,new_pixel_ID)
+            current_pixel_ID = new_pixel_ID
                 
         if target_name.upper() == 'SKY':
             skytruth = truth.copy()
@@ -1469,11 +1466,11 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
         nsky = 0
 
     #compute target healpixel number
-    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
 
-    targets['BRICK_OBJID'] = np.argsort(targets['RA']) + targpix
+    #targets['BRICK_OBJID'] = np.random.randint(2**targetid_mask.OBJID.nbits, size=ntarget)
+    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targets['BRICKID'], mock=1)
+                               brickid=targpix, mock=1)
     
     truth['TARGETID'][:] = targetid
     targets['TARGETID'][:] = targetid
@@ -1481,9 +1478,8 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
 
     if nsky > 0:
         skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['BRICK_OBJID'] = np.argsort(skytargets['RA']) + skypix
         skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
-                                                    brickid=skytargets['BRICKID'], mock=1, sky=1)
+                                                    brickid=skypix, mock=1, sky=1)
 
     subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
     targets['SUBPRIORITY'][:] = subpriority[:ntarget]
@@ -1505,10 +1501,10 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
     depend.setdep(targetshdr, 'HPXNSIDE', nside)
     depend.setdep(targetshdr, 'HPXNEST', True)
 
+    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
     targets['HPXPIXEL'][:] = targpix
 
     if nsky > 0:
-        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
         skytargets['HPXPIXEL'][:] = skypix
 
     for pixnum in healpixels:
