@@ -983,7 +983,7 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
         
         # Find duplicates
         vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
-        assert len(vals) == len(data):
+        assert len(vals) == len(data)
         
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
