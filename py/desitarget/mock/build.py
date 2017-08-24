@@ -323,7 +323,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
 
 
     return targets
@@ -1509,7 +1509,6 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
 
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = skypix
-        skytargets['OBSCONDITIONS'][:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
         
     for pixnum in healpixels:
         # healsuffix = '{}-{}.fits'.format(nside, pixnum)
