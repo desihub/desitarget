@@ -15,7 +15,7 @@ import numpy as np
 from astropy.table import Table, Column, vstack, hstack
 
 from desiutil.log import get_logger, DEBUG
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
 import desitarget.mock.io as mockio
 from desitarget.mock import sfdmap
 
@@ -323,6 +323,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='f8'))
+
 
     return targets
 
@@ -1402,12 +1404,13 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
                 targets = targets[keep]
                 truth = truth[keep]
 
-        # rewrite the target ID to be sure that it is unique in this brick
+        # rewrite the target ID to be sure that it is unique in this pixel
         if len(targets):
             new_pixel_ID = current_pixel_ID + len(targets)
             targets['BRICK_OBJID'][:] = np.arange(current_pixel_ID,new_pixel_ID)
             current_pixel_ID = new_pixel_ID
                 
+            
         if target_name.upper() == 'SKY':
             skytruth = truth.copy()
             skytargets = targets.copy()
@@ -1506,7 +1509,8 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
 
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = skypix
-
+        skytargets['OBSCONDITIONS'][:] = obsconditions.DARK|obsconditions.GRAY|obsconditions.BRIGHT 
+        
     for pixnum in healpixels:
         # healsuffix = '{}-{}.fits'.format(nside, pixnum)
         outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)

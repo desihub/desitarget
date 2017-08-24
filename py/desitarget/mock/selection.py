@@ -18,13 +18,14 @@ class SelectTargets(object):
 
     """
     def __init__(self, logger=None, rand=None, brick_info=None):
-        from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+        from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, obsconditions
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
-
+        self.obsconditions = obsconditions
+        
         self.log = logger
         self.rand = rand
         self.brick_info = brick_info
@@ -44,7 +45,12 @@ class SelectTargets(object):
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
-            
+        
+        targets['OBSCONDITIONS'] |= (bgs_faint != 0) * obsconditions.mask(bgs_mask[BGS_FAINT].obsconditions)
+        targets['OBSCONDITIONS'] |= (bgs_faint != 0) * obsconditions.mask(bgs_mask[BGS_FAINT_SOUTH].obsconditions)
+        targets['OBSCONDITIONS'] |= (bgs_faint != 0) * obsconditions.mask(desi_mask[BGS_ANY].obsconditions)
+
+        
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
 
@@ -52,7 +58,11 @@ class SelectTargets(object):
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        
+        targets['OBSCONDITIONS'] |= (elg != 0) * obsconditions.mask(desi_mask[ELG].obsconditions)
+        targets['OBSCONDITIONS'] |= (elg != 0) * obsconditions.mask(desi_mask[ELG_SOUTH].obsconditions)
 
+        
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
@@ -62,6 +72,9 @@ class SelectTargets(object):
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
 
+        targets['OBSCONDITIONS'] |= (lrg != 0) * obsconditions.mask(desi_mask[LRG].obsconditions)
+        targets['OBSCONDITIONS'] |= (lrg != 0) * obsconditions.mask(desi_mask[LRG_SOUTH].obsconditions)
+        
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
 
@@ -71,6 +84,10 @@ class SelectTargets(object):
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
 
+        targets['OBSCONDITIONS'] |= (qso != 0) * obsconditions.mask(desi_mask[QSO].obsconditions)
+        targets['OBSCONDITIONS'] |= (qso != 0) * obsconditions.mask(desi_mask[QSO_SOUTH].obsconditions)
+
+        
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
