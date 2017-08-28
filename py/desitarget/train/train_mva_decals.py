@@ -130,7 +130,8 @@ def train_mva_decals(Step,debug=False):
 
 # files available on nersc
     modelDir='./'
-    dataDir='/global/project/projectdirs/desi/target/qso_training/'
+#    dataDir='/global/project/projectdirs/desi/target/qso_training/'
+    dataDir='./'
 
 # region of control   36<ra<42 is removed
     starTraining = dataDir+'star_dr3_nora36-42_normalized.fits' #dr3
@@ -155,7 +156,7 @@ def train_mva_decals(Step,debug=False):
         object_g,object_r,object_z,object_W1,object_W2 = magsExtFromFlux(object)
         nobjecttot = len(object)
         object_colors = colors(nobjecttot,nfeatures,object_g,object_r,object_z,object_W1,object_W2)
-
+        
     else :
         print('Unknown option')
         sys.exit()
@@ -300,6 +301,7 @@ def train_mva_decals(Step,debug=False):
         print('Produce the random forest with our own persistency')
 
         rf = joblib.load(modelDir+'rf_model_dr3.pkl.gz')
+#        rf = joblib.load(modelDir+'rf_model_elg_ref.pkl.gz')
 
         newDir= modelDir+'RF/'
         print ('dump all files in ',newDir)
@@ -307,7 +309,10 @@ def train_mva_decals(Step,debug=False):
             os.makedirs(newDir)
         joblib.dump(rf, newDir+'bdt.pkl')
 
-        myrf =  myRF(object_colors,newDir)
+        nTrees=200
+#        nTrees=500
+        myrf =  myRF(object_colors,newDir,numberOfTrees=nTrees,version=2)
         myrf.saveForest(modelDir+'rf_model_dr3.npz')
+#        myrf.saveForest(modelDir+'rf_model_new.npz')
 
         sys.exit()
