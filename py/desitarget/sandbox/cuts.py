@@ -491,8 +491,14 @@ def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=No
         mask : array_like. True if and only the object is a ELG
             target.
 
+    Three RF
+    - Training with spectro redshift (VIPERS and DEEP2)  :   rf_model_dr3_elg.npz
+    - Training with photo z HSC : rf_model_dr3_elg_HSC.npz
+    - Training with photo z HSC and depth=15 and max leaves = 2000 : rf_model_dr3_elg_HSC_V2.npz
+
+            
     """
-    #----- Quasars
+    #----- ELG
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
 
@@ -519,20 +525,22 @@ def isELG_randomforest( pcut=None, gflux=None, rflux=None, zflux=None, w1flux=No
     prob = np.zeros(nbEntries)
 
     if (colorsReducedIndex.any()) :
-        rf = myRF(colorsReduced,pathToRF)
         if (training == 'spectro') :
             # Training with VIPERS and DEEP2 Fileds 2,3,4
             print (' === Trained with DEEP2 and VIPERS with spectro z == ')
-            fileName = pathToRF + '/rf_model_dr3_elg.npz' 
-            nTrees=200
+            fileName = pathToRF + '/rf_model_dr3_elg.npz'
+            rf = myRF(colorsReduced,pathToRF,numberOfTrees=200,version=1)
         elif  (training == 'photo') :  
             # Training with HSC with photometric redshifts
-            print (' === Trained with HSC with photo z == ')
-            fileName = pathToRF + '/rf_model_dr3_elg_HSC.npz' 
-            nTrees=500
+            # pathToRF = os.environ['DESITARGET']
+            pathToRF = '.'
+            print (' === Trained with HSC with photo z, you need locally /global/project/projectdirs/desi/target/RF_files/rf_model_dr3_elg_HSC_V2.npz nersc file ')
+#            fileName = pathToRF + '/rf_model_dr3_elg_HSC.npz' 
+            fileName = pathToRF + '/rf_model_dr3_elg_HSC_V2.npz' 
+            rf = myRF(colorsReduced,pathToRF,numberOfTrees=500,version=2)
         
         rf.loadForest(fileName)
-        objects_rf = rf.predict_proba(nTrees)
+        objects_rf = rf.predict_proba()
         # add random forest probability to preselected objects
         j=0
         for i in colorsReducedIndex :

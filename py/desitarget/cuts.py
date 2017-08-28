@@ -453,7 +453,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     prob = np.zeros(nbEntries)
 
     if (colorsReducedIndex.any()) :
-        rf = myRF(colorsReduced,pathToRF)
+        rf = myRF(colorsReduced,pathToRF,numberOfTrees=200,version=1)
         fileName = pathToRF + '/rf_model_dr3.npz'
         rf.loadForest(fileName)
         objects_rf = rf.predict_proba()

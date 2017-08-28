@@ -301,6 +301,7 @@ def train_mva_decals(Step,debug=False):
         print('Produce the random forest with our own persistency')
 
         rf = joblib.load(modelDir+'rf_model_dr3.pkl.gz')
+#        rf = joblib.load(modelDir+'rf_model_elg_ref.pkl.gz')
 
         newDir= modelDir+'RF/'
         print ('dump all files in ',newDir)
@@ -308,8 +309,10 @@ def train_mva_decals(Step,debug=False):
             os.makedirs(newDir)
         joblib.dump(rf, newDir+'bdt.pkl')
 
-        myrf =  myRF(object_colors,newDir)
         nTrees=200
-        myrf.saveForest(modelDir+'rf_model_dr3.npz',nTrees)
+#        nTrees=500
+        myrf =  myRF(object_colors,newDir,numberOfTrees=nTrees,version=2)
+        myrf.saveForest(modelDir+'rf_model_dr3.npz')
+#        myrf.saveForest(modelDir+'rf_model_new.npz')
 
         sys.exit()
