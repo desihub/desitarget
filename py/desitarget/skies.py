@@ -429,6 +429,7 @@ def select_skies(infiles, numproc=4):
         infiles = [infiles,]
 
     #ADM check that the files to be processed actually exist
+    import os
     for filename in infiles:
         if not os.path.exists(filename):
             log.fatal('File {} not found!'.format(filename))
@@ -449,19 +450,20 @@ def select_skies(infiles, numproc=4):
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
         that occurs on the main parallel process'''
-        if verbose and nbrick%50 == 0 and nbrick>0:
+        if nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - start)
             log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
     
-    #ADM Parallel process input files
     if numproc > 1:
+        #ADM process the input files in parallel
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
             skies = pool.map(_select_skies_file, infiles, reduce=_update_status)
     else:
+        #ADM process the input files in serial
         skies = list()
         for file in infiles:
             skies.append(_update_status(_select_skies_file(file)))
