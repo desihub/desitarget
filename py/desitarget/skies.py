@@ -286,10 +286,11 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,plotname=None)
     plt.scatter(rabad,decbad,marker='s',facecolors='none',edgecolors='r')
 
     #ADM restrict the passed avoidance zones based on the passed limits
-    #ADM remembering that we need to plot things at least the maximum/cos(~60o)
+    #ADM remembering that we need to plot things at least the maximum/cos(maxdec)
     #ADM times the possible avoidance zone beyond the plot limits
-    w = np.where( (objs["RA"] > ralo-2*maxrad) & (objs["RA"] < rahi+2*maxrad) & 
-                  (objs["DEC"] > declo-2*maxrad) & (objs["DEC"] < dechi+2*maxrad))
+    fac = 1./np.cos(np.radians(max(abs(decmin),decmax)))
+    w = np.where( (objs["RA"] > ralo-fac*maxrad) & (objs["RA"] < rahi+fac*maxrad) & 
+                  (objs["DEC"] > declo-fac*maxrad) & (objs["DEC"] < dechi+fac*maxrad))
     
     log.info('Number of avoidance zones in plot area {}...t = {:.1f}s'.format(len(w[0]),time()-start))
 
