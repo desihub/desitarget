@@ -17,7 +17,8 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 from desiutil import brick
-from desitarget import io
+from desitarget import io, desi_mask, targetid_mask
+from desitarget.targets import encode_targetid, finalize
 
 
 def density_of_sky_fibers(margin=2.):
@@ -313,3 +314,84 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,plotname=None)
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
     return
+
+
+def make_sky_targets(objs,navoid=2.,nskymin=None):
+    """Translate generated sky targets into the typical format for DESI targets
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray` 
+        numpy structured array with UPPERCASE columns, OR a string 
+        tractor/sweep filename. Must contain at least the columns
+        "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
+    navoid : :class:`float`, optional, defaults to 2.
+        the number of times the galaxy half-light radius (or seeing) to avoid
+        objects out to when placing sky fibers
+    nskymin : :class:`float`, optional, defaults to reading from desimodel.io
+        the minimum DENSITY of sky fibers to generate
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a structured array of good and bad sky positions in the DESI target format
+    """
+
+    #ADM initialize the default logger
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    start = time()
+
+    #ADM check if input objs is a filename or the actual data
+    if isinstance(objs, str):
+        objs = io.read_tractor(objs)
+
+    log.info('Generating sky positions...t = {:.1f}s'.format(time()-start))
+    #ADM generate arrays of good and bad objects for this sweeps file (or set)
+    ragood, decgood, rabad, decbad = generate_sky_positions(objs,navoid=navoid,nskymin=nskymin)
+    ngood = len(ragood)
+    nbad = len(rabad)
+    nskies = ngood + nbad
+
+    #ADM retrieve the standard DESI target array
+    dt = io.tsdatamodel.dtype
+    skies = np.zeros(nskies, dtype=dt)
+
+    #ADM populate the output recarray with the RA/Dec of the good and bad sky locations
+    skies["RA"][0:ngood], skies["DEC"][0:ngood] = ragood, decgood
+    skies["RA"][ngood:nskies], skies["DEC"][ngood:nskies] = rabad, decbad
+
+    #ADM create an array of target bits with the SKY information set
+    desi_target = np.zeros(nskies,dtype='>i8')
+    desi_target[0:ngood] |= desi_mask.SKY
+    desi_target[ngood:nskies] |= desi_mask.BADSKY
+
+    log.info('Looking up brick information...t = {:.1f}s'.format(time()-start))
+    #ADM add the brick information for the sky targets
+    b = brick.Bricks(bricksize=0.25)
+    skies["BRICKID"] = b.brickid(skies["RA"],skies["DEC"])
+    skies["BRICKNAME"] = b.brickname(skies["RA"],skies["DEC"])
+
+    #ADM set the data release from the passed sweeps objects
+    dr = np.max(objs['RELEASE'])
+    #ADM check the passed sweeps objects have the same release
+    checker = np.min(objs['RELEASE'])
+    if dr != checker:
+        raise IOError('Multiple data releases present in same input sweeps objects?!')
+    skies["RELEASE"] = dr
+
+    #ADM set the objid (just use a sequential number as setting skies
+    #ADM to 1 in the TARGETID will make these unique
+    #ADM *MAKE SURE TO SET THE BRIGHT STAR SAFE LOCATIONS OF THE MAXIMUM SKY OBJID*!!!
+    skies["OBJID"] = np.arange(nskies)
+
+    log.info('Finalizing target bits...t = {:.1f}s'.format(time()-start))
+    #ADM add target bit columns to the output array, note that mws_target
+    #ADM and bgs_target should be zeros for all sky objects
+    dum = np.zeros_like(desi_target)
+    skies = finalize(skies, desi_target, dum, dum, sky=1)
+
+    log.info('Done...t = {:.1f}s'.format(time()-start))
+
+    return skies
