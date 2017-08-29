@@ -45,7 +45,7 @@ def density_of_sky_fibers(margin=2.):
     return nskymin
 
 
-def calculate_separations(objs,navoid=2):
+def calculate_separations(objs,navoid=2.):
     """Generate an array of separations (in arcseconds) for a set of objects
 
     Parameters
@@ -65,6 +65,9 @@ def calculate_separations(objs,navoid=2):
         de Vaucouleurs, Exponential or point-source half-light radii
     """
 
+    #ADM check if input objs is a filename or the actual data
+    if isinstance(objs, str):
+        objs = io.read_tractor(objs)
     nobjs = len(objs)
 
     #ADM possible choices for separation based on de Vaucouleurs and Exponential profiles
