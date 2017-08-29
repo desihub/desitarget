@@ -19,6 +19,7 @@ from astropy import units as u
 from desiutil import brick
 from desitarget import io, desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
+from desitarget.internal import sharedmem
 
 
 def density_of_sky_fibers(margin=2.):
@@ -395,3 +396,78 @@ def make_sky_targets(objs,navoid=2.,nskymin=None):
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
     return skies
+
+
+def select_skies(infiles, numproc=4):
+    """Process input files in parallel to select blank sky positions
+
+    Parameters
+    ----------
+    infiles : :class:`list` or `str`
+        list of input filenames (tractor or sweep files),
+            OR a single filename
+    numproc : :clsss:`int`, optional, defaults to 4 
+        number of parallel processes to use. Pass numproc=1 to run in serial
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a structured array of good and bad sky positions in the DESI target format
+
+    Notes
+    -----
+    Much of this is taken verbatim from `desitarget.cuts`
+
+    """
+
+    #ADM set up the default log
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    #ADM if a single file was passed, convert it to a list of files
+    if isinstance(infiles,str):
+        infiles = [infiles,]
+
+    #ADM check that the files to be processed actually exist
+    for filename in infiles:
+        if not os.path.exists(filename):
+            log.fatal('File {} not found!'.format(filename))
+
+
+    #ADM function to run file-by-file for each sweeps file
+    def _select_skies_file(filename):
+        '''Returns targets in filename that pass the cuts'''
+        return make_sky_targets(filename,navoid=2.,nskymin=None)
+
+    #ADM to count the number of files that have been processed
+    #ADM use of a numpy scalar is for backwards-compatability with Python 2
+    #c.f https://www.python.org/dev/peps/pep-3104/
+    nbrick = np.zeros((), dtype='i8')
+
+    start = time()
+    
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,
+        that occurs on the main parallel process'''
+        if verbose and nbrick%50 == 0 and nbrick>0:
+            rate = nbrick / (time() - start)
+            log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
+
+        nbrick[...] += 1    # this is an in-place modification
+        return result
+    
+    #ADM Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            skies = pool.map(_select_skies_file, infiles, reduce=_update_status)
+    else:
+        skies = list()
+        for file in infiles:
+            skies.append(_update_status(_select_skies_file(file)))
+
+    skies = np.concatenate(skies)
+
+    return skies
+
+
