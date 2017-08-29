@@ -204,10 +204,9 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
         decbad.append(list(dec[wbad]))
 
     #ADM we potentially created nested lists for the bad skies, so need to flatten
-    #ADM also scale the bad skies by area (based on the number of good skies)
-    nbad = int(1.*nskies*len(wbad)/len(wgood))
-    rabad = np.array([item for sublist in rabad for item in sublist])[:nbad]
-    decbad = np.array([item for sublist in decbad for item in sublist])[:nbad]
+    #ADM also we can't need more bad sky positions than total sky positions
+    rabad = np.array([item for sublist in rabad for item in sublist])[:nskies]
+    decbad = np.array([item for sublist in decbad for item in sublist])[:nskies]
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
