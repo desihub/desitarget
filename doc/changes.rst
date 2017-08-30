@@ -5,6 +5,7 @@ desitarget Change Log
 0.15.0 (unreleased)
 -------------------
 
+* Updated :mod:`desitarget.io` for the DR5 RELEASE number [`PR #214`_]:
 * Updated :mod:`desitarget.QA` to produce QA plots [`PR #210`_]:
    * Has a simple binary that runs the plot-making software in full
    * Creates (weighted) 1-D and 2-D density plots 
@@ -17,8 +18,10 @@ desitarget Change Log
    * Misc other small bug fixes
 * Added ``mpi_select_mock_targets``
 
+
 .. _`PR #200`: https://github.com/desihub/desitarget/pull/200
 .. _`PR #210`: https://github.com/desihub/desitarget/pull/210
+.. _`PR #214`: https://github.com/desihub/desitarget/pull/214
 
 0.14.0 (2017-07-10)
 -------------------
