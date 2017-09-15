@@ -1254,11 +1254,30 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
         
     log.info('Writing to output directory {}'.format(output_dir))
     print()
+    
 
+    
     # Default set of healpixels is the whole sky (yikes!)
     if healpixels is None:
         healpixels = np.arange(hp.nside2npix(nside))
 
+        
+    #shortening pixel list if some of them were already computed
+    log.info('pixels to do [before file testing] {}'.format(healpixels))
+    donepix = []
+    for i in range(len(healpixels)):
+        pixnum = healpixels[i]
+        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
+        if os.path.exists(targetsfile) and os.path.exists(truthfile):
+            log.warning('Removing pixel {} from list as files {} and {} already exist'.format(healpixels[i], targetsfile, truthfile))
+            donepix.append(i)
+    if len(donepix)>0:
+        healpixels = np.delete(healpixels, donepix)
+    log.info('pixels to do [after file testing] {}'.format(healpixels))
+    if len(healpixels)==0:
+        return
+        
     areaperpix = hp.nside2pixarea(nside, degrees=True)
     skyarea = len(healpixels) * areaperpix
     log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(

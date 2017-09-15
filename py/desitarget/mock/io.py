@@ -642,7 +642,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             lyafiles = lyafiles_qso
             lyahdu = lyahdu_qso
             templatetype = templatetype_qso
-            templatesubtype = templatesubtype_qso
+            templatesubtype = templatesubtype
         else:
             log.info('Trimmed to {} Lya QSOs in healpixels {}'.format(nobj_lya, healpixels))
 
