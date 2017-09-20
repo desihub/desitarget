@@ -218,7 +218,7 @@ def remove_fractional_bricks(targs,frac=0.9,bricksize=0.25):
     return targs[unroll]
 
 
-def remove_fractional_pixels(targs,frac=0.9,nside=64):
+def remove_fractional_pixels(targs,frac=0.9,nside=256):
     """For targets grouped by their ``BRICKID`` remove bricks with incomplete areal coverage
     
     Parameters
@@ -228,8 +228,8 @@ def remove_fractional_pixels(targs,frac=0.9,nside=64):
         of HEALPix pixels at the passed nside, called ``HPXFORQA``
     frac : :class:`float`, optional, defaults to 90%
         The areal threshold. Bricks that have areal coverage below this number will be removed
-    nside : :class:`int`, optional, defaults to nside=64 (~0.84 sq. deg.)
-        The HEALPix pixel nside number that corresponds
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The HEALPix pixel nside number
 
     Returns
     -------
@@ -921,6 +921,79 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     return instruc
 
 
+def hp_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',outfilename='hp-info-dr3.fits',nside=256):
+    """Create a file containing information in HEALPixels (depth, ebv, etc. as in construct_HP_file)
+
+    Parameters
+    ----------
+    targetfilename : :class:`str`
+        File name of a list of targets created by select_targets
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory for a data release...e.g. for DR3 this would be
+        ``/global/project/projectdirs/cosmo/data/legacysurvey/dr3/``
+    outfilename: :class:`str`
+        Output file name for the hp_info file, which will be written as FITS
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The HEALPix pixel nside number
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         numpy structured array of HEALPix information with columns as in construct_HP_file
+    """
+
+    start = time()
+
+    #ADM read in target file
+    print('Reading in target file...t = {:.1f}s'.format(time()-start))
+    fx = fitsio.FITS(targetfilename, upper=True)
+    indata = fx[1].read(columns=['RA','DEC','DESI_TARGET','BGS_TARGET','MWS_TARGET'])
+    nrows = len(indata)
+
+    #ADM add a column "HPXFORQA" containing the HEALPix number
+    targetdata = np.empty(nrows, dtype=dt)
+
+
+    print('Determining unique bricks...t = {:.1f}s'.format(time()-start))
+    #ADM determine number of unique bricks and their integer IDs
+    brickids = np.array(list(set(targetdata['BRICKID'])))
+    brickids.sort()
+
+    print('Creating output brick structure...t = {:.1f}s'.format(time()-start))
+    #ADM set up an output structure of size of the number of unique bricks
+    nbricks = len(brickids)
+    outstruc = construct_QA_file(nbricks)
+
+    print('Adding brick information...t = {:.1f}s'.format(time()-start))
+    #ADM add brick-specific information based on the brickids
+    outstruc = populate_brick_info(outstruc,brickids,rootdirname)
+
+    print('Adding depth information...t = {:.1f}s'.format(time()-start))
+    #ADM add per-brick depth and area information
+    outstruc = populate_depths(outstruc,rootdirname)
+
+    print('Adding target density information...t = {:.1f}s'.format(time()-start))
+    #ADM bits and names of interest for desitarget
+    #ADM -1 as a bit will return all values
+    bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG",
+                "DENSITY_QSO","DENSITY_BGS","DENSITY_MWS"]
+    bitvals = [-1]+list(2**np.array([0,1,2,60,61]))
+
+    #ADM loop through bits and populate target densities for each class
+    for i, bitval in enumerate(bitvals):
+        w = np.where(targetdata["DESI_TARGET"] & bitval)
+        if len(w[0]):
+            targsperbrick = np.bincount(targetdata[w]['BRICKID'])
+            outstruc[bitnames[i]] = targsperbrick[outstruc['BRICKID']]/outstruc['BRICKAREA']
+
+    print('Writing output file...t = {:.1f}s'.format(time()-start))
+    #ADM everything should be populated, just write it out
+    fitsio.write(outfilename, outstruc, extname='BRICKINFO', clobber=True)
+
+    print('Done...t = {:.1f}s'.format(time()-start))
+    return outstruc
+
+
 def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',outfilename='brick-info-dr3.fits'):
     """Create a file containing brick information (depth, ebv, etc. as in construct_QA_file)
 
@@ -946,6 +1019,8 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     print('Reading in target file...t = {:.1f}s'.format(time()-start))
     fx = fitsio.FITS(targetfilename, upper=True)
     targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET'])
+
+    #ADM add col
 
     print('Determining unique bricks...t = {:.1f}s'.format(time()-start))
     #ADM determine number of unique bricks and their integer IDs
