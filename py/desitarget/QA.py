@@ -831,8 +831,19 @@ def populate_HPX_info(instruc,hpxids,nside=256):
     :class:`~numpy.ndarray` 
          instruc with the HEALPixel information columns now populated
     """
+    
+    from desimodel import footprint
+    import healpy
 
+    #ADM determine the general HEALPixel area at this nside
+    instruc["HPXAREA"] = hp.nside2pixarea(nside,degrees=True)
+    #ADM multiply by the fraction of the HEALPixel that is outside of the DESI footprint
+    pixweight = footprint.io.load_pixweight(nside)
+    instruc["HPXAREA"] *= pixweight[instruc['HPXID']]
 
+    #ADM populate the RA/Dec of the pixel
+    theta, phi = hp.pix2ang(nside,instruc['HPXID'],nest=True)
+    instruc["DEC"], instruc["RA"] = 90.-np.degrees(theta), np.degrees(phi)
 
     return instruc
 
@@ -858,6 +869,158 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     :class:`~numpy.ndarray` 
          instruc with the per-brick depth and area columns now populated
     """
+    #ADM the pixel scale area for a brick (in sq. deg.)
+    pixtodeg = 0.262/3600./3600.
+
+    #ADM read in the brick depth file
+    fx = fitsio.FITS(glob(rootdirname+'*depth.fits.gz')[0], upper=True)
+    depthdata = fx[1].read()
+
+    #ADM construct the magnitude bin centers for the per-brick depth
+    #ADM file, which is expressed as a histogram of 50 bins of 0.1mag
+    magbins = np.arange(50)*0.1+20.05
+    magbins[0] = 0
+
+    #ADM percentiles at which to assess the depth
+    percs = np.array([10,25,50,75,90])/100.
+
+    #ADM lists to contain the brick names and for the depths, areas, percentiles
+    names, areas = [], []
+    depth_g, depth_r, depth_z = [], [], []
+    galdepth_g, galdepth_r, galdepth_z= [], [], []
+    perc_g, perc_r, perc_z = [], [], []
+    galperc_g, galperc_r, galperc_z = [], [], []
+
+    #ADM build a per-brick weighted depth. Also determine pixel-based area of brick.
+    #ADM the per-brick depth file is histogram of 50 bins
+    #ADM this grew organically, could make it more compact
+    for i in range(0,len(depthdata),50):
+        #ADM there must be measurements for all of the pixels in one band
+        d = depthdata[i:i+50]
+        totpix = sum(d['COUNTS_GAL_G']),sum(d['COUNTS_GAL_R']),sum(d['COUNTS_GAL_Z'])
+        maxpix = max(totpix)
+        #ADM percentiles in terms of pixel counts
+        pixpercs = np.array(percs)*maxpix
+        #ADM add pixel-weighted mean depth
+        depth_g.append(np.sum(d['COUNTS_PTSRC_G']*magbins)/maxpix)
+        depth_r.append(np.sum(d['COUNTS_PTSRC_R']*magbins)/maxpix)
+        depth_z.append(np.sum(d['COUNTS_PTSRC_Z']*magbins)/maxpix)
+        galdepth_g.append(np.sum(d['COUNTS_GAL_G']*magbins)/maxpix)
+        galdepth_r.append(np.sum(d['COUNTS_GAL_R']*magbins)/maxpix)
+        galdepth_z.append(np.sum(d['COUNTS_GAL_Z']*magbins)/maxpix)
+        #ADM add name and pixel based area of the brick
+        names.append(depthdata['BRICKNAME'][i])
+        areas.append(maxpix*pixtodeg)
+        #ADM add percentiles for depth...using a
+        #ADM list comprehension, which is fast because the pixel numbers are ordered and
+        #ADM says "give me the first magbin where we exceed a certain pixel percentile"
+        if totpix[0]:
+            perc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_G']) > p )[0][0]] for p in pixpercs ])
+            galperc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_G']) > p )[0][0]] for p in pixpercs ])
+        else:
+            perc_g.append([0]*5)
+            galperc_g.append([0]*5)
+
+        if totpix[1]:
+            perc_r.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_R']) > p )[0][0]] for p in pixpercs ])
+
+            galperc_r.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_R']) > p )[0][0]] for p in pixpercs ])
+        else:
+            perc_r.append([0]*5)
+            galperc_r.append([0]*5)
+
+        if totpix[2]:
+            perc_z.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_Z']) > p )[0][0]] for p in pixpercs ])
+            galperc_z.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_Z']) > p )[0][0]] for p in pixpercs ])
+        else:
+            perc_z.append([0]*5)
+            galperc_z.append([0]*5)
+
+    #ADM HACK HACK HACK
+    #ADM first find bricks that are not in the depth file and populate them
+    #ADM with nonsense. This is a hack as I'm not sure why such bricks exist
+    #ADM HACK HACK HACK
+    orderedbricknames = instruc["BRICKNAME"]
+    badbricks = np.ones(len(orderedbricknames))
+    dd = defaultdict(list)
+    for index, item in enumerate(orderedbricknames):
+        dd[item].append(index)
+    matches = [index for item in names for index in dd[item] if item in dd]
+    badbricks[matches] = 0
+    w = np.where(badbricks)
+    badbricknames = orderedbricknames[w]
+    for i, badbrickname in enumerate(badbricknames):
+        names.append(badbrickname)
+        areas.append(-99.)
+        depth_g.append(-99.)
+        depth_r.append(-99.)
+        depth_z.append(-99.)
+        galdepth_g.append(-99.)
+        galdepth_r.append(-99.)
+        galdepth_z.append(-99.)
+        perc_g.append([-99.]*5)
+        perc_r.append([-99.]*5)
+        perc_z.append([-99.]*5)
+        galperc_g.append([-99.]*5)
+        galperc_r.append([-99.]*5)
+        galperc_z.append([-99.]*5)
+
+    #ADM, now order the brickname to match the input structure using
+    #ADM a look-up dictionary to match indices via a list comprehension
+    orderedbricknames = instruc["BRICKNAME"]
+    dd = defaultdict(list)
+    for index, item in enumerate(names):
+        dd[item].append(index)
+    matches = [index for item in orderedbricknames for index in dd[item] if item in dd]
+
+    #ADM populate the depths and area
+    instruc['BRICKAREA'] = np.array(areas)[matches]
+    instruc['PSFDEPTH_G'] = np.array(depth_g)[matches]
+    instruc['PSFDEPTH_R'] = np.array(depth_r)[matches]
+    instruc['PSFDEPTH_Z'] = np.array(depth_z)[matches]
+    instruc['GALDEPTH_G'] = np.array(galdepth_g)[matches]
+    instruc['GALDEPTH_R'] = np.array(galdepth_r)[matches]
+    instruc['GALDEPTH_Z'] = np.array(galdepth_z)[matches]
+    instruc['PSFDEPTH_G_PERCENTILES'] = np.array(perc_g)[matches]
+    instruc['PSFDEPTH_R_PERCENTILES'] = np.array(perc_r)[matches]
+    instruc['PSFDEPTH_Z_PERCENTILES'] = np.array(perc_z)[matches]
+    instruc['GALDEPTH_G_PERCENTILES'] = np.array(galperc_g)[matches]
+    instruc['GALDEPTH_R_PERCENTILES'] = np.array(galperc_r)[matches]
+    instruc['GALDEPTH_Z_PERCENTILES'] = np.array(galperc_z)[matches]
+
+    return instruc
+
+
+def populate_HPX_depths(instruc,targetdata):
+    """Add depth-related information to a numpy array
+
+    Parameters
+    ----------
+    instruc : :class:`~numpy.ndarray` 
+        numpy structured array containing at least
+        ['HPXID','HPXAREA','EBV','PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+        'GALDEPTH_G','GALDEPTH_R','GALDEPTH_Z','PSFDEPTH_G_PERCENTILES',
+        'PSFDEPTH_R_PERCENTILES','PSFDEPTH_Z_PERCENTILES','GALDEPTH_G_PERCENTILES',
+        'GALDEPTH_R_PERCENTILES','GALDEPTH_Z_PERCENTILES']
+        to populate with depths and areas
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory for a data release...e.g. for DR3 this would be
+        ``/global/project/projectdirs/cosmo/data/legacysurvey/dr3/``
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         instruc with the per-brick depth and area columns now populated
+    """
+    #ADM sort the input targetdata array on HEALPixel number
+    targsorted = targetdata[targetdata['HPXID'].argsort()]
+    #ADM find the edges of the sorted array corresponding to blocks of HEALPixels
+    h, dum = np.histogram(a['HPXID'],bins=instruc['HPXID'])
+    h = np.cumsum(h)
+    #ADM insert a zero at the beginning to delineate the first block
+    h = np.insert(h,0,0)
+
+
     #ADM the pixel scale area for a brick (in sq. deg.)
     pixtodeg = 0.262/3600./3600.
 
@@ -1037,7 +1200,7 @@ def convert_target_data_model_for_QA(instruc):
     return outstruc
 
 
-def hpx_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',
+def HPX_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',
              outfilename='hp-info-dr3.fits',nside=256):
     """Create a file containing information in HEALPixels (depth, ebv, etc. as in construct_HPX_file)
 
@@ -1062,12 +1225,12 @@ def hpx_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/
     import healpy as hp
     start = time()
 
-    #ADM read in target file and calculate HEALPixel number
+    #ADM read in target file
     log.info('Reading in target file...t = {:.1f}s'.format(time()-start))
     indata = fitsio.read(targetfilename, upper=True)
 
     #ADM if this is an old-style, pre-DR4 file, convert it to the new data model
-    if 'DECAM_FLUX' in a.dtype.names:
+    if 'DECAM_FLUX' in indata.dtype.names:
         log.info('Converting from old (pre-DR4) to new DR4 data model...t = {:.1f}s'
                  .format(time()-start))
         indata = convert_target_data_model_for_QA(indata)
@@ -1094,6 +1257,7 @@ def hpx_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/
     #ADM set up an output structure of size of the number of unique bricks
     npix = len(hpxids)
     outstruc = construct_HPX_file(npix)
+    outstruc['HPXID'] = hpxids
 
     print('Adding HEALPixel information...t = {:.1f}s'.format(time()-start))
     #ADM add HEALPixel-specific information based on the HEALPixel IDs
@@ -1101,7 +1265,7 @@ def hpx_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/
 
     print('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
-    outstruc = populate_depths(outstruc,rootdirname)
+    outstruc = populate_HPX_depths(outstruc,targetdata)
 
     print('Adding target density information...t = {:.1f}s'.format(time()-start))
     #ADM bits and names of interest for desitarget
