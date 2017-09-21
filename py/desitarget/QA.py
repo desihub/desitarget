@@ -724,6 +724,41 @@ def construct_QA_file(nrows):
             ])
     return data
 
+def construct_HPX_file(nrows):
+    """Create a recarray to be populated with HEALPixel information
+
+    Parameters
+    ----------
+    nrows : :class:`int`
+        Number of rows in the recarray (size, in rows, of expected fits output)
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         numpy structured array to be populated with HEALPixel information with 
+         nrows as specified and columns as below
+    """
+
+    data = np.zeros(nrows, dtype=[
+            ('HPXID','>i4'),('HPXAREA','>f4'),
+            ('RA','>f4'),('DEC','>f4'),
+            ('EBV','>f4'),
+            ('PSFDEPTH_G','>f4'),('PSFDEPTH_R','>f4'),('PSFDEPTH_Z','>f4'),
+            ('GALDEPTH_G','>f4'),('GALDEPTH_R','>f4'),('GALDEPTH_Z','>f4'),
+            ('PSFDEPTH_G_PERCENTILES','f4',(5)), ('PSFDEPTH_R_PERCENTILES','f4',(5)),
+            ('PSFDEPTH_Z_PERCENTILES','f4',(5)), ('GALDEPTH_G_PERCENTILES','f4',(5)),
+            ('GALDEPTH_R_PERCENTILES','f4',(5)), ('GALDEPTH_Z_PERCENTILES','f4',(5)),
+            ('NEXP_G','i2'),('NEXP_R','i2'),('NEXP_Z','i2'),
+            ('DENSITY_ALL','>f4'),
+            ('DENSITY_ELG','>f4'),('DENSITY_LRG','>f4'),
+            ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'),
+            ('DENSITY_BGS','>f4'),('DENSITY_MWS','>f4'),
+            ('DENSITY_BAD_ELG','>f4'),('DENSITY_BAD_LRG','>f4'),
+            ('DENSITY_BAD_QSO','>f4'),('DENSITY_BAD_LYA','>f4'),
+            ('DENSITY_BAD_BGS','>f4'),('DENSITY_BAD_MWS','>f4'),
+            ])
+    return data
+
 
 def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/'):
     """Add brick-related information to a numpy array of brickids
@@ -774,6 +809,30 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
     instruc['NEXP_R'] = ebvdata[matches]['NEXP_R']
     instruc['NEXP_Z'] = ebvdata[matches]['NEXP_Z']
     instruc['EBV'] = ebvdata[matches]['EBV']
+
+    return instruc
+
+
+def populate_HPX_info(instruc,hpxids,nside=256):
+    """Add HEALPixel-related information to a numpy array of HEALPixels
+
+    Parameters
+    ----------
+    instruc : :class:`~numpy.ndarray` 
+        numpy structured array containing at least
+        ``HPXID``,``RA``,``DEC``, ``HPXAREA`` to populate
+    hpxids : :class:`~numpy.ndarray` 
+        numpy structured array (single list) of HEALPixel integers
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The HEALPix pixel nside number that was used to calculated the hpxids
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         instruc with the HEALPixel information columns now populated
+    """
+
+
 
     return instruc
 
@@ -921,8 +980,66 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     return instruc
 
 
-def hp_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',outfilename='hp-info-dr3.fits',nside=256):
-    """Create a file containing information in HEALPixels (depth, ebv, etc. as in construct_HP_file)
+def convert_target_data_model_for_QA(instruc):
+    """Convert a subset of columns in a pre-DR4 targets file to the DR4 data model
+
+    Parameters
+    ----------
+    instruc : :class:`~numpy.ndarray` 
+        numpy structured array that contains at least
+        ``DECAM_FLUX``,``DECAM_MW_TRANSMISSION``,
+        ``DECAM_NOBS``,``DECAM_DEPTH``,``DECAM_GALDEPTH
+        to convert to the new data model.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+        input structure with the DECAM_ columns converted to the DR4+ data model
+    """
+    #ADM the old DECAM_ columns that need to be updated
+    decamcols = ['FLUX','MW_TRANSMISSION','NOBS','GALDEPTH']
+    decambands = 'UGRIZ'
+
+    #ADM determine the data structure of the input array
+    dt = instruc.dtype.descr
+    names = list(instruc.dtype.names)
+    #ADM remove the old column names
+    for colstring in decamcols:
+        loc = names.index('DECAM_'+colstring)
+        names.pop(loc)
+        dt.pop(loc)
+        for bandnum in [1,2,4]:
+            dt.append((colstring+"_"+decambands[bandnum],'>f4'))
+    #ADM treat DECAM_DEPTH separately as the syntax is slightly different
+    loc = names.index('DECAM_DEPTH')
+    dt.pop(loc)
+    for bandnum in [1,2,4]:
+        dt.append(('PSFDEPTH_'+decambands[bandnum],'>f4'))
+
+    #ADM create a new numpy array with the fields from the new data model...
+    nrows = len(instruc)
+    outstruc = np.empty(nrows, dtype=dt)
+
+    #ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model
+    for bandnum in [1,2,4]:
+        for colstring in decamcols:
+            outstruc[colstring+"_"+decambands[bandnum]] = instruc["DECAM_"+colstring][:,bandnum]
+        #ADM treat DECAM_DEPTH separately as the syntax is slightly different
+        outstruc["PSFDEPTH_"+decambands[bandnum]] = instruc["DECAM_DEPTH"][:,bandnum]
+
+    #ADM finally, populate the columns that haven't changed
+    newcols = list(outstruc.dtype.names)
+    oldcols = list(instruc.dtype.names)
+    sharedcols = list(set(newcols).intersection(oldcols))
+    for col in sharedcols:
+        outstruc[col] = instruc[col]
+
+    return outstruc
+
+
+def hpx_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',
+             outfilename='hp-info-dr3.fits',nside=256):
+    """Create a file containing information in HEALPixels (depth, ebv, etc. as in construct_HPX_file)
 
     Parameters
     ----------
@@ -939,34 +1056,48 @@ def hp_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/l
     Returns
     -------
     :class:`~numpy.ndarray` 
-         numpy structured array of HEALPix information with columns as in construct_HP_file
+         numpy structured array of HEALPix information with columns as in construct_HPX_file
     """
 
+    import healpy as hp
     start = time()
 
-    #ADM read in target file
-    print('Reading in target file...t = {:.1f}s'.format(time()-start))
-    fx = fitsio.FITS(targetfilename, upper=True)
-    indata = fx[1].read(columns=['RA','DEC','DESI_TARGET','BGS_TARGET','MWS_TARGET'])
+    #ADM read in target file and calculate HEALPixel number
+    log.info('Reading in target file...t = {:.1f}s'.format(time()-start))
+    indata = fitsio.read(targetfilename, upper=True)
+
+    #ADM if this is an old-style, pre-DR4 file, convert it to the new data model
+    if 'DECAM_FLUX' in a.dtype.names:
+        log.info('Converting from old (pre-DR4) to new DR4 data model...t = {:.1f}s'
+                 .format(time()-start))
+        indata = convert_target_data_model_for_QA(indata)
+
+    #ADM add a column "HPXID" containing the HEALPix number
+    log.info('Gathering HEALPixel information...t = {:.1f}s'.format(time()-start))
     nrows = len(indata)
-
-    #ADM add a column "HPXFORQA" containing the HEALPix number
+    theta, phi = np.radians(90-indata["DEC"]), np.radians(indata["RA"])
+    hppix = hp.ang2pix(nside, theta, phi, nest=True)
+    dt = indata.dtype.descr
+    dt.append(('HPXID','>i8'))
+    #ADM create a new array with all of the read-in column names and the new HPXID
     targetdata = np.empty(nrows, dtype=dt)
+    for colname in indata.dtype.names:
+        targetdata[colname] = indata[colname]
+    targetdata["HPXID"] = hppix
 
-
-    print('Determining unique bricks...t = {:.1f}s'.format(time()-start))
+    print('Determining unique HEALPixels...t = {:.1f}s'.format(time()-start))
     #ADM determine number of unique bricks and their integer IDs
-    brickids = np.array(list(set(targetdata['BRICKID'])))
-    brickids.sort()
+    hpxids = np.array(list(set(targetdata['HPXID'])))
+    hpxids.sort()
 
-    print('Creating output brick structure...t = {:.1f}s'.format(time()-start))
+    print('Creating output HEALPixel structure...t = {:.1f}s'.format(time()-start))
     #ADM set up an output structure of size of the number of unique bricks
-    nbricks = len(brickids)
-    outstruc = construct_QA_file(nbricks)
+    npix = len(hpxids)
+    outstruc = construct_HPX_file(npix)
 
-    print('Adding brick information...t = {:.1f}s'.format(time()-start))
-    #ADM add brick-specific information based on the brickids
-    outstruc = populate_brick_info(outstruc,brickids,rootdirname)
+    print('Adding HEALPixel information...t = {:.1f}s'.format(time()-start))
+    #ADM add HEALPixel-specific information based on the HEALPixel IDs
+    outstruc = populate_HPX_info(outstruc,hpxids,nside)
 
     print('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
@@ -1275,6 +1406,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     plt.close()
 
     return
+
 
 def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     """Make color-based DESI targeting QA plots given a passed set of targets
