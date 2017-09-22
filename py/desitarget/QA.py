@@ -1133,7 +1133,7 @@ def HPX_info(targetfilename,outfilename='hp-info-dr3.fits',nside=256):
     ----------
     targetfilename : :class:`str`
         File name of a list of targets created by select_targets
-    outfilename: :class:`str`
+    outfilename: :class:`str`, defaults to 'hp-info-dr3.fits'
         Output file name for the hp_info file, which will be written as FITS
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The HEALPix pixel nside number
@@ -1147,9 +1147,25 @@ def HPX_info(targetfilename,outfilename='hp-info-dr3.fits',nside=256):
     import healpy as hp
     start = time()
 
+    #ADM set up log tracker
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
     #ADM read in target file
     log.info('Reading in target file...t = {:.1f}s'.format(time()-start))
     indata = fitsio.read(targetfilename, upper=True)
+    log.info("Working with {} targets".format(len(indata)))
+
+    log.info('Removing targets that are outside DESI...t = {:.1f}s'.format(time()-start))
+    #ADM remove targets that are outside the official DESI footprint
+    from desimodel import footprint, io
+    indesi = footprint.is_point_in_desi(io.load_tiles(),indata["RA"],indata["DEC"])
+    w = np.where(indesi)
+    if len(w[0]) > 0:
+        indata = indata[w]
+        log.info("{} targets in official DESI footprint".format(len(indata)))
+    else:
+        log.error("ZERO input targets are within the official DESI footprint!!!")
 
     #ADM if this is an old-style, pre-DR4 file, convert it to the new data model
     if 'DECAM_FLUX' in indata.dtype.names:
