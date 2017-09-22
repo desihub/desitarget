@@ -621,6 +621,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     alltargets = list()
     alltruth = list()
     alltrueflux = list()
+
     for source_name in sorted(params['sources'].keys()):
         # Read the mock catalog.
         target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
@@ -894,22 +895,19 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
         # Write out the dark- and bright-time standard stars.
         for stdsuffix in ('dark', 'bright'):
             # Standards taken from targets
-            istd = inpixel.copy()
 
-            # stdfile = os.path.join(output_dir, 'standards-{}-{}.fits'.format(stdsuffix, healsuffix))
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
 
             # Select all targets with each of the standard star types and
-            # matching obsconditions.
-            for stdbit in ('STD_FSTAR', 'STD_BRIGHT', 'STD_WD'):
-                is_std_type = (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) != 0
-
-                if stdsuffix == 'dark':
-                    has_right_obsconditions = (targets['OBSCONDITIONS'] & (obsconditions.DARK | obsconditions.GRAY) != 0)
-                elif stdsuffix == 'bright':
-                    has_right_obsconditions = (targets['OBSCONDITIONS'] & (obsconditions.BRIGHT) != 0)
-
-                istd &= (is_std_type & has_right_obsconditions)
+            # matching obsconditions
+            if stdsuffix == 'dark':
+                dark_std_mask = desi_mask.STD_FSTAR | desi_mask.STD_WD
+                istd = inpixel & ((targets['DESI_TARGET'] & dark_std_mask) != 0)
+            elif stdsuffix == 'bright':
+                bright_std_mask = desi_mask.STD_BRIGHT | desi_mask.STD_WD
+                istd = inpixel & ((targets['DESI_TARGET'] & bright_std_mask) != 0)
+            else:
+                raise RuntimeError('unknown stdsuffix {}'.format(stdsuffix))
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
@@ -917,7 +915,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
                                header=targetshdr, clobber=True)
                 os.rename(stdfile+'.tmp', stdfile)
             else:
-                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
+                log.error('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
 
         # Finally write out the rest of the targets.
         targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
