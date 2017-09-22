@@ -1015,130 +1015,59 @@ def populate_HPX_depths(instruc,targetdata):
     #ADM sort the input targetdata array on HEALPixel number
     targsorted = targetdata[targetdata['HPXID'].argsort()]
     #ADM find the edges of the sorted array corresponding to blocks of HEALPixels
-    h, dum = np.histogram(a['HPXID'],bins=instruc['HPXID'])
+    binedges = np.insert(instruc['HPXID'],len(instruc),instruc['HPXID'][-1]+1)
+    h, dum = np.histogram(targsorted['HPXID'],bins=binedges)
     h = np.cumsum(h)
     #ADM insert a zero at the beginning to delineate the first block
     h = np.insert(h,0,0)
 
-
-    #ADM the pixel scale area for a brick (in sq. deg.)
-    pixtodeg = 0.262/3600./3600.
-
-    #ADM read in the brick depth file
-    fx = fitsio.FITS(glob(rootdirname+'*depth.fits.gz')[0], upper=True)
-    depthdata = fx[1].read()
-
-    #ADM construct the magnitude bin centers for the per-brick depth
-    #ADM file, which is expressed as a histogram of 50 bins of 0.1mag
-    magbins = np.arange(50)*0.1+20.05
-    magbins[0] = 0
-
     #ADM percentiles at which to assess the depth
-    percs = np.array([10,25,50,75,90])/100.
+    percs = np.array([10,25,50,75,90])
 
-    #ADM lists to contain the brick names and for the depths, areas, percentiles
-    names, areas = [], []
-    depth_g, depth_r, depth_z = [], [], []
-    galdepth_g, galdepth_r, galdepth_z= [], [], []
-    perc_g, perc_r, perc_z = [], [], []
-    galperc_g, galperc_r, galperc_z = [], [], []
+    #ADM the column names that contain depth but not depth percentiles
+    depthcolnames = [ s for s in instruc.dtype.names 
+                      if "DEPTH" in s and "PERCENTILES" not in s ]
 
-    #ADM build a per-brick weighted depth. Also determine pixel-based area of brick.
-    #ADM the per-brick depth file is histogram of 50 bins
-    #ADM this grew organically, could make it more compact
-    for i in range(0,len(depthdata),50):
-        #ADM there must be measurements for all of the pixels in one band
-        d = depthdata[i:i+50]
-        totpix = sum(d['COUNTS_GAL_G']),sum(d['COUNTS_GAL_R']),sum(d['COUNTS_GAL_Z'])
-        maxpix = max(totpix)
-        #ADM percentiles in terms of pixel counts
-        pixpercs = np.array(percs)*maxpix
-        #ADM add pixel-weighted mean depth
-        depth_g.append(np.sum(d['COUNTS_PTSRC_G']*magbins)/maxpix)
-        depth_r.append(np.sum(d['COUNTS_PTSRC_R']*magbins)/maxpix)
-        depth_z.append(np.sum(d['COUNTS_PTSRC_Z']*magbins)/maxpix)
-        galdepth_g.append(np.sum(d['COUNTS_GAL_G']*magbins)/maxpix)
-        galdepth_r.append(np.sum(d['COUNTS_GAL_R']*magbins)/maxpix)
-        galdepth_z.append(np.sum(d['COUNTS_GAL_Z']*magbins)/maxpix)
-        #ADM add name and pixel based area of the brick
-        names.append(depthdata['BRICKNAME'][i])
-        areas.append(maxpix*pixtodeg)
-        #ADM add percentiles for depth...using a
-        #ADM list comprehension, which is fast because the pixel numbers are ordered and
-        #ADM says "give me the first magbin where we exceed a certain pixel percentile"
-        if totpix[0]:
-            perc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_G']) > p )[0][0]] for p in pixpercs ])
-            galperc_g.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_G']) > p )[0][0]] for p in pixpercs ])
+    #ADM loop through the blocks of HEALPixels and populate HEALPixel-level info
+    for i in range(len(h)-1):
+
+        #ADM check that some sorting bug hasn't caused a mismatch on HEALPixel
+        if instruc[i]['HPXID'] != targsorted[h[i]]['HPXID']:
+            log.error('HEALPixel mismatch between targets and HPX file!')
+
+        #ADM populate the depth-based information
+        for colname in depthcolnames:
+            #ADM populate the mean depth fluxes
+            meandepth = np.mean(targsorted[h[i]:h[i+1]][colname])
+            #ADM guard against exposure with no observations in this band
+            sig5fluxes = 5./np.sqrt(np.clip(meandepth,2.5e-17,2.5e17))
+            instruc[colname][i] = 22.5-2.5*np.log10(sig5fluxes)
+            #ADM populate the percentiles remember to flip as fluxes->mags
+            pcolname = colname+'_PERCENTILES'
+            fluxpercs = np.percentile(sig5fluxes,percs)
+            instruc[pcolname][i] = np.flipud(22.5-2.5*np.log10(fluxpercs))
+
+        #ADM populate the information on the number of exposures
+        for band in 'GRZ':
+            nobs = targsorted[h[i]:h[i+1]]['NOBS_'+band]
+            #ADM round to the nearest integer
+            instruc['NEXP_'+band][i] = np.rint(np.mean(nobs))
+            
+        #ADM populate the Galactic extinction 
+        colname = 'MW_TRANSMISSION_G'
+        #ADM cull to non-zero entries for the transmission information as
+        #ADM there was a DR3 bug where some transmission values were zero
+        w = np.where(targsorted[h[i]:h[i+1]][colname] > 0)
+        #ADM calculate mean in linear transmission units, guarding against
+        #ADM the consequences of the DR3 transmission bug
+        if len(w[0]) == 0:
+            mwt = 1.4e-13
         else:
-            perc_g.append([0]*5)
-            galperc_g.append([0]*5)
-
-        if totpix[1]:
-            perc_r.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_R']) > p )[0][0]] for p in pixpercs ])
-
-            galperc_r.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_R']) > p )[0][0]] for p in pixpercs ])
-        else:
-            perc_r.append([0]*5)
-            galperc_r.append([0]*5)
-
-        if totpix[2]:
-            perc_z.append([ magbins[np.where(np.cumsum(d['COUNTS_PTSRC_Z']) > p )[0][0]] for p in pixpercs ])
-            galperc_z.append([ magbins[np.where(np.cumsum(d['COUNTS_GAL_Z']) > p )[0][0]] for p in pixpercs ])
-        else:
-            perc_z.append([0]*5)
-            galperc_z.append([0]*5)
-
-    #ADM HACK HACK HACK
-    #ADM first find bricks that are not in the depth file and populate them
-    #ADM with nonsense. This is a hack as I'm not sure why such bricks exist
-    #ADM HACK HACK HACK
-    orderedbricknames = instruc["BRICKNAME"]
-    badbricks = np.ones(len(orderedbricknames))
-    dd = defaultdict(list)
-    for index, item in enumerate(orderedbricknames):
-        dd[item].append(index)
-    matches = [index for item in names for index in dd[item] if item in dd]
-    badbricks[matches] = 0
-    w = np.where(badbricks)
-    badbricknames = orderedbricknames[w]
-    for i, badbrickname in enumerate(badbricknames):
-        names.append(badbrickname)
-        areas.append(-99.)
-        depth_g.append(-99.)
-        depth_r.append(-99.)
-        depth_z.append(-99.)
-        galdepth_g.append(-99.)
-        galdepth_r.append(-99.)
-        galdepth_z.append(-99.)
-        perc_g.append([-99.]*5)
-        perc_r.append([-99.]*5)
-        perc_z.append([-99.]*5)
-        galperc_g.append([-99.]*5)
-        galperc_r.append([-99.]*5)
-        galperc_z.append([-99.]*5)
-
-    #ADM, now order the brickname to match the input structure using
-    #ADM a look-up dictionary to match indices via a list comprehension
-    orderedbricknames = instruc["BRICKNAME"]
-    dd = defaultdict(list)
-    for index, item in enumerate(names):
-        dd[item].append(index)
-    matches = [index for item in orderedbricknames for index in dd[item] if item in dd]
-
-    #ADM populate the depths and area
-    instruc['BRICKAREA'] = np.array(areas)[matches]
-    instruc['PSFDEPTH_G'] = np.array(depth_g)[matches]
-    instruc['PSFDEPTH_R'] = np.array(depth_r)[matches]
-    instruc['PSFDEPTH_Z'] = np.array(depth_z)[matches]
-    instruc['GALDEPTH_G'] = np.array(galdepth_g)[matches]
-    instruc['GALDEPTH_R'] = np.array(galdepth_r)[matches]
-    instruc['GALDEPTH_Z'] = np.array(galdepth_z)[matches]
-    instruc['PSFDEPTH_G_PERCENTILES'] = np.array(perc_g)[matches]
-    instruc['PSFDEPTH_R_PERCENTILES'] = np.array(perc_r)[matches]
-    instruc['PSFDEPTH_Z_PERCENTILES'] = np.array(perc_z)[matches]
-    instruc['GALDEPTH_G_PERCENTILES'] = np.array(galperc_g)[matches]
-    instruc['GALDEPTH_R_PERCENTILES'] = np.array(galperc_r)[matches]
-    instruc['GALDEPTH_Z_PERCENTILES'] = np.array(galperc_z)[matches]
+            mwt = np.mean(targsorted[h[i]:h[i+1]][colname][w])
+        #ADM convert to E(B-V) using 3.214 from, e.g.
+        #ADM http://legacysurvey.org/dr4/catalogs/
+        #ADM THE 3.214 A/E(B_V) COEFFICIENT COULD BE UPDATED IN FUTURE DRs!!!
+        instruc['EBV'][i] = -2.5*np.log10(mwt)/3.214
 
     return instruc
 
