@@ -753,9 +753,6 @@ def construct_HPX_file(nrows):
             ('DENSITY_ELG','>f4'),('DENSITY_LRG','>f4'),
             ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'),
             ('DENSITY_BGS','>f4'),('DENSITY_MWS','>f4'),
-            ('DENSITY_BAD_ELG','>f4'),('DENSITY_BAD_LRG','>f4'),
-            ('DENSITY_BAD_QSO','>f4'),('DENSITY_BAD_LYA','>f4'),
-            ('DENSITY_BAD_BGS','>f4'),('DENSITY_BAD_MWS','>f4'),
             ])
     return data
 
@@ -1129,17 +1126,13 @@ def convert_target_data_model_for_QA(instruc):
     return outstruc
 
 
-def HPX_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',
-             outfilename='hp-info-dr3.fits',nside=256):
+def HPX_info(targetfilename,outfilename='hp-info-dr3.fits',nside=256):
     """Create a file containing information in HEALPixels (depth, ebv, etc. as in construct_HPX_file)
 
     Parameters
     ----------
     targetfilename : :class:`str`
         File name of a list of targets created by select_targets
-    rootdirname : :class:`str`, optional, defaults to dr3
-        Root directory for a data release...e.g. for DR3 this would be
-        ``/global/project/projectdirs/cosmo/data/legacysurvey/dr3/``
     outfilename: :class:`str`
         Output file name for the hp_info file, which will be written as FITS
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
@@ -1177,44 +1170,46 @@ def HPX_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/
         targetdata[colname] = indata[colname]
     targetdata["HPXID"] = hppix
 
-    print('Determining unique HEALPixels...t = {:.1f}s'.format(time()-start))
+    log.info('Determining unique HEALPixels...t = {:.1f}s'.format(time()-start))
     #ADM determine number of unique bricks and their integer IDs
     hpxids = np.array(list(set(targetdata['HPXID'])))
     hpxids.sort()
 
-    print('Creating output HEALPixel structure...t = {:.1f}s'.format(time()-start))
+    log.info('Creating output HEALPixel structure...t = {:.1f}s'.format(time()-start))
     #ADM set up an output structure of size of the number of unique bricks
     npix = len(hpxids)
     outstruc = construct_HPX_file(npix)
     outstruc['HPXID'] = hpxids
 
-    print('Adding HEALPixel information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding HEALPixel information...t = {:.1f}s'.format(time()-start))
     #ADM add HEALPixel-specific information based on the HEALPixel IDs
     outstruc = populate_HPX_info(outstruc,hpxids,nside)
 
-    print('Adding depth information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
     outstruc = populate_HPX_depths(outstruc,targetdata)
 
-    print('Adding target density information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding target density information...t = {:.1f}s'.format(time()-start))
     #ADM bits and names of interest for desitarget
-    #ADM -1 as a bit will return all values
     bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG",
                 "DENSITY_QSO","DENSITY_BGS","DENSITY_MWS"]
-    bitvals = [-1]+list(2**np.array([0,1,2,60,61]))
+    #ADM -1 as a bit will return all values
+    bitvals = [-1]
+    for bitname in ['LRG','ELG','QSO','BGS_ANY','MWS_ANY']:
+        bitvals.append(desi_mask[bitname])
 
     #ADM loop through bits and populate target densities for each class
     for i, bitval in enumerate(bitvals):
         w = np.where(targetdata["DESI_TARGET"] & bitval)
-        if len(w[0]):
-            targsperbrick = np.bincount(targetdata[w]['BRICKID'])
-            outstruc[bitnames[i]] = targsperbrick[outstruc['BRICKID']]/outstruc['BRICKAREA']
+        if len(w[0]) > 0:
+            targsperhpx = np.bincount(targetdata[w]['HPXID'],minlength=max(outstruc['HPXID'])+1)
+            outstruc[bitnames[i]] = targsperhpx[outstruc['HPXID']]/outstruc['HPXAREA']
 
-    print('Writing output file...t = {:.1f}s'.format(time()-start))
+    log.info('Writing output file...t = {:.1f}s'.format(time()-start))
     #ADM everything should be populated, just write it out
     fitsio.write(outfilename, outstruc, extname='BRICKINFO', clobber=True)
 
-    print('Done...t = {:.1f}s'.format(time()-start))
+    log.info('Done...t = {:.1f}s'.format(time()-start))
     return outstruc
 
 
