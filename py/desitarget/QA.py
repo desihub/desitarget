@@ -1076,14 +1076,14 @@ def convert_target_data_model_for_QA(instruc):
     ----------
     instruc : :class:`~numpy.ndarray` 
         numpy structured array that contains at least
-        ``DECAM_FLUX``,``DECAM_MW_TRANSMISSION``,
-        ``DECAM_NOBS``,``DECAM_DEPTH``,``DECAM_GALDEPTH
+        ``DECAM_FLUX, DECAM_MW_TRANSMISSION, 
+        DECAM_NOBS, DECAM_DEPTH, DECAM_GALDEPTH``
         to convert to the new data model.
 
     Returns
     -------
     :class:`~numpy.ndarray` 
-        input structure with the DECAM_ columns converted to the DR4+ data model
+        input structure with the ``DECAM_`` columns converted to the DR4+ data model
     """
     #ADM the old DECAM_ columns that need to be updated
     decamcols = ['FLUX','MW_TRANSMISSION','NOBS','GALDEPTH']
