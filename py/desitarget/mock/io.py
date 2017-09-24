@@ -608,7 +608,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         lyafiles_qso = np.repeat('', nobj_qso)
         lyahdu_qso = np.repeat([-1], nobj_qso)
         templatetype_qso = np.repeat('QSO', nobj_qso)
-        templatesubtype = np.repeat('', nobj_qso)
+        templatesubtype_qso = np.repeat('', nobj_qso)
 
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:

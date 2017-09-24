@@ -1252,11 +1252,14 @@ def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None
         
     log.info('Writing to output directory {}'.format(output_dir))
     print()
+    
 
+    
     # Default set of healpixels is the whole sky (yikes!)
     if healpixels is None:
         healpixels = np.arange(hp.nside2npix(nside))
 
+        
     areaperpix = hp.nside2pixarea(nside, degrees=True)
     skyarea = len(healpixels) * areaperpix
     log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(

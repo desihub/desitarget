@@ -362,6 +362,8 @@ class SelectTargets(object):
             if density and n_in_brick > 0:
                 mock_density = n_in_brick / brick_area
                 desired_density = float(self.brick_info['FLUC_EBV_{}'.format(source_name)][brickindx] * density)
+                if desired_density < 0.0:
+                    desired_density = 0.0
 
                 frac_keep = desired_density / mock_density
                 if frac_keep > 1.0:
@@ -402,6 +404,8 @@ class SelectTargets(object):
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
                     desired_density = float(self.brick_info['FLUC_EBV_{}'.format(source_name)][brickindx] * contam[contam_name])
+                    if desired_density < 0.0:
+                        desired_density = 0.0
 
                     frac_keep = desired_density / contam_density
                     if frac_keep > 1.0:
