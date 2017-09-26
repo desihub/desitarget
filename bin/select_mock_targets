@@ -14,7 +14,8 @@ from astropy.table import Table
 
 from desitarget.mock.build import targets_truth, targets_truth_no_spectra
 from desiutil.log import get_logger, DEBUG
-from desimodel.footprint import tiles2pix
+import desimodel
+import desitarget.mock.io as mockio
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
@@ -51,22 +52,27 @@ if args.tiles and args.healpixels:
     log.error('use --tiles or --healpixels but not both')
     sys.exit(1)
 
-if args.tiles:
+    
+if args.tiles is not None:
     if args.tiles.endswith('.ecsv'):
-        tiles = Table.read(args.tiles, format='ascii.ecsv')
+            tiles = Table.read(args.tiles, format='ascii.ecsv')
     else:
         tiles = Table.read(args.tiles)
 
     log.info('{} tiles'.format(len(tiles)))
-    healpixels = tiles2pix(args.nside, tiles)
-
-if args.healpixels:
-    healpixels = np.array(args.healpixels)
-    log.info('Restricting footprint to input healpix pixels {}.  ** Please be sure these were computed with input nside = {}! **'.format(healpixels, args.nside))
+    healpixels = desimodel.footprint.tiles2pix(args.nside, tiles)
 else:
-    healpixels = tiles2pix(args.nside) # full DESI footprint!
-    log.info('Processing {} healpixels (nside = {}) over the full DESI footprint!'.format(len(healpixels), args.nside))
+    healpixels = np.array(args.healpixels)
 
+keep = list()
+for i, pixnum in enumerate(healpixels):
+    truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
+    if not os.path.exists(truthfile):
+        keep.append(i)
+
+log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
+healpixels = healpixels[keep]
+    
 # Optionally read the "real" target catalog.
 if args.realtargets is not None:
     from astropy.io import fits

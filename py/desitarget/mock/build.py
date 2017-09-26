@@ -1192,9 +1192,10 @@ def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magn
 
     return [targets, truth]
 
-def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, nproc=1):
+def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, nproc=1, healpixels=None):
     from desitarget.mock.spectra import MockMagnitudes
     from desitarget.mock.selection import SelectTargets
+    import healpy as hp
 
     # Initialize logger
     if verbose:
@@ -1219,6 +1220,16 @@ def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, 
         os.makedirs(output_dir)    
     log.info('Writing to output directory {}'.format(output_dir))
       
+        
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(healpix_nside))
+
+    areaperpix = hp.nside2pixarea(healpix_nside, degrees=True)
+    skyarea = len(healpixels) * areaperpix
+    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), healpix_nside, areaperpix, skyarea))
+
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
     log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
@@ -1231,7 +1242,7 @@ def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, 
     alltargets = list()
     alltruth = list()
     
-    return log, rand, magnitudes, selection
+    return log, rand, magnitudes, selection, healpixels
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None,
                                 verbose=False):
@@ -1249,10 +1260,11 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
     """
     
 
-    log, rand, Magnitudes, Selection = initialize(params, verbose = verbose, 
+    log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
                                        seed = seed, 
                                        output_dir = output_dir, 
-                                       nproc = nproc)
+                                       nproc = nproc, 
+                                    healpixels = healpixels)
     
     
     # Loop over each source / object type.
@@ -1328,15 +1340,6 @@ def old_targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=
     
 
     
-    # Default set of healpixels is the whole sky (yikes!)
-    if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(nside))
-
-        
-    areaperpix = hp.nside2pixarea(nside, degrees=True)
-    skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, skyarea))
 
     brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
                            decals_brick_info=params['decals_brick_info'], log=log,
