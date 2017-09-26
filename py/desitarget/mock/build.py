@@ -1244,6 +1244,32 @@ def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, 
     
     return log, rand, magnitudes, selection, healpixels
 
+def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, healpix_nside=16):
+    # Read the mock catalog.
+    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+    mockformat = params['sources'][source_name]['format']
+
+    mock_dir_name = params['sources'][source_name]['mock_dir_name']
+    if 'magcut' in params['sources'][source_name].keys():
+        magcut = params['sources'][source_name]['magcut']
+    else:
+        magcut = None
+
+    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+    log.info('Reading {}'.format(mock_dir_name))
+
+    mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+    if 'LYA' in params['sources'][source_name].keys():
+        lya = params['sources'][source_name]['LYA']
+    else:
+        lya = None
+    source_data = mockread_function(mock_dir_name, target_name, rand=rand,
+                                    magcut=magcut, nproc=nproc, lya=lya,
+                                    healpixels=healpixels, nside=healpix_nside)
+
+    return source_data
+   
+
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None,
                                 verbose=False):
     """
@@ -1272,9 +1298,13 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
     alltruth = list()
     for source_name in sorted(params['sources'].keys()):
         log.info('Processing source : {}'.format(source_name))
+        source_data = read_catalog(source_name, params, log, 
+                                rand=rand, nproc=nproc, healpixels=healpixels, healpix_nside=healpix_nside)
         #read_catalog(source_name, heal)
         
-    print()
+         # If there are no sources, keep going.
+        if not bool(source_data):
+            continue
         
 
 def old_targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
