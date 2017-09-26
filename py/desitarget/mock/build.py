@@ -1192,7 +1192,10 @@ def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magn
 
     return [targets, truth]
 
-def initialize(verbose=None, seed=None, outputdir="./", healpix_nside=4, n_proc=1):
+def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, nproc=1):
+    from desitarget.mock.spectra import MockMagnitudes
+    from desitarget.mock.selection import SelectTargets
+
     # Initialize logger
     if verbose:
         log = get_logger(DEBUG)
@@ -1205,7 +1208,7 @@ def initialize(verbose=None, seed=None, outputdir="./", healpix_nside=4, n_proc=
 
     # Check for required parameters in the input 'params' dict
     # Initialize the random seed
-    rand = np.random.RandomState(params['seed'])
+    rand = np.random.RandomState(seed)
 
     # Create the output directories
     if os.path.exists(output_dir):
@@ -1230,7 +1233,7 @@ def initialize(verbose=None, seed=None, outputdir="./", healpix_nside=4, n_proc=
     
     return log, rand, magnitudes, selection
 
-def targets_truth_no_spectra(params, nproc=1, healpix_nside=16, healpixels=None,
+def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None,
                                 verbose=False):
     """
     Generate a catalog of targets, spectra and the corresponding truth catalog.
@@ -1245,10 +1248,11 @@ def targets_truth_no_spectra(params, nproc=1, healpix_nside=16, healpixels=None,
             this set (array) of healpix pixels.
     """
     
-    log, rand, Magnitudes, Selection = initialize(verbose = verbose, 
-                                       seed = params['seed'], 
-                                       output_dir = params['output_dir'], 
-                                       n_proc = n_proc)
+
+    log, rand, Magnitudes, Selection = initialize(params, verbose = verbose, 
+                                       seed = seed, 
+                                       output_dir = output_dir, 
+                                       nproc = nproc)
     
     
     # Loop over each source / object type.

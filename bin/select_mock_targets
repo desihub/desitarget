@@ -13,7 +13,7 @@ import healpy as hp
 from astropy.table import Table
 
 from desitarget.mock.build import targets_truth, targets_truth_no_spectra
-from desispec.log import get_logger, DEBUG
+from desiutil.log import get_logger, DEBUG
 from desimodel.footprint import tiles2pix
 
 import multiprocessing
@@ -97,8 +97,8 @@ with open(args.config, 'r') as pfile:
 
 log.info('Calling targets_truth at {}'.format(time.asctime()))
 if args.no_spectra:
-    targets_truth_no_spectra(params, args.output_dir, realtargets=realtargets, seed=args.seed,
-                  verbose=args.verbose, nproc=args.nproc, nside=args.nside,
+    targets_truth_no_spectra(params, output_dir=args.output_dir,seed=args.seed,
+                  verbose=args.verbose, nproc=args.nproc, healpix_nside=args.nside,
                   healpixels=healpixels)
 else:
     targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
