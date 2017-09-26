@@ -1192,7 +1192,76 @@ def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magn
 
     return [targets, truth]
 
-def targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
+def initialize(verbose=None, seed=None, outputdir="./", healpix_nside=4, n_proc=1):
+    # Initialize logger
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+    
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
+    # Check for required parameters in the input 'params' dict
+    # Initialize the random seed
+    rand = np.random.RandomState(params['seed'])
+
+    # Create the output directories
+    if os.path.exists(output_dir):
+        if os.listdir(output_dir):
+            log.warning('Output directory {} is not empty.'.format(output_dir))
+    else:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)    
+    log.info('Writing to output directory {}'.format(output_dir))
+      
+    # Initialize the Classes used to assign spectra and select targets.  Note:
+    # The default wavelength array gets initialized here, too.
+    log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
+    magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+    selection = SelectTargets(logger=log, rand=rand)
+    
+    print()
+    current_pixel_ID = 0
+    # Loop over each source / object type.
+    alltargets = list()
+    alltruth = list()
+    
+    return log, rand, magnitudes, selection
+
+def targets_truth_no_spectra(params, nproc=1, healpix_nside=16, healpixels=None,
+                                verbose=False):
+    """
+    Generate a catalog of targets, spectra and the corresponding truth catalog.
+    Args:
+        params: dict
+            Source parameters
+        nproc: number of parallel processes to use (default 1)
+        healpix_nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels.
+    """
+    
+    log, rand, Magnitudes, Selection = initialize(verbose = verbose, 
+                                       seed = params['seed'], 
+                                       output_dir = params['output_dir'], 
+                                       n_proc = n_proc)
+    
+    
+    # Loop over each source / object type.
+    alltargets = list()
+    alltruth = list()
+    for source_name in sorted(params['sources'].keys()):
+        log.info('Processing source : {}'.format(source_name))
+        #read_catalog(source_name, heal)
+        
+    print()
+        
+
+def old_targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
                   bricksize=0.25, nproc=1, nside=16, healpixels=None):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
     (with, e.g., the true redshift) for use in simulations.
