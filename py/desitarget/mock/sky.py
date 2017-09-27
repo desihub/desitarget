@@ -13,7 +13,7 @@ def _random_theta_phi(nside, pix):
 def random_sky(nside=2048, tiles=None, maxiter=20):
     '''
     Returns sky locations within healpixels covering tiles
-    
+
     Options:
         nside (int): healpixel nside; coverage is uniform at this scale
         tiles: DESI tiles to cover, for desimodel.footprint.tiles2pix()
