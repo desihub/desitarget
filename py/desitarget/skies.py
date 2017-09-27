@@ -178,19 +178,28 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
         #ADM set up a list of skies that don't match an object
         goodskies = np.ones(len(cskies),dtype=bool)
 
-        #ADM match the small-separation objects and flag any skies that match such an object
-        log.info('Matching positions out to {:.1f} arcsec...t = {:.1f}s'
-                 .format(sepsplit,time()-start))
-        idskies, idobjs, d2d, _ = cobjs[smallsepw].search_around_sky(cskies,sepsplit*u.arcsec)
-        w = np.where(d2d.arcsec < sep[smallsepw[idobjs]])
-        goodskies[idskies[w]] = False
+        #ADM guard against the case where there are no objects with small radii
+        if len(smallsepw) > 0:
+            #ADM match the small-separation objects and flag any skies that match such an object
+            log.info('Matching positions out to {:.1f} arcsec...t = {:.1f}s'
+                     .format(sepsplit,time()-start))
+            idskies, idobjs, d2d, _ = cobjs[smallsepw].search_around_sky(cskies,sepsplit*u.arcsec)
+            w = np.where(d2d.arcsec < sep[smallsepw[idobjs]])
+            #ADM remember to guard against the case with no bad positions
+            if len(w[0]) > 0:
+                goodskies[idskies[w]] = False
 
-        #ADM match the large-separation objects and flag any skies that match such an object
-        log.info('Matching additional positions out to {:.1f} arcsec...t = {:.1f}s'
-                 .format(maxrad,time()-start))
-        idskies, idobjs, d2d, _ = cobjs[bigsepw].search_around_sky(cskies,maxrad*u.arcsec)
-        w = np.where(d2d.arcsec < sep[bigsepw[idobjs]])
-        goodskies[idskies[w]] = False
+        #ADM guard against the case where there are no objects with large radii
+        if len(bigsepw) > 0:
+            #ADM match the large-separation objects and flag any skies that match such an object
+            log.info('Matching additional positions out to {:.1f} arcsec...t = {:.1f}s'
+                     .format(maxrad,time()-start))
+            idskies, idobjs, d2d, _ = cobjs[bigsepw].search_around_sky(cskies,maxrad*u.arcsec)
+            import pdb ; pdb.set_trace()
+            w = np.where(d2d.arcsec < sep[bigsepw[idobjs]])
+            #ADM remember to guard against the case with no bad positions
+            if len(w[0]) > 0:
+                goodskies[idskies[w]] = False
 
         #ADM good sky positions we found
         wgood = np.where(goodskies)[0]
@@ -320,7 +329,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,plotname=None)
 
 
 def make_sky_targets(objs,navoid=2.,nskymin=None):
-    """Translate generated sky targets into the typical format for DESI targets
+    """Generate sky targets and translate them into the typical format for DESI targets
 
     Parameters
     ----------
