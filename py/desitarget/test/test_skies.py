@@ -31,6 +31,25 @@ class TestSKIES(unittest.TestCase):
         self.nskymin = 50000
         self.navoid = 2.
 
+    
+    def test_calculate_separations():
+        """
+        Test the separation radius for objects are consistent with their shapes
+        """
+        sep = skies.calculate_separations(objs,navoid)
+        
+        #ADM are objects with radii of 2 x the seeing PSF-like 
+        #ADM (or galaxies that are compact to < 2 arcsecond seeing)?
+        w = np.where(sep==2*navoid)
+        maxsize = np.fmax(objs["SHAPEEXP_R"][w],objs["SHAPEDEV_R"][w])
+        self.assertTrue(np.all(maxsize <= 2))
+
+        #ADM are objects with radii of > 2 x the seeing galaxies
+        #ADM with larger half-light radii than 2 arcsec?
+        w = np.where(sep!=2*navoid)
+        maxsize = np.fmax(objs["SHAPEEXP_R"][w],objs["SHAPEDEV_R"][w])
+        self.assertTrue(np.all(maxsize >= 2))
+
 
     def test_generate_sky_positions():
         """
