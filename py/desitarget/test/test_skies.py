@@ -6,7 +6,7 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from desitarget import skies, io
+from desitarget import skies, io, targets
 
 from desiutil import brick
 
@@ -18,12 +18,12 @@ class TestSKIES(unittest.TestCase):
         self.sweepfile = self.datadir + '/sweep-320m005-330p000.fits'
 
         #ADM read in the test sweeps file
-        objs = io.read_tractor(self.sweepfile)
+        self.objs = io.read_tractor(self.sweepfile)
 
         #ADM create a "maximum" search distance that is as large as the 
         #ADM diagonal across all objects in the test sweeps file
-        cmax = SkyCoord(max(objs["RA"])*u.degree, max(objs["DEC"])*u.degree)
-        cmin = SkyCoord(min(objs["RA"])*u.degree, min(objs["DEC"])*u.degree)
+        cmax = SkyCoord(max(self.objs["RA"])*u.degree, max(self.objs["DEC"])*u.degree)
+        cmin = SkyCoord(min(self.objs["RA"])*u.degree, min(self.objs["DEC"])*u.degree)
         self.maxrad = cmax.separation(cmin).arcsec
 
         #ADM at this nskymin you always seem to get at least 1 bad position
@@ -36,18 +36,18 @@ class TestSKIES(unittest.TestCase):
         """
         Test the separation radius for objects are consistent with their shapes
         """
-        sep = skies.calculate_separations(objs,navoid)
+        sep = skies.calculate_separations(self.objs,navoid)
         
         #ADM are objects with radii of 2 x the seeing PSF-like 
         #ADM (or galaxies that are compact to < 2 arcsecond seeing)?
         w = np.where(sep==2*navoid)
-        maxsize = np.fmax(objs["SHAPEEXP_R"][w],objs["SHAPEDEV_R"][w])
+        maxsize = np.fmax(self.objs["SHAPEEXP_R"][w],self.objs["SHAPEDEV_R"][w])
         self.assertTrue(np.all(maxsize <= 2))
 
         #ADM are objects with radii of > 2 x the seeing galaxies
         #ADM with larger half-light radii than 2 arcsec?
         w = np.where(sep!=2*navoid)
-        maxsize = np.fmax(objs["SHAPEEXP_R"][w],objs["SHAPEDEV_R"][w])
+        maxsize = np.fmax(self.objs["SHAPEEXP_R"][w],self.objs["SHAPEDEV_R"][w])
         self.assertTrue(np.all(maxsize >= 2))
 
 
@@ -56,16 +56,17 @@ class TestSKIES(unittest.TestCase):
         Test that bad sky positions match objects and good sky positions don't
         """
         #ADM generate good and bad sky positions at a high density for testing
-        ragood, decgood, rabad, decbad = 
-                    skies.generate_sky_positions(objs,navoid=self.navoid,nskymin=self.nskymin)
+        ragood, decgood, rabad, decbad = skies.generate_sky_positions(
+            self.objs,navoid=self.navoid,nskymin=self.nskymin)
           
         #ADM navoid x the largest half-light radius of a galaxy in the field
         #ADM or the PSF assuming a seeing of 2"
-        nobjs = len(objs)
-        sep = navoid*np.max(np.vstack([objs["SHAPEDEV_R"], objs["SHAPEEXP_R"], np.ones(nobjs)*2]).T,axis=1)
+        nobjs = len(self.objs)
+        sep = navoid*np.max(np.vstack(
+            [self.objs["SHAPEDEV_R"], self.objs["SHAPEEXP_R"], np.ones(nobjs)*2]).T,axis=1)
 
         #ADM the object positions from the mock sweeps file
-        cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
+        cobjs = SkyCoord(self.objs["RA"]*u.degree, self.objs["DEC"]*u.degree)
 
         #ADM test that none of the good sky positions match to an object
         #ADM using self.maxrad should capture all possible matches
@@ -81,6 +82,27 @@ class TestSKIES(unittest.TestCase):
         #ADM do we have the same total of unique (each sky position counted
         #ADM only once) matches as the total number of bad sky positions?
         self.assertEqual(len(np.unique(idskies[w])),len(rabad))
+
+
+    def test_make_sky_targets_bits():
+        """
+        Check that the output bit formatting from make_sky_targets is correct
+        """
+        #ADM make the output rec array
+        outskies = skies.make_sky_targets(
+            self.objs,navoid=self.navoid,nskymin=self.nskymin) 
+
+        #ADM construct the OBJID (which is just the sequential ordering of the sky positions)
+        objid = np.arange(len((outskies)))
+
+        #ADM construct the BRICKID
+        b = brick.Bricks(bricksize=0.25)
+        brickid = b.brickid(outskies["RA"],outskies["DEC"])
+
+        #ADM mock-up the release number from the input objects' information
+        release = np.max(self.objs["RELEASE"])
+
+
 
 
 if __name__ == '__main__':
