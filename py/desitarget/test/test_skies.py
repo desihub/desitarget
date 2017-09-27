@@ -31,27 +31,25 @@ class TestSKIES(unittest.TestCase):
         self.nskymin = 50000
         self.navoid = 2.
 
-    
-    def test_calculate_separations():
+    def test_calculate_separations(self):
         """
         Test the separation radius for objects are consistent with their shapes
         """
-        sep = skies.calculate_separations(self.objs,navoid)
+        sep = skies.calculate_separations(self.objs,self.navoid)
         
         #ADM are objects with radii of 2 x the seeing PSF-like 
         #ADM (or galaxies that are compact to < 2 arcsecond seeing)?
-        w = np.where(sep==2*navoid)
+        w = np.where(sep==2*self.navoid)
         maxsize = np.fmax(self.objs["SHAPEEXP_R"][w],self.objs["SHAPEDEV_R"][w])
         self.assertTrue(np.all(maxsize <= 2))
 
         #ADM are objects with radii of > 2 x the seeing galaxies
         #ADM with larger half-light radii than 2 arcsec?
-        w = np.where(sep!=2*navoid)
+        w = np.where(sep!=2*self.navoid)
         maxsize = np.fmax(self.objs["SHAPEEXP_R"][w],self.objs["SHAPEDEV_R"][w])
         self.assertTrue(np.all(maxsize >= 2))
 
-
-    def test_generate_sky_positions():
+    def test_generate_sky_positions(self):
         """
         Test that bad sky positions match objects and good sky positions don't
         """
@@ -62,7 +60,7 @@ class TestSKIES(unittest.TestCase):
         #ADM navoid x the largest half-light radius of a galaxy in the field
         #ADM or the PSF assuming a seeing of 2"
         nobjs = len(self.objs)
-        sep = navoid*np.max(np.vstack(
+        sep = self.navoid*np.max(np.vstack(
             [self.objs["SHAPEDEV_R"], self.objs["SHAPEEXP_R"], np.ones(nobjs)*2]).T,axis=1)
 
         #ADM the object positions from the mock sweeps file
@@ -83,8 +81,7 @@ class TestSKIES(unittest.TestCase):
         #ADM only once) matches as the total number of bad sky positions?
         self.assertEqual(len(np.unique(idskies[w])),len(rabad))
 
-
-    def test_make_sky_targets_bits():
+    def test_make_sky_targets_bits(self):
         """
         Check that the output bit formatting from make_sky_targets is correct
         """
@@ -102,8 +99,9 @@ class TestSKIES(unittest.TestCase):
         #ADM mock-up the release number from the input objects' information
         release = np.max(self.objs["RELEASE"])
 
-
-
+        #ADM check official targetid agrees with the output targetid from make_sky_targets
+        targetid = targets.encode_targetid(objid=objid,brickid=brickid,release=release,sky=1)
+        self.assertTrue(np.all(targetid==outskies["TARGETID"]))
 
 if __name__ == '__main__':
     unittest.main()
