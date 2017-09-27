@@ -1228,7 +1228,7 @@ def HPX_info(targetfilename,outfilename='hp-info-dr3.fits',nside=256):
     hdr['HPXNSIDE'] = nside
     hdr['HPXNEST'] = True
 
-    fitsio.write(outfilename, outstruc, extname='HPXINFO', clobber=True)
+    fitsio.write(outfilename, outstruc, extname='HPXINFO', header=hdr, clobber=True)
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
     return outstruc
