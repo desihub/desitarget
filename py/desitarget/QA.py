@@ -1222,8 +1222,13 @@ def HPX_info(targetfilename,outfilename='hp-info-dr3.fits',nside=256):
             outstruc[bitnames[i]] = targsperhpx[outstruc['HPXID']]/outstruc['HPXAREA']
 
     log.info('Writing output file...t = {:.1f}s'.format(time()-start))
-    #ADM everything should be populated, just write it out
-    fitsio.write(outfilename, outstruc, extname='BRICKINFO', clobber=True)
+    #ADM everything should be populated, just write it out,
+    #ADM also populate header info noting the HEALPixel scheme
+    hdr = fitsio.FITSHDR()
+    hdr['HPXNSIDE'] = nside
+    hdr['HPXNEST'] = True
+
+    fitsio.write(outfilename, outstruc, extname='HPXINFO', clobber=True)
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
     return outstruc
