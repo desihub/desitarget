@@ -5,6 +5,7 @@ desitarget Change Log
 0.15.0 (unreleased)
 -------------------
 
+* Initial simplistic code for generating sky positions [`PR #220`_]
 * Refactored :mod:`desitarget.QA` to calculate density fluctuations in HEALPixels 
   instead of in bricks [`PR #217`_]:
 * Updated :mod:`desitarget.io` for the DR5 RELEASE number [`PR #214`_]:
@@ -25,6 +26,7 @@ desitarget Change Log
 .. _`PR #210`: https://github.com/desihub/desitarget/pull/210
 .. _`PR #214`: https://github.com/desihub/desitarget/pull/214
 .. _`PR #217`: https://github.com/desihub/desitarget/pull/217
+.. _`PR #220`: https://github.com/desihub/desitarget/pull/220
 
 0.14.0 (2017-07-10)
 -------------------
