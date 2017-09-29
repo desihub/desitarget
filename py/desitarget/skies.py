@@ -224,7 +224,7 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
     return ragood, decgood, rabad, decbad
 
 
-def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,plotname=None):
+def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,plotname=None):
     """plot an example set of sky positions to check if they avoid real objects
 
     Parameters
@@ -246,6 +246,9 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,plotname=None)
     navoid : :class:`float`, optional, defaults to 2.
         the number of times the galaxy half-light radius (or seeing) that
         objects (objs) were avoided out to when generating sky positions
+    limits : :class:`~numpy.array`, optional, defaults to None
+        plot limits in the form [ramin, ramax, decmin, decmax] if None
+        is passed, then a small subsection of the passed area is plotted
     plotname : :class:`str`, defaults to None    
         If a name is passed use matplotlib's savefig command to save the
         plot to that file name. Otherwise, display the plot
@@ -287,10 +290,14 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,plotname=None)
     maxrad = max(sep)/3600.
 
     #ADM limit the figure range based on the passed objs
-    rarange, decrange = ramax - ramin, decmax - decmin
-    rastep, decstep = rarange*0.47, decrange*0.47
-    ralo, rahi = ramin+rastep, ramax-rastep
-    declo, dechi = decmin+decstep, decmax-decstep
+    if limits is None:
+        rarange, decrange = ramax - ramin, decmax - decmin
+        rastep, decstep = rarange*0.47, decrange*0.47
+        ralo, rahi = ramin+rastep, ramax-rastep
+        declo, dechi = decmin+decstep, decmax-decstep
+    else:
+        ralo, rahi, declo, dechi = limits
+
     plt.axis([ralo,rahi,declo,dechi])
 
     #ADM plot good and bad sky positions
