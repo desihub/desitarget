@@ -63,7 +63,7 @@ else:
         targs = np.empty(nobjs, dtype=targets.dtype)
         targs[0:ntargs] = targets
         targs[ntargs:nobjs] = skies
-        targets = targs.copy()
+        targets = targs
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
