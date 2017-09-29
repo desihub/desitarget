@@ -13,23 +13,27 @@ from desiutil import brick
 class TestSKIES(unittest.TestCase):
 
     def setUp(self):
+        #ADM at this nskymin you always seem to get at least 1 bad position
+        #ADM (based on 1000 trials)
+        self.nskymin = 50000
+        self.navoid = 2.
+
         #ADM location of input test file
         self.datadir = resource_filename('desitarget.test', 't')
         self.sweepfile = self.datadir + '/sweep-320m005-330p000.fits'
 
         #ADM read in the test sweeps file
         self.objs = io.read_tractor(self.sweepfile)
+        
+        #ADM need to ensure that one object has a large enough half-light radius
+        #ADM to cover matching sky positions to larger objects
+        self.objs['SHAPEDEV_R'][0] = 4.1*self.navoid
 
         #ADM create a "maximum" search distance that is as large as the 
         #ADM diagonal across all objects in the test sweeps file
         cmax = SkyCoord(max(self.objs["RA"])*u.degree, max(self.objs["DEC"])*u.degree)
         cmin = SkyCoord(min(self.objs["RA"])*u.degree, min(self.objs["DEC"])*u.degree)
         self.maxrad = cmax.separation(cmin).arcsec
-
-        #ADM at this nskymin you always seem to get at least 1 bad position
-        #ADM (based on 1000 trials)
-        self.nskymin = 50000
-        self.navoid = 2.
 
     def test_calculate_separations(self):
         """

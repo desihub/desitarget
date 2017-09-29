@@ -195,7 +195,6 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
             log.info('Matching additional positions out to {:.1f} arcsec...t = {:.1f}s'
                      .format(maxrad,time()-start))
             idskies, idobjs, d2d, _ = cobjs[bigsepw].search_around_sky(cskies,maxrad*u.arcsec)
-            import pdb ; pdb.set_trace()
             w = np.where(d2d.arcsec < sep[bigsepw[idobjs]])
             #ADM remember to guard against the case with no bad positions
             if len(w[0]) > 0:
