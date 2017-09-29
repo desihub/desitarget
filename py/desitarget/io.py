@@ -191,7 +191,7 @@ def read_tractor(filename, header=False, columns=None):
 
 
 def fix_tractor_dr1_dtype(objects):
-    """DR1 tractor files have inconsitent dtype for the TYPE field.  Fix this.
+    """DR1 tractor files have inconsistent dtype for the TYPE field.  Fix this.
 
     Args:
         objects : numpy structured array from target file
