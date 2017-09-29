@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.15.0 (unreleased)
+0.15.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.15.0 (2017-09-29)
 -------------------
 
 * Refactored :mod:`desitarget.QA` to calculate density fluctuations in HEALPixels 
