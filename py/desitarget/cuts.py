@@ -465,7 +465,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     #define pcut, relaxed cut for faint objects
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
-    pcut_DR5 = np.where(r>20.0,0.92 - (r-20.0)*0.10,0.92)
+    pcut_DR5 = np.where(r>20.0,0.92 - (r-20.0)*0.08,0.92)
 
     qso = primary.copy()
     qso &= r<rMax
