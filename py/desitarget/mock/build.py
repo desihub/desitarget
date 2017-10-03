@@ -1077,6 +1077,8 @@ def _get_magnitudes_onebrick(specargs):
     """Filler function for the multiprocessing."""
     return get_magnitudes_onebrick(*specargs)
 
+
+
 def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magnitudes, dust_dir,
                          select_targets_function, source_data, rand, log):
     """Wrapper function to generate magnitudes for all the objects on a single brick."""
@@ -1268,10 +1270,75 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
                                     healpixels=healpixels, nside=healpix_nside)
 
     return source_data
-   
+
+def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
+                            rand, log, healpix_nside, healpix_id, dust_dir):
+    from desimodel.footprint import radec2pix
+    
+    obj_pix_id = radec2pix(healpix_nside, source_data['RA'], source_data['DEC'])
+    onpix = np.where(obj_pix_id == healpix_id)[0]
+    
+    log.info('{} objects of type {} in healpix_id {}'.format(np.count_nonzero(onpix), target_name, healpix_id))
+    
+    nobj = len(onpix)
+
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj)
+
+    for key in ('RA', 'DEC'):
+        targets[key][:] = source_data[key][onpix]
+
+    # Assign unique OBJID values and reddenings. 
+    targets['HPXPIXEL'][:] = np.arange(nobj)
+
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
+
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
+    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
+    # for now.
+    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
+                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
+    
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key][:] = source_data[key][onpix]
+
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][onpix]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
+
+    if target_name.lower() == 'sky':
+        return [targets, truth]
+            
+    truth['TRUEZ'][:] = source_data['Z'][onpix]
+
+    # Assign the magnitudes
+    meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=mockformat)
+
+    #for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+    #            'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+    #    truth[key][:] = meta[key]
+
+    # Perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    #for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+    #    targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
+
+    return [targets, truth]
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None,
-                                verbose=False):
+                                verbose=False, dust_dir="./"):
     """
     Generate a catalog of targets, spectra and the corresponding truth catalog.
     Args:
@@ -1290,21 +1357,24 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                                        seed = seed, 
                                        output_dir = output_dir, 
                                        nproc = nproc, 
-                                    healpixels = healpixels)
-    
+                                        healpixels = healpixels)
     
     # Loop over each source / object type.
     alltargets = list()
     alltruth = list()
     for source_name in sorted(params['sources'].keys()):
-        log.info('Processing source : {}'.format(source_name))
+        mockformat = params['sources'][source_name]['format']
+        log.info('Reading  source : {}'.format(source_name))
         source_data = read_catalog(source_name, params, log, 
                                 rand=rand, nproc=nproc, healpixels=healpixels, healpix_nside=healpix_nside)
-        #read_catalog(source_name, heal)
         
          # If there are no sources, keep going.
         if not bool(source_data):
             continue
+            
+        for healpix in healpixels:
+            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
+                                        healpix_nside, healpix, dust_dir=params['dust_dir'])
         
 
 def old_targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
