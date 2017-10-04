@@ -62,7 +62,9 @@ setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.f
 # Add internal data directories
 #
 setup_keywords['package_data'] = {'desitarget': ['data/*',],
-                                  'desitarget.test': ['t/*',]}
+                                  'desitarget.test': ['t/*',],
+                                  'desitarget.mock': ['data/*',],
+                                 }
 #
 # Run setup command.
 #
