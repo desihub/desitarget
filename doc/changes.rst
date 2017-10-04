@@ -5,7 +5,9 @@ desitarget Change Log
 0.15.1 (unreleased)
 -------------------
 
-* Include GMM model data for mocks when installing.
+* Include GMM model data for mocks when installing [`PR #222`_].
+
+.. _`PR #222`: https://github.com/desihub/desitarget/pull/222
 
 0.15.0 (2017-09-29)
 -------------------
