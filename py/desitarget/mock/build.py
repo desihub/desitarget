@@ -1337,10 +1337,110 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
 
     return [targets, truth]
 
+def write_to_disk(alltargets, alltruth, allskytargets, allskytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
+    from desispec.io.util import fitsheader, write_bintable
+    from desiutil import depend
+    from desimodel.footprint import radec2pix
+    from astropy.io import fits
+
+
+
+    targets = vstack(alltargets)
+    truth = vstack(alltruth)
+    n_obj = len(targets)
+    
+    skytargets = vstack(allskytargets)
+    skytruth = vstack(allskytruth)
+    n_sky = len(skytargets)
+
+    log.info('Total number of targets and sky in pixel {}: {} {}'.format(healpix_id, n_obj, n_sky))
+    objid = np.arange(n_obj + n_sky)
+    
+    targetid = encode_targetid(objid=objid, brickid=healpix_id*np.ones(n_obj+n_sky, dtype=int), mock=1)
+    subpriority = rand.uniform(0.0, 1.0, size=n_obj+n_sky)
+
+    truth['TARGETID'][:] = targetid[:n_obj]
+    targets['TARGETID'][:] = targetid[:n_obj]
+    targets['SUBPRIORITY'][:] = subpriority[:n_obj]
+    
+    if n_sky > 0:
+        skytargets['TARGETID'][:] = targetid[n_obj:]
+        skytargets['SUBPRIORITY'][:] = subpriority[n_obj:]
+        
+    # Write the final catalogs
+    if seed is None:
+        seed1 = 'None'
+    else:
+        seed1 = seed
+    truthhdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
+
+    targetshdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
+    depend.setdep(targetshdr, 'HPXNSIDE', healpix_nside)
+    depend.setdep(targetshdr, 'HPXNEST', True)
+
+    targpix = radec2pix(healpix_nside, targets['RA'], targets['DEC'])
+    targets['HPXPIXEL'][:] = targpix
+
+    if n_sky > 0:
+        targpix = radec2pix(healpix_nside, skytargets['RA'], skytargets['DEC'])
+        skytargets['HPXPIXEL'][:] = targpix
+        
+    outdir = mockio.get_healpix_dir(healpix_nside, healpix_id, basedir=output_dir)
+    os.makedirs(outdir, exist_ok=True)
+
+    # Write out the sky catalog.
+    if n_sky > 0:
+        skyfile = mockio.findfile('sky', healpix_nside, healpix_id, basedir=output_dir)
+        log.info('Writing {} SKY targets to {}'.format(n_sky, skyfile))
+        write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
+                               header=targetshdr, clobber=True)
+        os.rename(skyfile+'.tmp', skyfile)
+
+    # Write out the dark- and bright-time standard stars.
+    for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+        stdfile = mockio.findfile('standards-{}'.format(stdsuffix), healpix_nside, healpix_id, basedir=output_dir)
+        istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
+                   (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
+
+        if np.count_nonzero(istd) > 0:
+            log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
+            write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
+                               header=targetshdr, clobber=True)
+            os.rename(stdfile+'.tmp', stdfile)
+        else:
+            log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
+
+        # Finally write out the rest of the targets.
+    targetsfile = mockio.findfile('targets', healpix_nside, healpix_id, basedir=output_dir)
+    truthfile = mockio.findfile('truth', healpix_nside, healpix_id, basedir=output_dir)
+
+    if n_obj > 0:
+        log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
+        targets.meta['EXTNAME'] = 'TARGETS'
+        write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
+                          header=targetshdr, clobber=True)
+        os.rename(targetsfile+'.tmp', targetsfile)
+
+        log.info('Writing {}'.format(truthfile))
+        hx = fits.HDUList()
+        hdu = fits.convenience.table_to_hdu(truth)
+        hdu.header['EXTNAME'] = 'TRUTH'
+        hx.append(hdu)
+
+        try:
+            hx.writeto(truthfile+'.tmp', overwrite=True)
+        except:
+            hx.writeto(truthfile+'.tmp', clobber=True)
+        os.rename(truthfile+'.tmp', truthfile)
+
+
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None,
                                 verbose=False, dust_dir="./"):
-    """
-    Generate a catalog of targets, spectra and the corresponding truth catalog.
+    """Generate a catalog of targets, spectra and the corresponding truth catalog.
     Args:
         params: dict
             Source parameters
@@ -1360,21 +1460,42 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                                         healpixels = healpixels)
     
     # Loop over each source / object type.
-    alltargets = list()
-    alltruth = list()
-    for source_name in sorted(params['sources'].keys()):
-        mockformat = params['sources'][source_name]['format']
-        log.info('Reading  source : {}'.format(source_name))
-        source_data = read_catalog(source_name, params, log, 
-                                rand=rand, nproc=nproc, healpixels=healpixels, healpix_nside=healpix_nside)
+   
+    
+    
+    for healpix in healpixels:
+        alltargets = list()
+        alltruth = list()
+        allskytargets = list()
+        allskytruth = list()
+          
+        for source_name in sorted(params['sources'].keys()):
+            mockformat = params['sources'][source_name]['format']
+            log.info('Reading  source : {}'.format(source_name))
+            source_data = read_catalog(source_name, params, log, 
+                                    rand=rand, nproc=nproc, healpixels=healpix, healpix_nside=healpix_nside)
         
          # If there are no sources, keep going.
-        if not bool(source_data):
-            continue
+            if not bool(source_data):
+                continue
             
-        for healpix in healpixels:
             pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
                                         healpix_nside, healpix, dust_dir=params['dust_dir'])
+            
+            targets = pixel_results[0]
+            truth = pixel_results[1]
+            if source_name.upper() == 'SKY':
+                allskytargets.append(targets)
+                allskytruth.append(truth)
+            else:
+                alltargets.append(targets)
+                alltruth.append(truth)
+        
+        # compile and write results for the whole pixel
+        write_to_disk(alltargets, alltruth, allskytargets, allskytruth, healpix_nside, healpix, seed, rand, log, output_dir)
+
+        
+        
         
 
 def old_targets_truth_no_spectra(params, output_dir='.', realtargets=None, seed=None, verbose=False,
