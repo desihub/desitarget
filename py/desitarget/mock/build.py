@@ -1337,22 +1337,19 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
 
     return [targets, truth]
 
-def write_to_disk(alltargets, alltruth, allskytargets, allskytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
-    from desispec.io.util import fitsheader, write_bintable
-    from desiutil import depend
-    from desimodel.footprint import radec2pix
-    from astropy.io import fits
-
-
-
+def target_selection(alltargets, alltruth, allskytargets, allskytruth, healpix_nside, healpix_id, seed, rand, log,output_dir):
     targets = vstack(alltargets)
     truth = vstack(alltruth)
-    n_obj = len(targets)
     
     skytargets = vstack(allskytargets)
     skytruth = vstack(allskytruth)
-    n_sky = len(skytargets)
+    return targets, truth, skytargets, skytruth
+    
+def finish_catalog(targets, truth, skytargets, skytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
+    from desimodel.footprint import radec2pix
 
+    n_obj = len(targets)
+    n_sky = len(skytargets)
     log.info('Total number of targets and sky in pixel {}: {} {}'.format(healpix_id, n_obj, n_sky))
     objid = np.arange(n_obj + n_sky)
     
@@ -1367,6 +1364,24 @@ def write_to_disk(alltargets, alltruth, allskytargets, allskytruth, healpix_nsid
         skytargets['TARGETID'][:] = targetid[n_obj:]
         skytargets['SUBPRIORITY'][:] = subpriority[n_obj:]
         
+    targpix = radec2pix(healpix_nside, targets['RA'], targets['DEC'])
+    targets['HPXPIXEL'][:] = targpix
+
+    if n_sky > 0:
+        targpix = radec2pix(healpix_nside, skytargets['RA'], skytargets['DEC'])
+        skytargets['HPXPIXEL'][:] = targpix
+    
+    return targets, truth, skytargets, skytruth
+
+def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
+    from desispec.io.util import fitsheader, write_bintable
+    from desiutil import depend
+    from astropy.io import fits
+    
+    
+    n_obj = len(targets)
+    n_sky = len(skytargets)
+    
     # Write the final catalogs
     if seed is None:
         seed1 = 'None'
@@ -1382,12 +1397,6 @@ def write_to_disk(alltargets, alltruth, allskytargets, allskytruth, healpix_nsid
     depend.setdep(targetshdr, 'HPXNSIDE', healpix_nside)
     depend.setdep(targetshdr, 'HPXNEST', True)
 
-    targpix = radec2pix(healpix_nside, targets['RA'], targets['DEC'])
-    targets['HPXPIXEL'][:] = targpix
-
-    if n_sky > 0:
-        targpix = radec2pix(healpix_nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['HPXPIXEL'][:] = targpix
         
     outdir = mockio.get_healpix_dir(healpix_nside, healpix_id, basedir=output_dir)
     os.makedirs(outdir, exist_ok=True)
@@ -1449,7 +1458,6 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
     # Loop over each source / object type.
    
     
-    
     for healpix in healpixels:
         alltargets = list()
         alltruth = list()
@@ -1479,7 +1487,14 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                 alltruth.append(truth)
         
         # compile and write results for the whole pixel
-        write_to_disk(alltargets, alltruth, allskytargets, allskytruth, healpix_nside, healpix, seed, rand, log, output_dir)
+        targets, truth, skytargets, skytruth = target_selection(alltargets, alltruth, allskytargets, allskytruth, 
+                                                               healpix_nside, healpix, seed, rand, log, output_dir)
+        
+        targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
+                                                              healpix_nside,healpix, seed, rand, log, output_dir)
+        
+        write_to_disk(targets, truth, skytargets, skytruth,  
+                      healpix_nside, healpix, seed, rand, log, output_dir)
 
         
         
