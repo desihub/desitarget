@@ -1349,11 +1349,27 @@ def target_selection(Selection, target_name, targets, truth, healpix_nside, heal
     select_targets_function(targets, truth)
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
 
+    targets = targets[keep]
+    truth = truth[keep]
     if len(keep) == 0:
         log.warning('All {} targets rejected!'.format(target_name))
+        #return targets, truth
     else:
-        targets = targets[keep]
-        truth = truth[keep]
+        log.warning('{} targets accepted out of a total of {}'.format(len(keep), len(targets)))
+        #targets = targets[keep]
+        #truth = truth[keep]
+    
+    no_target_class = np.ones(len(targets), dtype=bool)
+    if 'DESI_TARGET' in targets.dtype.names:
+        no_target_class &=  targets['DESI_TARGET'] == 0
+    if 'BGS_TARGET' in targets.dtype.names:
+        no_target_class &= targets['BGS_TARGET']  == 0
+    if 'MWS_TARGET' in targets.dtype.names:
+        no_target_class &= targets['MWS_TARGET']  == 0
+
+    n_no_target_class = np.sum(no_target_class)
+    if n_no_target_class > 0:
+        raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
     
     return targets, truth
     
@@ -1495,10 +1511,11 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                 allskytargets.append(targets)
                 allskytruth.append(truth)
             else:
+                targets, truth = target_selection(Selection, source_name, targets, truth,
+                                                             healpix_nside, healpix, seed, rand, log, output_dir)
                 alltargets.append(targets)
                 alltruth.append(truth)
-                alltargets[-1], alltruth[-1] = target_selection(Selection, source_name, alltargets[-1], alltruth[-1],
-                                                             healpix_nside, healpix, seed, rand, log, output_dir)
+               
         
         #Merge all sources
         targets = vstack(alltargets)
