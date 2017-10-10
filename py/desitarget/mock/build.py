@@ -1554,13 +1554,24 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                     alltargets.append(targets)
                     alltruth.append(truth)
                
+        if len(alltargets)==0 and len(allskytargets)==0:
+            return
         
         #Merge all sources
-        targets = vstack(alltargets)
-        truth = vstack(alltruth)
-        skytargets = vstack(allskytargets)
-        skytruth = vstack(allskytruth)
-    
+        if len(alltargets):
+            targets = vstack(alltargets)
+            truth = vstack(alltruth)
+        else:
+            targets = []
+            truth = []
+            
+        if len(allskytargets):
+            skytargets = vstack(allskytargets)
+            skytruth = vstack(allskytruth)
+        else:
+            skytargets = []
+            skytruth = []
+
         #Add some final columns
         targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
                                                               healpix_nside,healpix, seed, rand, log, output_dir)
