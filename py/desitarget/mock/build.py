@@ -1345,7 +1345,6 @@ def target_selection(Selection, target_name, targets, truth, healpix_nside, heal
     selection_function = '{}_select'.format(target_name.lower())
     select_targets_function = getattr(Selection, selection_function)
 
-    print(select_targets_function)
     select_targets_function(targets, truth)
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
 
@@ -1353,12 +1352,10 @@ def target_selection(Selection, target_name, targets, truth, healpix_nside, heal
     truth = truth[keep]
     if len(keep) == 0:
         log.warning('All {} targets rejected!'.format(target_name))
-        #return targets, truth
     else:
         log.warning('{} targets accepted out of a total of {}'.format(len(keep), len(targets)))
-        #targets = targets[keep]
-        #truth = truth[keep]
     
+    #Make a final check. Some of the TARGET flags must have been selected. 
     no_target_class = np.ones(len(targets), dtype=bool)
     if 'DESI_TARGET' in targets.dtype.names:
         no_target_class &=  targets['DESI_TARGET'] == 0
@@ -1372,6 +1369,30 @@ def target_selection(Selection, target_name, targets, truth, healpix_nside, heal
         raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
     
     return targets, truth
+
+def downsample_pixel(density, zcut, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
+    import healpy as hp
+    
+    n_cuts = len(density)
+    n_obj = len(targets)
+    areaperpix = hp.nside2pixarea(healpix_nside, degrees=True)
+    r = np.random.random(n_obj)
+    keep = r < 1.0
+    for i in range(n_cuts):
+        in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1])
+        n_wanted = int(density[i] * areaperpix)
+        n_in_z = np.count_nonzero(in_z)
+        if n_wanted < n_in_z:
+            frac_keep = n_wanted/n_in_z
+            keep = keep & (r<frac_keep) & in_z
+            log.info('Downsampling pixel for {}. Going from {} to {} objects'.format(target_name, n_in_z, n_wanted))
+        else:
+            log.info('NOT downsampling pixel for {}. Cannot go from {} to {} objects'.format(target_name, n_in_z, n_wanted))
+            
+    targets = targets[keep]
+    truth = truth[keep]
+    return targets, truth
+
     
 def finish_catalog(targets, truth, skytargets, skytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
     from desimodel.footprint import radec2pix
@@ -1513,22 +1534,40 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
             else:
                 targets, truth = target_selection(Selection, source_name, targets, truth,
                                                              healpix_nside, healpix, seed, rand, log, output_dir)
-                alltargets.append(targets)
-                alltruth.append(truth)
+                
+                # Downsample to a global number density if required
+                if 'density' in params['sources'][source_name].keys():
+                    density = [params['sources'][source_name]['density']]
+                    zcut=[-1000,1000]
+                    if source_name == 'QSO':
+                        # Distinguish between the Lyman-alpha and tracer QSOs
+                        if 'LYA' in params['sources'][source_name].keys():
+                            density = [params['sources'][source_name]['density'], 
+                                      params['sources'][source_name]['LYA']['density']]
+                            zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
+                    
+                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
+                                                    healpix_nside, healpix, seed, rand, log, output_dir)
+                                                    
+                    
+                if len(targets)>0:
+                    alltargets.append(targets)
+                    alltruth.append(truth)
                
         
         #Merge all sources
         targets = vstack(alltargets)
         truth = vstack(alltruth)
-    
         skytargets = vstack(allskytargets)
         skytruth = vstack(allskytruth)
     
+        #Add some final columns
         targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
                                                               healpix_nside,healpix, seed, rand, log, output_dir)
-        
+        #write the results
         write_to_disk(targets, truth, skytargets, skytruth,  
                           healpix_nside, healpix, seed, rand, log, output_dir)
+    return
 
         
         
