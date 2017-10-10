@@ -1331,24 +1331,31 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
     # Assign the magnitudes
     meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=mockformat)
 
-    #for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-    #            'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-    #    truth[key][:] = meta[key]
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
 
-    # Perturb the photometry based on the variance on this brick and apply
-    # target selection.
-    #for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-    #    targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
+    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        targets[fluxkey][:] = truth[fluxkey][:] #+ rand.normal(scale=onesigma[band], size=nobj)
 
     return [targets, truth]
 
-def target_selection(alltargets, alltruth, allskytargets, allskytruth, healpix_nside, healpix_id, seed, rand, log,output_dir):
-    targets = vstack(alltargets)
-    truth = vstack(alltruth)
+def target_selection(Selection, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
     
-    skytargets = vstack(allskytargets)
-    skytruth = vstack(allskytruth)
-    return targets, truth, skytargets, skytruth
+    selection_function = '{}_select'.format(target_name.lower())
+    select_targets_function = getattr(Selection, selection_function)
+
+    print(select_targets_function)
+    select_targets_function(targets, truth)
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+
+    if len(keep) == 0:
+        log.warning('All {} targets rejected!'.format(target_name))
+    else:
+        targets = targets[keep]
+        truth = truth[keep]
+    
+    return targets, truth
     
 def finish_catalog(targets, truth, skytargets, skytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
     from desimodel.footprint import radec2pix
@@ -1490,16 +1497,21 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
             else:
                 alltargets.append(targets)
                 alltruth.append(truth)
+                alltargets[-1], alltruth[-1] = target_selection(Selection, source_name, alltargets[-1], alltruth[-1],
+                                                             healpix_nside, healpix, seed, rand, log, output_dir)
         
-        # compile and write results for the whole pixel
-        targets, truth, skytargets, skytruth = target_selection(alltargets, alltruth, allskytargets, allskytruth, 
-                                                               healpix_nside, healpix, seed, rand, log, output_dir)
-        
+        #Merge all sources
+        targets = vstack(alltargets)
+        truth = vstack(alltruth)
+    
+        skytargets = vstack(allskytargets)
+        skytruth = vstack(allskytruth)
+    
         targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
                                                               healpix_nside,healpix, seed, rand, log, output_dir)
         
         write_to_disk(targets, truth, skytargets, skytruth,  
-                      healpix_nside, healpix, seed, rand, log, output_dir)
+                          healpix_nside, healpix, seed, rand, log, output_dir)
 
         
         
