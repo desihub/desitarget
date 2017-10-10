@@ -977,7 +977,12 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
 
     if comm is not None:
         infiles = comm.bcast(infiles, root=0)
-
+ 
+    if len(infiles)==0:
+        log = get_logger()
+        log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
+        return
+    
     #- Each rank reads and combines a different set of files
     data = np.hstack( [fitsio.read(x, ext) for x in infiles[rank::size]] )
 
