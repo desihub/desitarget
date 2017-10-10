@@ -33,7 +33,7 @@ class TemplateKDTree(object):
     """
     def __init__(self, nproc=1):
         from speclite import filters
-        from scipy.spatial import KDTree
+        from scipy.spatial import cKDTree as KDTree
 
         self.nproc = nproc
 
