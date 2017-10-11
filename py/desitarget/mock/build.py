@@ -1370,24 +1370,38 @@ def target_selection(Selection, target_name, targets, truth, healpix_nside, heal
     
     return targets, truth
 
+def estimate_number_density(ra, dec):
+    import healpy as hp
+    if len(ra) != len(dec):
+        raise ValueError('Arrays ra,dec must have same size.')
+    
+    nside = 16 # this produces a bin area close to the size of a DESI tile
+    bin_area = hp.nside2pixarea(nside, degrees=True)
+    pixels = hp.ang2pix(nside, np.radians(90 - dec), np.radians(ra), False)
+    counts = np.bincount(pixels)
+    n_pix_covered = np.count_nonzero(counts)
+    
+    area = n_pix_covered * bin_area
+    return len(ra)/area
+
 def downsample_pixel(density, zcut, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
     import healpy as hp
     
     n_cuts = len(density)
     n_obj = len(targets)
-    areaperpix = hp.nside2pixarea(healpix_nside, degrees=True)
+    
+
     r = np.random.random(n_obj)
     keep = r < 1.0
     for i in range(n_cuts):
         in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1])
-        n_wanted = int(density[i] * areaperpix)
-        n_in_z = np.count_nonzero(in_z)
-        if n_wanted < n_in_z:
-            frac_keep = n_wanted/n_in_z
+        input_density = estimate_number_density(targets['RA'][in_z], targets['DEC'][in_z])
+        if density[i] < input_density:
+            frac_keep = density[i]/input_density
             keep = keep & (r<frac_keep) & in_z
-            log.info('Downsampling pixel for {}. Going from {} to {} objects'.format(target_name, n_in_z, n_wanted))
+            log.info('Downsampling for {}. Going from {} to {} obs/deg^2'.format(target_name, input_density, density[i]))
         else:
-            log.info('NOT downsampling pixel for {}. Cannot go from {} to {} objects'.format(target_name, n_in_z, n_wanted))
+            log.info('Cannot go from {} to {} obs/deg^2 for object {}'.format(input_density, density[i], target_name))
             
     targets = targets[keep]
     truth = truth[keep]
