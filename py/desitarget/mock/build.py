@@ -1078,126 +1078,6 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         mtl.write(tmpout, overwrite=True, format='fits')
         os.rename(tmpout, out_mtl)
 
-def _get_magnitudes_onebrick(specargs):
-    """Filler function for the multiprocessing."""
-    return get_magnitudes_onebrick(*specargs)
-
-
-
-def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magnitudes, dust_dir,
-                         select_targets_function, source_data, rand, log):
-    """Wrapper function to generate magnitudes for all the objects on a single brick."""
-
-    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-    onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
-    nobj = len(onbrick)
-
-    # Initialize the output targets and truth catalogs and populate them with
-    # the quantities of interest.
-    targets = empty_targets_table(nobj)
-    truth = empty_truth_table(nobj)
-
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][onbrick]
-
-    for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
-        targets[key][:] = brick_info[key][brickindx]
-
-    # Assign unique OBJID values and reddenings.  See
-    #   http://legacysurvey.org/dr4/catalogs
-    targets['BRICK_OBJID'][:] = np.arange(nobj)
-
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
-
-    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
-    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
-    # for now.
-    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
-                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
-    
-    # Add shapes and sizes.
-    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key][:] = source_data[key][onbrick]
-
-    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][onbrick]
-        else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
-
-    # Sky targets are a special case without redshifts.
-    if target_name == 'sky':
-        select_targets_function(targets, truth)
-        return [targets, truth]
-
-    truth['TRUEZ'][:] = source_data['Z'][onbrick]
-
-    # Assign the magnitudes
-    meta = getattr(Magnitudes, target_name)(source_data, index=onbrick, mockformat=mockformat)
-
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
-
-    # Perturb the photometry based on the variance on this brick and apply
-    # target selection.
-    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
-
-    if False:
-        import matplotlib.pyplot as plt
-        def elg_colorbox(ax):
-            """Draw the ELG selection box."""
-            from matplotlib.patches import Polygon
-            grlim = ax.get_ylim()
-            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
-            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
-            verts = [(rzmin, grlim[0]),
-                     (rzmin, np.polyval(coeff0, rzmin)),
-                     (rzpivot, np.polyval(coeff1, rzpivot)),
-                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
-                     ]
-            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
-        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-        
-        fig, ax = plt.subplots()
-        ax.scatter(rz1, gr1, color='red', label='Noiseless Photometry')
-        ax.scatter(rz, gr, alpha=0.5, color='green', label='Noisy Photometry')
-        ax.set_xlim(-0.5, 2)
-        ax.set_ylim(-0.5, 2)
-        elg_colorbox(ax)
-        ax.legend(loc='upper left')
-        plt.show()
-        import pdb ; pdb.set_trace()
-        
-    if 'BOSS_STD' in source_data.keys():
-        boss_std = source_data['BOSS_STD'][onbrick]
-    else:
-        boss_std = None
-    select_targets_function(targets, truth, boss_std=boss_std)
-
-    keep = np.where(targets['DESI_TARGET'] != 0)[0]
-    nobj = len(keep)
-
-    if nobj == 0:
-        log.warning('No {} targets identified!'.format(target_name.upper()))
-    else:
-        log.debug('Selected {} {}s on brick {}.'.format(nobj, target_name.upper(), thisbrick))
-        targets = targets[keep]
-        truth = truth[keep]
-
-    return [targets, truth]
 
 def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None):
     """Initializes variables to prepare mock target generation.
@@ -1361,6 +1241,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
 
 def target_selection(Selection, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
     
+
     selection_function = '{}_select'.format(target_name.lower())
     select_targets_function = getattr(Selection, selection_function)
 
@@ -1532,6 +1413,10 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
 
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None, verbose=False, dust_dir="./"):
+    """Generate a catalog of targets and the corresponding truth catalog.
+    
+    Inputs.
+    """
     log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
                                        seed = seed, 
                                        output_dir = output_dir, 
