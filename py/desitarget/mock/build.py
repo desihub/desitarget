@@ -1199,7 +1199,26 @@ def get_magnitudes_onebrick(target_name, mockformat, thisbrick, brick_info, Magn
 
     return [targets, truth]
 
-def initialize(params, verbose=False, seed=1, output_dir="./", healpix_nside=4, nproc=1, healpixels=None):
+def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None):
+    """Initializes variables to prepare mock target generation.
+
+    Args:
+        params : dict
+            Source parameters.
+        seed: int
+            Seed for the random number generatios
+        output_dir : str
+            Output directory (default '.').
+        nproc : int
+            Number of parallel processes to use (default 1).
+        healpix_nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels. Default (None)
+        
+    Returns:
+    """
     from desitarget.mock.spectra import MockMagnitudes
     from desitarget.mock.selection import SelectTargets
     import healpy as hp
@@ -1375,14 +1394,16 @@ def estimate_number_density(ra, dec):
     if len(ra) != len(dec):
         raise ValueError('Arrays ra,dec must have same size.')
     
-    nside = 16 # this produces a bin area close to the size of a DESI tile
+    n_tot = len(ra)
+    nside = 64 # this produces a bin area close to 1 deg^2
     bin_area = hp.nside2pixarea(nside, degrees=True)
     pixels = hp.ang2pix(nside, np.radians(90 - dec), np.radians(ra), False)
     counts = np.bincount(pixels)
-    n_pix_covered = np.count_nonzero(counts)
-    
-    area = n_pix_covered * bin_area
-    return len(ra)/area
+    if  n_tot == 0:
+        return 0.0
+    else:
+        # This is a weighted density that does not take into account empty healpixels
+        return np.sum(counts*counts)/np.sum(counts)/bin_area
 
 def downsample_pixel(density, zcut, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
     import healpy as hp
@@ -1518,30 +1539,35 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
     Args:
         params : dict
             Source parameters.
+        seed: int
+            Seed for the random number generatios
         output_dir : str
             Output directory (default '.').
-        realtargets : astropy.table
-            Real target catalog table, e.g. from DR3 (deprecated!).
-        bricksize : float
-            Brick size for assigning bricknames, which should match the imaging
-            team value (default 0.25 deg).
         nproc : int
             Number of parallel processes to use (default 1).
-        nside : int
+        healpix_nside : int
             Healpix resolution corresponding to healpixels (default 16).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels.
-
+            this set (array) of healpix pixels. Default (None)
+        dust_dir : str
+            Path to the directory with the E(B-V) healpix information. default ('.')
     Returns:
         A variety of fits files are written to output_dir.
+        Independent files are written for each helpixel.
+        The filenames have the format
+            sky-{healpix_nside}-{pixel_id}.fits
+            standards-bright-{healpix_nside}-{pixel_id}.fits
+            standards-{healpix_nside}-{pixel_id}.fits
+            targets-{healpix_nside}-{pixel_id}.fits
+            truth-{healpix_nside}-{pixel_id}.fits
 
     """
     log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
                                        seed = seed, 
                                        output_dir = output_dir, 
                                        nproc = nproc, 
-                                        healpixels = healpixels)
+                                       healpixels = healpixels)
     
     # Loop over each source / object type.
    
