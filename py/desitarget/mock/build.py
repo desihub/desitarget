@@ -1531,38 +1531,7 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
         os.rename(truthfile+'.tmp', truthfile)
 
 
-def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None,
-                                verbose=False, dust_dir="./"):
-    """Generates a catalog of targets, spectra, and the corresponding "truth" catalog
-    (with, e.g., the true redshift) for use in simulations.
-
-    Args:
-        params : dict
-            Source parameters.
-        seed: int
-            Seed for the random number generatios
-        output_dir : str
-            Output directory (default '.').
-        nproc : int
-            Number of parallel processes to use (default 1).
-        healpix_nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None)
-        dust_dir : str
-            Path to the directory with the E(B-V) healpix information. default ('.')
-    Returns:
-        A variety of fits files are written to output_dir.
-        Independent files are written for each helpixel.
-        The filenames have the format
-            sky-{healpix_nside}-{pixel_id}.fits
-            standards-bright-{healpix_nside}-{pixel_id}.fits
-            standards-{healpix_nside}-{pixel_id}.fits
-            targets-{healpix_nside}-{pixel_id}.fits
-            truth-{healpix_nside}-{pixel_id}.fits
-
-    """
+def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None, verbose=False, dust_dir="./"):
     log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
                                        seed = seed, 
                                        output_dir = output_dir, 
