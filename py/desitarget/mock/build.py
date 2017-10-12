@@ -1183,14 +1183,14 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
         if n_obj>0:
             indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
             for k in source_data.keys():
-                if (len(source_data['RA']) == len(source_data[k])):
+                if (n_obj == len(source_data[k])):
                     source_data[k] = source_data[k][indesi]
     return source_data
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
                             rand, log, healpix_nside, healpix_id, dust_dir):
     from desimodel.footprint import radec2pix
-    
+
     obj_pix_id = radec2pix(healpix_nside, source_data['RA'], source_data['DEC'])
     onpix = np.where(obj_pix_id == healpix_id)[0]
     
@@ -1330,19 +1330,21 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix_nside, healpix_
     log.info('Total number of targets and sky in pixel {}: {} {}'.format(healpix_id, n_obj, n_sky))
     objid = np.arange(n_obj + n_sky)
     
-    targetid = encode_targetid(objid=objid, brickid=healpix_id*np.ones(n_obj+n_sky, dtype=int), mock=1)
-    subpriority = rand.uniform(0.0, 1.0, size=n_obj+n_sky)
+    if n_obj > 0:
+        targetid = encode_targetid(objid=objid, brickid=healpix_id*np.ones(n_obj+n_sky, dtype=int), mock=1)
+        subpriority = rand.uniform(0.0, 1.0, size=n_obj+n_sky)
 
-    truth['TARGETID'][:] = targetid[:n_obj]
-    targets['TARGETID'][:] = targetid[:n_obj]
-    targets['SUBPRIORITY'][:] = subpriority[:n_obj]
+        truth['TARGETID'][:] = targetid[:n_obj]
+        targets['TARGETID'][:] = targetid[:n_obj]
+        targets['SUBPRIORITY'][:] = subpriority[:n_obj]
     
     if n_sky > 0:
         skytargets['TARGETID'][:] = targetid[n_obj:]
         skytargets['SUBPRIORITY'][:] = subpriority[n_obj:]
         
-    targpix = radec2pix(healpix_nside, targets['RA'], targets['DEC'])
-    targets['HPXPIXEL'][:] = targpix
+    if n_obj > 0:
+        targpix = radec2pix(healpix_nside, targets['RA'], targets['DEC'])
+        targets['HPXPIXEL'][:] = targpix
 
     if n_sky > 0:
         targpix = radec2pix(healpix_nside, skytargets['RA'], skytargets['DEC'])
@@ -1453,7 +1455,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                                     rand=rand, nproc=nproc, healpixels=healpix, healpix_nside=healpix_nside)
         
             # If there are no sources, keep going.
-            if not bool(source_data):
+            if not bool(source_data) or len(source_data)==0:
                 continue
                 
             #Initialize variables for density subsampling
