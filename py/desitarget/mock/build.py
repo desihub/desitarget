@@ -1178,7 +1178,7 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
 
     #returns only the points that are in DESI footprint
     if in_desi:
-        n_obj = len(source_data)
+        n_obj = len(source_data['RA'])
         tiles = desimodel.io.load_tiles()
         if n_obj>0:
             indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
