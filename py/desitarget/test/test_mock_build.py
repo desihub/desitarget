@@ -5,8 +5,12 @@ Testing desitarget.mock.build, but only add_mock_shapes_and_fluxes for now
 import unittest
 import numpy as np
 from astropy.table import Table
+import healpy as hp
+
+import desimodel.footprint
 
 from desitarget.mock.build import add_mock_shapes_and_fluxes
+from desitarget.mock.sky import random_sky
 from desitarget import desi_mask, bgs_mask, mws_mask
 
 class TestMockBuild(unittest.TestCase):
@@ -40,6 +44,16 @@ class TestMockBuild(unittest.TestCase):
         self.assertTrue('DECAM_FLUX' in mock.colnames)
         self.assertTrue('SHAPEDEV_R' in mock.colnames)
         self.assertTrue('SHAPEEXP_R' in mock.colnames)
-                
+
+    def test_sky(self):
+        nside = 256
+        ra, dec = random_sky(nside)
+        self.assertEqual(len(ra), len(dec))
+        surveypix = desimodel.footprint.tiles2pix(nside)
+        theta = np.radians(90 - dec)
+        phi = np.radians(ra)
+        skypix = hp.ang2pix(nside, theta, phi, nest=True)
+        self.assertEqual(set(surveypix), set(skypix))
+
 if __name__ == '__main__':
     unittest.main()
