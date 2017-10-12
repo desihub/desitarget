@@ -1150,7 +1150,10 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_
     
     return log, rand, magnitudes, selection, healpixels
 
-def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, healpix_nside=16):
+def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, healpix_nside=16, in_desi=True):
+    import desimodel.io
+    import desimodel.footprint
+    
     # Read the mock catalog.
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
     mockformat = params['sources'][source_name]['format']
@@ -1173,6 +1176,15 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
                                     magcut=magcut, nproc=nproc, lya=lya,
                                     healpixels=healpixels, nside=healpix_nside)
 
+    #returns only the points that are in DESI footprint
+    if in_desi:
+        n_obj = len(source_data)
+        tiles = desimodel.io.load_tiles()
+        if n_obj>0:
+            indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
+            for k in source_data.keys():
+                if (len(source_data['RA']) == len(source_data[k])):
+                    source_data[k] = source_data[k][indesi]
     return source_data
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
@@ -1191,7 +1203,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
 
-    for key in ('RA', 'DEC'):
+    for key in ('RA', 'DEC', 'BRICKNAME'):
         targets[key][:] = source_data[key][onpix]
 
     # Assign unique OBJID values and reddenings. 
