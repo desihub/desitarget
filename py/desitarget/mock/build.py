@@ -1177,14 +1177,15 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
                                     healpixels=healpixels, nside=healpix_nside)
 
     #returns only the points that are in DESI footprint
-    if in_desi:
-        n_obj = len(source_data['RA'])
-        tiles = desimodel.io.load_tiles()
-        if n_obj>0:
-            indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
-            for k in source_data.keys():
-                if (n_obj == len(source_data[k])):
-                    source_data[k] = source_data[k][indesi]
+    if bool(source_data):
+        if in_desi:
+            n_obj = len(source_data['RA'])
+            tiles = desimodel.io.load_tiles()
+            if n_obj>0:
+                indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
+                for k in source_data.keys():
+                    if (n_obj == len(source_data[k])):
+                        source_data[k] = source_data[k][indesi]
     return source_data
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
@@ -1455,7 +1456,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                                     rand=rand, nproc=nproc, healpixels=healpix, healpix_nside=healpix_nside)
         
             # If there are no sources, keep going.
-            if not bool(source_data) or len(source_data)==0:
+            if not bool(source_data):
                 continue
                 
             #Initialize variables for density subsampling
