@@ -1081,7 +1081,6 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
 
 def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None):
     """Initializes variables to prepare mock target generation.
-
     Args:
         params : dict
             Source parameters.
@@ -1098,6 +1097,21 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
             this set (array) of healpix pixels. Default (None)
         
     Returns:
+        log: logger object
+        rand: numpy.random.RandomState
+            seed: int
+            Seed used for the random number generator
+        magnitudes: desitarget.mock.Magnitudes
+            This object contains the information to assign magnitudes to each kind of targets.
+        selection: desitarget.mock.Selection 
+            This object contains the information from the configuration file
+            used to start the construction of the mock target files.
+        output_dir: str
+            Directory where the outputs are written.
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels. Default (None).
+            If the input is None, the output are the pixels on the whole sky.
     """
     from desitarget.mock.spectra import MockMagnitudes
     from desitarget.mock.selection import SelectTargets
@@ -1151,6 +1165,35 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
     return log, rand, magnitudes, selection, healpixels
 
 def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, nside=16, in_desi=True):
+    """Reads a mock file.
+    Args.
+        source_name: string
+            Name of the target being processesed, i.e. "QSO"
+        params: dictionary
+            Gathers the information of the input configuration file.
+        log: logger object
+        nproc: int
+            Number of processors to be used for reading.
+        rand: numpy.random.RandomState
+        healpixels: numpy.array
+            List of healpixels to process. The mocks are cut to match these pixels.
+        nside: int
+            nside for healpix
+        in_desi: boolean
+            Decides whether the targets will be trimmed to be inside the DESI footprint.
+            
+        Magnitudes: desitarget.mock.Magnitudes
+            This object contains the information to assign magnitudes to each kind of targets.
+        source_data: dictionary
+            This corresponds to the "raw" data coming directly from the mock file.
+
+        mockformat: string
+            Format of the mock files used to read the data.
+    Output.
+        source_data: dictionary
+            Raw information from the input mock file.
+
+    """
     import desimodel.io
     import desimodel.footprint
     
@@ -1190,6 +1233,32 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
                             rand, log, nside, healpix_id, dust_dir):
+    """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
+    Args.
+        Magnitudes: desitarget.mock.Magnitudes
+            This object contains the information to assign magnitudes to each kind of targets.
+        source_data: dictionary
+            This corresponds to the "raw" data coming directly from the mock file.
+        target_name: string
+            Name of the target being processesed, i.e. "QSO"
+        mockformat: string
+            Format of the mock files used to read the data.
+        rand: numpy.random.RandomState
+        log: logger object
+        nside: int
+            nside for healpix
+        healpix_id: int
+            ID of current healpix
+        seed: int
+            Seed used for the random number generator
+        dust_dir: str
+            Directory where the E(B-V) information is stored.
+    Output.
+        targets: astropy.table
+            Targets on the pixel healpix_id.
+        truth: astropy.table
+            Corresponding Truth to Targets
+    """
     from desimodel.footprint import radec2pix
 
     obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
@@ -1252,7 +1321,34 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
 
     return [targets, truth]
 
-def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log,output_dir):
+def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir):
+    """Applies target selection functions to a set of targets and truth tables.
+    Args.
+        Selection: desitarget.mock.Selection 
+            This object contains the information from the configuration file
+            used to start the construction of the mock target files.
+        target_name: string
+            Name of the target being processesed, i.e. "QSO"
+        targets: astropy.table
+            Initial set of targets coming from the input files. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+        nside: int
+            nside for healpix
+        healpix_id: int
+            ID of current healpix
+        seed: int
+            Seed used for the random number generator
+        rand: numpy.random.RandomState
+        log: logger object
+        output_dir: str
+            Directory where the outputs are written.
+    Output.
+         targets: astropy.table
+            Final set of targets after target selection. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+    """
     
 
     selection_function = '{}_select'.format(target_name.lower())
@@ -1284,6 +1380,15 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
     return targets, truth
 
 def estimate_number_density(ra, dec):
+    """Estimates the number density of points with positions RA, DEC
+    Args.
+        ra: numpy.array
+            RA positions in degrees.
+        dec: numpy.array
+            DEC positions in degrees.
+    Output. 
+        average number density: float
+    """
     import healpy as hp
     if len(ra) != len(dec):
         raise ValueError('Arrays ra,dec must have same size.')
@@ -1300,13 +1405,44 @@ def estimate_number_density(ra, dec):
         return np.sum(counts*counts)/np.sum(counts)/bin_area
 
 def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log,output_dir):
+    """Reduces the number of targets to match a desired number density.
+    Args.
+        density: np.array
+            Array of number densities desired in different redshift intervals. Units of targets/deg^2
+        zcut: np.array
+            Array defining the redshift intervals to set the desired number densities.
+        target_name: string
+            Name of the target being processesed, i.e. "QSO"
+        targets: astropy.table
+            Final set of Targets. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+        nside: int
+            nside for healpix
+        healpix_id: int
+            ID of current healpix
+        seed: int
+            Seed used for the random number generator
+        rand: numpy.random.RandomState
+        log: logger object
+        output_dir: str
+            Directory where the outputs are written.
+    Output.
+        Updated versions of the tables:
+            targets
+            truth.
+    Example.
+        If density = [300,400] and zcut=[0.0,2.0, 3.0] the first number density cap of 300
+        will be applied to all targets with redshifts 0.0 < z < 2.0, while the second cap
+        of 400 will be applied to all targets with redshifts 2.0 < z < 3.0
+    """
     import healpy as hp
     
     n_cuts = len(density)
     n_obj = len(targets)
     
 
-    r = np.random.random(n_obj)
+    r = rand.uniform(0.0, 1.0, size=n_obj)
     keep = r < 1.0
     for i in range(n_cuts):
         in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1])
@@ -1324,6 +1460,33 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
 
     
 def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
+    """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
+    Args.
+        targets: astropy.table
+            Final set of Targets. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+        skytargets: astropy.table
+            Sky positions
+        skytruth: astropy.table
+            Corresponding Truth to Sky
+        nside: int
+            nside for healpix
+        healpix_id: int
+            ID of current healpix
+        seed: int
+            Seed used for the random number generator
+        rand: numpy.random.RandomState
+        log: logger object
+        output_dir: str
+            Directory where the outputs are written.
+    Output.
+        Updated versions of:
+        targets
+        truth
+        skytargets
+        skytruth
+    """
     from desimodel.footprint import radec2pix
 
     n_obj = len(targets)
@@ -1354,6 +1517,30 @@ def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed
     return targets, truth, skytargets, skytruth
 
 def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
+    """Writes targets to disk.
+    Args.
+        targets: astropy.table
+            Final set of Targets. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+        skytargets: astropy.table
+            Sky positions
+        skytruth: astropy.table
+            Corresponding Truth to Sky
+        nside: int
+            nside for healpix
+        healpix_id: int
+            ID of current healpix
+        seed: int
+            Seed used for the random number generator
+        rand: numpy.random.RandomState
+        log: logger object
+        output_dir: str
+            Directory where the outputs are written.
+    Output.
+        None. 
+        Files are only written to disk.
+    """
     from desispec.io.util import fitsheader, write_bintable
     from desiutil import depend
     from astropy.io import fits
