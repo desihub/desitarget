@@ -1389,25 +1389,26 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
                                header=targetshdr, clobber=True)
         os.rename(skyfile+'.tmp', skyfile)
 
+    if n_obj > 0:
     # Write out the dark- and bright-time standard stars.
-    for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-        stdfile = mockio.findfile('standards-{}'.format(stdsuffix), healpix_nside, healpix_id, basedir=output_dir)
-        istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), healpix_nside, healpix_id, basedir=output_dir)
+            istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
                    (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
 
-        if np.count_nonzero(istd) > 0:
-            log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
-            write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
+            if np.count_nonzero(istd) > 0:
+                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
                                header=targetshdr, clobber=True)
-            os.rename(stdfile+'.tmp', stdfile)
-        else:
-            log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
+                os.rename(stdfile+'.tmp', stdfile)
+            else:
+                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
 
         # Finally write out the rest of the targets.
-    targetsfile = mockio.findfile('targets', healpix_nside, healpix_id, basedir=output_dir)
-    truthfile = mockio.findfile('truth', healpix_nside, healpix_id, basedir=output_dir)
+        targetsfile = mockio.findfile('targets', healpix_nside, healpix_id, basedir=output_dir)
+        truthfile = mockio.findfile('truth', healpix_nside, healpix_id, basedir=output_dir)
 
-    if n_obj > 0:
+   
         log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
         targets.meta['EXTNAME'] = 'TARGETS'
         write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
