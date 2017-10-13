@@ -1184,7 +1184,7 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
             if n_obj>0:
                 indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
                 for k in source_data.keys():
-                    if (n_obj == len(source_data[k])):
+                    if (n_obj == len(source_data[k])) and (type(source_data[k]) is np.ndarray):
                         source_data[k] = source_data[k][indesi]
     return source_data
 
