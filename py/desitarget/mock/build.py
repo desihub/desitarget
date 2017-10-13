@@ -1539,7 +1539,7 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed,
             Directory where the outputs are written.
     Output.
         None. 
-        Files are only written to disk.
+        Files "targets", "truth", "sky", "standards" written to disk.
     """
     from desispec.io.util import fitsheader, write_bintable
     from desiutil import depend
