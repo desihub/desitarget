@@ -1079,7 +1079,7 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         os.rename(tmpout, out_mtl)
 
 
-def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None):
+def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None):
     """Initializes variables to prepare mock target generation.
 
     Args:
@@ -1091,7 +1091,7 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_
             Output directory (default '.').
         nproc : int
             Number of parallel processes to use (default 1).
-        healpix_nside : int
+        nside : int
             Healpix resolution corresponding to healpixels (default 16).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
@@ -1129,12 +1129,12 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_
         
     # Default set of healpixels is the whole sky (yikes!)
     if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(healpix_nside))
+        healpixels = np.arange(hp.nside2npix(nside))
 
-    areaperpix = hp.nside2pixarea(healpix_nside, degrees=True)
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
     skyarea = len(healpixels) * areaperpix
     log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), healpix_nside, areaperpix, skyarea))
+        len(healpixels), nside, areaperpix, skyarea))
 
     # Initialize the Classes used to assign spectra and select targets.  Note:
     # The default wavelength array gets initialized here, too.
@@ -1150,7 +1150,7 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, healpix_
     
     return log, rand, magnitudes, selection, healpixels
 
-def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, healpix_nside=16, in_desi=True):
+def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, nside=16, in_desi=True):
     import desimodel.io
     import desimodel.footprint
     
@@ -1174,7 +1174,7 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
         lya = None
     source_data = mockread_function(mock_dir_name, target_name, rand=rand,
                                     magcut=magcut, nproc=nproc, lya=lya,
-                                    healpixels=healpixels, nside=healpix_nside)
+                                    healpixels=healpixels, nside=nside)
 
     #returns only the points that are in DESI footprint
     if bool(source_data):
@@ -1189,10 +1189,10 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
     return source_data
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
-                            rand, log, healpix_nside, healpix_id, dust_dir):
+                            rand, log, nside, healpix_id, dust_dir):
     from desimodel.footprint import radec2pix
 
-    obj_pix_id = radec2pix(healpix_nside, source_data['RA'], source_data['DEC'])
+    obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
     onpix = np.where(obj_pix_id == healpix_id)[0]
     
     log.info('{} objects of type {} in healpix_id {}'.format(np.count_nonzero(onpix), target_name, healpix_id))
@@ -1252,7 +1252,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
 
     return [targets, truth]
 
-def target_selection(Selection, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
+def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log,output_dir):
     
 
     selection_function = '{}_select'.format(target_name.lower())
@@ -1299,7 +1299,7 @@ def estimate_number_density(ra, dec):
         # This is a weighted density that does not take into account empty healpixels
         return np.sum(counts*counts)/np.sum(counts)/bin_area
 
-def downsample_pixel(density, zcut, target_name, targets, truth, healpix_nside, healpix_id, seed, rand, log,output_dir):
+def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log,output_dir):
     import healpy as hp
     
     n_cuts = len(density)
@@ -1323,7 +1323,7 @@ def downsample_pixel(density, zcut, target_name, targets, truth, healpix_nside, 
     return targets, truth
 
     
-def finish_catalog(targets, truth, skytargets, skytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
+def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
     from desimodel.footprint import radec2pix
 
     n_obj = len(targets)
@@ -1344,16 +1344,16 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix_nside, healpix_
         skytargets['SUBPRIORITY'][:] = subpriority[n_obj:]
         
     if n_obj > 0:
-        targpix = radec2pix(healpix_nside, targets['RA'], targets['DEC'])
+        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
         targets['HPXPIXEL'][:] = targpix
 
     if n_sky > 0:
-        targpix = radec2pix(healpix_nside, skytargets['RA'], skytargets['DEC'])
+        targpix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
         skytargets['HPXPIXEL'][:] = targpix
     
     return targets, truth, skytargets, skytruth
 
-def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_id, seed, rand, log, output_dir):
+def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
     from desispec.io.util import fitsheader, write_bintable
     from desiutil import depend
     from astropy.io import fits
@@ -1374,16 +1374,16 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
     targetshdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed')
         ))
-    depend.setdep(targetshdr, 'HPXNSIDE', healpix_nside)
+    depend.setdep(targetshdr, 'HPXNSIDE', nside)
     depend.setdep(targetshdr, 'HPXNEST', True)
 
         
-    outdir = mockio.get_healpix_dir(healpix_nside, healpix_id, basedir=output_dir)
+    outdir = mockio.get_healpix_dir(nside, healpix_id, basedir=output_dir)
     os.makedirs(outdir, exist_ok=True)
 
     # Write out the sky catalog.
     if n_sky > 0:
-        skyfile = mockio.findfile('sky', healpix_nside, healpix_id, basedir=output_dir)
+        skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
         log.info('Writing {} SKY targets to {}'.format(n_sky, skyfile))
         write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
                                header=targetshdr, clobber=True)
@@ -1392,7 +1392,7 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
     if n_obj > 0:
     # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), healpix_nside, healpix_id, basedir=output_dir)
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix_id, basedir=output_dir)
             istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
                    (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
 
@@ -1405,8 +1405,8 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
                 log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
 
         # Finally write out the rest of the targets.
-        targetsfile = mockio.findfile('targets', healpix_nside, healpix_id, basedir=output_dir)
-        truthfile = mockio.findfile('truth', healpix_nside, healpix_id, basedir=output_dir)
+        targetsfile = mockio.findfile('targets', nside, healpix_id, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
 
    
         log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
@@ -1428,7 +1428,7 @@ def write_to_disk(targets, truth, skytargets, skytruth, healpix_nside, healpix_i
         os.rename(truthfile+'.tmp', truthfile)
 
 
-def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_nside=16, healpixels=None, verbose=False, dust_dir="./"):
+def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None, verbose=False, dust_dir="./"):
     """Generate a catalog of targets and the corresponding truth catalog.
     
     Inputs.
@@ -1454,7 +1454,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
             mockformat = params['sources'][source_name]['format']
             log.info('Reading  source : {}'.format(source_name))
             source_data = read_catalog(source_name, params, log, 
-                                    rand=rand, nproc=nproc, healpixels=healpix, healpix_nside=healpix_nside)
+                                    rand=rand, nproc=nproc, healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -1467,7 +1467,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
             
             # assign magnitudes for targets in that pixel
             pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
-                                        healpix_nside, healpix, dust_dir=params['dust_dir'])
+                                        nside, healpix, dust_dir=params['dust_dir'])
             
             targets = pixel_results[0]
             truth = pixel_results[1]
@@ -1476,12 +1476,12 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
             if source_name.upper() == 'SKY':
                 if 'density' in params['sources'][source_name].keys():
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    healpix_nside, healpix, seed, rand, log, output_dir)
+                                                    nside, healpix, seed, rand, log, output_dir)
                 allskytargets.append(targets)
                 allskytruth.append(truth)                    
             else:
                 targets, truth = target_selection(Selection, source_name, targets, truth,
-                                                             healpix_nside, healpix, seed, rand, log, output_dir)
+                                                             nside, healpix, seed, rand, log, output_dir)
                 
                 # Downsample to a global number density if required
                 if 'density' in params['sources'][source_name].keys():
@@ -1493,7 +1493,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
                             zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
                     
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    healpix_nside, healpix, seed, rand, log, output_dir)
+                                                    nside, healpix, seed, rand, log, output_dir)
                                                     
                     
                 if len(targets)>0:
@@ -1520,8 +1520,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, healpix_n
 
         #Add some final columns
         targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
-                                                              healpix_nside,healpix, seed, rand, log, output_dir)
+                                                              nside,healpix, seed, rand, log, output_dir)
         #write the results
         write_to_disk(targets, truth, skytargets, skytruth,  
-                          healpix_nside, healpix, seed, rand, log, output_dir)
+                          nside, healpix, seed, rand, log, output_dir)
     return
