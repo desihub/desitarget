@@ -1617,8 +1617,24 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed,
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None, verbose=False, dust_dir="./"):
     """Generate a catalog of targets and the corresponding truth catalog.
-    
     Inputs.
+        params: dictionary
+            Input parameters read from the configuration files.
+        seed: int
+            Seed for the random number generation.
+        output_dir : str
+            Output directory (default '.').
+        nproc : int
+            Number of parallel processes to use (default 1).
+        nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels. Default (None)
+        verbose: bool
+            Degree of verbosity.
+    Outputs.
+        Files "targets", "truth", "sky", "standards" written to disk for a list of healpixels.
     """
     log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
                                        seed = seed, 
