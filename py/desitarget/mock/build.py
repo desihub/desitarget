@@ -1081,6 +1081,7 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
 
 def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None):
     """Initializes variables to prepare mock target generation.
+    
     Args:
         params : dict
             Source parameters.
@@ -1166,7 +1167,8 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
 
 def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, nside=16, in_desi=True):
     """Reads a mock file.
-    Args.
+    
+    Args:
         source_name: string
             Name of the target being processesed, i.e. "QSO"
         params: dictionary
@@ -1189,7 +1191,8 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
 
         mockformat: string
             Format of the mock files used to read the data.
-    Output.
+            
+    Output:
         source_data: dictionary
             Raw information from the input mock file.
 
@@ -1234,7 +1237,8 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
                             rand, log, nside, healpix_id, dust_dir):
     """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
-    Args.
+    
+    Args:
         Magnitudes: desitarget.mock.Magnitudes
             This object contains the information to assign magnitudes to each kind of targets.
         source_data: dictionary
@@ -1253,7 +1257,8 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
             Seed used for the random number generator
         dust_dir: str
             Directory where the E(B-V) information is stored.
-    Output.
+            
+    Output:
         targets: astropy.table
             Targets on the pixel healpix_id.
         truth: astropy.table
@@ -1323,7 +1328,8 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
 
 def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir):
     """Applies target selection functions to a set of targets and truth tables.
-    Args.
+    
+    Args:
         Selection: desitarget.mock.Selection 
             This object contains the information from the configuration file
             used to start the construction of the mock target files.
@@ -1343,7 +1349,8 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-    Output.
+            
+    Output:
          targets: astropy.table
             Final set of targets after target selection. 
         truth: astropy.table
@@ -1381,12 +1388,14 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
 
 def estimate_number_density(ra, dec):
     """Estimates the number density of points with positions RA, DEC
-    Args.
+    
+    Args:
         ra: numpy.array
             RA positions in degrees.
         dec: numpy.array
             DEC positions in degrees.
-    Output. 
+            
+    Output: 
         average number density: float
     """
     import healpy as hp
@@ -1406,7 +1415,8 @@ def estimate_number_density(ra, dec):
 
 def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log,output_dir):
     """Reduces the number of targets to match a desired number density.
-    Args.
+    
+    Args:
         density: np.array
             Array of number densities desired in different redshift intervals. Units of targets/deg^2
         zcut: np.array
@@ -1427,11 +1437,13 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-    Output.
+            
+    Output:
         Updated versions of the tables:
             targets
             truth.
-    Example.
+            
+    Example:
         If density = [300,400] and zcut=[0.0,2.0, 3.0] the first number density cap of 300
         will be applied to all targets with redshifts 0.0 < z < 2.0, while the second cap
         of 400 will be applied to all targets with redshifts 2.0 < z < 3.0
@@ -1461,7 +1473,8 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
     
 def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
-    Args.
+    
+    Args:
         targets: astropy.table
             Final set of Targets. 
         truth: astropy.table
@@ -1480,12 +1493,9 @@ def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-    Output.
-        Updated versions of:
-        targets
-        truth
-        skytargets
-        skytruth
+            
+    Output:
+        Updated versions of: targets, truth, skytargets, skytruth
     """
     from desimodel.footprint import radec2pix
 
@@ -1518,7 +1528,8 @@ def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed
 
 def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
     """Writes targets to disk.
-    Args.
+    
+    Args:
         targets: astropy.table
             Final set of Targets. 
         truth: astropy.table
@@ -1537,7 +1548,8 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed,
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-    Output.
+            
+    Output:
         None. 
         Files "targets", "truth", "sky", "standards" written to disk.
     """
@@ -1617,7 +1629,8 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed,
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None, verbose=False, dust_dir="./"):
     """Generate a catalog of targets and the corresponding truth catalog.
-    Inputs.
+    
+    Inputs:
         params: dictionary
             Input parameters read from the configuration files.
         seed: int
@@ -1633,7 +1646,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             this set (array) of healpix pixels. Default (None)
         verbose: bool
             Degree of verbosity.
-    Outputs.
+            
+    Outputs:
         Files "targets", "truth", "sky", "standards" written to disk for a list of healpixels.
     """
     log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
