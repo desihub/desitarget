@@ -1100,7 +1100,7 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
     Returns:
         log: logger object
         rand: numpy.random.RandomState
-            seed: int
+        seed: int
             Seed used for the random number generator
         magnitudes: desitarget.mock.Magnitudes
             This object contains the information to assign magnitudes to each kind of targets.
@@ -1183,12 +1183,10 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
             nside for healpix
         in_desi: boolean
             Decides whether the targets will be trimmed to be inside the DESI footprint.
-            
         Magnitudes: desitarget.mock.Magnitudes
             This object contains the information to assign magnitudes to each kind of targets.
         source_data: dictionary
             This corresponds to the "raw" data coming directly from the mock file.
-
         mockformat: string
             Format of the mock files used to read the data.
             
@@ -1387,7 +1385,7 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
     return targets, truth
 
 def estimate_number_density(ra, dec):
-    """Estimates the number density of points with positions RA, DEC
+    """Estimates the number density of points with positions RA, DEC.
     
     Args:
         ra: numpy.array
