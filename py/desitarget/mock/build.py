@@ -1081,12 +1081,12 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
 
 def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None):
     """Initializes variables to prepare mock target generation.
-    
+
     Args:
         params : dict
             Source parameters.
         seed: int
-            Seed for the random number generatios
+            Seed for the random number generator
         output_dir : str
             Output directory (default '.').
         nproc : int
@@ -1095,25 +1095,28 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
             Healpix resolution corresponding to healpixels (default 16).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None)
-        
-    Returns:
-        log: logger object
+            this set (array) of healpix pixels. Default (None).
+
+
+    Output:
+        log: logger object.
         rand: numpy.random.RandomState
+
         seed: int
-            Seed used for the random number generator
+            Seed used for the random number generator.
+
         magnitudes: desitarget.mock.Magnitudes
             This object contains the information to assign magnitudes to each kind of targets.
-        selection: desitarget.mock.Selection 
-            This object contains the information from the configuration file
-            used to start the construction of the mock target files.
+        selection: desitarget.mock.Selection
+            This object contains the information from the configuration file used to start the construction of the mock target files.
         output_dir: str
             Directory where the outputs are written.
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
             this set (array) of healpix pixels. Default (None).
-            If the input is None, the output are the pixels on the whole sky.
+            If the input is None, the output are the pixels on the whole sky. 
     """
+   
     from desitarget.mock.spectra import MockMagnitudes
     from desitarget.mock.selection import SelectTargets
     import healpy as hp
@@ -1349,10 +1352,11 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
             Directory where the outputs are written.
             
     Output:
-         targets: astropy.table
+        targets: astropy.table
             Final set of targets after target selection. 
         truth: astropy.table
             Corresponding Truth to Targets
+
     """
     
 
