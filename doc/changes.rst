@@ -26,11 +26,16 @@ desitarget Change Log
    * Correct random seeds when processing pix in parallel
    * Misc other small bug fixes
 * Added ``mpi_select_mock_targets``
+* Changes for mocks [`PR #228`]:
+   * Refactor of ``targets_truth_no_spectra`` 
+   * Solves bug of healpix patterns present in target mocks.
+   * Removes current implementation for target fluctuations.
 * Added ``desitarget.mock.sky.random_sky`` [`PR #219`_]
 
 .. _`PR #200`: https://github.com/desihub/desitarget/pull/200
 .. _`PR #210`: https://github.com/desihub/desitarget/pull/210
 .. _`PR #214`: https://github.com/desihub/desitarget/pull/214
+.. _`PR #228`: https://github.com/desihub/desitarget/pull/228
 .. _`PR #219`: https://github.com/desihub/desitarget/pull/219
 .. _`PR #217`: https://github.com/desihub/desitarget/pull/217
 
