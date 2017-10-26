@@ -31,7 +31,9 @@ oldtscolumns = [
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
+    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2', 
+    'SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+    'DCHISQ',
     ]
 
 #ADM this is an empty array of the full TS data model columns and dtypes

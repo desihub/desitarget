@@ -7,6 +7,7 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 from desitarget import skies, io, targets
+from desitarget.skies import psfsize
 
 from desiutil import brick
 
@@ -17,6 +18,7 @@ class TestSKIES(unittest.TestCase):
         #ADM (based on 1000 trials)
         self.nskymin = 500000
         self.navoid = 2.
+        self.psfsize = psfsize
 
         #ADM location of input test file
         self.datadir = resource_filename('desitarget.test', 't')
@@ -27,7 +29,8 @@ class TestSKIES(unittest.TestCase):
         
         #ADM need to ensure that one object has a large enough half-light radius
         #ADM to cover matching sky positions to larger objects
-        self.objs['SHAPEDEV_R'][0] = 100.*self.navoid
+        self.objs['SHAPEDEV_R'][0] = (self.psfsize*self.navoid)+1e-8
+        self.objs['SHAPEDEV_E1'][0] =
 
         #ADM create a "maximum" search distance that is as large as the 
         #ADM diagonal across all objects in the test sweeps file
