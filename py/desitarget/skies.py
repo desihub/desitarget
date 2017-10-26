@@ -225,19 +225,45 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
     return np.hypot(dx,dy) < 1
 
 
-def density_of_sky_fibers(margin=2.):
-    """Use desihub products to find required density of sky fibers for DESI
+def density_of_sky_fibers(margin=50.):
+    """Use positioner patrol size to determine sky fiber density for DESI
 
     Parameters
     ----------
-    margin : :class:`float`, optional, defaults to 2.
-        Factor of extra sky positions to generate. So, for margin=2, twice as
+    margin : :class:`float`, optional, defaults to 50.
+        Factor of extra sky positions to generate. So, for margin=50, 50x as
         many sky positions as the default requirements will be generated
 
     Returns
     -------
     :class:`float`
-        The density of sky fibers to generate
+        The density of sky fibers to generate in per sq. deg.
+    """
+
+    #ADM the patrol radius of a DESI positioner (in sq. deg.)
+    patrol_radius = 6.4/60./60.
+
+    #ADM hardcode the number of options per positioner
+    options = 2.
+
+    nskymin = margin*options/patrol_radius
+
+    return nskymin
+
+
+def model_density_of_sky_fibers(margin=50.):
+    """Use desihub products to find required density of sky fibers for DESI
+
+    Parameters
+    ----------
+    margin : :class:`float`, optional, defaults to 50.
+        Factor of extra sky positions to generate. So, for margin=50, 50x as
+        many sky positions as the default requirements will be generated
+
+    Returns
+    -------
+    :class:`float`
+        The density of sky fibers to generate in per sq. deg.
     """
 
     from desimodel.io import load_fiberpos, load_target_info
@@ -320,7 +346,12 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
 
     start = time()
 
-    log.info('Generating sky positions...t = {:.1f}s'.format(time()-start))
+    #ADM if needed, determine the minimum density of sky fibers to generate
+    if nskymin is None:
+        nskymin = density_of_sky_fibers()
+
+    log.info('Generating sky positions at a density of {} per sq. deg....t = {:.1f}s'
+             .format(nskymin,time()-start))
 
     #ADM check if input objs is a filename or the actual data
     if isinstance(objs, str):
@@ -334,10 +365,6 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
     #ADM the maximum such separation for any object in the passed set in arcsec
     maxrad = max(sep)
 
-    #ADM if needed, determine the minimum density of sky fibers to generate
-    if nskymin is None:
-        nskymin = density_of_sky_fibers()
-
     #ADM the coordinate limits and corresponding area of the passed objs
     ramin, ramax = np.min(objs["RA"]), np.max(objs["RA"])
     #ADM guard against the wraparound bug (should never be an issue for the sweeps, anyway)
@@ -346,6 +373,8 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
     decmin, decmax = np.min(objs["DEC"]),np.max(objs["DEC"])
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
+    log.info('Area covered by passed objects is {:.3f} sq. deg....t = {:.1f}s'
+             .format(spharea,time()-start))
 
     #ADM how many sky positions we need to generate to meet the minimum density requirements
     nskies = int(spharea*nskymin)
