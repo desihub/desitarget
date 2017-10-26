@@ -15,7 +15,7 @@ class TestSKIES(unittest.TestCase):
     def setUp(self):
         #ADM at this nskymin you always seem to get at least 1 bad position
         #ADM (based on 1000 trials)
-        self.nskymin = 50000
+        self.nskymin = 500000
         self.navoid = 2.
 
         #ADM location of input test file
@@ -27,7 +27,7 @@ class TestSKIES(unittest.TestCase):
         
         #ADM need to ensure that one object has a large enough half-light radius
         #ADM to cover matching sky positions to larger objects
-        self.objs['SHAPEDEV_R'][0] = 4.1*self.navoid
+        self.objs['SHAPEDEV_R'][0] = 100.*self.navoid
 
         #ADM create a "maximum" search distance that is as large as the 
         #ADM diagonal across all objects in the test sweeps file
