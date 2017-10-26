@@ -811,3 +811,19 @@ class MockMagnitudes(object):
     
         meta['FLUX_G'][:] = 10**((22.5 - data['MAG'][index])/2.5) # g-band flux
         return meta
+    
+    def sky(self, data, index=None, mockformat=None):
+        """Generate spectra for SKY.
+
+        """
+        objtype = 'SKY'
+        if index is None:
+            index = np.arange(len(data['Z']))
+        nobj = len(index)
+            
+        meta = empty_metatable(nmodel=nobj, objtype=objtype)
+        for inkey, datakey in zip(('SEED', 'REDSHIFT'),
+                                  ('SEED', 'Z')):
+            meta[inkey] = data[datakey][index]
+            
+        return meta
