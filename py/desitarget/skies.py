@@ -87,15 +87,15 @@ def ellipse_boundary(RAcen, DECcen, r, e1, e2):
 
     Parameters
     ----------
-    RAcen : :class:`float` or `~numpy.ndarray` 
+    RAcen : :class:`float`
         Right Ascension of the center of the ellipse (DEGREES)
-    DECcen : :class:`float` or `~numpy.ndarray` 
+    DECcen : :class:`float`
         Declination of the center of the ellipse (DEGREES)
-    r : :class:`float` or `~numpy.ndarray` 
+    r : :class:`float`
         Half-light radius of the ellipse (ARCSECONDS)
-    e1 : :class:`float` or `~numpy.ndarray` 
+    e1 : :class:`float`
         First ellipticity component of the ellipse
-    e2 : :class:`float` or `~numpy.ndarray` 
+    e2 : :class:`float`
         Second ellipticity component of the ellipse
 
     Returns
@@ -112,27 +112,19 @@ def ellipse_boundary(RAcen, DECcen, r, e1, e2):
         - Much of the math is taken from:
              https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
     """
-    
     #ADM Retrieve the 2x2 matrix to transform points measured in 
     #ADM effective-half-light-radius to RA/Dec offsets
-    G = ellipse_matrix(r, e1, e2)
+    T = ellipse_matrix(r, e1, e2)
 
     #ADM create a circle in effective-half-light-radius
     angle = np.linspace(0, 2.*np.pi, 50)
     vv = np.vstack([np.sin(angle),np.cos(angle)])
 
     #ADM transform circle to elliptical boundary
-    dra = []
-    ddec = []
-    for i in range(np.shape(T)[-1]):
-        dradec = np.dot(T[...,i],vv)
-        dra.append(dradec[0])
-        ddec.append(dradec[0])
-        ras = RAcen[i] + dra
-        decs = DECcen[i] + ddec 
+    dra, ddec = np.dot(T[...,0],vv)
     
     #ADM return the RA, Dec of the boundary or boundaries
-    return ras, decs
+    return RAcen + dra, DECcen + ddec
 
 
 def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
@@ -479,7 +471,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
         objects (objs) were avoided out to when generating sky positions
     limits : :class:`~numpy.array`, optional, defaults to None
         plot limits in the form [ramin, ramax, decmin, decmax] if None
-        is passed, then a small subsection of the passed area is plotted
+        is passed, then the entire area is plotted
     plotname : :class:`str`, defaults to None    
         If a name is passed use matplotlib's savefig command to save the
         plot to that file name. Otherwise, display the plot
@@ -491,6 +483,8 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
 
     import matplotlib.pyplot as plt
     from desitarget.brightstar import ellipses
+    from matplotlib.patches import Polygon
+    from matplotlib.collections import PatchCollection
 
     #ADM initialize the default logger
     from desiutil.log import get_logger, DEBUG
@@ -499,15 +493,15 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     start = time()
 
     #ADM set up the figure and the axis labels
-    plt.figure(figsize=(8,8))
-    plt.xlabel('RA (o)')
-    plt.ylabel('Dec (o)')
+    fig, ax = plt.subplots(figsize=(8,8))
+    ax.set_xlabel('RA (o)')
+    ax.set_ylabel('Dec (o)')
 
     #ADM check if input objs is a filename or the actual data
     if isinstance(objs, str):
         objs = io.read_tractor(objs)
 
-    #ADM coordinate limits and corresponding area of the passed objs
+    #ADM coordinate limits for the passed objs
     ramin, ramax = np.min(objs["RA"]), np.max(objs["RA"])
     decmin, decmax = np.min(objs["DEC"]), np.max(objs["DEC"])
     #ADM guard against wraparound bug (which should never be an issue for the sweeps, anyway)
@@ -522,44 +516,54 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
 
     #ADM limit the figure range based on the passed objs
     if limits is None:
-        rarange, decrange = ramax - ramin, decmax - decmin
-        rastep, decstep = rarange*0.47, decrange*0.47
-        ralo, rahi = ramin+rastep, ramax-rastep
-        declo, dechi = decmin+decstep, decmax-decstep
+        ralo, rahi = ramin, ramax
+        declo, dechi = decmin, decmax
     else:
         ralo, rahi, declo, dechi = limits
 
-    plt.axis([ralo,rahi,declo,dechi])
+    dum = plt.axis([ralo,rahi,declo,dechi])
 
     #ADM plot good and bad sky positions
-    plt.scatter(ragood,decgood,marker='d',facecolors='none',edgecolors='k')
-    plt.scatter(rabad,decbad,marker='s',facecolors='none',edgecolors='r')
-
-    #ADM restrict the passed avoidance zones based on the passed limits
-    #ADM remembering that we need to plot things at least the maximum/cos(maxdec)
-    #ADM times the possible avoidance zone beyond the plot limits
-    fac = 1./np.cos(np.radians(max(abs(decmin),decmax)))
-    w = np.where( (objs["RA"] > ralo-fac*maxrad) & (objs["RA"] < rahi+fac*maxrad) & 
-                  (objs["DEC"] > declo-fac*maxrad) & (objs["DEC"] < dechi+fac*maxrad))
-    objs = objs[w]
-
-    log.info('Number of avoidance zones in plot area {}...t = {:.1f}s'.format(len(w[0]),time()-start))
+    ax.scatter(ragood,decgood,marker='d',facecolors='none',edgecolors='k')
+    ax.scatter(rabad,decbad,marker='x',facecolors='r')
 
     #ADM the size that defines a PSF versus an elliptical avoidance zone
     sepsplit = (psfsize*navoid)+1e-8
     smallsepw = np.where(sep <= sepsplit)[0]
     bigsepw = np.where(sep > sepsplit)[0]
 
-    #ADM first the PSF or "small separation objects"
-
+    #ADM first the PSF or "small separation objects"...
     #ADM set up the ellipse shapes based on sizes of the past avoidance zones
     #ADM remembering to stretch by the COS term to de-project the sky
     minoraxis = sep/3600.
     majoraxis = minoraxis/np.cos(np.radians(objs["DEC"]))
-
     log.info('Plotting avoidance zones...t = {:.1f}s'.format(time()-start))
-    #ADM plot the avoidance zones as ellipses
-    out = ellipses(objs[w]["RA"], objs[w]["DEC"], 2*majoraxis[w], 2*minoraxis[w], alpha=0.2, edgecolor='none')
+    #ADM plot the avoidance zones as circles, stretched by their DEC position
+    out = ellipses(objs[smallsepw]["RA"], objs[smallsepw]["DEC"], 
+                   2*majoraxis[smallsepw], 2*minoraxis[smallsepw], alpha=0.4, edgecolor='none')
+
+    #ADM now the elliptical or "large separation objects"...
+    #ADM loop through the DEV and EXP shapes, and create polygons
+    #ADM of them to plot (where they're defined)
+    patches = []
+    for i, valobj in enumerate(bigsepw):
+        if objs[valobj]["SHAPEEXP_R"] > 0:
+            #ADM points on the ellipse boundary for EXP objects
+            ras, decs = ellipse_boundary(objs[valobj]["RA"], objs[valobj]["DEC"],
+                                       objs[valobj]["SHAPEEXP_R"]*navoid, 
+                                       objs[valobj]["SHAPEEXP_E1"], objs[valobj]["SHAPEEXP_E2"])  
+            polygon = Polygon(np.array(list(zip(ras,decs))), True)
+            patches.append(polygon)
+        if objs[valobj]["SHAPEDEV_R"] > 0:
+            #ADM points on the ellipse boundary for DEV objects
+            ras, decs = ellipse_boundary(objs[valobj]["RA"], objs[valobj]["DEC"],
+                                       objs[valobj]["SHAPEDEV_R"]*navoid, 
+                                       objs[valobj]["SHAPEDEV_E1"], objs[valobj]["SHAPEDEV_E2"])
+            polygon = Polygon(np.array(list(zip(ras,decs))), True)
+            patches.append(polygon)
+
+    p = PatchCollection(patches, alpha=0.4, facecolors='b', edgecolors='b')
+    ax.add_collection(p)
 
     #ADM display the plot, if requested
     if plotname is None:
