@@ -15,8 +15,7 @@ class TestSKIES(unittest.TestCase):
 
     def setUp(self):
         #ADM at this nskymin you always seem to get at least 1 bad position
-        #ADM (based on 1000 trials)
-        self.nskymin = 500000
+        self.nskymin = 5000000
         self.navoid = 2.
         self.psfsize = psfsize
 
