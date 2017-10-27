@@ -225,13 +225,13 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
     return np.hypot(dx,dy) < 1
 
 
-def density_of_sky_fibers(margin=50.):
+def density_of_sky_fibers(margin=10.):
     """Use positioner patrol size to determine sky fiber density for DESI
 
     Parameters
     ----------
-    margin : :class:`float`, optional, defaults to 50.
-        Factor of extra sky positions to generate. So, for margin=50, 50x as
+    margin : :class:`float`, optional, defaults to 10.
+        Factor of extra sky positions to generate. So, for margin=10, 10x as
         many sky positions as the default requirements will be generated
 
     Returns
@@ -251,13 +251,13 @@ def density_of_sky_fibers(margin=50.):
     return nskymin
 
 
-def model_density_of_sky_fibers(margin=50.):
+def model_density_of_sky_fibers(margin=10.):
     """Use desihub products to find required density of sky fibers for DESI
 
     Parameters
     ----------
-    margin : :class:`float`, optional, defaults to 50.
-        Factor of extra sky positions to generate. So, for margin=50, 50x as
+    margin : :class:`float`, optional, defaults to 10.
+        Factor of extra sky positions to generate. So, for margin=10, 10x as
         many sky positions as the default requirements will be generated
 
     Returns
@@ -436,15 +436,17 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
             TEXP = ellipse_matrix(objs[bigsepw]["SHAPEEXP_R"]*navoid, 
                                   objs[bigsepw]["SHAPEEXP_E1"], 
                                   objs[bigsepw]["SHAPEEXP_E2"])
-            #ADM loop through the DEV and EXP shapes, and where they are
-            #ADM defined, determine if any sky positions occupy them
+            #ADM loop through the DEV and EXP shapes, and where they are defined
+            #ADM (radius > tiny), determine if any sky positions occupy them
             for i, valobj in enumerate(bigsepw):
+                if i%1000 == 999:
+                    log.info('Done {}/{}...t = {:.1f}s'.format(i,len(bigsepw),time()-start))
                 is_in = np.array(np.zeros(nchunk),dtype='bool')
-                if objs[valobj]["SHAPEEXP_R"] > 0:
+                if objs[valobj]["SHAPEEXP_R"] > 1e-16:
                     is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg, 
                                                  cobjs[valobj].ra.deg, cobjs[valobj].dec.deg, 
                                                  TEXP[...,i])
-                if objs[valobj]["SHAPEDEV_R"] > 0:
+                if objs[valobj]["SHAPEDEV_R"] > 1e-16:
                     is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg, 
                                                  cobjs[valobj].ra.deg, cobjs[valobj].dec.deg, 
                                                  TDEV[...,i])
