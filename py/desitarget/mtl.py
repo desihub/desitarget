@@ -71,6 +71,8 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # Assign priorities
     mtl['PRIORITY'] = calc_priority(ztargets)
+    #ADM assign sub-priority
+    mtl['SUB_PRIORITY'] = calc_subpriority(ztargets)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
