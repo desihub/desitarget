@@ -122,9 +122,15 @@ def ellipse_boundary(RAcen, DECcen, r, e1, e2):
 
     #ADM transform circle to elliptical boundary
     dra, ddec = np.dot(T[...,0],vv)
-    
-    #ADM return the RA, Dec of the boundary or boundaries
-    return RAcen + dra, DECcen + ddec
+
+    #ADM return the RA, Dec of the boundary, remembering to correct for
+    #ADM spherical projection in Dec
+    decs = DECcen + ddec
+    #ADM note that this is only true for the small angle approximation
+    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
+    ras = RAcen + (dra/np.cos(np.radians(decs)))
+
+    return ras, decs
 
 
 def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
@@ -168,7 +174,10 @@ def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
     #ADM ...and invert it
     Ginv = np.linalg.inv(G[...,0])
 
-    dra = ras - RAcen
+    #ADM remember to correct for the spherical projection in Dec
+    #ADM note that this is only true for the small angle approximation
+    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
+    dra = (ras - RAcen)*np.cos(np.radians(decs))
     ddec = decs - DECcen
 
     #ADM test whether points are larger than the effective
@@ -215,7 +224,10 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
     #ADM Invert the transformation matrix
     Ginv = np.linalg.inv(G)
 
-    dra = ras - RAcen
+    #ADM remember to correct for the spherical projection in Dec
+    #ADM note that this is only true for the small angle approximation
+    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
+    dra = (ras - RAcen)*np.cos(np.radians(decs))
     ddec = decs - DECcen
 
     #ADM test whether points are larger than the effective
@@ -555,8 +567,8 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     dum = plt.axis([ralo,rahi,declo,dechi])
 
     #ADM plot good and bad sky positions
-    ax.scatter(ragood,decgood,marker='d',facecolors='none',edgecolors='k')
-    ax.scatter(rabad,decbad,marker='x',facecolors='r')
+    ax.scatter(ragood,decgood,marker='.',facecolors='none',edgecolors='k')
+    ax.scatter(rabad,decbad,marker='.',facecolors='r')
 
     #ADM the size that defines a PSF versus an elliptical avoidance zone
     sepsplit = (psfsize*navoid)+1e-8

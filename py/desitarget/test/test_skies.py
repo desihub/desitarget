@@ -34,6 +34,8 @@ class TestSKIES(unittest.TestCase):
 
         #ADM create a "maximum" search distance that is as large as the 
         #ADM diagonal across all objects in the test sweeps file
+        #ADM note that this is only close to correct because the test
+        #ADM file is near 0o Declination
         cmax = SkyCoord(max(self.objs["RA"])*u.degree, max(self.objs["DEC"])*u.degree)
         cmin = SkyCoord(min(self.objs["RA"])*u.degree, min(self.objs["DEC"])*u.degree)
         self.maxrad = cmax.separation(cmin).arcsec
