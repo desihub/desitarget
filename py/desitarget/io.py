@@ -294,8 +294,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        depend.setdep(hdr, 'HPXNSIDE', nside)
-        depend.setdep(hdr, 'HPXNEST', True)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
 
     #ADM add PHOTSYS column, mapped from RELEASE
     photsys = release_to_photsys(data["RELEASE"])
