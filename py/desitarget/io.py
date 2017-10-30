@@ -322,6 +322,15 @@ def iter_files(root, prefix, ext='fits'):
 def list_sweepfiles(root):
     """Return a list of sweep files found under `root` directory.
     """
+    from desiutil.log import get_logger
+    log = get_logger(timestamp=True)
+
+    #ADM check for duplicate files in case the listing was run
+    #ADM at too low a level in the directory structure
+    check = [os.path.basename(x) for x in iter_sweepfiles(root)]
+    if len(check) != len(set(check)):
+        log.error("Duplicate sweep files in root directory!")
+
     return [x for x in iter_sweepfiles(root)]
 
 
@@ -334,6 +343,15 @@ def iter_sweepfiles(root):
 def list_tractorfiles(root):
     """Return a list of tractor files found under `root` directory.
     """
+    from desiutil.log import get_logger
+    log = get_logger(timestamp=True)
+
+    #ADM check for duplicate files in case the listing was run
+    #ADM at too low a level in the directory structure
+    check = [os.path.basename(x) for x in iter_tractorfiles(root)]
+    if len(check) != len(set(check)):
+        log.error("Duplicate Tractor files in root directory!")
+
     return [x for x in iter_tractorfiles(root)]
 
 
