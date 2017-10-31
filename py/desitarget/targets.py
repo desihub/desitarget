@@ -52,6 +52,10 @@ def target_bitmask_to_string(target_class,mask):
     Where multiple bits are set, joins the names of each contributing bit with
     '+'.
     """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     target_class_names = np.zeros(len(target_class),dtype=np.object)
     unique_target_classes = np.unique(target_class)
     for tc in unique_target_classes:
@@ -60,7 +64,7 @@ def target_bitmask_to_string(target_class,mask):
 
         tc_name = '+'.join(mask.names(tc))
         target_class_names[has_this_target_class] = tc_name
-        print('Target class %s (%d): %d'%(tc_name,tc,len(has_this_target_class)))
+        log.info('Target class %s (%d): %d'%(tc_name,tc,len(has_this_target_class)))
 
     return target_class_names
 
@@ -73,12 +77,16 @@ def encode_mtl_targetid(targets):
     Allows rows in final MTL (and hence fibre map) to be mapped to input
     sources.
     """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     encoded_targetid = targets['TARGETID'].copy()
 
     # Validate incoming target ids
     if not np.all(encoded_targetid <= ENCODE_MTL_USER_MASK):
-        print('Invalid range of user-specfied targetid: cannot exceed {}'.format(ENCODE_MTL_USER_MASK))
-        raise Exception
+        log.error('Invalid range of user-specfied targetid: cannot exceed {}'
+                    .format(ENCODE_MTL_USER_MASK))
 
     desi_target = targets['DESI_TARGET'] != 0
     bgs_target  = targets['BGS_TARGET']  != 0
@@ -163,6 +171,9 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
 
         - See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
 
     #ADM a flag that tracks whether the main inputs were integers
     intpassed = True
@@ -202,20 +213,20 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
 
     #ADM check none of the passed parameters exceed their bit-allowance
     if not np.all(objid <= 2**targetid_mask.OBJID.nbits):
-        print('Invalid range when creating targetid: OBJID cannot exceed {}'.format(2**targetid_mask.OBJID.nbits))
-        raise Exception
+        log.error('Invalid range when creating targetid: OBJID cannot exceed {}'
+                 .format(2**targetid_mask.OBJID.nbits))
     if not np.all(brickid <= 2**targetid_mask.BRICKID.nbits):
-        print('Invalid range when creating targetid: BRICKID cannot exceed {}'.format(2**targetid_mask.BRICKID.nbits))
-        raise Exception
+        log.error('Invalid range when creating targetid: BRICKID cannot exceed {}'
+                 .format(2**targetid_mask.BRICKID.nbits))
     if not np.all(release <= 2**targetid_mask.RELEASE.nbits):
-        print('Invalid range when creating targetid: RELEASE cannot exceed {}'.format(2**targetid_mask.RELEASE.nbits))
-        raise Exception
+        log.error('Invalid range when creating targetid: RELEASE cannot exceed {}'
+                  .format(2**targetid_mask.RELEASE.nbits))
     if not np.all(mock <= 2**targetid_mask.MOCK.nbits):
-        print('Invalid range when creating targetid: MOCK cannot exceed {}'.format(2**targetid_mask.MOCK.nbits))
-        raise Exception
+        log.error('Invalid range when creating targetid: MOCK cannot exceed {}'
+                  .format(2**targetid_mask.MOCK.nbits))
     if not np.all(sky <= 2**targetid_mask.SKY.nbits):
-        print('Invalid range when creating targetid: SKY cannot exceed {}'.format(2**targetid_mask.SKY.nbits))
-        raise Exception
+        log.error('Invalid range when creating targetid: SKY cannot exceed {}'
+                  .format(2**targetid_mask.SKY.nbits))
 
     #ADM set up targetid as an array of 64-bit integers
     targetid = np.zeros(nobjs,('int64'))
@@ -314,13 +325,17 @@ def calc_priority(targets):
     Notes:
         If a target passes more than one selection, the highest priority wins.
     """
+    #ADM set up default DESI logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     # FIXME (APC): Blimey, full copy and conversion to table!
     import time
     t0 = time.time()
-    print('DEBUG: before targets.calc_priority slow copy')
+    log.debug('before targets.calc_priority slow copy')
     targets = Table(targets).copy()
     t1 = time.time()
-    print('DEBUG: seconds for targets.calc_priority slow copy: {}'.format(t1-t0))
+    log.debug('seconds for targets.calc_priority slow copy: {}'.format(t1-t0))
 
     # If no NUMOBS, assume no targets have been observed. Requires copy above.
     if 'NUMOBS' not in targets.colnames:
@@ -333,7 +348,7 @@ def calc_priority(targets):
     # TODO: this doesn't distinguish between really unobserved vs not yet
     # processed.
     unobs = (targets['NUMOBS'] == 0)
-    print('DEBUG: calc_priority has %d unobserved targets'%(np.sum(unobs)))
+    log.debug('calc_priority has %d unobserved targets'%(np.sum(unobs)))
     if np.all(unobs):
         done  = np.zeros(len(targets), dtype=bool)
         zgood = np.zeros(len(targets), dtype=bool)
