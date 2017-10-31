@@ -183,9 +183,8 @@ def read_tractor(filename, header=False, columns=None):
     #ADM need to add the SUBPRIORITY column if it wasn't passed by the MWS group
     if (columns is None) and \
        (('SUBPRIORITY' not in fxcolnames) and ('subpriority' not in fxcolnames)):
-        #ADM this likely doesn't need a huge range, so set to float 16
-        subpriority = np.zeros(len(data), dtype='<f2')
-        #ADM populate the array randomly from 0->1, retaining the dtype 
+        subpriority = np.zeros(len(data), dtype='>f4')
+        #ADM populate the subpriority array randomly from 0->1, retaining the dtype 
         subpriority[...] = np.random.random(len(data))
         data = rfn.append_fields(data, 'SUBPRIORITY', subpriority, usemask=False)
 
