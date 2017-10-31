@@ -18,11 +18,13 @@ import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
+from desiutil.log import get_logger
+log = get_logger()
+
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", help="Output target selection file")
-ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument('-s', "--skies", action='store_true',help="Generate blank sky positions in addition to targets")
 ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('-m', "--mask", help="If sent then mask the targets, the name of the mask file should be supplied")
@@ -42,15 +44,15 @@ infiles = io.list_sweepfiles(ns.src)
 if len(infiles) == 0:
     infiles = io.list_tractorfiles(ns.src)
 if len(infiles) == 0:
-    print('FATAL: no sweep or tractor files found')
+    log.critical('no sweep or tractor files found')
     sys.exit(1)
 
 if ns.check:
-    print('Check input files...')
-    nbadfiles = check_input_files(infiles, numproc=ns.numproc, verbose=ns.verbose)
-    print('{} potentially corrupt files'.format(nbadfiles))
+    log.info('Check input files...')
+    nbadfiles = check_input_files(infiles, numproc=ns.numproc)
+    log.info('{} potentially corrupt files'.format(nbadfiles))
 else:
-    targets = select_targets(infiles, numproc=ns.numproc, verbose=ns.verbose,
+    targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
     if ns.mask:
         targets = mask_targets(targets, instarmaskfile=ns.mask, nside=nside)
@@ -68,5 +70,5 @@ else:
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
 
-    print('{} targets written to {}'.format(len(targets), ns.dest))
+    log.info('{} targets written to {}'.format(len(targets), ns.dest))
 
