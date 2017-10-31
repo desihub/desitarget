@@ -31,7 +31,9 @@ oldtscolumns = [
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
+    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2', 
+    'SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+    'DCHISQ',
     ]
 
 #ADM this is an empty array of the full TS data model columns and dtypes
@@ -50,7 +52,9 @@ tsdatamodel = np.array([], dtype=[
     ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
     ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
     ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
-    ('SHAPEDEV_R', '>f4'), ('SHAPEEXP_R', '>f4'), ('DCHISQ', '>f4', (5,))
+    ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
+    ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
+    ('DCHISQ', '>f4', (5,))
     ])
 
 

@@ -6,7 +6,9 @@ desitarget Change Log
 -------------------
 
 * Include GMM model data for mocks when installing [`PR #222`_].
+* Initial simplistic code for generating sky positions [`PR #220`_]
 
+.. _`PR #220`: https://github.com/desihub/desitarget/pull/220
 .. _`PR #222`: https://github.com/desihub/desitarget/pull/222
 
 0.15.0 (2017-09-29)

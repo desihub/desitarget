@@ -478,7 +478,7 @@ def calc_numobs(targets):
     return nobs
 
 ############################################################
-def finalize(targets, desi_target, bgs_target, mws_target):
+def finalize(targets, desi_target, bgs_target, mws_target, sky=0):
     """Return new targets array with added/renamed columns
 
     Args:
@@ -487,6 +487,7 @@ def finalize(targets, desi_target, bgs_target, mws_target):
         desi_target: 1D array of target selection bit flags
         bgs_target: 1D array of target selection bit flags
         mws_target: 1D array of target selection bit flags
+        sky: Pass 1 to indicate these are blank sky targets
 
     Returns new targets structured array with those changes
 
@@ -509,7 +510,8 @@ def finalize(targets, desi_target, bgs_target, mws_target):
     targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'],
-                               release=targets['RELEASE'])
+                               release=targets['RELEASE'],
+                               sky=sky)
 
     #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,
