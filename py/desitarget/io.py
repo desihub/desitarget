@@ -32,30 +32,34 @@ oldtscolumns = [
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2', 
+    'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2_IVAR', 
     'SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-    'DCHISQ',
+    'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2_IVAR',
+    'DCHISQ'
     ]
 
 #ADM this is an empty array of the full TS data model columns and dtypes
 tsdatamodel = np.array([], dtype=[
-    ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'), 
-    ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'), 
-    ('DEC', '>f8'), ('DEC_IVAR', '>f4'), 
-    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
-    ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'), 
-    ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
-    ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'), 
-    ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'), 
-    ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'), 
-    ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'), 
-    ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'), 
-    ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
-    ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
-    ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
-    ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
-    ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
-    ('DCHISQ', '>f4', (5,))
-    ])
+        ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'), 
+        ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'), 
+        ('DEC', '>f8'), ('DEC_IVAR', '>f4'), 
+        ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
+        ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'), 
+        ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
+        ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'), 
+        ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'), 
+        ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'), 
+        ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'), 
+        ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'), 
+        ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
+        ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
+        ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
+        ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
+        ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
+        ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
+        ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
+        ('DCHISQ', '>f4', (5,))
+         ])
 
 
 def convert_from_old_data_model(fx,columns=None):
@@ -171,6 +175,15 @@ def read_tractor(filename, header=False, columns=None):
         data = convert_from_old_data_model(fx,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
+
+    #ADM need to add the SUBPRIORITY column if it wasn't passed by the MWS group
+    if (columns is None) and \
+       (('SUBPRIORITY' not in fxcolnames) and ('subpriority' not in fxcolnames)):
+        #ADM this likely doesn't need a huge range, so set to float 16
+        subpriority = np.zeros(len(data), dtype='<f2')
+        #ADM populate the array randomly from 0->1, retaining the dtype 
+        subpriority[...] = np.random.random(len(data))
+        data = rfn.append_fields(data, 'SUBPRIORITY', subpriority, usemask=False)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
     if len(data) == 0:

@@ -300,34 +300,6 @@ def decode_survey_source(encoded_values):
     return survey, source, original_targetid
 
 ############################################################
-def calc_subpriority(targets):
-    """Calculate target SUB-priorities given observation state and target masks
-
-    Parameters
-    ----------
-    targets : :class:`~astropy.table.Table` or :class:`~numpy.ndarray`
-        DESI targets, including columns DESI_TARGET, BGS_TARGET, and MWS_TARGET
-        e.g., as made by :meth:`desitarget.cuts.select_targets`
-
-    Returns
-    -------
-    :class:`~numpy.ndarrray`
-        float array of sub-priorities
-
-    Notes
-    -----
-        - This is currently placeholder code that randomly generates a number
-        between 0 and 1. Ultimately, the MWS may need additional functionality.
-    """
-    #ADM this likely doesn't need a huge range, so set to float 16
-    subpriority = np.zeros(len(targets), dtype='<f2')
-
-    #ADM populate the array, retaining the dtype
-    subpriority[...] = np.random.random(len(targets))
-
-    return subpriority
-
-############################################################
 def calc_priority(targets):
     """
     Calculate target priorities given observation state and target masks
