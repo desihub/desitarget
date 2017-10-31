@@ -149,6 +149,10 @@ def read_tractor(filename, header=False, columns=None):
     :class:`numpy.ndarray`
         Array with the tractor schema, uppercase field names.
     """
+    #ADM set up the default DESI logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     check_fitsio_version()
 
     fx = fitsio.FITS(filename, upper=True)
@@ -187,7 +191,7 @@ def read_tractor(filename, header=False, columns=None):
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
     if len(data) == 0:
-        print('WARNING: Empty file>', filename)
+        log.warning('WARNING: Empty file>', filename)
         dt = data.dtype.descr
         dt[1] = ('BRICKNAME', 'S8')
         data = data.astype(np.dtype(dt))
@@ -278,6 +282,10 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     """
     # FIXME: assert data and tsbits schema
 
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     #ADM use RELEASE to determine the release string for the input targets
     if len(data) == 0:
         #ADM if there are no targets, then we don't know the Data Release
@@ -297,7 +305,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         depend.setdep(hdr, 'tractor-files', indir)
 
     if qso_selection is None:
-        print('WARNING: qso_selection method not specified for output file')
+        log.warning('qso_selection method not specified for output file')
         depend.setdep(hdr, 'qso-selection', 'unknown')
     else:
         depend.setdep(hdr, 'qso-selection', qso_selection)
