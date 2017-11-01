@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.15.1 (unreleased)
+0.16.1 (unreleased)
+-------------------
+
+* no changes yet
+
+0.16.0 (2017-11-01)
 -------------------
 
 * General clean-up prior to running DR5 targets [`PR #229`_].
