@@ -720,7 +720,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     return desi_target, bgs_target, mws_target
 
-def check_input_files(infiles, numproc=4, verbose=False):
+def check_input_files(infiles, numproc=4):
     """
     Process input files in parallel to check whether they have
     any bugs that will prevent select_targets from completing,
@@ -733,7 +733,6 @@ def check_input_files(infiles, numproc=4, verbose=False):
 
     Optional:
         numproc: number of parallel processes
-        verbose: if True, print progress messages
 
     Returns:
         Nothing, but prints any problematic files to screen
@@ -742,6 +741,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
     Notes:
         if numproc==1, use serial code instead of parallel
     """
+    #ADM set up default logging
+    from desiutil.log import get_logger
+    log = get_logger()
+
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
@@ -801,10 +804,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if verbose and nbrick%25 == 0 and nbrick>0:
+        if nbrick%25 == 0 and nbrick>0:
             elapsed = time() - t0
             rate = nbrick / elapsed
-            print('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
+            log.info('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
         nbrick[...] += 1    # this is an in-place modification
         return result
 
@@ -822,10 +825,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
     w = np.where(fileinfo[...,1] != 'OK')
 
     if len(w[0]) == 0:
-        print('ALL FILES ARE OK')
+        log.info('ALL FILES ARE OK')
     else:
         for fil in fileinfo[w]:
-            print(fil[0],fil[1])
+            log.info(fil[0],fil[1])
 
     return len(w[0])
 
@@ -833,7 +836,7 @@ def check_input_files(infiles, numproc=4, verbose=False):
 qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
-def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest',
+def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    sandbox=False, FoMthresh=None, Method=None):
     """Process input files in parallel to select targets
 
@@ -841,7 +844,6 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         infiles: list of input filenames (tractor or sweep files),
             OR a single filename
         numproc (optional): number of parallel processes to use
-        verbose (optional): if True, print progress messages
         qso_selection (optional): algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
         sandbox (optional): if True, use the sample selection cuts in
@@ -861,6 +863,9 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         if numproc==1, use serial code instead of parallel
 
     """
+    from desiutil.log import get_logger
+    log = get_logger()
+
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
@@ -910,9 +915,9 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if verbose and nbrick%50 == 0 and nbrick>0:
+        if nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            print('{} files; {:.1f} files/sec'.format(nbrick, rate))
+            log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
@@ -922,16 +927,14 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
             if sandbox:
-                if verbose:
-                    print("You're in the sandbox...")
+                log.info("You're in the sandbox...")
                 targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
             else:
                 targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
         if sandbox:
-            if verbose:
-                print("You're in the sandbox...")
+            log.info("You're in the sandbox...")
             for x in infiles:
                 targets.append(_update_status(_select_sandbox_targets_file(x)))
         else:

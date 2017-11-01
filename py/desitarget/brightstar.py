@@ -288,7 +288,7 @@ def sphere_circle_ra_off(theta,centdec,declocs):
     return  np.degrees(offrar)
 
 
-def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False):
+def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None):
     """Extract a structure from the sweeps containing only bright stars in a given band to a given magnitude limit
 
     Parameters
@@ -308,8 +308,6 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output structure of bright stars
-    verbose : :class:`bool`, optional
-        Send to write progress to screen
 
     Returns
     -------
@@ -317,6 +315,9 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
         The structure of bright stars from the sweeps limited in the passed band(s) to the
         passed maglim(s).
     """
+    #ADM set up default logger
+    from desiutil.log import get_logger
+    log = get_logger()
 
     #ADM use io.py to retrieve list of sweeps or tractor files
     infiles = io.list_sweepfiles(rootdirname)
@@ -359,16 +360,15 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     totfiles = np.ones((),dtype='i8')*len(infiles)
     nfiles = np.ones((), dtype='i8')
     t0 = time()
-    if verbose:
-        print('Collecting bright stars from sweeps...')
+    log.info('Collecting bright stars from sweeps...')
 
     def _update_status(result):
         '''wrapper function for the critical reduction operation,
         that occurs on the main parallel process'''
-        if verbose and nfiles%25 == 0:
+        if nfiles%25 == 0:
             elapsed = time() - t0
             rate = nfiles / elapsed
-            print('{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nfiles, totfiles, rate, elapsed/60.))
+            log.info('{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nfiles, totfiles, rate, elapsed/60.))
         nfiles[...] += 1  #this is an in-place modification
         return result
 
@@ -486,7 +486,7 @@ def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/
     return ldict, bdict
 
 
-def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None,verbose=False):
+def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',infilename=None,outfilename=None):
     """Make a bright star mask from a structure of bright stars drawn from the sweeps
 
     Parameters
@@ -510,8 +510,6 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         via a call to collect_bright_stars
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask
-    verbose : :class:`bool`, optional
-        Send to write progress to screen
 
     Returns
     -------
@@ -552,7 +550,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     if infilename is not None:
         objs = io.read_tractor(infilename)
     else:
-        objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename,verbose)
+        objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename)
 
     #ADM write the fluxes and bands as arrays instead of named columns
     fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
@@ -902,7 +900,7 @@ def set_target_bits(targs,starmask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,verbose=False,drbricks=None):
+def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,drbricks=None):
     """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
 
     Parameters
@@ -932,8 +930,6 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask ONE OF outfilename or
         instarmaskfile MUST BE PASSED
-    verbose : :class:`bool`, optional
-        Send to write progress to screen
     drbricks : :class:`~numpy.ndarray`, optional
         A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
         This is typically used for testing only.
@@ -952,6 +948,10 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         - (not including 5-10 minutes to build the star mask from scratch)
     """
 
+    #ADM set up default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     t0 = time()
 
     if instarmaskfile is None and outfilename is None:
@@ -966,20 +966,18 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
     #ADM check if a file for the bright star mask was passed, if not then create it
     if instarmaskfile is None:
         starmask = make_bright_star_mask(bands,maglim,numproc=numproc,
-                                         rootdirname=rootdirname,outfilename=outfilename,verbose=verbose)
+                                         rootdirname=rootdirname,outfilename=outfilename)
     else:
         starmask = fitsio.read(instarmaskfile)
 
-    if verbose:
-        ntargsin = len(targs)
-        print('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
-        print('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
+    ntargsin = len(targs)
+    log.info('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
+    log.info('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
 
     #ADM generate SAFE locations and add them to the target list
     targs = append_safe_targets(targs,starmask,nside=nside,drbricks=drbricks)
     
-    if verbose:
-        print('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
+    log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
 
     #ADM update the bits depending on whether targets are in a mask
     dt = set_target_bits(targs,starmask)
@@ -992,11 +990,10 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
     if len(w[0]) > 0:
         done = done[w]
 
-    if verbose:
-        print("...of these, {} SAFE (BADSKY) locations aren't in masks...t={:.1f}s".format(len(done)-ntargsin, time()-t0))
+    log.info("...of these, {} SAFE (BADSKY) locations aren't in masks...t={:.1f}s"
+             .format(len(done)-ntargsin, time()-t0))
 
-    if verbose:
-        print('Finishing up...t={:.1f}s'.format(time()-t0))
+    log.info('Finishing up...t={:.1f}s'.format(time()-t0))
 
     return done
  

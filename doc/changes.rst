@@ -5,11 +5,16 @@ desitarget Change Log
 0.15.1 (unreleased)
 -------------------
 
+* General clean-up prior to running DR5 targets [`PR #229`_].
+   * Use :mod:`desiutil.log` instead of verbose (everywhere except mocks)
+   * Change ``HEALPix`` references to header keywords instead of dependencies
+   * Include ``SUBPRIORITY`` and shape parameter ``IVARs`` in target outputs
 * Include GMM model data for mocks when installing [`PR #222`_].
 * Initial simplistic code for generating sky positions [`PR #220`_]
 
 .. _`PR #220`: https://github.com/desihub/desitarget/pull/220
 .. _`PR #222`: https://github.com/desihub/desitarget/pull/222
+.. _`PR #229`: https://github.com/desihub/desitarget/pull/229
 
 0.15.0 (2017-09-29)
 -------------------
