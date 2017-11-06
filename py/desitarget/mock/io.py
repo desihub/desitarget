@@ -65,7 +65,7 @@ def get_healpix_dir(nside, pixnum, basedir='.'):
     subdir = str(pixnum // 100)
     return os.path.abspath(os.path.join(basedir, subdir, str(pixnum)))
 
-def findfile(filetype, nside, pixnum, basedir='.'):
+def findfile(filetype, nside, pixnum, basedir='.', ext='fits'):
     '''
     Returns standardized filepath
 
@@ -76,10 +76,11 @@ def findfile(filetype, nside, pixnum, basedir='.'):
 
     Optional:
         basedir: (str) base directory
+        ext: (str) file extension
     '''
     path = get_healpix_dir(nside, pixnum, basedir=basedir)
-    filename = '{filetype}-{nside}-{pixnum}.fits'.format(
-        filetype=filetype, nside=nside, pixnum=pixnum)
+    filename = '{filetype}-{nside}-{pixnum}.{ext}'.format(
+        filetype=filetype, nside=nside, pixnum=pixnum, ext=ext)
     return os.path.join(path, filename)
 
 def print_all_mocks_info(params):

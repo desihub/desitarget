@@ -4,23 +4,9 @@
 MPI equivalent of select_mock_targets
 """
 
-#- Initialize MPI ASAP, then proceed
+#- Parse args first to enable --help on login nodes where MPI crashes
 from __future__ import absolute_import, division, print_function
-from mpi4py import MPI
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-
-import sys, os
-import numpy as np
 import argparse
-
-from astropy.table import Table
-import desimodel.footprint
-from desiutil.log import get_logger, DEBUG
-from desitarget.mock.build import targets_truth
-import desitarget.mock.io as mockio
-
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 
@@ -31,6 +17,7 @@ parser.add_argument('-s', '--seed', help='Seed for random number generation', ty
 parser.add_argument('-n', '--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
 parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=64)
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
+parser.add_argument('--npix', help='Number of healpix per process', type=int, default=1)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
 parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
@@ -38,6 +25,22 @@ parser.add_argument('--no-check-env', action='store_true', help="Don't check NER
 parser.add_argument('--sort-pixels', action='store_true', help="Sort pixels by galactic latitude")
 
 args = parser.parse_args()
+
+#- Then initialize MPI ASAP before proceeding with other imports
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
+import sys, os, time
+import numpy as np
+
+from astropy.table import Table
+import desimodel.footprint
+from desiutil.log import get_logger, DEBUG
+from desitarget.mock.build import targets_truth
+import desitarget.mock.io as mockio
+from desispec.parallel import stdouterr_redirected
 
 if args.verbose:
     log = get_logger(DEBUG)
@@ -84,12 +87,20 @@ if rank == 0:
 
     keep = list()
     for i, pixnum in enumerate(pixels):
-        truthspecfile = mockio.findfile('spectra_truth', args.nside, pixnum, basedir=args.output_dir)
+        truthspecfile = mockio.findfile('truth', args.nside, pixnum,
+                                        basedir=args.output_dir)
         if not os.path.exists(truthspecfile):
             keep.append(i)
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
     pixels = pixels[keep]
+
+    #- pre-create output directories
+    for pixnum in pixels:
+        outdir = os.path.dirname(mockio.findfile('blat', args.nside, pixnum,
+                                                 basedir=args.output_dir))
+        if not os.path.isdir(outdir):
+            os.makedirs(outdir, exist_ok=True)  #- belt and suspenders
 
     #- Optionally sort pixels by -|galactic latitude| to do pixels with
     #- lowest star densities first.  When MPI size >> 1 this doesn't work
@@ -130,14 +141,31 @@ iedges = np.linspace(0, len(pixels), size+1, dtype=int)
 rankpix = pixels[iedges[rank]:iedges[rank+1]]
 rankseeds = randseeds[iedges[rank]:iedges[rank+1]]
 log.info('rank {} processes {} pixels {}'.format(rank, iedges[rank+1]-iedges[rank], rankpix))
+sys.stdout.flush()
+comm.barrier()
 
 if len(rankpix) > 0:
     #- Process one pixel at a time to avoid blowing out memory, but structure
     #- it in a way that we could expand to multiple pixels per call if/when
     #- we use less memory.
-    n = 1
+    n = args.npix
     for i in range(0, len(rankpix), n):
-        targets_truth(params, args.output_dir, seed=rankseeds[i], nside=args.nside,
-                    nproc=args.nproc, verbose=args.verbose,
-                    healpixels=rankpix[i:i+n])
- 
+        logfile = mockio.findfile('build', args.nside, rankpix[i], ext='log', basedir=args.output_dir)
+        log.info('Logging pixels {} to {}'.format(rankpix[i:i+n], logfile))
+        t0 = time.time()
+        try:
+            with stdouterr_redirected(to=logfile):
+                targets_truth(params, args.output_dir, seed=rankseeds[i], nside=args.nside,
+                            nproc=args.nproc, verbose=args.verbose,
+                            healpixels=rankpix[i:i+n])
+
+            runtime = (time.time()-t0) / 60
+            log.info('Pixels {} took {:.1f} minutes'.format(rankpix[i:i+n], runtime))
+        except Exception as err:
+            runtime = (time.time()-t0) / 60
+            log.error('Pixels {} failed after {:.1f} minutes'.format(rankpix[i:i+n], runtime))
+            import traceback
+            msg = traceback.format_exc()
+            sys.stdout.flush()
+            sys.stderr.flush()
+
