@@ -5,7 +5,8 @@ desitarget Change Log
 0.16.1 (unreleased)
 -------------------
 
-* no changes yet
+* fixes to allow QA to work with mock data
+* cleanup of mpi_select_mock_targets
 
 0.16.0 (2017-11-01)
 -------------------

@@ -1585,10 +1585,22 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.xlabel('r - z')
     plt.ylabel('r - W1')
     plt.set_cmap('inferno')
-    plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-    plt.colorbar()
-    #ADM make the plot
-    pngfile = os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
+    counts, xedges, yedges, image = \
+        plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+    if np.sum(counts) > 0:
+        plt.colorbar()
+    else:
+        log = get_logger()
+        log.error('No data within r-W1 vs. r-z ranges')
+        plt.clf()
+        plt.xlabel('r - z')
+        plt.ylabel('r - W1')
+        plt.xlim([-1,3])
+        plt.ylim([-1,3])
+        plt.text(0, 0, 'No data')
+
+    #ADM save the plot
+    pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
@@ -1750,7 +1762,10 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
-    DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+    if 'RELEASE' in targs.dtype.names:
+        DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+    else:
+        DRs = "DR Unknown"
 
     #ADM Set up the names of the target classes and their goal densities using
     #ADM the goal target densities for DESI (read from the DESIMODEL defaults)
