@@ -455,6 +455,11 @@ def model_map(brickfilename,plot=False):
         target density fluctuations and x would be the DEPTH or EBV value.
 
     """
+
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     flucmap = fluc_map(brickfilename)
 
     #ADM the percentiles to consider for "mean" and "sigma
@@ -472,7 +477,7 @@ def model_map(brickfilename,plot=False):
             for fcol in cols:
                 if re.search("FLUC",fcol):
                     if plot:
-                        print("doing",col,fcol)
+                        log.info("doing",col,fcol)
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
@@ -644,9 +649,13 @@ def mag_histogram(targetfilename,binsize,outfile):
     :class:`Nonetype`
         No return...but prints a raw N(m) to screen for each target type
     """
+    
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
 
     #ADM read in target file
-    print('Reading in targets file')
+    log.info('Reading in targets file')
     fx = fitsio.FITS(targetfilename, upper=True)
     targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET','DECAM_FLUX'])
 
@@ -654,7 +663,7 @@ def mag_histogram(targetfilename,binsize,outfile):
     file = open(outfile, "w")
 
     #ADM calculate the magnitudes of interest
-    print('Calculating magnitudes')
+    log.info('Calculating magnitudes')
     gfluxes = targetdata["DECAM_FLUX"][...,1]
     gmags = 22.5-2.5*np.log10(gfluxes*(gfluxes  > 1e-5) + 1e-5*(gfluxes < 1e-5))
     rfluxes = targetdata["DECAM_FLUX"][...,2]
@@ -670,7 +679,7 @@ def mag_histogram(targetfilename,binsize,outfile):
 
     #ADM loop through bits and print histogram of raw target numbers per magnitude
     for i, bitval in enumerate(bitvals):
-        print('Doing',bitnames[i])
+        log.info('Doing',bitnames[i])
         w = np.where(targetdata["DESI_TARGET"] & bitval)
         if len(w[0]):
             ghist,dum = np.histogram(gmags[w],bins=binedges)
@@ -679,7 +688,7 @@ def mag_histogram(targetfilename,binsize,outfile):
             file.write('{}    {}     {}     {}\n'.format(bitnames[i],'g','r','z'))
             for i in range(len(binedges)-1):
                 outs = '{:.1f} {} {} {}\n'.format(0.5*(binedges[i]+binedges[i+1]),ghist[i],rhist[i],zhist[i])
-                print(outs)
+                log.info(outs)
                 file.write(outs)
 
     file.close()
@@ -1253,34 +1262,38 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
          numpy structured array of brick information with columns as in construct_QA_file
     """
 
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     start = time()
 
     #ADM read in target file
-    print('Reading in target file...t = {:.1f}s'.format(time()-start))
+    log.info('Reading in target file...t = {:.1f}s'.format(time()-start))
     fx = fitsio.FITS(targetfilename, upper=True)
     targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET'])
 
     #ADM add col
 
-    print('Determining unique bricks...t = {:.1f}s'.format(time()-start))
+    log.info('Determining unique bricks...t = {:.1f}s'.format(time()-start))
     #ADM determine number of unique bricks and their integer IDs
     brickids = np.array(list(set(targetdata['BRICKID'])))
     brickids.sort()
 
-    print('Creating output brick structure...t = {:.1f}s'.format(time()-start))
+    log.info('Creating output brick structure...t = {:.1f}s'.format(time()-start))
     #ADM set up an output structure of size of the number of unique bricks
     nbricks = len(brickids)
     outstruc = construct_QA_file(nbricks)
 
-    print('Adding brick information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding brick information...t = {:.1f}s'.format(time()-start))
     #ADM add brick-specific information based on the brickids
     outstruc = populate_brick_info(outstruc,brickids,rootdirname)
 
-    print('Adding depth information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
     outstruc = populate_depths(outstruc,rootdirname)
 
-    print('Adding target density information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding target density information...t = {:.1f}s'.format(time()-start))
     #ADM bits and names of interest for desitarget
     #ADM -1 as a bit will return all values
     bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG",
@@ -1294,11 +1307,11 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
             targsperbrick = np.bincount(targetdata[w]['BRICKID'])
             outstruc[bitnames[i]] = targsperbrick[outstruc['BRICKID']]/outstruc['BRICKAREA']
 
-    print('Writing output file...t = {:.1f}s'.format(time()-start))
+    log.info('Writing output file...t = {:.1f}s'.format(time()-start))
     #ADM everything should be populated, just write it out
     fitsio.write(outfilename, outstruc, extname='BRICKINFO', clobber=True)
 
-    print('Done...t = {:.1f}s'.format(time()-start))
+    log.info('Done...t = {:.1f}s'.format(time()-start))
     return outstruc
 
 
@@ -1612,9 +1625,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     """
 
     #ADM set up the default logger from desiutil
-    from desimodel import io, footprint
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
+    from desimodel import io, footprint
 
     start = time()
     log.info('Start making targeting QA density plots...t = {:.1f}s'.format(time()-start))

@@ -31,27 +31,35 @@ oldtscolumns = [
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEEXP_R','DCHISQ',
+    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2', 
+    'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2_IVAR', 
+    'SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+    'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2_IVAR',
+    'DCHISQ'
     ]
 
 #ADM this is an empty array of the full TS data model columns and dtypes
 tsdatamodel = np.array([], dtype=[
-    ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'), 
-    ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'), 
-    ('DEC', '>f8'), ('DEC_IVAR', '>f4'), 
-    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
-    ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'), 
-    ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
-    ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'), 
-    ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'), 
-    ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'), 
-    ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'), 
-    ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'), 
-    ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
-    ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
-    ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
-    ('SHAPEDEV_R', '>f4'), ('SHAPEEXP_R', '>f4'), ('DCHISQ', '>f4', (5,))
-    ])
+        ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'), 
+        ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'), 
+        ('DEC', '>f8'), ('DEC_IVAR', '>f4'), 
+        ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
+        ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'), 
+        ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
+        ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'), 
+        ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'), 
+        ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'), 
+        ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'), 
+        ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'), 
+        ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
+        ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
+        ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
+        ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
+        ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
+        ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
+        ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
+        ('DCHISQ', '>f4', (5,))
+         ])
 
 
 def convert_from_old_data_model(fx,columns=None):
@@ -141,6 +149,10 @@ def read_tractor(filename, header=False, columns=None):
     :class:`numpy.ndarray`
         Array with the tractor schema, uppercase field names.
     """
+    #ADM set up the default DESI logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     check_fitsio_version()
 
     fx = fitsio.FITS(filename, upper=True)
@@ -168,9 +180,17 @@ def read_tractor(filename, header=False, columns=None):
     else:
         data = fx[1].read(columns=readcolumns)
 
+    #ADM need to add the SUBPRIORITY column if it wasn't passed by the MWS group
+    if (columns is None) and \
+       (('SUBPRIORITY' not in fxcolnames) and ('subpriority' not in fxcolnames)):
+        subpriority = np.zeros(len(data), dtype='>f4')
+        #ADM populate the subpriority array randomly from 0->1, retaining the dtype 
+        subpriority[...] = np.random.random(len(data))
+        data = rfn.append_fields(data, 'SUBPRIORITY', subpriority, usemask=False)
+
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
     if len(data) == 0:
-        print('WARNING: Empty file>', filename)
+        log.warning('WARNING: Empty file>', filename)
         dt = data.dtype.descr
         dt[1] = ('BRICKNAME', 'S8')
         data = data.astype(np.dtype(dt))
@@ -261,6 +281,10 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     """
     # FIXME: assert data and tsbits schema
 
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     #ADM use RELEASE to determine the release string for the input targets
     if len(data) == 0:
         #ADM if there are no targets, then we don't know the Data Release
@@ -280,7 +304,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         depend.setdep(hdr, 'tractor-files', indir)
 
     if qso_selection is None:
-        print('WARNING: qso_selection method not specified for output file')
+        log.warning('qso_selection method not specified for output file')
         depend.setdep(hdr, 'qso-selection', 'unknown')
     else:
         depend.setdep(hdr, 'qso-selection', qso_selection)
@@ -290,8 +314,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        depend.setdep(hdr, 'HPXNSIDE', nside)
-        depend.setdep(hdr, 'HPXNEST', True)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
 
     #ADM add PHOTSYS column, mapped from RELEASE
     photsys = release_to_photsys(data["RELEASE"])
@@ -318,6 +342,15 @@ def iter_files(root, prefix, ext='fits'):
 def list_sweepfiles(root):
     """Return a list of sweep files found under `root` directory.
     """
+    from desiutil.log import get_logger
+    log = get_logger(timestamp=True)
+
+    #ADM check for duplicate files in case the listing was run
+    #ADM at too low a level in the directory structure
+    check = [os.path.basename(x) for x in iter_sweepfiles(root)]
+    if len(check) != len(set(check)):
+        log.error("Duplicate sweep files in root directory!")
+
     return [x for x in iter_sweepfiles(root)]
 
 
@@ -330,6 +363,15 @@ def iter_sweepfiles(root):
 def list_tractorfiles(root):
     """Return a list of tractor files found under `root` directory.
     """
+    from desiutil.log import get_logger
+    log = get_logger(timestamp=True)
+
+    #ADM check for duplicate files in case the listing was run
+    #ADM at too low a level in the directory structure
+    check = [os.path.basename(x) for x in iter_tractorfiles(root)]
+    if len(check) != len(set(check)):
+        log.error("Duplicate Tractor files in root directory!")
+
     return [x for x in iter_tractorfiles(root)]
 
 
