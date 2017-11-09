@@ -2,11 +2,20 @@
 desitarget Change Log
 =====================
 
-0.16.1 (unreleased)
+0.16.2 (unreleased)
 -------------------
 
-* fixes to allow QA to work with mock data
-* cleanup of mpi_select_mock_targets
+* No changes yet.
+
+0.16.1 (2017-11-09)
+-------------------
+
+* fixes to allow QA to work with mock data [`PR #235`_].
+* cleanup of mpi_select_mock_targets [`PR #235`_].
+* adds BGS properties notebook documentation [`PR #236`_].
+
+.. _`PR #235`: https://github.com/desihub/desitarget/pull/235
+.. _`PR #236`: https://github.com/desihub/desitarget/pull/236
 
 0.16.0 (2017-11-01)
 -------------------
