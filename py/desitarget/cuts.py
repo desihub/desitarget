@@ -364,19 +364,21 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-               objtype=None, primary=None):
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+               release=None, objtype=None, primary=None):
     """Cuts based QSO target selection
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        deltaChi2: array_like
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         w1snr: array_like[ntargets]
             S/N in the W1 band.
         w2snr: array_like[ntargets]
             S/N in the W2 band.
+        deltaChi2: array_like[ntargets]
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -397,7 +399,11 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
     qso &= w1snr > 4
     qso &= w2snr > 2
 
-    qso &= deltaChi2>40.
+    #ADM default to RELEASE of 5000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
+
+    qso &= ((deltaChi2>40.) | (release>=5000) )
 
     if primary is not None:
         qso &= primary
@@ -407,8 +413,8 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
 
     return qso
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
-         deltaChi2=None, primary=None):
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                       objtype=None, release=None, deltaChi2=None, primary=None):
     """Target Definition of QSO using a random forest returning a boolean array.
 
     Args:
@@ -416,8 +422,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
         deltaChi2: array_like or None
-             If given, difference of chi2 bteween PSF and SIMP morphology
+             If given, difference in chi2 bteween PSF and SIMP morphology
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -429,6 +437,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     #----- Quasars
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
+
+    #ADM default to RELEASE of 5000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
 
     # build variables for random forest
     nfeatures=11 # number of variables in random forest
@@ -465,6 +477,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     #define pcut, relaxed cut for faint objects
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
+    pcut_DR5 = np.where(r>20.0,0.92 - (r-20.0)*0.08,0.92)
 
     qso = primary.copy()
     qso &= r<rMax
@@ -473,13 +486,13 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if objtype is not None:
         qso &= _psflike(objtype)
 
-    if deltaChi2 is not None:
-        qso &= deltaChi2>30.
+    if (deltaChi2 is not None) :
+        qso &= ((deltaChi2>30.) | (release>=5000) ) 
 
     if nbEntries==1 : # for call of a single object
         qso &= prob[0]>pcut
     else :
-        qso &= prob>pcut
+        qso &= (((prob>pcut)&(release<5000)) | ((prob>pcut_DR5)&(release>=5000)))
 
     return qso
 
@@ -546,8 +559,7 @@ def _is_row(table):
         return False
 
 def unextinct_fluxes(objects):
-    """
-    Calculate unextincted DECam and WISE fluxes
+    """Calculate unextincted DECam and WISE fluxes
 
     Args:
         objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z, 
@@ -627,6 +639,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
+    release = objects['RELEASE']
 
     gfluxivar = objects['FLUX_IVAR_G']
 
@@ -670,10 +683,10 @@ def apply_cuts(objects, qso_selection='randomforest'):
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                          w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                         w1snr=w1snr, w2snr=w2snr)
+                         w1snr=w1snr, w2snr=w2snr, release=release)
     elif qso_selection == 'randomforest':
         qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
+                                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype, release=release)
     else:
         raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
                                                                                  qso_selection_options))
