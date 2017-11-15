@@ -558,10 +558,8 @@ def _is_row(table):
     else:
         return False
 
-def unextinct_fluxes(objects
-                     ):
-    """
-    Calculate unextincted DECam and WISE fluxes
+def unextinct_fluxes(objects):
+    """Calculate unextincted DECam and WISE fluxes
 
     Args:
         objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z, 
