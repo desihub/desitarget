@@ -364,19 +364,21 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, release=None,
-               objtype=None, primary=None):
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+               release=None, objtype=None, primary=None):
     """Cuts based QSO target selection
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        deltaChi2: array_like
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         w1snr: array_like[ntargets]
             S/N in the W1 band.
         w2snr: array_like[ntargets]
             S/N in the W2 band.
+        deltaChi2: array_like[ntargets]
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -411,8 +413,8 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, rel
 
     return qso
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, release=None,
-         deltaChi2=None, primary=None):
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                       objtype=None, release=None, deltaChi2=None, primary=None):
     """Target Definition of QSO using a random forest returning a boolean array.
 
     Args:
@@ -420,8 +422,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
         deltaChi2: array_like or None
-             If given, difference of chi2 bteween PSF and SIMP morphology
+             If given, difference in chi2 bteween PSF and SIMP morphology
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
