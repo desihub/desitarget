@@ -364,7 +364,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, release,
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, release=None,
                objtype=None, primary=None):
     """Cuts based QSO target selection
 
@@ -396,6 +396,10 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, rel
 
     qso &= w1snr > 4
     qso &= w2snr > 2
+
+    #ADM default to RELEASE of 5000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
 
     qso &= ((deltaChi2>40.) | (release>=5000) )
 
@@ -429,6 +433,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     #----- Quasars
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
+
+    #ADM default to RELEASE of 5000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
 
     # build variables for random forest
     nfeatures=11 # number of variables in random forest
