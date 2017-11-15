@@ -5,7 +5,10 @@ desitarget Change Log
 0.16.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Allows different star-galaxy separations for quasar targets for
+  different release numbers [`PR #239`_].
+
+.. _`PR #239`: https://github.com/desihub/desitarget/pull/239
 
 0.16.1 (2017-11-09)
 -------------------
