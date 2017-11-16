@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.16.2 (unreleased)
+0.16.3 (unreleased)
+-------------------
+
+* no changes yet
+
+0.16.2 (2017-11-16)
 -------------------
 
 * Allows different star-galaxy separations for quasar targets for
