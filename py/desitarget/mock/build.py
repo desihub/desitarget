@@ -1359,7 +1359,6 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
 
     """
     
-
     selection_function = '{}_select'.format(target_name.lower())
     select_targets_function = getattr(Selection, selection_function)
 
@@ -1457,13 +1456,13 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
     
 
     r = rand.uniform(0.0, 1.0, size=n_obj)
-    keep = r < 1.0
+    keep = r <= 1.0
     for i in range(n_cuts):
         in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1])
         input_density = estimate_number_density(targets['RA'][in_z], targets['DEC'][in_z])
         if density[i] < input_density:
             frac_keep = density[i]/input_density
-            keep = keep & (r<frac_keep) & in_z
+            keep[in_z] = (r[in_z]<frac_keep)
             log.info('Downsampling for {}. Going from {} to {} obs/deg^2'.format(target_name, input_density, density[i]))
         else:
             log.info('Cannot go from {} to {} obs/deg^2 for object {}'.format(input_density, density[i], target_name))
