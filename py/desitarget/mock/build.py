@@ -1461,12 +1461,12 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
     keep = r <= 1.0
     
     if contam:
-        good_targets = truth['CONTAM_TARGET']!=0
+        good_targets = (truth['CONTAM_TARGET'] & contam_mask.mask(target_name+'_CONTAM')) !=0
     else:
         good_targets = (truth['TEMPLATETYPE']==target_name) & (truth['CONTAM_TARGET']==0)
         
     if contam:
-        log.info('Downsampling the contaminants'.format(target_name))
+        log.info('Downsampling {} contaminants'.format(target_name))
     else:
         log.info('Downsampling pure {} targets'.format(target_name))
         
@@ -1738,15 +1738,20 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         if len(alltargets):
             targets = vstack(alltargets)
             truth = vstack(alltruth)
+            
+            # downsample contaminants for each class
+            for source_name in sorted(params['sources'].keys()):
+                if 'contam' in params['sources'][source_name].keys():
+                    # Initialize variables for density subsampling
+                    zcut=[-1000,1000]
+                    density = [params['sources'][source_name]['contam']['density']]
+                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
+                                                  nside, healpix, seed, rand, log, output_dir, contam=True)
         else:
             targets = []
             truth = []
-            
-     # Downsample the number density of contaminants if required
-                #if 'contam' in params['sources'][source_name].keys():
-                #    density = [params['sources'][source_name]['contam']['density']]
-                #    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                #                                    nside, healpix, seed, rand, log, output_dir, contam=True)
+        
+ 
                     
         if len(allskytargets):
             skytargets = vstack(allskytargets)
