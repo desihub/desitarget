@@ -1414,7 +1414,7 @@ def estimate_number_density(ra, dec):
         # This is a weighted density that does not take into account empty healpixels
         return np.sum(counts*counts)/np.sum(counts)/bin_area
 
-def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log,output_dir):
+def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir, contam=False):
     """Reduces the number of targets to match a desired number density.
     
     Args:
@@ -1438,7 +1438,8 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-            
+        contam: bool
+            If True the subsampling is only applied to contaminants. If False it is applied only to noncontaminated targets.
     Output:
         Updated versions of the tables:
             targets
@@ -1454,11 +1455,23 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
     n_cuts = len(density)
     n_obj = len(targets)
     
-
+    
+        
     r = rand.uniform(0.0, 1.0, size=n_obj)
     keep = r <= 1.0
+    
+    if contam:
+        good_targets = truth['CONTAM_TARGET']!=0
+    else:
+        good_targets = (truth['TEMPLATETYPE']==target_name) & (truth['CONTAM_TARGET']==0)
+        
+    if contam:
+        log.info('Downsampling the contaminants'.format(target_name))
+    else:
+        log.info('Downsampling pure {} targets'.format(target_name))
+        
     for i in range(n_cuts):
-        in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1])
+        in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1]) & (good_targets)
         input_density = estimate_number_density(targets['RA'][in_z], targets['DEC'][in_z])
         if density[i] < input_density:
             frac_keep = density[i]/input_density
@@ -1694,7 +1707,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             if source_name.upper() == 'SKY':
                 if 'density' in params['sources'][source_name].keys():
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir)
+                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
                 allskytargets.append(targets)
                 allskytruth.append(truth)                    
             else:
@@ -1711,8 +1724,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
                             zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
                     
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir)
-                                                    
+                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
+               
                     
                 if len(targets)>0:
                     alltargets.append(targets)
@@ -1729,6 +1742,12 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             targets = []
             truth = []
             
+     # Downsample the number density of contaminants if required
+                #if 'contam' in params['sources'][source_name].keys():
+                #    density = [params['sources'][source_name]['contam']['density']]
+                #    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
+                #                                    nside, healpix, seed, rand, log, output_dir, contam=True)
+                    
         if len(allskytargets):
             skytargets = vstack(allskytargets)
             skytruth = vstack(allskytruth)
