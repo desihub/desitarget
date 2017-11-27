@@ -1099,13 +1099,14 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         else:
             log.warning('Missing file {}'.format(ff))
 
-    file_list = list( np.concatenate(file_list) )
     nfiles = len(file_list)
 
     if nfiles == 0:
         log.warning('No files found in {}!'.format(mock_dir_name))
         return dict()
-
+    
+    file_list = list( np.concatenate(file_list) )
+    
     # Multiprocess the I/O
     mpargs = list()
     for ff in file_list:
