@@ -1362,7 +1362,7 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
     selection_function = '{}_select'.format(target_name.lower())
     select_targets_function = getattr(Selection, selection_function)
 
-    select_targets_function(targets, truth)
+    select_targets_function(targets, truth, boss_std=1)
     keep = np.where(targets['DESI_TARGET'] != 0)[0]
 
     targets = targets[keep]
