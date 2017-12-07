@@ -646,7 +646,7 @@ class MockSpectra(object):
                         else :
                             # check wavelength is the same for all skewers
                             assert(np.max(np.abs(wave-tmp_wave))<0.001*dw)
-                        print(these.size,skewer_trans.shape,tmp_trans.shape)
+                        
                         skewer_trans[these] = tmp_trans
                         for k in skewer_meta.keys() :
                             skewer_meta[k][these]=tmp_meta[k]
