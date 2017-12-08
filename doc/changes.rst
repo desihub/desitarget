@@ -5,7 +5,9 @@ desitarget Change Log
 0.16.3 (unreleased)
 -------------------
 
-* no changes yet
+* Support LyA skewers v2.x format [`PR #244`_].
+
+.. _`PR #244`: https://github.com/desihub/desitarget/pull/244
 
 0.16.2 (2017-11-16)
 -------------------

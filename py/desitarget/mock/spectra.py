@@ -557,7 +557,7 @@ class MockSpectra(object):
 
         """
         from desisim.lya_spectra import get_spectra
-        from desisim.lya_spectra import read_lya_skewers,apply_lyman_alpha_transmission
+        from desisim.lya_spectra import read_lya_skewers,apply_lya_transmission
         import fitsio
 
         log = get_logger()
@@ -671,7 +671,7 @@ class MockSpectra(object):
                                                                       nocolorcuts=True)
                     
                     # apply transmission to QSOs
-                    qso_flux = apply_lyman_alpha_transmission(qso_wave,qso_flux,skewer_wave,skewer_trans)
+                    qso_flux = apply_lya_transmission(qso_wave,qso_flux,skewer_wave,skewer_trans)
                     
                     # save this
                     qso_meta['SUBTYPE'] = 'LYA'
