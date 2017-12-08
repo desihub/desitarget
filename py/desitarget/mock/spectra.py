@@ -14,6 +14,7 @@ import numpy as np
 import multiprocessing
 
 from desisim.io import read_basis_templates, empty_metatable
+from desiutil.log import get_logger
 
 def _get_colors_onez(args):
     """Filler function to synthesize photometry at a given redshift"""
@@ -556,7 +557,11 @@ class MockSpectra(object):
 
         """
         from desisim.lya_spectra import get_spectra
-        
+        from desisim.lya_spectra import read_lya_skewers,apply_lya_transmission
+        import fitsio
+
+        log = get_logger()
+
         objtype = 'QSO'
         if index is None:
             index = np.arange(len(data['Z']))
@@ -584,41 +589,98 @@ class MockSpectra(object):
                 flux[tracer, :] = flux1
 
             if len(lya) > 0:
-                alllyafile = data['LYAFILES'][index][lya]
-                alllyahdu = data['LYAHDU'][index][lya]
+
                 
-                for lyafile in sorted(set(alllyafile)):
-                    these = np.where( lyafile == alllyafile )[0]
+                ilya=index[lya].astype(int)
+                nqso=ilya.size
+                log.info("Generating spectra of %d lya QSOs"%nqso)
+                                
+                if 'LYAHDU' in data : 
+                    # this is the old format with one HDU per spectrum
+                    alllyafile = data['LYAFILES'][ilya]
+                    alllyahdu = data['LYAHDU'][ilya]
 
-                    templateid = alllyahdu[these] - 1 # templateid is 0-indexed
-                    flux1, _, meta1 = get_spectra(lyafile, templateid=templateid, normfilter=data['FILTERNAME'],
-                                                  rand=self.rand, qso=self.lya_templates, nocolorcuts=True)
-                    meta1['SUBTYPE'] = 'LYA'
-                    meta[lya[these]] = meta1
-                    flux[lya[these], :] = flux1
+                    for lyafile in sorted(set(alllyafile)):
+                        these = np.where( lyafile == alllyafile )[0]
 
-        elif mockformat.lower() == 'lya':
-            # Build spectra for Lyman-alpha QSOs. Deprecated!
-            from desisim.lya_spectra import get_spectra
-            from desitarget.mock.io import decode_rownum_filenum
-
-            meta = empty_metatable(nmodel=nobj, objtype=objtype)
-            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-            
-            rowindx, fileindx = decode_rownum_filenum(data['MOCKID'][index])
-            for indx1 in set(fileindx):
-                lyafile = data['FILES'][indx1]
-                these = np.where(indx1 == fileindx)[0]
-                templateid = rowindx[these].astype('int')
-            
-                flux1, _, meta1 = get_spectra(lyafile, templateid=templateid,
-                                              normfilter=data['FILTERNAME'],
-                                              rand=self.rand, qso=self.lya_templates)
-                meta[these] = meta1
-                flux[these, :] = flux1
+                        templateid = alllyahdu[these] - 1 # templateid is 0-indexed
+                        flux1, _, meta1 = get_spectra(lyafile, templateid=templateid, normfilter=data['FILTERNAME'],
+                                                      rand=self.rand, qso=self.lya_templates, nocolorcuts=True)
+                        meta1['SUBTYPE'] = 'LYA'
+                        meta[lya[these]] = meta1
+                        flux[lya[these], :] = flux1
+                else : # new format
+                                                            
+                    # read skewers
+                    skewer_wave=None
+                    skewer_trans=None
+                    skewer_meta=None
+                    
+                    # all the files that contain at least one QSO skewer
+                    alllyafile = data['LYAFILES'][ilya]
+                    uniquelyafiles = sorted(set(alllyafile))
+                                        
+                    for lyafile in uniquelyafiles :
+                        these = np.where( alllyafile == lyafile )[0]
+                        objid_in_data=data['OBJID'][ilya][these]
+                        objid_in_mock=(fitsio.read(lyafile, columns=['MOCKID'],upper=True,ext=1).astype(float)).astype(int)
+                        o2i=dict()
+                        for i,o in enumerate(objid_in_mock) :
+                            o2i[o]=i
+                        indices_in_mock_healpix=np.zeros(objid_in_data.size).astype(int)
+                        for i,o in enumerate(objid_in_data) :
+                            if not o in o2i :
+                                log.error("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile))
+                                raise(KeyError("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile)))
+                            indices_in_mock_healpix[i]=o2i[o]
+                        
+                        tmp_wave,tmp_trans,tmp_meta = read_lya_skewers(lyafile,indices=indices_in_mock_healpix) 
+                                                
+                        if skewer_wave is None :
+                            skewer_wave=tmp_wave
+                            dw=skewer_wave[1]-skewer_wave[0] # this is just to check same wavelength
+                            skewer_trans=np.zeros((nqso,skewer_wave.size)) # allocate skewer_array
+                            skewer_meta=dict()
+                            for k in tmp_meta.dtype.names :
+                                skewer_meta[k]=np.zeros(nqso).astype(tmp_meta[k].dtype)
+                        else :
+                            # check wavelength is the same for all skewers
+                            assert(np.max(np.abs(wave-tmp_wave))<0.001*dw)
+                        
+                        skewer_trans[these] = tmp_trans
+                        for k in skewer_meta.keys() :
+                            skewer_meta[k][these]=tmp_meta[k]
+                    
+                    # check we matched things correctly
+                    assert(np.max(np.abs(skewer_meta["Z"]-data['Z'][ilya]))<0.000001)
+                    assert(np.max(np.abs(skewer_meta["RA"]-data['RA'][ilya]))<0.000001)
+                    assert(np.max(np.abs(skewer_meta["DEC"]-data['DEC'][ilya]))<0.000001)
+                    
+                    
+                    # now we create a series of QSO spectra all at once
+                    # this is faster than calling each one at a time
+                    # we use the provided QSO template class
+                    
+                    seed = self.rand.randint(2**32)
+                    qso  = self.lya_templates
+                    qso_flux, qso_wave, qso_meta = qso.make_templates(nmodel=nqso,
+                                                                      redshift=data['Z'][ilya],
+                                                                      mag=data['MAG'][ilya],
+                                                                      seed=seed,
+                                                                      lyaforest=False,
+                                                                      nocolorcuts=True)
+                    
+                    # apply transmission to QSOs
+                    qso_flux = apply_lya_transmission(qso_wave,qso_flux,skewer_wave,skewer_trans)
+                    
+                    # save this
+                    qso_meta['SUBTYPE'] = 'LYA'
+                    meta[lya] = qso_meta
+                    flux[lya, :] = qso_flux
+                    
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-
+            
         return flux, meta
 
     def sky(self, data, index=None, mockformat=None):
@@ -759,7 +821,7 @@ class MockMagnitudes(object):
         """Generate magnitudes for the QSO or QSO/LYA samples.
         """
         from desisim.lya_spectra import get_spectra
-        
+                
         objtype = 'QSO'
         if index is None:
             index = np.arange(len(data['Z']))
