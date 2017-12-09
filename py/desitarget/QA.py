@@ -31,6 +31,8 @@ from desiutil.plots import init_sky, plot_sky_binned
 from desitarget import desi_mask
 
 import warnings, itertools
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import healpy as hp
