@@ -48,14 +48,23 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
     # this will overflow, and crash the code.
     with np.errstate(over='ignore'):
-        # This is the star-galaxy separation cut
+        # This is the star-galaxy separation cut:
+        # ADM original Eisenstein/Dawson cut
         # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
-        lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
+        # lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
+        # ADM updated Zhou/Newman cut:
+        # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
+        # 0.7r + W < 1.7z + 0.6 &&
+        # 0.7r + W > 1.7z - 1.0
+        lrg &= (w1flux*rflux**0.7 > (zflux**1.7)*10**(-0.4*0.6))
+        lrg &= (w1flux*rflux**0.7 < (zflux**1.7)*10**(0.4*1.0))
 
         # Now for the work-horse sliding flux-color cut:
+        # ADM original Eisenstein/Dawson cut:
         # mlrg2 = z-2*(r-z-1.2) < 19.6 -> 3*z < 19.6-2.4-2*r
-        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.6))*rflux**2)
-
+        # ADM updated Zhou/Newman cut:
+        # mlrg2 = z-2*(r-z-1.2) < 19.45 -> 3*z < 19.45-2.4-2*r
+        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.45))*rflux**2)
         # Another guard against bright & red outliers
         # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
         lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
