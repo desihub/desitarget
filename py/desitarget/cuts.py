@@ -156,13 +156,14 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary = np.ones_like(rflux, dtype='?')
 
     lrg = primary.copy()
-    lrg1pass = primary.copy()
-    lrg2pass = primary.copy()
 
     #ADM apply the color and flag selection for all LRGs
     lrg &= isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                  rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
                  gflux_ivar=gflux_ivar, primary=primary)
+
+    lrg1pass = lrg.copy()
+    lrg2pass = lrg.copy()
 
     #ADM one-pass LRGs are 18 (the BGS limit) <= z < 20
     lrg1pass &= zflux > 10**((22.5-20.0)/2.5)
