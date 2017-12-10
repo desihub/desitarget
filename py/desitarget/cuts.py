@@ -56,8 +56,12 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
         # 0.7r + W < 1.7z + 0.6 &&
         # 0.7r + W > 1.7z - 1.0
-        lrg &= (w1flux*rflux**0.7 > (zflux**1.7)*10**(-0.4*0.6))
-        lrg &= (w1flux*rflux**0.7 < (zflux**1.7)*10**(0.4*1.0))
+        lrg &= ( (w1flux*rflux**complex(0.7)).real > 
+                 ((zflux**complex(1.7))*10**(-0.4*0.6)).real  )
+        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
+                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
+        #ADM note the trick of making the exponents complex and taking the real
+        #ADM part to allow negative fluxes to be raised to a fractional power
 
         # Now for the work-horse sliding flux-color cut:
         # ADM original Eisenstein/Dawson cut:
