@@ -862,8 +862,8 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     targetshdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed')
         ))
-    depend.setdep(targetshdr, 'HPXNSIDE', nside)
-    depend.setdep(targetshdr, 'HPXNEST', True)
+    targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
+    targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
     targets['HPXPIXEL'][:] = targpix
 
@@ -1587,10 +1587,9 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed,
     targetshdr = fitsheader(dict(
         SEED = (seed1, 'initial random seed')
         ))
-    depend.setdep(targetshdr, 'HPXNSIDE', nside)
-    depend.setdep(targetshdr, 'HPXNEST', True)
+    targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
+    targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
-        
     outdir = mockio.get_healpix_dir(nside, healpix_id, basedir=output_dir)
     os.makedirs(outdir, exist_ok=True)
 
