@@ -221,7 +221,7 @@ if __name__ == '__main__':
     survey = LegacySurveyData(survey_dir=opt.survey_dir)
 
     skyfibers = sky_fibers_for_brick(survey, opt.brick)
-    skyfibers.writeto(opt.out)
+    skyfibers.writeto(opt.out, header=skyfibers._header)
     print('Wrote', opt.out)
 
     if opt.plots:
