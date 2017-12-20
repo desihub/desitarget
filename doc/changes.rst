@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.16.3 (unreleased)
+0.17.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.17.0 (2017-12-20)
 -------------------
 
 * Support LyA skewers v2.x format [`PR #244`_].
