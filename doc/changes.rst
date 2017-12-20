@@ -7,12 +7,26 @@ desitarget Change Log
 
 * No changes yet.
 
+0.17.1 (2017-12-20)
+-------------------
+
+* HPXNSIDE and HPXPIXEL as header keywords for mocks too [`PR #246`_].
+
+.. _`PR #246`: https://github.com/desihub/desitarget/pull/246
+
 0.17.0 (2017-12-20)
 -------------------
 
 * Support LyA skewers v2.x format [`PR #244`_].
+* Split LRGs into PASS1/PASS2 separate bits [`PR #245`_].
+* Sky locations infrastructure [`PR #248`_].
+* Mock targets densities fixes [`PR #241`_ and `PR #242`_].
 
 .. _`PR #244`: https://github.com/desihub/desitarget/pull/244
+.. _`PR #245`: https://github.com/desihub/desitarget/pull/245
+.. _`PR #248`: https://github.com/desihub/desitarget/pull/248
+.. _`PR #241`: https://github.com/desihub/desitarget/pull/241
+.. _`PR #242`: https://github.com/desihub/desitarget/pull/242
 
 0.16.2 (2017-11-16)
 -------------------
