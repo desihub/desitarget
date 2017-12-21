@@ -28,7 +28,6 @@ parser.add_argument('-n', '--nproc', type=int, help='number of concurrent proces
 parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=64)
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
-parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
 parser.add_argument('--qa', action='store_true', help='Generate QA plots from the joined target and truth files in output_dir.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
@@ -73,14 +72,6 @@ for i, pixnum in enumerate(healpixels):
 log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
 healpixels = healpixels[keep]
     
-# Optionally read the "real" target catalog.
-if args.realtargets is not None:
-    from astropy.io import fits
-    log.info('Loading real targets from {}'.format(args.realtargets))
-    realtargets = fits.getdata(args.realtargets, 1)
-else:
-    realtargets = None
-
 if args.join:
     from desitarget.mock.build import join_targets_truth
     join_targets_truth(args.output_dir, nside=args.nside, healpixels=healpixels, verbose=args.verbose)
@@ -107,9 +98,8 @@ if args.no_spectra:
                   verbose=args.verbose, nproc=args.nproc, nside=args.nside,
                   healpixels=healpixels)
 else:
-    targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
-                  verbose=args.verbose, nproc=args.nproc, nside=args.nside,
-                  healpixels=healpixels)
+    targets_truth(params, args.output_dir, seed=args.seed, nside=args.nside,
+                  verbose=args.verbose, nproc=args.nproc, healpixels=healpixels)
 
     
 log.info('All done at {}'.format(time.asctime()))
