@@ -15,8 +15,6 @@ import numpy as np
 from astropy.table import Table, Column, vstack, hstack
 
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
-from desitarget.mock import sfdmap
-
 from desitarget.targets import encode_targetid
 
 def fileid_filename(source_data, output_dir, log):
@@ -532,8 +530,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, source_name, Spectra, Selection, mockformat, dust_dir,
-                         select_targets_function, rand, log):
+def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, rand, log):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -752,9 +749,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data, mockformat = read_catalog(source_name, params, log, 
-                                                   rand=rand, nproc=nproc,
-                                                   healpixels=healpix, nside=nside)
+            source_data = read_catalog(source_name, params, log, rand=rand, nproc=nproc,
+                                       healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -767,9 +763,11 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             
             # Iteratively assign spectra to the mock targets in that healpixel
             # until we achieve the desired density (after target selection).
+            import pdb ; pdb.set_trace()
+            
             print('ADD MULTIPROCESSING HERE!')
-            targets, truth, trueflux = get_spectra_onepixel(source_data, source_name, Spectra, Selection, mockformat, rand, log, 
-                                                            nside, healpix, dust_dir=params['dust_dir'])
+            targets, truth, trueflux = get_spectra_onepixel(source_data, source_name, Spectra, Selection, rand, log, 
+                                                            nside, healpix)
             
             import pdb ; pdb.set_trace()
             
@@ -1482,11 +1480,10 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
     Returns:
         source_data: dict
             Parsed source data based on the input mock catalog.
-        mockformat: str
-            Format of the mock files used to read the data.
 
     """
     import desitarget.mock.io as mockio
+    from desitarget.mock import sfdmap
     
     # Read the mock catalog.
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
@@ -1509,6 +1506,13 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
     source_data = mockread_function(mock_dir_name, target_name, rand=rand,
                                     magcut=magcut, nproc=nproc, lya=lya,
                                     healpixels=healpixels, nside=nside)
+    source_data['MOCKFORMAT'] = mockformat
+
+    # Get the MW_TRANSMISSION for each object in grzW1W2.
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=params['dust_dir'])
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
 
     # Return only the points that are in the DESI footprint.
     if bool(source_data):
@@ -1524,10 +1528,10 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
                     if (n_obj == len(source_data[k])) and (type(source_data[k]) is np.ndarray):
                         source_data[k] = source_data[k][indesi]
                         
-    return source_data, mockformat
+    return source_data
 
-def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
-                            rand, log, nside, healpix_id, dust_dir):
+def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
+                            nside, healpix_id, dust_dir):
     """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
     
     Args:
@@ -1537,8 +1541,6 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
             This corresponds to the "raw" data coming directly from the mock file.
         target_name: string
             Name of the target being processesed, i.e. "QSO"
-        mockformat: string
-            Format of the mock files used to read the data.
         rand: numpy.random.RandomState
         log: logger object
         nside: int
@@ -1607,7 +1609,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat,
     truth['TRUEZ'][:] = source_data['Z'][onpix]
 
     # Assign the magnitudes
-    meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=mockformat)
+    meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=source_data['MOCKFORMAT'])
 
     for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
@@ -1976,9 +1978,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data, mockformat = read_catalog(source_name, params, log, 
-                                                   rand=rand, nproc=nproc,
-                                                   healpixels=healpix, nside=nside)
+            source_data = read_catalog(source_name, params, log, rand=rand, nproc=nproc,
+                                       healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -1990,7 +1991,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
                 zcut = [-1000, 1000]
             
             # assign magnitudes for targets in that pixel
-            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
+            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, rand, log, 
                                         nside, healpix, dust_dir=params['dust_dir'])
             
             targets = pixel_results[0]
