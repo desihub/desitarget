@@ -31,6 +31,8 @@ from desiutil.plots import init_sky, plot_sky_binned
 from desitarget import desi_mask
 
 import warnings, itertools
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 import healpy as hp
@@ -218,7 +220,7 @@ def remove_fractional_bricks(targs,frac=0.9,bricksize=0.25):
     return targs[unroll]
 
 
-def remove_fractional_pixels(targs,frac=0.9,nside=64):
+def remove_fractional_pixels(targs,frac=0.9,nside=256):
     """For targets grouped by their ``BRICKID`` remove bricks with incomplete areal coverage
     
     Parameters
@@ -228,8 +230,8 @@ def remove_fractional_pixels(targs,frac=0.9,nside=64):
         of HEALPix pixels at the passed nside, called ``HPXFORQA``
     frac : :class:`float`, optional, defaults to 90%
         The areal threshold. Bricks that have areal coverage below this number will be removed
-    nside : :class:`int`, optional, defaults to nside=64 (~0.84 sq. deg.)
-        The HEALPix pixel nside number that corresponds
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The HEALPix pixel nside number
 
     Returns
     -------
@@ -455,6 +457,11 @@ def model_map(brickfilename,plot=False):
         target density fluctuations and x would be the DEPTH or EBV value.
 
     """
+
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     flucmap = fluc_map(brickfilename)
 
     #ADM the percentiles to consider for "mean" and "sigma
@@ -472,7 +479,7 @@ def model_map(brickfilename,plot=False):
             for fcol in cols:
                 if re.search("FLUC",fcol):
                     if plot:
-                        print("doing",col,fcol)
+                        log.info("doing",col,fcol)
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
@@ -644,9 +651,13 @@ def mag_histogram(targetfilename,binsize,outfile):
     :class:`Nonetype`
         No return...but prints a raw N(m) to screen for each target type
     """
+    
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
 
     #ADM read in target file
-    print('Reading in targets file')
+    log.info('Reading in targets file')
     fx = fitsio.FITS(targetfilename, upper=True)
     targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET','DECAM_FLUX'])
 
@@ -654,7 +665,7 @@ def mag_histogram(targetfilename,binsize,outfile):
     file = open(outfile, "w")
 
     #ADM calculate the magnitudes of interest
-    print('Calculating magnitudes')
+    log.info('Calculating magnitudes')
     gfluxes = targetdata["DECAM_FLUX"][...,1]
     gmags = 22.5-2.5*np.log10(gfluxes*(gfluxes  > 1e-5) + 1e-5*(gfluxes < 1e-5))
     rfluxes = targetdata["DECAM_FLUX"][...,2]
@@ -670,7 +681,7 @@ def mag_histogram(targetfilename,binsize,outfile):
 
     #ADM loop through bits and print histogram of raw target numbers per magnitude
     for i, bitval in enumerate(bitvals):
-        print('Doing',bitnames[i])
+        log.info('Doing',bitnames[i])
         w = np.where(targetdata["DESI_TARGET"] & bitval)
         if len(w[0]):
             ghist,dum = np.histogram(gmags[w],bins=binedges)
@@ -679,7 +690,7 @@ def mag_histogram(targetfilename,binsize,outfile):
             file.write('{}    {}     {}     {}\n'.format(bitnames[i],'g','r','z'))
             for i in range(len(binedges)-1):
                 outs = '{:.1f} {} {} {}\n'.format(0.5*(binedges[i]+binedges[i+1]),ghist[i],rhist[i],zhist[i])
-                print(outs)
+                log.info(outs)
                 file.write(outs)
 
     file.close()
@@ -721,6 +732,38 @@ def construct_QA_file(nrows):
             ('DENSITY_BAD_ELG','>f4'),('DENSITY_BAD_LRG','>f4'),
             ('DENSITY_BAD_QSO','>f4'),('DENSITY_BAD_LYA','>f4'),
             ('DENSITY_BAD_BGS','>f4'),('DENSITY_BAD_MWS','>f4'),
+            ])
+    return data
+
+def construct_HPX_file(nrows):
+    """Create a recarray to be populated with HEALPixel information
+
+    Parameters
+    ----------
+    nrows : :class:`int`
+        Number of rows in the recarray (size, in rows, of expected fits output)
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         numpy structured array to be populated with HEALPixel information with 
+         nrows as specified and columns as below
+    """
+
+    data = np.zeros(nrows, dtype=[
+            ('HPXID','>i4'),('HPXAREA','>f4'),
+            ('RA','>f4'),('DEC','>f4'),
+            ('EBV','>f4'),
+            ('PSFDEPTH_G','>f4'),('PSFDEPTH_R','>f4'),('PSFDEPTH_Z','>f4'),
+            ('GALDEPTH_G','>f4'),('GALDEPTH_R','>f4'),('GALDEPTH_Z','>f4'),
+            ('PSFDEPTH_G_PERCENTILES','f4',(5)), ('PSFDEPTH_R_PERCENTILES','f4',(5)),
+            ('PSFDEPTH_Z_PERCENTILES','f4',(5)), ('GALDEPTH_G_PERCENTILES','f4',(5)),
+            ('GALDEPTH_R_PERCENTILES','f4',(5)), ('GALDEPTH_Z_PERCENTILES','f4',(5)),
+            ('NEXP_G','i2'),('NEXP_R','i2'),('NEXP_Z','i2'),
+            ('DENSITY_ALL','>f4'),
+            ('DENSITY_ELG','>f4'),('DENSITY_LRG','>f4'),
+            ('DENSITY_QSO','>f4'),('DENSITY_LYA','>f4'),
+            ('DENSITY_BGS','>f4'),('DENSITY_MWS','>f4'),
             ])
     return data
 
@@ -774,6 +817,41 @@ def populate_brick_info(instruc,brickids,rootdirname='/global/project/projectdir
     instruc['NEXP_R'] = ebvdata[matches]['NEXP_R']
     instruc['NEXP_Z'] = ebvdata[matches]['NEXP_Z']
     instruc['EBV'] = ebvdata[matches]['EBV']
+
+    return instruc
+
+
+def populate_HPX_info(instruc,hpxids,nside=256):
+    """Add HEALPixel-related information to a numpy array of HEALPixels
+
+    Parameters
+    ----------
+    instruc : :class:`~numpy.ndarray` 
+        numpy structured array containing at least
+        ``HPXID``,``RA``,``DEC``, ``HPXAREA`` to populate
+    hpxids : :class:`~numpy.ndarray` 
+        numpy structured array (single list) of HEALPixel integers
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The HEALPix pixel nside number that was used to calculated the hpxids
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         instruc with the HEALPixel information columns now populated
+    """
+    
+    from desimodel import footprint
+    import healpy
+
+    #ADM determine the general HEALPixel area at this nside
+    instruc["HPXAREA"] = hp.nside2pixarea(nside,degrees=True)
+    #ADM multiply by the fraction of the HEALPixel that is outside of the DESI footprint
+    pixweight = footprint.io.load_pixweight(nside)
+    instruc["HPXAREA"] *= pixweight[instruc['HPXID']]
+
+    #ADM populate the RA/Dec of the pixel
+    theta, phi = hp.pix2ang(nside,instruc['HPXID'],nest=True)
+    instruc["DEC"], instruc["RA"] = 90.-np.degrees(theta), np.degrees(phi)
 
     return instruc
 
@@ -921,6 +999,252 @@ def populate_depths(instruc,rootdirname='/global/project/projectdirs/cosmo/data/
     return instruc
 
 
+def populate_HPX_depths(instruc,targetdata):
+    """Add depth-related information to a numpy array
+
+    Parameters
+    ----------
+    instruc : :class:`~numpy.ndarray` 
+        numpy structured array containing at least
+        ['HPXID','HPXAREA','EBV','PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+        'GALDEPTH_G','GALDEPTH_R','GALDEPTH_Z','PSFDEPTH_G_PERCENTILES',
+        'PSFDEPTH_R_PERCENTILES','PSFDEPTH_Z_PERCENTILES','GALDEPTH_G_PERCENTILES',
+        'GALDEPTH_R_PERCENTILES','GALDEPTH_Z_PERCENTILES']
+        to populate with depths and areas
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory for a data release...e.g. for DR3 this would be
+        ``/global/project/projectdirs/cosmo/data/legacysurvey/dr3/``
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         instruc with the per-brick depth and area columns now populated
+    """
+    #ADM sort the input targetdata array on HEALPixel number
+    targsorted = targetdata[targetdata['HPXID'].argsort()]
+    #ADM find the edges of the sorted array corresponding to blocks of HEALPixels
+    binedges = np.insert(instruc['HPXID'],len(instruc),instruc['HPXID'][-1]+1)
+    h, dum = np.histogram(targsorted['HPXID'],bins=binedges)
+    h = np.cumsum(h)
+    #ADM insert a zero at the beginning to delineate the first block
+    h = np.insert(h,0,0)
+
+    #ADM percentiles at which to assess the depth
+    percs = np.array([10,25,50,75,90])
+
+    #ADM the column names that contain depth but not depth percentiles
+    depthcolnames = [ s for s in instruc.dtype.names 
+                      if "DEPTH" in s and "PERCENTILES" not in s ]
+
+    #ADM loop through the blocks of HEALPixels and populate HEALPixel-level info
+    for i in range(len(h)-1):
+
+        #ADM check that some sorting bug hasn't caused a mismatch on HEALPixel
+        if instruc[i]['HPXID'] != targsorted[h[i]]['HPXID']:
+            log.error('HEALPixel mismatch between targets and HPX file!')
+
+        #ADM populate the depth-based information
+        for colname in depthcolnames:
+            #ADM populate the mean depth fluxes
+            meandepth = np.mean(targsorted[h[i]:h[i+1]][colname])
+            #ADM guard against exposure with no observations in this band
+            sig5fluxes = 5./np.sqrt(np.clip(meandepth,2.5e-17,2.5e17))
+            instruc[colname][i] = 22.5-2.5*np.log10(sig5fluxes)
+            #ADM populate the percentiles remember to flip as fluxes->mags
+            pcolname = colname+'_PERCENTILES'
+            fluxpercs = np.percentile(sig5fluxes,percs)
+            instruc[pcolname][i] = np.flipud(22.5-2.5*np.log10(fluxpercs))
+
+        #ADM populate the information on the number of exposures
+        for band in 'GRZ':
+            nobs = targsorted[h[i]:h[i+1]]['NOBS_'+band]
+            #ADM round to the nearest integer
+            instruc['NEXP_'+band][i] = np.rint(np.mean(nobs))
+            
+        #ADM populate the Galactic extinction 
+        colname = 'MW_TRANSMISSION_G'
+        #ADM cull to non-zero entries for the transmission information as
+        #ADM there was a DR3 bug where some transmission values were zero
+        w = np.where(targsorted[h[i]:h[i+1]][colname] > 0)
+        #ADM calculate mean in linear transmission units, guarding against
+        #ADM the consequences of the DR3 transmission bug
+        if len(w[0]) == 0:
+            mwt = 1.4e-13
+        else:
+            mwt = np.mean(targsorted[h[i]:h[i+1]][colname][w])
+        #ADM convert to E(B-V) using 3.214 from, e.g.
+        #ADM http://legacysurvey.org/dr4/catalogs/
+        #ADM THE 3.214 A/E(B_V) COEFFICIENT COULD BE UPDATED IN FUTURE DRs!!!
+        instruc['EBV'][i] = -2.5*np.log10(mwt)/3.214
+
+    return instruc
+
+
+def convert_target_data_model_for_QA(instruc):
+    """Convert a subset of columns in a pre-DR4 targets file to the DR4 data model
+
+    Parameters
+    ----------
+    instruc : :class:`~numpy.ndarray` 
+        numpy structured array that contains at least
+        ``DECAM_FLUX, DECAM_MW_TRANSMISSION, 
+        DECAM_NOBS, DECAM_DEPTH, DECAM_GALDEPTH``
+        to convert to the new data model.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+        input structure with the ``DECAM_`` columns converted to the DR4+ data model
+    """
+    #ADM the old DECAM_ columns that need to be updated
+    decamcols = ['FLUX','MW_TRANSMISSION','NOBS','GALDEPTH']
+    decambands = 'UGRIZ'
+
+    #ADM determine the data structure of the input array
+    dt = instruc.dtype.descr
+    names = list(instruc.dtype.names)
+    #ADM remove the old column names
+    for colstring in decamcols:
+        loc = names.index('DECAM_'+colstring)
+        names.pop(loc)
+        dt.pop(loc)
+        for bandnum in [1,2,4]:
+            dt.append((colstring+"_"+decambands[bandnum],'>f4'))
+    #ADM treat DECAM_DEPTH separately as the syntax is slightly different
+    loc = names.index('DECAM_DEPTH')
+    dt.pop(loc)
+    for bandnum in [1,2,4]:
+        dt.append(('PSFDEPTH_'+decambands[bandnum],'>f4'))
+
+    #ADM create a new numpy array with the fields from the new data model...
+    nrows = len(instruc)
+    outstruc = np.empty(nrows, dtype=dt)
+
+    #ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model
+    for bandnum in [1,2,4]:
+        for colstring in decamcols:
+            outstruc[colstring+"_"+decambands[bandnum]] = instruc["DECAM_"+colstring][:,bandnum]
+        #ADM treat DECAM_DEPTH separately as the syntax is slightly different
+        outstruc["PSFDEPTH_"+decambands[bandnum]] = instruc["DECAM_DEPTH"][:,bandnum]
+
+    #ADM finally, populate the columns that haven't changed
+    newcols = list(outstruc.dtype.names)
+    oldcols = list(instruc.dtype.names)
+    sharedcols = list(set(newcols).intersection(oldcols))
+    for col in sharedcols:
+        outstruc[col] = instruc[col]
+
+    return outstruc
+
+
+def HPX_info(targetfilename,outfilename='hp-info-dr3.fits',nside=256):
+    """Create a file containing information in HEALPixels (depth, ebv, etc. as in construct_HPX_file)
+
+    Parameters
+    ----------
+    targetfilename : :class:`str`
+        File name of a list of targets created by select_targets
+    outfilename: :class:`str`, defaults to 'hp-info-dr3.fits'
+        Output file name for the hp_info file, which will be written as FITS
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The HEALPix pixel nside number
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` 
+         numpy structured array of HEALPix information with columns as in construct_HPX_file
+    """
+
+    import healpy as hp
+    start = time()
+
+    #ADM set up log tracker
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    #ADM read in target file
+    log.info('Reading in target file...t = {:.1f}s'.format(time()-start))
+    indata = fitsio.read(targetfilename, upper=True)
+    log.info("Working with {} targets".format(len(indata)))
+
+    log.info('Removing targets that are outside DESI...t = {:.1f}s'.format(time()-start))
+    #ADM remove targets that are outside the official DESI footprint
+    from desimodel import footprint, io
+    indesi = footprint.is_point_in_desi(io.load_tiles(),indata["RA"],indata["DEC"])
+    w = np.where(indesi)
+    if len(w[0]) > 0:
+        indata = indata[w]
+        log.info("{} targets in official DESI footprint".format(len(indata)))
+    else:
+        log.error("ZERO input targets are within the official DESI footprint!!!")
+
+    #ADM if this is an old-style, pre-DR4 file, convert it to the new data model
+    if 'DECAM_FLUX' in indata.dtype.names:
+        log.info('Converting from old (pre-DR4) to new DR4 data model...t = {:.1f}s'
+                 .format(time()-start))
+        indata = convert_target_data_model_for_QA(indata)
+
+    #ADM add a column "HPXID" containing the HEALPix number
+    log.info('Gathering HEALPixel information...t = {:.1f}s'.format(time()-start))
+    nrows = len(indata)
+    theta, phi = np.radians(90-indata["DEC"]), np.radians(indata["RA"])
+    hppix = hp.ang2pix(nside, theta, phi, nest=True)
+    dt = indata.dtype.descr
+    dt.append(('HPXID','>i8'))
+    #ADM create a new array with all of the read-in column names and the new HPXID
+    targetdata = np.empty(nrows, dtype=dt)
+    for colname in indata.dtype.names:
+        targetdata[colname] = indata[colname]
+    targetdata["HPXID"] = hppix
+
+    log.info('Determining unique HEALPixels...t = {:.1f}s'.format(time()-start))
+    #ADM determine number of unique bricks and their integer IDs
+    hpxids = np.array(list(set(targetdata['HPXID'])))
+    hpxids.sort()
+
+    log.info('Creating output HEALPixel structure...t = {:.1f}s'.format(time()-start))
+    #ADM set up an output structure of size of the number of unique bricks
+    npix = len(hpxids)
+    outstruc = construct_HPX_file(npix)
+    outstruc['HPXID'] = hpxids
+
+    log.info('Adding HEALPixel information...t = {:.1f}s'.format(time()-start))
+    #ADM add HEALPixel-specific information based on the HEALPixel IDs
+    outstruc = populate_HPX_info(outstruc,hpxids,nside)
+
+    log.info('Adding depth information...t = {:.1f}s'.format(time()-start))
+    #ADM add per-brick depth and area information
+    outstruc = populate_HPX_depths(outstruc,targetdata)
+
+    log.info('Adding target density information...t = {:.1f}s'.format(time()-start))
+    #ADM bits and names of interest for desitarget
+    bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG",
+                "DENSITY_QSO","DENSITY_BGS","DENSITY_MWS"]
+    #ADM -1 as a bit will return all values
+    bitvals = [-1]
+    for bitname in ['LRG','ELG','QSO','BGS_ANY','MWS_ANY']:
+        bitvals.append(desi_mask[bitname])
+
+    #ADM loop through bits and populate target densities for each class
+    for i, bitval in enumerate(bitvals):
+        w = np.where(targetdata["DESI_TARGET"] & bitval)
+        if len(w[0]) > 0:
+            targsperhpx = np.bincount(targetdata[w]['HPXID'],minlength=max(outstruc['HPXID'])+1)
+            outstruc[bitnames[i]] = targsperhpx[outstruc['HPXID']]/outstruc['HPXAREA']
+
+    log.info('Writing output file...t = {:.1f}s'.format(time()-start))
+    #ADM everything should be populated, just write it out,
+    #ADM also populate header info noting the HEALPixel scheme
+    hdr = fitsio.FITSHDR()
+    hdr['HPXNSIDE'] = nside
+    hdr['HPXNEST'] = True
+
+    fitsio.write(outfilename, outstruc, extname='HPXINFO', header=hdr, clobber=True)
+
+    log.info('Done...t = {:.1f}s'.format(time()-start))
+    return outstruc
+
+
 def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3/',outfilename='brick-info-dr3.fits'):
     """Create a file containing brick information (depth, ebv, etc. as in construct_QA_file)
 
@@ -940,32 +1264,38 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
          numpy structured array of brick information with columns as in construct_QA_file
     """
 
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     start = time()
 
     #ADM read in target file
-    print('Reading in target file...t = {:.1f}s'.format(time()-start))
+    log.info('Reading in target file...t = {:.1f}s'.format(time()-start))
     fx = fitsio.FITS(targetfilename, upper=True)
     targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET'])
 
-    print('Determining unique bricks...t = {:.1f}s'.format(time()-start))
+    #ADM add col
+
+    log.info('Determining unique bricks...t = {:.1f}s'.format(time()-start))
     #ADM determine number of unique bricks and their integer IDs
     brickids = np.array(list(set(targetdata['BRICKID'])))
     brickids.sort()
 
-    print('Creating output brick structure...t = {:.1f}s'.format(time()-start))
+    log.info('Creating output brick structure...t = {:.1f}s'.format(time()-start))
     #ADM set up an output structure of size of the number of unique bricks
     nbricks = len(brickids)
     outstruc = construct_QA_file(nbricks)
 
-    print('Adding brick information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding brick information...t = {:.1f}s'.format(time()-start))
     #ADM add brick-specific information based on the brickids
     outstruc = populate_brick_info(outstruc,brickids,rootdirname)
 
-    print('Adding depth information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding depth information...t = {:.1f}s'.format(time()-start))
     #ADM add per-brick depth and area information
     outstruc = populate_depths(outstruc,rootdirname)
 
-    print('Adding target density information...t = {:.1f}s'.format(time()-start))
+    log.info('Adding target density information...t = {:.1f}s'.format(time()-start))
     #ADM bits and names of interest for desitarget
     #ADM -1 as a bit will return all values
     bitnames = ["DENSITY_ALL","DENSITY_LRG","DENSITY_ELG",
@@ -979,11 +1309,11 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
             targsperbrick = np.bincount(targetdata[w]['BRICKID'])
             outstruc[bitnames[i]] = targsperbrick[outstruc['BRICKID']]/outstruc['BRICKAREA']
 
-    print('Writing output file...t = {:.1f}s'.format(time()-start))
+    log.info('Writing output file...t = {:.1f}s'.format(time()-start))
     #ADM everything should be populated, just write it out
     fitsio.write(outfilename, outstruc, extname='BRICKINFO', clobber=True)
 
-    print('Done...t = {:.1f}s'.format(time()-start))
+    log.info('Done...t = {:.1f}s'.format(time()-start))
     return outstruc
 
 
@@ -1201,6 +1531,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     return
 
+
 def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     """Make color-based DESI targeting QA plots given a passed set of targets
 
@@ -1256,10 +1587,22 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.xlabel('r - z')
     plt.ylabel('r - W1')
     plt.set_cmap('inferno')
-    plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-    plt.colorbar()
-    #ADM make the plot
-    pngfile = os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
+    counts, xedges, yedges, image = \
+        plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+    if np.sum(counts) > 0:
+        plt.colorbar()
+    else:
+        log = get_logger()
+        log.error('No data within r-W1 vs. r-z ranges')
+        plt.clf()
+        plt.xlabel('r - z')
+        plt.ylabel('r - W1')
+        plt.xlim([-1,3])
+        plt.ylim([-1,3])
+        plt.text(0, 0, 'No data')
+
+    #ADM save the plot
+    pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
@@ -1296,9 +1639,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     """
 
     #ADM set up the default logger from desiutil
-    from desimodel import io, footprint
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
+    from desimodel import io, footprint
 
     start = time()
     log.info('Start making targeting QA density plots...t = {:.1f}s'.format(time()-start))
@@ -1421,7 +1764,10 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
-    DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+    if 'RELEASE' in targs.dtype.names:
+        DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+    else:
+        DRs = "DR Unknown"
 
     #ADM Set up the names of the target classes and their goal densities using
     #ADM the goal target densities for DESI (read from the DESIMODEL defaults)

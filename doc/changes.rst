@@ -2,9 +2,69 @@
 desitarget Change Log
 =====================
 
-0.15.0 (unreleased)
+0.17.1 (unreleased)
 -------------------
 
+* No changes yet.
+
+0.17.1 (2017-12-20)
+-------------------
+
+* HPXNSIDE and HPXPIXEL as header keywords for mocks too [`PR #246`_].
+
+.. _`PR #246`: https://github.com/desihub/desitarget/pull/246
+
+0.17.0 (2017-12-20)
+-------------------
+
+* Support LyA skewers v2.x format [`PR #244`_].
+* Split LRGs into PASS1/PASS2 separate bits [`PR #245`_].
+* Sky locations infrastructure [`PR #248`_].
+* Mock targets densities fixes [`PR #241`_ and `PR #242`_].
+
+.. _`PR #244`: https://github.com/desihub/desitarget/pull/244
+.. _`PR #245`: https://github.com/desihub/desitarget/pull/245
+.. _`PR #248`: https://github.com/desihub/desitarget/pull/248
+.. _`PR #241`: https://github.com/desihub/desitarget/pull/241
+.. _`PR #242`: https://github.com/desihub/desitarget/pull/242
+
+0.16.2 (2017-11-16)
+-------------------
+
+* Allows different star-galaxy separations for quasar targets for
+  different release numbers [`PR #239`_].
+
+.. _`PR #239`: https://github.com/desihub/desitarget/pull/239
+
+0.16.1 (2017-11-09)
+-------------------
+
+* fixes to allow QA to work with mock data [`PR #235`_].
+* cleanup of mpi_select_mock_targets [`PR #235`_].
+* adds BGS properties notebook documentation [`PR #236`_].
+
+.. _`PR #235`: https://github.com/desihub/desitarget/pull/235
+.. _`PR #236`: https://github.com/desihub/desitarget/pull/236
+
+0.16.0 (2017-11-01)
+-------------------
+
+* General clean-up prior to running DR5 targets [`PR #229`_].
+   * Use :mod:`desiutil.log` instead of verbose (everywhere except mocks)
+   * Change ``HEALPix`` references to header keywords instead of dependencies
+   * Include ``SUBPRIORITY`` and shape parameter ``IVARs`` in target outputs
+* Include GMM model data for mocks when installing [`PR #222`_].
+* Initial simplistic code for generating sky positions [`PR #220`_]
+
+.. _`PR #220`: https://github.com/desihub/desitarget/pull/220
+.. _`PR #222`: https://github.com/desihub/desitarget/pull/222
+.. _`PR #229`: https://github.com/desihub/desitarget/pull/229
+
+0.15.0 (2017-09-29)
+-------------------
+
+* Refactored :mod:`desitarget.QA` to calculate density fluctuations in HEALPixels 
+  instead of in bricks [`PR #217`_]:
 * Updated :mod:`desitarget.io` for the DR5 RELEASE number [`PR #214`_]:
 * Updated :mod:`desitarget.QA` to produce QA plots [`PR #210`_]:
    * Has a simple binary that runs the plot-making software in full
@@ -17,11 +77,18 @@ desitarget Change Log
    * Correct random seeds when processing pix in parallel
    * Misc other small bug fixes
 * Added ``mpi_select_mock_targets``
-
+* Changes for mocks [`PR #228`]:
+   * Refactor of ``targets_truth_no_spectra`` 
+   * Solves bug of healpix patterns present in target mocks.
+   * Removes current implementation for target fluctuations.
+* Added ``desitarget.mock.sky.random_sky`` [`PR #219`_]
 
 .. _`PR #200`: https://github.com/desihub/desitarget/pull/200
 .. _`PR #210`: https://github.com/desihub/desitarget/pull/210
 .. _`PR #214`: https://github.com/desihub/desitarget/pull/214
+.. _`PR #228`: https://github.com/desihub/desitarget/pull/228
+.. _`PR #219`: https://github.com/desihub/desitarget/pull/219
+.. _`PR #217`: https://github.com/desihub/desitarget/pull/217
 
 0.14.0 (2017-07-10)
 -------------------

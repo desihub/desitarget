@@ -41,6 +41,10 @@ def make_mtl(targets, zcat=None, trim=False):
     -----
         TODO: Check if input targets is ever altered (it shouldn't...).
     """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     n       = len(targets)
     targets = Table(targets)
 
@@ -75,7 +79,7 @@ def make_mtl(targets, zcat=None, trim=False):
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (mtl['PRIORITY'] <= 2)
-    print('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
+    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
 
     mtl['NUMOBS_MORE'][ii] = 0
 
@@ -101,7 +105,7 @@ def make_mtl(targets, zcat=None, trim=False):
     # Filter out any targets marked as done.
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
-        print('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
+        log.info('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
                                                                      len(mtl)))
         mtl     = mtl[notdone]
 

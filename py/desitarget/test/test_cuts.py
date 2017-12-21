@@ -103,11 +103,16 @@ class TestCuts(unittest.TestCase):
         bgs2 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
+        #ADM need to include RELEASE for quasar cuts, at least
+        release = targets['RELEASE']
         #- Test that objtype and primary are optional
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary)
+                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
+                          release=release)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None)
+                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
+                          release=release)
+        
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)

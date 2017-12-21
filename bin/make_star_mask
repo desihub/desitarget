@@ -14,11 +14,13 @@ warnings.simplefilter('error')
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 
+from desiutil.log import get_logger
+log = get_logger()
+
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", help="root directory with tractor/sweeps files from which to build mask")
 ap.add_argument("dest", help='Output file name to which to write mask')
-ap.add_argument('-v', "--verbose", action='store_true')
 ap.add_argument("--bands", 
                 help='Bands to use to build the star mask (e.g. GRZ)',
                 default="GRZ")
@@ -35,13 +37,13 @@ infiles = io.list_sweepfiles(ns.src)
 if len(infiles) == 0:
     infiles = io.list_tractorfiles(ns.src)
 if len(infiles) == 0:
-    print('FATAL: no sweep or tractor files found')
+    log.critical('no sweep or tractor files found')
     sys.exit(1)
 
 maglim = [ float(ml) for ml in ns.maglim.split(',') ]
 
 starmask = make_bright_star_mask(ns.bands,maglim,numproc=ns.numproc,
-                                 rootdirname=ns.src,outfilename=ns.dest,verbose=ns.verbose)
+                                 rootdirname=ns.src,outfilename=ns.dest)
 
-print('wrote a file of {} masks to {}'.format(len(starmask), ns.dest))
+log.info('wrote a file of {} masks to {}'.format(len(starmask), ns.dest))
 

@@ -33,7 +33,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-        lrg = primary.copy()
 
     if ggood is None:
         ggood = np.ones_like(gflux, dtype='?')
@@ -49,14 +48,27 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
     # this will overflow, and crash the code.
     with np.errstate(over='ignore'):
-        # This is the star-galaxy separation cut
+        # This is the star-galaxy separation cut:
+        # ADM original Eisenstein/Dawson cut
         # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
-        lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
+        # lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
+        # ADM updated Zhou/Newman cut:
+        # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
+        # 0.7r + W < 1.7z + 0.6 &&
+        # 0.7r + W > 1.7z - 1.0
+        lrg &= ( (w1flux*rflux**complex(0.7)).real > 
+                 ((zflux**complex(1.7))*10**(-0.4*0.6)).real  )
+        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
+                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
+        #ADM note the trick of making the exponents complex and taking the real
+        #ADM part to allow negative fluxes to be raised to a fractional power
 
         # Now for the work-horse sliding flux-color cut:
+        # ADM original Eisenstein/Dawson cut:
         # mlrg2 = z-2*(r-z-1.2) < 19.6 -> 3*z < 19.6-2.4-2*r
-        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.6))*rflux**2)
-
+        # ADM updated Zhou/Newman cut:
+        # mlrg2 = z-2*(r-z-1.2) < 19.45 -> 3*z < 19.45-2.4-2*r
+        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.45))*rflux**2)
         # Another guard against bright & red outliers
         # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
         lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
@@ -90,15 +102,13 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             target.
 
     Notes:
-        This is version 3 of the Eisenstein/Dawson Summer 2016 work on LRG target
-        selection, but anymask has been changed to allmask, which probably means
-        that the flux cuts need to be re-tuned.  That is, mlrg2<19.6 may need to
-        change to 19.5 or 19.4. --Daniel Eisenstein -- Jan 9, 2017
+        This is Rongpu Zhou's update to the LRG selection discussed at
+        the December, 2017 SLAC collaboration meeting (see, e.g.:
+        https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=3400)
     """
     #----- Luminous Red Galaxies
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-        lrg = primary.copy()
 
     # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
     # used!).  Also note: We do not require gflux>0!  Objects can be very red.
@@ -115,6 +125,55 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                                w2flux=w2flux, ggood=ggood, primary=primary)
 
     return lrg
+
+
+def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          gflux_ivar=None, primary=None):
+    """LRGs in different passes (one pass, two pass etc.)
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
+        gflux, rflux_snr, zflux_snr, w1flux_snr: array_like
+            The signal-to-noise in the r, z and W1 bands defined as the flux
+            per band divided by sigma (flux x the sqrt of the inverse variance)
+        gflux_ivar: array_like
+            The inverse variance of the flux in g-band
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask0 : array_like. 
+            True if and only the object is an LRG target.
+        mask1 : array_like. 
+            True if the object is a ONE pass (bright) LRG target.
+        mask2 : array_like. 
+            True if the object is a TWO pass (fainter) LRG target.
+    """
+    #----- Luminous Red Galaxies
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+
+    lrg = primary.copy()
+
+    #ADM apply the color and flag selection for all LRGs
+    lrg &= isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                 rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
+                 gflux_ivar=gflux_ivar, primary=primary)
+
+    lrg1pass = lrg.copy()
+    lrg2pass = lrg.copy()
+
+    #ADM one-pass LRGs are 18 (the BGS limit) <= z < 20
+    lrg1pass &= zflux > 10**((22.5-20.0)/2.5)
+    lrg1pass &= zflux <= 10**((22.5-18.0)/2.5)
+
+    #ADM two-pass LRGs are 20 (the BGS limit) <= z < 20
+    lrg2pass &= zflux > 10**((22.5-20.4)/2.5)
+    lrg2pass &= zflux <= 10**((22.5-20.0)/2.5)
+
+    return lrg, lrg1pass, lrg2pass
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
@@ -146,6 +205,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
 
     return elg
+
 
 def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select FSTD targets just based on color cuts. Returns a boolean array.
@@ -364,19 +424,21 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-               objtype=None, primary=None):
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+               release=None, objtype=None, primary=None):
     """Cuts based QSO target selection
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        deltaChi2: array_like
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         w1snr: array_like[ntargets]
             S/N in the W1 band.
         w2snr: array_like[ntargets]
             S/N in the W2 band.
+        deltaChi2: array_like[ntargets]
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -397,7 +459,11 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
     qso &= w1snr > 4
     qso &= w2snr > 2
 
-    qso &= deltaChi2>40.
+    #ADM default to RELEASE of 5000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
+
+    qso &= ((deltaChi2>40.) | (release>=5000) )
 
     if primary is not None:
         qso &= primary
@@ -407,8 +473,8 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
 
     return qso
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None,
-         deltaChi2=None, primary=None):
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                       objtype=None, release=None, deltaChi2=None, primary=None):
     """Target Definition of QSO using a random forest returning a boolean array.
 
     Args:
@@ -416,8 +482,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
         deltaChi2: array_like or None
-             If given, difference of chi2 bteween PSF and SIMP morphology
+             If given, difference in chi2 bteween PSF and SIMP morphology
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
@@ -429,6 +497,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     #----- Quasars
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
+
+    #ADM default to RELEASE of 5000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
 
     # build variables for random forest
     nfeatures=11 # number of variables in random forest
@@ -465,6 +537,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     #define pcut, relaxed cut for faint objects
     pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
+    pcut_DR5 = np.where(r>20.0,0.92 - (r-20.0)*0.08,0.92)
 
     qso = primary.copy()
     qso &= r<rMax
@@ -473,13 +546,13 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if objtype is not None:
         qso &= _psflike(objtype)
 
-    if deltaChi2 is not None:
-        qso &= deltaChi2>30.
+    if (deltaChi2 is not None) :
+        qso &= ((deltaChi2>30.) | (release>=5000) ) 
 
     if nbEntries==1 : # for call of a single object
         qso &= prob[0]>pcut
     else :
-        qso &= prob>pcut
+        qso &= (((prob>pcut)&(release<5000)) | ((prob>pcut_DR5)&(release>=5000)))
 
     return qso
 
@@ -546,8 +619,7 @@ def _is_row(table):
         return False
 
 def unextinct_fluxes(objects):
-    """
-    Calculate unextincted DECam and WISE fluxes
+    """Calculate unextincted DECam and WISE fluxes
 
     Args:
         objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z, 
@@ -627,6 +699,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
+    release = objects['RELEASE']
 
     gfluxivar = objects['FLUX_IVAR_G']
 
@@ -659,8 +732,9 @@ def apply_cuts(objects, qso_selection='randomforest'):
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg = isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                   gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    lrg, lrg1pass, lrg2pass = isLRGpass(primary=primary, gflux=gflux, rflux=rflux, 
+                                        zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                                        rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
     
     elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
@@ -670,10 +744,10 @@ def apply_cuts(objects, qso_selection='randomforest'):
     if qso_selection=='colorcuts' :
         qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                          w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                         w1snr=w1snr, w2snr=w2snr)
+                         w1snr=w1snr, w2snr=w2snr, release=release)
     elif qso_selection == 'randomforest':
         qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype)
+                                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype, release=release)
     else:
         raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
                                                                                  qso_selection_options))
@@ -698,6 +772,10 @@ def apply_cuts(objects, qso_selection='randomforest'):
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
+    #ADM add the per-pass information
+    desi_target |= lrg1pass * desi_mask.LRG_1PASS
+    desi_target |= lrg2pass * desi_mask.LRG_2PASS
+    
     # Standards; still need to set STD_WD
     desi_target |= fstd * desi_mask.STD_FSTAR
     desi_target |= fstd_bright * desi_mask.STD_BRIGHT
@@ -720,7 +798,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     return desi_target, bgs_target, mws_target
 
-def check_input_files(infiles, numproc=4, verbose=False):
+def check_input_files(infiles, numproc=4):
     """
     Process input files in parallel to check whether they have
     any bugs that will prevent select_targets from completing,
@@ -733,7 +811,6 @@ def check_input_files(infiles, numproc=4, verbose=False):
 
     Optional:
         numproc: number of parallel processes
-        verbose: if True, print progress messages
 
     Returns:
         Nothing, but prints any problematic files to screen
@@ -742,6 +819,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
     Notes:
         if numproc==1, use serial code instead of parallel
     """
+    #ADM set up default logging
+    from desiutil.log import get_logger
+    log = get_logger()
+
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
@@ -801,10 +882,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if verbose and nbrick%25 == 0 and nbrick>0:
+        if nbrick%25 == 0 and nbrick>0:
             elapsed = time() - t0
             rate = nbrick / elapsed
-            print('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
+            log.info('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
         nbrick[...] += 1    # this is an in-place modification
         return result
 
@@ -822,10 +903,10 @@ def check_input_files(infiles, numproc=4, verbose=False):
     w = np.where(fileinfo[...,1] != 'OK')
 
     if len(w[0]) == 0:
-        print('ALL FILES ARE OK')
+        log.info('ALL FILES ARE OK')
     else:
         for fil in fileinfo[w]:
-            print(fil[0],fil[1])
+            log.info(fil[0],fil[1])
 
     return len(w[0])
 
@@ -833,7 +914,7 @@ def check_input_files(infiles, numproc=4, verbose=False):
 qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
-def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomforest',
+def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    sandbox=False, FoMthresh=None, Method=None):
     """Process input files in parallel to select targets
 
@@ -841,7 +922,6 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         infiles: list of input filenames (tractor or sweep files),
             OR a single filename
         numproc (optional): number of parallel processes to use
-        verbose (optional): if True, print progress messages
         qso_selection (optional): algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
         sandbox (optional): if True, use the sample selection cuts in
@@ -861,6 +941,9 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         if numproc==1, use serial code instead of parallel
 
     """
+    from desiutil.log import get_logger
+    log = get_logger()
+
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
@@ -910,9 +993,9 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if verbose and nbrick%50 == 0 and nbrick>0:
+        if nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            print('{} files; {:.1f} files/sec'.format(nbrick, rate))
+            log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
@@ -922,16 +1005,14 @@ def select_targets(infiles, numproc=4, verbose=False, qso_selection='randomfores
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
             if sandbox:
-                if verbose:
-                    print("You're in the sandbox...")
+                log.info("You're in the sandbox...")
                 targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
             else:
                 targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
         if sandbox:
-            if verbose:
-                print("You're in the sandbox...")
+            log.info("You're in the sandbox...")
             for x in infiles:
                 targets.append(_update_status(_select_sandbox_targets_file(x)))
         else:
