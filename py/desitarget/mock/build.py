@@ -530,35 +530,142 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
-#from memory_profiler import profile
-#@profile
-def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=False,
-                  bricksize=0.25, nproc=1, nside=16, healpixels=None):
+def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
+                  healpixels=None, verbose=False):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
     (with, e.g., the true redshift) for use in simulations.
 
     Args:
         params : dict
             Source parameters.
+        seed: int
+            Seed for the random number generation.
         output_dir : str
             Output directory (default '.').
-        realtargets : astropy.table
-            Real target catalog table, e.g. from DR3 (deprecated!).
-        bricksize : float
-            Brick size for assigning bricknames, which should match the imaging
-            team value (default 0.25 deg).
         nproc : int
             Number of parallel processes to use (default 1).
         nside : int
             Healpix resolution corresponding to healpixels (default 16).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels.
+            this set (array) of healpix pixels.  (Default: None)
+        verbose: bool
+            Be verbose. (Default: False)
 
     Returns:
-        A variety of fits files are written to output_dir.
+        Files 'targets.fits', 'truth.fits', 'sky.fits', 'standards-dark.fits',
+        and 'standards-bright.fits' written to disk for a list of healpixels.
 
     """
+    log, rand, Spectra, Selection, healpixels = initialize(params,
+                                                           verbose=verbose,
+                                                           seed=seed, 
+                                                           output_dir=output_dir, 
+                                                           nproc=nproc, 
+                                                           healpixels=healpixels)
+
+
+    # Loop over each source / object type.
+    for healpix in healpixels:
+        alltargets = list()
+        alltruth = list()
+        allskytargets = list()
+        allskytruth = list()
+          
+        for source_name in sorted(params['sources'].keys()):
+            
+            #Read the data
+            mockformat = params['sources'][source_name]['format']
+            log.info('Reading  source : {}'.format(source_name))
+            source_data = read_catalog(source_name, params, log, 
+                                    rand=rand, nproc=nproc, healpixels=healpix, nside=nside)
+        
+            # If there are no sources, keep going.
+            if not bool(source_data):
+                continue
+                
+            # Initialize variables for density subsampling.
+            if 'density' in params['sources'][source_name].keys():
+                density = [params['sources'][source_name]['density']]
+                zcut = [-1000, 1000]
+            
+            # Iteratively assign spectra to the mock targets in that healpixel
+            # until we achieve the desired density (after target selection).
+            import pdb ; pdb.set_trace()
+            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
+                                        nside, healpix, dust_dir=params['dust_dir'])
+            
+            targets = pixel_results[0]
+            truth = pixel_results[1]
+            
+            # Make target selection and downsample number density if necessary. SKY is an special case.
+            if source_name.upper() == 'SKY':
+                if 'density' in params['sources'][source_name].keys():
+                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
+                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
+                allskytargets.append(targets)
+                allskytruth.append(truth)                    
+            else:
+                targets, truth = target_selection(Selection, source_name, targets, truth,
+                                                             nside, healpix, seed, rand, log, output_dir)
+                
+                # Downsample to a global number density if required
+                if 'density' in params['sources'][source_name].keys():
+                    if source_name == 'QSO':
+                        # Distinguish between the Lyman-alpha and tracer QSOs
+                        if 'LYA' in params['sources'][source_name].keys():
+                            density = [params['sources'][source_name]['density'], 
+                                      params['sources'][source_name]['LYA']['density']]
+                            zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
+                    
+                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
+                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
+               
+                    
+                if len(targets)>0:
+                    alltargets.append(targets)
+                    alltruth.append(truth)
+               
+        if len(alltargets)==0 and len(allskytargets)==0:
+            continue
+        
+        #Merge all sources
+        if len(alltargets):
+            targets = vstack(alltargets)
+            truth = vstack(alltruth)
+            
+            # downsample contaminants for each class
+            for source_name in sorted(params['sources'].keys()):
+                if 'contam' in params['sources'][source_name].keys():
+                    # Initialize variables for density subsampling
+                    zcut=[-1000,1000]
+                    density = [params['sources'][source_name]['contam']['density']]
+                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
+                                                  nside, healpix, seed, rand, log, output_dir, contam=True)
+        else:
+            targets = []
+            truth = []
+        
+ 
+                    
+        if len(allskytargets):
+            skytargets = vstack(allskytargets)
+            skytruth = vstack(allskytruth)
+        else:
+            skytargets = []
+            skytruth = []
+
+        #Add some final columns
+        targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
+                                                              nside,healpix, seed, rand, log, output_dir)
+        #write the results
+        write_to_disk(targets, truth, skytargets, skytruth,  
+                          nside, healpix, seed, rand, log, output_dir)
+        
+
+    import pdb ; pdb.set_trace()
+
+    
     import healpy as hp
     from time import time
 
@@ -1078,8 +1185,8 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         mtl.write(tmpout, overwrite=True, format='fits')
         os.rename(tmpout, out_mtl)
 
-
-def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None):
+def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16,
+               healpixels=None, no_spectra=False):
     """Initializes variables to prepare mock target generation.
 
     Args:
@@ -1096,30 +1203,32 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
             this set (array) of healpix pixels. Default (None).
-
+        no_spectra : bool
+            If not generating spectra, initialize and return the MockMagnitudes
+            Class instead of the MockSpectra Class.
 
     Output:
-        log: logger object.
+        log: desiutil.logger
+           Logger object.
         rand: numpy.random.RandomState
+           Object for random number generation.
+        spectra: desitarget.mock.MockSpectra
+            Object to assign spectra to each target class (only returned if
+            no_spectra=False).
+        magnitudes: desitarget.mock.MockMagnitudes    
+            Object to assign magnitudes to each target class (only returned if
+            no_spectra=True).
+        selection: desitarget.mock.SelectTargets
+            Object to select targets from the input mock catalogs.
 
-        seed: int
-            Seed used for the random number generator.
-
-        magnitudes: desitarget.mock.Magnitudes
-            This object contains the information to assign magnitudes to each kind of targets.
-        selection: desitarget.mock.Selection
-            This object contains the information from the configuration file used to start the construction of the mock target files.
-        output_dir: str
-            Directory where the outputs are written.
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None).
-            If the input is None, the output are the pixels on the whole sky. 
     """
-   
-    from desitarget.mock.spectra import MockMagnitudes
     from desitarget.mock.selection import SelectTargets
     import healpy as hp
+
+    if no_spectra:
+        from desitarget.mock.spectra import MockMagnitudes
+    else:
+        from desitarget.mock.spectra import MockSpectra
 
     # Initialize logger
     if verbose:
@@ -1142,8 +1251,7 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
     else:
         log.info('Creating directory {}'.format(output_dir))
         os.makedirs(output_dir)    
-    log.info('Writing to output directory {}'.format(output_dir))
-      
+    log.info('Writing to output directory {}'.format(output_dir))      
         
     # Default set of healpixels is the whole sky (yikes!)
     if healpixels is None:
@@ -1154,20 +1262,20 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
     log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
         len(healpixels), nside, areaperpix, skyarea))
 
-    # Initialize the Classes used to assign spectra and select targets.  Note:
-    # The default wavelength array gets initialized here, too.
-    log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
-    magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+    # Initialize the Classes used to assign spectra (or magnitudes) and to
+    # select targets.  Note: The default wavelength array gets initialized here,
+    # too.
     selection = SelectTargets(logger=log, rand=rand)
     
-    print()
-    current_pixel_ID = 0
-    # Loop over each source / object type.
-    alltargets = list()
-    alltruth = list()
+    if no_spectra:
+        log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
+        Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+        return log, rand, Magnitudes, selection, healpixels    
+    else:
+        log.info('Initializing the MockSpectra and SelectTargets Classes.')
+        Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
+        return log, rand, Spectra, selection, healpixels
     
-    return log, rand, magnitudes, selection, healpixels
-
 def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, nside=16, in_desi=True):
     """Reads a mock file.
     
@@ -1640,7 +1748,8 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed,
         os.rename(truthfile+'.tmp', truthfile)
 
 
-def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None, verbose=False, dust_dir="./"):
+def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
+                             healpixels=None, verbose=False, dust_dir="./"):
     """Generate a catalog of targets and the corresponding truth catalog.
     
     Inputs:
@@ -1660,18 +1769,20 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         verbose: bool
             Degree of verbosity.
             
-    Outputs:
-        Files "targets", "truth", "sky", "standards" written to disk for a list of healpixels.
+    Returns:
+        Files 'targets.fits', 'truth.fits', 'sky.fits', 'standards-dark.fits',
+        and 'standards-bright.fits' written to disk for a list of healpixels.
+    
     """
-    log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
-                                       seed = seed, 
-                                       output_dir = output_dir, 
-                                       nproc = nproc, 
-                                       healpixels = healpixels)
+    log, rand, Magnitudes, Selection, healpixels = initialize(params,
+                                                              verbose=verbose,
+                                                              seed=seed, 
+                                                              output_dir=output_dir, 
+                                                              nproc=nproc, 
+                                                              healpixels=healpixels,
+                                                              no_spectra=True)
     
     # Loop over each source / object type.
-   
-    
     for healpix in healpixels:
         alltargets = list()
         alltruth = list()
