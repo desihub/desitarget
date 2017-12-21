@@ -14,9 +14,7 @@ import os
 import numpy as np
 from astropy.table import Table, Column, vstack, hstack
 
-from desiutil.log import get_logger, DEBUG
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
-import desitarget.mock.io as mockio
 from desitarget.mock import sfdmap
 
 from desitarget.targets import encode_targetid
@@ -530,6 +528,184 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
+def _get_spectra_onepixel(specargs):
+    """Filler function for the multiprocessing."""
+    return get_spectra_onepixel(*specargs)
+
+def get_spectra_onepixel(source_data, source_name, Spectra, Selection, mockformat, dust_dir,
+                         select_targets_function, rand, log):
+    """Wrapper function to generate spectra for all targets on a single healpixel.
+
+    Args:
+        source_name : str
+
+    Returns:
+        targets
+        truth
+        trueflux
+    
+    """
+    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
+    onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
+    nobj = len(onbrick)
+
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj)
+
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key][:] = source_data[key][onbrick]
+
+    for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
+        targets[key][:] = brick_info[key][brickindx]
+
+    # Assign unique OBJID values and reddenings.  See
+    #   http://legacysurvey.org/dr4/catalogs
+    targets['BRICK_OBJID'][:] = np.arange(nobj)
+
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
+
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
+    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
+    # for now.
+    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
+                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
+    
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key][:] = source_data[key][onbrick]
+
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][onbrick]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
+
+    # Sky targets are a special case without redshifts.
+    if source_name == 'sky':
+        Selection(targets, truth)
+        return [targets, truth]
+
+    truth['TRUEZ'][:] = source_data['Z'][onbrick]
+
+    # For FAINTSTAR targets, preselect stars that are going to pass target
+    # selection cuts without actually generating spectra, in order to save
+    # memory and time.
+    if source_name == 'faintstar':
+        if mockformat.lower() == 'galaxia':
+            alldata = np.vstack((source_data['TEFF'][onbrick],
+                                 source_data['LOGG'][onbrick],
+                                 source_data['FEH'][onbrick])).T
+            _, templateid = Spectra.tree.query('STAR', alldata)
+            templateid = templateid.flatten()
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
+
+        for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+            truth[fluxkey][:] = getattr( Spectra.tree, 'star_{}'.format(fluxkey.lower()) )[templateid] * normmag
+            targets[fluxkey][:] = truth[fluxkey][:] + \
+              rand.normal(scale=onesigma[band], size=nobj)
+
+        Selection(targets, truth)
+
+        keep = np.where(targets['DESI_TARGET'] != 0)[0]
+        nobj = len(keep)
+
+        # Temporary debugging plot.
+        if False:
+            import matplotlib.pyplot as plt
+            gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+            rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+            gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+            rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', edgewidth=2, label='Noiseless Photometry')
+            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
+            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none', label='Noisy Photometry')
+            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k', edgewidth=2)
+            plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+            plt.legend(loc='upper left')
+            plt.show()
+            import pdb ; pdb.set_trace()
+        
+        if nobj == 0:
+            log.warning('No {} targets identified!'.format(source_name.upper()))
+            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
+        else:
+            onbrick = onbrick[keep]
+            truth = truth[keep]
+            targets = targets[keep]
+
+    # Finally build the spectra and select targets.
+    trueflux, meta = getattr(Spectra, source_name)(source_data, index=onbrick, mockformat=mockformat)
+
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
+
+    # Perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
+
+    if False:
+        import matplotlib.pyplot as plt
+        def elg_colorbox(ax):
+            """Draw the ELG selection box."""
+            from matplotlib.patches import Polygon
+            grlim = ax.get_ylim()
+            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+            verts = [(rzmin, grlim[0]),
+                     (rzmin, np.polyval(coeff0, rzmin)),
+                     (rzpivot, np.polyval(coeff1, rzpivot)),
+                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
+                     ]
+            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
+        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        
+        fig, ax = plt.subplots()
+        ax.scatter(rz1, gr1, color='red', label='Noiseless Photometry')
+        ax.scatter(rz, gr, alpha=0.5, color='green', label='Noisy Photometry')
+        ax.set_xlim(-0.5, 2)
+        ax.set_ylim(-0.5, 2)
+        elg_colorbox(ax)
+        ax.legend(loc='upper left')
+        plt.show()
+        import pdb ; pdb.set_trace()
+        
+    if 'BOSS_STD' in source_data.keys():
+        boss_std = source_data['BOSS_STD'][onbrick]
+    else:
+        boss_std = None
+    Selection(targets, truth, boss_std=boss_std)
+
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+    nobj = len(keep)
+
+    if nobj == 0:
+        log.warning('No {} targets identified!'.format(source_name.upper()))
+    else:
+        log.debug('Selected {} {}s on brick {}.'.format(nobj, source_name.upper(), thisbrick))
+        targets = targets[keep]
+        truth = truth[keep]
+        trueflux = trueflux[keep, :]
+
+    return [targets, truth, trueflux]
+
 def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                   healpixels=None, verbose=False):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
@@ -564,7 +740,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                                                            nproc=nproc, 
                                                            healpixels=healpixels)
 
-
+    
     # Loop over each source / object type.
     for healpix in healpixels:
         alltargets = list()
@@ -574,16 +750,16 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
           
         for source_name in sorted(params['sources'].keys()):
             
-            #Read the data
-            mockformat = params['sources'][source_name]['format']
+            # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data = read_catalog(source_name, params, log, 
-                                    rand=rand, nproc=nproc, healpixels=healpix, nside=nside)
+            source_data, mockformat = read_catalog(source_name, params, log, 
+                                                   rand=rand, nproc=nproc,
+                                                   healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
-                
+
             # Initialize variables for density subsampling.
             if 'density' in params['sources'][source_name].keys():
                 density = [params['sources'][source_name]['density']]
@@ -591,9 +767,11 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             
             # Iteratively assign spectra to the mock targets in that healpixel
             # until we achieve the desired density (after target selection).
+            print('ADD MULTIPROCESSING HERE!')
+            targets, truth, trueflux = get_spectra_onepixel(source_data, source_name, Spectra, Selection, mockformat, rand, log, 
+                                                            nside, healpix, dust_dir=params['dust_dir'])
+            
             import pdb ; pdb.set_trace()
-            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
-                                        nside, healpix, dust_dir=params['dust_dir'])
             
             targets = pixel_results[0]
             truth = pixel_results[1]
@@ -1207,7 +1385,7 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
             If not generating spectra, initialize and return the MockMagnitudes
             Class instead of the MockSpectra Class.
 
-    Output:
+    Returns:
         log: desiutil.logger
            Logger object.
         rand: numpy.random.RandomState
@@ -1222,8 +1400,9 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
             Object to select targets from the input mock catalogs.
 
     """
-    from desitarget.mock.selection import SelectTargets
     import healpy as hp
+    from desiutil.log import get_logger, DEBUG
+    from desitarget.mock.selection import SelectTargets
 
     if no_spectra:
         from desitarget.mock.spectra import MockMagnitudes
@@ -1276,38 +1455,38 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
         Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
         return log, rand, Spectra, selection, healpixels
     
-def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, nside=16, in_desi=True):
-    """Reads a mock file.
+def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
+                 nside=16, in_desi=True):
+    """Read a specified mock catalog.
     
     Args:
-        source_name: string
-            Name of the target being processesed, i.e. "QSO"
-        params: dictionary
-            Gathers the information of the input configuration file.
-        log: logger object
+        source_name: str
+            Name of the target being processesed, e.g., 'QSO'.
+        params: dict
+            Dictionary summary of the input configuration file.
+        log: desiutil.logger
+           Logger object.
+        rand: numpy.random.RandomState
+           Object for random number generation.
         nproc: int
             Number of processors to be used for reading.
-        rand: numpy.random.RandomState
-        healpixels: numpy.array
-            List of healpixels to process. The mocks are cut to match these pixels.
+        healpixels : numpy.ndarray or int
+            List of healpixels to process. The mocks are cut to match these
+            pixels.
         nside: int
             nside for healpix
         in_desi: boolean
-            Decides whether the targets will be trimmed to be inside the DESI footprint.
-        Magnitudes: desitarget.mock.Magnitudes
-            This object contains the information to assign magnitudes to each kind of targets.
-        source_data: dictionary
-            This corresponds to the "raw" data coming directly from the mock file.
-        mockformat: string
-            Format of the mock files used to read the data.
+            Decides whether the targets will be trimmed to be inside the DESI
+            footprint.
             
-    Output:
-        source_data: dictionary
-            Raw information from the input mock file.
+    Returns:
+        source_data: dict
+            Parsed source data based on the input mock catalog.
+        mockformat: str
+            Format of the mock files used to read the data.
 
     """
-    import desimodel.io
-    import desimodel.footprint
+    import desitarget.mock.io as mockio
     
     # Read the mock catalog.
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
@@ -1331,17 +1510,21 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, 
                                     magcut=magcut, nproc=nproc, lya=lya,
                                     healpixels=healpixels, nside=nside)
 
-    #returns only the points that are in DESI footprint
+    # Return only the points that are in the DESI footprint.
     if bool(source_data):
         if in_desi:
+            import desimodel.io
+            import desimodel.footprint
+            
             n_obj = len(source_data['RA'])
             tiles = desimodel.io.load_tiles()
-            if n_obj>0:
+            if n_obj > 0:
                 indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
                 for k in source_data.keys():
                     if (n_obj == len(source_data[k])) and (type(source_data[k]) is np.ndarray):
                         source_data[k] = source_data[k][indesi]
-    return source_data
+                        
+    return source_data, mockformat
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
                             rand, log, nside, healpix_id, dust_dir):
@@ -1791,11 +1974,11 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
           
         for source_name in sorted(params['sources'].keys()):
             
-            #Read the data
-            mockformat = params['sources'][source_name]['format']
+            # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data = read_catalog(source_name, params, log, 
-                                    rand=rand, nproc=nproc, healpixels=healpix, nside=nside)
+            source_data, mockformat = read_catalog(source_name, params, log, 
+                                                   rand=rand, nproc=nproc,
+                                                   healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -1804,7 +1987,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             #Initialize variables for density subsampling
             if 'density' in params['sources'][source_name].keys():
                 density = [params['sources'][source_name]['density']]
-                zcut=[-1000,1000]
+                zcut = [-1000, 1000]
             
             # assign magnitudes for targets in that pixel
             pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
