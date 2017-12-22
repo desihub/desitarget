@@ -589,11 +589,9 @@ class MockSpectra(object):
                 flux[tracer, :] = flux1
 
             if len(lya) > 0:
-
-                
-                ilya=index[lya].astype(int)
-                nqso=ilya.size
-                log.info("Generating spectra of %d lya QSOs"%nqso)
+                ilya = index[lya].astype(int)
+                nqso = ilya.size
+                log.info('Generating spectra of {} Lya QSOs'.format(nqso))
                                 
                 if 'LYAHDU' in data : 
                     # this is the old format with one HDU per spectrum
@@ -610,7 +608,6 @@ class MockSpectra(object):
                         meta[lya[these]] = meta1
                         flux[lya[these], :] = flux1
                 else : # new format
-                                                            
                     # read skewers
                     skewer_wave=None
                     skewer_trans=None

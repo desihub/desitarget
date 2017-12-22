@@ -563,7 +563,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log):
+def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log, ntarget):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -742,6 +742,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
     """
     from time import time
+    import healpy as hp
+    from desimodel.footprint import radec2pix
     from desitarget.internal import sharedmem
     
     log, rand, Spectra, Selection, healpixels = initialize(params,
@@ -752,14 +754,22 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                                                            nside=nside,
                                                            healpixels=healpixels)
 
-    
+    # Parallelize by chunking the sample into smaller (nested) healpixels. 
+    nside_chunk = 128
+    if nside >= nside_chunk:
+        nside_chunk = nside
+    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
+
     # Loop over each source / object type.
     for healpix in healpixels:
         alltargets = list()
         alltruth = list()
         allskytargets = list()
         allskytruth = list()
-          
+
+        nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
+        log.info('Dividing the sample into {} chunk(s).'.format(nchunk))
+        
         for source_name in sorted(params['sources'].keys()):
             
             # Read the data.
@@ -771,25 +781,33 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if not bool(source_data):
                 continue
 
-            # Chunk the sample based on the number of processors.
-            log.info('Dividing the sample into {} chunk(s).'.format(nproc))
-            print('Testing with 50 objects!')
-            chunkindx = np.array_split(np.arange(50), nproc)
+            # Target density -- need a proper fluctuations model here. 
+            if 'density' in params['sources'][source_name].keys():
+                density = params['sources'][source_name]['density']
+                ntarget = np.round(density * areaperchunk)
+            else:
+                ntarget = None # all targets
+                
+            #chunkindx = np.array_split(np.arange(50), nproc)
             #chunkindx = np.array_split(np.arange(len(source_data['RA'])), nproc)
 
-            nchunk = np.zeros((), dtype='i8')
+            nn = np.zeros((), dtype='i8')
             t0 = time()
             def _update_spectra_status(result):
-                if nchunk % 2 == 0 and nchunk > 0:
-                    rate = (time() - t0) / nchunk
-                    log.debug('{} chunk(s); {:.1f} sec / brick'.format(nchunk, rate))
-                nchunk[...] += 1    # in-place modification
+                if nn >= 0:
+                #if nn % 2 == 0 and nn > 0:
+                    rate = (time() - t0) / nn
+                    log.debug('{} chunk(s); {:.1f} sec / brick'.format(nn, rate))
+                nn[...] += 1    # in-place modification
                 return result
-            
-            specargs = list()
-            for indx in chunkindx:
-                specargs.append( (source_data, indx, Spectra, Selection, rand, log) )
 
+            healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
+
+            specargs = list()
+            for pixchunk in set(healpix_chunk):
+                indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+                specargs.append( (source_data, indx, Spectra, Selection, rand, log, ntarget) )
+            
             # Iteratively assign spectra to the mock targets in that healpixel
             # until we achieve the desired density (after target selection).
             if nproc > 1:
@@ -803,8 +821,6 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                     pixel_results.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
 
             import pdb ; pdb.set_trace()
-
-
 
             del source_data # memory clean-up
 
@@ -1606,12 +1622,11 @@ def read_catalog(source_name, params, log, rand=None, nproc=1,
         npix = len(healpixels)
     skyarea = npix * hp.nside2pixarea(nside, degrees=True)
 
-    if 'density' in params['sources'][source_name].keys():
-        density = params['sources'][source_name]['density']
-        ntarget = density * skyarea
-        ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
-        import pdb ; pdb.set_trace()
-        source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
+    #if 'density' in params['sources'][source_name].keys():
+    #    density = params['sources'][source_name]['density']
+    #    ntarget = density * skyarea
+    #    ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
+    #    source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
 
     #if 'contam' in params['sources'][source_name].keys():
     #    contam = params['sources'][source_name]['contam']
