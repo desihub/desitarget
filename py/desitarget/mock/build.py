@@ -19,31 +19,6 @@ from desimodel.footprint import radec2pix
 from desitarget.targets import encode_targetid
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
 
-def fileid_filename(source_data, output_dir, log):
-    '''
-    Outputs text file with mapping between mock filenum and file on disk
-
-    returns mapping dictionary map[mockanme][filenum] = filepath
-
-    '''
-    outfile = os.path.join(output_dir, 'map_id_filename.txt')
-    log.info('Writing {}'.format(outfile))
-    
-    out = open(outfile, 'w')
-    map_id_name = {}
-    for k in source_data.keys():
-        map_id_name[k] = {}
-        data = source_data[k]
-        if 'FILES' in data.keys():
-            filenames = data['FILES']
-            n_files = len(filenames)
-            for i in range(n_files):
-                map_id_name[k][i] = filenames[i]
-                out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
-    out.close()
-
-    return map_id_name
-
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.  The required output columns in order
     for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
@@ -904,13 +879,6 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 targets = targets[keep]
                 truth = truth[keep]
                 trueflux = trueflux[keep, :]
-
-    # Write out the fileid-->filename mapping.  This doesn't work right now.
-    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
-
-    # Deprecated:  add mock shapes and fluxes from the real target catalog.
-    if realtargets is not None:
-        add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
 
     # Finally assign TARGETIDs and subpriorities.
     ntarget = len(targets)
