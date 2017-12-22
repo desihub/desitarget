@@ -337,7 +337,6 @@ class SelectTargets(object):
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
         targets['OBSCONDITIONS'] |= self.obsconditions.mask(self.desi_mask.SKY.obsconditions)
 
-
     def density_select(self, targets, truth, source_name, target_name, density=None, subset=None):
         """Downsample a target sample to a desired number density in targets/deg2."""
         nobj = len(targets)

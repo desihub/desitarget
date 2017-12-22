@@ -276,15 +276,16 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
     targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
     # TYPE
-    targets.add_column(Column(name='RA', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='DEC', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
+    targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
     # RA_IVAR
     # DEC_IVAR
-    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
+    # DCHISQ
+    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
     # FLUX_W3
     # FLUX_W4
     # FLUX_IVAR_G
@@ -294,33 +295,49 @@ def empty_targets_table(nobj=1):
     # FLUX_IVAR_W2
     # FLUX_IVAR_W3
     # FLUX_IVAR_W4
-    targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4'))
-
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-
+    # MW_TRANSMISSION_W3
+    # MW_TRANSMISSION_W4
+    # NOBS_G
+    # NOBS_R
+    # NOBS_Z
+    # FRACFLUX_G
+    # FRACFLUX_R
+    # FRACFLUX_Z
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    # The following two columns do not appear in the data targets catalog.
+    targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
+    # SHAPEDEV_R_IVAR
+    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
+    # SHAPEDEV_E1_IVAR
+    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
+    # SHAPEDEV_E2_IVAR    
+    targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
+    # SHAPEEXP_R_IVAR
+    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
+    # SHAPEEXP_E1_IVAR
+    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
+    # SHAPEEXP_E2_IVAR
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
+    # PHOTSYS
 
+    #targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
 
     return targets
 
@@ -340,16 +357,18 @@ def empty_truth_table(nobj=1):
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99))
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99, unit='mag'))
     
-    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
+    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
 
-    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
+                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
+                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
 
     truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
     truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
@@ -526,6 +545,51 @@ def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra
 
     return [targets, truth, trueflux]
 
+def _initialize_targets_and_truth(source_data, indx):
+    """Initialize the targets and truth tables and populate them with various
+    quantities of interest from the source_data dictionary.
+
+    """
+    nobj = len(indx)
+
+    print('Need to add OBJID, BRICKID and a bunch more stuff!')
+
+    # Initialize the table.s
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj)
+    
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key][:] = source_data[key][indx]
+
+    # Add dust and depth.
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        key = 'MW_TRANSMISSION_{}'.format(band)
+        targets[key][:] = source_data[key][indx]
+
+    for band in ('G', 'R', 'Z'):
+        for prefix in ('PSF', 'GAL'):
+            key = '{}DEPTH_{}'.format(prefix, band)
+            targets[key][:] = source_data[key][indx]
+
+    for band in ('W1', 'W2'):
+        key = 'PSFDEPTH_{}'.format(band)
+        targets[key][:] = source_data[key][indx]
+
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key][:] = source_data[key][indx]
+
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][indx]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
+
+    return targets, truth
+
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
@@ -542,56 +606,17 @@ def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log):
         trueflux
     
     """
-    nobj = len(indx)
-
-    # Initialize the output targets and truth catalogs and populate them with
-    # the quantities of interest.
-    targets = empty_targets_table(nobj)
-    truth = empty_truth_table(nobj)
-
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][indx]
-
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        key = 'MW_TRANSMISSION_{}'.format(band)
-        targets[key][:] = source_data[key][indx]
-
-    print('Need to add OBJID, BRICKID, PSFDEPTH_*, and GALDEPTH_*!')
-    #for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-    #            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
-    #    targets[key][:] = brick_info[key][brickindx]
-
-    # Assign unique OBJID values and reddenings.  See
-    #   http://legacysurvey.org/dr4/catalogs
-    # targets['BRICK_OBJID'][:] = np.arange(nobj)
-
-    import pdb ; pdb.set_trace()
-    
-    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
-    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
-    # for now.
-    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
-                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
-    
-    # Add shapes and sizes.
-    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key][:] = source_data[key][onbrick]
-
-    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][onbrick]
-        else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
+    # Initialize the targets and truth tables and populate them with various
+    # quantities of interest from the source_data dictionary.
+    targets, truth = _initialize_targets_and_truth(source_data, indx)
 
     # Sky targets are a special case without redshifts.
     if source_data['SOURCE_NAME'] == 'sky':
         Selection(targets, truth)
         return [targets, truth]
 
+    import pdb ; pdb.set_trace()
+    
     truth['TRUEZ'][:] = source_data['Z'][onbrick]
 
     # For FAINTSTAR targets, preselect stars that are going to pass target
@@ -1482,6 +1507,54 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
         log.info('Initializing the MockSpectra and SelectTargets Classes.')
         Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
         return log, rand, Spectra, selection, healpixels
+
+def _mw_transmission_and_depth(source_data, dust_dir):
+    """Compute the Galactic transmission and depth every object in source_data. 
+    
+    Args:
+        source_data: dict
+            Input dictionary (read by read_catalog) with coordinates. 
+            
+    Returns:
+        source_data: dict
+            Modified input dictionary with transmission and depth included. 
+
+    """
+    from desitarget.mock import sfdmap
+
+    # Populate the source catalog with the grzW1W2 MW_TRANSMISSION for each
+    # object.
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=dust_dir)
+
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
+
+    # Populate the galaxy and point-source depths at the position of each
+    # object.  For now this is a hack -- we assume a constant 5-sigma depth in
+    # grz for galaxies and point sources in all bricks and a constant depth
+    # (W1=22.3 mag=1.2 nanomaggies, W2=23.8 mag=0.3 nanomaggies, 1-sigma) in the
+    # WISE bands.  These numbers need to be replaced with a proper model of the
+    # varying depth of the survey.
+    nobj = len(source_data['RA'])
+    
+    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('G', 'R', 'Z')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('W1', 'W2')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+    
+    return source_data
     
 def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
                  nside=16, in_desi=True):
@@ -1513,7 +1586,6 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
 
     """
     import desitarget.mock.io as mockio
-    from desitarget.mock import sfdmap
     
     # Read the mock catalog.
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
@@ -1540,37 +1612,9 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
     source_data['SOURCE_NAME'] = source_name
     source_data['MOCKFORMAT'] = mockformat
 
-    # Populate the source catalog with the grzW1W2 MW_TRANSMISSION for each
-    # object.
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=params['dust_dir'])
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
+    # Add the MW transmission and depth for every object in source_data.
+    _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
 
-    # Populate the galaxy and point-source depths at the position of each
-    # object.  For now this is a hack -- we assume a constant 5-sigma depth in
-    # grz for galaxies and point sources in all bricks and a constant depth
-    # (W1=22.3 mag=1.2 nanomaggies, W2=23.8 mag=0.3 nanomaggies, 1-sigma) in the
-    # WISE bands.  These numbers need to be replaced with a proper model of the
-    # varying depth of the survey.
-    nobj = len(source_data['RA'])
-    
-    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('G', 'R', 'Z')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('W1', 'W2')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
-    
     # Return only the points that are in the DESI footprint.
     if bool(source_data):
         if in_desi:
