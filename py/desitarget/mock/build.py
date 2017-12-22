@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function)
 import os
 
 import numpy as np
+import healpy as hp
 from astropy.table import Table, Column, vstack, hstack
 
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
@@ -336,8 +337,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
     # PHOTSYS
-
-    #targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
+    # Do we need obsconditions or not?!?
+    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
 
     return targets
 
@@ -588,6 +589,10 @@ def _initialize_targets_and_truth(source_data, indx):
         else:
             truth[key][:] = np.repeat(source_data[source_key], nobj)
 
+    # Sky targets don't have redshifts.
+    if 'Z' in source_data.keys():
+        truth['TRUEZ'][:] = source_data['Z'][indx]
+
     return targets, truth
 
 def _get_spectra_onepixel(specargs):
@@ -610,19 +615,36 @@ def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log):
     # quantities of interest from the source_data dictionary.
     targets, truth = _initialize_targets_and_truth(source_data, indx)
 
-    # Sky targets are a special case without redshifts.
-    if source_data['SOURCE_NAME'] == 'sky':
+    # If doing sky targets add targeting bits and return. 
+    if source_data['SOURCE_NAME'].lower() == 'sky':
         Selection(targets, truth)
         return [targets, truth]
 
-    import pdb ; pdb.set_trace()
-    
-    truth['TRUEZ'][:] = source_data['Z'][onbrick]
+    # Build the spectra and select targets.
+    trueflux, meta = getattr(Spectra, source_data['SOURCE_NAME'].lower())(source_data,
+                                                                          index=indx,
+                                                                          mockformat=source_data['MOCKFORMAT'])
 
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
+
+
+    import pdb ; pdb.set_trace()
+
+
+    # Perturb the photometry based on the variance on this brick and apply
+    # target selection.
+    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
+
+
+    
     # For FAINTSTAR targets, preselect stars that are going to pass target
     # selection cuts without actually generating spectra, in order to save
     # memory and time.
     if source_data['SOURCE_NAME'] == 'faintstar':
+        import pdb ; pdb.set_trace()
         if mockformat.lower() == 'galaxia':
             alldata = np.vstack((source_data['TEFF'][onbrick],
                                  source_data['LOGG'][onbrick],
@@ -668,7 +690,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log):
             truth = truth[keep]
             targets = targets[keep]
 
-    # Finally build the spectra and select targets.
+    # Build the spectra and select targets.
     trueflux, meta = getattr(Spectra, source_data['SOURCE_NAME'])(source_data, index=onbrick, mockformat=mockformat)
 
     for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
@@ -762,7 +784,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                                                            verbose=verbose,
                                                            seed=seed, 
                                                            output_dir=output_dir, 
-                                                           nproc=nproc, 
+                                                           nproc=nproc,
+                                                           nside=nside,
                                                            healpixels=healpixels)
 
     
@@ -784,14 +807,11 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if not bool(source_data):
                 continue
 
-            # Initialize variables for density subsampling.
-            if 'density' in params['sources'][source_name].keys():
-                density = [params['sources'][source_name]['density']]
-                zcut = [-1000, 1000]
-
             # Chunk the sample based on the number of processors.
             log.info('Dividing the sample into {} chunk(s).'.format(nproc))
-            chunkindx = np.array_split(np.arange(len(source_data['RA'])), nproc)
+            print('Testing with 50 objects!')
+            chunkindx = np.array_split(np.arange(50), nproc)
+            #chunkindx = np.array_split(np.arange(len(source_data['RA'])), nproc)
 
             nchunk = np.zeros((), dtype='i8')
             t0 = time()
@@ -811,25 +831,24 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if nproc > 1:
                 pool = sharedmem.MapReduce(np=nproc)
                 with pool:
-                    out = pool.map(_get_spectra_onepixel, specargs,
-                                   reduce=_update_spectra_status)
+                    pixel_results = pool.map(_get_spectra_onepixel, specargs,
+                                             reduce=_update_spectra_status)
             else:
-                out = list()
+                pixel_results = list()
                 for ii in range(nproc):
-                    out.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
+                    pixel_results.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
+
+            import pdb ; pdb.set_trace()
+
+
 
             del source_data # memory clean-up
 
-            import pdb ; pdb.set_trace()
-
-            targets, truth, trueflux = get_spectra_onepixel(source_data, Spectra, Selection, rand, log)
-            
-            import pdb ; pdb.set_trace()
-            
             targets = pixel_results[0]
             truth = pixel_results[1]
             
-            # Make target selection and downsample number density if necessary. SKY is an special case.
+            # Make target selection and downsample number density if
+            # necessary. SKY is a special case.
             if source_name.upper() == 'SKY':
                 if 'density' in params['sources'][source_name].keys():
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
@@ -860,7 +879,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
         if len(alltargets)==0 and len(allskytargets)==0:
             continue
         
-        #Merge all sources
+        # Merge all sources.
         if len(alltargets):
             targets = vstack(alltargets)
             truth = vstack(alltruth)
@@ -1453,7 +1472,6 @@ def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16
             Object to select targets from the input mock catalogs.
 
     """
-    import healpy as hp
     from desiutil.log import get_logger, DEBUG
     from desitarget.mock.selection import SelectTargets
 
@@ -1556,8 +1574,8 @@ def _mw_transmission_and_depth(source_data, dust_dir):
     
     return source_data
     
-def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
-                 nside=16, in_desi=True):
+def read_catalog(source_name, params, log, rand=None, nproc=1,
+                 healpixels=None, nside=16, in_desi=True):
     """Read a specified mock catalog.
     
     Args:
@@ -1614,6 +1632,27 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
 
     # Add the MW transmission and depth for every object in source_data.
     _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
+    
+    # Insert proper density fluctuations model here!  Note that in general
+    # healpixels will generally be a scalar (because it's called inside a loop),
+    # but also allow for multiple healpixels.
+    try:
+        npix = healpixels.size
+    except:
+        npix = len(healpixels)
+    skyarea = npix * hp.nside2pixarea(nside, degrees=True)
+
+    if 'density' in params['sources'][source_name].keys():
+        density = params['sources'][source_name]['density']
+        ntarget = density * skyarea
+        ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
+        import pdb ; pdb.set_trace()
+        source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
+
+    #if 'contam' in params['sources'][source_name].keys():
+    #    contam = params['sources'][source_name]['contam']
+    #    for contamtype in contam.keys():
+    #        source_data['TARGET_DENSITY'] = np.round(density * skyarea).astype('int')
 
     # Return only the points that are in the DESI footprint.
     if bool(source_data):
@@ -1626,8 +1665,9 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
             if n_obj > 0:
                 indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
                 for k in source_data.keys():
-                    if (n_obj == len(source_data[k])) and (type(source_data[k]) is np.ndarray):
-                        source_data[k] = source_data[k][indesi]
+                    if type(source_data[k]) is np.ndarray:
+                        if n_obj == len(source_data[k]):
+                            source_data[k] = source_data[k][indesi]
                         
     return source_data
 
@@ -1808,7 +1848,8 @@ def estimate_number_density(ra, dec):
         # This is a weighted density that does not take into account empty healpixels
         return np.sum(counts*counts)/np.sum(counts)/bin_area
 
-def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir, contam=False):
+def downsample_pixel(density, zcut, target_name, targets, truth, nside,
+                     healpix_id, seed, rand, log, output_dir, contam=False):
     """Reduces the number of targets to match a desired number density.
     
     Args:
@@ -1833,23 +1874,20 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_
         output_dir: str
             Directory where the outputs are written.
         contam: bool
-            If True the subsampling is only applied to contaminants. If False it is applied only to noncontaminated targets.
-    Output:
-        Updated versions of the tables:
-            targets
-            truth.
+            If True the subsampling is only applied to contaminants. If False it
+            is applied only to noncontaminated targets.  Output: Updated
+            versions of the tables: targets truth.
             
     Example:
         If density = [300,400] and zcut=[0.0,2.0, 3.0] the first number density cap of 300
         will be applied to all targets with redshifts 0.0 < z < 2.0, while the second cap
         of 400 will be applied to all targets with redshifts 2.0 < z < 3.0
+
     """
     import healpy as hp
     
     n_cuts = len(density)
     n_obj = len(targets)
-    
-    
         
     r = rand.uniform(0.0, 1.0, size=n_obj)
     keep = r <= 1.0
@@ -2064,7 +2102,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
                                                               verbose=verbose,
                                                               seed=seed, 
                                                               output_dir=output_dir, 
-                                                              nproc=nproc, 
+                                                              nproc=nproc,
+                                                              nside=nside,
                                                               healpixels=healpixels,
                                                               no_spectra=True)
     

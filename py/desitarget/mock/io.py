@@ -631,7 +631,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         
         if new_format :
-            tmp         = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKID' ,'Z','PIXNUM'], upper=True, ext=1)
+            tmp         = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKID' ,'Z','PIXNUM'],
+                                      upper=True, ext=1)
             ra_lya      = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
             dec_lya     = tmp['DEC'].astype('f8')            
             zz_lya      = tmp['Z'].astype('f4')
