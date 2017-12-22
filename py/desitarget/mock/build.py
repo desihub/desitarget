@@ -563,7 +563,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log, ntarget):
+def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, rand, log, ntarget):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -575,143 +575,74 @@ def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log, ntarg
         trueflux
     
     """
-    # Initialize the targets and truth tables and populate them with various
-    # quantities of interest from the source_data dictionary.
-    targets, truth = _initialize_targets_and_truth(source_data, indx)
+    targname = source_data['SOURCE_NAME'].lower()
 
-    # If doing sky targets add targeting bits and return. 
-    if source_data['SOURCE_NAME'].lower() == 'sky':
-        Selection(targets, truth)
-        return [targets, truth]
+    if len(indx) < ntarget:
+        log.warning('Too few candidate targets ({}) than desired targets ({}) on mini healpixel XXX.'.format(
+            len(indx), ntarget))
 
-    # Build the spectra and select targets.
-    trueflux, meta = getattr(Spectra, source_data['SOURCE_NAME'].lower())(source_data,
-                                                                          index=indx,
-                                                                          mockformat=source_data['MOCKFORMAT'])
+    if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
+        depthprefix = 'GAL'
+    else:
+        depthprefix = 'PSF'
 
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
+    targets = list()
+    truth = list()
+    trueflux = list()
 
+    ntot = 0
 
-    import pdb ; pdb.set_trace()
+    nchunk = np.ceil(len(indx) / ntarget).astype('int')
+    for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
 
+        _targets, _truth = _initialize_targets_and_truth(source_data, chunkindx)
 
-    # Perturb the photometry based on the variance on this brick and apply
-    # target selection.
-    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
-
-
-    
-    # For FAINTSTAR targets, preselect stars that are going to pass target
-    # selection cuts without actually generating spectra, in order to save
-    # memory and time.
-    if source_data['SOURCE_NAME'] == 'faintstar':
-        import pdb ; pdb.set_trace()
-        if mockformat.lower() == 'galaxia':
-            alldata = np.vstack((source_data['TEFF'][onbrick],
-                                 source_data['LOGG'][onbrick],
-                                 source_data['FEH'][onbrick])).T
-            _, templateid = Spectra.tree.query('STAR', alldata)
-            templateid = templateid.flatten()
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-
-        normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
-
-        for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-            truth[fluxkey][:] = getattr( Spectra.tree, 'star_{}'.format(fluxkey.lower()) )[templateid] * normmag
-            targets[fluxkey][:] = truth[fluxkey][:] + \
-              rand.normal(scale=onesigma[band], size=nobj)
-
-        Selection(targets, truth)
-
-        keep = np.where(targets['DESI_TARGET'] != 0)[0]
-        nobj = len(keep)
-
-        # Temporary debugging plot.
-        if False:
-            import matplotlib.pyplot as plt
-            gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-            rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-            gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-            rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', edgewidth=2, label='Noiseless Photometry')
-            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
-            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none', label='Noisy Photometry')
-            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k', edgewidth=2)
-            plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
-            plt.legend(loc='upper left')
-            plt.show()
+        print('Fix skies!')
+        if targname == 'sky':
+            select_targets_function(targets, truth)
             import pdb ; pdb.set_trace()
+            return [targets, truth]
+
+        # Generate the spectra.
+        chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
+                                                          mockformat=source_data['MOCKFORMAT'])
+
+        # Perturb the photometry based on the depth in this healpixel.
+        for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+                    'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+            _truth[key][:] = chunkmeta[key]
         
-        if nobj == 0:
-            log.warning('No {} targets identified!'.format(source_data['SOURCE_NAME'].upper()))
-            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
-        else:
-            onbrick = onbrick[keep]
-            truth = truth[keep]
-            targets = targets[keep]
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+            fluxkey = 'FLUX_{}'.format(band)
+            depthkey = '{}DEPTH_{}'.format(depthprefix, band)
+            
+            sigma = 5 / np.sqrt(source_data[depthkey][chunkindx]) # nanomaggies, 1-sigma
+            _targets[fluxkey][:] = _truth[fluxkey][:] + rand.normal(scale=sigma)
 
-    # Build the spectra and select targets.
-    trueflux, meta = getattr(Spectra, source_data['SOURCE_NAME'])(source_data, index=onbrick, mockformat=mockformat)
+        # Select targets.
+        select_targets_function(_targets, _truth)#, boss_std=boss_std)
+        keep = np.where(_targets['DESI_TARGET'] != 0)[0]
+        nkeep = len(keep)
 
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
+        log.debug('Selected {} / {} targets on chunk {} / {}.'.format(nkeep, len(chunkindx), ii+1, nchunk))
 
-    # Perturb the photometry based on the variance on this brick and apply
-    # target selection.
-    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
+        if nkeep > 0:
+            targets.append(_targets[keep])
+            truth.append(_truth[keep])
+            trueflux.append(chunkflux[keep, :])
 
-    if False:
-        import matplotlib.pyplot as plt
-        def elg_colorbox(ax):
-            """Draw the ELG selection box."""
-            from matplotlib.patches import Polygon
-            grlim = ax.get_ylim()
-            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
-            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
-            verts = [(rzmin, grlim[0]),
-                     (rzmin, np.polyval(coeff0, rzmin)),
-                     (rzpivot, np.polyval(coeff1, rzpivot)),
-                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
-                     ]
-            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
-        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        ntot += nkeep
+        if ntot >= ntarget:
+            break
+
+    targets = vstack(targets)
+    truth = vstack(truth)
+    trueflux = np.concatenate(trueflux)
+
+    targets = targets[:ntarget]
+    truth = truth[:ntarget]
+    trueflux = trueflux[:ntarget, :]
         
-        fig, ax = plt.subplots()
-        ax.scatter(rz1, gr1, color='red', label='Noiseless Photometry')
-        ax.scatter(rz, gr, alpha=0.5, color='green', label='Noisy Photometry')
-        ax.set_xlim(-0.5, 2)
-        ax.set_ylim(-0.5, 2)
-        elg_colorbox(ax)
-        ax.legend(loc='upper left')
-        plt.show()
-        import pdb ; pdb.set_trace()
-        
-    if 'BOSS_STD' in source_data.keys():
-        boss_std = source_data['BOSS_STD'][onbrick]
-    else:
-        boss_std = None
-    Selection(targets, truth, boss_std=boss_std)
-
-    keep = np.where(targets['DESI_TARGET'] != 0)[0]
-    nobj = len(keep)
-
-    if nobj == 0:
-        log.warning('No {} targets identified!'.format(source_data['SOURCE_NAME'].upper()))
-    else:
-        log.debug('Selected {} {}s on brick {}.'.format(nobj, source_data['SOURCE_NAME'].upper(), thisbrick))
-        targets = targets[keep]
-        truth = truth[keep]
-        trueflux = trueflux[keep, :]
-
     return [targets, truth, trueflux]
 
 def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
@@ -784,32 +715,32 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             # Target density -- need a proper fluctuations model here. 
             if 'density' in params['sources'][source_name].keys():
                 density = params['sources'][source_name]['density']
-                ntarget = np.round(density * areaperchunk)
+                ntarget = np.round(density * areaperchunk).astype('int')
             else:
                 ntarget = None # all targets
-                
-            #chunkindx = np.array_split(np.arange(50), nproc)
-            #chunkindx = np.array_split(np.arange(len(source_data['RA'])), nproc)
 
+            # Instantiate the target selection function.
+            selection_function = '{}_select'.format(source_name.lower())
+            select_targets_function = getattr(Selection, selection_function)
+                
             nn = np.zeros((), dtype='i8')
             t0 = time()
             def _update_spectra_status(result):
                 if nn >= 0:
                 #if nn % 2 == 0 and nn > 0:
                     rate = (time() - t0) / nn
-                    log.debug('{} chunk(s); {:.1f} sec / brick'.format(nn, rate))
+                    log.debug('{} chunk(s); {:.1f} sec / mini healpixel'.format(nn, rate))
                 nn[...] += 1    # in-place modification
                 return result
 
             healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
 
+            # Generate the spectra in chunks.
             specargs = list()
             for pixchunk in set(healpix_chunk):
                 indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
-                specargs.append( (source_data, indx, Spectra, Selection, rand, log, ntarget) )
+                specargs.append( (source_data, indx, Spectra, select_targets_function, rand, log, ntarget) )
             
-            # Iteratively assign spectra to the mock targets in that healpixel
-            # until we achieve the desired density (after target selection).
             if nproc > 1:
                 pool = sharedmem.MapReduce(np=nproc)
                 with pool:
@@ -820,12 +751,20 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 for ii in range(nproc):
                     pixel_results.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
 
-            import pdb ; pdb.set_trace()
+            #del source_data # memory clean-up
+            pixel_results = list(zip(*pixel_results))
 
-            del source_data # memory clean-up
+            targets = vstack(pixel_results[0])
+            truth = vstack(pixel_results[1])
+            if target_name.upper() != 'SKY':
+                trueflux = np.concatenate(pixel_results[2])
+                
+
+            import pdb ; pdb.set_trace()
 
             targets = pixel_results[0]
             truth = pixel_results[1]
+
             
             # Make target selection and downsample number density if
             # necessary. SKY is a special case.
