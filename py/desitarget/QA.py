@@ -402,7 +402,8 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
 
     #ADM the number of bricks
     nbricks = len(depthorebvarray)
-    tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
+    tts = ["QSO","ELG","LRG"]
+    #tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
     if not targettype in tts:
         fluc = np.ones(nbricks)
         mess = "fluctuations for targettype {} are set to one".format(targettype)
@@ -480,6 +481,7 @@ def model_map(brickfilename,plot=False):
                 if re.search("FLUC",fcol):
                     if plot:
                         log.info("doing",col,fcol)
+                    #import pdb ; pdb.set_trace()
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
@@ -600,25 +602,36 @@ def fluc_map(brickfilename):
 
     #ADM choose some necessary columns and rename density columns,
     #ADM which we'll now base on fluctuations around the median
-
-    #JM -- This will only work for DR3!
-    cols = [
+    try: # DR3
+        cols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
             'DEPTH_G','DEPTH_R','DEPTH_Z',
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
             'DENSITY_ALL', 'DENSITY_ELG', 'DENSITY_LRG',
             'DENSITY_QSO', 'DENSITY_LYA', 'DENSITY_BGS', 'DENSITY_MWS'
             ]
-    data = alldata[cols]
-    #newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
-    newcols = [
+        #newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+        newcols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
             'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
             'FLUC_ALL', 'FLUC_ELG', 'FLUC_LRG',
             'FLUC_QSO', 'FLUC_LYA', 'FLUC_BGS', 'FLUC_MWS'
             ]
-    data.dtype.names = newcols
+        data = alldata[cols]
+        data.dtype.names = newcols
+        
+    except: #>DR3
+        #cols = np.array(alldata.dtype.names)
+        cols = [
+            'HPXID','HPXAREA','RA','DEC','EBV',
+            'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
+            'DENSITY_ELG', 'DENSITY_LRG', 'DENSITY_QSO'
+            ]
+        newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+        data = alldata[cols]
+        data.dtype.names = newcols
 
     #ADM for each of the density columns loop through and replace
     #ADM density by value relative to median

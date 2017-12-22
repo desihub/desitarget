@@ -517,8 +517,9 @@ def _initialize_targets_and_truth(source_data, indx):
     nobj = len(indx)
 
     print('Need to add OBJID, BRICKID and a bunch more stuff!')
+    print('From Adam: Set BRICK_OBJID to a unique value and use targets.encode_targetid')
 
-    # Initialize the table.s
+    # Initialize the tables.
     targets = empty_targets_table(nobj)
     truth = empty_truth_table(nobj)
     
