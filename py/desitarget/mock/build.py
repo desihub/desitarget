@@ -20,9 +20,7 @@ from desitarget.targets import encode_targetid
 from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
 
 def empty_targets_table(nobj=1):
-    """Initialize an empty 'targets' table.  The required output columns in order
-    for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
-    MWS_TARGET, and SUBPRIORITY.  Everything else is gravy.
+    """Initialize an empty 'targets' table.
 
     """
     targets = Table()
@@ -98,7 +96,7 @@ def empty_targets_table(nobj=1):
     return targets
 
 def empty_truth_table(nobj=1):
-    """Initialize the truth table for each mock object, with spectra.
+    """Initialize an empty 'truth' table.
 
     """
     truth = Table()
@@ -133,14 +131,11 @@ def empty_truth_table(nobj=1):
     return truth
 
 def _initialize_targets_and_truth(source_data, indx):
-    """Initialize the targets and truth tables and populate them with various
-    quantities of interest from the source_data dictionary.
+    """Given a source_data dictionary, initialize the 'targets' and 'truth' tables
+    and populate them with various quantities of interest.
 
     """
     nobj = len(indx)
-
-    print('Need to add OBJID, BRICKID and a bunch more stuff!')
-    print('From Adam: Set BRICK_OBJID to a unique value and use targets.encode_targetid')
 
     # Initialize the tables.
     targets = empty_targets_table(nobj)
@@ -176,11 +171,247 @@ def _initialize_targets_and_truth(source_data, indx):
         else:
             truth[key][:] = np.repeat(source_data[source_key], nobj)
 
-    # Sky targets don't have redshifts.
+    # Sky targets do not have redshifts.
     if 'Z' in source_data.keys():
         truth['TRUEZ'][:] = source_data['Z'][indx]
 
     return targets, truth
+
+def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16,
+               healpixels=None, no_spectra=False):
+    """Initialize various objects needed to generate mock targets (with and without
+    spectra).
+
+    Args:
+        params : dict
+            Source parameters.
+        seed: int
+            Seed for the random number generator
+        output_dir : str
+            Output directory (default '.').
+        nproc : int
+            Number of parallel processes to use (default 1).
+        nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels. Default (None).
+        no_spectra : bool
+            If not generating spectra, initialize and return the MockMagnitudes
+            Class instead of the MockSpectra Class.
+
+    Returns:
+        log: desiutil.logger
+           Logger object.
+        rand: numpy.random.RandomState
+           Object for random number generation.
+        spectra: desitarget.mock.MockSpectra
+            Object to assign spectra to each target class (only returned if
+            no_spectra=False).
+        magnitudes: desitarget.mock.MockMagnitudes    
+            Object to assign magnitudes to each target class (only returned if
+            no_spectra=True).
+        selection: desitarget.mock.SelectTargets
+            Object to select targets from the input mock catalogs.
+
+    """
+    from desiutil.log import get_logger, DEBUG
+    from desitarget.mock.selection import SelectTargets
+
+    if no_spectra:
+        from desitarget.mock.spectra import MockMagnitudes
+    else:
+        from desitarget.mock.spectra import MockSpectra
+
+    # Initialize logger
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+    
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
+    # Check for required parameters in the input 'params' dict
+    # Initialize the random seed
+    rand = np.random.RandomState(seed)
+
+    # Create the output directories
+    if os.path.exists(output_dir):
+        if os.listdir(output_dir):
+            log.warning('Output directory {} is not empty.'.format(output_dir))
+    else:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)    
+    log.info('Writing to output directory {}'.format(output_dir))      
+        
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(nside))
+
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    skyarea = len(healpixels) * areaperpix
+    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, skyarea))
+
+    # Initialize the Classes used to assign spectra (or magnitudes) and to
+    # select targets.  Note: The default wavelength array gets initialized here,
+    # too.
+    selection = SelectTargets(logger=log, rand=rand)
+    
+    if no_spectra:
+        log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
+        Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+        return log, rand, Magnitudes, selection, healpixels    
+    else:
+        log.info('Initializing the MockSpectra and SelectTargets Classes.')
+        Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
+        return log, rand, Spectra, selection, healpixels
+
+def _mw_transmission_and_depth(source_data, dust_dir):
+    """Compute the Galactic transmission and depth every object in source_data. 
+    
+    Args:
+        source_data: dict
+            Input dictionary (read by read_mock_catalog) with coordinates. 
+            
+    Returns:
+        source_data: dict
+            Modified input dictionary with transmission and depth included. 
+
+    """
+    from desitarget.mock import sfdmap
+
+    # Populate the source catalog with the grzW1W2 MW_TRANSMISSION for each
+    # object.
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=dust_dir)
+
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
+
+    # Populate the galaxy and point-source depths at the position of each
+    # object.  For now this is a hack -- we assume a constant 5-sigma depth in
+    # grz for galaxies and point sources in all bricks and a constant depth
+    # (W1=22.3 mag=1.2 nanomaggies, W2=23.8 mag=0.3 nanomaggies, 1-sigma) in the
+    # WISE bands.  These numbers need to be replaced with a proper model of the
+    # varying depth of the survey.
+    nobj = len(source_data['RA'])
+    
+    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('G', 'R', 'Z')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('W1', 'W2')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+    
+    return source_data
+    
+def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
+                      healpixels=None, nside=16, in_desi=True):
+    """Read one specified mock catalog.
+    
+    Args:
+        source_name: str
+            Name of the target being processesed, e.g., 'QSO'.
+        params: dict
+            Dictionary summary of the input configuration file.
+        log: desiutil.logger
+           Logger object.
+        rand: numpy.random.RandomState
+           Object for random number generation.
+        nproc: int
+            Number of processors to be used for reading.
+        healpixels : numpy.ndarray or int
+            List of healpixels to process. The mocks are cut to match these
+            pixels.
+        nside: int
+            nside for healpix
+        in_desi: boolean
+            Decides whether the targets will be trimmed to be inside the DESI
+            footprint.
+            
+    Returns:
+        source_data: dict
+            Parsed source data based on the input mock catalog.
+
+    """
+    import desitarget.mock.io as mockio
+    
+    # Read the mock catalog.
+    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+    mockformat = params['sources'][source_name]['format']
+
+    mock_dir_name = params['sources'][source_name]['mock_dir_name']
+    if 'magcut' in params['sources'][source_name].keys():
+        magcut = params['sources'][source_name]['magcut']
+    else:
+        magcut = None
+
+    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+    log.info('Reading {}'.format(mock_dir_name))
+
+    mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+    if 'LYA' in params['sources'][source_name].keys():
+        lya = params['sources'][source_name]['LYA']
+    else:
+        lya = None
+    source_data = mockread_function(mock_dir_name, target_name, rand=rand,
+                                    magcut=magcut, nproc=nproc, lya=lya,
+                                    healpixels=healpixels, nside=nside)
+
+    source_data['SOURCE_NAME'] = source_name
+    source_data['MOCKFORMAT'] = mockformat
+
+    # Add the MW transmission and depth for every object in source_data.
+    _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
+    
+    # Insert proper density fluctuations model here!  Note that in general
+    # healpixels will generally be a scalar (because it's called inside a loop),
+    # but also allow for multiple healpixels.
+    try:
+        npix = healpixels.size
+    except:
+        npix = len(healpixels)
+    skyarea = npix * hp.nside2pixarea(nside, degrees=True)
+
+    #if 'density' in params['sources'][source_name].keys():
+    #    density = params['sources'][source_name]['density']
+    #    ntarget = density * skyarea
+    #    ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
+    #    source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
+
+    #if 'contam' in params['sources'][source_name].keys():
+    #    contam = params['sources'][source_name]['contam']
+    #    for contamtype in contam.keys():
+    #        source_data['TARGET_DENSITY'] = np.round(density * skyarea).astype('int')
+
+    # Return only the points that are in the DESI footprint.
+    if bool(source_data):
+        if in_desi:
+            import desimodel.io
+            import desimodel.footprint
+
+            n_obj = len(source_data['RA'])
+            tiles = desimodel.io.load_tiles()
+            if n_obj > 0:
+                indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
+                for k in source_data.keys():
+                    if type(source_data[k]) is np.ndarray:
+                        if n_obj == len(source_data[k]):
+                            source_data[k] = source_data[k][indesi]
+                        
+    return source_data
 
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
@@ -300,7 +531,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
     from desitarget.internal import sharedmem
 
     # Initialize a bunch of objects we need.
-    log, rand, Spectra, Selection, healpixels = initialize(
+    log, rand, Spectra, Selection, healpixels = _initialize(
         params, verbose=verbose, seed=seed, output_dir=output_dir,
         nproc=nproc, nside=nside, healpixels=healpixels)
 
@@ -324,8 +555,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data = read_catalog(source_name, params, log, rand=rand, nproc=nproc,
-                                       healpixels=healpix, nside=nside)
+            source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
+                                            healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -383,6 +614,11 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             targets = pixel_results[0]
             truth = pixel_results[1]
+
+
+            print('Need to add OBJID, BRICKID and a bunch more stuff!')
+            print('From Adam: Set BRICK_OBJID to a unique value and use targets.encode_targetid')
+
 
             
             # Make target selection and downsample number density if
@@ -453,63 +689,6 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
     import pdb ; pdb.set_trace()
 
-    
-    import healpy as hp
-    from time import time
-
-    from astropy.io import fits
-
-    from desiutil import depend
-    from desispec.io.util import fitsheader, write_bintable
-    from desitarget.mock.selection import SelectTargets
-    from desitarget.mock.spectra import MockSpectra
-    from desitarget.internal import sharedmem
-    from desimodel.footprint import radec2pix
-    from desitarget import obsconditions
-
-    if verbose:
-        log = get_logger(DEBUG)
-    else:
-        log = get_logger()
-
-    if params is None:
-        log.fatal('Required params input not given!')
-        raise ValueError
-
-    # Initialize the random seed
-    rand = np.random.RandomState(seed)
-
-    # Create the output directories and clean them up if necessary.
-    if os.path.exists(output_dir):
-        if os.listdir(output_dir):
-            log.warning('Output directory {} is not empty.'.format(output_dir))
-    else:
-        log.info('Creating directory {}'.format(output_dir))
-        os.makedirs(output_dir)
-        
-    log.info('Writing to output directory {}'.format(output_dir))
-    print()
-
-    # Default set of healpixels is the whole sky (yikes!)
-    if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(nside))
-
-    areaperpix = hp.nside2pixarea(nside, degrees=True)
-    skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, skyarea))
-
-    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
-                           decals_brick_info=params['decals_brick_info'], log=log,
-                           target_names=list(params['sources'].keys())).build_brickinfo()
-
-    # Initialize the Classes used to assign spectra and select targets.  Note:
-    # The default wavelength array gets initialized here, too.
-    log.info('Initializing the MockSpectra and SelectTargets Classes.')
-    Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
-    Selection = SelectTargets(logger=log, rand=rand,
-                              brick_info=brick_info)
-    print()
 
     current_pixel_ID = 0 
     # Loop over each source / object type.
@@ -837,459 +1016,104 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 hx.writeto(truthfile+'.tmp', clobber=True)
             os.rename(truthfile+'.tmp', truthfile)
 
-def merge_file_tables(fileglob, ext, outfile=None, comm=None):
-    '''
-    parallel merge tables from individual files into an output file
-
-    Args:
-        comm: MPI communicator object
-        fileglob (str): glob of files to combine (e.g. '*/blat-*.fits')
-        ext (str or int): FITS file extension name or number
-        outfile (str): output file to write
-
-    Returns merged table as np.ndarray
-    '''
-    import fitsio
-    import glob
-    if comm is not None:
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-    else:
-        size = 1
-        rank = 0
-
-    if rank == 0:
-        infiles = sorted(glob.glob(fileglob))
-    else:
-        infiles = None
-
-    if comm is not None:
-        infiles = comm.bcast(infiles, root=0)
- 
-    if len(infiles)==0:
-        log = get_logger()
-        log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
-        return
-    
-    #- Each rank reads and combines a different set of files
-    data = np.hstack( [fitsio.read(x, ext) for x in infiles[rank::size]] )
-
-    if comm is not None:
-        data = comm.gather(data, root=0)
-        if rank == 0 and size>1:
-            data = np.hstack(data)
-
-    if rank == 0 and outfile is not None:
-        log = get_logger()
-        log.info('Writing {}'.format(outfile))
-        header = fitsio.read_header(infiles[0], ext)
-        tmpout = outfile + '.tmp'
-        
-        # Find duplicates
-        vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
-        assert len(vals) == len(data)
-        
-        fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
-        os.rename(tmpout, outfile)
-
-    return data
-
-def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
-    '''
-    Join individual healpixel targets and truth files into combined tables
-
-    Args:
-        mockdir: top level mock target directory
-
-    Options:
-        outdir: output directory, default to mockdir
-        force: rewrite outputs even if they already exist
-        comm: MPI communicator; if not None, read data in parallel
-    '''
-    import fitsio
-    if outdir is None:
-        outdir = mockdir
-
-    if comm is not None:
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-    else:
-        comm = None
-        size = 1
-        rank = 0
-    
-    #- Use rank 0 to check pre-existing files to avoid N>>1 ranks hitting the disk
-    if rank == 0:
-        todo = dict()
-        todo['sky'] = not os.path.exists(outdir+'/sky.fits') or force
-        todo['stddark'] = not os.path.exists(outdir+'/standards-dark.fits') or force
-        todo['stdbright'] = not os.path.exists(outdir+'/standards-bright.fits') or force
-        todo['targets'] = not os.path.exists(outdir+'/targets.fits') or force
-        todo['truth'] = not os.path.exists(outdir+'/truth.fits') or force
-        todo['mtl'] = not os.path.exists(outdir+'/mtl.fits') or force
-    else:
-        todo = None
-
-    if comm is not None:
-        todo = comm.bcast(todo, root=0)
-
-    if todo['sky']:
-        merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
-                    outfile=outdir+'/sky.fits', comm=comm)
-
-    if todo['stddark']:
-        merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
-                    outfile=outdir+'/standards-dark.fits', comm=comm)
-
-    if todo['stdbright']:
-        merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
-                    outfile=outdir+'/standards-bright.fits', comm=comm)
-
-    if todo['targets']:
-        merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
-                    outfile=outdir+'/targets.fits', comm=comm)
-
-    if todo['truth']:
-        merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
-                    outfile=outdir+'/truth.fits', comm=comm)
-
-    #- Make initial merged target list (MTL) using rank 0
-    if rank == 0 and todo['mtl']:
-        from desitarget import mtl
-        log = get_logger()
-        out_mtl = os.path.join(outdir, 'mtl.fits')
-        log.info('Generating merged target list {}'.format(out_mtl))
-        targets = fitsio.read(outdir+'/targets.fits')
-        mtl = mtl.make_mtl(targets)
-        tmpout = out_mtl+'.tmp'
-        mtl.meta['EXTNAME'] = 'MTL'
-        mtl.write(tmpout, overwrite=True, format='fits')
-        os.rename(tmpout, out_mtl)
-
-def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16,
-               healpixels=None, no_spectra=False):
-    """Initializes variables to prepare mock target generation.
-
-    Args:
-        params : dict
-            Source parameters.
-        seed: int
-            Seed for the random number generator
-        output_dir : str
-            Output directory (default '.').
-        nproc : int
-            Number of parallel processes to use (default 1).
-        nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None).
-        no_spectra : bool
-            If not generating spectra, initialize and return the MockMagnitudes
-            Class instead of the MockSpectra Class.
-
-    Returns:
-        log: desiutil.logger
-           Logger object.
-        rand: numpy.random.RandomState
-           Object for random number generation.
-        spectra: desitarget.mock.MockSpectra
-            Object to assign spectra to each target class (only returned if
-            no_spectra=False).
-        magnitudes: desitarget.mock.MockMagnitudes    
-            Object to assign magnitudes to each target class (only returned if
-            no_spectra=True).
-        selection: desitarget.mock.SelectTargets
-            Object to select targets from the input mock catalogs.
-
-    """
-    from desiutil.log import get_logger, DEBUG
-    from desitarget.mock.selection import SelectTargets
-
-    if no_spectra:
-        from desitarget.mock.spectra import MockMagnitudes
-    else:
-        from desitarget.mock.spectra import MockSpectra
-
-    # Initialize logger
-    if verbose:
-        log = get_logger(DEBUG)
-    else:
-        log = get_logger()
-    
-    if params is None:
-        log.fatal('Required params input not given!')
-        raise ValueError
-
-    # Check for required parameters in the input 'params' dict
-    # Initialize the random seed
-    rand = np.random.RandomState(seed)
-
-    # Create the output directories
-    if os.path.exists(output_dir):
-        if os.listdir(output_dir):
-            log.warning('Output directory {} is not empty.'.format(output_dir))
-    else:
-        log.info('Creating directory {}'.format(output_dir))
-        os.makedirs(output_dir)    
-    log.info('Writing to output directory {}'.format(output_dir))      
-        
-    # Default set of healpixels is the whole sky (yikes!)
-    if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(nside))
-
-    areaperpix = hp.nside2pixarea(nside, degrees=True)
-    skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, skyarea))
-
-    # Initialize the Classes used to assign spectra (or magnitudes) and to
-    # select targets.  Note: The default wavelength array gets initialized here,
-    # too.
-    selection = SelectTargets(logger=log, rand=rand)
-    
-    if no_spectra:
-        log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
-        Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
-        return log, rand, Magnitudes, selection, healpixels    
-    else:
-        log.info('Initializing the MockSpectra and SelectTargets Classes.')
-        Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
-        return log, rand, Spectra, selection, healpixels
-
-def _mw_transmission_and_depth(source_data, dust_dir):
-    """Compute the Galactic transmission and depth every object in source_data. 
+def write_to_disk(targets, truth, skytargets, skytruth, nside,
+                  healpix_id, seed, rand, log, output_dir):
+    """Writes targets to disk.
     
     Args:
-        source_data: dict
-            Input dictionary (read by read_catalog) with coordinates. 
-            
-    Returns:
-        source_data: dict
-            Modified input dictionary with transmission and depth included. 
-
-    """
-    from desitarget.mock import sfdmap
-
-    # Populate the source catalog with the grzW1W2 MW_TRANSMISSION for each
-    # object.
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=dust_dir)
-
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
-
-    # Populate the galaxy and point-source depths at the position of each
-    # object.  For now this is a hack -- we assume a constant 5-sigma depth in
-    # grz for galaxies and point sources in all bricks and a constant depth
-    # (W1=22.3 mag=1.2 nanomaggies, W2=23.8 mag=0.3 nanomaggies, 1-sigma) in the
-    # WISE bands.  These numbers need to be replaced with a proper model of the
-    # varying depth of the survey.
-    nobj = len(source_data['RA'])
-    
-    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('G', 'R', 'Z')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('W1', 'W2')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
-    
-    return source_data
-    
-def read_catalog(source_name, params, log, rand=None, nproc=1,
-                 healpixels=None, nside=16, in_desi=True):
-    """Read a specified mock catalog.
-    
-    Args:
-        source_name: str
-            Name of the target being processesed, e.g., 'QSO'.
-        params: dict
-            Dictionary summary of the input configuration file.
-        log: desiutil.logger
-           Logger object.
-        rand: numpy.random.RandomState
-           Object for random number generation.
-        nproc: int
-            Number of processors to be used for reading.
-        healpixels : numpy.ndarray or int
-            List of healpixels to process. The mocks are cut to match these
-            pixels.
-        nside: int
-            nside for healpix
-        in_desi: boolean
-            Decides whether the targets will be trimmed to be inside the DESI
-            footprint.
-            
-    Returns:
-        source_data: dict
-            Parsed source data based on the input mock catalog.
-
-    """
-    import desitarget.mock.io as mockio
-    
-    # Read the mock catalog.
-    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-    mockformat = params['sources'][source_name]['format']
-
-    mock_dir_name = params['sources'][source_name]['mock_dir_name']
-    if 'magcut' in params['sources'][source_name].keys():
-        magcut = params['sources'][source_name]['magcut']
-    else:
-        magcut = None
-
-    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
-    log.info('Reading {}'.format(mock_dir_name))
-
-    mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
-    if 'LYA' in params['sources'][source_name].keys():
-        lya = params['sources'][source_name]['LYA']
-    else:
-        lya = None
-    source_data = mockread_function(mock_dir_name, target_name, rand=rand,
-                                    magcut=magcut, nproc=nproc, lya=lya,
-                                    healpixels=healpixels, nside=nside)
-
-    source_data['SOURCE_NAME'] = source_name
-    source_data['MOCKFORMAT'] = mockformat
-
-    # Add the MW transmission and depth for every object in source_data.
-    _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
-    
-    # Insert proper density fluctuations model here!  Note that in general
-    # healpixels will generally be a scalar (because it's called inside a loop),
-    # but also allow for multiple healpixels.
-    try:
-        npix = healpixels.size
-    except:
-        npix = len(healpixels)
-    skyarea = npix * hp.nside2pixarea(nside, degrees=True)
-
-    #if 'density' in params['sources'][source_name].keys():
-    #    density = params['sources'][source_name]['density']
-    #    ntarget = density * skyarea
-    #    ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
-    #    source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
-
-    #if 'contam' in params['sources'][source_name].keys():
-    #    contam = params['sources'][source_name]['contam']
-    #    for contamtype in contam.keys():
-    #        source_data['TARGET_DENSITY'] = np.round(density * skyarea).astype('int')
-
-    # Return only the points that are in the DESI footprint.
-    if bool(source_data):
-        if in_desi:
-            import desimodel.io
-            import desimodel.footprint
-
-            n_obj = len(source_data['RA'])
-            tiles = desimodel.io.load_tiles()
-            if n_obj > 0:
-                indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
-                for k in source_data.keys():
-                    if type(source_data[k]) is np.ndarray:
-                        if n_obj == len(source_data[k]):
-                            source_data[k] = source_data[k][indesi]
-                        
-    return source_data
-
-def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
-                            nside, healpix_id, dust_dir):
-    """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
-    
-    Args:
-        Magnitudes: desitarget.mock.Magnitudes
-            This object contains the information to assign magnitudes to each kind of targets.
-        source_data: dictionary
-            This corresponds to the "raw" data coming directly from the mock file.
-        target_name: string
-            Name of the target being processesed, i.e. "QSO"
-        rand: numpy.random.RandomState
-        log: logger object
+        targets: astropy.table
+            Final set of Targets. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+        skytargets: astropy.table
+            Sky positions
+        skytruth: astropy.table
+            Corresponding Truth to Sky
         nside: int
             nside for healpix
         healpix_id: int
             ID of current healpix
         seed: int
             Seed used for the random number generator
-        dust_dir: str
-            Directory where the E(B-V) information is stored.
+        rand: numpy.random.RandomState
+        log: logger object
+        output_dir: str
+            Directory where the outputs are written.
             
     Output:
-        targets: astropy.table
-            Targets on the pixel healpix_id.
-        truth: astropy.table
-            Corresponding Truth to Targets
+        Files "targets", "truth", "sky", "standards" written to disk.
+    
     """
-    from desimodel.footprint import radec2pix
-
-    obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
-    onpix = np.where(obj_pix_id == healpix_id)[0]
+    from desispec.io.util import fitsheader, write_bintable
+    from desiutil import depend
+    from astropy.io import fits
     
-    log.info('{} objects of type {} in healpix_id {}'.format(np.count_nonzero(onpix), target_name, healpix_id))
+    n_obj = len(targets)
+    n_sky = len(skytargets)
     
-    nobj = len(onpix)
+    # Write the final catalogs
+    if seed is None:
+        seed1 = 'None'
+    else:
+        seed1 = seed
+    truthhdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
 
-    # Initialize the output targets and truth catalogs and populate them with
-    # the quantities of interest.
-    targets = empty_targets_table(nobj)
-    truth = empty_truth_table(nobj)
+    targetshdr = fitsheader(dict(
+        SEED = (seed1, 'initial random seed')
+        ))
+    targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
+    targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][onpix]
+    outdir = mockio.get_healpix_dir(nside, healpix_id, basedir=output_dir)
+    os.makedirs(outdir, exist_ok=True)
 
-    # Assign unique OBJID values and reddenings. 
-    targets['HPXPIXEL'][:] = np.arange(nobj)
+    # Write out the sky catalog.
+    if n_sky > 0:
+        skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
+        log.info('Writing {} SKY targets to {}'.format(n_sky, skyfile))
+        write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
+                               header=targetshdr, clobber=True)
+        os.rename(skyfile+'.tmp', skyfile)
 
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
+    if n_obj > 0:
+    # Write out the dark- and bright-time standard stars.
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix_id, basedir=output_dir)
+            istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
+                   (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
 
-    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
-    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
-    # for now.
-    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
-                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
-    
-    # Add shapes and sizes.
-    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key][:] = source_data[key][onpix]
+            if np.count_nonzero(istd) > 0:
+                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
+                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
+                               header=targetshdr, clobber=True)
+                os.rename(stdfile+'.tmp', stdfile)
+            else:
+                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
 
-    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][onpix]
-        else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
+        # Finally write out the rest of the targets.
+        targetsfile = mockio.findfile('targets', nside, healpix_id, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
 
-    if target_name.lower() == 'sky':
-        return [targets, truth]
-            
-    truth['TRUEZ'][:] = source_data['Z'][onpix]
+   
+        log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
+        targets.meta['EXTNAME'] = 'TARGETS'
+        write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
+                          header=targetshdr, clobber=True)
+        os.rename(targetsfile+'.tmp', targetsfile)
 
-    # Assign the magnitudes
-    meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=source_data['MOCKFORMAT'])
+        log.info('Writing {}'.format(truthfile))
+        hx = fits.HDUList()
+        hdu = fits.convenience.table_to_hdu(truth)
+        hdu.header['EXTNAME'] = 'TRUTH'
+        hx.append(hdu)
 
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
-
-    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-        targets[fluxkey][:] = truth[fluxkey][:] #+ rand.normal(scale=onesigma[band], size=nobj)
-
-    return [targets, truth]
+        try:
+            hx.writeto(truthfile+'.tmp', overwrite=True)
+        except:
+            hx.writeto(truthfile+'.tmp', clobber=True)
+        os.rename(truthfile+'.tmp', truthfile)
 
 def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir):
     """Applies target selection functions to a set of targets and truth tables.
@@ -1445,7 +1269,6 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
     targets = targets[keep]
     truth = truth[keep]
     return targets, truth
-
     
 def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
@@ -1502,105 +1325,95 @@ def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed
     
     return targets, truth, skytargets, skytruth
 
-def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
-    """Writes targets to disk.
+def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
+                            nside, healpix_id, dust_dir):
+    """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
     
     Args:
-        targets: astropy.table
-            Final set of Targets. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        skytargets: astropy.table
-            Sky positions
-        skytruth: astropy.table
-            Corresponding Truth to Sky
+        Magnitudes: desitarget.mock.Magnitudes
+            This object contains the information to assign magnitudes to each kind of targets.
+        source_data: dictionary
+            This corresponds to the "raw" data coming directly from the mock file.
+        target_name: string
+            Name of the target being processesed, i.e. "QSO"
+        rand: numpy.random.RandomState
+        log: logger object
         nside: int
             nside for healpix
         healpix_id: int
             ID of current healpix
         seed: int
             Seed used for the random number generator
-        rand: numpy.random.RandomState
-        log: logger object
-        output_dir: str
-            Directory where the outputs are written.
+        dust_dir: str
+            Directory where the E(B-V) information is stored.
             
     Output:
-        None. 
-        Files "targets", "truth", "sky", "standards" written to disk.
+        targets: astropy.table
+            Targets on the pixel healpix_id.
+        truth: astropy.table
+            Corresponding Truth to Targets
     """
-    from desispec.io.util import fitsheader, write_bintable
-    from desiutil import depend
-    from astropy.io import fits
+    from desimodel.footprint import radec2pix
+
+    obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
+    onpix = np.where(obj_pix_id == healpix_id)[0]
     
+    log.info('{} objects of type {} in healpix_id {}'.format(np.count_nonzero(onpix), target_name, healpix_id))
     
-    n_obj = len(targets)
-    n_sky = len(skytargets)
+    nobj = len(onpix)
+
+    # Initialize the output targets and truth catalogs and populate them with
+    # the quantities of interest.
+    targets = empty_targets_table(nobj)
+    truth = empty_truth_table(nobj)
+
+    for key in ('RA', 'DEC', 'BRICKNAME'):
+        targets[key][:] = source_data[key][onpix]
+
+    # Assign unique OBJID values and reddenings. 
+    targets['HPXPIXEL'][:] = np.arange(nobj)
+
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
+
+    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
+    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
+    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
+    # for now.
+    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
+                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
     
-    # Write the final catalogs
-    if seed is None:
-        seed1 = 'None'
-    else:
-        seed1 = seed
-    truthhdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed')
-        ))
+    # Add shapes and sizes.
+    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
+        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+            targets[key][:] = source_data[key][onpix]
 
-    targetshdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed')
-        ))
-    targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
-    targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
+    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][onpix]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
 
-    outdir = mockio.get_healpix_dir(nside, healpix_id, basedir=output_dir)
-    os.makedirs(outdir, exist_ok=True)
+    if target_name.lower() == 'sky':
+        return [targets, truth]
+            
+    truth['TRUEZ'][:] = source_data['Z'][onpix]
 
-    # Write out the sky catalog.
-    if n_sky > 0:
-        skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
-        log.info('Writing {} SKY targets to {}'.format(n_sky, skyfile))
-        write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
-                               header=targetshdr, clobber=True)
-        os.rename(skyfile+'.tmp', skyfile)
+    # Assign the magnitudes
+    meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=source_data['MOCKFORMAT'])
 
-    if n_obj > 0:
-    # Write out the dark- and bright-time standard stars.
-        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix_id, basedir=output_dir)
-            istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
-                   (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
 
-            if np.count_nonzero(istd) > 0:
-                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
-                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
-                               header=targetshdr, clobber=True)
-                os.rename(stdfile+'.tmp', stdfile)
-            else:
-                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
+    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        targets[fluxkey][:] = truth[fluxkey][:] #+ rand.normal(scale=onesigma[band], size=nobj)
 
-        # Finally write out the rest of the targets.
-        targetsfile = mockio.findfile('targets', nside, healpix_id, basedir=output_dir)
-        truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
-
-   
-        log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
-        targets.meta['EXTNAME'] = 'TARGETS'
-        write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
-                          header=targetshdr, clobber=True)
-        os.rename(targetsfile+'.tmp', targetsfile)
-
-        log.info('Writing {}'.format(truthfile))
-        hx = fits.HDUList()
-        hdu = fits.convenience.table_to_hdu(truth)
-        hdu.header['EXTNAME'] = 'TRUTH'
-        hx.append(hdu)
-
-        try:
-            hx.writeto(truthfile+'.tmp', overwrite=True)
-        except:
-            hx.writeto(truthfile+'.tmp', clobber=True)
-        os.rename(truthfile+'.tmp', truthfile)
-
+    return [targets, truth]
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
                              healpixels=None, verbose=False, dust_dir="./"):
@@ -1628,14 +1441,14 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         and 'standards-bright.fits' written to disk for a list of healpixels.
     
     """
-    log, rand, Magnitudes, Selection, healpixels = initialize(params,
-                                                              verbose=verbose,
-                                                              seed=seed, 
-                                                              output_dir=output_dir, 
-                                                              nproc=nproc,
-                                                              nside=nside,
-                                                              healpixels=healpixels,
-                                                              no_spectra=True)
+    log, rand, Magnitudes, Selection, healpixels = _initialize(params,
+                                                               verbose=verbose,
+                                                               seed=seed, 
+                                                               output_dir=output_dir, 
+                                                               nproc=nproc,
+                                                               nside=nside,
+                                                               healpixels=healpixels,
+                                                               no_spectra=True)
     
     # Loop over each source / object type.
     for healpix in healpixels:
@@ -1648,8 +1461,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data = read_catalog(source_name, params, log, rand=rand, nproc=nproc,
-                                       healpixels=healpix, nside=nside)
+            source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
+                                            healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -1714,8 +1527,6 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         else:
             targets = []
             truth = []
-        
- 
                     
         if len(allskytargets):
             skytargets = vstack(allskytargets)
@@ -1731,3 +1542,133 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         write_to_disk(targets, truth, skytargets, skytruth,  
                           nside, healpix, seed, rand, log, output_dir)
     return
+
+def merge_file_tables(fileglob, ext, outfile=None, comm=None):
+    '''
+    parallel merge tables from individual files into an output file
+
+    Args:
+        comm: MPI communicator object
+        fileglob (str): glob of files to combine (e.g. '*/blat-*.fits')
+        ext (str or int): FITS file extension name or number
+        outfile (str): output file to write
+
+    Returns merged table as np.ndarray
+    '''
+    import fitsio
+    import glob
+    if comm is not None:
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    else:
+        size = 1
+        rank = 0
+
+    if rank == 0:
+        infiles = sorted(glob.glob(fileglob))
+    else:
+        infiles = None
+
+    if comm is not None:
+        infiles = comm.bcast(infiles, root=0)
+ 
+    if len(infiles)==0:
+        log = get_logger()
+        log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
+        return
+    
+    #- Each rank reads and combines a different set of files
+    data = np.hstack( [fitsio.read(x, ext) for x in infiles[rank::size]] )
+
+    if comm is not None:
+        data = comm.gather(data, root=0)
+        if rank == 0 and size>1:
+            data = np.hstack(data)
+
+    if rank == 0 and outfile is not None:
+        log = get_logger()
+        log.info('Writing {}'.format(outfile))
+        header = fitsio.read_header(infiles[0], ext)
+        tmpout = outfile + '.tmp'
+        
+        # Find duplicates
+        vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
+        assert len(vals) == len(data)
+        
+        fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
+        os.rename(tmpout, outfile)
+
+    return data
+
+def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
+    '''
+    Join individual healpixel targets and truth files into combined tables
+
+    Args:
+        mockdir: top level mock target directory
+
+    Options:
+        outdir: output directory, default to mockdir
+        force: rewrite outputs even if they already exist
+        comm: MPI communicator; if not None, read data in parallel
+    '''
+    import fitsio
+    if outdir is None:
+        outdir = mockdir
+
+    if comm is not None:
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    else:
+        comm = None
+        size = 1
+        rank = 0
+    
+    #- Use rank 0 to check pre-existing files to avoid N>>1 ranks hitting the disk
+    if rank == 0:
+        todo = dict()
+        todo['sky'] = not os.path.exists(outdir+'/sky.fits') or force
+        todo['stddark'] = not os.path.exists(outdir+'/standards-dark.fits') or force
+        todo['stdbright'] = not os.path.exists(outdir+'/standards-bright.fits') or force
+        todo['targets'] = not os.path.exists(outdir+'/targets.fits') or force
+        todo['truth'] = not os.path.exists(outdir+'/truth.fits') or force
+        todo['mtl'] = not os.path.exists(outdir+'/mtl.fits') or force
+    else:
+        todo = None
+
+    if comm is not None:
+        todo = comm.bcast(todo, root=0)
+
+    if todo['sky']:
+        merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
+                    outfile=outdir+'/sky.fits', comm=comm)
+
+    if todo['stddark']:
+        merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
+                    outfile=outdir+'/standards-dark.fits', comm=comm)
+
+    if todo['stdbright']:
+        merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
+                    outfile=outdir+'/standards-bright.fits', comm=comm)
+
+    if todo['targets']:
+        merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
+                    outfile=outdir+'/targets.fits', comm=comm)
+
+    if todo['truth']:
+        merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
+                    outfile=outdir+'/truth.fits', comm=comm)
+
+    #- Make initial merged target list (MTL) using rank 0
+    if rank == 0 and todo['mtl']:
+        from desitarget import mtl
+        log = get_logger()
+        out_mtl = os.path.join(outdir, 'mtl.fits')
+        log.info('Generating merged target list {}'.format(out_mtl))
+        targets = fitsio.read(outdir+'/targets.fits')
+        mtl = mtl.make_mtl(targets)
+        tmpout = out_mtl+'.tmp'
+        mtl.meta['EXTNAME'] = 'MTL'
+        mtl.write(tmpout, overwrite=True, format='fits')
+        os.rename(tmpout, out_mtl)
+
