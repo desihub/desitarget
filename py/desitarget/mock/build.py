@@ -530,7 +530,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, rand, log):
+def get_spectra_onepixel(source_data, indx, Spectra, Selection, rand, log):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -542,9 +542,7 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
         trueflux
     
     """
-    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-    onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
-    nobj = len(onbrick)
+    nobj = len(indx)
 
     # Initialize the output targets and truth catalogs and populate them with
     # the quantities of interest.
@@ -552,21 +550,23 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
     truth = empty_truth_table(nobj)
 
     for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][onbrick]
+        targets[key][:] = source_data[key][indx]
 
-    for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
-        targets[key][:] = brick_info[key][brickindx]
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        key = 'MW_TRANSMISSION_{}'.format(band)
+        targets[key][:] = source_data[key][indx]
+
+    print('Need to add OBJID, BRICKID, PSFDEPTH_*, and GALDEPTH_*!')
+    #for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+    #            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
+    #    targets[key][:] = brick_info[key][brickindx]
 
     # Assign unique OBJID values and reddenings.  See
     #   http://legacysurvey.org/dr4/catalogs
-    targets['BRICK_OBJID'][:] = np.arange(nobj)
+    # targets['BRICK_OBJID'][:] = np.arange(nobj)
 
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
-
+    import pdb ; pdb.set_trace()
+    
     # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
     # all bricks: http://legacysurvey.org/dr3/description and a constant depth
     # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
@@ -588,7 +588,7 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
             truth[key][:] = np.repeat(source_data[source_key], nobj)
 
     # Sky targets are a special case without redshifts.
-    if source_name == 'sky':
+    if source_data['SOURCE_NAME'] == 'sky':
         Selection(targets, truth)
         return [targets, truth]
 
@@ -597,7 +597,7 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
     # For FAINTSTAR targets, preselect stars that are going to pass target
     # selection cuts without actually generating spectra, in order to save
     # memory and time.
-    if source_name == 'faintstar':
+    if source_data['SOURCE_NAME'] == 'faintstar':
         if mockformat.lower() == 'galaxia':
             alldata = np.vstack((source_data['TEFF'][onbrick],
                                  source_data['LOGG'][onbrick],
@@ -636,7 +636,7 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
             import pdb ; pdb.set_trace()
         
         if nobj == 0:
-            log.warning('No {} targets identified!'.format(source_name.upper()))
+            log.warning('No {} targets identified!'.format(source_data['SOURCE_NAME'].upper()))
             return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
         else:
             onbrick = onbrick[keep]
@@ -644,7 +644,7 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
             targets = targets[keep]
 
     # Finally build the spectra and select targets.
-    trueflux, meta = getattr(Spectra, source_name)(source_data, index=onbrick, mockformat=mockformat)
+    trueflux, meta = getattr(Spectra, source_data['SOURCE_NAME'])(source_data, index=onbrick, mockformat=mockformat)
 
     for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
@@ -694,9 +694,9 @@ def get_spectra_onepixel(source_data, source_name, Spectra, Selection, indx, ran
     nobj = len(keep)
 
     if nobj == 0:
-        log.warning('No {} targets identified!'.format(source_name.upper()))
+        log.warning('No {} targets identified!'.format(source_data['SOURCE_NAME'].upper()))
     else:
-        log.debug('Selected {} {}s on brick {}.'.format(nobj, source_name.upper(), thisbrick))
+        log.debug('Selected {} {}s on brick {}.'.format(nobj, source_data['SOURCE_NAME'].upper(), thisbrick))
         targets = targets[keep]
         truth = truth[keep]
         trueflux = trueflux[keep, :]
@@ -730,6 +730,9 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
         and 'standards-bright.fits' written to disk for a list of healpixels.
 
     """
+    from time import time
+    from desitarget.internal import sharedmem
+    
     log, rand, Spectra, Selection, healpixels = initialize(params,
                                                            verbose=verbose,
                                                            seed=seed, 
@@ -760,14 +763,41 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if 'density' in params['sources'][source_name].keys():
                 density = [params['sources'][source_name]['density']]
                 zcut = [-1000, 1000]
+
+            # Chunk the sample based on the number of processors.
+            log.info('Dividing the sample into {} chunk(s).'.format(nproc))
+            chunkindx = np.array_split(np.arange(len(source_data['RA'])), nproc)
+
+            nchunk = np.zeros((), dtype='i8')
+            t0 = time()
+            def _update_spectra_status(result):
+                if nchunk % 2 == 0 and nchunk > 0:
+                    rate = (time() - t0) / nchunk
+                    log.debug('{} chunk(s); {:.1f} sec / brick'.format(nchunk, rate))
+                nchunk[...] += 1    # in-place modification
+                return result
             
+            specargs = list()
+            for indx in chunkindx:
+                specargs.append( (source_data, indx, Spectra, Selection, rand, log) )
+
             # Iteratively assign spectra to the mock targets in that healpixel
             # until we achieve the desired density (after target selection).
+            if nproc > 1:
+                pool = sharedmem.MapReduce(np=nproc)
+                with pool:
+                    out = pool.map(_get_spectra_onepixel, specargs,
+                                   reduce=_update_spectra_status)
+            else:
+                out = list()
+                for ii in range(nproc):
+                    out.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
+
+            del source_data # memory clean-up
+
             import pdb ; pdb.set_trace()
-            
-            print('ADD MULTIPROCESSING HERE!')
-            targets, truth, trueflux = get_spectra_onepixel(source_data, source_name, Spectra, Selection, rand, log, 
-                                                            nside, healpix)
+
+            targets, truth, trueflux = get_spectra_onepixel(source_data, Spectra, Selection, rand, log)
             
             import pdb ; pdb.set_trace()
             
@@ -1506,20 +1536,47 @@ def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None,
     source_data = mockread_function(mock_dir_name, target_name, rand=rand,
                                     magcut=magcut, nproc=nproc, lya=lya,
                                     healpixels=healpixels, nside=nside)
+
+    source_data['SOURCE_NAME'] = source_name
     source_data['MOCKFORMAT'] = mockformat
 
-    # Get the MW_TRANSMISSION for each object in grzW1W2.
+    # Populate the source catalog with the grzW1W2 MW_TRANSMISSION for each
+    # object.
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
     ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=params['dust_dir'])
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
         source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
 
+    # Populate the galaxy and point-source depths at the position of each
+    # object.  For now this is a hack -- we assume a constant 5-sigma depth in
+    # grz for galaxies and point sources in all bricks and a constant depth
+    # (W1=22.3 mag=1.2 nanomaggies, W2=23.8 mag=0.3 nanomaggies, 1-sigma) in the
+    # WISE bands.  These numbers need to be replaced with a proper model of the
+    # varying depth of the survey.
+    nobj = len(source_data['RA'])
+    
+    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('G', 'R', 'Z')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('W1', 'W2')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+    
     # Return only the points that are in the DESI footprint.
     if bool(source_data):
         if in_desi:
             import desimodel.io
             import desimodel.footprint
-            
+
             n_obj = len(source_data['RA'])
             tiles = desimodel.io.load_tiles()
             if n_obj > 0:
@@ -1992,7 +2049,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             
             # assign magnitudes for targets in that pixel
             pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, rand, log, 
-                                        nside, healpix, dust_dir=params['dust_dir'])
+                                                    nside, healpix, dust_dir=params['dust_dir'])
             
             targets = pixel_results[0]
             truth = pixel_results[1]
@@ -2001,7 +2058,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             if source_name.upper() == 'SKY':
                 if 'density' in params['sources'][source_name].keys():
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
+                                                      nside, healpix, seed, rand, log, output_dir, contam=False)
                 allskytargets.append(targets)
                 allskytruth.append(truth)                    
             else:
