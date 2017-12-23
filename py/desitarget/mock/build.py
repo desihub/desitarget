@@ -17,7 +17,8 @@ from astropy.table import Table, Column, vstack, hstack
 
 from desimodel.footprint import radec2pix
 from desitarget.targets import encode_targetid
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
+import desitarget.mock.io as mockio
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
 
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.
@@ -273,11 +274,11 @@ def _mw_transmission_and_depth(source_data, dust_dir):
     """Compute the Galactic transmission and depth every object in source_data. 
     
     Args:
-        source_data: dict
+        source_data : dict
             Input dictionary (read by read_mock_catalog) with coordinates. 
             
     Returns:
-        source_data: dict
+        source_data : dict
             Modified input dictionary with transmission and depth included. 
 
     """
@@ -342,12 +343,10 @@ def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
             footprint.
             
     Returns:
-        source_data: dict
+        source_data : dict
             Parsed source data based on the input mock catalog.
 
     """
-    import desitarget.mock.io as mockio
-    
     # Read the mock catalog.
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
     mockformat = params['sources'][source_name]['format']
@@ -421,13 +420,30 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
-        source_name : str
+        source_data : dict
+            Dictionary with all the mock data (candidate mock targets).
+        indx : int or np.ndarray
+            Indices of candidate mock targets to consider.
+        Spectra : desitarget.mock.spectra.MockSpectra
+            Object to assign spectra to each target class.
+        select_targets_function : desitarget.mock.selection.SelectTargets.*_select
+            Object to assign bits and select targets.
+        rand : numpy.random.RandomState
+           Object for random number generation.
+        log : desiutil.logger
+           Logger object.
+        ntarget : int
+           Desired number of targets to generate.
 
     Returns:
-        targets
-        truth
-        trueflux
-    
+        targets : astropy.table.Table
+            Table of mock targets.
+        truth : astropy.table.Table
+            Corresponding truth table.
+        trueflux : numpy.ndarray
+            Array [npixel, ntarget] of observed-frame spectra.  Only computed
+            and returned for non-sky targets.
+
     """
     targname = source_data['SOURCE_NAME'].lower()
 
@@ -435,27 +451,29 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
         log.warning('Too few candidate targets ({}) than desired targets ({}) on mini healpixel XXX.'.format(
             len(indx), ntarget))
 
+    # Skies are a special case -- no need to chunk.
+    if targname == 'sky':
+        these = rand.choice(len(indx), ntarget, replace=False)
+        targets, truth = _initialize_targets_and_truth(source_data, these)
+        select_targets_function(targets, truth)
+        return [targets, truth]
+
+    # Build spectra in chunks and stop when we have enough.
+    nchunk = np.ceil(len(indx) / ntarget).astype('int')
+    
+    targets = list()
+    truth = list()
+    trueflux = list()
+
     if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
         depthprefix = 'GAL'
     else:
         depthprefix = 'PSF'
 
-    targets = list()
-    truth = list()
-    trueflux = list()
-
     ntot = 0
-
-    nchunk = np.ceil(len(indx) / ntarget).astype('int')
     for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
 
         _targets, _truth = _initialize_targets_and_truth(source_data, chunkindx)
-
-        print('Fix skies!')
-        if targname == 'sky':
-            select_targets_function(targets, truth)
-            import pdb ; pdb.set_trace()
-            return [targets, truth]
 
         # Generate the spectra.
         chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
@@ -492,8 +510,6 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
     targets = vstack(targets)
     truth = vstack(truth)
     trueflux = np.concatenate(trueflux)
-
-    # Contaminants here?
 
     # Only keep as many targets as we need.
     targets = targets[:ntarget]
@@ -564,11 +580,10 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
         alltruth = list()
         alltrueflux = list()
         allskytargets = list()
-        #allskytruth = list()
+        allskytruth = list()
 
         for source_name in sorted(params['sources'].keys()):
-            targets = []
-            skytargets = []
+            targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
@@ -589,7 +604,16 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             # Instantiate the target selection function.
             selection_function = '{}_select'.format(source_name.lower())
             select_targets_function = getattr(Selection, selection_function)
-                
+
+            # Generate the spectra in chunks of smaller healpixels.
+            healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
+
+            specargs = list()
+            for pixchunk in set(healpix_chunk):
+                indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+                specargs.append( (source_data, indx, Spectra, select_targets_function, rand, log, ntarget) )
+            
+            # Multiprocessing.
             nn = np.zeros((), dtype='i8')
             t0 = time()
             def _update_spectra_status(result):
@@ -599,14 +623,6 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 nn[...] += 1    # in-place modification
                 return result
 
-            healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
-
-            # Generate the spectra in chunks.
-            specargs = list()
-            for pixchunk in set(healpix_chunk):
-                indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
-                specargs.append( (source_data, indx, Spectra, select_targets_function, rand, log, ntarget) )
-            
             if nproc > 1:
                 pool = sharedmem.MapReduce(np=nproc)
                 with pool:
@@ -614,14 +630,18 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                                              reduce=_update_spectra_status)
             else:
                 pixel_results = list()
-                for ii in range(nproc):
-                    pixel_results.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
+                for args in specargs:
+                    pixel_results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
 
+            # Unpack the results; sky targets are a special case.
             pixel_results = list(zip(*pixel_results))
 
             if source_name.upper() == 'SKY':
                 skytargets = vstack(pixel_results[0])
+                skytruth = vstack(pixel_results[1])
+
                 allskytargets.append(skytargets)
+                allskytruth.append(skytruth)
             else:
                 targets = vstack(pixel_results[0])
                 truth = vstack(pixel_results[1])
@@ -641,26 +661,24 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             truth = vstack(alltruth)
             trueflux = np.concatenate(alltrueflux)
         else:
-            skytargets = []
+            targets = []
 
         if len(allskytargets) > 0:
             skytargets = vstack(allskytargets)
+            skytruth = vstack(allskytruth)
         else:
             skytargets = []
 
         # Add some final columns.
-        targets, truth, skytargets = _finish_catalog(targets, truth, skytargets,
+        targets, truth, skytargets = _finish_catalog(targets, truth, skytargets, skytruth,
                                                      nside, healpix, rand, log)
 
-
-        import pdb ; pdb.set_trace()
-
         # Finally, write the results.
-        write_to_disk(targets, truth, skytargets, skytruth,  
-                          nside, healpix, seed, rand, log, output_dir)
+        _write_targets_truth(targets, truth, skytargets, skytruth,  
+                             nside, healpix, seed, log, output_dir)
         
-
-def _finish_catalog(targets, truth, skytargets, nside, healpix, rand, log):
+def _finish_catalog(targets, truth, skytargets, skytruth,
+                    nside, healpix, rand, log):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
     
     Args:
@@ -734,8 +752,8 @@ def _finish_catalog(targets, truth, skytargets, nside, healpix, rand, log):
     
     return targets, truth, skytargets
 
-def write_to_disk(targets, truth, skytargets, skytruth, nside,
-                  healpix_id, seed, rand, log, output_dir):
+def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
+                         healpix_id, seed, log, output_dir):
     """Writes targets to disk.
     
     Args:
@@ -753,7 +771,6 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside,
             ID of current healpix
         seed: int
             Seed used for the random number generator
-        rand: numpy.random.RandomState
         log: logger object
         output_dir: str
             Directory where the outputs are written.
@@ -762,14 +779,13 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside,
         Files "targets", "truth", "sky", "standards" written to disk.
     
     """
-    from desispec.io.util import fitsheader, write_bintable
-    from desiutil import depend
     from astropy.io import fits
+    from desiutil import depend
+    from desispec.io.util import fitsheader, write_bintable
     
-    n_obj = len(targets)
-    n_sky = len(skytargets)
+    nobj = len(targets)
+    nsky = len(skytargets)
     
-    # Write the final catalogs
     if seed is None:
         seed1 = 'None'
     else:
@@ -788,14 +804,14 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside,
     os.makedirs(outdir, exist_ok=True)
 
     # Write out the sky catalog.
-    if n_sky > 0:
+    if nsky > 0:
         skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
-        log.info('Writing {} SKY targets to {}'.format(n_sky, skyfile))
+        log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
         write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
                                header=targetshdr, clobber=True)
         os.rename(skyfile+'.tmp', skyfile)
 
-    if n_obj > 0:
+    if nobj > 0:
     # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix_id, basedir=output_dir)
@@ -815,7 +831,7 @@ def write_to_disk(targets, truth, skytargets, skytruth, nside,
         truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
 
    
-        log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
+        log.info('Writing {} targets to {}'.format(nobj, targetsfile))
         targets.meta['EXTNAME'] = 'TARGETS'
         write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
                           header=targetshdr, clobber=True)
@@ -1258,8 +1274,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         targets, truth, skytargets, skytruth = finish_catalog_nospectra(targets, truth, skytargets, skytruth,
                                                                         nside,healpix, seed, rand, log, output_dir)
         #write the results
-        write_to_disk(targets, truth, skytargets, skytruth,  
-                          nside, healpix, seed, rand, log, output_dir)
+        _write_targets_truth(targets, truth, skytargets, skytruth,  
+                             nside, healpix, seed, log, output_dir)
     return
 
 def merge_file_tables(fileglob, ext, outfile=None, comm=None):

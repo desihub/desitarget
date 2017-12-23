@@ -591,7 +591,7 @@ class MockSpectra(object):
             if len(lya) > 0:
                 ilya = index[lya].astype(int)
                 nqso = ilya.size
-                log.info('Generating spectra of {} Lya QSOs'.format(nqso))
+                log.debug('Generating spectra of {} Lya QSOs'.format(nqso))
                                 
                 if 'LYAHDU' in data : 
                     # this is the old format with one HDU per spectrum
