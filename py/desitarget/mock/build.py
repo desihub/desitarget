@@ -637,11 +637,13 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
 
             specargs = list()
-            for pixchunk, nt in zip( set(healpix_chunk), ntargetperchunk ):
-                print(nt)
+            for pixchunk, ntarg in zip( set(healpix_chunk), ntargetperchunk ):
                 indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
-                specargs.append( (source_data, indx, Spectra, select_targets_function,
-                                  rand, log, nt) )
+                if len(indx) > 0:
+                    if len(indx) < ntarg:
+                        ntarg = len(indx)
+                        specargs.append( (source_data, indx, Spectra, select_targets_function,
+                                          rand, log, ntarg) )
 
             # Multiprocessing.
             nn = np.zeros((), dtype='i8')
@@ -649,7 +651,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             def _update_spectra_status(result):
                 if nn % 2 == 0 and nn > 0:
                     rate = (time() - t0) / nn
-                    log.debug('{} chunk(s); {:.1f} sec / healpix chunk'.format(nn, rate))
+                    log.info('{} chunk(s); {:.1f} sec / healpix chunk'.format(nn, rate))
                 nn[...] += 1    # in-place modification
                 return result
 
