@@ -14,7 +14,6 @@ import numpy as np
 import multiprocessing
 
 from desisim.io import read_basis_templates, empty_metatable
-from desiutil.log import get_logger
 
 def _get_colors_onez(args):
     """Filler function to synthesize photometry at a given redshift"""
@@ -32,18 +31,25 @@ class TemplateKDTree(object):
     """Build a KD Tree for each object type.
 
     """
-    def __init__(self, nproc=1):
+    def __init__(self, nproc=1, verbose=False):
         from speclite import filters
         from scipy.spatial import cKDTree as KDTree
+        from desiutil.log import get_logger, DEBUG
 
+        if verbose:
+            self.log = get_logger(DEBUG)
+        else:
+            self.log = get_logger()
+            
         self.nproc = nproc
+        self.verbose = verbose
 
-        self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)
-        self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)
-        self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)
-        self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)
-        self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
-        self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
+        self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True, verbose=False)
+        self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True, verbose=False)
+        self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True, verbose=False)
+        self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True, verbose=False)
+        self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True, verbose=False)
+        self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True, verbose=False)
 
         self.decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                               'wise2010-W1', 'wise2010-W2')
@@ -66,7 +72,7 @@ class TemplateKDTree(object):
         """Synthesize photometry for the full set of stellar templates."""
         star_normfilter = 'decam2014-r'
 
-        star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR')
+        star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR', verbose=False)
         star_maggies_table = self.decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
 
         star_maggies = np.zeros( (len(star_meta), len(self.decamwise)) )
@@ -80,54 +86,6 @@ class TemplateKDTree(object):
         
         self.star_meta = star_meta
 
-    def elg_kcorr(self):
-        """Compute K-corrections for the ELG templates on a grid of redshift."""
-        
-        flux, wave, meta = read_basis_templates(objtype='ELG')
-        nt = len(meta)
-
-        zmin, zmax, dz = 0.0, 2.0, 0.1
-        nz = np.round( (zmax - zmin) / dz ).astype('i2')
-
-        colors = dict(
-            redshift = np.linspace(0.0, 2.0, nz),
-            gr = np.zeros( (nt, nz) ),
-            rz = np.zeros( (nt, nz) )
-            )
-
-        #from time import time
-        #t0 = time()
-        #for iz, red in enumerate(colors['redshift']):
-        #    print(iz)
-        #    zwave = wave.astype('float') * (1 + red)
-        #    phot = self.grz.get_ab_maggies(flux, zwave, mask_invalid=False)
-        #    colors['gr'][:, iz] = -2.5 * np.log10( phot['decam2014-g'] / phot['decam2014-r'] )
-        #    colors['rz'][:, iz] = -2.5 * np.log10( phot['decam2014-r'] / phot['decam2014-z'] )
-        #print( (time() - t0) / 60 )
-
-        from time import time
-        t0 = time()
-        zargs = list()
-        for red in colors['redshift']:
-            zargs.append( (red, flux, wave, self.grz) )
-
-        if self.nproc > 1:
-            pool = multiprocessing.Pool(self.nproc)
-            result = pool.map( _get_colors_onez, zargs )
-            pool.close()
-        else:
-            result = list()
-            for onearg in zargs:
-                result.append( _get_colors_onez(onearg) )
-        print( (time() - t0) / 60 )
-
-        import matplotlib.pyplot as plt
-        for tt in range(10):
-            plt.scatter(colors['rz'][tt, :], colors['gr'][tt, :])
-        plt.xlim(-0.5, 2.0) ;  plt.ylim(-0.5, 2.0)
-        plt.show()
-        import pdb ; pdb.set_trace()
-        
     def _bgs(self):
         """Quantities we care about: redshift (z), M_0.1r, and 0.1(g-r).  This needs to
         be generalized to accommodate other mocks!
@@ -147,15 +105,6 @@ class TemplateKDTree(object):
         rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
         #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
         return np.vstack((zobj, gr, rz)).T
-
-    #def _elg(self):
-    #    """Quantities we care about: redshift, g-r, r-z."""
-    #    
-    #    zobj = self.elg_meta['Z'].data
-    #    gr = self.elg_meta['DECAM_G'].data - self.elg_meta['DECAM_R'].data
-    #    rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
-    #    #W1W2 = self.elg_meta['W1'].data - self.elg_meta['W2'].data
-    #    return np.vstack((zobj, gr, rz)).T
 
     def _lrg(self):
         """Quantities we care about: r-z, r-W1."""
@@ -231,7 +180,7 @@ class TemplateKDTree(object):
             elif subtype.upper() == 'DB':
                 dist, indx = self.wd_db_tree.query(matrix)
             else:
-                log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
+                self.log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
                 raise ValueError
                 
         return dist, indx
@@ -247,8 +196,8 @@ class MockSpectra(object):
                  rand=None, verbose=False):
 
         from desimodel.io import load_throughput
-        
-        self.tree = TemplateKDTree(nproc=nproc)
+
+        self.tree = TemplateKDTree(nproc=nproc, verbose=verbose)
 
         # Build a default (buffered) wavelength vector.
         if wavemin is None:
@@ -560,8 +509,6 @@ class MockSpectra(object):
         from desisim.lya_spectra import read_lya_skewers,apply_lya_transmission
         import fitsio
 
-        log = get_logger()
-
         objtype = 'QSO'
         if index is None:
             index = np.arange(len(data['Z']))
@@ -591,7 +538,6 @@ class MockSpectra(object):
             if len(lya) > 0:
                 ilya = index[lya].astype(int)
                 nqso = ilya.size
-                log.debug('Generating spectra of {} Lya QSOs'.format(nqso))
                                 
                 if 'LYAHDU' in data : 
                     # this is the old format with one HDU per spectrum
@@ -627,7 +573,7 @@ class MockSpectra(object):
                         indices_in_mock_healpix=np.zeros(objid_in_data.size).astype(int)
                         for i,o in enumerate(objid_in_data) :
                             if not o in o2i :
-                                log.error("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile))
+                                self.log.error("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile))
                                 raise(KeyError("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile)))
                             indices_in_mock_healpix[i]=o2i[o]
                         

@@ -252,14 +252,14 @@ def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=1
         healpixels = np.arange(hp.nside2npix(nside))
 
     areaperpix = hp.nside2pixarea(nside, degrees=True)
-    skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, skyarea))
+    totarea = len(healpixels) * areaperpix
+    log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, totarea))
 
     # Initialize the Classes used to assign spectra (or magnitudes) and to
-    # select targets.  Note: The default wavelength array gets initialized here,
-    # too.
-    selection = SelectTargets(logger=log, rand=rand)
+    # select targets.  Note: The default wavelength array gets initialized in
+    # MockSpectra.
+    selection = SelectTargets(verbose=verbose, rand=rand)
     
     if no_spectra:
         log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
@@ -445,7 +445,8 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, rand, log, ntarget):
+def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
+                         rand, log, ntarget):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -535,20 +536,22 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
         
     return [targets, truth, trueflux]
 
-def _healpixel_chunks(log, nside, nside_chunk):
+def _healpixel_chunks(nside, nside_chunk, log):
     """Chunk each healpixel into a smaller set of healpixels, for
     parallelization.
 
     """
     if nside >= nside_chunk:
         nside_chunk = nside
-    area = hp.nside2pixarea(nside_chunk, degrees=True)
+        
+    areaperpixel = hp.nside2pixarea(nside, degrees=True)
+    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
 
     nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
-    log.info('Dividing each nside={} healpixel into {} nside={} mini pixel(s).'.format(
+    log.info('Dividing each nside={} healpixel into {} nside={} healpixel(s).'.format(
         nside, nchunk, nside_chunk))
 
-    return nchunk, area
+    return areaperpixel, areaperchunk, nchunk
 
 def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                   nside_chunk=128, healpixels=None, verbose=False):
@@ -589,8 +592,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
         params, verbose=verbose, seed=seed, output_dir=output_dir,
         nproc=nproc, nside=nside, healpixels=healpixels)
 
-    # Chunk the sample for the multiprocessing.
-    nchunk, areaperchunk = _healpixel_chunks(log, nside, nside_chunk)
+    # Chunk the sample for the multiprocessing.    
+    areaperpix, areaperchunk, nchunk = _healpixel_chunks(nside, nside_chunk, log)
 
     # Loop over each source / object type.
     for healpix in healpixels:
@@ -604,7 +607,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data.
-            log.info('Reading  source : {}'.format(source_name))
+            log.info('Reading source : {}'.format(source_name))
             source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
                                             healpixels=healpix, nside=nside)
         
@@ -612,12 +615,19 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if not bool(source_data):
                 continue
 
-            # Target density -- need a proper fluctuations model here. 
+            # Target density -- need a proper fluctuations model here.
+            # NTARGETPERCHUNK needs to be an array with the targets divided
+            # among the chunk healpixels.
             if 'density' in params['sources'][source_name].keys():
                 density = params['sources'][source_name]['density']
-                ntarget = np.round(density * areaperchunk).astype('int')
+                ntarget = np.round(density * areaperpix).astype('int')
             else:
-                ntarget = None # all targets
+                ntarget = len(source_data['RA'])
+                density = ntarget / areaperpix
+            ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
+
+            log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
+                ntarget, source_name, density))
 
             # Instantiate the target selection function.
             selection_function = '{}_select'.format(source_name.lower())
@@ -627,10 +637,12 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
 
             specargs = list()
-            for pixchunk in set(healpix_chunk):
+            for pixchunk, nt in zip( set(healpix_chunk), ntargetperchunk ):
+                print(nt)
                 indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
-                specargs.append( (source_data, indx, Spectra, select_targets_function, rand, log, ntarget) )
-            
+                specargs.append( (source_data, indx, Spectra, select_targets_function,
+                                  rand, log, nt) )
+
             # Multiprocessing.
             nn = np.zeros((), dtype='i8')
             t0 = time()
@@ -665,7 +677,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 targets = vstack(pixel_results[0])
                 truth = vstack(pixel_results[1])
                 trueflux = np.concatenate(pixel_results[2])
-                log.info('Generated spectra for {} {} targets.'.format(len(targets), source_name))
+                log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
+                    len(targets), source_name, len(targets) / areaperpix))
 
                 alltargets.append(targets)
                 alltruth.append(truth)
