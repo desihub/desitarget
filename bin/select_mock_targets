@@ -31,7 +31,8 @@ parser.add_argument('--healpixels', help='Integer list of healpix pixels (corres
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
 parser.add_argument('--qa', action='store_true', help='Generate QA plots from the joined target and truth files in output_dir.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
-parser.add_argument('--no-spectra', action='store_true')
+parser.add_argument('--no-spectra', action='store_true', help='Do not generate spectra.')
+parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files.')
 
 args = parser.parse_args()
 
@@ -50,7 +51,6 @@ if args.nside < 2:
 if args.tiles and args.healpixels:
     log.error('use --tiles or --healpixels but not both')
     sys.exit(1)
-
     
 if args.tiles is not None:
     if args.tiles.endswith('.ecsv'):
@@ -63,14 +63,17 @@ if args.tiles is not None:
 else:
     healpixels = np.array(args.healpixels)
 
-keep = list()
-for i, pixnum in enumerate(healpixels):
-    truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
-    if not os.path.exists(truthfile):
-        keep.append(i)
+if args.overwrite:
+    log.info('Processing {} pixel(s).'.format(len(healpixels)))
+else:
+    keep = list()
+    for i, pixnum in enumerate(healpixels):
+        truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
+        if not os.path.exists(truthfile):
+            keep.append(i)
 
-log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
-healpixels = healpixels[keep]
+    log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
+    healpixels = healpixels[keep]
     
 if args.join:
     from desitarget.mock.build import join_targets_truth
