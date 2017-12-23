@@ -493,14 +493,31 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
     truth = vstack(truth)
     trueflux = np.concatenate(trueflux)
 
+    # Contaminants here?
+
+    # Only keep as many targets as we need.
     targets = targets[:ntarget]
     truth = truth[:ntarget]
     trueflux = trueflux[:ntarget, :]
         
     return [targets, truth, trueflux]
 
+def _healpixel_chunks(log, nside, nside_chunk):
+    """Chunk each healpixel into a smaller set of healpixels, for
+    parallelization.
+
+    """
+    if nside >= nside_chunk:
+        nside_chunk = nside
+    area = hp.nside2pixarea(nside_chunk, degrees=True)
+
+    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
+    log.info('Dividing the sample into {} chunk(s).'.format(nchunk))
+
+    return nchunk, area
+
 def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
-                  healpixels=None, verbose=False):
+                  nside_chunk=128, healpixels=None, verbose=False):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
     (with, e.g., the true redshift) for use in simulations.
 
@@ -515,6 +532,9 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             Number of parallel processes to use (default 1).
         nside : int
             Healpix resolution corresponding to healpixels (default 16).
+        nside_chunk : int
+            Healpix resolution for chunking the sample (NB: nside_chunk must be
+            <= nside).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
             this set (array) of healpix pixels.  (Default: None)
@@ -535,23 +555,20 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
         params, verbose=verbose, seed=seed, output_dir=output_dir,
         nproc=nproc, nside=nside, healpixels=healpixels)
 
-    # Parallelize by chunking the sample into smaller (nested) healpixels. 
-    nside_chunk = 128
-    if nside >= nside_chunk:
-        nside_chunk = nside
-    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
+    # Chunk the sample for the multiprocessing.
+    nchunk, areaperchunk = _healpixel_chunks(log, nside, nside_chunk)
 
     # Loop over each source / object type.
     for healpix in healpixels:
         alltargets = list()
         alltruth = list()
+        alltrueflux = list()
         allskytargets = list()
-        allskytruth = list()
+        #allskytruth = list()
 
-        nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
-        log.info('Dividing the sample into {} chunk(s).'.format(nchunk))
-        
         for source_name in sorted(params['sources'].keys()):
+            targets = []
+            skytargets = []
 
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
@@ -576,10 +593,9 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             nn = np.zeros((), dtype='i8')
             t0 = time()
             def _update_spectra_status(result):
-                if nn >= 0:
-                #if nn % 2 == 0 and nn > 0:
+                if nn % 2 == 0 and nn > 0:
                     rate = (time() - t0) / nn
-                    log.debug('{} chunk(s); {:.1f} sec / mini healpixel'.format(nn, rate))
+                    log.debug('{} chunk(s); {:.1f} sec / healpix chunk'.format(nn, rate))
                 nn[...] += 1    # in-place modification
                 return result
 
@@ -601,420 +617,122 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 for ii in range(nproc):
                     pixel_results.append( _update_spectra_status( _get_spectra_onepixel(specargs[ii]) ) )
 
-            #del source_data # memory clean-up
             pixel_results = list(zip(*pixel_results))
 
-            targets = vstack(pixel_results[0])
-            truth = vstack(pixel_results[1])
-            if target_name.upper() != 'SKY':
-                trueflux = np.concatenate(pixel_results[2])
-                
-
-            import pdb ; pdb.set_trace()
-
-            targets = pixel_results[0]
-            truth = pixel_results[1]
-
-
-            print('Need to add OBJID, BRICKID and a bunch more stuff!')
-            print('From Adam: Set BRICK_OBJID to a unique value and use targets.encode_targetid')
-
-
-            
-            # Make target selection and downsample number density if
-            # necessary. SKY is a special case.
             if source_name.upper() == 'SKY':
-                if 'density' in params['sources'][source_name].keys():
-                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
-                allskytargets.append(targets)
-                allskytruth.append(truth)                    
+                skytargets = vstack(pixel_results[0])
+                allskytargets.append(skytargets)
             else:
-                targets, truth = target_selection(Selection, source_name, targets, truth,
-                                                             nside, healpix, seed, rand, log, output_dir)
-                
-                # Downsample to a global number density if required
-                if 'density' in params['sources'][source_name].keys():
-                    if source_name == 'QSO':
-                        # Distinguish between the Lyman-alpha and tracer QSOs
-                        if 'LYA' in params['sources'][source_name].keys():
-                            density = [params['sources'][source_name]['density'], 
-                                      params['sources'][source_name]['LYA']['density']]
-                            zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
-                    
-                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
-               
-                    
-                if len(targets)>0:
-                    alltargets.append(targets)
-                    alltruth.append(truth)
-               
-        if len(alltargets)==0 and len(allskytargets)==0:
+                targets = vstack(pixel_results[0])
+                truth = vstack(pixel_results[1])
+                trueflux = np.concatenate(pixel_results[2])
+
+                alltargets.append(targets)
+                alltruth.append(truth)
+                alltrueflux.append(trueflux)
+
+            # Contaminants here?
+
+        if len(alltargets) == 0 and len(allskytargets) == 0: # all done
             continue
-        
-        # Merge all sources.
-        if len(alltargets):
+
+        if len(alltargets) > 0:
             targets = vstack(alltargets)
             truth = vstack(alltruth)
-            
-            # downsample contaminants for each class
-            for source_name in sorted(params['sources'].keys()):
-                if 'contam' in params['sources'][source_name].keys():
-                    # Initialize variables for density subsampling
-                    zcut=[-1000,1000]
-                    density = [params['sources'][source_name]['contam']['density']]
-                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                  nside, healpix, seed, rand, log, output_dir, contam=True)
-        else:
-            targets = []
-            truth = []
-        
- 
-                    
-        if len(allskytargets):
-            skytargets = vstack(allskytargets)
-            skytruth = vstack(allskytruth)
+            trueflux = np.concatenate(alltrueflux)
         else:
             skytargets = []
-            skytruth = []
 
-        #Add some final columns
-        targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
-                                                              nside,healpix, seed, rand, log, output_dir)
-        #write the results
+        if len(allskytargets) > 0:
+            skytargets = vstack(allskytargets)
+        else:
+            skytargets = []
+
+        # Add some final columns.
+        targets, truth, skytargets = _finish_catalog(targets, truth, skytargets,
+                                                     nside, healpix, rand, log)
+
+
+        import pdb ; pdb.set_trace()
+
+        # Finally, write the results.
         write_to_disk(targets, truth, skytargets, skytruth,  
                           nside, healpix, seed, rand, log, output_dir)
         
 
-    import pdb ; pdb.set_trace()
-
-
-    current_pixel_ID = 0 
-    # Loop over each source / object type.
-    alltargets = list()
-    alltruth = list()
-    alltrueflux = list()
-
-    for source_name in sorted(params['sources'].keys()):
-        # Read the mock catalog.
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-        mockformat = params['sources'][source_name]['format']
-
-        mock_dir_name = params['sources'][source_name]['mock_dir_name']
-        if 'magcut' in params['sources'][source_name].keys():
-            magcut = params['sources'][source_name]['magcut']
-        else:
-            magcut = None
-
-        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
-        log.info('Reading {}'.format(mock_dir_name))
-
-        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
-        if 'LYA' in params['sources'][source_name].keys():
-            lya = params['sources'][source_name]['LYA']
-        else:
-            lya = None
-        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                                        magcut=magcut, nproc=nproc, lya=lya,
-                                        healpixels=healpixels, nside=nside)
-
-        # If there are no sources, keep going.
-        if not bool(source_data):
-            continue
-
-        selection_function = '{}_select'.format(target_name.lower())
-        select_targets_function = getattr(Selection, selection_function)
-
-        # Assign spectra by parallel-processing the bricks.
-        brickname = source_data['BRICKNAME']
-        unique_bricks = sorted(set(brickname))
-
-        # Quickly check that all the brick info is here.
-        if False:
-            for thisbrick in unique_bricks:
-                brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-                if (len(brickindx) != 1):
-                    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
-                    ww = np.where( (brick_info['RA'] > source_data['RA'].min()) *
-                                   (brick_info['RA'] < source_data['RA'].max()) *
-                                   (brick_info['DEC'] > source_data['DEC'].min()) *
-                                   (brick_info['DEC'] < source_data['DEC'].max()) )[0]
-                    print(brick_info['BRICKNAME'][ww])
-                    import matplotlib.pyplot as plt
-                    plt.scatter(source_data['RA'], source_data['DEC'])
-                    plt.scatter(brick_info['RA'], brick_info['DEC'])
-                    plt.xlim(source_data['RA'].min()-0.2, source_data['RA'].max()+0.2)
-                    plt.ylim(source_data['DEC'].min()-0.2, source_data['DEC'].max()+0.3)
-                    plt.show()
-                    import pdb ; pdb.set_trace()
-        
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
-            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
-
-        nbrick = np.zeros((), dtype='i8')
-        t0 = time()
-        def _update_spectra_status(result):
-            if nbrick % 10 == 0 and nbrick > 0:
-                rate = (time() - t0) / nbrick
-                log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
-            nbrick[...] += 1    # this is an in-place modification
-            return result
-
-        specargs = list()
-        for thisbrick in unique_bricks:
-            specargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
-                              Spectra, params['dust_dir'], select_targets_function,
-                              source_data, rand, log) )
-
-        if nproc > 1:
-            pool = sharedmem.MapReduce(np=nproc)
-            with pool:
-                out = pool.map(_get_spectra_onebrick, specargs,
-                               reduce=_update_spectra_status)
-        else:
-            out = list()
-            for ii in range(len(unique_bricks)):
-                out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
-
-        del source_data # memory clean-up
-
-        # Unpack the results removing any possible bricks without targets.
-        out = list(zip(*out))
-
-        # SKY are a special case of targets without truth or trueflux.
-        targets = vstack(out[0])
-        truth = vstack(out[1])
-        if target_name.upper() != 'SKY':
-            trueflux = np.concatenate(out[2])
-        
-            keep = np.where(targets['DESI_TARGET'] != 0)[0]
-            if len(keep) == 0:
-                continue
-
-            targets = targets[keep]
-            truth = truth[keep]
-            trueflux = trueflux[keep, :]
-        del out
-
-        # Finally downsample based on the desired number density.
-        if 'density' in params['sources'][source_name].keys():
-            density = params['sources'][source_name]['density']
-            if target_name != 'QSO':
-                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                
-            if target_name == 'QSO':
-                # Distinguish between the Lyman-alpha and tracer QSOs
-                if 'LYA' in params['sources'][source_name].keys():
-                    density_lya = params['sources'][source_name]['LYA']['density']
-                    zcut = params['sources'][source_name]['LYA']['zcut']
-                    tracer = truth['TRUEZ'] < zcut
-                    lya = truth['TRUEZ'] >= zcut
-                    if len(tracer) > 0:
-                        log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
-                                                 density=density, subset=tracer)
-                        print()
-                    if len(lya) > 0:
-                        log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
-                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
-                                                 density=density_lya, subset=lya)
-
-                else:
-                    Selection.density_select(targets, truth, source_name=source_name,
-                                             target_name=target_name, density=density)
-                    
-            else:
-                Selection.density_select(targets, truth, source_name=source_name,
-                                         target_name=target_name, density=density)            
-
-            keep = np.where(targets['DESI_TARGET'] != 0)[0]
-            #keep = np.where( np.any( ((targets['DESI_TARGET'] != 0), (truth['CONTAM_TARGET'] != 0)), axis=0) )[0]
-
-            if len(keep) == 0:
-                log.warning('All {} targets rejected!'.format(target_name))
-            else:
-                targets = targets[keep]
-                truth = truth[keep]
-                if target_name.upper() != 'SKY':
-                    trueflux = trueflux[keep, :]
-
-        #rewrite the target ID to be sure that it is unique in this brick
-        if len(targets):
-            new_pixel_ID = current_pixel_ID + len(targets)
-            targets['BRICK_OBJID'][:]= np.arange(current_pixel_ID,new_pixel_ID)
-            current_pixel_ID = new_pixel_ID
+def _finish_catalog(targets, truth, skytargets, nside, healpix, rand, log):
+    """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
+    
+    Args:
+        targets: astropy.table
+            Final set of Targets. 
+        truth: astropy.table
+            Corresponding Truth to Targets
+        skytargets: astropy.table
+            Sky positions
+        nside: int
+            nside for healpix
+        healpix: int
+            healpixel
+        rand: numpy.random.RandomState
+           Object for random number generation.
+        log: desiutil.logger
+           Logger object.
             
-        if target_name.upper() == 'SKY':
-            skytruth = truth.copy()
-            skytargets = targets.copy()
-        else:
-            alltargets.append(targets)
-            alltruth.append(truth)
-            alltrueflux.append(trueflux)
-        print()
-
-    del brick_info # memory clean-up
-
-    # Consolidate across all the mocks.  Note that the code quits if alltargets
-    #is zero-length, even if skytargets is non-zero length. In other words, if
-    #the parameter file only contains SKY the code will (wrongly) quit anyway.
-    if len(alltargets) == 0:
-        log.info('No targets; all done.')
-        return
-
+    Returns:
+        Updated versions of: targets, truth, and skytargets.
     
-    targets = vstack(alltargets)
-    truth = vstack(alltruth)
-    trueflux = np.concatenate(alltrueflux)
+    """
+    from desiutil.brick import Bricks
 
-    # Finally downsample contaminants.  The way this is being done isn't ideal
-    # because in principle an object could be a contaminant in one target class
-    # (and be tossed) but be a contaminant for another target class and be kept.
-    # But I think this is mostly OK.
-    for source_name in sorted(params['sources'].keys()):
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+    nobj = len(targets)
+    nsky = len(skytargets)
+    log.info('Number of targets and sky in pixel {}: {} {}'.format(healpix, nobj, nsky))
+
+    # Assign the correct BRICKID and unique OBJIDs for every object on this brick.
+    brick_info = Bricks().to_table()
+
+    if nobj > 0 and nsky > 0:
+        allbrickname = set(targets['BRICKNAME']) | set(skytargets['BRICKNAME'])
+    if nobj > 0 and nsky == 0:
+        allbrickname = set(targets['BRICKNAME'])
+    if nobj == 0 and nsky > 0:
+        allbrickname = set(skytargets['BRICKNAME'])
         
-        if 'contam' in params['sources'][source_name].keys():
-            log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
-            contam = params['sources'][source_name]['contam']
+    for brickname in allbrickname:
+        iinfo = np.where(brickname == brick_info['BRICKNAME'])[0]
 
-            Selection.contaminants_select(targets, truth, source_name=source_name,
-                                          target_name=target_name, contam=contam)
+        nobj_brick = 0
+        if nobj > 0:
+            itarg = np.where(brickname == targets['BRICKNAME'])[0]
+            nobj_brick = len(itarg)
+            targets['BRICKID'][itarg] = brick_info['BRICKID'][iinfo]
+            targets['BRICK_OBJID'][itarg] = np.arange(nobj_brick)
             
-            keep = np.where(targets['DESI_TARGET'] != 0)[0]
-            if len(keep) == 0:
-                log.warning('All {} contaminants rejected!'.format(target_name))
-            else:
-                targets = targets[keep]
-                truth = truth[keep]
-                trueflux = trueflux[keep, :]
-
-    # Finally assign TARGETIDs and subpriorities.
-    ntarget = len(targets)
-    try:
-        nsky = len(skytargets)
-    except:
-        nsky = 0
-
-    #compute target healpixel number
-    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
-    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targpix, mock=1)
-    truth['TARGETID'][:] = targetid
-    targets['TARGETID'][:] = targetid
-    del targetid
-
-    
-    
-    if nsky > 0:
-        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
-                                                    brickid=skypix, mock=1, sky=1)
-
-    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
-    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
-    if nsky > 0:
-        skytargets['SUBPRIORITY'][:] = subpriority[ntarget:ntarget+nsky]
-
-    # Write the final catalogs out by healpixel.
-    if seed is None:
-        seed1 = 'None'
-    else:
-        seed1 = seed
-    truthhdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed')
-        ))
-
-    targetshdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed')
-        ))
-    targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
-    targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
-
-    targets['HPXPIXEL'][:] = targpix
-
-    if nsky > 0:
-        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['HPXPIXEL'][:] = skypix
-
-    for pixnum in healpixels:
-        # healsuffix = '{}-{}.fits'.format(nside, pixnum)
-        outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
-        os.makedirs(outdir, exist_ok=True)
-
-        # Write out the sky catalog.
         if nsky > 0:
-            isky = pixnum == skypix
-            if np.count_nonzero(isky) > 0:
-                # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
-                skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
-            
-                log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
-                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY',
-                               header=targetshdr, clobber=True)
-                os.rename(skyfile+'.tmp', skyfile)
+            iskytarg = np.where(brickname == skytargets['BRICKNAME'])[0]
+            nsky_brick = len(iskytarg)
+            skytargets['BRICKID'][iskytarg] = brick_info['BRICKID'][iinfo]
+            skytargets['BRICK_OBJID'][iskytarg] = np.arange(nsky_brick) + nobj_brick
 
-        # Select targets in this pixel
-        inpixel     = (pixnum == targpix)
-        npixtargets = np.count_nonzero(inpixel)
+    subpriority = rand.uniform(0.0, 1.0, size=nobj+nsky)
+    
+    if nobj > 0:
+        targetid = encode_targetid(objid=targets['BRICK_OBJID'], brickid=targets['BRICKID'], mock=1)
+        truth['TARGETID'][:] = targetid
+        targets['TARGETID'][:] = targetid
+        targets['SUBPRIORITY'][:] = subpriority[:nobj]
 
-        # Write out the dark- and bright-time standard stars.
-        for stdsuffix in ('dark', 'bright'):
-            # Standards taken from targets
-
-            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
-
-            # Select all targets with each of the standard star types and
-            # matching obsconditions
-            if stdsuffix == 'dark':
-                dark_std_mask = desi_mask.STD_FSTAR | desi_mask.STD_WD
-                istd = inpixel & ((targets['DESI_TARGET'] & dark_std_mask) != 0)
-            elif stdsuffix == 'bright':
-                bright_std_mask = desi_mask.STD_BRIGHT | desi_mask.STD_WD
-                istd = inpixel & ((targets['DESI_TARGET'] & bright_std_mask) != 0)
-            else:
-                raise RuntimeError('unknown stdsuffix {}'.format(stdsuffix))
-
-            if np.count_nonzero(istd) > 0:
-                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
-                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
-                               header=targetshdr, clobber=True)
-                os.rename(stdfile+'.tmp', stdfile)
-            else:
-                log.error('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
-
-        # Finally write out the rest of the targets.
-        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
-        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
-
-        if npixtargets > 0:
-            log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
-            targets.meta['EXTNAME'] = 'TARGETS'
-            write_bintable(targetsfile+'.tmp', targets[inpixel], extname='TARGETS',
-                           header=targetshdr, clobber=True)
-            os.rename(targetsfile+'.tmp', targetsfile)
-
-            log.info('Writing {}'.format(truthfile))
-            hx = fits.HDUList()
-            hdu = fits.convenience.table_to_hdu(truth[inpixel])
-            hdu.header['EXTNAME'] = 'TRUTH'
-            hx.append(hdu)
-
-            hdu = fits.ImageHDU(Spectra.wave.astype(np.float32), name='WAVE', header=truthhdr)
-            hdu.header['BUNIT'] = 'Angstrom'
-            hdu.header['AIRORVAC'] = 'vac'
-            hx.append(hdu)
-
-            hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
-            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
-            hx.append(hdu)
-
-            try:
-                hx.writeto(truthfile+'.tmp', overwrite=True)
-            except:
-                hx.writeto(truthfile+'.tmp', clobber=True)
-            os.rename(truthfile+'.tmp', truthfile)
+        targets['HPXPIXEL'][:] = radec2pix(nside, targets['RA'], targets['DEC'])
+        
+    if nsky > 0:
+        skytargetid = encode_targetid(objid=skytargets['BRICK_OBJID'], brickid=skytargets['BRICKID'], mock=1, sky=1)
+        skytargets['TARGETID'][:] = skytargetid
+        skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
+        
+        skytargets['HPXPIXEL'][:] = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+    
+    return targets, truth, skytargets
 
 def write_to_disk(targets, truth, skytargets, skytruth, nside,
                   healpix_id, seed, rand, log, output_dir):
@@ -1270,7 +988,8 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
     truth = truth[keep]
     return targets, truth
     
-def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
+def finish_catalog_nospectra(targets, truth, skytargets, skytruth, nside,
+                             healpix_id, seed, rand, log, output_dir):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
     
     Args:
@@ -1536,8 +1255,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             skytruth = []
 
         #Add some final columns
-        targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
-                                                              nside,healpix, seed, rand, log, output_dir)
+        targets, truth, skytargets, skytruth = finish_catalog_nospectra(targets, truth, skytargets, skytruth,
+                                                                        nside,healpix, seed, rand, log, output_dir)
         #write the results
         write_to_disk(targets, truth, skytargets, skytruth,  
                           nside, healpix, seed, rand, log, output_dir)
