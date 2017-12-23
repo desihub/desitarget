@@ -412,6 +412,35 @@ def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
                         
     return source_data
 
+def _scatter_photometry(targname, source_data, meta, truth, targets, indx, rand):
+    """Add noise to the photometry based on the depth.
+
+    """
+    if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
+        depthprefix = 'GAL'
+    else:
+        depthprefix = 'PSF'
+        
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
+                'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+        truth[key][:] = meta[key]
+
+    nobj = len(meta)
+
+    for band in ('G', 'R', 'Z'):
+        fluxkey = 'FLUX_{}'.format(band)
+        depthkey = '{}DEPTH_{}'.format(depthprefix, band)
+            
+        sigma = 5 / np.sqrt(source_data[depthkey][indx]) # nanomaggies, 1-sigma
+        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=sigma, size=nobj)
+
+    for band in ('W1', 'W2'):
+        fluxkey = 'FLUX_{}'.format(band)
+        depthkey = 'PSFDEPTH_{}'.format(band)
+            
+        sigma = 5 / np.sqrt(source_data[depthkey][indx]) # nanomaggies, 1-sigma
+        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=sigma, size=nobj)
+
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
@@ -448,7 +477,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
     targname = source_data['SOURCE_NAME'].lower()
 
     if len(indx) < ntarget:
-        log.warning('Too few candidate targets ({}) than desired targets ({}) on mini healpixel XXX.'.format(
+        log.warning('Too few candidate targets ({}) than desired ({}).'.format(
             len(indx), ntarget))
 
     # Skies are a special case -- no need to chunk.
@@ -465,11 +494,6 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
     truth = list()
     trueflux = list()
 
-    if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
-        depthprefix = 'GAL'
-    else:
-        depthprefix = 'PSF'
-
     ntot = 0
     for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
 
@@ -478,25 +502,18 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function, ra
         # Generate the spectra.
         chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
                                                           mockformat=source_data['MOCKFORMAT'])
-
-        # Perturb the photometry based on the depth in this healpixel.
-        for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                    'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-            _truth[key][:] = chunkmeta[key]
         
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
-            fluxkey = 'FLUX_{}'.format(band)
-            depthkey = '{}DEPTH_{}'.format(depthprefix, band)
-            
-            sigma = 5 / np.sqrt(source_data[depthkey][chunkindx]) # nanomaggies, 1-sigma
-            _targets[fluxkey][:] = _truth[fluxkey][:] + rand.normal(scale=sigma)
+        # Scatter the photometry based on the depth.
+        _scatter_photometry(targname, source_data, chunkmeta,
+                            _truth, _targets, chunkindx, rand)
 
         # Select targets.
         select_targets_function(_targets, _truth)#, boss_std=boss_std)
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
 
-        log.debug('Selected {} / {} targets on chunk {} / {}.'.format(nkeep, len(chunkindx), ii+1, nchunk))
+        log.debug('Selected {} / {} targets on chunk {} / {}.'.format(
+            nkeep, len(chunkindx), ii+1, nchunk))
 
         if nkeep > 0:
             targets.append(_targets[keep])
@@ -528,7 +545,8 @@ def _healpixel_chunks(log, nside, nside_chunk):
     area = hp.nside2pixarea(nside_chunk, degrees=True)
 
     nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
-    log.info('Dividing the sample into {} chunk(s).'.format(nchunk))
+    log.info('Dividing each nside={} healpixel into {} nside={} mini pixel(s).'.format(
+        nside, nchunk, nside_chunk))
 
     return nchunk, area
 
@@ -639,6 +657,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if source_name.upper() == 'SKY':
                 skytargets = vstack(pixel_results[0])
                 skytruth = vstack(pixel_results[1])
+                log.info('Generated {} sky targets.'.format(len(skytargets)))
 
                 allskytargets.append(skytargets)
                 allskytruth.append(skytruth)
@@ -646,6 +665,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 targets = vstack(pixel_results[0])
                 truth = vstack(pixel_results[1])
                 trueflux = np.concatenate(pixel_results[2])
+                log.info('Generated spectra for {} {} targets.'.format(len(targets), source_name))
 
                 alltargets.append(targets)
                 alltruth.append(truth)
@@ -1292,6 +1312,8 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
     '''
     import fitsio
     import glob
+    from desiutil.log import get_logger
+    
     if comm is not None:
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -1397,6 +1419,7 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
     #- Make initial merged target list (MTL) using rank 0
     if rank == 0 and todo['mtl']:
         from desitarget import mtl
+        from desiutil.log import get_logger
         log = get_logger()
         out_mtl = os.path.join(outdir, 'mtl.fits')
         log.info('Generating merged target list {}'.format(out_mtl))
