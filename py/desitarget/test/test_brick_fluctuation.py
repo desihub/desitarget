@@ -30,10 +30,11 @@ class TestBrickFluctuation(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
-        self.brick_info = build.BrickInfo()
-        self.b = self.brick_info.generate_brick_info()
-        self.depth = self.brick_info.depths_across_bricks(self.b)
+        #self.brick_info = build.BrickInfo()
+        #self.b = self.brick_info.generate_brick_info()
+        #self.depth = self.brick_info.depths_across_bricks(self.b)
 
+    @unittest.skip('This test is deprecated, so skip for now.')
     def test_generate_brick(self):
         keys = ['BRICKNAME', 'BRICKID', 'BRICKQ', 'BRICKROW', 'BRICKCOL',
                 'RA', 'DEC', 'RA1', 'RA2', 'DEC1', 'DEC2', 'AREA']
@@ -43,6 +44,7 @@ class TestBrickFluctuation(unittest.TestCase):
         self.assertTrue(np.all((self.b['RA']<self.b['RA2']) & (self.b['RA']>self.b['RA1'])))
         self.assertTrue(np.all((self.b['DEC']<=self.b['DEC2']) & (self.b['DEC']>=self.b['DEC1'])))
 
+    @unittest.skip('This test is deprecated, so skip for now.')
     def test_generate_depths(self):
         keys = ['PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z', 'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z']
         for k in self.depth.keys():

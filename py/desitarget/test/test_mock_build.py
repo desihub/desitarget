@@ -9,7 +9,6 @@ import healpy as hp
 
 import desimodel.footprint
 
-from desitarget.mock.build import add_mock_shapes_and_fluxes
 from desitarget.mock.sky import random_sky
 from desitarget import desi_mask, bgs_mask, mws_mask
 
@@ -20,6 +19,7 @@ class TestMockBuild(unittest.TestCase):
 
     @unittest.skip('This test is deprecated, so skip for now.')
     def test_shapes_and_fluxes(self):
+        from desitarget.mock.build import add_mock_shapes_and_fluxes
         nreal = 40
         real = Table()
         real['DESI_TARGET'] = 2**np.random.randint(0,3,size=nreal)
