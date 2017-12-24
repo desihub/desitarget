@@ -628,7 +628,6 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
         except:
             log.fatal('Mock file {} not found!'.format(mockfile_lya))
             raise IOError
-
         
         if new_format :
             tmp         = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKID' ,'Z','PIXNUM'],
@@ -644,7 +643,8 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             del tmp
         else :
             
-            tmp = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID', 'MOCKHDUNUM', 'MAG_G', 'Z'], upper=True, ext=1)
+            tmp = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID', 'MOCKHDUNUM', 'MAG_G', 'Z'],
+                              upper=True, ext=1)
             nobj_lya  = len(tmp)
             
             objid_lya = np.arange(nobj_lya, dtype='i8')
@@ -661,7 +661,6 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             
             lyainfo   = fitsio.read(mockfile_lya, upper=True, ext=2)
             files_lya = lyainfo['MOCKFILE'][mockfileid_lya]            
-            
         
         # apply sky cut
         allpix = radec2pix(nside, ra_lya, dec_lya)

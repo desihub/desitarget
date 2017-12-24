@@ -59,7 +59,6 @@ class SelectTargets(object):
             self.bgs_mask.BGS_FAINT_SOUTH.obsconditions)
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.desi_mask.BGS_ANY.obsconditions)
-
         
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
@@ -73,7 +72,6 @@ class SelectTargets(object):
             self.desi_mask.ELG.obsconditions)
         targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
             self.desi_mask.ELG_SOUTH.obsconditions)
-
         
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM

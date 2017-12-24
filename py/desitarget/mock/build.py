@@ -131,11 +131,13 @@ def empty_truth_table(nobj=1):
 
     return truth
 
-def _initialize_targets_and_truth(source_data, indx):
+def _initialize_targets_and_truth(source_data, indx=None):
     """Given a source_data dictionary, initialize the 'targets' and 'truth' tables
     and populate them with various quantities of interest.
 
     """
+    if indx is None:
+        indx = np.arange(len(source_data['RA']))
     nobj = len(indx)
 
     # Initialize the tables.
@@ -178,8 +180,8 @@ def _initialize_targets_and_truth(source_data, indx):
 
     return targets, truth
 
-def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16,
-               healpixels=None, no_spectra=False):
+def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
+                nside=16, healpixels=None, no_spectra=False):
     """Initialize various objects needed to generate mock targets (with and without
     spectra).
 
@@ -412,34 +414,106 @@ def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
                         
     return source_data
 
-def _scatter_photometry(targname, source_data, meta, truth, targets, indx, rand):
+def _scatter_photometry(targname, source_data, truth, targets,
+                        rand, meta=None, indx=None):
     """Add noise to the photometry based on the depth.
 
     """
+    if indx is None:
+        indx = np.arange(len(source_data['RA']))
+    nobj = len(indx)
+
+    # Optionally populate from a metadata table.
+    if meta is not None:
+        for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
+                    'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+            truth[key][:] = meta[key]
+
+    # Depth.
     if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
         depthprefix = 'GAL'
     else:
         depthprefix = 'PSF'
-        
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
-                'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
-
-    nobj = len(meta)
 
     for band in ('G', 'R', 'Z'):
         fluxkey = 'FLUX_{}'.format(band)
         depthkey = '{}DEPTH_{}'.format(depthprefix, band)
             
         sigma = 5 / np.sqrt(source_data[depthkey][indx]) # nanomaggies, 1-sigma
-        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=sigma, size=nobj)
+        targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
     for band in ('W1', 'W2'):
         fluxkey = 'FLUX_{}'.format(band)
         depthkey = 'PSFDEPTH_{}'.format(band)
             
         sigma = 5 / np.sqrt(source_data[depthkey][indx]) # nanomaggies, 1-sigma
-        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=sigma, size=nobj)
+        targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
+
+def _faintstar_targets_truth(source_data, indx, Spectra, select_targets_function, log,
+                             rand, mockformat='galaxia', qaplot=False):
+    """Preselect stars that are going to pass target selection cuts without actually
+    generating spectra, in order to save memory and time.
+
+    """
+    if mockformat.lower() == 'galaxia':
+        alldata = np.vstack((source_data['TEFF'][indx],
+                             source_data['LOGG'][indx],
+                             source_data['FEH'][indx])).T
+        _, templateid = Spectra.tree.query('STAR', alldata)
+        templateid = templateid.flatten()
+    else:
+        log.warning('Unrecognized mockformat {}!'.format(mockformat))
+        raise ValueError
+
+    normmag = 1e9 * 10**(-0.4 * source_data['MAG'][indx]) # nanomaggies
+
+    # Initialize dummy targets and truth tables.
+    targets, truth = _initialize_targets_and_truth(source_data, indx=indx)
+
+    # Pack the noiseless photometry in the truth table, generate noisy
+    # photometry, and then select targets.
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        truth['FLUX_{}'.format(band)] = getattr( Spectra.tree, 'star_flux_{}'.format(
+            band.lower()) )[templateid] * normmag
+        
+    _scatter_photometry('faintstar', source_data, truth, targets, rand, indx=indx)
+
+    select_targets_function(targets, truth)#, boss_std=boss_std)
+
+    keep = np.where(targets['DESI_TARGET'] != 0)[0]
+    log.info('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
+    
+    if len(keep) > 0:
+        targets = targets[keep]
+        truth = truth[keep]
+        
+        flux, meta = Spectra.faintstar(source_data, index=indx[keep],
+                                       mockformat=mockformat)
+        
+        for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
+                    'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+            truth[key][:] = meta[key]
+    else:
+        flux, meta = [], []
+    
+    if qaplot:
+        import matplotlib.pyplot as plt
+        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', 
+                    label='Noiseless Photometry')
+        plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none',
+                    label='Noisy Photometry')
+        if len(keep) > 0:
+            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
+            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k')
+        plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+        plt.legend(loc='upper left')
+        plt.show()
+    
+    return targets, truth, flux
 
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
@@ -476,6 +550,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
 
     """
     targname = source_data['SOURCE_NAME'].lower()
+    mockformat = source_data['MOCKFORMAT'].lower()
 
     if len(indx) < ntarget:
         log.warning('Too few candidate targets ({}) than desired ({}).'.format(
@@ -498,18 +573,26 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
     ntot = 0
     for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
 
-        _targets, _truth = _initialize_targets_and_truth(source_data, chunkindx)
+        # Faintstar targets are a special case.
+        if targname == 'faintstar':
+            _targets, _truth, chunkflux = _faintstar_targets_truth(source_data, chunkindx, Spectra,
+                                                                   select_targets_function,
+                                                                   log, rand, mockformat=mockformat)
 
-        # Generate the spectra.
-        chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
-                                                          mockformat=source_data['MOCKFORMAT'])
+        else:
+            _targets, _truth = _initialize_targets_and_truth(source_data, chunkindx)
+
+            # Generate the spectra.
+            chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
+                                                              mockformat=mockformat)
         
-        # Scatter the photometry based on the depth.
-        _scatter_photometry(targname, source_data, chunkmeta,
-                            _truth, _targets, chunkindx, rand)
+            # Scatter the photometry based on the depth.
+            _scatter_photometry(targname, source_data, _truth, _targets,
+                                rand, meta=chunkmeta, indx=chunkindx)
 
-        # Select targets.
-        select_targets_function(_targets, _truth)#, boss_std=boss_std)
+            # Select targets.
+            select_targets_function(_targets, _truth)#, boss_std=boss_std)
+
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
 
@@ -521,6 +604,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
             truth.append(_truth[keep])
             trueflux.append(chunkflux[keep, :])
 
+        # If we have enough, get out!
         ntot += nkeep
         if ntot >= ntarget:
             break
@@ -615,6 +699,10 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             if not bool(source_data):
                 continue
 
+            # Instantiate the target selection function.
+            selection_function = '{}_select'.format(source_name.lower())
+            select_targets_function = getattr(Selection, selection_function)
+
             # Target density -- need a proper fluctuations model here.
             # NTARGETPERCHUNK needs to be an array with the targets divided
             # among the chunk healpixels.
@@ -628,10 +716,6 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
                 ntarget, source_name, density))
-
-            # Instantiate the target selection function.
-            selection_function = '{}_select'.format(source_name.lower())
-            select_targets_function = getattr(Selection, selection_function)
 
             # Generate the spectra in chunks of smaller healpixels.
             healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
@@ -651,7 +735,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             def _update_spectra_status(result):
                 if nn % 2 == 0 and nn > 0:
                     rate = (time() - t0) / nn
-                    log.info('{} chunk(s); {:.1f} sec / healpix chunk'.format(nn, rate))
+                    log.info('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
                 nn[...] += 1    # in-place modification
                 return result
 
@@ -740,7 +824,7 @@ def _finish_catalog(targets, truth, skytargets, skytruth,
 
     nobj = len(targets)
     nsky = len(skytargets)
-    log.info('Number of targets and sky in pixel {}: {} {}'.format(healpix, nobj, nsky))
+    log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
 
     # Assign the correct BRICKID and unique OBJIDs for every object on this brick.
     brick_info = Bricks().to_table()
@@ -839,12 +923,15 @@ def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
     os.makedirs(outdir, exist_ok=True)
 
     # Write out the sky catalog.
+    skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
     if nsky > 0:
-        skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
         log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
         write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
                                header=targetshdr, clobber=True)
         os.rename(skyfile+'.tmp', skyfile)
+    else:
+        log.info('No sky targets generated; {} not written.'.format(skyfile))
+        log.info('  Sky file {} not written.'.format(skyfile))
 
     if nobj > 0:
     # Write out the dark- and bright-time standard stars.
@@ -854,25 +941,26 @@ def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
                    (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
 
             if np.count_nonzero(istd) > 0:
-                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
+                log.info('Writing {} {} standards to {}'.format(np.sum(istd), stdsuffix.upper(), stdfile))
                 write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
                                header=targetshdr, clobber=True)
                 os.rename(stdfile+'.tmp', stdfile)
             else:
-                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
+                log.info('No {} standards stars selected.'.format(stdsuffix))
+                log.info('  Standard star file {} not written.'.format(stdfile))
 
         # Finally write out the rest of the targets.
         targetsfile = mockio.findfile('targets', nside, healpix_id, basedir=output_dir)
         truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
-
    
-        log.info('Writing {} targets to {}'.format(nobj, targetsfile))
+        log.info('Writing {} targets to:'.format(nobj))
+        log.info('  {}'.format(targetsfile))
         targets.meta['EXTNAME'] = 'TARGETS'
         write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
                           header=targetshdr, clobber=True)
         os.rename(targetsfile+'.tmp', targetsfile)
 
-        log.info('Writing {}'.format(truthfile))
+        log.info('  {}'.format(truthfile))
         hx = fits.HDUList()
         hdu = fits.convenience.table_to_hdu(truth)
         hdu.header['EXTNAME'] = 'TRUTH'

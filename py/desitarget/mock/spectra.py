@@ -8,24 +8,10 @@ desitarget.mock.spectra
 Functions dealing with assigning template spectra to mock targets.
 
 """
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
 
 import numpy as np
-import multiprocessing
-
 from desisim.io import read_basis_templates, empty_metatable
-
-def _get_colors_onez(args):
-    """Filler function to synthesize photometry at a given redshift"""
-    return get_colors_onez(*args)
-
-def get_colors_onez(z, flux, wave, filt):
-    print(z)
-    zwave = wave.astype('float') * (1 + z)
-    phot = filt.get_ab_maggies(flux, zwave, mask_invalid=False)
-    gr = -2.5 * np.log10( phot['decam2014-g'] / phot['decam2014-r'] )
-    rz = -2.5 * np.log10( phot['decam2014-r'] / phot['decam2014-z'] )
-    return [gr, rz]
 
 class TemplateKDTree(object):
     """Build a KD Tree for each object type.
@@ -57,9 +43,6 @@ class TemplateKDTree(object):
         # Read all the stellar spectra and synthesize DECaLS/WISE fluxes.
         self.star_phot()
 
-        #self.elg_phot()
-        #self.elg_kcorr = read_basis_templates(objtype='ELG', onlykcorr=True)
-
         self.bgs_tree = KDTree(self._bgs())
         self.elg_tree = KDTree(self._elg())
         #self.lrg_tree = KDTree(self._lrg())
@@ -68,21 +51,20 @@ class TemplateKDTree(object):
         self.wd_da_tree = KDTree(self._wd_da())
         self.wd_db_tree = KDTree(self._wd_db())
 
-    def star_phot(self):
+    def star_phot(self, normfilter='decam2014-r'):
         """Synthesize photometry for the full set of stellar templates."""
-        star_normfilter = 'decam2014-r'
 
         star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR', verbose=False)
         star_maggies_table = self.decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
 
-        star_maggies = np.zeros( (len(star_meta), len(self.decamwise)) )
-        for ff, key in enumerate(star_maggies_table.columns):
-            star_maggies[:, ff] = star_maggies_table[key] / star_maggies_table[star_normfilter] # maggies
-        self.star_flux_g = star_maggies[:, 0]
-        self.star_flux_r = star_maggies[:, 1]
-        self.star_flux_z = star_maggies[:, 2]
-        self.star_flux_w1 = star_maggies[:, 3]
-        self.star_flux_w2 = star_maggies[:, 4]
+        star_maggies = dict()
+        for key in star_maggies_table.columns:
+            star_maggies[key] = star_maggies_table[key] / star_maggies_table[normfilter] # normalized maggies
+        self.star_flux_g = star_maggies['decam2014-g']
+        self.star_flux_r = star_maggies['decam2014-r']
+        self.star_flux_z = star_maggies['decam2014-z']
+        self.star_flux_w1 = star_maggies['wise2010-W1']
+        self.star_flux_w2 = star_maggies['wise2010-W1']
         
         self.star_meta = star_meta
 
@@ -216,11 +198,12 @@ class MockSpectra(object):
         #self.__normfilter = 'decam2014-r' # default normalization filter
 
         # Initialize the templates once:
-        from desisim.templates import BGS, ELG, LRG, QSO, STAR, WD
+        from desisim.templates import BGS, ELG, LRG, QSO, SIMQSO, STAR, WD
         self.bgs_templates = BGS(wave=self.wave, normfilter='sdss2010-r') # Need to generalize this!
         self.elg_templates = ELG(wave=self.wave, normfilter='decam2014-r')
         self.lrg_templates = LRG(wave=self.wave, normfilter='decam2014-z')
         self.qso_templates = QSO(wave=self.wave, normfilter='decam2014-g')
+        self.simqso_templates = SIMQSO(wave=self.wave, normfilter='decam2014-g')
         self.lya_templates = QSO(wave=self.wave, normfilter='decam2014-g')
         self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
         self.wd_da_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DA')
@@ -554,55 +537,54 @@ class MockSpectra(object):
                         meta[lya[these]] = meta1
                         flux[lya[these], :] = flux1
                 else : # new format
-                    # read skewers
-                    skewer_wave=None
-                    skewer_trans=None
-                    skewer_meta=None
+                    # Read skewers.
+                    skewer_wave = None
+                    skewer_trans = None
+                    skewer_meta = None
                     
-                    # all the files that contain at least one QSO skewer
+                    # All the files that contain at least one QSO skewer.
                     alllyafile = data['LYAFILES'][ilya]
                     uniquelyafiles = sorted(set(alllyafile))
                                         
                     for lyafile in uniquelyafiles :
                         these = np.where( alllyafile == lyafile )[0]
-                        objid_in_data=data['OBJID'][ilya][these]
-                        objid_in_mock=(fitsio.read(lyafile, columns=['MOCKID'],upper=True,ext=1).astype(float)).astype(int)
-                        o2i=dict()
-                        for i,o in enumerate(objid_in_mock) :
-                            o2i[o]=i
-                        indices_in_mock_healpix=np.zeros(objid_in_data.size).astype(int)
-                        for i,o in enumerate(objid_in_data) :
-                            if not o in o2i :
+                        objid_in_data = data['OBJID'][ilya][these]
+                        objid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
+                                                     ext=1).astype(float)).astype(int)
+                        o2i = dict()
+                        for i, o in enumerate(objid_in_mock):
+                            o2i[o] = i
+                        indices_in_mock_healpix = np.zeros(objid_in_data.size).astype(int)
+                        for i, o in enumerate(objid_in_data):
+                            if not o in o2i:
                                 self.log.error("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile))
                                 raise(KeyError("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile)))
-                            indices_in_mock_healpix[i]=o2i[o]
+                            indices_in_mock_healpix[i] = o2i[o]
                         
-                        tmp_wave,tmp_trans,tmp_meta = read_lya_skewers(lyafile,indices=indices_in_mock_healpix) 
+                        tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(lyafile, indices=indices_in_mock_healpix) 
                                                 
-                        if skewer_wave is None :
-                            skewer_wave=tmp_wave
-                            dw=skewer_wave[1]-skewer_wave[0] # this is just to check same wavelength
-                            skewer_trans=np.zeros((nqso,skewer_wave.size)) # allocate skewer_array
-                            skewer_meta=dict()
-                            for k in tmp_meta.dtype.names :
-                                skewer_meta[k]=np.zeros(nqso).astype(tmp_meta[k].dtype)
+                        if skewer_wave is None:
+                            skewer_wave = tmp_wave
+                            dw = skewer_wave[1]-skewer_wave[0] # this is just to check same wavelength
+                            skewer_trans = np.zeros((nqso,skewer_wave.size)) # allocate skewer_array
+                            skewer_meta = dict()
+                            for k in tmp_meta.dtype.names:
+                                skewer_meta[k] = np.zeros(nqso).astype(tmp_meta[k].dtype)
                         else :
                             # check wavelength is the same for all skewers
                             assert(np.max(np.abs(wave-tmp_wave))<0.001*dw)
                         
                         skewer_trans[these] = tmp_trans
-                        for k in skewer_meta.keys() :
-                            skewer_meta[k][these]=tmp_meta[k]
+                        for k in skewer_meta.keys():
+                            skewer_meta[k][these] = tmp_meta[k]
                     
-                    # check we matched things correctly
+                    # Check we matched things correctly.
                     assert(np.max(np.abs(skewer_meta["Z"]-data['Z'][ilya]))<0.000001)
                     assert(np.max(np.abs(skewer_meta["RA"]-data['RA'][ilya]))<0.000001)
                     assert(np.max(np.abs(skewer_meta["DEC"]-data['DEC'][ilya]))<0.000001)
                     
-                    
-                    # now we create a series of QSO spectra all at once
-                    # this is faster than calling each one at a time
-                    # we use the provided QSO template class
+                    # Now we create a series of QSO spectra all at once, which
+                    # is faster than calling each one at a time. 
                     
                     seed = self.rand.randint(2**32)
                     qso  = self.lya_templates
@@ -614,9 +596,8 @@ class MockSpectra(object):
                                                                       nocolorcuts=True)
                     
                     # apply transmission to QSOs
-                    qso_flux = apply_lya_transmission(qso_wave,qso_flux,skewer_wave,skewer_trans)
+                    qso_flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
                     
-                    # save this
                     qso_meta['SUBTYPE'] = 'LYA'
                     meta[lya] = qso_meta
                     flux[lya, :] = qso_flux
