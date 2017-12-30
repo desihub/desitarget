@@ -30,12 +30,12 @@ class TemplateKDTree(object):
         self.nproc = nproc
         self.verbose = verbose
 
-        self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True, verbose=False)
-        self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True, verbose=False)
-        self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True, verbose=False)
-        self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True, verbose=False)
-        self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True, verbose=False)
-        self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True, verbose=False)
+        self.bgs_meta = read_basis_templates(objtype='BGS', onlymeta=True)#, verbose=False)
+        self.elg_meta = read_basis_templates(objtype='ELG', onlymeta=True)#, verbose=False)
+        self.lrg_meta = read_basis_templates(objtype='LRG', onlymeta=True)#, verbose=False)
+        self.qso_meta = read_basis_templates(objtype='QSO', onlymeta=True)#, verbose=False)
+        self.wd_da_meta = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)#, verbose=False)
+        self.wd_db_meta = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)#, verbose=False)
 
         self.decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                               'wise2010-W1', 'wise2010-W2')
@@ -54,7 +54,7 @@ class TemplateKDTree(object):
     def star_phot(self, normfilter='decam2014-r'):
         """Synthesize photometry for the full set of stellar templates."""
 
-        star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR', verbose=False)
+        star_flux, star_wave, star_meta = read_basis_templates(objtype='STAR')#, verbose=False)
         star_maggies_table = self.decamwise.get_ab_maggies(star_flux, star_wave, mask_invalid=True)
 
         star_maggies = dict()
@@ -546,7 +546,7 @@ class MockSpectra(object):
                     alllyafile = data['LYAFILES'][ilya]
                     uniquelyafiles = sorted(set(alllyafile))
                                         
-                    for lyafile in uniquelyafiles :
+                    for lyafile in uniquelyafiles:
                         these = np.where( alllyafile == lyafile )[0]
                         objid_in_data = data['OBJID'][ilya][these]
                         objid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
@@ -584,16 +584,13 @@ class MockSpectra(object):
                     assert(np.max(np.abs(skewer_meta["DEC"]-data['DEC'][ilya]))<0.000001)
                     
                     # Now we create a series of QSO spectra all at once, which
-                    # is faster than calling each one at a time. 
+                    # is faster than calling each one at a time.
                     
-                    seed = self.rand.randint(2**32)
-                    qso  = self.lya_templates
-                    qso_flux, qso_wave, qso_meta = qso.make_templates(nmodel=nqso,
-                                                                      redshift=data['Z'][ilya],
-                                                                      mag=data['MAG'][ilya],
-                                                                      seed=seed,
-                                                                      lyaforest=False,
-                                                                      nocolorcuts=True)
+                    #seed = self.rand.randint(2**32)
+                    #qso  = self.lya_templates
+                    qso_flux, qso_wave, qso_meta = self.simqso_templates.make_templates(
+                        nmodel=nqso, redshift=data['Z'][ilya], #seed=seed,
+                        lyaforest=False, nocolorcuts=True)
                     
                     # apply transmission to QSOs
                     qso_flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)

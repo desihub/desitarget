@@ -629,7 +629,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             log.fatal('Mock file {} not found!'.format(mockfile_lya))
             raise IOError
         
-        if new_format :
+        if new_format:
             tmp         = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKID' ,'Z','PIXNUM'],
                                       upper=True, ext=1)
             ra_lya      = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
@@ -638,10 +638,11 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             objid_lya   = (tmp['MOCKID'].astype(float)).astype(int) # will change
             mockpix_lya = tmp['PIXNUM']
             mockid_lya  = objid_lya.copy() # the logic to read the spectra is in spectra.py, not here            
-            log.warning("FIXED gmag=22 for now, that's where we should use a QSO luminosity function")
-            mag_lya     = 22.*np.ones(zz_lya.size).astype('f4') # g-band
+            #log.warning("FIXED gmag=22 for now, that's where we should use a QSO luminosity function")
+            #mag_lya     = 22.*np.ones(zz_lya.size).astype('f4') # g-band
+            mag_lya = 22.*np.ones(zz_lya.size).astype('f4') # g-band magnitude place-holder
             del tmp
-        else :
+        else:
             
             tmp = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID', 'MOCKHDUNUM', 'MAG_G', 'Z'],
                               upper=True, ext=1)
@@ -685,15 +686,15 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             # adding file path
             if new_format :
                 mockpix_lya = mockpix_lya[cut]
-                mockdir   = os.path.dirname(mockfile_lya)
-                mocknside = lya["nside"]
+                mockdir = os.path.dirname(mockfile_lya)
+                mocknside = lya['nside']
                 lyafiles = []
-                for mpix in mockpix_lya :
+                for mpix in mockpix_lya:
                     lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(mockdir,mpix/100,mpix,mocknside,mpix))
-                lyafiles = np.hstack((lyafiles_qso,lyafiles))
+                lyafiles = np.hstack((lyafiles_qso, lyafiles))
                 
-            else :
-                mockdir   = os.path.dirname(mockfile_lya)
+            else:
+                mockdir = os.path.dirname(mockfile_lya)
                 lyafiles = np.hstack( (lyafiles_qso, np.array([os.path.join(
                     mockdir, ff.decode('utf-8')) for ff in files_lya[cut]])) )
                 lyahdu = np.hstack( (lyahdu_qso, hdu_lya[cut]) )

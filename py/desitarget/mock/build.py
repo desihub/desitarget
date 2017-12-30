@@ -726,8 +726,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 if len(indx) > 0:
                     if len(indx) < ntarg:
                         ntarg = len(indx)
-                        specargs.append( (source_data, indx, Spectra, select_targets_function,
-                                          rand, log, ntarg) )
+                    specargs.append( (source_data, indx, Spectra, select_targets_function,
+                                      rand, log, ntarg) )
 
             # Multiprocessing.
             nn = np.zeros((), dtype='i8')
