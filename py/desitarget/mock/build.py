@@ -789,15 +789,15 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             skytargets = []
 
         # Add some final columns.
-        targets, truth, skytargets = _finish_catalog(targets, truth, skytargets, skytruth,
-                                                     nside, healpix, rand, log)
+        targets, truth, skytargets, skytruth = _finish_catalog(targets, truth, skytargets, skytruth,
+                                                               nside, healpix, rand, log)
 
         # Finally, write the results.
         _write_targets_truth(targets, truth, skytargets, skytruth,  
                              nside, healpix, seed, log, output_dir)
         
-def _finish_catalog(targets, truth, skytargets, skytruth,
-                    nside, healpix, rand, log):
+def _finish_catalog(targets, truth, skytargets, skytruth, nside,
+                    healpix, rand, log, use_brickid=False):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
     
     Args:
@@ -815,60 +815,84 @@ def _finish_catalog(targets, truth, skytargets, skytruth,
            Object for random number generation.
         log: desiutil.logger
            Logger object.
+        use_brickid: bool
+           Assign brickid based on the brickname rather than the healpix
+           numbers.  (Deprecated because it results in duplicated targetid.)
             
     Returns:
         Updated versions of: targets, truth, and skytargets.
-    
-    """
-    from desiutil.brick import Bricks
 
+    """
     nobj = len(targets)
     nsky = len(skytargets)
     log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
 
-    # Assign the correct BRICKID and unique OBJIDs for every object on this brick.
-    brick_info = Bricks().to_table()
+    if use_brickid:
 
-    if nobj > 0 and nsky > 0:
-        allbrickname = set(targets['BRICKNAME']) | set(skytargets['BRICKNAME'])
-    if nobj > 0 and nsky == 0:
-        allbrickname = set(targets['BRICKNAME'])
-    if nobj == 0 and nsky > 0:
-        allbrickname = set(skytargets['BRICKNAME'])
-        
-    for brickname in allbrickname:
-        iinfo = np.where(brickname == brick_info['BRICKNAME'])[0]
+        # Assign the correct BRICKID and unique OBJIDs for every object on this brick.
+        from desiutil.brick import Bricks
 
-        nobj_brick = 0
+        brick_info = Bricks().to_table()
+
+        if nobj > 0 and nsky > 0:
+            allbrickname = set(targets['BRICKNAME']) | set(skytargets['BRICKNAME'])
+        if nobj > 0 and nsky == 0:
+            allbrickname = set(targets['BRICKNAME'])
+        if nobj == 0 and nsky > 0:
+            allbrickname = set(skytargets['BRICKNAME'])
+
+        for brickname in allbrickname:
+            iinfo = np.where(brickname == brick_info['BRICKNAME'])[0]
+
+            nobj_brick = 0
+            if nobj > 0:
+                itarg = np.where(brickname == targets['BRICKNAME'])[0]
+                nobj_brick = len(itarg)
+                targets['BRICKID'][itarg] = brick_info['BRICKID'][iinfo]
+                targets['BRICK_OBJID'][itarg] = np.arange(nobj_brick)
+
+            if nsky > 0:
+                iskytarg = np.where(brickname == skytargets['BRICKNAME'])[0]
+                nsky_brick = len(iskytarg)
+                skytargets['BRICKID'][iskytarg] = brick_info['BRICKID'][iinfo]
+                skytargets['BRICK_OBJID'][iskytarg] = np.arange(nsky_brick) + nobj_brick
+
+        subpriority = rand.uniform(0.0, 1.0, size=nobj+nsky)
+
         if nobj > 0:
-            itarg = np.where(brickname == targets['BRICKNAME'])[0]
-            nobj_brick = len(itarg)
-            targets['BRICKID'][itarg] = brick_info['BRICKID'][iinfo]
-            targets['BRICK_OBJID'][itarg] = np.arange(nobj_brick)
-            
+            targetid = encode_targetid(objid=targets['BRICK_OBJID'], brickid=targets['BRICKID'], mock=1)
+            truth['TARGETID'][:] = targetid
+            targets['TARGETID'][:] = targetid
+            targets['SUBPRIORITY'][:] = subpriority[:nobj]
+
+            targets['HPXPIXEL'][:] = radec2pix(nside, targets['RA'], targets['DEC'])
+
         if nsky > 0:
-            iskytarg = np.where(brickname == skytargets['BRICKNAME'])[0]
-            nsky_brick = len(iskytarg)
-            skytargets['BRICKID'][iskytarg] = brick_info['BRICKID'][iinfo]
-            skytargets['BRICK_OBJID'][iskytarg] = np.arange(nsky_brick) + nobj_brick
+            skytargetid = encode_targetid(objid=skytargets['BRICK_OBJID'], brickid=skytargets['BRICKID'], mock=1, sky=1)
+            skytargets['TARGETID'][:] = skytargetid
+            skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
 
-    subpriority = rand.uniform(0.0, 1.0, size=nobj+nsky)
-    
-    if nobj > 0:
-        targetid = encode_targetid(objid=targets['BRICK_OBJID'], brickid=targets['BRICKID'], mock=1)
-        truth['TARGETID'][:] = targetid
-        targets['TARGETID'][:] = targetid
-        targets['SUBPRIORITY'][:] = subpriority[:nobj]
+            skytargets['HPXPIXEL'][:] = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
+                
+    else:
+        objid = np.arange(nobj + nsky)
+        targetid = encode_targetid(objid=objid, brickid=healpix, mock=1)
+        subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
-        targets['HPXPIXEL'][:] = radec2pix(nside, targets['RA'], targets['DEC'])
+        if nobj > 0:
+            targets['BRICKID'][:] = healpix
+            targets['BRICK_OBJID'][:] = objid[:nobj]
+            targets['TARGETID'][:] = targetid[:nobj]
+            targets['SUBPRIORITY'][:] = subpriority[:nobj]
+            truth['TARGETID'][:] = targetid[:nobj]
+
+        if nsky > 0:
+            skytargets['BRICKID'][:] = healpix
+            skytargets['BRICK_OBJID'][:] = objid[nobj:]
+            skytargets['TARGETID'][:] = targetid[nobj:]
+            skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
+            skytruth['TARGETID'][:] = targetid[nobj:]
         
-    if nsky > 0:
-        skytargetid = encode_targetid(objid=skytargets['BRICK_OBJID'], brickid=skytargets['BRICKID'], mock=1, sky=1)
-        skytargets['TARGETID'][:] = skytargetid
-        skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
-        
-        skytargets['HPXPIXEL'][:] = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-    
     return targets, truth, skytargets
 
 def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
@@ -1453,7 +1477,10 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
         
         # Find duplicates
         vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
-        assert len(vals) == len(data)
+        if len(vals) != len(data):
+            log.warning('Non-unique TARGETIDs found!')
+            print('HACK!!!!!!!!!!!!!')
+            #raise ValueError
         
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
