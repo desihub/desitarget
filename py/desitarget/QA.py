@@ -1341,7 +1341,7 @@ def _load_targdens():
     targdens = {}
     targdens['ELG'] = targdict['ntarget_elg']
     targdens['LRG'] = targdict['ntarget_lrg']
-    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
+    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FSTAR'] = 0
     targdens['STD_BRIGHT'] = 0
@@ -1712,25 +1712,26 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         if 'ALL' in objtype:
             w = np.arange(len(targs))
         else:
-            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
+            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
 
-        #ADM make RA/Dec skymaps
-        qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
-                 weights=weights[w], max_bin_area=max_bin_area)
+        if len(w) > 0:
+            #ADM make RA/Dec skymaps
+            qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
+                     weights=weights[w], max_bin_area=max_bin_area)
 
-        log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-        #ADM make histograms of densities. We already calculated the correctly 
-        #ADM ordered HEALPixels and so don't need to repeat that calculation
-        qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
-                weights=weights[w], max_bin_area = max_bin_area, catispix=True)
+            #ADM make histograms of densities. We already calculated the correctly 
+            #ADM ordered HEALPixels and so don't need to repeat that calculation
+            qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
+                    weights=weights[w], max_bin_area = max_bin_area, catispix=True)
 
-        log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-        #ADM make color-color plots
-        qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
+            #ADM make color-color plots
+            qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
 
-        log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
     log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
 
