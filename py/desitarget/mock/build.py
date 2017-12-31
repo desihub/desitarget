@@ -131,7 +131,7 @@ def empty_truth_table(nobj=1):
 
     return truth
 
-def _initialize_targets_and_truth(source_data, indx=None):
+def _initialize_targets_truth(source_data, indx=None):
     """Given a source_data dictionary, initialize the 'targets' and 'truth' tables
     and populate them with various quantities of interest.
 
@@ -468,7 +468,7 @@ def _faintstar_targets_truth(source_data, indx, Spectra, select_targets_function
     normmag = 1e9 * 10**(-0.4 * source_data['MAG'][indx]) # nanomaggies
 
     # Initialize dummy targets and truth tables.
-    targets, truth = _initialize_targets_and_truth(source_data, indx=indx)
+    targets, truth = _initialize_targets_truth(source_data, indx=indx)
 
     # Pack the noiseless photometry in the truth table, generate noisy
     # photometry, and then select targets.
@@ -559,7 +559,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
     # Skies are a special case -- no need to chunk.
     if targname == 'sky':
         these = rand.choice(len(indx), ntarget, replace=False)
-        targets, truth = _initialize_targets_and_truth(source_data, these)
+        targets, truth = _initialize_targets_truth(source_data, these)
         select_targets_function(targets, truth)
         return [targets, truth]
 
@@ -580,7 +580,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
                                                                    log, rand, mockformat=mockformat)
 
         else:
-            _targets, _truth = _initialize_targets_and_truth(source_data, chunkindx)
+            _targets, _truth = _initialize_targets_truth(source_data, chunkindx)
 
             # Generate the spectra.
             chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
@@ -694,7 +694,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             log.info('Reading source : {}'.format(source_name))
             source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
                                             healpixels=healpix, nside=nside)
-        
+
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
@@ -893,7 +893,7 @@ def _finish_catalog(targets, truth, skytargets, skytruth, nside,
             skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
             skytruth['TARGETID'][:] = targetid[nobj:]
         
-    return targets, truth, skytargets
+    return targets, truth, skytargets, skytruth
 
 def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
                          healpix_id, seed, log, output_dir):
@@ -1151,8 +1151,84 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
     truth = truth[keep]
     return targets, truth
     
-def finish_catalog_nospectra(targets, truth, skytargets, skytruth, nside,
-                             healpix_id, seed, rand, log, output_dir):
+def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc=1,
+                           nside=16, healpixels=None):
+    """Initialize various objects needed to generate mock targets (with and without
+    spectra).
+
+    Args:
+        params : dict
+            Source parameters.
+        seed: int
+            Seed for the random number generator
+        output_dir : str
+            Output directory (default '.').
+        nproc : int
+            Number of parallel processes to use (default 1).
+        nside : int
+            Healpix resolution corresponding to healpixels (default 16).
+        healpixels : numpy.ndarray or int
+            Restrict the sample of mock targets analyzed to those lying inside
+            this set (array) of healpix pixels. Default (None).
+
+    Returns:
+        log: desiutil.logger
+           Logger object.
+        rand: numpy.random.RandomState
+           Object for random number generation.
+        magnitudes: desitarget.mock.MockMagnitudes    
+            Object to assign magnitudes to each target class.
+        selection: desitarget.mock.SelectTargets
+            Object to select targets from the input mock catalogs.
+
+    """
+    from desiutil.log import get_logger, DEBUG
+    from desitarget.mock.selection import SelectTargets
+
+    from desitarget.mock.spectra import MockMagnitudes
+
+    # Initialize logger
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+    
+    if params is None:
+        log.fatal('Required params input not given!')
+        raise ValueError
+
+    # Check for required parameters in the input 'params' dict
+    # Initialize the random seed
+    rand = np.random.RandomState(seed)
+
+    # Create the output directories
+    if os.path.exists(output_dir):
+        if os.listdir(output_dir):
+            log.warning('Output directory {} is not empty.'.format(output_dir))
+    else:
+        log.info('Creating directory {}'.format(output_dir))
+        os.makedirs(output_dir)    
+    log.info('Writing to output directory {}'.format(output_dir))      
+        
+    # Default set of healpixels is the whole sky (yikes!)
+    if healpixels is None:
+        healpixels = np.arange(hp.nside2npix(nside))
+
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    totarea = len(healpixels) * areaperpix
+    log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, totarea))
+
+    # Initialize the Classes used to assign magnitudes and to
+    # select targets.
+    log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
+    selection = SelectTargets(verbose=verbose, rand=rand)
+    Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
+    
+    return log, rand, Magnitudes, selection, healpixels    
+
+def finish_catalog_no_spectra(targets, truth, skytargets, skytruth, nside,
+                              healpix_id, seed, rand, log, output_dir):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
     
     Args:
@@ -1323,14 +1399,13 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         and 'standards-bright.fits' written to disk for a list of healpixels.
     
     """
-    log, rand, Magnitudes, Selection, healpixels = _initialize(params,
-                                                               verbose=verbose,
-                                                               seed=seed, 
-                                                               output_dir=output_dir, 
-                                                               nproc=nproc,
-                                                               nside=nside,
-                                                               healpixels=healpixels,
-                                                               no_spectra=True)
+    log, rand, Magnitudes, Selection, healpixels = _initialize_no_spectra(params,
+                                                                          verbose=verbose,
+                                                                          seed=seed, 
+                                                                          output_dir=output_dir, 
+                                                                          nproc=nproc,
+                                                                          nside=nside,
+                                                                          healpixels=healpixels)
     
     # Loop over each source / object type.
     for healpix in healpixels:
@@ -1418,8 +1493,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             skytruth = []
 
         #Add some final columns
-        targets, truth, skytargets, skytruth = finish_catalog_nospectra(targets, truth, skytargets, skytruth,
-                                                                        nside,healpix, seed, rand, log, output_dir)
+        targets, truth, skytargets, skytruth = finish_catalog_no_spectra(targets, truth, skytargets, skytruth,
+                                                                         nside,healpix, seed, rand, log, output_dir)
         #write the results
         _write_targets_truth(targets, truth, skytargets, skytruth,  
                              nside, healpix, seed, log, output_dir)
@@ -1479,8 +1554,7 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
         vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
         if len(vals) != len(data):
             log.warning('Non-unique TARGETIDs found!')
-            print('HACK!!!!!!!!!!!!!')
-            #raise ValueError
+            raise ValueError
         
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
