@@ -1763,7 +1763,7 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     If making plots, then the ``DESIMODEL`` environment variable must be set to find 
     the file of HEALPixels that overlap the DESI footprint
     """
-    
+    from desispec.io.util import makepath
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
 
@@ -1787,7 +1787,7 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     targdens = _load_targdens()
     
     #ADM set up the html file and write preamble to it
-    htmlfile = os.path.join(qadir, 'index.html')
+    htmlfile = makepath(os.path.join(qadir, 'index.html'))
 
     #ADM grab the magic string that writes the last-updated date to a webpage
     js = _javastring()
