@@ -12,6 +12,7 @@ from __future__ import absolute_import, division, print_function
 import os
 import numpy as np
 from glob import glob
+from pkg_resources import resource_filename
 
 import fitsio
 from scipy import constants
@@ -341,18 +342,36 @@ class QSOMaker(SelectTargets):
             self.desi_mask.QSO_SOUTH.obsconditions)
 
 class LRGTree(object):
-    """Build a KD Tree for LRGs."""
+    """Build a KD Tree and load the GMM for LRGs."""
     def __init__(self, **kwargs):
 
         super(LRGTree, self).__init__(**kwargs)
         
         from scipy.spatial import cKDTree as KDTree
         from desisim.io import read_basis_templates
+        from desiutil.sklearn import GaussianMixtureModel
 
         self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
 
         zobj = self.meta['Z'].data
         self.tree = KDTree(np.vstack((zobj)).T)
+
+        gmmfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
+        self.GMM = GaussianMixtureModel.load(gmmfile)
+
+    def GMMsample(self, nsample=1):
+        """Sample from the GMM."""
+        
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
 
     def query(self, matrix):
         """Return the nearest template number based on the KD Tree."""
@@ -368,6 +387,7 @@ class LRGMaker(LRGTree, SelectTargets):
 
         from desisim.templates import LRG
         from desisim.io import read_basis_templates
+        from desitarget.mock.sample import SampleGMM
 
         self.seed = seed
         self.rand = np.random.RandomState(self.seed)
@@ -391,10 +411,20 @@ class LRGMaker(LRGTree, SelectTargets):
 
         if bool(data):
             data.update({
+                'MOCKFORMAT': mockformat, 
                 'SEED': self.rand.randint(2**32, size=len(data['RA'])),
                 'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
                 'TEMPLATESUBTYPE': '',
                 'VDISP': _sample_vdisp(data, mean=2.3, sigma=0.1, rand=self.rand, nside=nside_chunk),
+                })
+
+            mags = self.GMMsample(len(data['RA']))
+            data.update({
+                'MAG': mags['z'], 'FILTERNAME': 'decam2014-z',
+                'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+                'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2'],
+                'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'], 
+                'SHAPEDEV_R': mags['dev_r'], 'SHAPEDEV_E1': mags['dev_e1'], 'SHAPEDEV_E2': mags['dev_e2'],
                 })
 
         return data
@@ -412,30 +442,34 @@ class LRGMaker(LRGTree, SelectTargets):
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
 
-        import pdb ; pdb.set_trace()
-        
-        flux, wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
-            lyaforest=False, nocolorcuts=True)
+        if data['MOCKFORMAT'].lower() == 'gaussianfield':
+            # This is not quite right, but choose a template with equal probability.
+            templateid = self.rand.choice(self.meta['TEMPLATEID'], len(index))
+            input_meta['TEMPLATEID'] = templateid
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
+        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+                                                           nocolorcuts=True, novdisp=False)
+        
         return flux, self.wave, meta
 
     def select_targets(self, targets, truth):
-        """Select QSO targets."""
-        from desitarget.cuts import isQSO_colors
+        """Select LRG targets."""
+        from desitarget.cuts import isLRG_colors, isQSO_colors
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-          
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux, optical=True)
 
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
-        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
-            self.desi_mask.QSO.obsconditions)
-        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
-            self.desi_mask.QSO_SOUTH.obsconditions)
+        lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux)
+
+        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
+        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
+        targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
+            self.desi_mask.LRG.obsconditions)
+        targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
+            self.desi_mask.LRG_SOUTH.obsconditions)
 
 class SKYMaker(SelectTargets):
 
