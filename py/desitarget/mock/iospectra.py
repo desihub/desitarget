@@ -115,17 +115,46 @@ def make_mockid(objid, n_per_file):
 
     return encode_rownum_filenum(objid, filenum)
 
+def mw_transmission(source_data, dust_dir=None):
+    """Compute the grzW1W2 Galactic transmission for every object.
+    
+    Args:
+        source_data : dict
+            Input dictionary (read by read_mock_catalog) with coordinates. 
+            
+    Returns:
+        source_data : dict
+            Modified input dictionary with MW transmission included. 
+
+    """
+    from desitarget.mock import sfdmap
+
+    if dust_dir is None:
+        log.warning('DUST_DIR is a required input!')
+        raise ValueError
+
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+    source_data['EBV'] = sfdmap.ebv(source_data['RA'],
+                                    source_data['DEC'],
+                                    mapdir=dust_dir)
+
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * source_data['EBV'])
+
 class GaussianField(object):
 
-    def __init__(self, seed=None, bricksize=0.25, **kwargs):
+    def __init__(self, seed=None, bricksize=0.25, dust_dir=None, **kwargs):
 
-        super(GaussianField, self).__init__(seed=seed, **kwargs)
+        super(GaussianField, self).__init__(**kwargs)
 
         self.bricksize = bricksize
         self.mockdir_root = os.path.join( os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField' )
+        self.dust_dir = dust_dir
 
         if not hasattr(self, 'seed'):
             self.seed = seed
+        if not hasattr(self, 'rand'):
+            self.rand = np.random.RandomState(self.seed)
 
     def readmock(self, mockfile, target_name='', nside=8, healpixels=None, magcut=None):
         """Read the mock catalog.
@@ -186,10 +215,13 @@ class GaussianField(object):
             zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
             mag = np.zeros_like(zz) + 22 # placeholder
             
-        # Return a basic dictionary.
-        out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 
-               'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
-               'N_PER_FILE': n_per_file, 'Z': zz, 'MAG': mag}
+        # Pack into a basic dictionary.
+        out = {'SOURCE_NAME': target_name, 'OBJID': objid, 'MOCKID': mockid,
+               'RA': ra, 'DEC': dec, 'BRICKNAME': brickname, 'SEED': seed,
+               'FILES': files, 'N_PER_FILE': n_per_file, 'Z': zz, 'MAG': mag}
+
+        # Add MW transmission
+        mw_transmission(out, dust_dir=self.dust_dir)
 
         return out
 
@@ -199,12 +231,14 @@ class MockSpectra(object):
     ToDo (@moustakas): apply Galactic extinction.
 
     """
-    def __init__(self, wavemin=None, wavemax=None, dw=0.2, 
-                 seed=None, verbose=False):
+    def __init__(self, wavemin=None, wavemax=None, dw=0.2, **kwargs):
+        
         from desimodel.io import load_throughput
+        
+        super(MockSpectra, self).__init__(**kwargs)
 
-        if not hasattr(self, 'seed'):
-            self.seed = seed
+        #if not hasattr(self, 'seed'):
+        #    self.seed = seed
 
         # Build a default (buffered) wavelength vector.
         if wavemin is None:
@@ -219,15 +253,33 @@ class MockSpectra(object):
 
         #self.tree = TemplateKDTree(nproc=nproc, verbose=verbose)
 
-class QSO(GaussianField, MockSpectra):
+class SelectTargets(object):
+    """Select various types of targets.
+
+    """
+    def __init__(self, **kwargs):
+        
+        from desitarget import (desi_mask, bgs_mask, mws_mask,
+                                contam_mask, obsconditions)
+
+        #super(SelectTargets, self).__init__(**kwargs)
+        
+        self.desi_mask = desi_mask
+        self.bgs_mask = bgs_mask
+        self.mws_mask = mws_mask
+        self.contam_mask = contam_mask
+        self.obsconditions = obsconditions
+
+class QSO(GaussianField, MockSpectra, SelectTargets):
 
     def __init__(self, seed=None, **kwargs):
         from desisim.templates import SIMQSO
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
+        if not hasattr(self, 'rand'):
+            self.rand = np.random.RandomState(self.seed)
         
-        super(QSO, self).__init__(seed=self.seed, **kwargs)
+        super(QSO, self).__init__(**kwargs)
 
         self.objtype = 'QSO'
         self.mockfile = os.path.join( self.mockdir_root, 'v0.0.5', '{}.fits'.format(self.objtype) ) # default 
@@ -247,7 +299,7 @@ class QSO(GaussianField, MockSpectra):
 
         return data
 
-    def spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, index=None):
         """Generate tracer QSO spectra."""
         
         if index is None:
@@ -260,10 +312,32 @@ class QSO(GaussianField, MockSpectra):
 
         return flux, self.wave, meta
 
-class Sky(GaussianField, MockSpectra):
+    def select_targets(self, targets, truth):
+        """Select QSO targets."""
+        from desitarget.cuts import isQSO_colors
 
-    def __init__(self, seed=None):
-        super(Sky, self).__init__()
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+          
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux, optical=True)
+
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
+            self.desi_mask.QSO.obsconditions)
+        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
+            self.desi_mask.QSO_SOUTH.obsconditions)
+
+class SKY(GaussianField, MockSpectra):
+
+    def __init__(self, seed=None, **kwargs):
+
+        self.seed = seed
+        if not hasattr(self, 'rand'):
+            self.rand = np.random.RandomState(self.seed)
+
+        super(SKY, self).__init__(seed=self.seed, **kwargs)
 
         self.objtype = 'SKY'
         self.mockfile = os.path.join( self.mockdir_root, 'v0.0.1', '2048', 'random.fits' ) # default 
@@ -282,7 +356,7 @@ class Sky(GaussianField, MockSpectra):
 
         return data
 
-    def spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, index=None):
         """Generate SKY spectra."""
         
         if index is None:
@@ -296,3 +370,10 @@ class Sky(GaussianField, MockSpectra):
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
 
         return flux, self.wave, meta
+
+    def select_targets(self, targets, truth):
+        """Select SKY targets."""
+
+        targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
+        targets['OBSCONDITIONS'] |= self.obsconditions.mask(
+            self.desi_mask.SKY.obsconditions)

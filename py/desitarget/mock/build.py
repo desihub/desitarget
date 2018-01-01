@@ -181,7 +181,7 @@ def _initialize_targets_truth(source_data, indx=None):
     return targets, truth
 
 def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
-                nside=16, healpixels=None, no_spectra=False):
+                nside=16, healpixels=None):
     """Initialize various objects needed to generate mock targets (with and without
     spectra).
 
@@ -199,32 +199,18 @@ def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
             this set (array) of healpix pixels. Default (None).
-        no_spectra : bool
-            If not generating spectra, initialize and return the MockMagnitudes
-            Class instead of the MockSpectra Class.
 
     Returns:
         log: desiutil.logger
            Logger object.
         rand: numpy.random.RandomState
            Object for random number generation.
-        spectra: desitarget.mock.MockSpectra
-            Object to assign spectra to each target class (only returned if
-            no_spectra=False).
-        magnitudes: desitarget.mock.MockMagnitudes    
-            Object to assign magnitudes to each target class (only returned if
-            no_spectra=True).
         selection: desitarget.mock.SelectTargets
             Object to select targets from the input mock catalogs.
 
     """
     from desiutil.log import get_logger, DEBUG
-    from desitarget.mock.selection import SelectTargets
-
-    if no_spectra:
-        from desitarget.mock.spectra import MockMagnitudes
-    else:
-        from desitarget.mock.spectra import MockSpectra
+    #from desitarget.mock.selection import SelectTargets
 
     # Initialize logger
     if verbose:
@@ -261,16 +247,9 @@ def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
     # Initialize the Classes used to assign spectra (or magnitudes) and to
     # select targets.  Note: The default wavelength array gets initialized in
     # MockSpectra.
-    selection = SelectTargets(verbose=verbose, rand=rand)
+    #selection = SelectTargets(verbose=verbose, rand=rand)
     
-    if no_spectra:
-        log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
-        Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
-        return log, rand, Magnitudes, selection, healpixels    
-    else:
-        log.info('Initializing the MockSpectra and SelectTargets Classes.')
-        Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
-        return log, rand, Spectra, selection, healpixels
+    return log, rand, healpixels
 
 def _mw_transmission_and_depth(source_data, dust_dir):
     """Compute the Galactic transmission and depth every object in source_data. 
@@ -519,8 +498,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
-                         rand, log, ntarget):
+def get_spectra_onepixel(source_data, indx, mock, rand, log, ntarget):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -550,7 +528,7 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
 
     """
     targname = source_data['SOURCE_NAME'].lower()
-    mockformat = source_data['MOCKFORMAT'].lower()
+    #mockformat = source_data['MOCKFORMAT'].lower()
 
     if len(indx) < ntarget:
         log.warning('Too few candidate targets ({}) than desired ({}).'.format(
@@ -583,15 +561,17 @@ def get_spectra_onepixel(source_data, indx, Spectra, select_targets_function,
             _targets, _truth = _initialize_targets_truth(source_data, chunkindx)
 
             # Generate the spectra.
-            chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
-                                                              mockformat=mockformat)
+            chunkflux, _, chunkmeta = mock.make_spectra(source_data, index=chunkindx)
+            #chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
+            #                                                  mockformat=mockformat)
         
             # Scatter the photometry based on the depth.
             _scatter_photometry(targname, source_data, _truth, _targets,
                                 rand, meta=chunkmeta, indx=chunkindx)
 
             # Select targets.
-            select_targets_function(_targets, _truth)#, boss_std=boss_std)
+            #select_targets_function(_targets, _truth)#, boss_std=boss_std)
+            mock.select_targets(_targets, _truth)#, boss_std=boss_std)
 
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
@@ -670,11 +650,15 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
     from time import time
     import healpy as hp
     from desitarget.internal import sharedmem
+    from desitarget.mock import iospectra
 
     # Initialize a bunch of objects we need.
-    log, rand, Spectra, Selection, healpixels = _initialize(
-        params, verbose=verbose, seed=seed, output_dir=output_dir,
-        nproc=nproc, nside=nside, healpixels=healpixels)
+    #log, rand, Spectra, Selection, healpixels = _initialize(
+    #    params, verbose=verbose, seed=seed, output_dir=output_dir,
+    #    nproc=nproc, nside=nside, healpixels=healpixels)
+    log, rand, healpixels = _initialize(params, verbose=verbose, seed=seed,
+                                        output_dir=output_dir, nproc=nproc,
+                                        nside=nside, healpixels=healpixels)
 
     # Chunk the sample for the multiprocessing.    
     areaperpix, areaperchunk, nchunk = _healpixel_chunks(nside, nside_chunk, log)
@@ -692,16 +676,38 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             # Read the data.
             log.info('Reading source : {}'.format(source_name))
-            source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
-                                            healpixels=healpix, nside=nside)
+            #source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
+            #                                healpixels=healpix, nside=nside)
+            
+            mock = getattr(iospectra, source_name.upper())(seed=seed, dust_dir=params['dust_dir'])
+            source_data = mock.read(mockfile=params['sources'][source_name]['mock_dir_name'],
+                                    healpixels=healpixels, nside=nside)
+
+            nobj = len(source_data['RA'])
+
+            psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+            galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+            psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+            galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
+
+            for ii, band in enumerate(('G', 'R', 'Z')):
+                source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+                source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+            wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+            for ii, band in enumerate(('W1', 'W2')):
+                source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
 
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
 
             # Instantiate the target selection function.
-            selection_function = '{}_select'.format(source_name.lower())
-            select_targets_function = getattr(Selection, selection_function)
+            #selection_function = '{}_select'.format(source_name.lower())
+            #select_targets_function = getattr(Selection, selection_function)
 
             # Target density -- need a proper fluctuations model here.
             # NTARGETPERCHUNK needs to be an array with the targets divided
@@ -726,8 +732,9 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 if len(indx) > 0:
                     if len(indx) < ntarg:
                         ntarg = len(indx)
-                    specargs.append( (source_data, indx, Spectra, select_targets_function,
-                                      rand, log, ntarg) )
+                    specargs.append( (source_data, indx, mock, rand, log, ntarg) )
+                    #specargs.append( (source_data, indx, Spectra, select_targets_function,
+                    #                  rand, log, ntarg) )
 
             # Multiprocessing.
             nn = np.zeros((), dtype='i8')
