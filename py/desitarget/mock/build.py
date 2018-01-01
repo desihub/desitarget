@@ -249,8 +249,8 @@ def _initialize(params, verbose=False, seed=1, output_dir="./",
 
     return log, rand, healpixels
     
-def read_mock(source_name, params, log, seed=None, 
-              healpixels=None, nside=16, in_desi=True):
+def read_mock(source_name, params, log, seed=None, healpixels=None,
+              nside=16, nside_chunk=128, in_desi=True):
     """Read one specified mock catalog.
     
     Args:
@@ -290,10 +290,11 @@ def read_mock(source_name, params, log, seed=None,
     log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, mockformat))
     #log.info('Reading {}'.format(mockfile))
     
-    MakeMock = getattr(mockmaker, target_name)(seed=seed)
+    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed)
 
     source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                                 healpixels=healpixels, nside=nside,
+                                nside_chunk=nside_chunk, 
                                 dust_dir=params['dust_dir'])
 
     #mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
@@ -648,7 +649,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             # Read the data.
             log.info('Reading source : {}'.format(source_name))
             source_data, MakeMock = read_mock(source_name, params, log, seed=seed, 
-                                              healpixels=healpix, nside=nside)
+                                              healpixels=healpix, nside=nside,
+                                              nside_chunk=nside_chunk)
 
             # If there are no sources, keep going.
             if not bool(source_data):

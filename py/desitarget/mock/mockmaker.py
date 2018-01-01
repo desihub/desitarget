@@ -16,7 +16,6 @@ from glob import glob
 import fitsio
 from scipy import constants
 
-from desisim.io import read_basis_templates, empty_metatable
 from desiutil.brick import brickname as get_brickname_from_radec
 from desimodel.footprint import radec2pix
 
@@ -141,6 +140,41 @@ def mw_transmission(source_data, dust_dir=None):
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
         source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * source_data['EBV'])
 
+def _sample_vdisp(data, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1), rand=None, nside=128):
+    """Choose a subset of velocity dispersions."""
+
+    if rand is None:
+        rand = np.random.RandomState()
+
+    def _sample(nmodel=1):
+        nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
+        vvdisp = 10**rand.normal(loc=mean, scale=sigma, size=nvdisp)
+        return rand.choice(vvdisp, nmodel)
+
+    # Hack! Assign the same velocity dispersion to galaxies in the same healpixel.
+    nobj = len(data['RA'])
+    vdisp = np.zeros(nobj)
+
+    healpix = radec2pix(nside, data['RA'], data['DEC'])
+    for pix in set(healpix):
+        these = np.in1d(healpix, pix)
+        vdisp[these] = _sample(nmodel=np.count_nonzero(these))
+
+    return vdisp
+
+def _default_wave(wavemin=None, wavemax=None, dw=0.2):
+    """Generate a default wavelength vector for the output spectra.
+
+    """
+    from desimodel.io import load_throughput
+    
+    if wavemin is None:
+        wavemin = load_throughput('b').wavemin - 10.0
+    if wavemax is None:
+        wavemax = load_throughput('z').wavemax + 10.0
+            
+    return np.arange(round(wavemin, 1), wavemax, dw)
+
 class GaussianField(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
@@ -217,31 +251,6 @@ class GaussianField(object):
 
         return out
 
-class MockSpectra(object):
-    """Generate spectra for each type of mock target.
-
-    ToDo (@moustakas): apply Galactic extinction.
-
-    """
-    def __init__(self, wavemin=None, wavemax=None, dw=0.2, **kwargs):
-        
-        from desimodel.io import load_throughput
-        
-        super(MockSpectra, self).__init__(**kwargs)
-
-        # Build a default (buffered) wavelength vector.
-        if wavemin is None:
-            wavemin = load_throughput('b').wavemin - 10.0
-        if wavemax is None:
-            wavemax = load_throughput('z').wavemax + 10.0
-            
-        self.wavemin = wavemin
-        self.wavemax = wavemax
-        self.dw = dw
-        self.wave = np.arange(round(wavemin, 1), wavemax, dw)
-
-        #self.tree = TemplateKDTree(nproc=nproc, verbose=verbose)
-
 class SelectTargets(object):
     """Select various types of targets.
 
@@ -259,18 +268,20 @@ class SelectTargets(object):
         self.contam_mask = contam_mask
         self.obsconditions = obsconditions
 
-class QSO(MockSpectra, SelectTargets):
+class QSOMaker(SelectTargets):
 
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-z', **kwargs):
 
         from desisim.templates import SIMQSO
 
+        super(QSOMaker, self).__init__(**kwargs)
+
         self.seed = seed
         self.rand = np.random.RandomState(self.seed)
-        
-        super(QSO, self).__init__(**kwargs)
+        self.wave = _default_wave()
 
         self.objtype = 'QSO'
+        self.normfilter = normfilter
         self.template_maker = SIMQSO(wave=self.wave, normfilter='decam2014-g')
 
         #self.default_mockfile = os.path.join( self.mockdir_root, 'v0.0.5', '{}.fits'.format(self.objtype) ) # default 
@@ -329,14 +340,112 @@ class QSO(MockSpectra, SelectTargets):
         targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
             self.desi_mask.QSO_SOUTH.obsconditions)
 
-class SKY(MockSpectra, SelectTargets):
+class LRGTree(object):
+    """Build a KD Tree for LRGs."""
+    def __init__(self, **kwargs):
 
-    def __init__(self, seed=None, **kwargs):
+        super(LRGTree, self).__init__(**kwargs)
+        
+        from scipy.spatial import cKDTree as KDTree
+        from desisim.io import read_basis_templates
+
+        self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
+
+        zobj = self.meta['Z'].data
+        self.tree = KDTree(np.vstack((zobj)).T)
+
+    def query(self, matrix):
+        """Return the nearest template number based on the KD Tree."""
+
+        dist, indx = self.tree.query(matrix)
+        return dist, indx
+
+class LRGMaker(LRGTree, SelectTargets):
+
+    def __init__(self, seed=None, normfilter='decam2014-z', **kwargs):
+
+        super(LRGMaker, self).__init__(**kwargs)
+
+        from desisim.templates import LRG
+        from desisim.io import read_basis_templates
 
         self.seed = seed
         self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
 
-        super(SKY, self).__init__(**kwargs)
+        self.objtype = 'LRG'
+        self.normfilter = normfilter
+        self.template_maker = LRG(wave=self.wave, normfilter=self.normfilter)
+
+    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
+             healpixels=None, nside=8, nside_chunk=128):
+        """Read the mock file."""
+
+        if mockformat == 'gaussianfield':
+            MockReader = GaussianField(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside)
+
+        if bool(data):
+            data.update({
+                'SEED': self.rand.randint(2**32, size=len(data['RA'])),
+                'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
+                'TEMPLATESUBTYPE': '',
+                'VDISP': _sample_vdisp(data, mean=2.3, sigma=0.1, rand=self.rand, nside=nside_chunk),
+                })
+
+        return data
+
+    def make_spectra(self, data=None, index=None):
+        """Generate tracer QSO spectra."""
+        from desisim.io import empty_metatable
+        
+        if index is None:
+            index = np.arange(len(data['RA']))
+        nobj = len(index)
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            input_meta[inkey] = data[datakey][index]
+
+        import pdb ; pdb.set_trace()
+        
+        flux, wave, meta = self.template_maker.make_templates(
+            nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
+            lyaforest=False, nocolorcuts=True)
+
+        return flux, self.wave, meta
+
+    def select_targets(self, targets, truth):
+        """Select QSO targets."""
+        from desitarget.cuts import isQSO_colors
+
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+          
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux, optical=True)
+
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
+            self.desi_mask.QSO.obsconditions)
+        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
+            self.desi_mask.QSO_SOUTH.obsconditions)
+
+class SKYMaker(SelectTargets):
+
+    def __init__(self, seed=None, **kwargs):
+
+        super(SKYMaker, self).__init__(**kwargs)
+
+        self.seed = seed
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
 
         self.objtype = 'SKY'
         #self.default_mockfile = os.path.join( self.mockdir_root, 'v0.0.1', '2048', 'random.fits' ) # default 
@@ -364,6 +473,7 @@ class SKY(MockSpectra, SelectTargets):
 
     def make_spectra(self, data=None, index=None):
         """Generate SKY spectra."""
+        from desisim.io import empty_metatable
         
         if index is None:
             index = np.arange(len(data['RA']))
