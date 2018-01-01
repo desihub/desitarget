@@ -271,13 +271,14 @@ class SelectTargets(object):
 
 class QSOMaker(SelectTargets):
 
-    def __init__(self, seed=None, normfilter='decam2014-z', **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-z', verbose=False, **kwargs):
 
         from desisim.templates import SIMQSO
 
         super(QSOMaker, self).__init__(**kwargs)
 
         self.seed = seed
+        self.verbose = verbose
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
 
@@ -285,14 +286,9 @@ class QSOMaker(SelectTargets):
         self.normfilter = normfilter
         self.template_maker = SIMQSO(wave=self.wave, normfilter='decam2014-g')
 
-        #self.default_mockfile = os.path.join( self.mockdir_root, 'v0.0.5', '{}.fits'.format(self.objtype) ) # default 
-
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=8):
         """Read the mock file."""
-
-        #if mockfile is None:
-        #    mockfile = self.default_mockfile
 
         if mockformat == 'gaussianfield':
             MockReader = GaussianField(dust_dir=dust_dir)
@@ -320,7 +316,7 @@ class QSOMaker(SelectTargets):
             
         flux, wave, meta = self.template_maker.make_templates(
             nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
-            lyaforest=False, nocolorcuts=True)
+            lyaforest=False, nocolorcuts=True, verbose=self.verbose)
 
         return flux, self.wave, meta
 
@@ -381,7 +377,7 @@ class LRGTree(object):
 
 class LRGMaker(LRGTree, SelectTargets):
 
-    def __init__(self, seed=None, normfilter='decam2014-z', **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-z', verbose=False, **kwargs):
 
         super(LRGMaker, self).__init__(**kwargs)
 
@@ -390,6 +386,7 @@ class LRGMaker(LRGTree, SelectTargets):
         from desitarget.mock.sample import SampleGMM
 
         self.seed = seed
+        self.verbose = verbose
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
 
@@ -421,8 +418,6 @@ class LRGMaker(LRGTree, SelectTargets):
             mags = self.GMMsample(len(data['RA']))
             data.update({
                 'MAG': mags['z'], 'FILTERNAME': 'decam2014-z',
-                'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
-                'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2'],
                 'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'], 
                 'SHAPEDEV_R': mags['dev_r'], 'SHAPEDEV_E1': mags['dev_e1'], 'SHAPEDEV_E2': mags['dev_e2'],
                 })
@@ -430,7 +425,7 @@ class LRGMaker(LRGTree, SelectTargets):
         return data
 
     def make_spectra(self, data=None, index=None):
-        """Generate tracer QSO spectra."""
+        """Generate LRG spectra."""
         from desisim.io import empty_metatable
         
         if index is None:
@@ -450,13 +445,14 @@ class LRGMaker(LRGTree, SelectTargets):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                           nocolorcuts=True, novdisp=False)
+                                                           nocolorcuts=True, novdisp=False,
+                                                           verbose=self.verbose)
         
         return flux, self.wave, meta
 
     def select_targets(self, targets, truth):
         """Select LRG targets."""
-        from desitarget.cuts import isLRG_colors, isQSO_colors
+        from desitarget.cuts import isLRG_colors
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
@@ -470,6 +466,141 @@ class LRGMaker(LRGTree, SelectTargets):
             self.desi_mask.LRG.obsconditions)
         targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
             self.desi_mask.LRG_SOUTH.obsconditions)
+
+class ELGTree(object):
+    """Build a KD Tree and load the GMM for ELGs."""
+    def __init__(self, **kwargs):
+
+        super(ELGTree, self).__init__(**kwargs)
+        
+        from scipy.spatial import cKDTree as KDTree
+        from desisim.io import read_basis_templates
+        from desiutil.sklearn import GaussianMixtureModel
+
+        self.meta = read_basis_templates(objtype='ELG', onlymeta=True)
+
+        zobj = self.meta['Z'].data
+        gr = self.meta['DECAM_G'].data - self.meta['DECAM_R'].data
+        rz = self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data
+        self.tree = KDTree(np.vstack((zobj, gr, rz)).T)
+
+        gmmfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
+        self.GMM = GaussianMixtureModel.load(gmmfile)
+
+    def GMMsample(self, nsample=1):
+        """Sample from the GMM."""
+        
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
+    def query(self, matrix):
+        """Return the nearest template number based on the KD Tree."""
+
+        dist, indx = self.tree.query(matrix)
+        return dist, indx
+
+class ELGMaker(ELGTree, SelectTargets):
+
+    def __init__(self, seed=None, normfilter='decam2014-z', verbose=False, **kwargs):
+
+        super(ELGMaker, self).__init__(**kwargs)
+
+        from desisim.templates import ELG
+        from desisim.io import read_basis_templates
+        from desitarget.mock.sample import SampleGMM
+
+        self.seed = seed
+        self.verbose = verbose
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
+
+        self.objtype = 'ELG'
+        self.normfilter = normfilter
+        self.template_maker = ELG(wave=self.wave, normfilter=self.normfilter)
+
+    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
+             healpixels=None, nside=8, nside_chunk=128):
+        """Read the mock file."""
+
+        if mockformat == 'gaussianfield':
+            MockReader = GaussianField(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside)
+
+        if bool(data):
+            data.update({
+                'MOCKFORMAT': mockformat, 
+                'SEED': self.rand.randint(2**32, size=len(data['RA'])),
+                'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
+                'TEMPLATESUBTYPE': '',
+                'VDISP': _sample_vdisp(data, mean=1.9, sigma=0.15, rand=self.rand, nside=nside_chunk),
+                })
+
+            mags = self.GMMsample(len(data['RA']))
+            data.update({
+                'MAG': mags['r'], 'FILTERNAME': 'decam2014-r',
+                'GR': mags['g']-mags['r'], 'RZ': mags['r']-mags['z'],
+                'RW1': mags['r']-mags['w1'], 'W1W2': mags['w1']-mags['w2'],
+                'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'], 
+                'SHAPEDEV_R': mags['dev_r'], 'SHAPEDEV_E1': mags['dev_e1'], 'SHAPEDEV_E2': mags['dev_e2'],
+                })
+
+        return data
+
+    def make_spectra(self, data=None, index=None):
+        """Generate ELG spectra."""
+        from desisim.io import empty_metatable
+        
+        if index is None:
+            index = np.arange(len(data['RA']))
+        nobj = len(index)
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
+                                  ('SEED', 'MAG', 'Z', 'VDISP')):
+            input_meta[inkey] = data[datakey][index]
+
+        if data['MOCKFORMAT'].lower() == 'gaussianfield':
+            alldata = np.vstack((data['Z'][index],
+                                 data['GR'][index],
+                                 data['RZ'][index])).T
+            _, templateid = self.query(alldata)
+            input_meta['TEMPLATEID'] = templateid
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+                                                           nocolorcuts=True, novdisp=False,
+                                                           verbose=self.verbose)
+        
+        return flux, self.wave, meta
+
+    def select_targets(self, targets, truth):
+        """Select ELG targets."""
+        from desitarget.cuts import isELG
+
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+        
+        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
+            self.desi_mask.ELG.obsconditions)
+        targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
+            self.desi_mask.ELG_SOUTH.obsconditions)
 
 class SKYMaker(SelectTargets):
 
@@ -514,8 +645,7 @@ class SKYMaker(SelectTargets):
         nobj = len(index)
             
         meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'REDSHIFT'),
-                                  ('SEED', 'Z')):
+        for inkey, datakey in zip(('SEED', 'REDSHIFT'), ('SEED', 'Z')):
             meta[inkey] = data[datakey][index]
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
 

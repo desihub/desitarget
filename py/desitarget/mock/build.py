@@ -297,29 +297,15 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
                                 nside_chunk=nside_chunk, 
                                 dust_dir=params['dust_dir'])
 
-    #mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
-    #if 'LYA' in params['sources'][source_name].keys():
-    #    lya = params['sources'][source_name]['LYA']
-    #else:
-    #    lya = None
-    #source_data = mockread_function(mock_dir_name, target_name, rand=rand,
-    #                                magcut=magcut, nproc=nproc, lya=lya,
-    #                                healpixels=healpixels, nside=nside)
-    #
-    #source_data['SOURCE_NAME'] = source_name
-    #source_data['MOCKFORMAT'] = mockformat
-
-    # Add the MW transmission and depth for every object in source_data.
-    # _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
-
     # --------------------------------------------------
+    # push this to its own thing
     nobj = len(source_data['RA'])
 
     psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
     galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
 
-    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
+    psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
 
     for ii, band in enumerate(('G', 'R', 'Z')):
         source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
@@ -370,7 +356,7 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
     return source_data, MakeMock
 
 def _scatter_photometry(targname, source_data, truth, targets,
-                        rand, meta=None, indx=None):
+                        rand, meta=None, indx=None, qaplot=False):
     """Add noise to the photometry based on the depth.
 
     """
@@ -384,25 +370,41 @@ def _scatter_photometry(targname, source_data, truth, targets,
                     'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
             truth[key][:] = meta[key]
 
-    # Depth.
     if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
         depthprefix = 'GAL'
     else:
         depthprefix = 'PSF'
 
+    factor = 5 # -- should this be 1 or 5???
+
     for band in ('G', 'R', 'Z'):
         fluxkey = 'FLUX_{}'.format(band)
         depthkey = '{}DEPTH_{}'.format(depthprefix, band)
             
-        sigma = 5 / np.sqrt(source_data[depthkey][indx]) # nanomaggies, 1-sigma
+        sigma = 1 / np.sqrt(source_data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
         targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
     for band in ('W1', 'W2'):
         fluxkey = 'FLUX_{}'.format(band)
         depthkey = 'PSFDEPTH_{}'.format(band)
             
-        sigma = 5 / np.sqrt(source_data[depthkey][indx]) # nanomaggies, 1-sigma
+        sigma = 1 / np.sqrt(source_data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
         targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
+
+    if qaplot:
+        import matplotlib.pyplot as plt
+        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', 
+                    label='Noiseless Photometry')
+        plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none',
+                    label='Noisy Photometry')
+        plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+        plt.legend(loc='upper left')
+        plt.show()
+        import pdb ; pdb.set_trace()
 
 def _faintstar_targets_truth(source_data, indx, Spectra, select_targets_function, log,
                              rand, mockformat='galaxia', qaplot=False):
@@ -538,15 +540,12 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
 
             # Generate the spectra.
             chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
-            #chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
-            #                                                  mockformat=mockformat)
         
             # Scatter the photometry based on the depth.
             _scatter_photometry(targname, source_data, _truth, _targets,
                                 rand, meta=chunkmeta, indx=chunkindx)
 
             # Select targets.
-            #select_targets_function(_targets, _truth)#, boss_std=boss_std)
             MakeMock.select_targets(_targets, _truth)#, boss_std=boss_std)
 
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
