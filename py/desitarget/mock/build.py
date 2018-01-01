@@ -294,7 +294,7 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
 
     source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                                 healpixels=healpixels, nside=nside,
-                                nside_chunk=nside_chunk, 
+                                nside_chunk=nside_chunk, magcut=magcut,
                                 dust_dir=params['dust_dir'])
 
     # --------------------------------------------------
@@ -505,7 +505,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
             and returned for non-sky targets.
 
     """
-    targname = source_data['SOURCE_NAME'].lower()
+    targname = source_data['TARGET_NAME'].lower()
     #mockformat = source_data['MOCKFORMAT'].lower()
 
     if len(indx) < ntarget:
