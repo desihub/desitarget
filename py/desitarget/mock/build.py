@@ -180,7 +180,7 @@ def _initialize_targets_truth(source_data, indx=None):
 
     return targets, truth
 
-def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
+def _initialize(params, verbose=False, seed=1, output_dir="./", 
                 nside=16, healpixels=None):
     """Initialize various objects needed to generate mock targets (with and without
     spectra).
@@ -192,8 +192,6 @@ def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
             Seed for the random number generator
         output_dir : str
             Output directory (default '.').
-        nproc : int
-            Number of parallel processes to use (default 1).
         nside : int
             Healpix resolution corresponding to healpixels (default 16).
         healpixels : numpy.ndarray or int
@@ -248,59 +246,11 @@ def _initialize(params, verbose=False, seed=1, output_dir="./", nproc=1,
     # select targets.  Note: The default wavelength array gets initialized in
     # MockSpectra.
     #selection = SelectTargets(verbose=verbose, rand=rand)
-    
+
     return log, rand, healpixels
-
-def _mw_transmission_and_depth(source_data, dust_dir):
-    """Compute the Galactic transmission and depth every object in source_data. 
     
-    Args:
-        source_data : dict
-            Input dictionary (read by read_mock_catalog) with coordinates. 
-            
-    Returns:
-        source_data : dict
-            Modified input dictionary with transmission and depth included. 
-
-    """
-    from desitarget.mock import sfdmap
-
-    # Populate the source catalog with the grzW1W2 MW_TRANSMISSION for each
-    # object.
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(source_data['RA'], source_data['DEC'], mapdir=dust_dir)
-
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * ebv)
-
-    # Populate the galaxy and point-source depths at the position of each
-    # object.  For now this is a hack -- we assume a constant 5-sigma depth in
-    # grz for galaxies and point sources in all bricks and a constant depth
-    # (W1=22.3 mag=1.2 nanomaggies, W2=23.8 mag=0.3 nanomaggies, 1-sigma) in the
-    # WISE bands.  These numbers need to be replaced with a proper model of the
-    # varying depth of the survey.
-    nobj = len(source_data['RA'])
-    
-    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('G', 'R', 'Z')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('W1', 'W2')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
-    
-    return source_data
-    
-def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
-                      healpixels=None, nside=16, in_desi=True):
+def read_mock(source_name, params, log, seed=None, 
+              healpixels=None, nside=16, in_desi=True):
     """Read one specified mock catalog.
     
     Args:
@@ -312,8 +262,6 @@ def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
            Logger object.
         rand: numpy.random.RandomState
            Object for random number generation.
-        nproc: int
-            Number of processors to be used for reading.
         healpixels : numpy.ndarray or int
             List of healpixels to process. The mocks are cut to match these
             pixels.
@@ -328,33 +276,60 @@ def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
             Parsed source data based on the input mock catalog.
 
     """
-    # Read the mock catalog.
-    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-    mockformat = params['sources'][source_name]['format']
+    from desitarget.mock import mockmaker
 
-    mock_dir_name = params['sources'][source_name]['mock_dir_name']
+    target_name = params['sources'][source_name]['target_name'].upper() # Target type (e.g., ELG)
+    mockformat = params['sources'][source_name]['format']
+    mockfile = params['sources'][source_name]['mockfile']
+
     if 'magcut' in params['sources'][source_name].keys():
         magcut = params['sources'][source_name]['magcut']
     else:
         magcut = None
 
-    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
-    log.info('Reading {}'.format(mock_dir_name))
+    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, mockformat))
+    #log.info('Reading {}'.format(mockfile))
+    
+    MakeMock = getattr(mockmaker, target_name)(seed=seed)
 
-    mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
-    if 'LYA' in params['sources'][source_name].keys():
-        lya = params['sources'][source_name]['LYA']
-    else:
-        lya = None
-    source_data = mockread_function(mock_dir_name, target_name, rand=rand,
-                                    magcut=magcut, nproc=nproc, lya=lya,
-                                    healpixels=healpixels, nside=nside)
+    source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
+                                healpixels=healpixels, nside=nside,
+                                dust_dir=params['dust_dir'])
 
-    source_data['SOURCE_NAME'] = source_name
-    source_data['MOCKFORMAT'] = mockformat
+    #mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+    #if 'LYA' in params['sources'][source_name].keys():
+    #    lya = params['sources'][source_name]['LYA']
+    #else:
+    #    lya = None
+    #source_data = mockread_function(mock_dir_name, target_name, rand=rand,
+    #                                magcut=magcut, nproc=nproc, lya=lya,
+    #                                healpixels=healpixels, nside=nside)
+    #
+    #source_data['SOURCE_NAME'] = source_name
+    #source_data['MOCKFORMAT'] = mockformat
 
     # Add the MW transmission and depth for every object in source_data.
-    _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
+    # _mw_transmission_and_depth(source_data, dust_dir=params['dust_dir'])
+
+    # --------------------------------------------------
+    nobj = len(source_data['RA'])
+
+    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+    psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('G', 'R', 'Z')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    # --------------------------------------------------
+
+    for ii, band in enumerate(('W1', 'W2')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
     
     # Insert proper density fluctuations model here!  Note that in general
     # healpixels will generally be a scalar (because it's called inside a loop),
@@ -391,7 +366,7 @@ def read_mock_catalog(source_name, params, log, rand=None, nproc=1,
                         if n_obj == len(source_data[k]):
                             source_data[k] = source_data[k][indesi]
                         
-    return source_data
+    return source_data, MakeMock
 
 def _scatter_photometry(targname, source_data, truth, targets,
                         rand, meta=None, indx=None):
@@ -498,7 +473,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, indx, mock, rand, log, ntarget):
+def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Args:
@@ -538,7 +513,7 @@ def get_spectra_onepixel(source_data, indx, mock, rand, log, ntarget):
     if targname == 'sky':
         these = rand.choice(len(indx), ntarget, replace=False)
         targets, truth = _initialize_targets_truth(source_data, these)
-        select_targets_function(targets, truth)
+        MakeMock.select_targets(targets, truth)
         return [targets, truth]
 
     # Build spectra in chunks and stop when we have enough.
@@ -561,7 +536,7 @@ def get_spectra_onepixel(source_data, indx, mock, rand, log, ntarget):
             _targets, _truth = _initialize_targets_truth(source_data, chunkindx)
 
             # Generate the spectra.
-            chunkflux, _, chunkmeta = mock.make_spectra(source_data, index=chunkindx)
+            chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
             #chunkflux, chunkmeta = getattr(Spectra, targname)(source_data, index=chunkindx,
             #                                                  mockformat=mockformat)
         
@@ -571,7 +546,7 @@ def get_spectra_onepixel(source_data, indx, mock, rand, log, ntarget):
 
             # Select targets.
             #select_targets_function(_targets, _truth)#, boss_std=boss_std)
-            mock.select_targets(_targets, _truth)#, boss_std=boss_std)
+            MakeMock.select_targets(_targets, _truth)#, boss_std=boss_std)
 
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
@@ -650,15 +625,11 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
     from time import time
     import healpy as hp
     from desitarget.internal import sharedmem
-    from desitarget.mock import iospectra
 
     # Initialize a bunch of objects we need.
-    #log, rand, Spectra, Selection, healpixels = _initialize(
-    #    params, verbose=verbose, seed=seed, output_dir=output_dir,
-    #    nproc=nproc, nside=nside, healpixels=healpixels)
     log, rand, healpixels = _initialize(params, verbose=verbose, seed=seed,
-                                        output_dir=output_dir, nproc=nproc,
-                                        nside=nside, healpixels=healpixels)
+                                        output_dir=output_dir, nside=nside,
+                                        healpixels=healpixels)
 
     # Chunk the sample for the multiprocessing.    
     areaperpix, areaperchunk, nchunk = _healpixel_chunks(nside, nside_chunk, log)
@@ -676,30 +647,8 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             # Read the data.
             log.info('Reading source : {}'.format(source_name))
-            #source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
-            #                                healpixels=healpix, nside=nside)
-            
-            mock = getattr(iospectra, source_name.upper())(seed=seed, dust_dir=params['dust_dir'])
-            source_data = mock.read(mockfile=params['sources'][source_name]['mock_dir_name'],
-                                    healpixels=healpixels, nside=nside)
-
-            nobj = len(source_data['RA'])
-
-            psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-            galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-            psfdepth_ivar = (5 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-            galdepth_ivar = (5 / 10**(-0.4 * (galdepth_mag - 22.5)))**2# 5-sigma, 1/nanomaggies**2
-
-            for ii, band in enumerate(('G', 'R', 'Z')):
-                source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-                source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-            wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-            for ii, band in enumerate(('W1', 'W2')):
-                source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+            source_data, MakeMock = read_mock(source_name, params, log, seed=seed, 
+                                              healpixels=healpix, nside=nside)
 
             # If there are no sources, keep going.
             if not bool(source_data):
@@ -732,7 +681,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                 if len(indx) > 0:
                     if len(indx) < ntarg:
                         ntarg = len(indx)
-                    specargs.append( (source_data, indx, mock, rand, log, ntarg) )
+                    specargs.append( (source_data, indx, MakeMock, rand, log, ntarg) )
                     #specargs.append( (source_data, indx, Spectra, select_targets_function,
                     #                  rand, log, ntarg) )
 
@@ -1158,6 +1107,86 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
     truth = truth[keep]
     return targets, truth
     
+def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
+                         healpixels=None, nside=16, in_desi=True):
+    """Read one specified mock catalog.
+    
+    Args:
+        source_name: str
+            Name of the target being processesed, e.g., 'QSO'.
+        params: dict
+            Dictionary summary of the input configuration file.
+        log: desiutil.logger
+           Logger object.
+        rand: numpy.random.RandomState
+           Object for random number generation.
+        nproc: int
+            Number of processors to be used for reading.
+        healpixels : numpy.ndarray or int
+            List of healpixels to process. The mocks are cut to match these
+            pixels.
+        nside: int
+            nside for healpix
+        in_desi: boolean
+            Decides whether the targets will be trimmed to be inside the DESI
+            footprint.
+            
+    Returns:
+        source_data : dict
+            Parsed source data based on the input mock catalog.
+
+    """
+    # Read the mock catalog.
+    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+    mockformat = params['sources'][source_name]['format']
+
+    mock_dir_name = params['sources'][source_name]['mock_dir_name']
+    if 'magcut' in params['sources'][source_name].keys():
+        magcut = params['sources'][source_name]['magcut']
+    else:
+        magcut = None
+
+    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
+    log.info('Reading {}'.format(mock_dir_name))
+
+    mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
+    if 'LYA' in params['sources'][source_name].keys():
+        lya = params['sources'][source_name]['LYA']
+    else:
+        lya = None
+    source_data = mockread_function(mock_dir_name, target_name, rand=rand,
+                                    magcut=magcut, nproc=nproc, lya=lya,
+                                    healpixels=healpixels, nside=nside)
+
+    source_data['SOURCE_NAME'] = source_name
+    source_data['MOCKFORMAT'] = mockformat
+
+    # Insert proper density fluctuations model here!  Note that in general
+    # healpixels will generally be a scalar (because it's called inside a loop),
+    # but also allow for multiple healpixels.
+    try:
+        npix = healpixels.size
+    except:
+        npix = len(healpixels)
+    skyarea = npix * hp.nside2pixarea(nside, degrees=True)
+
+    # Return only the points that are in the DESI footprint.
+    if bool(source_data):
+        if in_desi:
+            import desimodel.io
+            import desimodel.footprint
+
+            n_obj = len(source_data['RA'])
+            tiles = desimodel.io.load_tiles()
+            if n_obj > 0:
+                indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
+                for k in source_data.keys():
+                    if type(source_data[k]) is np.ndarray:
+                        if n_obj == len(source_data[k]):
+                            source_data[k] = source_data[k][indesi]
+                        
+    return source_data
+
 def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc=1,
                            nside=16, healpixels=None):
     """Initialize various objects needed to generate mock targets (with and without
@@ -1381,7 +1410,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
     return [targets, truth]
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
-                             healpixels=None, verbose=False, dust_dir="./"):
+                             healpixels=None, verbose=False, dust_dir="./"): 
     """Generate a catalog of targets and the corresponding truth catalog.
     
     Inputs:
@@ -1425,8 +1454,8 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
-            source_data = read_mock_catalog(source_name, params, log, rand=rand, nproc=nproc,
-                                            healpixels=healpix, nside=nside)
+            source_data = read_mock_no_spectra(source_name, params, log, rand=rand, nproc=nproc,
+                                               healpixels=healpix, nside=nside)
         
             # If there are no sources, keep going.
             if not bool(source_data):

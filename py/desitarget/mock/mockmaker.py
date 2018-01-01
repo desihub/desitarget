@@ -143,18 +143,11 @@ def mw_transmission(source_data, dust_dir=None):
 
 class GaussianField(object):
 
-    def __init__(self, seed=None, bricksize=0.25, dust_dir=None, **kwargs):
-
-        super(GaussianField, self).__init__(**kwargs)
+    def __init__(self, bricksize=0.25, dust_dir=None):
 
         self.bricksize = bricksize
         self.mockdir_root = os.path.join( os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField' )
         self.dust_dir = dust_dir
-
-        if not hasattr(self, 'seed'):
-            self.seed = seed
-        if not hasattr(self, 'rand'):
-            self.rand = np.random.RandomState(self.seed)
 
     def readmock(self, mockfile, target_name='', nside=8, healpixels=None, magcut=None):
         """Read the mock catalog.
@@ -204,7 +197,6 @@ class GaussianField(object):
 
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-        seed = self.rand.randint(2**32, size=nobj)
 
         # Add redshifts.
         if target_name.upper() == 'SKY':
@@ -217,7 +209,7 @@ class GaussianField(object):
             
         # Pack into a basic dictionary.
         out = {'SOURCE_NAME': target_name, 'OBJID': objid, 'MOCKID': mockid,
-               'RA': ra, 'DEC': dec, 'BRICKNAME': brickname, 'SEED': seed,
+               'RA': ra, 'DEC': dec, 'BRICKNAME': brickname, 
                'FILES': files, 'N_PER_FILE': n_per_file, 'Z': zz, 'MAG': mag}
 
         # Add MW transmission
@@ -236,9 +228,6 @@ class MockSpectra(object):
         from desimodel.io import load_throughput
         
         super(MockSpectra, self).__init__(**kwargs)
-
-        #if not hasattr(self, 'seed'):
-        #    self.seed = seed
 
         # Build a default (buffered) wavelength vector.
         if wavemin is None:
@@ -259,10 +248,10 @@ class SelectTargets(object):
     """
     def __init__(self, **kwargs):
         
+        #super(SelectTargets, self).__init__(**kwargs)
+
         from desitarget import (desi_mask, bgs_mask, mws_mask,
                                 contam_mask, obsconditions)
-
-        #super(SelectTargets, self).__init__(**kwargs)
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
@@ -270,32 +259,43 @@ class SelectTargets(object):
         self.contam_mask = contam_mask
         self.obsconditions = obsconditions
 
-class QSO(GaussianField, MockSpectra, SelectTargets):
+class QSO(MockSpectra, SelectTargets):
 
     def __init__(self, seed=None, **kwargs):
+
         from desisim.templates import SIMQSO
 
         self.seed = seed
-        if not hasattr(self, 'rand'):
-            self.rand = np.random.RandomState(self.seed)
+        self.rand = np.random.RandomState(self.seed)
         
         super(QSO, self).__init__(**kwargs)
 
         self.objtype = 'QSO'
-        self.mockfile = os.path.join( self.mockdir_root, 'v0.0.5', '{}.fits'.format(self.objtype) ) # default 
         self.template_maker = SIMQSO(wave=self.wave, normfilter='decam2014-g')
 
-    def read(self, mockfile=None, healpixels=None, nside=8):
+        #self.default_mockfile = os.path.join( self.mockdir_root, 'v0.0.5', '{}.fits'.format(self.objtype) ) # default 
+
+    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
+             healpixels=None, nside=8):
         """Read the mock file."""
 
-        if mockfile is None:
-            mockfile = self.mockfile
+        #if mockfile is None:
+        #    mockfile = self.default_mockfile
 
-        data = self.readmock(mockfile, target_name=self.objtype,
-                             healpixels=healpixels, nside=nside)
+        if mockformat == 'gaussianfield':
+            MockReader = GaussianField(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside)
+        
         if bool(data):
-            data.update({'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
-                         'TEMPLATESUBTYPE': ''})
+            data.update({
+                'SEED': self.rand.randint(2**32, size=len(data['RA'])),
+                'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
+                'TEMPLATESUBTYPE': ''
+                })
 
         return data
 
@@ -329,30 +329,36 @@ class QSO(GaussianField, MockSpectra, SelectTargets):
         targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
             self.desi_mask.QSO_SOUTH.obsconditions)
 
-class SKY(GaussianField, MockSpectra):
+class SKY(MockSpectra, SelectTargets):
 
     def __init__(self, seed=None, **kwargs):
 
         self.seed = seed
-        if not hasattr(self, 'rand'):
-            self.rand = np.random.RandomState(self.seed)
+        self.rand = np.random.RandomState(self.seed)
 
-        super(SKY, self).__init__(seed=self.seed, **kwargs)
+        super(SKY, self).__init__(**kwargs)
 
         self.objtype = 'SKY'
-        self.mockfile = os.path.join( self.mockdir_root, 'v0.0.1', '2048', 'random.fits' ) # default 
+        #self.default_mockfile = os.path.join( self.mockdir_root, 'v0.0.1', '2048', 'random.fits' ) # default 
 
-    def read(self, mockfile=None, healpixels=None, nside=8):
+    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
+             healpixels=None, nside=8):
         """Read the mock file."""
 
-        if mockfile is None:
-            mockfile = self.mockfile
+        if mockformat == 'gaussianfield':
+            MockReader = GaussianField(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        data = self.readmock(mockfile, target_name=self.objtype,
-                             healpixels=healpixels, nside=nside)
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside)
+        
         if bool(data):
-            data.update({'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
-                         'TEMPLATESUBTYPE': ''})
+            data.update({
+                'SEED': self.rand.randint(2**32, size=len(data['RA'])),
+                'TRUESPECTYPE': self.objtype, 'TEMPLATETYPE': self.objtype,
+                 'TEMPLATESUBTYPE': ''
+                })
 
         return data
 
