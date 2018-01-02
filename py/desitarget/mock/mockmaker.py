@@ -350,7 +350,7 @@ class ReadMXXL(object):
 
         return out
 
-class ReadMWS_WD(object):
+class ReadMWSWD(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
 
@@ -426,14 +426,14 @@ class ReadMWS_WD(object):
 
         return out
     
-class ReadMWS_100PC(object):
+class ReadMWSNearby(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
 
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='MWS_100PC', nside=8, healpixels=None, magcut=None):
+    def readmock(self, mockfile, target_name='MWS_NEARBY', nside=8, healpixels=None, magcut=None):
         """Read the mock catalog.
 
         """
@@ -491,8 +491,8 @@ class ReadMWS_100PC(object):
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
-        # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
+        # Pack into a basic dictionary.  Is the normalization filter g-band???
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
                'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
@@ -502,7 +502,7 @@ class ReadMWS_100PC(object):
         mw_transmission(out, dust_dir=self.dust_dir)
 
         return out
-    
+
 class SelectTargets(object):
     """Select various types of targets.
 
@@ -992,7 +992,126 @@ class BGSMaker(SelectTargets):
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.desi_mask.BGS_ANY.obsconditions)
 
-class WDMaker(WDTree, SelectTargets):
+class STARMaker(SelectTargets):
+    """Lower-level Class for generating stellar spectra."""
+
+    def __init__(self, seed=None, verbose=False, **kwargs):
+
+        from scipy.spatial import cKDTree as KDTree
+        from speclite import filters
+
+        super(STARMaker, self).__init__(**kwargs)
+
+        self.seed = seed
+        self.verbose = verbose
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
+        self.objtype = 'STAR'
+
+        # Pre-compute normalized synthetic photometry for the full set of stellar templates.
+        flux, wave, meta = read_basis_templates(objtype='STAR')#, verbose=False)
+        self.meta = meta
+
+        decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
+                                         'wise2010-W1', 'wise2010-W2')
+        
+        maggies = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+        for filt, flux in zip( maggies.colnames, ('flux_g', 'flux_r', 'flux_z', 'flux_W1', 'flux_W2') ):
+            maggies.rename_column(filt, flux)
+
+        # Build the KD Tree.
+        self.tree = KDTree(np.vstack((self.meta['TEFF'].data,
+                                      self.meta['LOGG'].data,
+                                      self.meta['FEH'].data)).T)
+        
+    def _prepare_spectra(self, data):
+        
+        from desisim.templates import STAR
+
+        self.template_maker = STAR(wave=self.wave, normfilter=data['NORMFILTER'])
+        seed = self.rand.randint(2**32, size=len(data['RA']))
+
+        data.update({
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'SEED': seed, 
+            })
+
+        return data
+
+    def query(self, matrix):
+        """Return the nearest template number based on the KD Tree."""
+
+        dist, indx = self.tree.query(matrix)
+        return dist, indx
+
+class MWS_NEARBYMaker(STARMaker):
+    """Read various types of stellar mocks and generate spectra."""
+
+    def __init__(self, **kwargs):
+
+        super(MWS_NEARBYMaker, self).__init__(**kwargs)
+
+    def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
+             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+        """Read the mock file."""
+        
+        if mockformat == 'mws_100pc':
+            MockReader = ReadMWSNearby(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside,
+                                   magcut=magcut)
+
+        if bool(data):
+            data = self._prepare_spectra(data)
+
+        return data
+    
+    def make_spectra(self, data=None, index=None):
+        """Generate MWS_100PC stellar spectra."""
+        from desisim.io import empty_metatable
+        
+        if index is None:
+            index = np.arange(len(data['RA']))
+        nobj = len(index)
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
+            input_meta[inkey] = data[datakey][index]
+
+        if data['MOCKFORMAT'].lower() == 'mws_100pc':
+            alldata = np.vstack((data['TEFF'][index],
+                                 data['LOGG'][index],
+                                 data['FEH'][index])).T
+            _, templateid = self.query(alldata)
+            input_meta['TEMPLATEID'] = templateid
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+                                                           verbose=self.verbose) # Note! No colorcuts.
+                                                          
+        return flux, self.wave, meta
+
+    def select_targets(self, targets, truth):
+        """Select MWS_NEARBY targets.  The selection eventually will be done with Gaia,
+        so for now just do a "perfect" selection.
+
+        """
+        mws_nearby = np.ones(len(targets)) # select everything!
+        #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+
+        targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
+        targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
+        targets['OBSCONDITIONS'] |= (mws_nearby != 0)  * self.obsconditions.mask(
+            self.mws_mask.MWS_NEARBY.obsconditions)
+        targets['OBSCONDITIONS'] |= (mws_nearby != 0)  * self.obsconditions.mask(
+            self.desi_mask.MWS_ANY.obsconditions)
+
+class WDMaker(SelectTargets):
     """Read WD mocks and generate spectra."""
 
     def __init__(self, seed=None, verbose=False, **kwargs):
@@ -1019,7 +1138,7 @@ class WDMaker(WDTree, SelectTargets):
              healpixels=None, nside=8, nside_chunk=128, magcut=None):
         """Read the mock file."""
         if mockformat == 'mws_wd':
-            MockReader = ReadMWS_WD(dust_dir=dust_dir)
+            MockReader = ReadMWSWD(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
@@ -1180,3 +1299,4 @@ class SKYMaker(SelectTargets):
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
         targets['OBSCONDITIONS'] |= self.obsconditions.mask(
             self.desi_mask.SKY.obsconditions)
+
