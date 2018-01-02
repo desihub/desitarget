@@ -13,185 +13,10 @@ import os
 
 import numpy as np
 import healpy as hp
-from astropy.table import Table, Column, vstack, hstack
+from astropy.table import vstack, hstack
 
 from desimodel.footprint import radec2pix
 from desitarget.targets import encode_targetid
-import desitarget.mock.io as mockio
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
-
-def empty_targets_table(nobj=1):
-    """Initialize an empty 'targets' table.
-
-    """
-    targets = Table()
-
-    # RELEASE
-    targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
-    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
-    # TYPE
-    targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
-    targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
-    # RA_IVAR
-    # DEC_IVAR
-    # DCHISQ
-    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
-    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
-    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
-    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
-    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
-    # FLUX_W3
-    # FLUX_W4
-    # FLUX_IVAR_G
-    # FLUX_IVAR_R
-    # FLUX_IVAR_Z
-    # FLUX_IVAR_W1
-    # FLUX_IVAR_W2
-    # FLUX_IVAR_W3
-    # FLUX_IVAR_W4
-    targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-    # MW_TRANSMISSION_W3
-    # MW_TRANSMISSION_W4
-    # NOBS_G
-    # NOBS_R
-    # NOBS_Z
-    # FRACFLUX_G
-    # FRACFLUX_R
-    # FRACFLUX_Z
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    # The following two columns do not appear in the data targets catalog.
-    targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
-    # SHAPEDEV_R_IVAR
-    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
-    # SHAPEDEV_E1_IVAR
-    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    # SHAPEDEV_E2_IVAR    
-    targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
-    # SHAPEEXP_R_IVAR
-    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
-    # SHAPEEXP_E1_IVAR
-    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
-    # SHAPEEXP_E2_IVAR
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
-    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-    # PHOTSYS
-    # Do we need obsconditions or not?!?
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
-
-    return targets
-
-def empty_truth_table(nobj=1):
-    """Initialize an empty 'truth' table.
-
-    """
-    truth = Table()
-    truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
-    truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
-    truth.add_column(Column(name='CONTAM_TARGET', length=nobj, dtype='i8'))
-
-    truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
-    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='U10')) # ELG, BGS, STAR, WD, etc.
-    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='U10')) # DA, DB, etc.
-
-    truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99, unit='mag'))
-    
-    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
-    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
-    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
-    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
-    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
-
-    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
-                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
-                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-
-    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
-    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
-
-    return truth
-
-def _initialize_targets_truth(source_data, indx=None):
-    """Given a source_data dictionary, initialize the 'targets' and 'truth' tables
-    and populate them with various quantities of interest.
-
-    """
-    if indx is None:
-        indx = np.arange(len(source_data['RA']))
-    nobj = len(indx)
-
-    # Initialize the tables.
-    targets = empty_targets_table(nobj)
-    truth = empty_truth_table(nobj)
-    
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][indx]
-
-    # Add dust and depth.
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        key = 'MW_TRANSMISSION_{}'.format(band)
-        targets[key][:] = source_data[key][indx]
-
-    for band in ('G', 'R', 'Z'):
-        for prefix in ('PSF', 'GAL'):
-            key = '{}DEPTH_{}'.format(prefix, band)
-            targets[key][:] = source_data[key][indx]
-
-    for band in ('W1', 'W2'):
-        key = 'PSFDEPTH_{}'.format(band)
-        targets[key][:] = source_data[key][indx]
-
-    for key, source_key in zip( ['MOCKID', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][indx]
-        else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
-
-    # Add shapes and sizes.
-    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key][:] = source_data[key][indx]
-
-    if 'SEED' in source_data.keys(): # QSO and Lya targets don't have a SEED
-        source_key = 'SEED'
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[source_key][:] = source_data[source_key][indx]
-        else:
-            truth[source_key][:] = np.repeat(source_data[source_key], nobj)
-
-    # Sky targets do not have redshifts.
-    if 'Z' in source_data.keys():
-        truth['TRUEZ'][:] = source_data['Z'][indx]
-
-    # Temporary hack to get BOSS standards.
-    if 'BOSS_STD' in source_data.keys():
-        boss_std = source_data['BOSS_STD'][indx]
-    else:
-        boss_std = None
-
-    return targets, truth, boss_std
 
 def _initialize(params, verbose=False, seed=1, output_dir="./", 
                 nside=16, healpixels=None):
@@ -569,31 +394,27 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
             import pdb ; pdb.set_trace()
 
         else:
-
-            _targets, _truth, boss_std = _initialize_targets_truth(source_data, chunkindx)
-
             # Generate the spectra.
-            chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
-            for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
-                        'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-                _truth[key][:] = chunkmeta[key]
+            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(source_data, index=chunkindx)
 
-            # Scatter the photometry based on the depth.
-            MakeMock.scatter_photometry(source_data, _truth, _targets,
-                                        indx=chunkindx, psf=psf)
-
+            # Temporary hack to use BOSS standard stars.
+            if 'BOSS_STD' in source_data.keys():
+                boss_std = data['BOSS_STD'][chunkindx]
+            else:
+                boss_std = None
+                
             # Select targets.
-            MakeMock.select_targets(_targets, _truth, boss_std=boss_std)
+            MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
 
-        keep = np.where(_targets['DESI_TARGET'] != 0)[0]
+        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
 
         log.debug('Selected {} / {} targets on chunk {} / {}.'.format(
             nkeep, len(chunkindx), ii+1, nchunk))
 
         if nkeep > 0:
-            targets.append(_targets[keep])
-            truth.append(_truth[keep])
+            targets.append(chunktargets[keep])
+            truth.append(chunktruth[keep])
             trueflux.append(chunkflux[keep, :])
 
         # If we have enough, get out!
@@ -919,6 +740,8 @@ def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
     from astropy.io import fits
     from desiutil import depend
     from desispec.io.util import fitsheader, write_bintable
+    import desitarget.mock.io as mockio
+    from desitarget import desi_mask
     
     nobj = len(targets)
     nsky = len(skytargets)
@@ -1175,6 +998,8 @@ def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
 
     """
     # Read the mock catalog.
+    import desitarget.mock.io as mockio
+    
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
     mockformat = params['sources'][source_name]['format']
 
@@ -1384,6 +1209,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
             Corresponding Truth to Targets
     """
     from desimodel.footprint import radec2pix
+    from desitarget.mock.mockmaker import empty_targets_table, empty_truth_table
 
     obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
     onpix = np.where(obj_pix_id == healpix_id)[0]

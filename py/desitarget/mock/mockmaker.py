@@ -14,6 +14,7 @@ import numpy as np
 from pkg_resources import resource_filename
 
 import fitsio
+from astropy.table import Table, Column
 
 from desisim.io import read_basis_templates
 from desiutil.brick import brickname as get_brickname_from_radec
@@ -146,6 +147,118 @@ def mw_transmission(source_data, dust_dir=None):
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
         source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * source_data['EBV'])
 
+def empty_targets_table(nobj=1):
+    """Initialize an empty 'targets' table.
+
+    """
+    targets = Table()
+
+    # RELEASE
+    targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
+    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
+    # TYPE
+    targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
+    targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
+    # RA_IVAR
+    # DEC_IVAR
+    # DCHISQ
+    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
+    # FLUX_W3
+    # FLUX_W4
+    # FLUX_IVAR_G
+    # FLUX_IVAR_R
+    # FLUX_IVAR_Z
+    # FLUX_IVAR_W1
+    # FLUX_IVAR_W2
+    # FLUX_IVAR_W3
+    # FLUX_IVAR_W4
+    targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
+    # MW_TRANSMISSION_W3
+    # MW_TRANSMISSION_W4
+    # NOBS_G
+    # NOBS_R
+    # NOBS_Z
+    # FRACFLUX_G
+    # FRACFLUX_R
+    # FRACFLUX_Z
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    # The following two columns do not appear in the data targets catalog.
+    targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
+    # SHAPEDEV_R_IVAR
+    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
+    # SHAPEDEV_E1_IVAR
+    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
+    # SHAPEDEV_E2_IVAR    
+    targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
+    # SHAPEEXP_R_IVAR
+    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
+    # SHAPEEXP_E1_IVAR
+    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
+    # SHAPEEXP_E2_IVAR
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
+    # PHOTSYS
+    # Do we need obsconditions or not?!?
+    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
+
+    return targets
+
+def empty_truth_table(nobj=1):
+    """Initialize an empty 'truth' table.
+
+    """
+    truth = Table()
+    truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
+    truth.add_column(Column(name='CONTAM_TARGET', length=nobj, dtype='i8'))
+
+    truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
+    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
+    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='U10')) # ELG, BGS, STAR, WD, etc.
+    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='U10')) # DA, DB, etc.
+
+    truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+30, unit='mag'))
+    truth.add_column(Column(name='VDISP', length=nobj, dtype='f4', data=np.zeros(nobj), unit='km/s'))
+    
+    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
+
+    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
+                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
+                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+
+    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
+    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
+    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
+
+    return truth
+
 def _sample_vdisp(data, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1), rand=None, nside=128):
     """Choose a subset of velocity dispersions."""
 
@@ -244,6 +357,63 @@ class SelectTargets(object):
         plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
         plt.legend(loc='upper left')
         plt.show()
+
+    def populate_targets_truth(self, data, meta, indx=None, psf=True):
+        """Given a source_data dictionary and a spectral metadata table, initialize and
+        populate the 'targets' and 'truth' tables.
+
+        """
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
+
+        # Initialize the tables.
+        targets = empty_targets_table(nobj)
+        truth = empty_truth_table(nobj)
+
+        # Add some basic info.
+        for key in ('RA', 'DEC', 'BRICKNAME'):
+            targets[key][:] = data[key][indx]
+            
+        truth['MOCKID'][:] = data['MOCKID'][indx]
+
+        # Add dust and depth.
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+            key = 'MW_TRANSMISSION_{}'.format(band)
+            targets[key][:] = data[key][indx]
+
+        for band in ('G', 'R', 'Z'):
+            for prefix in ('PSF', 'GAL'):
+                key = '{}DEPTH_{}'.format(prefix, band)
+                targets[key][:] = data[key][indx]
+
+        for band in ('W1', 'W2'):
+            key = 'PSFDEPTH_{}'.format(band)
+            targets[key][:] = data[key][indx]
+
+        # Add spectral / template type and subtype.
+        for key, source_key in zip( ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                    ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+            if isinstance(data[source_key], np.ndarray):
+                truth[key][:] = data[source_key][indx]
+            else:
+                truth[key][:] = np.repeat(data[source_key], nobj)
+
+        # Add shapes and sizes (if available for this target class).
+        if 'SHAPEEXP_R' in data.keys():
+            for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                        'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+                targets[key][:] = data[key][indx]
+
+        # Copy various quantities from the metadata table.
+        for key in ('TEMPLATEID', 'SEED', 'REDSHIFT', 'MAG', 'VDISP', 'FLUX_G', 'FLUX_R', 'FLUX_Z',
+                    'FLUX_W1', 'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+            truth[key.replace('REDSHIFT', 'TRUEZ')][:] = meta[key]
+
+        # Scatter the photometry based on the depth.
+        self.scatter_photometry(data, truth, targets, indx=indx, psf=psf)
+
+        return targets, truth
 
 class ReadGaussianField(object):
 
@@ -829,7 +999,9 @@ class QSOMaker(SelectTargets):
             nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
             lyaforest=False, nocolorcuts=True, verbose=self.verbose)
 
-        return flux, self.wave, meta
+        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=True)
+
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select QSO targets."""
@@ -956,7 +1128,9 @@ class LYAMaker(SelectTargets):
 
         # Add DLAa (ToDo).
 
-        return flux, self.wave, meta
+        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=True)
+
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select Lya/QSO targets."""
@@ -1080,8 +1254,10 @@ class LRGMaker(SelectTargets):
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False,
                                                            verbose=self.verbose)
-        
-        return flux, self.wave, meta
+
+        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=False)
+
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets."""
@@ -1211,8 +1387,10 @@ class ELGMaker(SelectTargets):
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False,
                                                            verbose=self.verbose)
+
+        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=False)
         
-        return flux, self.wave, meta
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select ELG targets."""
