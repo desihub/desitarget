@@ -426,6 +426,83 @@ class ReadMWS_WD(object):
 
         return out
     
+class ReadMWS_100PC(object):
+
+    def __init__(self, bricksize=0.25, dust_dir=None):
+
+        self.bricksize = bricksize
+        self.dust_dir = dust_dir
+
+    def readmock(self, mockfile, target_name='MWS_100PC', nside=8, healpixels=None, magcut=None):
+        """Read the mock catalog.
+
+        """
+        if not os.path.isfile(mockfile):
+            log.warning('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        self.nside = nside
+    
+        # Read the whole DESI footprint.
+        if healpixels is None:
+            from desimodel.footprint import tiles2pix
+            healpixels = tiles2pix(self.nside)
+            
+        # Read the ra,dec coordinates, generate mockid, and then restrict to the
+        # desired healpixels.
+        log.info('Reading {}'.format(mockfile))
+        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj = len(radec)
+
+        files = list()
+        n_per_file = list()
+        files.append(mockfile)
+        n_per_file.append(nobj)
+
+        objid = np.arange(nobj, dtype='i8')
+        mockid = make_mockid(objid, n_per_file)
+
+        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
+        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+        else:
+            log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
+
+        objid = objid[cut]
+        mockid = mockid[cut]
+        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = radec['DEC'][cut].astype('f8')
+        del radec
+
+        cols = ['RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
+        data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
+        zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
+        mag = data['MAGG'].astype('f4') # SDSS g-band
+        teff = data['TEFF'].astype('f4')
+        logg = data['LOGG'].astype('f4')
+        feh = data['FEH'].astype('f4')
+        templatesubtype = data['SPECTRALTYPE']
+
+        # Assign bricknames.
+        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
+               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
+               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
+               'FILES': files, 'N_PER_FILE': n_per_file}
+
+        # Add MW transmission
+        mw_transmission(out, dust_dir=self.dust_dir)
+
+        return out
+    
 class SelectTargets(object):
     """Select various types of targets.
 
@@ -514,46 +591,13 @@ class QSOMaker(SelectTargets):
         targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
             self.desi_mask.QSO_SOUTH.obsconditions)
 
-class LRGTree(object):
-    """Build a KD Tree and load the GMM for LRGs."""
-    def __init__(self, **kwargs):
-
-        super(LRGTree, self).__init__(**kwargs)
-        
-        from scipy.spatial import cKDTree as KDTree
-        from desiutil.sklearn import GaussianMixtureModel
-
-        self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
-
-        zobj = self.meta['Z'].data
-        self.tree = KDTree(np.vstack((zobj)).T)
-
-        gmmfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
-        self.GMM = GaussianMixtureModel.load(gmmfile)
-
-    def GMMsample(self, nsample=1):
-        """Sample from the GMM."""
-        
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
-
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-
-class LRGMaker(LRGTree, SelectTargets):
+class LRGMaker(SelectTargets):
+    """Read LRG mocks and generate spectra."""
 
     def __init__(self, seed=None, verbose=False, **kwargs):
+
+        from scipy.spatial import cKDTree as KDTree
+        from desiutil.sklearn import GaussianMixtureModel
 
         super(LRGMaker, self).__init__(**kwargs)
 
@@ -562,6 +606,14 @@ class LRGMaker(LRGTree, SelectTargets):
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'LRG'
+
+        self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
+
+        zobj = self.meta['Z'].data
+        self.tree = KDTree(np.vstack((zobj)).T)
+
+        gmmfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
+        self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=8, nside_chunk=128, magcut=None):
@@ -602,6 +654,26 @@ class LRGMaker(LRGTree, SelectTargets):
 
         return data
 
+    def GMMsample(self, nsample=1):
+        """Sample from the GMM."""
+        
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
+    def query(self, matrix):
+        """Return the nearest template number based on the KD Tree."""
+
+        dist, indx = self.tree.query(matrix)
+        return dist, indx
+    
     def make_spectra(self, data=None, index=None):
         """Generate LRG spectra."""
         from desisim.io import empty_metatable
@@ -645,14 +717,21 @@ class LRGMaker(LRGTree, SelectTargets):
         targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
             self.desi_mask.LRG_SOUTH.obsconditions)
 
-class ELGTree(object):
-    """Build a KD Tree and load the GMM for ELGs."""
-    def __init__(self, **kwargs):
+class ELGMaker(SelectTargets):
+    """Read ELG mocks and generate spectra."""
 
-        super(ELGTree, self).__init__(**kwargs)
-        
+    def __init__(self, seed=None, verbose=False, **kwargs):
+
         from scipy.spatial import cKDTree as KDTree
         from desiutil.sklearn import GaussianMixtureModel
+
+        super(ELGMaker, self).__init__(**kwargs)
+
+        self.seed = seed
+        self.verbose = verbose
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
+        self.objtype = 'ELG'
 
         self.meta = read_basis_templates(objtype='ELG', onlymeta=True)
 
@@ -663,38 +742,6 @@ class ELGTree(object):
 
         gmmfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
         self.GMM = GaussianMixtureModel.load(gmmfile)
-
-    def GMMsample(self, nsample=1):
-        """Sample from the GMM."""
-        
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
-
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-
-class ELGMaker(ELGTree, SelectTargets):
-
-    def __init__(self, seed=None, verbose=False, **kwargs):
-
-        super(ELGMaker, self).__init__(**kwargs)
-
-        self.seed = seed
-        self.verbose = verbose
-        self.rand = np.random.RandomState(self.seed)
-        self.wave = _default_wave()
-        self.objtype = 'ELG'
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=8, nside_chunk=128, magcut=None):
@@ -737,6 +784,26 @@ class ELGMaker(ELGTree, SelectTargets):
 
         return data
 
+    def GMMsample(self, nsample=1):
+        """Sample from the GMM."""
+        
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
+    def query(self, matrix):
+        """Return the nearest template number based on the KD Tree."""
+
+        dist, indx = self.tree.query(matrix)
+        return dist, indx
+    
     def make_spectra(self, data=None, index=None):
         """Generate ELG spectra."""
         from desisim.io import empty_metatable
@@ -781,14 +848,21 @@ class ELGMaker(ELGTree, SelectTargets):
         targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
             self.desi_mask.ELG_SOUTH.obsconditions)
 
-class BGSTree(object):
-    """Build a KD Tree and load the GMM for BGSs."""
-    def __init__(self, **kwargs):
+class BGSMaker(SelectTargets):
+    """Read BGS mocks and generate spectra."""
 
-        super(BGSTree, self).__init__(**kwargs)
-        
+    def __init__(self, seed=None, verbose=False, **kwargs):
+
         from scipy.spatial import cKDTree as KDTree
         from desiutil.sklearn import GaussianMixtureModel
+
+        super(BGSMaker, self).__init__(**kwargs)
+
+        self.seed = seed
+        self.verbose = verbose
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
+        self.objtype = 'BGS'
 
         self.meta = read_basis_templates(objtype='BGS', onlymeta=True)
 
@@ -801,41 +875,10 @@ class BGSTree(object):
         gmmfile = resource_filename('desitarget', 'mock/data/bgs_gmm.fits')
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
-    def GMMsample(self, nsample=1):
-        """Sample from the GMM."""
-        
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
-
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-
-class BGSMaker(BGSTree, SelectTargets):
-
-    def __init__(self, seed=None, verbose=False, **kwargs):
-
-        super(BGSMaker, self).__init__(**kwargs)
-
-        self.seed = seed
-        self.verbose = verbose
-        self.rand = np.random.RandomState(self.seed)
-        self.wave = _default_wave()
-        self.objtype = 'BGS'
-
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
              healpixels=None, nside=8, nside_chunk=128, magcut=None):
         """Read the mock file."""
+        
         if mockformat == 'durham_mxxl_hdf5':
             MockReader = ReadMXXL(dust_dir=dust_dir)
         else:
@@ -869,6 +912,26 @@ class BGSMaker(BGSTree, SelectTargets):
 
         return data
 
+    def GMMsample(self, nsample=1):
+        """Sample from the GMM."""
+        
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
+    def query(self, matrix):
+        """Return the nearest template number based on the KD Tree."""
+
+        dist, indx = self.tree.query(matrix)
+        return dist, indx
+    
     def make_spectra(self, data=None, index=None):
         """Generate BGS spectra."""
         from desisim.io import empty_metatable
@@ -929,39 +992,13 @@ class BGSMaker(BGSTree, SelectTargets):
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.desi_mask.BGS_ANY.obsconditions)
 
-class WDTree(object):
-    """Build a KD Tree for WDs."""
-    def __init__(self, **kwargs):
-
-        super(WDTree, self).__init__(**kwargs)
-        
-        from scipy.spatial import cKDTree as KDTree
-
-        self.meta_da = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
-        self.meta_db = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
-
-        self.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
-                                         self.meta_da['LOGG'].data)).T)
-        self.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
-                                         self.meta_db['LOGG'].data)).T)
-
-    def query(self, matrix, subtype='DA'):
-        """Return the nearest template number based on the KD Tree."""
-
-        if subtype.upper() == 'DA':
-            dist, indx = self.tree_da.query(matrix)
-        elif subtype.upper() == 'DB':
-            dist, indx = self.tree_db.query(matrix)
-        else:
-            log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
-            raise ValueError
-
-        return dist, indx
-
 class WDMaker(WDTree, SelectTargets):
+    """Read WD mocks and generate spectra."""
 
     def __init__(self, seed=None, verbose=False, **kwargs):
 
+        from scipy.spatial import cKDTree as KDTree
+        
         super(WDMaker, self).__init__(**kwargs)
 
         self.seed = seed
@@ -969,6 +1006,14 @@ class WDMaker(WDTree, SelectTargets):
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'WD'
+        
+        self.meta_da = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
+        self.meta_db = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
+
+        self.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
+                                         self.meta_da['LOGG'].data)).T)
+        self.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
+                                         self.meta_db['LOGG'].data)).T)
 
     def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
              healpixels=None, nside=8, nside_chunk=128, magcut=None):
@@ -1002,6 +1047,19 @@ class WDMaker(WDTree, SelectTargets):
 
         return data
 
+    def query(self, matrix, subtype='DA'):
+        """Return the nearest template number based on the KD Tree."""
+
+        if subtype.upper() == 'DA':
+            dist, indx = self.tree_da.query(matrix)
+        elif subtype.upper() == 'DB':
+            dist, indx = self.tree_db.query(matrix)
+        else:
+            log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
+            raise ValueError
+
+        return dist, indx
+    
     def make_spectra(self, data=None, index=None):
         """Generate WD spectra.  Deal with DA vs DB white dwarfs separately.
 
