@@ -11,11 +11,9 @@ from __future__ import absolute_import, division, print_function
 
 import os
 import numpy as np
-from glob import glob
 from pkg_resources import resource_filename
 
 import fitsio
-from scipy import constants
 
 from desisim.io import read_basis_templates
 from desiutil.brick import brickname as get_brickname_from_radec
@@ -39,6 +37,12 @@ ENCODE_ROW_MAX     = ENCODE_ROW_MASK
 ENCODE_FILE_END    = 52
 ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
 ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
+
+try:
+    from scipy import constants
+    C_LIGHT = constants.c/1000.0
+except TypeError: # This can happen during documentation builds.
+    C_LIGHT = 299792458.0/1000.0
 
 def encode_rownum_filenum(rownum, filenum):
     """Encodes row and file number in 52 packed bits.
@@ -177,7 +181,81 @@ def _default_wave(wavemin=None, wavemax=None, dw=0.2):
             
     return np.arange(round(wavemin, 1), wavemax, dw)
 
-class MXXL(object):
+class ReadGaussianField(object):
+
+    def __init__(self, bricksize=0.25, dust_dir=None):
+
+        self.bricksize = bricksize
+        self.dust_dir = dust_dir
+
+    def readmock(self, mockfile, target_name='', nside=8, healpixels=None, magcut=None):
+        """Read the mock catalog.
+
+        """
+        if not os.path.isfile(mockfile):
+            log.warning('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        self.nside = nside
+    
+        # Read the whole DESI footprint.
+        if healpixels is None:
+            from desimodel.footprint import tiles2pix
+            healpixels = tiles2pix(self.nside)
+
+        # Read the ra,dec coordinates, generate mockid, and then restrict to the
+        # desired healpixels.
+        log.info('Reading {}'.format(mockfile))
+        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj = len(radec)
+
+        files = list()
+        n_per_file = list()
+        files.append(mockfile)
+        n_per_file.append(nobj)
+
+        objid = np.arange(nobj, dtype='i8')
+        mockid = make_mockid(objid, n_per_file)
+
+        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
+        allpix = radec2pix(self.nside, radec['RA'], radec['DEC'])
+        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+        else:
+            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
+
+        objid = objid[cut]
+        mockid = mockid[cut]
+        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = radec['DEC'][cut].astype('f8')
+        del radec
+
+        # Assign bricknames.
+        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+
+        # Add redshifts.
+        if target_name.upper() == 'SKY':
+            zz = np.zeros(len(ra))
+        else:
+            data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
+            zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+            
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
+               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz,
+               'FILES': files, 'N_PER_FILE': n_per_file}
+
+        # Add MW transmission
+        mw_transmission(out, dust_dir=self.dust_dir)
+
+        return out
+
+class ReadMXXL(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
 
@@ -271,15 +349,15 @@ class MXXL(object):
         mw_transmission(out, dust_dir=self.dust_dir)
 
         return out
-        
-class GaussianField(object):
+
+class ReadMWS_WD(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
 
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='', nside=8, healpixels=None, magcut=None):
+    def readmock(self, mockfile, target_name='WD', nside=8, healpixels=None, magcut=None):
         """Read the mock catalog.
 
         """
@@ -293,7 +371,7 @@ class GaussianField(object):
         if healpixels is None:
             from desimodel.footprint import tiles2pix
             healpixels = tiles2pix(self.nside)
-
+            
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
         log.info('Reading {}'.format(mockfile))
@@ -309,7 +387,7 @@ class GaussianField(object):
         mockid = make_mockid(objid, n_per_file)
 
         log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
-        allpix = radec2pix(self.nside, radec['RA'], radec['DEC'])
+        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -317,7 +395,7 @@ class GaussianField(object):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
         else:
-            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
+            log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
         objid = objid[cut]
         mockid = mockid[cut]
@@ -325,29 +403,29 @@ class GaussianField(object):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
+        cols = ['RADIALVELOCITY', 'G_SDSS', 'TEFF', 'LOGG', 'SPECTRALTYPE']
+        data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
+        zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
+        mag = data['G_SDSS'].astype('f4') # SDSS g-band
+        teff = data['TEFF'].astype('f4')
+        logg = data['LOGG'].astype('f4')
+        templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
+
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
-        # Add redshifts.
-        if target_name.upper() == 'SKY':
-            zz = np.zeros(len(ra))
-            #mag = np.zeros_like(zz) + 22 # placeholder
-        else:
-            data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
-            zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
-            #mag = np.zeros_like(zz) + 22 # placeholder
-            
         # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
                'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz,
+               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
+               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission
         mw_transmission(out, dust_dir=self.dust_dir)
 
         return out
-
+    
 class SelectTargets(object):
     """Select various types of targets.
 
@@ -386,7 +464,7 @@ class QSOMaker(SelectTargets):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
-            MockReader = GaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
@@ -412,7 +490,6 @@ class QSOMaker(SelectTargets):
         
         if index is None:
             index = np.arange(len(data['RA']))
-        nobj = len(index)
             
         flux, wave, meta = self.template_maker.make_templates(
             nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
@@ -491,7 +568,7 @@ class LRGMaker(LRGTree, SelectTargets):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
-            MockReader = GaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
@@ -533,14 +610,14 @@ class LRGMaker(LRGTree, SelectTargets):
             index = np.arange(len(data['RA']))
         nobj = len(index)
 
-        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
 
         if data['MOCKFORMAT'].lower() == 'gaussianfield':
             # This is not quite right, but choose a template with equal probability.
-            templateid = self.rand.choice(self.meta['TEMPLATEID'], len(index))
+            templateid = self.rand.choice(self.meta['TEMPLATEID'], nobj)
             input_meta['TEMPLATEID'] = templateid
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
@@ -624,7 +701,7 @@ class ELGMaker(ELGTree, SelectTargets):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
-            MockReader = GaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
@@ -668,7 +745,7 @@ class ELGMaker(ELGTree, SelectTargets):
             index = np.arange(len(data['RA']))
         nobj = len(index)
 
-        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
@@ -760,7 +837,7 @@ class BGSMaker(BGSTree, SelectTargets):
              healpixels=None, nside=8, nside_chunk=128, magcut=None):
         """Read the mock file."""
         if mockformat == 'durham_mxxl_hdf5':
-            MockReader = MXXL(dust_dir=dust_dir)
+            MockReader = ReadMXXL(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
@@ -800,7 +877,7 @@ class BGSMaker(BGSTree, SelectTargets):
             index = np.arange(len(data['RA']))
         nobj = len(index)
 
-        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][index]
@@ -852,6 +929,139 @@ class BGSMaker(BGSTree, SelectTargets):
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.desi_mask.BGS_ANY.obsconditions)
 
+class WDTree(object):
+    """Build a KD Tree for WDs."""
+    def __init__(self, **kwargs):
+
+        super(WDTree, self).__init__(**kwargs)
+        
+        from scipy.spatial import cKDTree as KDTree
+
+        self.meta_da = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
+        self.meta_db = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
+
+        self.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
+                                         self.meta_da['LOGG'].data)).T)
+        self.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
+                                         self.meta_db['LOGG'].data)).T)
+
+    def query(self, matrix, subtype='DA'):
+        """Return the nearest template number based on the KD Tree."""
+
+        if subtype.upper() == 'DA':
+            dist, indx = self.tree_da.query(matrix)
+        elif subtype.upper() == 'DB':
+            dist, indx = self.tree_db.query(matrix)
+        else:
+            log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
+            raise ValueError
+
+        return dist, indx
+
+class WDMaker(WDTree, SelectTargets):
+
+    def __init__(self, seed=None, verbose=False, **kwargs):
+
+        super(WDMaker, self).__init__(**kwargs)
+
+        self.seed = seed
+        self.verbose = verbose
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
+        self.objtype = 'WD'
+
+    def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
+             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+        """Read the mock file."""
+        if mockformat == 'mws_wd':
+            MockReader = ReadMWS_WD(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside,
+                                   magcut=magcut)
+
+        if bool(data):
+            data = self._prepare_spectra(data)
+
+        return data
+
+    def _prepare_spectra(self, data):
+        
+        from desisim.templates import WD
+        self.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=data['NORMFILTER'])
+        self.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=data['NORMFILTER'])
+
+        seed = self.rand.randint(2**32, size=len(data['RA']))
+
+        data.update({
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': self.objtype, 
+            'SEED': seed, 
+            })
+
+        return data
+
+    def make_spectra(self, data=None, index=None):
+        """Generate WD spectra.  Deal with DA vs DB white dwarfs separately.
+
+        """
+        from desisim.io import empty_metatable
+        
+        if index is None:
+            index = np.arange(len(data['RA']))
+        nobj = len(index)
+
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'SUBTYPE'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'TEMPLATESUBTYPE')):
+            input_meta[inkey] = data[datakey][index]
+            
+        if data['MOCKFORMAT'].lower() == 'mws_wd':
+            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+            
+            for subtype in ('DA', 'DB'):
+                these = np.where(input_meta['SUBTYPE'] == subtype)[0]
+                if len(these) > 0:
+                    alldata = np.vstack((data['TEFF'][index][these],
+                                         data['LOGG'][index][these])).T
+                    _, templateid = self.query(alldata, subtype=subtype)
+                    
+                    input_meta['TEMPLATEID'][these] = templateid
+                    
+                    template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
+                    flux1, _, meta1 = template_maker.make_templates(input_meta=input_meta[these],
+                                                                    verbose=self.verbose)
+                    meta[these] = meta1
+                    flux[these, :] = flux1
+            
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        return flux, self.wave, meta
+
+    def select_targets(self, targets, truth):
+        """Select MWS_WD and STD_WD targets.  The selection eventually will be done with
+        Gaia, so for now just do a "perfect" selection here.
+
+        """
+        #mws_wd = np.ones(len(targets)) # select everything!
+        mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
+
+        targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+        targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
+        targets['OBSCONDITIONS'] |= (mws_wd != 0)  * self.obsconditions.mask(
+            self.mws_mask.MWS_WD.obsconditions)
+        targets['OBSCONDITIONS'] |= (mws_wd != 0)  * self.obsconditions.mask(
+            self.desi_mask.MWS_ANY.obsconditions)
+
+        # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
+        std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
+        targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
+        targets['OBSCONDITIONS'] |= (std_wd != 0)  * self.obsconditions.mask(
+            self.desi_mask.STD_WD.obsconditions)
+
 class SKYMaker(SelectTargets):
 
     def __init__(self, seed=None, **kwargs):
@@ -868,7 +1078,7 @@ class SKYMaker(SelectTargets):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
-            MockReader = GaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
