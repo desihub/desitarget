@@ -196,6 +196,55 @@ class SelectTargets(object):
         self.contam_mask = contam_mask
         self.obsconditions = obsconditions
 
+    def scatter_photometry(self, data, truth, targets, indx=None, psf=True, qaplot=False):
+        """Add noise to the photometry based on the depth.
+
+        """
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
+
+        if psf:
+            depthprefix = 'PSF'
+        else:
+            depthprefix = 'GAL'
+
+        factor = 5 # -- should this be 1 or 5???
+
+        for band in ('G', 'R', 'Z'):
+            fluxkey = 'FLUX_{}'.format(band)
+            depthkey = '{}DEPTH_{}'.format(depthprefix, band)
+
+            sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
+            targets[fluxkey][:] = truth[fluxkey] + self.rand.normal(scale=sigma)
+
+        for band in ('W1', 'W2'):
+            fluxkey = 'FLUX_{}'.format(band)
+            depthkey = 'PSFDEPTH_{}'.format(band)
+
+            sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
+            targets[fluxkey][:] = truth[fluxkey] + self.rand.normal(scale=sigma)
+
+        if qaplot:
+            self.qaplot_scatter_photometry(targets, truth)
+
+    def qaplot_scatter_photometry(self, targets, truth):
+        """Build a simple QAplot. """
+
+        import matplotlib.pyplot as plt
+
+        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
+        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
+        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
+        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
+        plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', 
+                    label='Noiseless Photometry')
+        plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none',
+                    label='Noisy Photometry')
+        plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
+        plt.legend(loc='upper left')
+        plt.show()
+
 class ReadGaussianField(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
@@ -278,7 +327,7 @@ class ReadGalaxia(object):
         self.dust_dir = dust_dir
 
     def readmock(self, mockfile, target_name='MWS_MAIN', nside=None, healpixels=None,
-                 nside_galaxia=None):
+                 nside_galaxia=None, magcut=None):
         """Read the mock catalog.
 
         """
@@ -296,8 +345,15 @@ class ReadGalaxia(object):
         theta, phi = hp.pix2ang(nside, healpixels, nest=True)
         pixnum = hp.ang2pix(nside_galaxia, theta, phi, nest=True)
 
-        #basedir = get_healpix_dir(nside=nside_galaxia, pixnum=pixnum, basedir=mockfile_nside)
-        galaxiafile = findfile(filetype='mock_allsky_galaxia_desi', nside=nside_galaxia,
+        if target_name.upper() == 'MWS_MAIN':
+            filetype = 'mock_allsky_galaxia_desi'
+        elif target_name.upper() == 'FAINTSTAR':
+            filetype = 'mock_superfaint_allsky_galaxia_desi_b10_cap_north'
+        else:
+            log.warning('Unrecognized target name {}!'.format(target_name))
+            raise ValueError
+        
+        galaxiafile = findfile(filetype=filetype, nside=nside_galaxia,
                                pixnum=pixnum, basedir=mockfile_nside, ext='fits')
 
         log.info('Reading {}'.format(galaxiafile))
@@ -336,20 +392,40 @@ class ReadGalaxia(object):
         logg = data['LOGG'].astype('f4')
         feh = data['FEH'].astype('f4')
 
+        # Temporary hack to select SDSS standards se extinction-corrected SDSS mags 
+        boss_std = self.select_sdss_std(data['SDSSU_TRUE_NODUST'], data['SDSSG_TRUE_NODUST'],
+                                        data['SDSSR_TRUE_NODUST'], data['SDSSI_TRUE_NODUST'],
+                                        data['SDSSZ_TRUE_NODUST'], obs_rmag=None)
+
+        if magcut:
+            cut = mag < magcut
+            if np.count_nonzero(cut) == 0:
+                log.warning('No objects with r < {}!'.format(magcut))
+                return dict()
+            else:
+                mockid = mockid[cut]
+                objid = objid[cut]
+                ra = ra[cut]
+                dec = dec[cut]
+                boss_std = boss_std[cut]
+                zz = zz[cut]
+                mag = mag[cut]
+                mag_obs = mag_obs[cut]
+                teff = teff[cut]
+                logg = logg[cut]
+                feh = feh[cut]
+                nobj = len(ra)
+                log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
+
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
         
-        # Temporary hack to select SDSS standards se extinction-corrected SDSS mags 
-        istd = self.select_sdss_std(data['SDSSU_TRUE_NODUST'], data['SDSSG_TRUE_NODUST'],
-                                    data['SDSSR_TRUE_NODUST'], data['SDSSI_TRUE_NODUST'],
-                                    data['SDSSZ_TRUE_NODUST'], obs_rmag=None)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'NORMFILTER': 'sdss2010-r', 'BOSS_STD': istd, 
+               'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std, 
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission
@@ -730,7 +806,7 @@ class QSOMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside)
 
         if bool(data):
-            data = self._prepare_spectra(data, nside_chunk=nside_chunk)
+            data = self._prepare_spectra(data)
 
         return data
 
@@ -747,6 +823,7 @@ class QSOMaker(SelectTargets):
         
         if index is None:
             index = np.arange(len(data['RA']))
+        nobj = len(index)
             
         flux, wave, meta = self.template_maker.make_templates(
             nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
@@ -762,7 +839,7 @@ class QSOMaker(SelectTargets):
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
           
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux, optical=True)
+                           w1flux=w1flux, w2flux=w2flux)
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
@@ -889,7 +966,7 @@ class LYAMaker(SelectTargets):
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
           
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux, optical=True)
+                           w1flux=w1flux, w2flux=w2flux)
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
@@ -1392,6 +1469,73 @@ class STARMaker(SelectTargets):
         targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(
             self.desi_mask.STD_BRIGHT.obsconditions)
 
+    def select_contaminants(self, targets, truth):
+        """Select stellar (faint and bright) contaminants for the extragalactic
+        targets.
+
+        """ 
+        from desitarget.cuts import isBGS_faint, isELG, isLRG_colors, isQSO_colors
+
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+
+        # Select stellar contaminants for BGS_FAINT targets.
+        bgs_faint = isBGS_faint(rflux=rflux)
+        targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
+        targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
+        targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
+        
+        targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
+            self.bgs_mask.BGS_FAINT.obsconditions)
+        targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
+            self.bgs_mask.BGS_FAINT_SOUTH.obsconditions)
+        targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
+            self.desi_mask.BGS_ANY.obsconditions)
+        
+        truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
+        truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
+
+        # Select stellar contaminants for ELG targets.
+        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
+        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        
+        targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
+            self.desi_mask.ELG.obsconditions)
+        targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
+            self.desi_mask.ELG_SOUTH.obsconditions)
+        
+        truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
+        truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
+
+        # Select stellar contaminants for LRG targets.
+        lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux)
+        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
+        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
+
+        targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
+            self.desi_mask.LRG.obsconditions)
+        targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
+            self.desi_mask.LRG_SOUTH.obsconditions)
+        
+        truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
+        truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
+
+        # Select stellar contaminants for QSO targets.
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                           w2flux=w2flux)
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+
+        targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(
+            self.desi_mask.QSO.obsconditions)
+        targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(
+            self.desi_mask.QSO_SOUTH.obsconditions)
+        
+        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
+        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
+
 class MWS_MAINMaker(STARMaker):
     """Read MWS_MAIN mocks and generate spectra."""
 
@@ -1400,7 +1544,8 @@ class MWS_MAINMaker(STARMaker):
         super(MWS_MAINMaker, self).__init__(**kwargs)
 
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=None, nside=None, nside_galaxia=None, **kwargs):
+             healpixels=None, nside=None, nside_galaxia=None, magcut=None,
+             **kwargs):
         """Read the mock file."""
         
         if mockformat == 'galaxia':
@@ -1408,9 +1553,9 @@ class MWS_MAINMaker(STARMaker):
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        data = MockReader.readmock(mockfile, target_name=self.objtype,
+        data = MockReader.readmock(mockfile, target_name='MWS_MAIN',
                                    healpixels=healpixels, nside=nside,
-                                   nside_galaxia=nside_galaxia)
+                                   nside_galaxia=nside_galaxia, magcut=magcut)
 
         if bool(data):
             data = self._prepare_spectra(data)
@@ -1418,7 +1563,7 @@ class MWS_MAINMaker(STARMaker):
         return data
     
     def make_spectra(self, data=None, index=None):
-        """Generate MWS_100PC stellar spectra."""
+        """Generate MWS_MAIN stellar spectra."""
         from desisim.io import empty_metatable
         
         if index is None:
@@ -1488,7 +1633,7 @@ class MWS_MAINMaker(STARMaker):
         self.select_standards(targets, truth, boss_std=boss_std)
         
         # Select bright stellar contaminants for the extragalactic targets.
-        # self._star_select(targets, truth)
+        self.select_contaminants(targets, truth)
 
 class MWS_NEARBYMaker(STARMaker):
     """Read MWS_NEARBY mocks and generate spectra."""
@@ -1506,7 +1651,7 @@ class MWS_NEARBYMaker(STARMaker):
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        data = MockReader.readmock(mockfile, target_name=self.objtype,
+        data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
                                    healpixels=healpixels, nside=nside)
 
         if bool(data):
@@ -1515,7 +1660,7 @@ class MWS_NEARBYMaker(STARMaker):
         return data
     
     def make_spectra(self, data=None, index=None):
-        """Generate MWS_100PC stellar spectra."""
+        """Generate MWS_NEARBY stellar spectra."""
         from desisim.io import empty_metatable
         
         if index is None:
@@ -1555,6 +1700,76 @@ class MWS_NEARBYMaker(STARMaker):
             self.mws_mask.MWS_NEARBY.obsconditions)
         targets['OBSCONDITIONS'] |= (mws_nearby != 0)  * self.obsconditions.mask(
             self.desi_mask.MWS_ANY.obsconditions)
+
+class FAINTSTARMaker(STARMaker):
+    """Read FAINTSTAR mocks and generate spectra."""
+
+    def __init__(self, **kwargs):
+
+        super(FAINTSTARMaker, self).__init__(**kwargs)
+
+    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
+             healpixels=None, nside=None, nside_galaxia=None, magcut=None,
+             **kwargs):
+        """Read the mock file."""
+        
+        if mockformat == 'galaxia':
+            MockReader = ReadGalaxia(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
+                                   healpixels=healpixels, nside=nside,
+                                   nside_galaxia=nside_galaxia, magcut=magcut)
+
+        if bool(data):
+            data = self._prepare_spectra(data)
+
+        return data
+    
+    def make_spectra(self, data=None, index=None):
+        """Generate FAINTSTAR stellar spectra.  These (numerous!) objects are only used
+        as contaminants, so we use the templates themselves for the spectra
+        rather than generating them on-the-fly.
+
+        """
+        from desisim.io import empty_metatable
+        
+        if index is None:
+            index = np.arange(len(data['RA']))
+        nobj = len(index)
+
+        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
+                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
+            input_meta[inkey] = data[datakey][index]
+
+        if data['MOCKFORMAT'].lower() == 'galaxia':
+            alldata = np.vstack((data['TEFF'][index],
+                                 data['LOGG'][index],
+                                 data['FEH'][index])).T
+            _, templateid = self.query(alldata)
+            input_meta['TEMPLATEID'] = templateid
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        import pdb ; pdb.set_trace()
+
+        MakeMock.scatter_photometry(data, _truth, _targets, indx=indx, psf=psf)
+
+        # Select targets.
+        MakeMock.select_targets(_targets, _truth, boss_std=boss_std)
+
+
+        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+                                                           verbose=self.verbose) # Note! No colorcuts.
+                                                          
+        return flux, self.wave, meta
+
+    def select_targets(self, targets, truth, boss_std=None):
+        """Select faint stellar contaminants for the extragalactic targets."""
+        
+        self.select_contaminants(targets, truth)
 
 class WDMaker(SelectTargets):
     """Read WD mocks and generate spectra."""

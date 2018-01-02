@@ -541,6 +541,11 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
         MakeMock.select_targets(targets, truth)
         return [targets, truth]
 
+    if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
+        psf = False
+    else:
+        psf = True
+
     # Build spectra in chunks and stop when we have enough.
     nchunk = np.ceil(len(indx) / ntarget).astype('int')
     
@@ -553,19 +558,29 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
 
         # Faintstar targets are a special case.
         if targname == 'faintstar':
-            _targets, _truth, chunkflux = _faintstar_targets_truth(source_data, chunkindx, Spectra,
-                                                                   select_targets_function,
-                                                                   log, rand, mockformat=mockformat)
+            _targets, _truth, boss_std = _initialize_targets_truth(source_data, chunkindx)
+
+            chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
+
+            #_targets, _truth, chunkflux = _faintstar_targets_truth(source_data, chunkindx, Spectra,
+            #                                                       select_targets_function,
+            #                                                       log, rand, mockformat=mockformat)
+
+            import pdb ; pdb.set_trace()
 
         else:
+
             _targets, _truth, boss_std = _initialize_targets_truth(source_data, chunkindx)
 
             # Generate the spectra.
             chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
-        
+            for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
+                        'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
+                _truth[key][:] = chunkmeta[key]
+
             # Scatter the photometry based on the depth.
-            _scatter_photometry(targname, source_data, _truth, _targets,
-                                rand, meta=chunkmeta, indx=chunkindx)
+            MakeMock.scatter_photometry(source_data, _truth, _targets,
+                                        indx=chunkindx, psf=psf)
 
             # Select targets.
             MakeMock.select_targets(_targets, _truth, boss_std=boss_std)
