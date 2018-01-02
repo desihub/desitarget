@@ -177,9 +177,9 @@ def _initialize_targets_truth(source_data, indx=None):
     if 'SEED' in source_data.keys(): # QSO and Lya targets don't have a SEED
         source_key = 'SEED'
         if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][indx]
+            truth[source_key][:] = source_data[source_key][indx]
         else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
+            truth[source_key][:] = np.repeat(source_data[source_key], nobj)
 
     # Sky targets do not have redshifts.
     if 'Z' in source_data.keys():
@@ -294,10 +294,15 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
     else:
         magcut = None
 
-    if 'lya_nside' in params['sources'][source_name].keys():
-        lya_nside = params['sources'][source_name]['lya_nside']
+    if 'nside_lya' in params['sources'][source_name].keys():
+        nside_lya = params['sources'][source_name]['nside_lya']
     else:
-        lya_nside = None
+        nside_lya = None
+
+    if 'nside_galaxia' in params['sources'][source_name].keys():
+        nside_galaxia = params['sources'][source_name]['nside_galaxia']
+    else:
+        nside_galaxia = None
 
     log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, mockformat))
 
@@ -305,7 +310,8 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
     source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                                 healpixels=healpixels, nside=nside,
                                 nside_chunk=nside_chunk, magcut=magcut,
-                                lya_nside=lya_nside, dust_dir=params['dust_dir'])
+                                nside_lya=nside_lya, nside_galaxia=nside_galaxia,
+                                dust_dir=params['dust_dir'])
 
     # --------------------------------------------------
     # push this to its own thing
@@ -323,10 +329,10 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
 
     wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
     wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    # --------------------------------------------------
 
     for ii, band in enumerate(('W1', 'W2')):
         source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+    # --------------------------------------------------
     
     # Insert proper density fluctuations model here!  Note that in general
     # healpixels will generally be a scalar (because it's called inside a loop),
@@ -1169,8 +1175,6 @@ def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
                                     magcut=magcut, nproc=nproc, lya=lya,
                                     healpixels=healpixels, nside=nside)
 
-    source_data['SOURCE_NAME'] = source_name
-    source_data['MOCKFORMAT'] = mockformat
 
     # Insert proper density fluctuations model here!  Note that in general
     # healpixels will generally be a scalar (because it's called inside a loop),
