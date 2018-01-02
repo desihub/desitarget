@@ -188,7 +188,7 @@ class ReadGaussianField(object):
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='', nside=8, healpixels=None, magcut=None):
+    def readmock(self, mockfile, target_name='', nside=8, healpixels=None):
         """Read the mock catalog.
 
         """
@@ -255,6 +255,82 @@ class ReadGaussianField(object):
 
         return out
 
+class ReadLyaCoLoRe(object):
+
+    def __init__(self, bricksize=0.25, dust_dir=None):
+
+        self.bricksize = bricksize
+        self.dust_dir = dust_dir
+
+    def readmock(self, mockfile, target_name='LYA', nside=8, healpixels=None, lya_nside=16):
+        """Read the mock catalog.
+
+        """
+        if not os.path.isfile(mockfile):
+            log.warning('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        self.nside = nside
+        self.lya_nside = lya_nside
+
+        mockdir = os.path.dirname(mockfile)
+    
+        # Read the whole DESI footprint.
+        if healpixels is None:
+            from desimodel.footprint import tiles2pix
+            healpixels = tiles2pix(self.nside)
+
+        # Read the ra,dec coordinates and then restrict to the desired
+        # healpixels.
+        log.info('Reading {}'.format(mockfile))
+        tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z', 'PIXNUM'],
+                          upper=True, ext=1)
+        
+        ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = tmp['DEC'].astype('f8')            
+        zz = tmp['Z'].astype('f4')
+        objid = (tmp['MOCKID'].astype(float)).astype(int) # will change
+        mockpix = tmp['PIXNUM']
+        mockid = objid.copy()
+        del tmp
+
+        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
+        allpix = radec2pix(self.nside, ra, dec)
+        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+        else:
+            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
+
+        ra = ra[cut]
+        dec = dec[cut]
+        zz = zz[cut]
+        objid = objid[cut]
+        mockpix = mockpix[cut]
+        mockid = mockid[cut]
+
+        # Build the full filenames.
+        lyafiles = []
+        for mpix in mockpix:
+            lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(mockdir, mpix//100, mpix, lya_nside, mpix))
+            
+        # Assign bricknames.
+        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
+               'LYAFILES': np.array(lyafiles),
+               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz}
+
+        # Add MW transmission
+        mw_transmission(out, dust_dir=self.dust_dir)
+
+        return out
+
 class ReadMXXL(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
@@ -262,7 +338,8 @@ class ReadMXXL(object):
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='BGS', nside=8, healpixels=None, magcut=None):
+    def readmock(self, mockfile, target_name='BGS', nside=8, healpixels=None,
+                 magcut=None):
         """Read the mock catalog.
 
         """
@@ -350,14 +427,14 @@ class ReadMXXL(object):
 
         return out
 
-class ReadMWSWD(object):
+class ReadMWS_WD(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
 
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='WD', nside=8, healpixels=None, magcut=None):
+    def readmock(self, mockfile, target_name='WD', nside=8, healpixels=None):
         """Read the mock catalog.
 
         """
@@ -426,14 +503,14 @@ class ReadMWSWD(object):
 
         return out
     
-class ReadMWSNearby(object):
+class ReadMWS_NEARBY(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
 
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='MWS_NEARBY', nside=8, healpixels=None, magcut=None):
+    def readmock(self, mockfile, target_name='MWS_NEARBY', nside=8, healpixels=None):
         """Read the mock catalog.
 
         """
@@ -537,7 +614,7 @@ class QSOMaker(SelectTargets):
         self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=8, magcut=None):
+             healpixels=None, nside=8, **kwargs):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
@@ -546,8 +623,7 @@ class QSOMaker(SelectTargets):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
+                                   healpixels=healpixels, nside=nside)
 
         if bool(data):
             data = self._prepare_spectra(data, nside_chunk=nside_chunk)
@@ -557,7 +633,7 @@ class QSOMaker(SelectTargets):
     def _prepare_spectra(self, data):
 
         data.update({
-            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
             })
 
         return data
@@ -571,6 +647,133 @@ class QSOMaker(SelectTargets):
         flux, wave, meta = self.template_maker.make_templates(
             nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
             lyaforest=False, nocolorcuts=True, verbose=self.verbose)
+
+        return flux, self.wave, meta
+
+    def select_targets(self, targets, truth):
+        """Select QSO targets."""
+        from desitarget.cuts import isQSO_colors
+
+        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
+          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+          
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux, optical=True)
+
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
+        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
+            self.desi_mask.QSO.obsconditions)
+        targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
+            self.desi_mask.QSO_SOUTH.obsconditions)
+
+class LYAMaker(SelectTargets):
+
+    def __init__(self, seed=None, verbose=False, normfilter='decam2014-g', **kwargs):
+
+        from desisim.templates import SIMQSO
+
+        super(LYAMaker, self).__init__(**kwargs)
+
+        self.seed = seed
+        self.verbose = verbose
+        self.rand = np.random.RandomState(self.seed)
+        self.wave = _default_wave()
+        self.objtype = 'LYA'
+
+        self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+
+    def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
+             healpixels=None, nside=8, lya_nside=None, **kwargs):
+        """Read the mock file."""
+
+        if mockformat == 'CoLoRe':
+            MockReader = ReadLyaCoLoRe(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside,
+                                   lya_nside=lya_nside)
+
+        if bool(data):
+            data = self._prepare_spectra(data)
+
+        return data
+
+    def _prepare_spectra(self, data):
+
+        data.update({
+            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
+            })
+
+        return data
+
+    def make_spectra(self, data=None, index=None):
+        """Generate QSO spectra with Lya forest"""
+        
+        from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
+        
+        if index is None:
+            index = np.arange(len(data['RA']))
+        nobj = len(index)
+
+        # Read skewers.
+        skewer_wave = None
+        skewer_trans = None
+        skewer_meta = None
+
+        # All the files that contain at least one QSO skewer.
+        alllyafile = data['LYAFILES'][index]
+        uniquelyafiles = sorted(set(alllyafile))
+
+        for lyafile in uniquelyafiles:
+            these = np.where( alllyafile == lyafile )[0]
+            objid_in_data = data['OBJID'][index][these]
+            objid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
+                                         ext=1).astype(float)).astype(int)
+            o2i = dict()
+            for i, o in enumerate(objid_in_mock):
+                o2i[o] = i
+            indices_in_mock_healpix = np.zeros(objid_in_data.size).astype(int)
+            for i, o in enumerate(objid_in_data):
+                if not o in o2i:
+                    self.log.error("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile))
+                    raise(KeyError("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile)))
+                indices_in_mock_healpix[i] = o2i[o]
+
+            tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(lyafile, indices=indices_in_mock_healpix) 
+
+            if skewer_wave is None:
+                skewer_wave = tmp_wave
+                dw = skewer_wave[1]-skewer_wave[0] # this is just to check same wavelength
+                skewer_trans = np.zeros((nobj, skewer_wave.size)) # allocate skewer_array
+                skewer_meta = dict()
+                for k in tmp_meta.dtype.names:
+                    skewer_meta[k] = np.zeros(nobj).astype(tmp_meta[k].dtype)
+            else :
+                # check wavelength is the same for all skewers
+                assert(np.max(np.abs(wave-tmp_wave))<0.001*dw)
+
+            skewer_trans[these] = tmp_trans
+            for k in skewer_meta.keys():
+                skewer_meta[k][these] = tmp_meta[k]
+
+        # Check we matched things correctly.
+        assert(np.max(np.abs(skewer_meta['Z']-data['Z'][index]))<0.000001)
+        assert(np.max(np.abs(skewer_meta['RA']-data['RA'][index]))<0.000001)
+        assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][index]))<0.000001)
+
+        # Now generate the QSO spectra simultaneously.
+        qso_flux, qso_wave, meta = self.template_maker.make_templates(
+            nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
+            lyaforest=False, nocolorcuts=True, verbose=self.verbose)
+        meta['SUBTYPE'] = 'LYA'
+
+        # Apply the Lya forest transmission.
+        flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
+
+        # Add DLAa (ToDo).
 
         return flux, self.wave, meta
 
@@ -616,7 +819,7 @@ class LRGMaker(SelectTargets):
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+             healpixels=None, nside=8, nside_chunk=128, **kwargs):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
@@ -625,8 +828,7 @@ class LRGMaker(SelectTargets):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
+                                   healpixels=healpixels, nside=nside)
 
         if bool(data):
             data = self._prepare_spectra(data, nside_chunk=nside_chunk)
@@ -646,7 +848,7 @@ class LRGMaker(SelectTargets):
         vdisp = _sample_vdisp(data, mean=2.3, sigma=0.1, rand=self.rand, nside=nside_chunk)
 
         data.update({
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
             'SEED': seed, 'VDISP': vdisp, 'MAG': normmag, 
             'SHAPEEXP_R': gmm['exp_r'], 'SHAPEEXP_E1': gmm['exp_e1'], 'SHAPEEXP_E2': gmm['exp_e2'], 
             'SHAPEDEV_R': gmm['dev_r'], 'SHAPEDEV_E1': gmm['dev_e1'], 'SHAPEDEV_E2': gmm['dev_e2'],
@@ -744,7 +946,7 @@ class ELGMaker(SelectTargets):
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+             healpixels=None, nside=8, nside_chunk=128, **kwargs):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
@@ -753,8 +955,7 @@ class ELGMaker(SelectTargets):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
+                                   healpixels=healpixels, nside=nside)
 
         if bool(data):
             data = self._prepare_spectra(data, nside_chunk=nside_chunk)
@@ -774,7 +975,7 @@ class ELGMaker(SelectTargets):
         vdisp = _sample_vdisp(data, mean=1.9, sigma=0.15, rand=self.rand, nside=nside_chunk)
 
         data.update({
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
             'SEED': seed, 'VDISP': vdisp, 'MAG': normmag,
             'GR': gmm['g']-gmm['r'], 'RZ': gmm['r']-gmm['z'],
             'RW1': gmm['r']-gmm['w1'], 'W1W2': gmm['w1']-gmm['w2'],
@@ -876,7 +1077,7 @@ class BGSMaker(SelectTargets):
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+             healpixels=None, nside=8, nside_chunk=128, magcut=None, **kwargs):
         """Read the mock file."""
         
         if mockformat == 'durham_mxxl_hdf5':
@@ -904,7 +1105,7 @@ class BGSMaker(SelectTargets):
         vdisp = _sample_vdisp(data, mean=1.9, sigma=0.15, rand=self.rand, nside=nside_chunk)
 
         data.update({
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '',
             'SEED': seed, 'VDISP': vdisp, 
             'SHAPEEXP_R': gmm['exp_r'], 'SHAPEEXP_E1': gmm['exp_e1'], 'SHAPEEXP_E2': gmm['exp_e2'], 
             'SHAPEDEV_R': gmm['dev_r'], 'SHAPEDEV_E1': gmm['dev_e1'], 'SHAPEDEV_E2': gmm['dev_e2'],
@@ -1032,7 +1233,7 @@ class STARMaker(SelectTargets):
         seed = self.rand.randint(2**32, size=len(data['RA']))
 
         data.update({
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
             'SEED': seed, 
             })
 
@@ -1052,17 +1253,16 @@ class MWS_NEARBYMaker(STARMaker):
         super(MWS_NEARBYMaker, self).__init__(**kwargs)
 
     def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
-             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+             healpixels=None, nside=8, **kwargs):
         """Read the mock file."""
         
         if mockformat == 'mws_100pc':
-            MockReader = ReadMWSNearby(dust_dir=dust_dir)
+            MockReader = ReadMWS_NEARBY(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
+                                   healpixels=healpixels, nside=nside)
 
         if bool(data):
             data = self._prepare_spectra(data)
@@ -1135,16 +1335,15 @@ class WDMaker(SelectTargets):
                                          self.meta_db['LOGG'].data)).T)
 
     def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
-             healpixels=None, nside=8, nside_chunk=128, magcut=None):
+             healpixels=None, nside=8, **kwargs):
         """Read the mock file."""
         if mockformat == 'mws_wd':
-            MockReader = ReadMWSWD(dust_dir=dust_dir)
+            MockReader = ReadMWS_WD(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
+                                   healpixels=healpixels, nside=nside)
 
         if bool(data):
             data = self._prepare_spectra(data)
@@ -1160,8 +1359,7 @@ class WDMaker(SelectTargets):
         seed = self.rand.randint(2**32, size=len(data['RA']))
 
         data.update({
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': self.objtype, 
-            'SEED': seed, 
+            'TRUESPECTYPE': 'WD', 'TEMPLATETYPE': 'WD', 'SEED': seed, # no subtype here
             })
 
         return data
@@ -1251,7 +1449,7 @@ class SKYMaker(SelectTargets):
         self.objtype = 'SKY'
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=8, magcut=None):
+             healpixels=None, nside=8, **kwargs):
         """Read the mock file."""
 
         if mockformat == 'gaussianfield':
@@ -1260,8 +1458,7 @@ class SKYMaker(SelectTargets):
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
+                                   healpixels=healpixels, nside=nside)
 
         if bool(data):
             data = self._prepare_spectra(data)
@@ -1272,7 +1469,7 @@ class SKYMaker(SelectTargets):
 
         seed = self.rand.randint(2**32, size=len(data['RA']))
         data.update({
-            'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': self.objtype, 'TEMPLATESUBTYPE': '',
+            'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': '',
             'SEED': seed,
             })
 

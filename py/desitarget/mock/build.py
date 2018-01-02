@@ -161,14 +161,21 @@ def _initialize_targets_truth(source_data, indx=None):
         key = 'PSFDEPTH_{}'.format(band)
         targets[key][:] = source_data[key][indx]
 
+    for key, source_key in zip( ['MOCKID', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+                                ['MOCKID', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        if isinstance(source_data[source_key], np.ndarray):
+            truth[key][:] = source_data[source_key][indx]
+        else:
+            truth[key][:] = np.repeat(source_data[source_key], nobj)
+
     # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
         for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
             targets[key][:] = source_data[key][indx]
 
-    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+    if 'SEED' in source_data.keys(): # QSO and Lya targets don't have a SEED
+        source_key = 'SEED'
         if isinstance(source_data[source_key], np.ndarray):
             truth[key][:] = source_data[source_key][indx]
         else:
@@ -287,15 +294,18 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
     else:
         magcut = None
 
-    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, mockformat))
-    #log.info('Reading {}'.format(mockfile))
-    
-    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed)
+    if 'lya_nside' in params['sources'][source_name].keys():
+        lya_nside = params['sources'][source_name]['lya_nside']
+    else:
+        lya_nside = None
 
+    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, mockformat))
+
+    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed)
     source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                                 healpixels=healpixels, nside=nside,
                                 nside_chunk=nside_chunk, magcut=magcut,
-                                dust_dir=params['dust_dir'])
+                                lya_nside=lya_nside, dust_dir=params['dust_dir'])
 
     # --------------------------------------------------
     # push this to its own thing
