@@ -754,7 +754,7 @@ class QSOMaker(SelectTargets):
 
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select QSO targets."""
         from desitarget.cuts import isQSO_colors
 
@@ -881,8 +881,8 @@ class LYAMaker(SelectTargets):
 
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
-        """Select QSO targets."""
+    def select_targets(self, targets, truth, **kwargs):
+        """Select Lya/QSO targets."""
         from desitarget.cuts import isQSO_colors
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
@@ -1006,7 +1006,7 @@ class LRGMaker(SelectTargets):
         
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets."""
         from desitarget.cuts import isLRG_colors
 
@@ -1137,7 +1137,7 @@ class ELGMaker(SelectTargets):
         
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select ELG targets."""
         from desitarget.cuts import isELG
 
@@ -1265,7 +1265,7 @@ class BGSMaker(SelectTargets):
         
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select BGS targets."""
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
@@ -1349,7 +1349,7 @@ class STARMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
 
-    def select_standards(self, targets, truth, boss_std=False):
+    def select_standards(self, targets, truth, boss_std=None):
         """Select bright- and dark-time standard stars."""
         from desitarget.cuts import isFSTD
 
@@ -1364,9 +1364,9 @@ class STARMaker(SelectTargets):
 
         # Select dark-time FSTD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
-        if boss_std:
+        if boss_std is not None:
             rbright, rfaint = 16, 19
-            fstd = ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+            fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
         else:
             fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
                           gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
@@ -1379,9 +1379,9 @@ class STARMaker(SelectTargets):
 
         # Select bright-time FSTD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
-        if boss_std:
+        if boss_std is not None:
             rbright, rfaint = 14, 17
-            fstd_bright = ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+            fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
         else:
             fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
                                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
@@ -1444,7 +1444,7 @@ class MWS_MAINMaker(STARMaker):
                                                           
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth, boss_std=True):
+    def select_targets(self, targets, truth, boss_std=None):
         """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
         contaminants for extragalactic targets.  The selection here eventually
         will be done with Gaia (I think).
@@ -1541,7 +1541,7 @@ class MWS_NEARBYMaker(STARMaker):
                                                           
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select MWS_NEARBY targets.  The selection eventually will be done with Gaia,
         so for now just do a "perfect" selection.
 
@@ -1661,7 +1661,7 @@ class WDMaker(SelectTargets):
 
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select MWS_WD and STD_WD targets.  The selection eventually will be done with
         Gaia, so for now just do a "perfect" selection here.
 
@@ -1735,7 +1735,7 @@ class SKYMaker(SelectTargets):
 
         return flux, self.wave, meta
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, **kwargs):
         """Select SKY targets."""
 
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')

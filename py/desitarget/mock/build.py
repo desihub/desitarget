@@ -185,7 +185,13 @@ def _initialize_targets_truth(source_data, indx=None):
     if 'Z' in source_data.keys():
         truth['TRUEZ'][:] = source_data['Z'][indx]
 
-    return targets, truth
+    # Temporary hack to get BOSS standards.
+    if 'BOSS_STD' in source_data.keys():
+        boss_std = source_data['BOSS_STD'][indx]
+    else:
+        boss_std = None
+
+    return targets, truth, boss_std
 
 def _initialize(params, verbose=False, seed=1, output_dir="./", 
                 nside=16, healpixels=None):
@@ -441,7 +447,7 @@ def _faintstar_targets_truth(source_data, indx, Spectra, select_targets_function
     normmag = 1e9 * 10**(-0.4 * source_data['MAG'][indx]) # nanomaggies
 
     # Initialize dummy targets and truth tables.
-    targets, truth = _initialize_targets_truth(source_data, indx=indx)
+    targets, truth, boss_std = _initialize_targets_truth(source_data, indx=indx)
 
     # Pack the noiseless photometry in the truth table, generate noisy
     # photometry, and then select targets.
@@ -531,7 +537,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
     # Skies are a special case -- no need to chunk.
     if targname == 'sky':
         these = rand.choice(len(indx), ntarget, replace=False)
-        targets, truth = _initialize_targets_truth(source_data, these)
+        targets, truth, _ = _initialize_targets_truth(source_data, these)
         MakeMock.select_targets(targets, truth)
         return [targets, truth]
 
@@ -552,7 +558,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
                                                                    log, rand, mockformat=mockformat)
 
         else:
-            _targets, _truth = _initialize_targets_truth(source_data, chunkindx)
+            _targets, _truth, boss_std = _initialize_targets_truth(source_data, chunkindx)
 
             # Generate the spectra.
             chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
@@ -562,7 +568,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
                                 rand, meta=chunkmeta, indx=chunkindx)
 
             # Select targets.
-            MakeMock.select_targets(_targets, _truth)#, boss_std=boss_std)
+            MakeMock.select_targets(_targets, _truth, boss_std=boss_std)
 
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
