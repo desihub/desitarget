@@ -87,6 +87,23 @@ def _initialize(params, verbose=False, seed=1, output_dir="./",
 
     return log, rand, healpixels
     
+def _healpixel_chunks(nside, nside_chunk, log):
+    """Chunk each healpixel into a smaller set of healpixels, for
+    parallelization.
+
+    """
+    if nside >= nside_chunk:
+        nside_chunk = nside
+        
+    areaperpixel = hp.nside2pixarea(nside, degrees=True)
+    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
+
+    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
+    log.info('Dividing each nside={} healpixel into {} nside={} healpixel(s).'.format(
+        nside, nchunk, nside_chunk))
+
+    return areaperpixel, areaperchunk, nchunk
+
 def read_mock(source_name, params, log, seed=None, healpixels=None,
               nside=16, nside_chunk=128, in_desi=True):
     """Read one specified mock catalog.
@@ -157,11 +174,6 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
     #    ntarget = density * skyarea
     #    ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
     #    source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
-
-    #if 'contam' in params['sources'][source_name].keys():
-    #    contam = params['sources'][source_name]['contam']
-    #    for contamtype in contam.keys():
-    #        source_data['TARGET_DENSITY'] = np.round(density * skyarea).astype('int')
 
     # Return only the points that are in the DESI footprint.
     if bool(source_data):
@@ -272,23 +284,6 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
     trueflux = trueflux[:ntarget, :]
         
     return [targets, truth, trueflux]
-
-def _healpixel_chunks(nside, nside_chunk, log):
-    """Chunk each healpixel into a smaller set of healpixels, for
-    parallelization.
-
-    """
-    if nside >= nside_chunk:
-        nside_chunk = nside
-        
-    areaperpixel = hp.nside2pixarea(nside, degrees=True)
-    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
-
-    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
-    log.info('Dividing each nside={} healpixel into {} nside={} healpixel(s).'.format(
-        nside, nchunk, nside_chunk))
-
-    return areaperpixel, areaperchunk, nchunk
 
 def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                   nside_chunk=128, healpixels=None, verbose=False):
@@ -648,6 +643,146 @@ def _write_targets_truth(targets, truth, skytargets, skytruth, nside,
         except:
             hx.writeto(truthfile+'.tmp', clobber=True)
         os.rename(truthfile+'.tmp', truthfile)
+
+def merge_file_tables(fileglob, ext, outfile=None, comm=None):
+    '''
+    parallel merge tables from individual files into an output file
+
+    Args:
+        comm: MPI communicator object
+        fileglob (str): glob of files to combine (e.g. '*/blat-*.fits')
+        ext (str or int): FITS file extension name or number
+        outfile (str): output file to write
+
+    Returns merged table as np.ndarray
+    '''
+    import fitsio
+    import glob
+    from desiutil.log import get_logger
+    
+    if comm is not None:
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    else:
+        size = 1
+        rank = 0
+
+    if rank == 0:
+        infiles = sorted(glob.glob(fileglob))
+    else:
+        infiles = None
+
+    if comm is not None:
+        infiles = comm.bcast(infiles, root=0)
+ 
+    if len(infiles)==0:
+        log = get_logger()
+        log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
+        return
+    
+    #- Each rank reads and combines a different set of files
+    data = np.hstack( [fitsio.read(x, ext) for x in infiles[rank::size]] )
+
+    if comm is not None:
+        data = comm.gather(data, root=0)
+        if rank == 0 and size>1:
+            data = np.hstack(data)
+
+    if rank == 0 and outfile is not None:
+        log = get_logger()
+        log.info('Writing {}'.format(outfile))
+        header = fitsio.read_header(infiles[0], ext)
+        tmpout = outfile + '.tmp'
+        
+        # Find duplicates
+        vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
+        if len(vals) != len(data):
+            log.warning('Non-unique TARGETIDs found!')
+            raise ValueError
+        
+        fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
+        os.rename(tmpout, outfile)
+
+    return data
+
+def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
+    '''
+    Join individual healpixel targets and truth files into combined tables
+
+    Args:
+        mockdir: top level mock target directory
+
+    Options:
+        outdir: output directory, default to mockdir
+        force: rewrite outputs even if they already exist
+        comm: MPI communicator; if not None, read data in parallel
+    '''
+    import fitsio
+    if outdir is None:
+        outdir = mockdir
+
+    if comm is not None:
+        size = comm.Get_size()
+        rank = comm.Get_rank()
+    else:
+        comm = None
+        size = 1
+        rank = 0
+    
+    #- Use rank 0 to check pre-existing files to avoid N>>1 ranks hitting the disk
+    if rank == 0:
+        todo = dict()
+        todo['sky'] = not os.path.exists(outdir+'/sky.fits') or force
+        todo['stddark'] = not os.path.exists(outdir+'/standards-dark.fits') or force
+        todo['stdbright'] = not os.path.exists(outdir+'/standards-bright.fits') or force
+        todo['targets'] = not os.path.exists(outdir+'/targets.fits') or force
+        todo['truth'] = not os.path.exists(outdir+'/truth.fits') or force
+        todo['mtl'] = not os.path.exists(outdir+'/mtl.fits') or force
+    else:
+        todo = None
+
+    if comm is not None:
+        todo = comm.bcast(todo, root=0)
+
+    if todo['sky']:
+        merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
+                    outfile=outdir+'/sky.fits', comm=comm)
+
+    if todo['stddark']:
+        merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
+                    outfile=outdir+'/standards-dark.fits', comm=comm)
+
+    if todo['stdbright']:
+        merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
+                    outfile=outdir+'/standards-bright.fits', comm=comm)
+
+    if todo['targets']:
+        merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
+                    outfile=outdir+'/targets.fits', comm=comm)
+
+    if todo['truth']:
+        merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
+                    outfile=outdir+'/truth.fits', comm=comm)
+
+    #- Make initial merged target list (MTL) using rank 0
+    if rank == 0 and todo['mtl']:
+        from desitarget import mtl
+        from desiutil.log import get_logger
+        log = get_logger()
+        out_mtl = os.path.join(outdir, 'mtl.fits')
+        log.info('Generating merged target list {}'.format(out_mtl))
+        targets = fitsio.read(outdir+'/targets.fits')
+        mtl = mtl.make_mtl(targets)
+        tmpout = out_mtl+'.tmp'
+        mtl.meta['EXTNAME'] = 'MTL'
+        mtl.write(tmpout, overwrite=True, format='fits')
+        os.rename(tmpout, out_mtl)
+
+
+###########################################################################
+# The code below here deals with "no-spectra" and is in large part obsolete.
+###########################################################################
+
 
 def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir):
     """Applies target selection functions to a set of targets and truth tables.
@@ -1233,138 +1368,4 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         _write_targets_truth(targets, truth, skytargets, skytruth,  
                              nside, healpix, seed, log, output_dir)
     return
-
-def merge_file_tables(fileglob, ext, outfile=None, comm=None):
-    '''
-    parallel merge tables from individual files into an output file
-
-    Args:
-        comm: MPI communicator object
-        fileglob (str): glob of files to combine (e.g. '*/blat-*.fits')
-        ext (str or int): FITS file extension name or number
-        outfile (str): output file to write
-
-    Returns merged table as np.ndarray
-    '''
-    import fitsio
-    import glob
-    from desiutil.log import get_logger
-    
-    if comm is not None:
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-    else:
-        size = 1
-        rank = 0
-
-    if rank == 0:
-        infiles = sorted(glob.glob(fileglob))
-    else:
-        infiles = None
-
-    if comm is not None:
-        infiles = comm.bcast(infiles, root=0)
- 
-    if len(infiles)==0:
-        log = get_logger()
-        log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
-        return
-    
-    #- Each rank reads and combines a different set of files
-    data = np.hstack( [fitsio.read(x, ext) for x in infiles[rank::size]] )
-
-    if comm is not None:
-        data = comm.gather(data, root=0)
-        if rank == 0 and size>1:
-            data = np.hstack(data)
-
-    if rank == 0 and outfile is not None:
-        log = get_logger()
-        log.info('Writing {}'.format(outfile))
-        header = fitsio.read_header(infiles[0], ext)
-        tmpout = outfile + '.tmp'
-        
-        # Find duplicates
-        vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
-        if len(vals) != len(data):
-            log.warning('Non-unique TARGETIDs found!')
-            raise ValueError
-        
-        fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
-        os.rename(tmpout, outfile)
-
-    return data
-
-def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
-    '''
-    Join individual healpixel targets and truth files into combined tables
-
-    Args:
-        mockdir: top level mock target directory
-
-    Options:
-        outdir: output directory, default to mockdir
-        force: rewrite outputs even if they already exist
-        comm: MPI communicator; if not None, read data in parallel
-    '''
-    import fitsio
-    if outdir is None:
-        outdir = mockdir
-
-    if comm is not None:
-        size = comm.Get_size()
-        rank = comm.Get_rank()
-    else:
-        comm = None
-        size = 1
-        rank = 0
-    
-    #- Use rank 0 to check pre-existing files to avoid N>>1 ranks hitting the disk
-    if rank == 0:
-        todo = dict()
-        todo['sky'] = not os.path.exists(outdir+'/sky.fits') or force
-        todo['stddark'] = not os.path.exists(outdir+'/standards-dark.fits') or force
-        todo['stdbright'] = not os.path.exists(outdir+'/standards-bright.fits') or force
-        todo['targets'] = not os.path.exists(outdir+'/targets.fits') or force
-        todo['truth'] = not os.path.exists(outdir+'/truth.fits') or force
-        todo['mtl'] = not os.path.exists(outdir+'/mtl.fits') or force
-    else:
-        todo = None
-
-    if comm is not None:
-        todo = comm.bcast(todo, root=0)
-
-    if todo['sky']:
-        merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
-                    outfile=outdir+'/sky.fits', comm=comm)
-
-    if todo['stddark']:
-        merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
-                    outfile=outdir+'/standards-dark.fits', comm=comm)
-
-    if todo['stdbright']:
-        merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
-                    outfile=outdir+'/standards-bright.fits', comm=comm)
-
-    if todo['targets']:
-        merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
-                    outfile=outdir+'/targets.fits', comm=comm)
-
-    if todo['truth']:
-        merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
-                    outfile=outdir+'/truth.fits', comm=comm)
-
-    #- Make initial merged target list (MTL) using rank 0
-    if rank == 0 and todo['mtl']:
-        from desitarget import mtl
-        from desiutil.log import get_logger
-        log = get_logger()
-        out_mtl = os.path.join(outdir, 'mtl.fits')
-        log.info('Generating merged target list {}'.format(out_mtl))
-        targets = fitsio.read(outdir+'/targets.fits')
-        mtl = mtl.make_mtl(targets)
-        tmpout = out_mtl+'.tmp'
-        mtl.meta['EXTNAME'] = 'MTL'
-        mtl.write(tmpout, overwrite=True, format='fits')
-        os.rename(tmpout, out_mtl)
 
