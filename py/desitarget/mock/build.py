@@ -202,123 +202,6 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
                         
     return source_data, MakeMock
 
-def _scatter_photometry(targname, source_data, truth, targets,
-                        rand, meta=None, indx=None, qaplot=False):
-    """Add noise to the photometry based on the depth.
-
-    """
-    if indx is None:
-        indx = np.arange(len(source_data['RA']))
-    nobj = len(indx)
-
-    # Optionally populate from a metadata table.
-    if meta is not None:
-        for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
-                    'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-            truth[key][:] = meta[key]
-
-    if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
-        depthprefix = 'GAL'
-    else:
-        depthprefix = 'PSF'
-
-    factor = 5 # -- should this be 1 or 5???
-
-    for band in ('G', 'R', 'Z'):
-        fluxkey = 'FLUX_{}'.format(band)
-        depthkey = '{}DEPTH_{}'.format(depthprefix, band)
-            
-        sigma = 1 / np.sqrt(source_data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
-        targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
-
-    for band in ('W1', 'W2'):
-        fluxkey = 'FLUX_{}'.format(band)
-        depthkey = 'PSFDEPTH_{}'.format(band)
-            
-        sigma = 1 / np.sqrt(source_data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
-        targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
-
-    if qaplot:
-        import matplotlib.pyplot as plt
-        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-        plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', 
-                    label='Noiseless Photometry')
-        plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none',
-                    label='Noisy Photometry')
-        plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
-        plt.legend(loc='upper left')
-        plt.show()
-        import pdb ; pdb.set_trace()
-
-def _faintstar_targets_truth(source_data, indx, Spectra, select_targets_function, log,
-                             rand, mockformat='galaxia', qaplot=False):
-    """Preselect stars that are going to pass target selection cuts without actually
-    generating spectra, in order to save memory and time.
-
-    """
-    if mockformat.lower() == 'galaxia':
-        alldata = np.vstack((source_data['TEFF'][indx],
-                             source_data['LOGG'][indx],
-                             source_data['FEH'][indx])).T
-        _, templateid = Spectra.tree.query('STAR', alldata)
-        templateid = templateid.flatten()
-    else:
-        log.warning('Unrecognized mockformat {}!'.format(mockformat))
-        raise ValueError
-
-    normmag = 1e9 * 10**(-0.4 * source_data['MAG'][indx]) # nanomaggies
-
-    # Initialize dummy targets and truth tables.
-    targets, truth, boss_std = _initialize_targets_truth(source_data, indx=indx)
-
-    # Pack the noiseless photometry in the truth table, generate noisy
-    # photometry, and then select targets.
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        truth['FLUX_{}'.format(band)] = getattr( Spectra.tree, 'star_flux_{}'.format(
-            band.lower()) )[templateid] * normmag
-        
-    _scatter_photometry('faintstar', source_data, truth, targets, rand, indx=indx)
-
-    select_targets_function(targets, truth)#, boss_std=boss_std)
-
-    keep = np.where(targets['DESI_TARGET'] != 0)[0]
-    log.info('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
-    
-    if len(keep) > 0:
-        targets = targets[keep]
-        truth = truth[keep]
-        
-        flux, meta = Spectra.faintstar(source_data, index=indx[keep],
-                                       mockformat=mockformat)
-        
-        for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
-                    'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-            truth[key][:] = meta[key]
-    else:
-        flux, meta = [], []
-    
-    if qaplot:
-        import matplotlib.pyplot as plt
-        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-        plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', 
-                    label='Noiseless Photometry')
-        plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none',
-                    label='Noisy Photometry')
-        if len(keep) > 0:
-            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
-            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k')
-        plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
-        plt.legend(loc='upper left')
-        plt.show()
-    
-    return targets, truth, flux
-
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
@@ -352,24 +235,9 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
             and returned for non-sky targets.
 
     """
-    targname = source_data['TARGET_NAME'].lower()
-    #mockformat = source_data['MOCKFORMAT'].lower()
-
     if len(indx) < ntarget:
         log.warning('Too few candidate targets ({}) than desired ({}).'.format(
-            len(indx), ntarget))
-
-    # Skies are a special case -- no need to chunk.
-    if targname == 'sky':
-        these = rand.choice(len(indx), ntarget, replace=False)
-        targets, truth, _ = _initialize_targets_truth(source_data, these)
-        MakeMock.select_targets(targets, truth)
-        return [targets, truth]
-
-    if 'elg' in targname or 'lrg' in targname or 'bgs' in targname:
-        psf = False
-    else:
-        psf = True
+            len(indx), ntarget))        
 
     # Build spectra in chunks and stop when we have enough.
     nchunk = np.ceil(len(indx) / ntarget).astype('int')
@@ -378,31 +246,25 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
     truth = list()
     trueflux = list()
 
+    boss_std = None
+    
     ntot = 0
     for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
 
+        # Temporary hack to use BOSS standard stars.
+        if 'BOSS_STD' in source_data.keys():
+            boss_std = source_data['BOSS_STD'][chunkindx]
+
         # Faintstar targets are a special case.
-        if targname == 'faintstar':
-            _targets, _truth, boss_std = _initialize_targets_truth(source_data, chunkindx)
-
-            chunkflux, _, chunkmeta = MakeMock.make_spectra(source_data, index=chunkindx)
-
-            #_targets, _truth, chunkflux = _faintstar_targets_truth(source_data, chunkindx, Spectra,
-            #                                                       select_targets_function,
-            #                                                       log, rand, mockformat=mockformat)
-
-            import pdb ; pdb.set_trace()
+        if source_data['TARGET_NAME'].lower() == 'faintstar':
+            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+                source_data, indx=chunkindx, boss_std=boss_std)
 
         else:
             # Generate the spectra.
-            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(source_data, index=chunkindx)
+            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+                source_data, indx=chunkindx)
 
-            # Temporary hack to use BOSS standard stars.
-            if 'BOSS_STD' in source_data.keys():
-                boss_std = data['BOSS_STD'][chunkindx]
-            else:
-                boss_std = None
-                
             # Select targets.
             MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
 
@@ -512,10 +374,6 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
-
-            # Instantiate the target selection function.
-            #selection_function = '{}_select'.format(source_name.lower())
-            #select_targets_function = getattr(Selection, selection_function)
 
             # Target density -- need a proper fluctuations model here.
             # NTARGETPERCHUNK needs to be an array with the targets divided

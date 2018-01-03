@@ -1,7 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-desitarget.mock.iospectra
+desitarget.mock.mockmaker
 =========================
 
 Read mock catalogs and assign spectra.
@@ -988,18 +988,18 @@ class QSOMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate tracer QSO spectra."""
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
             
         flux, wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
+            nmodel=nobj, redshift=data['Z'][indx], seed=self.seed,
             lyaforest=False, nocolorcuts=True, verbose=self.verbose)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
 
         return flux, self.wave, meta, targets, truth
 
@@ -1062,14 +1062,14 @@ class LYAMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate QSO spectra with Lya forest"""
         
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
         # Read skewers.
         skewer_wave = None
@@ -1077,12 +1077,12 @@ class LYAMaker(SelectTargets):
         skewer_meta = None
 
         # All the files that contain at least one QSO skewer.
-        alllyafile = data['LYAFILES'][index]
+        alllyafile = data['LYAFILES'][indx]
         uniquelyafiles = sorted(set(alllyafile))
 
         for lyafile in uniquelyafiles:
             these = np.where( alllyafile == lyafile )[0]
-            objid_in_data = data['OBJID'][index][these]
+            objid_in_data = data['OBJID'][indx][these]
             objid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                          ext=1).astype(float)).astype(int)
             o2i = dict()
@@ -1113,13 +1113,13 @@ class LYAMaker(SelectTargets):
                 skewer_meta[k][these] = tmp_meta[k]
 
         # Check we matched things correctly.
-        assert(np.max(np.abs(skewer_meta['Z']-data['Z'][index]))<0.000001)
-        assert(np.max(np.abs(skewer_meta['RA']-data['RA'][index]))<0.000001)
-        assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][index]))<0.000001)
+        assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx]))<0.000001)
+        assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx]))<0.000001)
+        assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
 
         # Now generate the QSO spectra simultaneously.
         qso_flux, qso_wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][index], seed=self.seed,
+            nmodel=nobj, redshift=data['Z'][indx], seed=self.seed,
             lyaforest=False, nocolorcuts=True, verbose=self.verbose)
         meta['SUBTYPE'] = 'LYA'
 
@@ -1128,7 +1128,7 @@ class LYAMaker(SelectTargets):
 
         # Add DLAa (ToDo).
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
 
         return flux, self.wave, meta, targets, truth
 
@@ -1231,18 +1231,18 @@ class LRGMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate LRG spectra."""
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
-            input_meta[inkey] = data[datakey][index]
+            input_meta[inkey] = data[datakey][indx]
 
         if data['MOCKFORMAT'].lower() == 'gaussianfield':
             # This is not quite right, but choose a template with equal probability.
@@ -1255,7 +1255,7 @@ class LRGMaker(SelectTargets):
                                                            nocolorcuts=True, novdisp=False,
                                                            verbose=self.verbose)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=False)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
 
         return flux, self.wave, meta, targets, truth
 
@@ -1362,23 +1362,23 @@ class ELGMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate ELG spectra."""
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
-            input_meta[inkey] = data[datakey][index]
+            input_meta[inkey] = data[datakey][indx]
 
         if data['MOCKFORMAT'].lower() == 'gaussianfield':
-            alldata = np.vstack((data['Z'][index],
-                                 data['GR'][index],
-                                 data['RZ'][index])).T
+            alldata = np.vstack((data['Z'][indx],
+                                 data['GR'][indx],
+                                 data['RZ'][indx])).T
             _, templateid = self.query(alldata)
             input_meta['TEMPLATEID'] = templateid
         else:
@@ -1388,8 +1388,8 @@ class ELGMaker(SelectTargets):
                                                            nocolorcuts=True, novdisp=False,
                                                            verbose=self.verbose)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=index, psf=False)
-        
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
+
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
@@ -1492,23 +1492,23 @@ class BGSMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate BGS spectra."""
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
-            input_meta[inkey] = data[datakey][index]
+            input_meta[inkey] = data[datakey][indx]
 
         if data['MOCKFORMAT'].lower() == 'durham_mxxl_hdf5':
-            alldata = np.vstack((data['Z'][index],
-                                 data['SDSS_absmag_r01'][index],
-                                 data['SDSS_01gr'][index])).T
+            alldata = np.vstack((data['Z'][indx],
+                                 data['SDSS_absmag_r01'][indx],
+                                 data['SDSS_01gr'][indx])).T
             _, templateid = self.query(alldata)
             input_meta['TEMPLATEID'] = templateid
         else:
@@ -1517,8 +1517,10 @@ class BGSMaker(SelectTargets):
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False,
                                                            verbose=self.verbose)
+
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
         
-        return flux, self.wave, meta
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select BGS targets."""
@@ -1572,12 +1574,20 @@ class STARMaker(SelectTargets):
         flux, wave, meta = read_basis_templates(objtype='STAR')#, verbose=False)
         self.meta = meta
 
+        # Assume a normalization filter of SDSS-r.
+        self.star_normfilter = 'sdss2010-r'
+        sdssr = filters.load_filters(self.star_normfilter)
         decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                          'wise2010-W1', 'wise2010-W2')
         
         maggies = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
-        for filt, flux in zip( maggies.colnames, ('flux_g', 'flux_r', 'flux_z', 'flux_W1', 'flux_W2') ):
+        normmaggies = sdssr.get_ab_maggies(flux, wave, mask_invalid=True)
+        
+        for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+            maggies[filt] /= normmaggies[self.star_normfilter]
             maggies.rename_column(filt, flux)
+            
+        self.star_maggies = maggies
 
         # Build the KD Tree.
         self.tree = KDTree(np.vstack((self.meta['TEFF'].data,
@@ -1740,23 +1750,23 @@ class MWS_MAINMaker(STARMaker):
 
         return data
     
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate MWS_MAIN stellar spectra."""
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
-        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
                                   ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
-            input_meta[inkey] = data[datakey][index]
+            input_meta[inkey] = data[datakey][indx]
 
         if data['MOCKFORMAT'].lower() == 'galaxia':
-            alldata = np.vstack((data['TEFF'][index],
-                                 data['LOGG'][index],
-                                 data['FEH'][index])).T
+            alldata = np.vstack((data['TEFF'][indx],
+                                 data['LOGG'][indx],
+                                 data['FEH'][indx])).T
             _, templateid = self.query(alldata)
             input_meta['TEMPLATEID'] = templateid
         else:
@@ -1764,8 +1774,10 @@ class MWS_MAINMaker(STARMaker):
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            verbose=self.verbose) # Note! No colorcuts.
-                                                          
-        return flux, self.wave, meta
+
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+                                                           
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, boss_std=None):
         """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
@@ -1837,23 +1849,23 @@ class MWS_NEARBYMaker(STARMaker):
 
         return data
     
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate MWS_NEARBY stellar spectra."""
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
-        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
                                   ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
-            input_meta[inkey] = data[datakey][index]
+            input_meta[inkey] = data[datakey][indx]
 
         if data['MOCKFORMAT'].lower() == 'mws_100pc':
-            alldata = np.vstack((data['TEFF'][index],
-                                 data['LOGG'][index],
-                                 data['FEH'][index])).T
+            alldata = np.vstack((data['TEFF'][indx],
+                                 data['LOGG'][indx],
+                                 data['FEH'][indx])).T
             _, templateid = self.query(alldata)
             input_meta['TEMPLATEID'] = templateid
         else:
@@ -1861,8 +1873,10 @@ class MWS_NEARBYMaker(STARMaker):
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            verbose=self.verbose) # Note! No colorcuts.
-                                                          
-        return flux, self.wave, meta
+
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+                                                           
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_NEARBY targets.  The selection eventually will be done with Gaia,
@@ -1878,76 +1892,6 @@ class MWS_NEARBYMaker(STARMaker):
             self.mws_mask.MWS_NEARBY.obsconditions)
         targets['OBSCONDITIONS'] |= (mws_nearby != 0)  * self.obsconditions.mask(
             self.desi_mask.MWS_ANY.obsconditions)
-
-class FAINTSTARMaker(STARMaker):
-    """Read FAINTSTAR mocks and generate spectra."""
-
-    def __init__(self, **kwargs):
-
-        super(FAINTSTARMaker, self).__init__(**kwargs)
-
-    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=None, nside=None, nside_galaxia=None, magcut=None,
-             **kwargs):
-        """Read the mock file."""
-        
-        if mockformat == 'galaxia':
-            MockReader = ReadGalaxia(dust_dir=dust_dir)
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-
-        data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
-                                   healpixels=healpixels, nside=nside,
-                                   nside_galaxia=nside_galaxia, magcut=magcut)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
-
-        return data
-    
-    def make_spectra(self, data=None, index=None):
-        """Generate FAINTSTAR stellar spectra.  These (numerous!) objects are only used
-        as contaminants, so we use the templates themselves for the spectra
-        rather than generating them on-the-fly.
-
-        """
-        from desisim.io import empty_metatable
-        
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
-
-        input_meta = empty_metatable(nmodel=len(index), objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
-                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
-            input_meta[inkey] = data[datakey][index]
-
-        if data['MOCKFORMAT'].lower() == 'galaxia':
-            alldata = np.vstack((data['TEFF'][index],
-                                 data['LOGG'][index],
-                                 data['FEH'][index])).T
-            _, templateid = self.query(alldata)
-            input_meta['TEMPLATEID'] = templateid
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-
-        import pdb ; pdb.set_trace()
-
-        MakeMock.scatter_photometry(data, _truth, _targets, indx=indx, psf=psf)
-
-        # Select targets.
-        MakeMock.select_targets(_targets, _truth, boss_std=boss_std)
-
-
-        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                           verbose=self.verbose) # Note! No colorcuts.
-                                                          
-        return flux, self.wave, meta
-
-    def select_targets(self, targets, truth, boss_std=None):
-        """Select faint stellar contaminants for the extragalactic targets."""
-        
-        self.select_contaminants(targets, truth)
 
 class WDMaker(SelectTargets):
     """Read WD mocks and generate spectra."""
@@ -2015,20 +1959,20 @@ class WDMaker(SelectTargets):
 
         return dist, indx
     
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate WD spectra.  Deal with DA vs DB white dwarfs separately.
 
         """
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'SUBTYPE'),
                                   ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'TEMPLATESUBTYPE')):
-            input_meta[inkey] = data[datakey][index]
+            input_meta[inkey] = data[datakey][indx]
             
         if data['MOCKFORMAT'].lower() == 'mws_wd':
             meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -2037,8 +1981,8 @@ class WDMaker(SelectTargets):
             for subtype in ('DA', 'DB'):
                 these = np.where(input_meta['SUBTYPE'] == subtype)[0]
                 if len(these) > 0:
-                    alldata = np.vstack((data['TEFF'][index][these],
-                                         data['LOGG'][index][these])).T
+                    alldata = np.vstack((data['TEFF'][indx][these],
+                                         data['LOGG'][indx][these])).T
                     _, templateid = self.query(alldata, subtype=subtype)
                     
                     input_meta['TEMPLATEID'][these] = templateid
@@ -2052,7 +1996,9 @@ class WDMaker(SelectTargets):
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        return flux, self.wave, meta
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_WD and STD_WD targets.  The selection eventually will be done with
@@ -2074,6 +2020,105 @@ class WDMaker(SelectTargets):
         targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
         targets['OBSCONDITIONS'] |= (std_wd != 0)  * self.obsconditions.mask(
             self.desi_mask.STD_WD.obsconditions)
+
+class FAINTSTARMaker(STARMaker):
+    """Read FAINTSTAR mocks and generate spectra."""
+
+    def __init__(self, **kwargs):
+
+        super(FAINTSTARMaker, self).__init__(**kwargs)
+
+    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
+             healpixels=None, nside=None, nside_galaxia=None, magcut=None,
+             **kwargs):
+        """Read the mock file."""
+        
+        if mockformat == 'galaxia':
+            MockReader = ReadGalaxia(dust_dir=dust_dir)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
+                                   healpixels=healpixels, nside=nside,
+                                   nside_galaxia=nside_galaxia, magcut=magcut)
+
+        if bool(data):
+            data = self._prepare_spectra(data)
+
+        return data
+    
+    def make_spectra(self, data=None, indx=None, boss_std=None):
+        """Generate FAINTSTAR stellar spectra.  These (numerous!) objects are only used
+        as contaminants, so we use the templates themselves for the spectra
+        rather than generating them on-the-fly.
+
+        """
+        from desisim.io import empty_metatable
+        
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
+
+        if data['MOCKFORMAT'].lower() == 'galaxia':
+            alldata = np.vstack((data['TEFF'][indx],
+                                 data['LOGG'][indx],
+                                 data['FEH'][indx])).T
+            _, templateid = self.query(alldata)
+        else:
+            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        # Initialize dummy the targets and truth tables.
+        _targets = empty_targets_table(nobj)
+        _truth = empty_truth_table(nobj)
+        
+        # Pack the noiseless stellar photometry in the truth table, generate
+        # noisy photometry, and then select targets.
+        if data['NORMFILTER'] != self.star_normfilter:
+            log.warning('Mismatching normalization filters!')
+            raise ValueError
+        
+        normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
+        
+        for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
+            _truth[key][:] = self.star_maggies[key][templateid] * normmag
+
+        self.scatter_photometry(data, _truth, _targets, indx=indx, psf=True, qaplot=False)
+
+        self.select_targets(_targets, _truth, boss_std=boss_std)
+
+        keep = np.where(_targets['DESI_TARGET'] != 0)[0]
+        log.debug('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
+
+        if len(keep) > 0:
+            input_meta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
+            for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
+                                      ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
+                input_meta[inkey] = data[datakey][indx][keep]
+                
+            input_meta['TEMPLATEID'] = templateid[keep]
+
+            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+                                                               verbose=self.verbose) # Note! No colorcuts.
+
+            # Force consistency in the noisy photometry so we select the same targets. 
+            targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep], psf=True)
+            for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
+                targets[filt][:] = _targets[filt][keep]
+
+            if boss_std is None:
+                self.select_targets(targets, truth)
+            else:
+                self.select_targets(targets, truth, boss_std=boss_std[keep])
+
+            return flux, self.wave, meta, targets, truth
+
+        else:
+            return [], self.wave, None, [], []
+                                                           
+    def select_targets(self, targets, truth, boss_std=None):
+        """Select faint stellar contaminants for the extragalactic targets."""
+        
+        self.select_contaminants(targets, truth)
 
 class SKYMaker(SelectTargets):
 
@@ -2113,20 +2158,22 @@ class SKYMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, index=None):
+    def make_spectra(self, data=None, indx=None):
         """Generate SKY spectra."""
         from desisim.io import empty_metatable
         
-        if index is None:
-            index = np.arange(len(data['RA']))
-        nobj = len(index)
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
             
         meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         for inkey, datakey in zip(('SEED', 'REDSHIFT'), ('SEED', 'Z')):
-            meta[inkey] = data[datakey][index]
+            meta[inkey] = data[datakey][indx]
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
 
-        return flux, self.wave, meta
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx)
+
+        return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select SKY targets."""
