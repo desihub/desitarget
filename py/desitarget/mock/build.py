@@ -144,36 +144,14 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
                                 nside_lya=nside_lya, nside_galaxia=nside_galaxia,
                                 dust_dir=params['dust_dir'])
 
-    # --------------------------------------------------
-    # push this to its own thing
-    nobj = len(source_data['RA'])
-
-    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-    psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('G', 'R', 'Z')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('W1', 'W2')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
-    # --------------------------------------------------
-    
-    # Insert proper density fluctuations model here!  Note that in general
-    # healpixels will generally be a scalar (because it's called inside a loop),
-    # but also allow for multiple healpixels.
     try:
         npix = healpixels.size
     except:
         npix = len(healpixels)
     skyarea = npix * hp.nside2pixarea(nside, degrees=True)
 
+    # Insert a proper density fluctuations model here!
+    
     #if 'density' in params['sources'][source_name].keys():
     #    density = params['sources'][source_name]['density']
     #    ntarget = density * skyarea

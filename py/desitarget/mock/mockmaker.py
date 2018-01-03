@@ -147,6 +147,39 @@ def mw_transmission(source_data, dust_dir=None):
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
         source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * source_data['EBV'])
 
+def imaging_depth(source_data):
+    """Add the imaging depth to the source_data dictionary.  In future, this should
+    be a much more sophisticated model based on the actual imaging data releases
+    (e.g., it should depend on healpixel).
+    
+    Args:
+        source_data : dict
+            Input dictionary read by desitarget.mock.build.read_mock.
+            
+    Returns:
+        source_data : dict
+            Modified input dictionary with the nominal depth included.
+
+    """
+    nobj = len(source_data['RA'])
+
+    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+    psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+    galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('G', 'R', 'Z')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+    for ii, band in enumerate(('W1', 'W2')):
+        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+    
+
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.
 
@@ -484,8 +517,9 @@ class ReadGaussianField(object):
                'RA': ra, 'DEC': dec, 'Z': zz,
                'FILES': files, 'N_PER_FILE': n_per_file}
 
-        # Add MW transmission
+        # Add MW transmission and the imaging depth.
         mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
 
         return out
 
@@ -598,8 +632,9 @@ class ReadGalaxia(object):
                'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std, 
                'FILES': files, 'N_PER_FILE': n_per_file}
 
-        # Add MW transmission
+        # Add MW transmission and the imaging depth.
         mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
 
         return out
 
@@ -694,8 +729,9 @@ class ReadLyaCoLoRe(object):
                'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz}
 
-        # Add MW transmission
+        # Add MW transmission and the imaging depth.
         mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
 
         return out
 
@@ -789,8 +825,9 @@ class ReadMXXL(object):
                'SDSS_01gr': gr, 'NORMFILTER': 'sdss2010-r',
                'FILES': files, 'N_PER_FILE': n_per_file}
 
-        # Add MW transmission
+        # Add MW transmission and the imaging depth.
         mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
 
         return out
 
@@ -865,8 +902,9 @@ class ReadMWS_WD(object):
                'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
                'FILES': files, 'N_PER_FILE': n_per_file}
 
-        # Add MW transmission
+        # Add MW transmission and the imaging depth.
         mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
 
         return out
     
@@ -942,8 +980,9 @@ class ReadMWS_NEARBY(object):
                'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
                'FILES': files, 'N_PER_FILE': n_per_file}
 
-        # Add MW transmission
+        # Add MW transmission and the imaging depth.
         mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
 
         return out
 
