@@ -271,7 +271,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
         keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
         nkeep = len(keep)
 
-        log.debug('Selected {} / {} targets on chunk {} / {}.'.format(
+        log.debug('Selected {} / {} targets on chunk {} / {}'.format(
             nkeep, len(chunkindx), ii+1, nchunk))
 
         if nkeep > 0:
