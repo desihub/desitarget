@@ -1736,7 +1736,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
 
 
-def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
+def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -1744,6 +1744,8 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     targs : :class:`~numpy.array` or `str`
         An array of targets in the DESI data model format. If a string is passed then the
         targets are read fron the file with the passed name (supply the full directory path)
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage
     makeplots : :class:`boolean`, optional, default=True
         If ``True``, then create the plots as well as the webpage
     max_bin_area : :class:`float`, optional, defaults to 1 degree
@@ -1843,6 +1845,13 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
                    .format(objtype,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
+
+        #ADM add special plots if we have mock data
+        if mocks:
+            html.write('<hr>\n')
+            html.write('<h1>DESI Additional Mock QA\n')
+            html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('</table>\n')
 
         #ADM html postamble
         html.write('<b><i>Last updated {}</b></i>\n'.format(js))
