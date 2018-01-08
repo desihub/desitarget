@@ -402,7 +402,8 @@ def generate_fluctuations(brickfilename, targettype, depthtype, depthorebvarray,
 
     #ADM the number of bricks
     nbricks = len(depthorebvarray)
-    tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
+    tts = ["QSO","ELG","LRG"]
+    #tts = ["ALL","LYA","MWS","BGS","QSO","ELG","LRG"]
     if not targettype in tts:
         fluc = np.ones(nbricks)
         mess = "fluctuations for targettype {} are set to one".format(targettype)
@@ -480,6 +481,7 @@ def model_map(brickfilename,plot=False):
                 if re.search("FLUC",fcol):
                     if plot:
                         log.info("doing",col,fcol)
+                    #import pdb ; pdb.set_trace()
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
@@ -600,25 +602,36 @@ def fluc_map(brickfilename):
 
     #ADM choose some necessary columns and rename density columns,
     #ADM which we'll now base on fluctuations around the median
-
-    #JM -- This will only work for DR3!
-    cols = [
+    try: # DR3
+        cols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
             'DEPTH_G','DEPTH_R','DEPTH_Z',
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
             'DENSITY_ALL', 'DENSITY_ELG', 'DENSITY_LRG',
             'DENSITY_QSO', 'DENSITY_LYA', 'DENSITY_BGS', 'DENSITY_MWS'
             ]
-    data = alldata[cols]
-    #newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
-    newcols = [
+        #newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+        newcols = [
             'BRICKID','BRICKNAME','BRICKAREA','RA','DEC','EBV',
             'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
             'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
             'FLUC_ALL', 'FLUC_ELG', 'FLUC_LRG',
             'FLUC_QSO', 'FLUC_LYA', 'FLUC_BGS', 'FLUC_MWS'
             ]
-    data.dtype.names = newcols
+        data = alldata[cols]
+        data.dtype.names = newcols
+        
+    except: #>DR3
+        #cols = np.array(alldata.dtype.names)
+        cols = [
+            'HPXID','HPXAREA','RA','DEC','EBV',
+            'PSFDEPTH_G','PSFDEPTH_R','PSFDEPTH_Z',
+            'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z',
+            'DENSITY_ELG', 'DENSITY_LRG', 'DENSITY_QSO'
+            ]
+        newcols = [col.replace('DENSITY', 'FLUC') for col in cols]
+        data = alldata[cols]
+        data.dtype.names = newcols
 
     #ADM for each of the density columns loop through and replace
     #ADM density by value relative to median
@@ -1328,7 +1341,7 @@ def _load_targdens():
     targdens = {}
     targdens['ELG'] = targdict['ntarget_elg']
     targdens['LRG'] = targdict['ntarget_lrg']
-    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_lya']
+    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FSTAR'] = 0
     targdens['STD_BRIGHT'] = 0
@@ -1699,25 +1712,26 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         if 'ALL' in objtype:
             w = np.arange(len(targs))
         else:
-            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])
+            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
 
-        #ADM make RA/Dec skymaps
-        qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
-                 weights=weights[w], max_bin_area=max_bin_area)
+        if len(w) > 0:
+            #ADM make RA/Dec skymaps
+            qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
+                     weights=weights[w], max_bin_area=max_bin_area)
 
-        log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-        #ADM make histograms of densities. We already calculated the correctly 
-        #ADM ordered HEALPixels and so don't need to repeat that calculation
-        qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
-                weights=weights[w], max_bin_area = max_bin_area, catispix=True)
+            #ADM make histograms of densities. We already calculated the correctly 
+            #ADM ordered HEALPixels and so don't need to repeat that calculation
+            qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
+                    weights=weights[w], max_bin_area = max_bin_area, catispix=True)
 
-        log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-        #ADM make color-color plots
-        qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
+            #ADM make color-color plots
+            qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
 
-        log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
     log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
 
@@ -1750,7 +1764,7 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     If making plots, then the ``DESIMODEL`` environment variable must be set to find 
     the file of HEALPixels that overlap the DESI footprint
     """
-    
+    from desispec.io.util import makepath
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
 
@@ -1774,7 +1788,7 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     targdens = _load_targdens()
     
     #ADM set up the html file and write preamble to it
-    htmlfile = os.path.join(qadir, 'index.html')
+    htmlfile = makepath(os.path.join(qadir, 'index.html'))
 
     #ADM grab the magic string that writes the last-updated date to a webpage
     js = _javastring()
