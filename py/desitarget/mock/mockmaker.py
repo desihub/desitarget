@@ -540,7 +540,7 @@ class ReadGalaxia(object):
         
         mockfile_nside = os.path.join(mockfile, str(nside_galaxia))
         if not os.path.isdir(mockfile_nside):
-            log.warning('Mock file {} not found!'.format(mockfile_nside))
+            log.warning('Root directory {} not found!'.format(mockfile_nside))
             raise IOError
 
         # Get the set of nside_galaxia pixels that belong to the desired
@@ -552,13 +552,21 @@ class ReadGalaxia(object):
         if target_name.upper() == 'MWS_MAIN':
             filetype = 'mock_allsky_galaxia_desi'
         elif target_name.upper() == 'FAINTSTAR':
-            filetype = 'mock_superfaint_allsky_galaxia_desi_b10_cap_north'
+            filetype = ('mock_superfaint_allsky_galaxia_desi_b10_cap_north',
+                        'mock_superfaint_allsky_galaxia_desi_b10_cap_south')
         else:
             log.warning('Unrecognized target name {}!'.format(target_name))
             raise ValueError
-        
-        galaxiafile = findfile(filetype=filetype, nside=nside_galaxia,
-                               pixnum=pixnum, basedir=mockfile_nside, ext='fits')
+
+        for ff in np.atleast_1d(filetype):
+            galaxiafile = findfile(filetype=ff, nside=nside_galaxia, pixnum=pixnum,
+                                   basedir=mockfile_nside, ext='fits')
+            if os.path.isfile(galaxiafile):
+                break
+
+        if len(galaxiafile) == 0:
+            log.warning('File {} not found!'.format(galaxiafile))
+            raise IOError
 
         log.info('Reading {}'.format(galaxiafile))
         radec = fitsio.read(galaxiafile, columns=['RA', 'DEC'], upper=True, ext=1)
