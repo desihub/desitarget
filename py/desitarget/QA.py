@@ -1544,6 +1544,69 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     return
 
+def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mock-zerr"):
+    """Make N(z) and scatter (redshift) DESI QA plots given a passed set of MOCK targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least ``Z``, ``ZERR`` for redshift information
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
+        string to be added to the front of the output N(z) plot file name
+    fileprefixerrz : :class:`str`, optional, defaults to ``"color"`` for
+        string to be added to the front of the output z vs. zerr plot file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to ``qadir``. Two plots are made:
+           The file containing N(z) is called:
+                 ``{qadir}/{fileprefixz}-{objtype}.png``
+           The file containing z vs. zerr is called:
+                 ``{qadir}/{fileprefixerrz}-{objtype}.png``
+    """
+
+    #ADM plot the redshift histogram
+    #ADM set the number of bins for the redshift histogram (determined from trial and error)
+    nbins = 30
+
+    #ADM the density value of the peak redshift histogram bin
+    h, b = np.histogram(cat["Z"],bins=nbins)
+    peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
+    ypeak = np.max(h)
+
+    #ADM set up and make the plot
+    plt.clf()
+    #ADM give a little space for labels on the y-axis
+    plt.ylim((0,ypeak*1.2))
+    plt.xlabel('z')
+    plt.ylabel('N(z)')
+    plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
+             label=''.format(objtype,peak))
+    plt.legend(loc='upper left', frameon=False)
+
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    #ADM plot the z vs. zerr scatter plot
+    from matplotlib.colors import LogNorm
+    plt.clf()
+    plt.xlabel('z')
+    plt.ylabel('error on z')
+    plt.set_cmap('inferno')
+    plt.hist2d(cat["Z"],cat["ZERR"],bins=100,range=[[0,3],[0,0.5]],norm=LogNorm())
+    plt.colorbar()
+    #ADM make the plot
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixerr,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    return
 
 def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     """Make color-based DESI targeting QA plots given a passed set of targets
@@ -1620,7 +1683,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.close()
 
 
-def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True, mocks=False):
     """Make DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1639,6 +1702,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, make additional plots that are relevant to mocks
 
     Returns
     -------
@@ -1718,20 +1783,23 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             #ADM make RA/Dec skymaps
             qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
                      weights=weights[w], max_bin_area=max_bin_area)
-
             log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             #ADM make histograms of densities. We already calculated the correctly 
             #ADM ordered HEALPixels and so don't need to repeat that calculation
             qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
                     weights=weights[w], max_bin_area = max_bin_area, catispix=True)
-
             log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             #ADM make color-color plots
             qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
-
             log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+            #ADM if mocks is True, make additional mock QA plots
+            if mocks:
+                #ADM make N(z) and z vx. zerr plots
+                mock_qanz(targs[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixerrz="mock-zerr")
+                log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
 
     log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
 
@@ -1777,6 +1845,12 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+
+    #ADM if mock was passed, you'll need to be looking at the ztarget
+    #ADM file, which should contain the 'Z' and 'ZERR' columns
+    if mocks:
+         if not 'Z' in targs.dtype.names and 'ZERR' in targs.dtype.names:
+             log.error('mock target file must contain Z and ZERR (redshift information')
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
@@ -1850,7 +1924,17 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         if mocks:
             html.write('<hr>\n')
             html.write('<h1>DESI Additional Mock QA\n')
+
+            #ADM redshift plots
+            html.write('<h2>Redshift plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            html.write('<td WIDTH="25%" align=left><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=450 width=700></A></left></td>\n'
+                       .format(objtype,objtype))
+            html.write('<td WIDTH="25%" align=left><A HREF="mock-zerr-{}.png"><img SRC="mock-zerr-{}.png" height=430 width=510></A></left></td>\n'
+                       .format(objtype,objtype))
+            html.write('</tr>\n')
             html.write('</table>\n')
 
         #ADM html postamble
@@ -1860,4 +1944,4 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight, mocks=mocks)
