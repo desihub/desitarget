@@ -1585,7 +1585,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.ylim((0,ypeak*1.2))
     plt.xlabel('z')
     plt.ylabel('N(z)')
-    plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
+    plt.hist(cat["Z"], bins=nbins, histtype='stepfilled', alpha=0.6, 
              label=''.format(objtype,peak))
     plt.legend(loc='upper left', frameon=False)
 

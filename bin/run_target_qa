@@ -19,11 +19,13 @@ ap = ArgumentParser()
 ap.add_argument("src", help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr3.1-dr4.0-all-0.14.0.fits)")
 ap.add_argument("dest", help="Output directory to make QA webpage hierarchy (e.g. /project/projectdirs/desi/www/users/USERNAME/ will appear at http://portal.nersc.gov/project/desi/users/USERNAME)")
 ap.add_argument('-m', "--mocks", action='store_true',help="Input target file is a set of mock targets, so we can make extra, special QA plots")
-ap.add_argument('-n', "--noplots", action='store_false',help="Do not produce any new plots, only the body of the QA webpage")
+ap.add_argument('-n', "--noplots", action='store_true',help="Do not produce any new plots, only the body of the QA webpage")
 
 ns = ap.parse_args()
 
-make_qa_page(ns.src,qadir=ns.dest,mocks=ns.mocks,makeplots=ns.noplots)
+makeplots = not(ns.noplots)
+
+make_qa_page(ns.src,qadir=ns.dest,mocks=ns.mocks,makeplots=makeplots)
 log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
 log.info('Mocks option was set to {}'.format(ns.mocks))
 log.info('No plots option was set to {}'.format(ns.noplots))
