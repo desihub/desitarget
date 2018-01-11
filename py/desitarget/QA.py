@@ -1572,7 +1572,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
 
     #ADM plot the redshift histogram
     #ADM set the number of bins for the redshift histogram (determined from trial and error)
-    nbins = 30
+    nbins = 35
 
     #ADM the density value of the peak redshift histogram bin
     h, b = np.histogram(cat["Z"],bins=nbins)
@@ -1586,8 +1586,8 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.xlabel('z')
     plt.ylabel('N(z)')
     plt.hist(cat["Z"], bins=nbins, histtype='stepfilled', alpha=0.6, 
-             label=''.format(objtype,peak))
-    plt.legend(loc='upper left', frameon=False)
+             label='Observed {} Redshift Distribution (Peak z={:.0f})'.format(objtype,peak))
+    #plt.legend(loc='upper left', frameon=False)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
@@ -1599,10 +1599,10 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.xlabel('z')
     plt.ylabel('error on z')
     plt.set_cmap('inferno')
-    plt.hist2d(cat["Z"],cat["ZERR"],bins=100,range=[[0,3],[0,0.5]],norm=LogNorm())
+    plt.hist2d(cat["Z"],cat["ZERR"],bins=len(cat)//1000,norm=LogNorm())
     plt.colorbar()
     #ADM make the plot
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixerr,objtype))
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixerrz,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
@@ -1930,9 +1930,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             #ADM add the plots...
-            html.write('<td WIDTH="25%" align=left><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=450 width=700></A></left></td>\n'
+            html.write('<td WIDTH="25%" align=left><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=500 width=600></A></left></td>\n'
                        .format(objtype,objtype))
-            html.write('<td WIDTH="25%" align=left><A HREF="mock-zerr-{}.png"><img SRC="mock-zerr-{}.png" height=430 width=510></A></left></td>\n'
+            html.write('<td WIDTH="25%" align=left><A HREF="mock-zerr-{}.png"><img SRC="mock-zerr-{}.png" height=500 width=600></A></left></td>\n'
                        .format(objtype,objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
