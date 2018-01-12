@@ -1738,7 +1738,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
 
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        plt.hist2d(cat["Z"],cat["ZERR"],bins=len(cat)//100,norm=LogNorm())
+        plt.hist2d(cat["Z"],cat["ZERR"],bins=100,norm=LogNorm())
         plt.colorbar()
     #ADM...otherwise make a scatter plot
     else:
