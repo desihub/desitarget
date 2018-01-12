@@ -1623,6 +1623,59 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
 
     return
 
+def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
+    """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least ``SPECTYPE``
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to ``"mock-fractype"`` for
+        string to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{objtype}.png``
+    """
+
+    #ADM count each type of object
+    types = list(set(cat["SPECTYPE"]))
+    ntypes = len(types)
+    typecnt = []
+
+    for typ in types:
+        typecnt.append(len(np.where(cat["SPECTYPE"] == typ)[0]))
+
+    frac = np.array(typecnt)/len(cat)
+
+    #ADM set up and make the bar plot with the legend
+    plt.clf()
+    plt.ylabel('fraction')
+    plt.ylim(0,1.2)
+    x = np.arange(ntypes)
+    plt.bar(x,frac,alpha=0.6,
+            label='Fraction of {} classified as'.format(objtype))
+    plt.legend(loc='upper left', frameon=False)
+    
+    #ADM add the names of the types to the x-axis
+    #ADM first converting the strings to unicode if they're byte-type
+    if isinstance(types[0],bytes):
+        types = [ type.decode() for type in types ]
+    plt.xticks(x, types)
+
+    #ADM write out the plot
+    pngfile = os.path.join(qadir,'{}-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    return
+
 
 def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mock-zerr"):
     """Make N(z) and scatter (redshift) DESI QA plots given a passed set of MOCK targets
@@ -1718,6 +1771,9 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     from desitarget.cuts import unextinct_fluxes
     flux = unextinct_fluxes(cat)
 
+    #ADM the number of passed objects
+    nobjs = len(cat)
+
     #ADM convert to magnitudes (fluxes are in nanomaggies)
     #ADM should be fine to clip for plotting purposes
     loclip = 1e-16
@@ -1743,12 +1799,19 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.clf()
     plt.xlabel('r - z')
     plt.ylabel('r - W1')
-    plt.set_cmap('inferno')
-    counts, xedges, yedges, image = \
-        plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-    if np.sum(counts) > 0:
-        plt.colorbar()
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        plt.set_cmap('inferno')
+        counts, xedges, yedges, image = \
+            plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        if np.sum(counts) > 0:
+            plt.colorbar()
+    #ADM...otherwise make a scatter plot
     else:
+        plt.plot(r-z,r-W1,'bo')
+
+    #ADM...or we might not have any data
+    if np.sum(counts) == 0 or nobjs == 0:
         log = get_logger()
         log.error('No data within r-W1 vs. r-z ranges')
         plt.clf()
@@ -1757,6 +1820,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         plt.xlim([-1,3])
         plt.ylim([-1,3])
         plt.text(0, 0, 'No data')
+
 
     #ADM save the plot
     pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
@@ -1886,7 +1950,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 mock_qanz(targs[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixerrz="mock-zerr")
                 log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-    log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
+                mock_qafractype(targs[w], objtype, qadir=qadir, fileprefix="mock-fractype")
+                log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                
+    log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
@@ -2030,6 +2097,16 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                        .format(objtype,objtype))
             html.write('<td WIDTH="25%" align=left><A HREF="mock-zerr-{}.png"><img SRC="mock-zerr-{}.png" height=500 width=600></A></left></td>\n'
                        .format(objtype,objtype))
+            html.write('</tr>\n')
+            html.write('</table>\n')
+
+            #ADM classification fraction plots
+            html.write('<h2>Fraction of each spectral type plots</h2>\n')
+            html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            html.write('<td WIDTH="25%" align=left><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=500 width=600></A></left></td>\n'
+                       .format("mock-fractype",objtype,"mock-fractype",objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
 
