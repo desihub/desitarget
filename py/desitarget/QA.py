@@ -1657,7 +1657,7 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     #ADM set up and make the bar plot with the legend
     plt.clf()
     plt.ylabel('fraction')
-    plt.ylim(0,1.2)
+    plt.ylim(0,1.1)
     x = np.arange(ntypes)
     plt.bar(x,frac,alpha=0.6,
             label='Fraction of {} classified as'.format(objtype))
@@ -1703,6 +1703,9 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
                  ``{qadir}/{fileprefixerrz}-{objtype}.png``
     """
 
+    #ADM the number of passed objects
+    nobjs = len(cat)
+
     #ADM plot the redshift histogram
     #ADM set the number of bins for the redshift histogram (determined from trial and error)
     nbins = 35
@@ -1732,9 +1735,16 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.xlabel('z')
     plt.ylabel('error on z')
     plt.set_cmap('inferno')
-    plt.hist2d(cat["Z"],cat["ZERR"],bins=len(cat)//1000,norm=LogNorm())
-    plt.colorbar()
-    #ADM make the plot
+
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        plt.hist2d(cat["Z"],cat["ZERR"],bins=len(cat)//100,norm=LogNorm())
+        plt.colorbar()
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.plot(cat["Z"],cat["ZERR"],'bo')
+
+    #ADM create the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixerrz,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
@@ -1787,9 +1797,14 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.clf()
     plt.xlabel('r - z')
     plt.ylabel('g - r')
-    plt.set_cmap('inferno')
-    plt.hist2d(r-z,g-r,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-    plt.colorbar()
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:    
+        plt.set_cmap('inferno')
+        plt.hist2d(r-z,g-r,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        plt.colorbar()
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.plot(r-z,g-r,'bo')
     #ADM make the plot
     pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
@@ -1806,12 +1821,14 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
             plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
         if np.sum(counts) > 0:
             plt.colorbar()
+        else:
+            nobjs = 0
     #ADM...otherwise make a scatter plot
     else:
         plt.plot(r-z,r-W1,'bo')
 
-    #ADM...or we might not have any data
-    if np.sum(counts) == 0 or nobjs == 0:
+    #ADM...or we might not have any WISE data
+    if nobjs == 0:
         log = get_logger()
         log.error('No data within r-W1 vs. r-z ranges')
         plt.clf()
