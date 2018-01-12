@@ -748,6 +748,7 @@ def construct_QA_file(nrows):
             ])
     return data
 
+
 def construct_HPX_file(nrows):
     """Create a recarray to be populated with HEALPixel information
 
@@ -1544,6 +1545,85 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     return
 
+
+def qamag(cat, objtype, qadir='.', fileprefix="mag"):
+    """Make magnitude-based DESI targeting QA plots given a passed set of targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least ``FLUX_G``, ``FLUX_R``, ``FLUX_Z`` and 
+        ``FLUX_W1``, columns for magnitude information
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to ``"mag"`` for
+        string to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{filter}-{objtype}.png``
+        where filter might be, e.g., ``g``
+    """
+
+    #ADM columns in the passed cat as an array 
+    cols = np.array(list(cat.dtype.names))
+
+    #ADM value of flux to clip at for plotting purposes
+    loclip = 1e-16
+
+    #ADM magnitudes for which to plot histograms
+    filters = ['G','R','Z','W1']
+    magnames = [ 'FLUX_' + filter for filter in filters ]
+        
+    for fluxname in magnames:
+
+        #ADM convert to magnitudes (fluxes are in nanomaggies)
+        #ADM should be fine to clip for plotting purposes
+        mag = 22.5-2.5*np.log10(cat[fluxname].clip(loclip))
+
+        #ADM the name of the filters
+        filtername = fluxname[5:].lower()
+        #ADM WISE bands have upper-case filter names
+        if filtername[0] == 'w':
+            filtername = filtername.upper()
+        
+        #ADM plot the magnitude histogram
+        #ADM set the number of bins for the redshift histogram to run in 
+        #ADM 0.5 intervals from 14 to 14 + 0.5*bins
+        nbins = 20
+        bins = np.arange(nbins)*0.5+14
+        #ADM insert a 0 bin and a 100 bin to catch the edges
+        np.insert(bins,0,0.)
+        np.insert(bins,len(bins),100.)
+
+        #ADM the density value of the peak redshift histogram bin
+        h, b = np.histogram(mag,bins=bins)
+        peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
+        ypeak = np.max(h)
+
+        #ADM set up and make the plot
+        plt.clf()
+        #ADM restrict the magnitude limits
+        plt.xlim(14, 23)
+        #ADM give a little space for labels on the y-axis
+        plt.ylim((0,ypeak*1.2))
+        plt.xlabel(filtername)
+        plt.ylabel('N('+filtername+')')
+        plt.hist(mag, bins=bins, histtype='stepfilled', alpha=0.6, 
+             label='Observed {} {}-mag Distribution (Peak {}={:.0f})'.format(objtype,filtername,filtername,peak))
+        plt.legend(loc='upper left', frameon=False)
+
+        pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix,filtername,objtype))
+        plt.savefig(pngfile,bbox_inches='tight')
+        plt.close()
+
+    return
+
+
 def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mock-zerr"):
     """Make N(z) and scatter (redshift) DESI QA plots given a passed set of MOCK targets
 
@@ -1607,6 +1687,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.close()
 
     return
+
 
 def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     """Make color-based DESI targeting QA plots given a passed set of targets
@@ -1795,6 +1876,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
             log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
+            #ADM make magnitude histograms
+            qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
+            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
             #ADM if mocks is True, make additional mock QA plots
             if mocks:
                 #ADM make N(z) and z vx. zerr plots
@@ -1849,8 +1934,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     #ADM if mock was passed, you'll need to be looking at the ztarget
     #ADM file, which should contain the 'Z' and 'ZERR' columns
     if mocks:
-         if not 'Z' in targs.dtype.names and 'ZERR' in targs.dtype.names:
-             log.error('mock target file must contain Z and ZERR (redshift information')
+        cols = targs.dtype.names
+        if not 'Z' in cols and 'ZERR' in cols and 'SPECTYPE' in cols:
+            log.error('mock target file must contain Z, ZERR and SPECTYPE')
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
@@ -1913,10 +1999,20 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=left><A HREF="color-grz-{}.png"><img SRC="color-rzW1-{}.png" height=500 width=600></A></left></td>\n'
-                   .format(objtype,objtype))
-        html.write('<td WIDTH="25%" align=left><A HREF="color-rzW1-{}.png"><img SRC="color-grz-{}.png" height=500 width=600></A></left></td>\n'
-                   .format(objtype,objtype))
+        for colors in ["grz","rzW1"]:
+            html.write('<td WIDTH="25%" align=left><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" height=500 width=600></A></left></td>\n'
+                       .format(colors,objtype,colors,objtype))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+
+        #ADM magnitude plots
+        html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
+        html.write('<table COLS=4 WIDTH="100%">\n')
+        html.write('<tr>\n')
+        #ADM add the plots...
+        for band in ["g","r","z","W1"]:
+            html.write('<td WIDTH="25%" align=left><A HREF="mag-{}-{}.png"><img SRC="mag-{}-{}.png" height=375 width=450></A></left></td>\n'
+                       .format(band,objtype,band,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
@@ -1945,3 +2041,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     #ADM make the QA plots, if requested:
     if makeplots:
         make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight, mocks=mocks)
+
+    #ADM make sure all of the relevant directories and plots can be read by a web-browser
+    cmd = 'chmod 644 {}/*'.format(qadir)
+    ok = os.system(cmd)
+    cmd = 'chmod 775 {}'.format(qadir)
+    ok = os.system(cmd)
