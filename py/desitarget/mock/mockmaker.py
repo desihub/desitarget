@@ -143,7 +143,7 @@ def mw_transmission(source_data, dust_dir=None):
     from desitarget.mock import sfdmap
 
     if dust_dir is None:
-        log.warning('DUST_DIR is a required input!')
+        log.warning('DUST_DIR input required.')
         raise ValueError
 
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
@@ -469,7 +469,7 @@ class SelectTargets(object):
         return targets, truth
 
 class ReadGaussianField(object):
-    """Read a Gaussian random field mock.
+    """Read a Gaussian random field style mock catalog.
 
     Parameters
     ----------
@@ -480,23 +480,23 @@ class ReadGaussianField(object):
         to each object.  Defaults to 0.25 deg.
 
     """
-    def __init__(self, dust_dir, bricksize=0.25):
+    def __init__(self, dust_dir=None, bricksize=0.25):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile, healpixels=[], nside=[], target_name=''):
-        """Read the mock catalog.
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name=''):
+        """Read the catalog.
 
         Parameters
         ----------
         mockfile : :class:`str`
             Full path to the mock catalog to read.
-        target_name : :class:`str`
-            Name of the target being read (e.g., ELG, LRG).
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
 
         Returns
         -------
@@ -506,11 +506,15 @@ class ReadGaussianField(object):
         Raises
         ------
         IOError
-            If mockfile is not defined.
+            If the mock data files are not found.
         ValueError
-            If healpixels is not a scalar.
+            If mockfile is not defined or if healpixels is not a scalar.
 
         """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+            
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
@@ -573,24 +577,70 @@ class ReadGaussianField(object):
         return out
 
 class ReadGalaxia(object):
+    """Read a Galaxia style mock catalog.
 
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
     def __init__(self, bricksize=0.25, dust_dir=None):
-
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile, target_name='MWS_MAIN', nside=None, healpixels=None,
-                 nside_galaxia=None, magcut=None):
-        """Read the mock catalog.
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='',
+                 nside_galaxia=8, magcut=None):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the top-level directory of the Galaxia mock catalog.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (e.g., MWS_MAIN).
+        nside_galaxia : :class:`int`
+            Healpixel nside indicating how the mock on-disk has been organized.
+            Defaults to 8.
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data files are not found.
+        ValueError
+            If mockfile is not defined or if healpixels is not a scalar.
 
         """
         import healpy as hp
         from desitarget.mock.io import get_healpix_dir, findfile
+
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
         
         mockfile_nside = os.path.join(mockfile, str(nside_galaxia))
         if not os.path.isdir(mockfile_nside):
-            log.warning('Root directory {} not found!'.format(mockfile_nside))
+            log.warning('Galaxia top-level directory {} not found!'.format(mockfile_nside))
             raise IOError
+
+        if len(healpixels) != 1 and len(nside) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
 
         # Get the set of nside_galaxia pixels that belong to the desired
         # healpixels (which have nside).  This will break if healpixels is a
@@ -642,8 +692,8 @@ class ReadGalaxia(object):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        cols = ['V_HELIO',
-                'SDSSU_TRUE_NODUST', 'SDSSG_TRUE_NODUST', 'SDSSR_TRUE_NODUST', 'SDSSI_TRUE_NODUST', 'SDSSZ_TRUE_NODUST',
+        cols = ['V_HELIO', 'SDSSU_TRUE_NODUST', 'SDSSG_TRUE_NODUST',
+                'SDSSR_TRUE_NODUST', 'SDSSI_TRUE_NODUST', 'SDSSZ_TRUE_NODUST',
                 'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
         data = fitsio.read(galaxiafile, columns=cols, upper=True, ext=1, rows=cut)
         zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
@@ -653,10 +703,13 @@ class ReadGalaxia(object):
         logg = data['LOGG'].astype('f4')
         feh = data['FEH'].astype('f4')
 
-        # Temporary hack to select SDSS standards se extinction-corrected SDSS mags 
-        boss_std = self.select_sdss_std(data['SDSSU_TRUE_NODUST'], data['SDSSG_TRUE_NODUST'],
-                                        data['SDSSR_TRUE_NODUST'], data['SDSSI_TRUE_NODUST'],
-                                        data['SDSSZ_TRUE_NODUST'], obs_rmag=None)
+        # Temporary hack to select SDSS standards se extinction-corrected SDSS mags.
+        boss_std = self.select_sdss_std(data['SDSSU_TRUE_NODUST'],
+                                        data['SDSSG_TRUE_NODUST'],
+                                        data['SDSSR_TRUE_NODUST'],
+                                        data['SDSSI_TRUE_NODUST'],
+                                        data['SDSSZ_TRUE_NODUST'],
+                                        obs_rmag=None)
 
         if magcut:
             cut = mag < magcut
@@ -696,11 +749,26 @@ class ReadGalaxia(object):
         return out
 
     def select_sdss_std(self, umag, gmag, rmag, imag, zmag, obs_rmag=None):
-        """Select standard stars using SDSS photometry and the BOSS selection.
+        """Select standard stars using SDSS photometry and the BOSS algorithm.
         
         According to http://www.sdss.org/dr12/algorithms/boss_std_ts the r-band
         magnitude for the magnitude cuts is the extinction corrected magnitude.
-    
+
+        Parameters
+        ----------
+        umag : :class:`float`
+            SDSS u-band extinction-corrected magnitude.
+        gmag : :class:`float`
+            SDSS g-band extinction-corrected magnitude.
+        rmag : :class:`float`
+            SDSS r-band extinction-corrected magnitude.
+        imag : :class:`float`
+            SDSS i-band extinction-corrected magnitude.
+        zmag : :class:`float`
+            SDSS z-band extinction-corrected magnitude.
+        obs_rmag : :class:`float`
+            SDSS r-band observed (not extinction-corrected) magnitude.
+
         """
         umg_cut = ((umag - gmag) - 0.82)**2
         gmr_cut = ((gmag - rmag) - 0.30)**2
@@ -715,30 +783,66 @@ class ReadGalaxia(object):
         return is_std
 
 class ReadLyaCoLoRe(object):
+    """Read a CoLoRe mock catalog of Lya skewers.
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
 
-        self.bricksize = bricksize
+    """
+    def __init__(self, dust_dir=None, bricksize=0.25):
         self.dust_dir = dust_dir
+        self.bricksize = bricksize
 
-    def readmock(self, mockfile, target_name='LYA', nside=None, healpixels=None,
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='LYA',
                  nside_lya=16):
-        """Read the mock catalog.
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the top-level directory of the CoLoRe mock catalog.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (if not LYA).
+        nside_lya : :class:`int`
+            Healpixel nside indicating how the mock on-disk has been organized.
+            Defaults to 16.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data files are not found.
+        ValueError
+            If mockfile is not defined or if healpixels is not a scalar.
 
         """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+        
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
-
-        self.nside = nside
-        self.nside_lya = nside_lya
 
         mockdir = os.path.dirname(mockfile)
     
         # Read the whole DESI footprint.
         if healpixels is None:
             from desimodel.footprint import tiles2pix
-            healpixels = tiles2pix(self.nside)
+            healpixels = tiles2pix(nside)
 
         # Read the ra,dec coordinates and then restrict to the desired
         # healpixels.
@@ -754,8 +858,8 @@ class ReadLyaCoLoRe(object):
         mockid = objid.copy()
         del tmp
 
-        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
-        allpix = radec2pix(self.nside, ra, dec)
+        log.info('Assigning healpix pixels with nside = {}'.format(nside))
+        allpix = radec2pix(nside, ra, dec)
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -775,7 +879,8 @@ class ReadLyaCoLoRe(object):
         # Build the full filenames.
         lyafiles = []
         for mpix in mockpix:
-            lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(mockdir, mpix//100, mpix, nside_lya, mpix))
+            lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
+                mockdir, mpix//100, mpix, nside_lya, mpix))
             
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
@@ -795,9 +900,8 @@ class ReadLyaCoLoRe(object):
 class ReadMXXL(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
-
-        self.bricksize = bricksize
         self.dust_dir = dust_dir
+        self.bricksize = bricksize
 
     def readmock(self, mockfile, target_name='BGS', nside=None, healpixels=None,
                  magcut=None):
@@ -891,9 +995,8 @@ class ReadMXXL(object):
 class ReadMWS_WD(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
-
-        self.bricksize = bricksize
         self.dust_dir = dust_dir
+        self.bricksize = bricksize
 
     def readmock(self, mockfile, target_name='WD', nside=None, healpixels=None):
         """Read the mock catalog.
@@ -968,9 +1071,8 @@ class ReadMWS_WD(object):
 class ReadMWS_NEARBY(object):
 
     def __init__(self, bricksize=0.25, dust_dir=None):
-
-        self.bricksize = bricksize
         self.dust_dir = dust_dir
+        self.bricksize = bricksize
 
     def readmock(self, mockfile, target_name='MWS_NEARBY', nside=None, healpixels=None):
         """Read the mock catalog.
@@ -1147,7 +1249,7 @@ class LYAMaker(SelectTargets):
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
-        data = MockReader.readmock(mockfile, target_name=self.objtype,
+        data = MockReader.readmock(mockfile, target_name='LYA',
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya)
 
