@@ -1,13 +1,14 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
+=========================
 desitarget.mock.mockmaker
 =========================
 
 Read mock catalogs and assign spectra.
-
 """
-from __future__ import absolute_import, division, print_function
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
 
 import os
 import numpy as np
@@ -50,14 +51,14 @@ def encode_rownum_filenum(rownum, filenum):
 
     Parameters
     ----------
-    rownum : int
+    rownum : :class:`int`
         Row in input file.
-    filenum : int
+    filenum : :class:`int`
         File number in input file set.
 
     Returns
     -------
-    encoded value(s) : int64 numpy.ndarray
+    :class:`numpy.ndarray`
         52 packed bits encoding row and file number.
 
     """
@@ -68,7 +69,8 @@ def encode_rownum_filenum(rownum, filenum):
     assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
 
     # This should be a 64 bit integer.
-    encoded_value = (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) + np.asarray(rownum, dtype=np.uint64)
+    encoded_value = ( (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) +
+                      np.asarray(rownum, dtype=np.uint64) )
 
     # Note return signed
     return np.asarray(encoded_value, dtype=np.int64)
@@ -124,14 +126,19 @@ def make_mockid(objid, n_per_file):
 def mw_transmission(source_data, dust_dir=None):
     """Compute the grzW1W2 Galactic transmission for every object.
     
-    Args:
-        source_data : dict
-            Input dictionary (read by read_mock_catalog) with coordinates. 
-            
-    Returns:
-        source_data : dict
-            Modified input dictionary with MW transmission included. 
+    Parameters
+    ----------
+    source_data : :class:`dict`
+        Input dictionary of sources with RA, Dec coordinates, modified on output
+        to contain reddening and the MW transmission in various bands.
+    dust_dir : :class:`str`
+        Full path to the dust maps.
 
+    Raises
+    ------
+    ValueError
+        If dust_dir is not defined.
+    
     """
     from desitarget.mock import sfdmap
 
@@ -292,6 +299,19 @@ def empty_truth_table(nobj=1):
 
     return truth
 
+def _indesi(data):
+    import desimodel.io
+    import desimodel.footprint
+
+    n_obj = len(source_data['RA'])
+    tiles = desimodel.io.load_tiles()
+    if n_obj > 0:
+        indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
+        for k in source_data.keys():
+            if type(source_data[k]) is np.ndarray:
+                if n_obj == len(source_data[k]):
+                    source_data[k] = source_data[k][indesi]
+
 def _sample_vdisp(data, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1), rand=None, nside=128):
     """Choose a subset of velocity dispersions."""
 
@@ -449,29 +469,58 @@ class SelectTargets(object):
         return targets, truth
 
 class ReadGaussianField(object):
+    """Read a Gaussian random field mock.
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
 
-        self.bricksize = bricksize
+    """
+    def __init__(self, dust_dir, bricksize=0.25):
         self.dust_dir = dust_dir
+        self.bricksize = bricksize
 
-    def readmock(self, mockfile, target_name='', nside=None, healpixels=None):
+    def readmock(self, mockfile, healpixels=[], nside=[], target_name=''):
         """Read the mock catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If mockfile is not defined.
+        ValueError
+            If healpixels is not a scalar.
 
         """
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        self.nside = nside
-    
-        # Read the whole DESI footprint.
-        if healpixels is None:
-            from desimodel.footprint import tiles2pix
-            healpixels = tiles2pix(self.nside)
-
+        if len(healpixels) != 1 and len(nside) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
+        
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
-        # desired healpixels.
+        # input healpixel.
         log.info('Reading {}'.format(mockfile))
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
         nobj = len(radec)
@@ -484,8 +533,8 @@ class ReadGaussianField(object):
         objid = np.arange(nobj, dtype='i8')
         mockid = make_mockid(objid, n_per_file)
 
-        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
-        allpix = radec2pix(self.nside, radec['RA'], radec['DEC'])
+        log.info('Assigning healpix pixels with nside = {}'.format(nside))
+        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -1010,6 +1059,9 @@ class QSOMaker(SelectTargets):
 
         self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
 
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField',
+                                             'v0.0.5', 'QSO.fits')
+
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=None, **kwargs):
         """Read the mock file."""
@@ -1019,6 +1071,9 @@ class QSOMaker(SelectTargets):
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
+        if mockfile is None:
+            mockfile = self.default_mockfile
+            
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
 
@@ -1214,6 +1269,9 @@ class LRGMaker(SelectTargets):
 
         self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
 
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField',
+                                             'v0.0.5', 'LRG.fits')
+
         zobj = self.meta['Z'].data
         self.tree = KDTree(np.vstack((zobj)).T)
 
@@ -1228,6 +1286,9 @@ class LRGMaker(SelectTargets):
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+
+        if mockfile is None:
+            mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
