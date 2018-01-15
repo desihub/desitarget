@@ -348,11 +348,10 @@ def _default_wave(wavemin=None, wavemax=None, dw=0.2):
     return np.arange(round(wavemin, 1), wavemax, dw)
 
 class SelectTargets(object):
-    """Select various types of targets.
+    """Methods to help select various target types.
 
     """
-    def __init__(self, **kwargs):
-        
+    def __init__(self):
         from desitarget import (desi_mask, bgs_mask, mws_mask,
                                 contam_mask, obsconditions)
         
@@ -362,8 +361,27 @@ class SelectTargets(object):
         self.contam_mask = contam_mask
         self.obsconditions = obsconditions
 
-    def scatter_photometry(self, data, truth, targets, indx=None, psf=True, qaplot=False):
-        """Add noise to the photometry based on the depth.
+    def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
+                           qaplot=False):
+        """Add noise to the input (noiseless) photometry based on the depth.  The input
+        targets table is modified in place.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+        indx : :class:`numpy.ndarray`, optional
+            Scatter the photometry of a subset of the objects in the data
+            dictionary, as specified using their zero-indexed indices.
+        psf : :class:`bool`, optional
+            For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
+            otherwise use GALDEPTH.  Defaults to True.
+        qaplot : :class:`bool`, optional
+            Generate a QA plot for debugging.
 
         """
         if indx is None:
@@ -392,10 +410,10 @@ class SelectTargets(object):
             targets[fluxkey][:] = truth[fluxkey] + self.rand.normal(scale=sigma)
 
         if qaplot:
-            self.qaplot_scatter_photometry(targets, truth)
+            self._qaplot_scatter_photometry(targets, truth)
 
-    def qaplot_scatter_photometry(self, targets, truth):
-        """Build a simple QAplot. """
+    def _qaplot_scatter_photometry(self, targets, truth):
+        """Build a simple QAplot, useful for debugging """
 
         import matplotlib.pyplot as plt
 
@@ -412,8 +430,28 @@ class SelectTargets(object):
         plt.show()
 
     def populate_targets_truth(self, data, meta, indx=None, psf=True):
-        """Given a source_data dictionary and a spectral metadata table, initialize and
-        populate the 'targets' and 'truth' tables.
+        """Initialize and populate the targets and truth tables given a dictionary of
+        source properties and a spectral metadata table.  
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        meta : :class:`astropy.table.Table`
+            Spectral metadata table.
+        indx : :class:`numpy.ndarray`, optional
+            Populate the tables of a subset of the objects in the data
+            dictionary, as specified using their zero-indexed indices.
+        psf : :class:`bool`, optional
+            For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
+            otherwise use GALDEPTH.  Defaults to True.
+
+        Returns
+        -------
+        targets : :class:`astropy.table.Table`
+            Target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
 
         """
         if indx is None:
@@ -519,7 +557,7 @@ class ReadGaussianField(object):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        if len(healpixels) != 1 and len(nside) != 1:
+        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
             log.warning('Healpixels and nside must be scalar inputs.')
             raise ValueError
         
@@ -839,10 +877,9 @@ class ReadLyaCoLoRe(object):
 
         mockdir = os.path.dirname(mockfile)
     
-        # Read the whole DESI footprint.
-        if healpixels is None:
-            from desimodel.footprint import tiles2pix
-            healpixels = tiles2pix(nside)
+        if len(healpixels) != 1 and len(nside) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
 
         # Read the ra,dec coordinates and then restrict to the desired
         # healpixels.
@@ -898,29 +935,66 @@ class ReadLyaCoLoRe(object):
         return out
 
 class ReadMXXL(object):
+    """Read a MXXL mock catalog of BGS targets.
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
+    def __init__(self, dust_dir=None, bricksize=0.25):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile, target_name='BGS', nside=None, healpixels=None,
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='BGS',
                  magcut=None):
-        """Read the mock catalog.
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the top-level directory of the CoLoRe mock catalog.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (if not BGS).
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data files are not found.
+        ValueError
+            If mockfile is not defined or if healpixels is not a scalar.
 
         """
         import h5py
+        
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
         
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        self.nside = nside
+        if len(healpixels) != 1 and len(nside) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
 
-        # Read the whole DESI footprint.
-        if healpixels is None:
-            from desimodel.footprint import tiles2pix
-            healpixels = tiles2pix(self.nside)
-            
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
         f = h5py.File(mockfile)
@@ -993,25 +1067,59 @@ class ReadMXXL(object):
         return out
 
 class ReadMWS_WD(object):
+    """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD). 
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
+    def __init__(self, dust_dir=None, bricksize=0.25):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile, target_name='WD', nside=None, healpixels=None):
-        """Read the mock catalog.
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='WD'):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (if not WD).
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data files are not found.
+        ValueError
+            If mockfile is not defined or if healpixels is not a scalar.
 
         """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+        
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        self.nside = nside
-    
-        # Read the whole DESI footprint.
-        if healpixels is None:
-            from desimodel.footprint import tiles2pix
-            healpixels = tiles2pix(self.nside)
+        if len(healpixels) != 1 and len(nside) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
             
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
@@ -1027,7 +1135,7 @@ class ReadMWS_WD(object):
         objid = np.arange(nobj, dtype='i8')
         mockid = make_mockid(objid, n_per_file)
 
-        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
+        log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
@@ -1069,26 +1177,60 @@ class ReadMWS_WD(object):
         return out
     
 class ReadMWS_NEARBY(object):
+    """Read a mock catalog of Milky Way Survey nearby targets (MWS_NEARBY). 
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
+    def __init__(self, dust_dir=None, bricksize=0.25):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile, target_name='MWS_NEARBY', nside=None, healpixels=None):
-        """Read the mock catalog.
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='MWS_NEARBY'):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (if not MWS_NEARBY).
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data files are not found.
+        ValueError
+            If mockfile is not defined or if healpixels is not a scalar.
 
         """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        self.nside = nside
-    
-        # Read the whole DESI footprint.
-        if healpixels is None:
-            from desimodel.footprint import tiles2pix
-            healpixels = tiles2pix(self.nside)
-            
+        if len(healpixels) != 1 and len(nside) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
         log.info('Reading {}'.format(mockfile))
@@ -1103,7 +1245,7 @@ class ReadMWS_NEARBY(object):
         objid = np.arange(nobj, dtype='i8')
         mockid = make_mockid(objid, n_per_file)
 
-        log.info('Assigning healpix pixels with nside = {}'.format(self.nside))
+        log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
@@ -1146,32 +1288,69 @@ class ReadMWS_NEARBY(object):
         return out
 
 class QSOMaker(SelectTargets):
+    """Read QSO mocks, generate spectra, and select targets.
 
-    def __init__(self, seed=None, verbose=False, normfilter='decam2014-g', **kwargs):
+    Parameters
+    ----------
+    seed : :class:`int`, optional
+        Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-g`.
 
+    """
+    def __init__(self, seed=None, normfilter='decam2014-g'):
         from desisim.templates import SIMQSO
 
-        super(QSOMaker, self).__init__(**kwargs)
+        super(QSOMaker, self).__init__()
 
         self.seed = seed
-        self.verbose = verbose
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'QSO'
 
         self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
 
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField',
+        # Default mock catalog.
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
+                                             'GaussianRandomField',
                                              'v0.0.5', 'QSO.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, **kwargs):
-        """Read the mock file."""
+             healpixels=[], nside=[], **kwargs):
+        """Read the catalog.
 
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        mockformat : :class:`str`
+            Mock catalog format.  Defaults to 'gaussianfield'.
+        dust_dir : :class:`str`
+            Full path to the dust maps.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary of target properties with various keys (to be documented). 
+
+        Raises
+        ------
+        ValueError
+            If mockformat is not recognized.
+
+        """
+        self.mockformat = mockformat
+        
         if mockformat == 'gaussianfield':
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            log.warning('Unrecognized mockformat {}!'.format(mockformat))
+            raise ValueError
 
         if mockfile is None:
             mockfile = self.default_mockfile
@@ -1185,7 +1364,9 @@ class QSOMaker(SelectTargets):
         return data
 
     def _prepare_spectra(self, data):
+        """Update the data dictionary with quantities needed to generate spectra.
 
+        """ 
         data.update({
             'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
             })
@@ -1193,29 +1374,60 @@ class QSOMaker(SelectTargets):
         return data
 
     def make_spectra(self, data=None, indx=None):
-        """Generate tracer QSO spectra."""
+        """Generate tracer QSO spectra.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        indx : :class:`numpy.ndarray`, optional
+            Generate spectra for a subset of the objects in the data dictionary,
+            as specified using their zero-indexed indices.
+
+        Returns
+        -------
+        flux : :class:`numpy.ndarray`
+            Target spectra.
+        wave : :class:`numpy.ndarray`
+            Corresponding wavelength array.
+        meta : :class:`astropy.table.Table`
+            Spectral metadata table.
+        targets : :class:`astropy.table.Table`
+            Target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
         
+        """
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
             
         flux, wave, meta = self.template_maker.make_templates(
             nmodel=nobj, redshift=data['Z'][indx], seed=self.seed,
-            lyaforest=False, nocolorcuts=True, verbose=self.verbose)
+            lyaforest=False, nocolorcuts=True)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
 
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
-        """Select QSO targets."""
-        from desitarget.cuts import isQSO_colors
+        """Select QSO targets.  Input tables are modified in place.
 
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+
+        """
+        from desitarget.cuts import isQSO_colors
           
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
+        qso = isQSO_colors(gflux=targets['FLUX_G'],
+                           rflux=targets['FLUX_R'],
+                           zflux=targets['FLUX_Z'],
+                           w1flux=targets['FLUX_W1'],
+                           w2flux=targets['FLUX_W2'])
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
@@ -1226,8 +1438,7 @@ class QSOMaker(SelectTargets):
 
 class LYAMaker(SelectTargets):
 
-    def __init__(self, seed=None, verbose=False, normfilter='decam2014-g', **kwargs):
-
+    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
         from desisim.templates import SIMQSO
 
         super(LYAMaker, self).__init__(**kwargs)
@@ -1354,24 +1565,29 @@ class LYAMaker(SelectTargets):
             self.desi_mask.QSO_SOUTH.obsconditions)
 
 class LRGMaker(SelectTargets):
-    """Read LRG mocks and generate spectra."""
+    """Read LRG mocks, generate spectra, and select targets.
 
-    def __init__(self, seed=None, verbose=False, **kwargs):
+    Parameters
+    ----------
+    seed : :class:`int`, optional
+        Seed for reproducibility and random number generation.
 
+    """
+    def __init__(self, seed=None):
         from scipy.spatial import cKDTree as KDTree
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LRGMaker, self).__init__(**kwargs)
+        super(LRGMaker, self).__init__()
 
         self.seed = seed
-        self.verbose = verbose
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'LRG'
 
         self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
 
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField',
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
+                                             'GaussianRandomField',
                                              'v0.0.5', 'LRG.fits')
 
         zobj = self.meta['Z'].data
@@ -1381,13 +1597,43 @@ class LRGMaker(SelectTargets):
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, **kwargs):
-        """Read the mock file."""
+             healpixels=[], nside=[], nside_chunk=128, **kwargs):
+        """Read the catalog.
 
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        mockformat : :class:`str`
+            Mock catalog format.  Defaults to 'gaussianfield'.
+        dust_dir : :class:`str`
+            Full path to the dust maps.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_chunk : :class:`int`
+            Healpixel nside for further subdividing the sample when assigning
+            velocity dispersion to targets.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary of target properties with various keys (to be documented). 
+
+        Raises
+        ------
+        ValueError
+            If mockformat is not recognized.
+
+        """
+        self.mockformat = mockformat
+        
         if mockformat == 'gaussianfield':
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            log.warning('Unrecognized mockformat {}!'.format(mockformat))
+            raise ValueError
 
         if mockfile is None:
             mockfile = self.default_mockfile
@@ -1400,11 +1646,28 @@ class LRGMaker(SelectTargets):
             
         return data
 
+    def _GMMsample(self, nsample=1):
+        """Sample from the Gaussian mixture model (GMM) for LRGs.
+
+        """
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
     def _prepare_spectra(self, data, nside_chunk=128):
-        
+        """Update the data dictionary with quantities needed to generate spectra.
+
+        """ 
         from desisim.templates import LRG
 
-        gmm = self.GMMsample(len(data['RA']))
+        gmm = self._GMMsample(len(data['RA']))
         normmag = gmm['z']
         normfilter = 'decam2014-z'
         self.template_maker = LRG(wave=self.wave, normfilter=normfilter)
@@ -1421,28 +1684,38 @@ class LRGMaker(SelectTargets):
 
         return data
 
-    def GMMsample(self, nsample=1):
-        """Sample from the GMM."""
-        
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
+    def _query(self, matrix):
+        """Return the nearest template number based on the KD Tree.
 
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-
+        """
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
     def make_spectra(self, data=None, indx=None):
-        """Generate LRG spectra."""
+        """Generate LRG spectra.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        indx : :class:`numpy.ndarray`, optional
+            Generate spectra for a subset of the objects in the data dictionary,
+            as specified using their zero-indexed indices.
+
+        Returns
+        -------
+        flux : :class:`numpy.ndarray`
+            Target spectra.
+        wave : :class:`numpy.ndarray`
+            Corresponding wavelength array.
+        meta : :class:`astropy.table.Table`
+            Spectral metadata table.
+        targets : :class:`astropy.table.Table`
+            Target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+        
+        """
         from desisim.io import empty_metatable
         
         if indx is None:
@@ -1454,23 +1727,29 @@ class LRGMaker(SelectTargets):
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][indx]
 
-        if data['MOCKFORMAT'].lower() == 'gaussianfield':
+        if self.mockformat == 'gaussianfield':
             # This is not quite right, but choose a template with equal probability.
             templateid = self.rand.choice(self.meta['TEMPLATEID'], nobj)
             input_meta['TEMPLATEID'] = templateid
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                           nocolorcuts=True, novdisp=False,
-                                                           verbose=self.verbose)
+                                                           nocolorcuts=True, novdisp=False)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
 
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
-        """Select LRG targets."""
+        """Select LRG targets.  Input tables are modified in place.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+
+        """
         from desitarget.cuts import isLRG_colors
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
@@ -1487,22 +1766,30 @@ class LRGMaker(SelectTargets):
             self.desi_mask.LRG_SOUTH.obsconditions)
 
 class ELGMaker(SelectTargets):
-    """Read ELG mocks and generate spectra."""
+    """Read ELG mocks, generate spectra, and select targets.
 
-    def __init__(self, seed=None, verbose=False, **kwargs):
+    Parameters
+    ----------
+    seed : :class:`int`, optional
+        Seed for reproducibility and random number generation.
 
+    """
+    def __init__(self, seed=None):
         from scipy.spatial import cKDTree as KDTree
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(ELGMaker, self).__init__(**kwargs)
+        super(ELGMaker, self).__init__()
 
         self.seed = seed
-        self.verbose = verbose
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'ELG'
 
         self.meta = read_basis_templates(objtype='ELG', onlymeta=True)
+
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
+                                             'GaussianRandomField',
+                                             'v0.0.5', 'ELG.fits')
 
         zobj = self.meta['Z'].data
         gr = self.meta['DECAM_G'].data - self.meta['DECAM_R'].data
@@ -1513,13 +1800,46 @@ class ELGMaker(SelectTargets):
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, **kwargs):
-        """Read the mock file."""
+             healpixels=[], nside=[], nside_chunk=128, **kwargs):
+        """Read the catalog.
 
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        mockformat : :class:`str`
+            Mock catalog format.  Defaults to 'gaussianfield'.
+        dust_dir : :class:`str`
+            Full path to the dust maps.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_chunk : :class:`int`
+            Healpixel nside for further subdividing the sample when assigning
+            velocity dispersion to targets.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary of target properties with various keys (to be documented). 
+
+        Raises
+        ------
+        ValueError
+            If mockformat is not recognized.
+
+        """
+        self.mockformat = mockformat
+        
         if mockformat == 'gaussianfield':
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            log.warning('Unrecognized mockformat {}!'.format(mockformat))
+            raise ValueError
+
+        if mockfile is None:
+            mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
@@ -1529,11 +1849,28 @@ class ELGMaker(SelectTargets):
 
         return data
             
+    def _GMMsample(self, nsample=1):
+        """Sample from the Gaussian mixture model (GMM) for ELGs.
+
+        """
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
     def _prepare_spectra(self, data, nside_chunk=128):
-        
+        """Update the data dictionary with quantities needed to generate spectra.
+
+        """ 
         from desisim.templates import ELG
 
-        gmm = self.GMMsample(len(data['RA']))
+        gmm = self._GMMsample(len(data['RA']))
         normmag = gmm['r']
         normfilter = 'decam2014-r'
         self.template_maker = ELG(wave=self.wave, normfilter=normfilter)
@@ -1552,28 +1889,38 @@ class ELGMaker(SelectTargets):
 
         return data
 
-    def GMMsample(self, nsample=1):
-        """Sample from the GMM."""
-        
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
+    def _query(self, matrix):
+        """Return the nearest template number based on the KD Tree.
 
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-
+        """
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
     def make_spectra(self, data=None, indx=None):
-        """Generate ELG spectra."""
+        """Generate ELG spectra.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        indx : :class:`numpy.ndarray`, optional
+            Generate spectra for a subset of the objects in the data dictionary,
+            as specified using their zero-indexed indices.
+
+        Returns
+        -------
+        flux : :class:`numpy.ndarray`
+            Target spectra.
+        wave : :class:`numpy.ndarray`
+            Corresponding wavelength array.
+        meta : :class:`astropy.table.Table`
+            Spectral metadata table.
+        targets : :class:`astropy.table.Table`
+            Target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+        
+        """
         from desisim.io import empty_metatable
         
         if indx is None:
@@ -1585,25 +1932,31 @@ class ELGMaker(SelectTargets):
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][indx]
 
-        if data['MOCKFORMAT'].lower() == 'gaussianfield':
+        if self.mockformat == 'gaussianfield':
             alldata = np.vstack((data['Z'][indx],
                                  data['GR'][indx],
                                  data['RZ'][indx])).T
-            _, templateid = self.query(alldata)
+            _, templateid = self._query(alldata)
             input_meta['TEMPLATEID'] = templateid
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                           nocolorcuts=True, novdisp=False,
-                                                           verbose=self.verbose)
+                                                           nocolorcuts=True, novdisp=False)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
 
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
-        """Select ELG targets."""
+        """Select ELG targets.  Input tables are modified in place.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+
+        """
         from desitarget.cuts import isELG
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
@@ -1619,22 +1972,30 @@ class ELGMaker(SelectTargets):
             self.desi_mask.ELG_SOUTH.obsconditions)
 
 class BGSMaker(SelectTargets):
-    """Read BGS mocks and generate spectra."""
+    """Read BGS mocks, generate spectra, and select targets.
 
-    def __init__(self, seed=None, verbose=False, **kwargs):
+    Parameters
+    ----------
+    seed : :class:`int`, optional
+        Seed for reproducibility and random number generation.
 
+    """
+    def __init__(self, seed=None):
         from scipy.spatial import cKDTree as KDTree
         from desiutil.sklearn import GaussianMixtureModel
 
         super(BGSMaker, self).__init__(**kwargs)
 
         self.seed = seed
-        self.verbose = verbose
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'BGS'
 
         self.meta = read_basis_templates(objtype='BGS', onlymeta=True)
+
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
+                                             'bgs', 'mXXL', 'desi_footprint',
+                                             'v0.0.4', 'BGS.hdf5')
 
         zobj = self.meta['Z'].data
         mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
@@ -1646,13 +2007,43 @@ class BGSMaker(SelectTargets):
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, magcut=None, **kwargs):
-        """Read the mock file."""
+             healpixels=[], nside=[], nside_chunk=128, magcut=None, **kwargs):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        mockformat : :class:`str`
+            Mock catalog format.  Defaults to 'durham_mxxl_hdf5'.
+        dust_dir : :class:`str`
+            Full path to the dust maps.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_chunk : :class:`int`
+            Healpixel nside for further subdividing the sample when assigning
+            velocity dispersion to targets.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary of target properties with various keys (to be documented). 
+
+        Raises
+        ------
+        ValueError
+            If mockformat is not recognized.
+
+        """
+        self.mockformat = mockformat
         
         if mockformat == 'durham_mxxl_hdf5':
             MockReader = ReadMXXL(dust_dir=dust_dir)
         else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
+            log.warning('Unrecognized mockformat {}!'.format(mockformat))
+            raise ValueError
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
@@ -1663,11 +2054,28 @@ class BGSMaker(SelectTargets):
 
         return data
 
+    def _GMMsample(self, nsample=1):
+        """Sample from the Gaussian mixture model (GMM) for BGS.
+
+        """
+        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
     def _prepare_spectra(self, data, nside_chunk=128):
-        
+        """Update the data dictionary with quantities needed to generate spectra.
+
+        """ 
         from desisim.templates import BGS
 
-        gmm = self.GMMsample(len(data['RA']))
+        gmm = self._GMMsample(len(data['RA']))
         self.template_maker = BGS(wave=self.wave, normfilter=data['NORMFILTER'])
 
         seed = self.rand.randint(2**32, size=len(data['RA']))
@@ -1682,28 +2090,38 @@ class BGSMaker(SelectTargets):
 
         return data
 
-    def GMMsample(self, nsample=1):
-        """Sample from the GMM."""
-        
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
+    def _query(self, matrix):
+        """Return the nearest template number based on the KD Tree.
 
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-
+        """
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
     def make_spectra(self, data=None, indx=None):
-        """Generate BGS spectra."""
+        """Generate BGS spectra.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        indx : :class:`numpy.ndarray`, optional
+            Generate spectra for a subset of the objects in the data dictionary,
+            as specified using their zero-indexed indices.
+
+        Returns
+        -------
+        flux : :class:`numpy.ndarray`
+            Target spectra.
+        wave : :class:`numpy.ndarray`
+            Corresponding wavelength array.
+        meta : :class:`astropy.table.Table`
+            Spectral metadata table.
+        targets : :class:`astropy.table.Table`
+            Target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+        
+        """
         from desisim.io import empty_metatable
         
         if indx is None:
@@ -1715,25 +2133,31 @@ class BGSMaker(SelectTargets):
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
             input_meta[inkey] = data[datakey][indx]
 
-        if data['MOCKFORMAT'].lower() == 'durham_mxxl_hdf5':
+        if self.mockformat == 'durham_mxxl_hdf5':
             alldata = np.vstack((data['Z'][indx],
                                  data['SDSS_absmag_r01'][indx],
                                  data['SDSS_01gr'][indx])).T
             _, templateid = self.query(alldata)
             input_meta['TEMPLATEID'] = templateid
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                           nocolorcuts=True, novdisp=False,
-                                                           verbose=self.verbose)
+                                                           nocolorcuts=True, novdisp=False)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
         
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
-        """Select BGS targets."""
+        """Select BGS targets.  Input tables are modified in place.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+
+        """
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
         rflux = targets['FLUX_R']
@@ -1768,7 +2192,6 @@ class STARMaker(SelectTargets):
     """Lower-level Class for generating stellar spectra."""
 
     def __init__(self, seed=None, verbose=False, **kwargs):
-
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters
 
@@ -1841,7 +2264,8 @@ class STARMaker(SelectTargets):
         # standard-star selection algorith.
         if boss_std is not None:
             rbright, rfaint = 16, 19
-            fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+            fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
+                obs_rflux > 10**((22.5 - rfaint)/2.5) )
         else:
             fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
                           gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
@@ -1856,7 +2280,8 @@ class STARMaker(SelectTargets):
         # standard-star selection algorith.
         if boss_std is not None:
             rbright, rfaint = 14, 17
-            fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * ( obs_rflux > 10**((22.5 - rfaint)/2.5) )
+            fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
+                obs_rflux > 10**((22.5 - rfaint)/2.5) )
         else:
             fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
                                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
@@ -1938,7 +2363,6 @@ class MWS_MAINMaker(STARMaker):
     """Read MWS_MAIN mocks and generate spectra."""
 
     def __init__(self, **kwargs):
-
         super(MWS_MAINMaker, self).__init__(**kwargs)
 
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
@@ -2039,7 +2463,6 @@ class MWS_NEARBYMaker(STARMaker):
     """Read MWS_NEARBY mocks and generate spectra."""
 
     def __init__(self, **kwargs):
-
         super(MWS_NEARBYMaker, self).__init__(**kwargs)
 
     def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
@@ -2107,7 +2530,6 @@ class WDMaker(SelectTargets):
     """Read WD mocks and generate spectra."""
 
     def __init__(self, seed=None, verbose=False, **kwargs):
-
         from scipy.spatial import cKDTree as KDTree
         
         super(WDMaker, self).__init__(**kwargs)
@@ -2235,7 +2657,6 @@ class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks and generate spectra."""
 
     def __init__(self, **kwargs):
-
         super(FAINTSTARMaker, self).__init__(**kwargs)
 
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
@@ -2333,7 +2754,6 @@ class FAINTSTARMaker(STARMaker):
 class SKYMaker(SelectTargets):
 
     def __init__(self, seed=None, **kwargs):
-
         super(SKYMaker, self).__init__(**kwargs)
 
         self.seed = seed
