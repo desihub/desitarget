@@ -5,7 +5,7 @@ desitarget Change Log
 0.17.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Include mock QA on standard targeting QA page
 
 0.17.1 (2017-12-20)
 -------------------
