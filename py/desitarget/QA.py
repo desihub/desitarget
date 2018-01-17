@@ -1391,6 +1391,60 @@ def _javastring():
     return js
 
 
+def collect_mock_data(targfile):
+    """Given a full path to a mock target file, read in all relevant mock data
+
+    Parameters
+    ----------
+    targs : :class:`str`
+        The full path to a mock target file in the DESI X per cent survey directory structure
+        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/
+
+    Returns
+    -------
+    :class:`~numpy.array` 
+        A rec array containing the mock targets
+    :class:`~numpy.array` 
+        A rec array containing the mock truth objects used to generate the mock targets
+    :class:`~numpy.array` 
+        A rec array containing the mock spectroscopic information for the target objects
+
+
+    Notes
+    -----
+    Will return 0 if the file structure is incorrect
+    """
+    #ADM set up the default logger from desiutil
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    #ADM retrieve the directory that contains the targets
+    targdir = os.path.dirname(targfile) 
+
+    #ADM retrieve the mock data release name
+    dcdir = os.path.dirname(targdir)
+    dc = os.path.basename(dcdir)
+
+    #ADM the files of truth and spectra
+    truthfile = '{}/truth.fits'.format(targdir)
+    spectrofile = '{}/spectro/redux/{}/ztarget-{}.fits'.format(dcdir,dc,dc)
+
+    #ADM check that the truth and spectro files exist
+    if not os.path.exists(truthfile):
+        log.warning("Directory structure to truth file is not as expected")
+        return 0
+    if not os.path.exists(spectrofile):
+        log.warning("Directory structure to spectro file is not as expected")
+        return 0
+
+    #ADM read in the relevant mock data and return it
+    targs = fitsio.read(targfile)
+    truths = fitsio.read(truthfile)
+    spectros = fitsio.read(spectrofile)
+
+    return targs, truths, spectros
+
+
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted 
     shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`)
@@ -2004,23 +2058,30 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     the file of HEALPixels that overlap the DESI footprint
     """
     from desispec.io.util import makepath
+    #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
 
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
+    #ADM if mocks was passed, build the full set of relevant data
+    if mocks:
+        if isinstance(targs, str):
+            mockdata = collect_mock_data(targs)
+            if mockdata == 0:
+                mocks = False
+            else:
+                targs, truth, spectro = mockdata
+        else:
+            log.warning('To make mock-related plots, targs must be a directory+file-location string')
+            log.warning('Will proceed by only producing the non-mock plots...')
+            mocks = False
+        
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-
-    #ADM if mock was passed, you'll need to be looking at the ztarget
-    #ADM file, which should contain the 'Z' and 'ZERR' columns
-    if mocks:
-        cols = targs.dtype.names
-        if not 'Z' in cols and 'ZERR' in cols and 'SPECTYPE' in cols:
-            log.error('mock target file must contain Z, ZERR and SPECTYPE')
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
