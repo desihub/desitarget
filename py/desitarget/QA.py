@@ -1408,11 +1408,17 @@ def collect_mock_data(targfile):
         A rec array containing the mock truth objects used to generate the mock targets
     :class:`~numpy.array` 
         A rec array containing the mock spectroscopic information for the target objects
-
+    :class:`~numpy.array`
+        An array of the indexes that join targets/truth to the spectroscopic information
+        on TARGETID
 
     Notes
     -----
-    Will return 0 if the file structure is incorrect
+        - Will return 0 if the file structure is incorrect
+        - If the second output parameter is called "truths", the third is called "spectros"
+          and the fourth output is called "join" then the sense of the join is such that:
+
+              truths[join]["TARGETID"] = spectros["TARGETID"]
     """
     #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
@@ -1439,10 +1445,26 @@ def collect_mock_data(targfile):
 
     #ADM read in the relevant mock data and return it
     targs = fitsio.read(targfile)
+    log.info('Read in mock targets')
     truths = fitsio.read(truthfile)
+    log.info('Read in mock truth objects')
     spectros = fitsio.read(spectrofile)
+    log.info('Read in mock spectroscopic classifications')
 
-    return targs, truths, spectros
+    #ADM determine the indices that joins the truths/targets to the spectra
+    #ADM there may be a quicker way to do this than a look-up dictionary?
+    store = dict((targid, index) for index, targid in enumerate(truth["TARGETID"]))
+    join = np.array([ store[targid] for targid in spectro["TARGETID"] ])
+
+    #ADM check the join worked (make sure the TARGETIDs match in all files)
+    w = np.where(targs[join]["TARGETID"] - spectro["TARGETID"])
+    if len(w[0] > 0):
+        log.error("Mismatch between TARGETIDs in targets file, and spectro file rows {}".format(w[0]))
+    w = np.where(truths[join]["TARGETID"] - spectro["TARGETID"])
+    if len(w[0] > 0):
+        log.error("Mismatch between TARGETIDs in truth file, and spectro file rows {}".format(w[0]))
+
+    return targs, truths, spectros, join
 
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
@@ -1899,7 +1921,133 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.close()
 
 
-def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True, mocks=False):
+def mock_make_qa_plots(targs, truths, spectros, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+    """Make DESI targeting QA plots given a passed set of MOCK targets
+
+    Parameters
+    ----------
+    targs : :class:`~numpy.array` or `str`
+        An array of (mock) targets in the DESI data model format. If a string is passed then the
+        targets are read from the file with the passed name (supply the full directory path)
+    truths : :class:`~numpy.array` or `str`
+        The truth objects from which the targs were derived in the DESI data model format. 
+        If a string is passed then read from that file (supply the full directory path)
+    spectros : :class:`~numpy.array` or `str`
+        The spectroscopic classifications for the supplied mock targets
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    targdens : :class:`dictionary`, optional, set automatically by the code if not passed
+        A dictionary of DESI target classes and the goal density for that class. Used to
+        label the goal density on histogram plots
+    max_bin_area : :class:`float`, optional, defaults to 1 degree
+        The bin size in the passed coordinates is chosen automatically to be as close as
+        possible to this value without exceeding it
+    weight : :class:`boolean`, optional, defaults to True
+        If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
+        ameliorate under dense pixels at the footprint edges
+
+    Returns
+    -------
+    Nothing
+        But a set of .png plots for target QA are written to qadir
+
+    Notes
+    -----
+    The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
+    that overlap the DESI footprint
+    """
+
+    #ADM set up the default logger from desiutil
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+    from desimodel import io, footprint
+
+    start = time()
+    log.info('Start making MOCK targeting QA density plots...t = {:.1f}s'.format(time()-start))
+
+    #ADM if a filename was passed, read in the targets from that file
+    if isinstance(targs, str):
+        targs = fitsio.read(targs)
+        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+
+    #ADM restrict targets and truth objects to just the DESI footprint
+    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+    targs = targs[indesi]
+    truths = truths[indesi]
+    log.info('Restricted targets and truths to DESI footprint...t = {:.1f}s'.format(time()-start))
+
+    #ADM restrict spectroscopic objects to just the DESI footprint
+    indesi = footprint.is_point_in_desi(io.load_tiles(),spectros["RA"],spectros["DEC"])
+    spectros = spectros[indesi]
+    log.info('Restricted spectros to DESI footprint...t = {:.1f}s'.format(time()-start))
+
+    #ADM determine the nside for the passed max_bin_area
+    for n in range(1, 25):
+        nside = 2 ** n
+        bin_area = hp.nside2pixarea(nside, degrees=True)
+        if bin_area <= max_bin_area:
+            break
+
+    #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
+    #ADM downstream
+    pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
+    log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
+             .format(time()-start))
+    specpix = footprint.radec2pix(nside, spectros["RA"], spectros["DEC"])
+    log.info('Calculated HEALPixel for spectros...t = {:.1f}s'
+             .format(time()-start))
+
+    #ADM set up the weight of each HEALPixel, if requested.
+    weights = np.ones(len(targs))
+    if weight:
+        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
+        pixweight = io.load_pixweight(nside)
+        #ADM determine what HEALPixels each target is in, to set the weights
+        fracarea = pixweight[pix]
+        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+        #ADM except for zero pixels, which are all outside of the footprint
+        w = np.where(fracarea == 0)
+        fracarea[w] = 1 #ADM to guard against division by zero warnings
+        weights = 1./fracarea
+        weights[w] = 0
+        
+        #ADM repeat the process for the spectros
+        fracarea = pixweight[specpix]
+        w = np.where(fracarea == 0)
+        fracarea[w] = 1 
+        specweights = 1./fracarea
+        specweights[w] = 0
+
+        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
+                 .format(time()-start))
+
+    #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
+    if targdens is None:
+        targdens = _load_targdens()
+
+    #ADM clip the target densities at an upper density to improve plot edges
+    #ADM by rejecting highly dense outliers
+    upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
+                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500}
+
+    for objtype in targdens:
+        if 'ALL' in objtype:
+            w = np.arange(len(targs))
+        else:
+            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
+
+        if len(w) > 0:
+            #ADM make N(z) and z vx. zerr plots
+            mock_qanz(spectros[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixerrz="mock-zerr")
+            log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+            mock_qafractype(spectros[w], objtype, qadir=qadir, fileprefix="mock-fractype")
+            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                
+    log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
+
+
+def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
     """Make DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1918,8 +2066,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
-    mocks : :class:`boolean`, optional, default=False
-        If ``True``, make additional plots that are relevant to mocks
 
     Returns
     -------
@@ -2072,7 +2218,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             if mockdata == 0:
                 mocks = False
             else:
-                targs, truth, spectro = mockdata
+                targs, truths, spectros = mockdata
         else:
             log.warning('To make mock-related plots, targs must be a directory+file-location string')
             log.warning('Will proceed by only producing the non-mock plots...')
