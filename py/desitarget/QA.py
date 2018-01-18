@@ -1420,6 +1420,9 @@ def collect_mock_data(targfile):
 
               truths[join]["TARGETID"] = spectros["TARGETID"]
     """
+
+    start = time()
+
     #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
@@ -1445,24 +1448,25 @@ def collect_mock_data(targfile):
 
     #ADM read in the relevant mock data and return it
     targs = fitsio.read(targfile)
-    log.info('Read in mock targets')
+    log.info('Read in mock targets...t = {:.1f}s'.format(time()-start))
     truths = fitsio.read(truthfile)
-    log.info('Read in mock truth objects')
+    log.info('Read in mock truth objects...t = {:.1f}s'.format(time()-start))
     spectros = fitsio.read(spectrofile)
-    log.info('Read in mock spectroscopic classifications')
+    log.info('Read in mock spectroscopic classifications...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the indices that joins the truths/targets to the spectra
     #ADM there may be a quicker way to do this than a look-up dictionary?
-    store = dict((targid, index) for index, targid in enumerate(truth["TARGETID"]))
-    join = np.array([ store[targid] for targid in spectro["TARGETID"] ])
+    store = dict((targid, index) for index, targid in enumerate(truths["TARGETID"]))
+    join = np.array([ store[targid] for targid in spectros["TARGETID"] ])
 
     #ADM check the join worked (make sure the TARGETIDs match in all files)
-    w = np.where(targs[join]["TARGETID"] - spectro["TARGETID"])
+    w = np.where(targs[join]["TARGETID"] - spectros["TARGETID"])
     if len(w[0] > 0):
         log.error("Mismatch between TARGETIDs in targets file, and spectro file rows {}".format(w[0]))
-    w = np.where(truths[join]["TARGETID"] - spectro["TARGETID"])
+    w = np.where(truths[join]["TARGETID"] - spectros["TARGETID"])
     if len(w[0] > 0):
         log.error("Mismatch between TARGETIDs in truth file, and spectro file rows {}".format(w[0]))
+    log.info('Joined truth and target catalogs to spectroscopic classifications...t = {:.1f}s'.format(time()-start))
 
     return targs, truths, spectros, join
 
@@ -2203,6 +2207,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     If making plots, then the ``DESIMODEL`` environment variable must be set to find 
     the file of HEALPixels that overlap the DESI footprint
     """
+
     from desispec.io.util import makepath
     #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
@@ -2218,7 +2223,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             if mockdata == 0:
                 mocks = False
             else:
-                targs, truths, spectros = mockdata
+                targs, truths, spectros, join = mockdata
         else:
             log.warning('To make mock-related plots, targs must be a directory+file-location string')
             log.warning('Will proceed by only producing the non-mock plots...')
