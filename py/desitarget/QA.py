@@ -1349,6 +1349,11 @@ def _load_targdens():
     #ADM set "ALL" to be the sum over all the target classes
     targdens['ALL'] = sum(list(targdens.values()))
 
+    #ADM for quick debugging
+    targdens = {}
+#    targdens['ELG'] = targdict['ntarget_elg']
+    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+
     return targdens
 
 
@@ -1406,19 +1411,11 @@ def collect_mock_data(targfile):
         A rec array containing the mock targets
     :class:`~numpy.array` 
         A rec array containing the mock truth objects used to generate the mock targets
-    :class:`~numpy.array` 
-        A rec array containing the mock spectroscopic information for the target objects
-    :class:`~numpy.array`
-        An array of the indexes that join targets/truth to the spectroscopic information
-        on TARGETID
 
     Notes
     -----
-        - Will return 0 if the file structure is incorrect
-        - If the second output parameter is called "truths", the third is called "spectros"
-          and the fourth output is called "joiner" then the sense of the join is such that:
-
-              truths[joiner]["TARGETID"] = spectros["TARGETID"]
+        - Will return 0 if the file structure is incorrect (i.e. if the "truths" can't be
+          found based on the "targs")
     """
 
     start = time()
@@ -1434,16 +1431,12 @@ def collect_mock_data(targfile):
     dcdir = os.path.dirname(targdir)
     dc = os.path.basename(dcdir)
 
-    #ADM the files of truth and spectra
+    #ADM the file containing truth
     truthfile = '{}/truth.fits'.format(targdir)
-    spectrofile = '{}/spectro/redux/{}/ztarget-{}.fits'.format(dcdir,dc,dc)
 
-    #ADM check that the truth and spectro files exist
+    #ADM check that the truth file exists
     if not os.path.exists(truthfile):
         log.warning("Directory structure to truth file is not as expected")
-        return 0
-    if not os.path.exists(spectrofile):
-        log.warning("Directory structure to spectro file is not as expected")
         return 0
 
     #ADM read in the relevant mock data and return it
@@ -1451,24 +1444,8 @@ def collect_mock_data(targfile):
     log.info('Read in mock targets...t = {:.1f}s'.format(time()-start))
     truths = fitsio.read(truthfile)
     log.info('Read in mock truth objects...t = {:.1f}s'.format(time()-start))
-    spectros = fitsio.read(spectrofile)
-    log.info('Read in mock spectroscopic classifications...t = {:.1f}s'.format(time()-start))
 
-    #ADM determine the indices that join the truths/targets to the spectra
-    #ADM there may be a quicker way to do this than a look-up dictionary?
-    store = dict((targid, index) for index, targid in enumerate(truths["TARGETID"]))
-    joiner = np.array([ store[targid] for targid in spectros["TARGETID"] ])
-
-    #ADM check the join worked (make sure the TARGETIDs match in all files)
-    w = np.where(targs[joiner]["TARGETID"] - spectros["TARGETID"])
-    if len(w[0] > 0):
-        log.error("Mismatch between TARGETIDs in targets file, and spectro file rows {}".format(w[0]))
-    w = np.where(truths[joiner]["TARGETID"] - spectros["TARGETID"])
-    if len(w[0] > 0):
-        log.error("Mismatch between TARGETIDs in truth file, and spectro file rows {}".format(w[0]))
-    log.info('Joined truth and target catalogs to spectroscopic classifications...t = {:.1f}s'.format(time()-start))
-
-    return targs, truths, spectros, joiner
+    return targs, truths
 
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
@@ -1703,13 +1680,14 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
 
     return
 
+
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``SPECTYPE``
+        An array of targets that contains at least ``TRUESPECTYPE``
     objtype : :class:`str`
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
     qadir : :class:`str`, optional, defaults to the current directory
@@ -1757,21 +1735,22 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     return
 
 
-def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mock-zerr"):
-    """Make N(z) and scatter (redshift) DESI QA plots given a passed set of MOCK targets
+def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
+    """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``Z``, ``ZERR`` for redshift information
+        An array of targets that contains at least ``TRUEZ`` for redshift information 
+        and ``MAG`` for magnitude information
     objtype : :class:`str`
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
         string to be added to the front of the output N(z) plot file name
-    fileprefixerrz : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output z vs. zerr plot file name
+    fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
+        string to be added to the front of the output z vs. mag plot file name
 
     Returns
     -------
@@ -1780,7 +1759,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
            The file containing N(z) is called:
                  ``{qadir}/{fileprefixz}-{objtype}.png``
            The file containing z vs. zerr is called:
-                 ``{qadir}/{fileprefixerrz}-{objtype}.png``
+                 ``{qadir}/{fileprefixzmag}-{objtype}.png``
     """
 
     #ADM the number of passed objects
@@ -1791,7 +1770,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     nbins = 35
 
     #ADM the density value of the peak redshift histogram bin
-    h, b = np.histogram(cat["Z"],bins=nbins)
+    h, b = np.histogram(cat["TRUEZ"],bins=nbins)
     peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
     ypeak = np.max(h)
 
@@ -1799,9 +1778,9 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.clf()
     #ADM give a little space for labels on the y-axis
     plt.ylim((0,ypeak*1.2))
-    plt.xlabel('z')
+    plt.xlabel('TRUE z')
     plt.ylabel('N(z)')
-    plt.hist(cat["Z"], bins=nbins, histtype='stepfilled', alpha=0.6, 
+    plt.hist(cat["TRUEZ"], bins=nbins, histtype='stepfilled', alpha=0.6, 
              label='Observed {} Redshift Distribution (Peak z={:.0f})'.format(objtype,peak))
     #plt.legend(loc='upper left', frameon=False)
 
@@ -1809,23 +1788,23 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixerrz="mo
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
-    #ADM plot the z vs. zerr scatter plot
+    #ADM plot the z vs. mag scatter plot
     from matplotlib.colors import LogNorm
     plt.clf()
-    plt.xlabel('z')
-    plt.ylabel('error on z')
+    plt.xlabel('mag')
+    plt.ylabel('TRUE z')
     plt.set_cmap('inferno')
 
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        plt.hist2d(cat["Z"],cat["ZERR"],bins=100,norm=LogNorm())
+        plt.hist2d(cat["MAG"],cat["TRUEZ"],bins=100,norm=LogNorm())
         plt.colorbar()
     #ADM...otherwise make a scatter plot
     else:
-        plt.plot(cat["Z"],cat["ZERR"],'bo')
+        plt.plot(cat["MAG"],cat["TRUEZ"],'b,')
 
     #ADM create the plot
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixerrz,objtype))
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
@@ -1873,6 +1852,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     W1 = 22.5-2.5*np.log10(flux['W1FLUX'].clip(loclip))
     W2 = 22.5-2.5*np.log10(flux['W2FLUX'].clip(loclip))
 
+    #ADM-------------------------------------------------------
     #ADM set up the r-z, g-r plot
     plt.clf()
     plt.xlabel('r - z')
@@ -1890,6 +1870,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
+    #ADM-------------------------------------------------------
     #ADM set up the r-z, r-W1 plot
     plt.clf()
     plt.xlabel('r - z')
@@ -1910,7 +1891,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     #ADM...or we might not have any WISE data
     if nobjs == 0:
         log = get_logger()
-        log.error('No data within r-W1 vs. r-z ranges')
+        log.warning('No data within r-W1 vs. r-z ranges')
         plt.clf()
         plt.xlabel('r - z')
         plt.ylabel('r - W1')
@@ -1918,14 +1899,17 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         plt.ylim([-1,3])
         plt.text(0, 0, 'No data')
 
-
     #ADM save the plot
     pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
+    #ADM-------------------------------------------------------
+    #ADM set up the r-z, W1-W2 plot
 
-def mock_make_qa_plots(targs, truths, spectros, joiner, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+
+
+def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
     """Make DESI targeting QA plots given a passed set of MOCK targets
 
     Parameters
@@ -1936,11 +1920,6 @@ def mock_make_qa_plots(targs, truths, spectros, joiner, qadir='.', targdens=None
     truths : :class:`~numpy.array` or `str`
         The truth objects from which the targs were derived in the DESI data model format. 
         If a string is passed then read from that file (supply the full directory path)
-    spectros : :class:`~numpy.array` or `str`
-        The spectroscopic classifications for the supplied mock targets
-    joiner : :class:~`~numpy.array`
-        The indices that join the targs and truths to the spectros on TARGETID, in the sense
-        that targs[joiner]["TARGETID"] = spectros["TARGETID"]
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     targdens : :class:`dictionary`, optional, set automatically by the code if not passed
@@ -1970,55 +1949,58 @@ def mock_make_qa_plots(targs, truths, spectros, joiner, qadir='.', targdens=None
     from desimodel import io, footprint
 
     start = time()
-    log.info('Start making MOCK targeting QA density plots...t = {:.1f}s'.format(time()-start))
+    log.info('Start making (mock) targeting QA plots...t = {:.1f}s'.format(time()-start))
 
-    #ADM if a filename was passed, read in the targets from that file
+    #ADM if filenames were passed, read in the targets from those files
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+    if isinstance(truths, str):
+        targs = fitsio.read(truths)
+        log.info('Read in truth...t = {:.1f}s'.format(time()-start))
 
-    #ADM restrict targets and truth objects to just the DESI footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-    windesi = np.where(indesi)
-    if len(windesi[0]) > 0:
-        log.info("{}% of targets in official DESI footprint".format(100.*len(targs/len(windesi))))
-        targs = targs[windesi]
-        truths = truths[windesi]
-    else:
-        log.error("ZERO input targets are within the official DESI footprint!!!")
+    #ADM this takes a while, so I'm "commenting it out" until we actually have
+    #ADM some density-specific mock QA plots
+    if False:
+        #ADM restrict targets and truth to just the DESI footprint
+        indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+        windesi = np.where(indesi)
+        if len(windesi[0]) > 0:
+            log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
+            targs = targs[windesi]
+            truths = truths[windesi]
+        else:
+            log.error("ZERO input targets are within the official DESI footprint!!!")
+        log.info('Restricted targets and truths to DESI footprint...t = {:.1f}s'.format(time()-start))
 
-    log.info('Restricted targets and truths to DESI footprint...t = {:.1f}s'.format(time()-start))
+        #ADM determine the nside for the passed max_bin_area
+        for n in range(1, 25):
+            nside = 2 ** n
+            bin_area = hp.nside2pixarea(nside, degrees=True)
+            if bin_area <= max_bin_area:
+                break
 
-    #ADM HERE WE'LL NEED TO ALSO RESTRICT THE JOIN
-
-    #ADM determine the nside for the passed max_bin_area
-    for n in range(1, 25):
-        nside = 2 ** n
-        bin_area = hp.nside2pixarea(nside, degrees=True)
-        if bin_area <= max_bin_area:
-            break
-
-    #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
-    #ADM downstream
-    pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
-    log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
-             .format(time()-start))
-
-    #ADM set up the weight of each HEALPixel, if requested.
-    weights = np.ones(len(targs))
-    if weight:
-        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-        pixweight = io.load_pixweight(nside)
-        #ADM determine what HEALPixels each target is in, to set the weights
-        fracarea = pixweight[pix]
-        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
-        #ADM except for zero pixels, which are all outside of the footprint
-        w = np.where(fracarea == 0)
-        fracarea[w] = 1 #ADM to guard against division by zero warnings
-        weights = 1./fracarea
-        weights[w] = 0
-        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
+        #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
+        #ADM downstream
+        pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
+        log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
                  .format(time()-start))
+
+        #ADM set up the weight of each HEALPixel, if requested.
+        weights = np.ones(len(targs))
+        if weight:
+            #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
+            pixweight = io.load_pixweight(nside)
+            #ADM determine what HEALPixels each target is in, to set the weights
+            fracarea = pixweight[pix]
+            #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+            #ADM except for zero pixels, which are all outside of the footprint
+            w = np.where(fracarea == 0)
+            fracarea[w] = 1 #ADM to guard against division by zero warnings
+            weights = 1./fracarea
+            weights[w] = 0
+            log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
+                     .format(time()-start))
 
     #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
     if targdens is None:
@@ -2037,13 +2019,13 @@ def mock_make_qa_plots(targs, truths, spectros, joiner, qadir='.', targdens=None
 
         if len(w) > 0:
             #ADM make N(z) and z vx. zerr plots
-            mock_qanz(spectros[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixerrz="mock-zerr")
+            mock_qanz(truths[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
             log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-            mock_qafractype(spectros[w], objtype, qadir=qadir, fileprefix="mock-fractype")
-            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+#            mock_qafractype(spectros[w], objtype, qadir=qadir, fileprefix="mock-fractype")
+#            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
-    log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
+    log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
 
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
@@ -2083,7 +2065,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     from desimodel import io, footprint
 
     start = time()
-    log.info('Start making targeting QA density plots...t = {:.1f}s'.format(time()-start))
+    log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
 
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
@@ -2094,7 +2076,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
     windesi = np.where(indesi)
     if len(windesi[0]) > 0:
-        log.info("{}% of targets in official DESI footprint".format(100.*len(targs/len(windesi))))
+        log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
         targs = targs[windesi]
     else:
         log.error("ZERO input targets are within the official DESI footprint!!!")
@@ -2165,15 +2147,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-            #ADM if mocks is True, make additional mock QA plots
-            if mocks:
-                #ADM make N(z) and z vx. zerr plots
-                mock_qanz(targs[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixerrz="mock-zerr")
-                log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
-
-                mock_qafractype(targs[w], objtype, qadir=qadir, fileprefix="mock-fractype")
-                log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
-                
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
 
 
@@ -2223,10 +2196,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             if mockdata == 0:
                 mocks = False
             else:
-                targs, truths, spectros, joiner = mockdata
+                targs, truths = mockdata
         else:
-            log.warning('To make mock-related plots, targs must be a directory+file-location string')
-            log.warning('Will proceed by only producing the non-mock plots...')
+            log.warning('To make mock-related plots, targs must be a directory+file-location string...')
+            log.warning('...will proceed by only producing the non-mock plots...')
             mocks = False
         
     #ADM if a filename was passed, read in the targets from that file
@@ -2324,7 +2297,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             #ADM add the plots...
             html.write('<td WIDTH="25%" align=left><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=500 width=600></A></left></td>\n'
                        .format(objtype,objtype))
-            html.write('<td WIDTH="25%" align=left><A HREF="mock-zerr-{}.png"><img SRC="mock-zerr-{}.png" height=500 width=600></A></left></td>\n'
+            html.write('<td WIDTH="25%" align=left><A HREF="mock-zvmag-{}.png"><img SRC="mock-zvmag-{}.png" height=500 width=600></A></left></td>\n'
                        .format(objtype,objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
@@ -2346,9 +2319,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+        make_qa_plots(targs, 
+                      qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
         if mocks:
-            mock_make_qa_plots(targs, truths, spectros, joiner, 
+            mock_make_qa_plots(targs, truths, 
                                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
 
     #ADM make sure all of the relevant directories and plots can be read by a web-browser
