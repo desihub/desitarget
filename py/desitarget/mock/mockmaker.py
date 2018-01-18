@@ -2663,6 +2663,11 @@ class FAINTSTARMaker(STARMaker):
     def __init__(self, seed=None):
         super(FAINTSTARMaker, self).__init__(seed=seed)
 
+        # Default mock catalog.
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
+                                             'mws', 'galaxia', 'alpha',
+                                             '0.0.5_superfaint', 'healpix')
+
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
              healpixels=[], nside=[], nside_galaxia=8, magcut=None,
              **kwargs):
@@ -2703,6 +2708,9 @@ class FAINTSTARMaker(STARMaker):
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
 
+        if mockfile is None:
+            mockfile = self.default_mockfile
+            
         data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
                                    healpixels=healpixels, nside=nside,
                                    nside_galaxia=nside_galaxia, magcut=magcut)
