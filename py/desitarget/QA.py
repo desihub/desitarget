@@ -1908,7 +1908,6 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     #ADM set up the r-z, W1-W2 plot
 
 
-
 def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
     """Make DESI targeting QA plots given a passed set of MOCK targets
 
@@ -1958,49 +1957,36 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
     if isinstance(truths, str):
         targs = fitsio.read(truths)
         log.info('Read in truth...t = {:.1f}s'.format(time()-start))
+        
+    #ADM determine the nside for the passed max_bin_area
+    for n in range(1, 25):
+        nside = 2 ** n
+        bin_area = hp.nside2pixarea(nside, degrees=True)
+        if bin_area <= max_bin_area:
+            break
 
-    #ADM this takes a while, so I'm "commenting it out" until we actually have
-    #ADM some density-specific mock QA plots
-    if False:
-        #ADM restrict targets and truth to just the DESI footprint
-        indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-        windesi = np.where(indesi)
-        if len(windesi[0]) > 0:
-            log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
-            targs = targs[windesi]
-            truths = truths[windesi]
-        else:
-            log.error("ZERO input targets are within the official DESI footprint!!!")
-        log.info('Restricted targets and truths to DESI footprint...t = {:.1f}s'.format(time()-start))
+    #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
+    #ADM downstream
+    from desimodel import io, footprint
+    pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
+    log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
+             .format(time()-start))
 
-        #ADM determine the nside for the passed max_bin_area
-        for n in range(1, 25):
-            nside = 2 ** n
-            bin_area = hp.nside2pixarea(nside, degrees=True)
-            if bin_area <= max_bin_area:
-                break
-
-        #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
-        #ADM downstream
-        pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
-        log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
+    #ADM set up the weight of each HEALPixel, if requested.
+    weights = np.ones(len(targs))
+    if weight:
+        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
+        pixweight = io.load_pixweight(nside)
+        #ADM determine what HEALPixels each target is in, to set the weights
+        fracarea = pixweight[pix]
+        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+        #ADM except for zero pixels, which are all outside of the footprint
+        w = np.where(fracarea == 0)
+        fracarea[w] = 1 #ADM to guard against division by zero warnings
+        weights = 1./fracarea
+        weights[w] = 0
+        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
-
-        #ADM set up the weight of each HEALPixel, if requested.
-        weights = np.ones(len(targs))
-        if weight:
-            #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-            pixweight = io.load_pixweight(nside)
-            #ADM determine what HEALPixels each target is in, to set the weights
-            fracarea = pixweight[pix]
-            #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
-            #ADM except for zero pixels, which are all outside of the footprint
-            w = np.where(fracarea == 0)
-            fracarea[w] = 1 #ADM to guard against division by zero warnings
-            weights = 1./fracarea
-            weights[w] = 0
-            log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
-                     .format(time()-start))
 
     #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
     if targdens is None:
@@ -2026,6 +2012,38 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
 #            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
     log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
+
+
+def _in_desi_footprint(targs):
+    """Convenience function for using is_point_in_desi to find which targets are in the footprint
+    Parameters
+    ----------
+    targs : :class:`~numpy.array` or `str`
+        Targets in the DESI data model format, or any array that contains "RA" and "DEC" columns
+
+    Returns
+    -------
+    :class:`integer`
+        The INDICES of the input targs that are in the DESI footprint
+    """
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    start = time()
+    log.info('Start restricting to DESI footprint...t = {:.1f}s'.format(time()-start))
+
+    #ADM restrict targets to just the DESI footprint
+    from desimodel import io, footprint
+    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+    windesi = np.where(indesi)
+    if len(windesi[0]) > 0:
+        log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
+    else:
+        log.error("ZERO input targets are within the official DESI footprint!!!")
+
+    log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
+
+    return windesi
 
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
@@ -2062,7 +2080,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
-    from desimodel import io, footprint
 
     start = time()
     log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
@@ -2071,16 +2088,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-
-    #ADM restrict targets to just the DESI footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-    windesi = np.where(indesi)
-    if len(windesi[0]) > 0:
-        log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
-        targs = targs[windesi]
-    else:
-        log.error("ZERO input targets are within the official DESI footprint!!!")
-    log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
     for n in range(1, 25):
@@ -2091,6 +2098,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
     #ADM downstream
+    from desimodel import io, footprint
     pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
     log.info('Calculated HEALPixel for each target...t = {:.1f}s'
              .format(time()-start))
@@ -2150,7 +2158,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
 
 
-def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
+def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True, clip2foot=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -2170,6 +2178,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
+    clip2foot : :class:`boolean`, optional, defaults to True
+        use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
+        only those that lie within the DESI footprint
+
     Returns
     -------
     Nothing
@@ -2206,6 +2218,14 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+
+    #ADM if requested, restrict the targets (and mock files) to the DESI footprint
+    if clip2foot:
+        w = _in_desi_footprint(targs)
+        targs = targs[w]
+        #ADM ASSUMES THAT the targets and truth objects are row-by-row parallel
+        if mocks:
+            truths = truths[w]
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
