@@ -1416,9 +1416,9 @@ def collect_mock_data(targfile):
     -----
         - Will return 0 if the file structure is incorrect
         - If the second output parameter is called "truths", the third is called "spectros"
-          and the fourth output is called "join" then the sense of the join is such that:
+          and the fourth output is called "joiner" then the sense of the join is such that:
 
-              truths[join]["TARGETID"] = spectros["TARGETID"]
+              truths[joiner]["TARGETID"] = spectros["TARGETID"]
     """
 
     start = time()
@@ -1454,21 +1454,21 @@ def collect_mock_data(targfile):
     spectros = fitsio.read(spectrofile)
     log.info('Read in mock spectroscopic classifications...t = {:.1f}s'.format(time()-start))
 
-    #ADM determine the indices that joins the truths/targets to the spectra
+    #ADM determine the indices that join the truths/targets to the spectra
     #ADM there may be a quicker way to do this than a look-up dictionary?
     store = dict((targid, index) for index, targid in enumerate(truths["TARGETID"]))
-    join = np.array([ store[targid] for targid in spectros["TARGETID"] ])
+    joiner = np.array([ store[targid] for targid in spectros["TARGETID"] ])
 
     #ADM check the join worked (make sure the TARGETIDs match in all files)
-    w = np.where(targs[join]["TARGETID"] - spectros["TARGETID"])
+    w = np.where(targs[joiner]["TARGETID"] - spectros["TARGETID"])
     if len(w[0] > 0):
         log.error("Mismatch between TARGETIDs in targets file, and spectro file rows {}".format(w[0]))
-    w = np.where(truths[join]["TARGETID"] - spectros["TARGETID"])
+    w = np.where(truths[joiner]["TARGETID"] - spectros["TARGETID"])
     if len(w[0] > 0):
         log.error("Mismatch between TARGETIDs in truth file, and spectro file rows {}".format(w[0]))
     log.info('Joined truth and target catalogs to spectroscopic classifications...t = {:.1f}s'.format(time()-start))
 
-    return targs, truths, spectros, join
+    return targs, truths, spectros, joiner
 
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
@@ -1925,7 +1925,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     plt.close()
 
 
-def mock_make_qa_plots(targs, truths, spectros, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+def mock_make_qa_plots(targs, truths, spectros, joiner, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
     """Make DESI targeting QA plots given a passed set of MOCK targets
 
     Parameters
@@ -1938,6 +1938,9 @@ def mock_make_qa_plots(targs, truths, spectros, qadir='.', targdens=None, max_bi
         If a string is passed then read from that file (supply the full directory path)
     spectros : :class:`~numpy.array` or `str`
         The spectroscopic classifications for the supplied mock targets
+    joiner : :class:~`~numpy.array`
+        The indices that join the targs and truths to the spectros on TARGETID, in the sense
+        that targs[joiner]["TARGETID"] = spectros["TARGETID"]
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     targdens : :class:`dictionary`, optional, set automatically by the code if not passed
@@ -1976,14 +1979,17 @@ def mock_make_qa_plots(targs, truths, spectros, qadir='.', targdens=None, max_bi
 
     #ADM restrict targets and truth objects to just the DESI footprint
     indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-    targs = targs[indesi]
-    truths = truths[indesi]
+    windesi = np.where(indesi)
+    if len(windesi[0]) > 0:
+        log.info("{}% of targets in official DESI footprint".format(100.*len(targs/len(windesi))))
+        targs = targs[windesi]
+        truths = truths[windesi]
+    else:
+        log.error("ZERO input targets are within the official DESI footprint!!!")
+
     log.info('Restricted targets and truths to DESI footprint...t = {:.1f}s'.format(time()-start))
 
-    #ADM restrict spectroscopic objects to just the DESI footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(),spectros["RA"],spectros["DEC"])
-    spectros = spectros[indesi]
-    log.info('Restricted spectros to DESI footprint...t = {:.1f}s'.format(time()-start))
+    #ADM HERE WE'LL NEED TO ALSO RESTRICT THE JOIN
 
     #ADM determine the nside for the passed max_bin_area
     for n in range(1, 25):
@@ -1996,9 +2002,6 @@ def mock_make_qa_plots(targs, truths, spectros, qadir='.', targdens=None, max_bi
     #ADM downstream
     pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
     log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
-             .format(time()-start))
-    specpix = footprint.radec2pix(nside, spectros["RA"], spectros["DEC"])
-    log.info('Calculated HEALPixel for spectros...t = {:.1f}s'
              .format(time()-start))
 
     #ADM set up the weight of each HEALPixel, if requested.
@@ -2014,14 +2017,6 @@ def mock_make_qa_plots(targs, truths, spectros, qadir='.', targdens=None, max_bi
         fracarea[w] = 1 #ADM to guard against division by zero warnings
         weights = 1./fracarea
         weights[w] = 0
-        
-        #ADM repeat the process for the spectros
-        fracarea = pixweight[specpix]
-        w = np.where(fracarea == 0)
-        fracarea[w] = 1 
-        specweights = 1./fracarea
-        specweights[w] = 0
-
         log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
 
@@ -2097,7 +2092,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     #ADM restrict targets to just the DESI footprint
     indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-    targs = targs[indesi]
+    windesi = np.where(indesi)
+    if len(windesi[0]) > 0:
+        log.info("{}% of targets in official DESI footprint".format(100.*len(targs/len(windesi))))
+        targs = targs[windesi]
+    else:
+        log.error("ZERO input targets are within the official DESI footprint!!!")
     log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
@@ -2223,7 +2223,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             if mockdata == 0:
                 mocks = False
             else:
-                targs, truths, spectros, join = mockdata
+                targs, truths, spectros, joiner = mockdata
         else:
             log.warning('To make mock-related plots, targs must be a directory+file-location string')
             log.warning('Will proceed by only producing the non-mock plots...')
@@ -2346,7 +2346,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight, mocks=mocks)
+        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+        if mocks:
+            mock_make_qa_plots(targs, truths, spectros, joiner, 
+                               qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
 
     #ADM make sure all of the relevant directories and plots can be read by a web-browser
     cmd = 'chmod 644 {}/*'.format(qadir)
