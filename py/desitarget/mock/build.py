@@ -104,15 +104,60 @@ def _healpixel_chunks(nside, nside_chunk, log):
 
     return areaperpixel, areaperchunk, nchunk
 
-def read_mock(source_name, params, log, seed=None, healpixels=None,
+def _density_fluctuations(params, data, log, nside=16, nside_chunk=128, rand=None):
+
+    if rand is None:
+        rand = np.random.RandomState()
+
+    # Chunk each healpixel into a smaller set of healpixels, for
+    # parallelization.
+    if nside >= nside_chunk:
+        nside_chunk = nside
+        
+    areaperpixel = hp.nside2pixarea(nside, degrees=True)
+    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
+
+    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
+    log.info('Dividing each nside={} healpixel into {} nside={} healpixel(s).'.format(
+        nside, nchunk, nside_chunk))
+
+    # Get the requested target density, if any.
+    if 'density' in params.keys():
+        density = params['density']
+        #ntarget = np.round(density * areaperpix).astype('int')
+    else:
+        ntarget = len(data['RA'])
+        density = ntarget / areaperpixel
+
+    # Fluctuations model
+    model = dict()
+    model['LRG'] = (0.27216, 2.631, 0.145)
+    model['ELG'] = (-0.55792, 3.380, 0.081)
+    model['QSO'] = (0.33321, 3.249, 0.112)
+
+    coeff = model[params['target_name']]
+    
+    healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
+    for pixchunk in set(healpix_chunk):
+        indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+
+        nt = density * 10**( np.polyval(coeff[:2], data['EBV'][indx]) - np.polyval(coeff[:2], 0) +
+                             rand.normal(scale=coeff[2]) ) # / 2) )
+        ntarget = np.rint( np.median(nt) * areaperchunk ).astype('int')
+        print(ntarget)
+        
+    import pdb ; pdb.set_trace()
+
+    return ntarget    
+
+def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
               nside=16, nside_chunk=128, in_desi=True):
     """Read one specified mock catalog.
     
     Args:
-        source_name: str
-            Name of the target being processesed, e.g., 'QSO'.
         params: dict
-            Dictionary summary of the input configuration file.
+            Dictionary summary of the input configuration file, restricted to a
+            particular source_name (e.g., 'QSO').
         log: desiutil.logger
            Logger object.
         rand: numpy.random.RandomState
@@ -133,47 +178,21 @@ def read_mock(source_name, params, log, seed=None, healpixels=None,
     """
     from desitarget.mock import mockmaker
 
-    target_name = params['sources'][source_name]['target_name'].upper() # Target type (e.g., ELG)
-    mockformat = params['sources'][source_name]['format']
-    mockfile = params['sources'][source_name]['mockfile']
+    target_name = params.get('target_name')
+    mockfile = params.get('mockfile')
+    mockformat = params.get('format')
+    magcut = params.get('magcut')
+    nside_lya = params.get('nside_lya')
+    nside_galaxia = params.get('nside_galaxia')
 
-    if 'magcut' in params['sources'][source_name].keys():
-        magcut = params['sources'][source_name]['magcut']
-    else:
-        magcut = None
-
-    if 'nside_lya' in params['sources'][source_name].keys():
-        nside_lya = params['sources'][source_name]['nside_lya']
-    else:
-        nside_lya = None
-
-    if 'nside_galaxia' in params['sources'][source_name].keys():
-        nside_galaxia = params['sources'][source_name]['nside_galaxia']
-    else:
-        nside_galaxia = None
-
-    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name, mockformat))
+    log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
     MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed)
     source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                                 healpixels=healpixels, nside=nside,
                                 nside_chunk=nside_chunk, magcut=magcut,
                                 nside_lya=nside_lya, nside_galaxia=nside_galaxia,
-                                dust_dir=params['dust_dir'])
-
-    try:
-        npix = healpixels.size
-    except:
-        npix = len(healpixels)
-    skyarea = npix * hp.nside2pixarea(nside, degrees=True)
-
-    # Insert a proper density fluctuations model here!
-    
-    #if 'density' in params['sources'][source_name].keys():
-    #    density = params['sources'][source_name]['density']
-    #    ntarget = density * skyarea
-    #    ntarget_split = np.repeat(ntarget, nproc) * rand.normal(loc=1.0, scale=0.02, size=nproc)
-    #    source_data['TARGET_DENSITY'] = np.round(ntarget_split).astype('int')
+                                dust_dir=dust_dir)
 
     # Return only the points that are in the DESI footprint.
     if bool(source_data):
@@ -325,7 +344,7 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
                                         healpixels=healpixels)
 
     # Chunk the sample for the multiprocessing.    
-    areaperpix, areaperchunk, nchunk = _healpixel_chunks(nside, nside_chunk, log)
+    #areaperpix, areaperchunk, nchunk = _healpixel_chunks(nside, nside_chunk, log)
 
     # Loop over each source / object type.
     for healpix in healpixels:
@@ -340,13 +359,24 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             # Read the data.
             log.info('Reading source : {}'.format(source_name))
-            source_data, MakeMock = read_mock(source_name, params, log, seed=seed, 
-                                              healpixels=healpix, nside=nside,
-                                              nside_chunk=nside_chunk)
+            source_data, MakeMock = read_mock(params['sources'][source_name],
+                                              log, dust_dir=params['dust_dir'],
+                                              seed=seed, healpixels=healpix,
+                                              nside=nside, nside_chunk=nside_chunk)
 
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
+
+            # Parallelize by chunking the sample into smaller healpixels and
+            # determine the number of targets per chunk.
+            ntarget = _density_fluctuations(params['sources'][source_name],
+                                            source_data, log, nside=nside,
+                                            nside_chunk=nside_chunk, rand=rand)
+
+            
+            
+            import pdb ; pdb.set_trace()
 
             # Target density -- need a proper fluctuations model here.
             # NTARGETPERCHUNK needs to be an array with the targets divided
