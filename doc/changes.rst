@@ -2,10 +2,12 @@
 desitarget Change Log
 =====================
 
-0.17.1 (unreleased)
+0.17.2 (unreleased)
 -------------------
 
-* Include mock QA on standard targeting QA page
+* Include (initial) mock QA plots on targeting QA page [`PR #262`_]
+
+.. _`PR #262`: https://github.com/desihub/desitarget/pull/262
 
 0.17.1 (2017-12-20)
 -------------------
