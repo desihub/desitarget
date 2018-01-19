@@ -645,9 +645,6 @@ def unextinct_fluxes(objects):
     result['GFLUX'] = objects['FLUX_G'] / objects['MW_TRANSMISSION_G']
     result['RFLUX'] = objects['FLUX_R'] / objects['MW_TRANSMISSION_R']
     result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
-
-#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files,
-#ADM the comment can be removed if DR4/DR5 run OK. It's just here as a reminder.
     result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
     result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
 

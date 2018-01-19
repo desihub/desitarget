@@ -1350,9 +1350,9 @@ def _load_targdens():
     targdens['ALL'] = sum(list(targdens.values()))
 
     #ADM for quick debugging
-    targdens = {}
+#    targdens = {}
 #    targdens['ELG'] = targdict['ntarget_elg']
-    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+#    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
 
     return targdens
 
@@ -1702,30 +1702,57 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
         ``{qadir}/{fileprefix}-{objtype}.png``
     """
 
-    #ADM count each type of object
-    types = list(set(cat["SPECTYPE"]))
-    ntypes = len(types)
-    typecnt = []
+    #ADM for this type of object, create the names of the possible contaminants
+    from desitarget import contam_mask
+    types = np.array(contam_mask.names())
+    #ADM this is something of a hack as it assumes we'll keept
+    #ADM the first 3 letters of each object ("BGS", "ELG" etc.) as sacred
+    wtypes = np.where(np.array([ objtype[:3] in type[:3] for type in types ]))
 
-    for typ in types:
-        typecnt.append(len(np.where(cat["SPECTYPE"] == typ)[0]))
+    #ADM only make a plot if we have contaminant information
+    if len(wtypes[0]) > 0:
+        #ADM the relevant contaminant types for this object class
+        types = types[wtypes]
 
-    frac = np.array(typecnt)/len(cat)
+        #ADM count each type of object
+        ntypes = len(types)
+        typecnt = []
+        for typ in types:
+            w = np.where(  (cat["CONTAM_TARGET"] & contam_mask[typ]) != 0 )
+            typecnt.append(len(w[0]))
 
-    #ADM set up and make the bar plot with the legend
-    plt.clf()
-    plt.ylabel('fraction')
-    plt.ylim(0,1.1)
-    x = np.arange(ntypes)
-    plt.bar(x,frac,alpha=0.6,
-            label='Fraction of {} classified as'.format(objtype))
-    plt.legend(loc='upper left', frameon=False)
+        #ADM express each type as a fraction of all objects in the catalog
+        frac = np.array(typecnt)/len(cat)
+
+        #ADM set up and make the bar plot with the legend
+        plt.clf()
+        plt.ylabel('fraction')
+        plt.ylim(0,1.2*np.max(frac))
+        x = np.arange(ntypes)
+        plt.bar(x,frac,alpha=0.6,
+                label='Fraction of {} classified as'.format(objtype))
+        plt.legend(loc='upper left', frameon=False)
     
-    #ADM add the names of the types to the x-axis
-    #ADM first converting the strings to unicode if they're byte-type
-    if isinstance(types[0],bytes):
-        types = [ type.decode() for type in types ]
-    plt.xticks(x, types)
+        #ADM add the names of the types to the x-axis
+        #ADM first converting the strings to unicode if they're byte-type
+        if isinstance(types[0],bytes):
+            types = [ type.decode() for type in types ]
+        
+        #ADM to save space, only plot the name of the contaminant on the x-axis 
+        #ADM not the object type (e.g. label as LRG not "QSO_IS_LRG"
+        labels = [typ.split('_')[-1] for typ in types]
+        plt.xticks(x, labels)
+
+    #ADM if there was no contaminant info for this objtype, 
+    #ADM then make an empty plot with a message
+    else:
+        log = get_logger()
+        log.warning('No contaminant information for objects of type {}'.format(objtype))
+        plt.clf()
+        plt.ylabel('fraction')
+        plt.xlim(0.,1.)
+        plt.ylim(0.,1.)
+        plt.text(0.5,0.5,'NO DATA')
 
     #ADM write out the plot
     pngfile = os.path.join(qadir,'{}-{}.png'.format(fileprefix,objtype))
@@ -1811,7 +1838,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     return
 
 
-def qacolor(cat, objtype, qadir='.', fileprefix="color"):
+def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
     """Make color-based DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1821,6 +1848,9 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         ``FLUX_W1``, ``FLUX_W2`` columns for color information
     objtype : :class:`str`
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    extinction : :class:`~numpy.array`
+        An array containing the extinction in each band of interest, must contain at least the columns
+        MW_TRANSMISSION_G, MW_TRANSMISSION_R, MW_TRANSMISSION_Z, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"color"`` for
@@ -1836,9 +1866,12 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
 
     from matplotlib.colors import LogNorm
 
-    #ADM convenience function to retrieve and unextinct DESI fluxes
-    from desitarget.cuts import unextinct_fluxes
-    flux = unextinct_fluxes(cat)
+    #ADM unextinct fluxes
+    gflux = cat['FLUX_G'] / extinction['MW_TRANSMISSION_G']
+    rflux = cat['FLUX_R'] / extinction['MW_TRANSMISSION_R']
+    zflux = cat['FLUX_Z'] / extinction['MW_TRANSMISSION_Z']
+    w1flux = cat['FLUX_W1'] / extinction['MW_TRANSMISSION_W1']
+    w2flux = cat['FLUX_W2'] / extinction['MW_TRANSMISSION_W2']
 
     #ADM the number of passed objects
     nobjs = len(cat)
@@ -1846,11 +1879,11 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
     #ADM convert to magnitudes (fluxes are in nanomaggies)
     #ADM should be fine to clip for plotting purposes
     loclip = 1e-16
-    g = 22.5-2.5*np.log10(flux['GFLUX'].clip(loclip))
-    r = 22.5-2.5*np.log10(flux['RFLUX'].clip(loclip))
-    z = 22.5-2.5*np.log10(flux['ZFLUX'].clip(loclip))
-    W1 = 22.5-2.5*np.log10(flux['W1FLUX'].clip(loclip))
-    W2 = 22.5-2.5*np.log10(flux['W2FLUX'].clip(loclip))
+    g = 22.5-2.5*np.log10(gflux.clip(loclip))
+    r = 22.5-2.5*np.log10(rflux.clip(loclip))
+    z = 22.5-2.5*np.log10(zflux.clip(loclip))
+    W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
+    W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
 
     #ADM-------------------------------------------------------
     #ADM set up the r-z, g-r plot
@@ -1897,7 +1930,7 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         plt.ylabel('r - W1')
         plt.xlim([-1,3])
         plt.ylim([-1,3])
-        plt.text(0, 0, 'No data')
+        plt.text(1.,1.,'NO DATA')
 
     #ADM save the plot
     pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
@@ -1906,6 +1939,37 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
 
     #ADM-------------------------------------------------------
     #ADM set up the r-z, W1-W2 plot
+    plt.clf()
+    plt.xlabel('r - z')
+    plt.ylabel('W1 - W2')
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        plt.set_cmap('inferno')
+        counts, xedges, yedges, image = \
+            plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        if np.sum(counts) > 0:
+            plt.colorbar()
+        else:
+            nobjs = 0
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.plot(r-W1,W1-W2,'bo')
+
+    #ADM...or we might not have any WISE data
+    if nobjs == 0:
+        log = get_logger()
+        log.warning('No data within r-W1 vs. r-z ranges')
+        plt.clf()
+        plt.xlabel('r - z')
+        plt.ylabel('W1 - W2')
+        plt.xlim([-1,3])
+        plt.ylim([-1,3])
+        plt.text(1.,1.,'NO DATA')
+
+    #ADM save the plot
+    pngfile=os.path.join(qadir, '{}-rzW1W2-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
 
 
 def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
@@ -1999,17 +2063,20 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
 
     for objtype in targdens:
         if 'ALL' in objtype:
-            w = np.arange(len(targs))
+            wobjtype = np.arange(len(targs))
         else:
-            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
+            wobjtype = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
 
-        if len(w) > 0:
+        if len(wobjtype) > 0:
             #ADM make N(z) and z vx. zerr plots
-            mock_qanz(truths[w], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
+            mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
             log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
-
-#            mock_qafractype(spectros[w], objtype, qadir=qadir, fileprefix="mock-fractype")
-#            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+            #ADM make color-color plots
+            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir, fileprefix="mock-color")
+            log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+            #ADM plot what fraction of each selected object is actually a contaminant
+            mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
+            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
     log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
 
@@ -2148,7 +2215,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             #ADM make color-color plots
-            qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
+            qacolor(targs[w], objtype, targs[w], qadir=qadir, fileprefix="color")
             log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             #ADM make magnitude histograms
@@ -2285,11 +2352,11 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         #ADM color-color plots
         html.write('<h2>Color-color plots (corrected for Galactic extinction)</h2>\n')
-        html.write('<table COLS=2 WIDTH="100%">\n')
+        html.write('<table COLS=3 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        for colors in ["grz","rzW1"]:
-            html.write('<td WIDTH="25%" align=left><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" height=500 width=600></A></left></td>\n'
+        for colors in ["grz","rzW1","rzW1W2"]:
+            html.write('<td WIDTH="25%" align=left><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" height=400 width=480></A></left></td>\n'
                        .format(colors,objtype,colors,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
@@ -2311,7 +2378,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('<h1>DESI Additional Mock QA\n')
 
             #ADM redshift plots
-            html.write('<h2>Redshift plots</h2>\n')
+            html.write('<h2>Redshift (TRUE z) plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             #ADM add the plots...
@@ -2319,6 +2386,17 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                        .format(objtype,objtype))
             html.write('<td WIDTH="25%" align=left><A HREF="mock-zvmag-{}.png"><img SRC="mock-zvmag-{}.png" height=500 width=600></A></left></td>\n'
                        .format(objtype,objtype))
+            html.write('</tr>\n')
+            html.write('</table>\n')
+
+            #ADM color-color plots
+            html.write('<h2>Color-color plots (corrected for Galactic extinction)</h2>\n')
+            html.write('<table COLS=3 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            for colors in ["grz","rzW1","rzW1W2"]:
+                html.write('<td WIDTH="25%" align=left><A HREF="mock-color-{}-{}.png"><img SRC="mock-color-{}-{}.png" height=400 width=480></A></left></td>\n'
+                       .format(colors,objtype,colors,objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
 
