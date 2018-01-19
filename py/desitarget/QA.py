@@ -2351,7 +2351,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</table>\n')
 
         #ADM color-color plots
-        html.write('<h2>Color-color plots (corrected for Galactic extinction)</h2>\n')
+        html.write('<h2>Target color-color plots (corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=3 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
@@ -2390,7 +2390,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('</table>\n')
 
             #ADM color-color plots
-            html.write('<h2>Color-color plots (corrected for Galactic extinction)</h2>\n')
+            html.write('<h2>(Truth) color-color plots (corrected for Galactic extinction)</h2>\n')
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
             #ADM add the plots...
