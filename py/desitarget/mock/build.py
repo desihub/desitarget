@@ -4,19 +4,18 @@
 desitarget.mock.build
 =====================
 
-Build a truth catalog (including spectra) and a targets catalog for the mocks.
+Build truth and targets catalogs, including spectra, for the mocks.
 
 """
 from __future__ import absolute_import, division, print_function
 
 import os
-
 import numpy as np
 import healpy as hp
-from astropy.table import vstack, hstack
+
+from astropy.table import vstack
 
 from desimodel.footprint import radec2pix
-from desitarget.targets import encode_targetid
 
 def _initialize(params, verbose=False, seed=1, output_dir='./', 
                 nside=16, healpixels=None):
@@ -463,6 +462,8 @@ def _finish_catalog(targets, truth, skytargets, skytruth, nside,
         Updated versions of: targets, truth, and skytargets.
 
     """
+    from desitarget.targets import encode_targetid
+    
     nobj = len(targets)
     nsky = len(skytargets)
     log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
@@ -772,3 +773,6 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         mtl.meta['EXTNAME'] = 'MTL'
         mtl.write(tmpout, overwrite=True, format='fits')
         os.rename(tmpout, out_mtl)
+
+
+
