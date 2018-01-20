@@ -18,7 +18,7 @@ from astropy.table import vstack, hstack
 from desimodel.footprint import radec2pix
 from desitarget.targets import encode_targetid
 
-def _initialize(params, verbose=False, seed=1, output_dir="./", 
+def _initialize(params, verbose=False, seed=1, output_dir='./', 
                 nside=16, healpixels=None):
     """Initialize various objects needed to generate mock targets (with and without
     spectra).
@@ -80,35 +80,23 @@ def _initialize(params, verbose=False, seed=1, output_dir="./",
     log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
         len(healpixels), nside, areaperpix, totarea))
 
-    # Initialize the Classes used to assign spectra (or magnitudes) and to
-    # select targets.  Note: The default wavelength array gets initialized in
-    # MockSpectra.
-    #selection = SelectTargets(verbose=verbose, rand=rand)
-
-    return log, rand, healpixels
+    return log, rand, healpixels, areaperpix
     
-def _healpixel_chunks(nside, nside_chunk, log):
-    """Chunk each healpixel into a smaller set of healpixels, for
-    parallelization.
-
-    """
-    if nside >= nside_chunk:
-        nside_chunk = nside
-        
-    areaperpixel = hp.nside2pixarea(nside, degrees=True)
-    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
-
-    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
-    log.info('Dividing each nside={} healpixel into {} nside={} healpixel(s).'.format(
-        nside, nchunk, nside_chunk))
-
-    return areaperpixel, areaperchunk, nchunk
-
 def _density_fluctuations(params, data, log, nside=16, nside_chunk=128, rand=None):
+    """Density fluctuations model."""
 
     if rand is None:
         rand = np.random.RandomState()
 
+    # Fluctuations model coefficients from --
+    #   https://github.com/desihub/desitarget/blob/master/doc/nb/target-fluctuations.ipynb
+    model = dict()
+    model['LRG'] = (0.27216, 2.631, 0.145) # slope, intercept, and scatter
+    model['ELG'] = (-0.55792, 3.380, 0.081)
+    model['QSO'] = (0.33321, 3.249, 0.112)
+
+    coeff = model.get(params['target_name'])
+    
     # Chunk each healpixel into a smaller set of healpixels, for
     # parallelization.
     if nside >= nside_chunk:
@@ -118,37 +106,35 @@ def _density_fluctuations(params, data, log, nside=16, nside_chunk=128, rand=Non
     areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
 
     nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
-    log.info('Dividing each nside={} healpixel into {} nside={} healpixel(s).'.format(
-        nside, nchunk, nside_chunk))
+    log.info('Dividing each nside={} healpixel ({:.2f} deg2) into {} nside={} healpixel(s) ({:.2f} deg2).'.format(
+        nside, areaperpixel, nchunk, nside_chunk, areaperchunk))
 
     # Get the requested target density, if any.
+    ntarget = len(data['RA'])
     if 'density' in params.keys():
         density = params['density']
-        #ntarget = np.round(density * areaperpix).astype('int')
     else:
-        ntarget = len(data['RA'])
         density = ntarget / areaperpixel
 
-    # Fluctuations model
-    model = dict()
-    model['LRG'] = (0.27216, 2.631, 0.145)
-    model['ELG'] = (-0.55792, 3.380, 0.081)
-    model['QSO'] = (0.33321, 3.249, 0.112)
-
-    coeff = model[params['target_name']]
-    
+    # Assign sources to healpix chunks.
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
+
+    indxperchunk, ntargetperchunk = list(), list()
     for pixchunk in set(healpix_chunk):
         indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+        indxperchunk.append(indx)
 
-        nt = density * 10**( np.polyval(coeff[:2], data['EBV'][indx]) - np.polyval(coeff[:2], 0) +
-                             rand.normal(scale=coeff[2]) ) # / 2) )
-        ntarget = np.rint( np.median(nt) * areaperchunk ).astype('int')
-        print(ntarget)
-        
-    import pdb ; pdb.set_trace()
+        if coeff:
+            # Number of targets in this chunk, based on the fluctuations model.
+            denschunk = density * 10**( np.polyval(coeff[:2], data['EBV'][indx]) - np.polyval(coeff[:2], 0) +
+                                        rand.normal(scale=coeff[2]) )            # [ntarget/deg2]
+            ntarg = np.rint( np.median(denschunk) * areaperchunk ).astype('int') # [ntarget]
+            ntargetperchunk.append(ntarg)
+        else:
+            # Divide the targets evenly among chunks.
+            ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
 
-    return ntarget    
+    return indxperchunk, np.array(ntargetperchunk)
 
 def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
               nside=16, nside_chunk=128, in_desi=True):
@@ -292,7 +278,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
         ntot += nkeep
         if ntot >= ntarget:
             break
-
+        
     targets = vstack(targets)
     truth = vstack(truth)
     trueflux = np.concatenate(trueflux)
@@ -339,12 +325,9 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
     from desitarget.internal import sharedmem
 
     # Initialize a bunch of objects we need.
-    log, rand, healpixels = _initialize(params, verbose=verbose, seed=seed,
-                                        output_dir=output_dir, nside=nside,
-                                        healpixels=healpixels)
-
-    # Chunk the sample for the multiprocessing.    
-    #areaperpix, areaperchunk, nchunk = _healpixel_chunks(nside, nside_chunk, log)
+    log, rand, healpixels, areaperpix = _initialize(params, verbose=verbose,
+                                                    seed=seed, output_dir=output_dir,
+                                                    nside=nside, healpixels=healpixels)
 
     # Loop over each source / object type.
     for healpix in healpixels:
@@ -370,40 +353,22 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
 
             # Parallelize by chunking the sample into smaller healpixels and
             # determine the number of targets per chunk.
-            ntarget = _density_fluctuations(params['sources'][source_name],
-                                            source_data, log, nside=nside,
-                                            nside_chunk=nside_chunk, rand=rand)
+            indxperchunk, ntargetperchunk = _density_fluctuations(
+                params['sources'][source_name], source_data, log, nside=nside,
+                nside_chunk=nside_chunk, rand=rand)
 
+            nchunk = len(indxperchunk)
+            ntarget = np.sum(ntargetperchunk)
+            density = ntarget / areaperpix
             
-            
-            import pdb ; pdb.set_trace()
-
-            # Target density -- need a proper fluctuations model here.
-            # NTARGETPERCHUNK needs to be an array with the targets divided
-            # among the chunk healpixels.
-            if 'density' in params['sources'][source_name].keys():
-                density = params['sources'][source_name]['density']
-                ntarget = np.round(density * areaperpix).astype('int')
-            else:
-                ntarget = len(source_data['RA'])
-                density = ntarget / areaperpix
-            ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
-
             log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
                 ntarget, source_name, density))
 
-            # Generate the spectra in chunks of smaller healpixels.
-            healpix_chunk = radec2pix(nside_chunk, source_data['RA'], source_data['DEC'])
-
             specargs = list()
-            for pixchunk, ntarg in zip( set(healpix_chunk), ntargetperchunk ):
-                indx = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+            for indx, ntarg in zip( indxperchunk, ntargetperchunk ):
                 if len(indx) > 0:
-                    if len(indx) < ntarg:
-                        ntarg = len(indx)
                     specargs.append( (source_data, indx, MakeMock, rand, log, ntarg) )
-                    #specargs.append( (source_data, indx, Spectra, select_targets_function,
-                    #                  rand, log, ntarg) )
+                print(ntarg)
 
             # Multiprocessing.
             nn = np.zeros((), dtype='i8')
