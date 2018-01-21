@@ -1727,7 +1727,9 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
         #ADM set up and make the bar plot with the legend
         plt.clf()
         plt.ylabel('fraction')
-        plt.ylim(0,1.2*np.max(frac))
+        if np.max(frac) > 0:
+            plt.ylim(0,1.2*np.max(frac))
+            
         x = np.arange(ntypes)
         plt.bar(x,frac,alpha=0.6,
                 label='Fraction of {} classified as'.format(objtype))
