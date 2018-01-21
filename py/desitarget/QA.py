@@ -34,6 +34,7 @@ import warnings, itertools
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 
 import healpy as hp
 
@@ -1350,9 +1351,10 @@ def _load_targdens():
     targdens['ALL'] = sum(list(targdens.values()))
 
     #ADM for quick debugging
-#    targdens = {}
-#    targdens['ELG'] = targdict['ntarget_elg']
-#    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+    print('HACK!!!!!!!!!!!')
+    targdens = {}
+    #targdens['ELG'] = targdict['ntarget_elg']
+    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
 
     return targdens
 
@@ -1795,47 +1797,72 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     nobjs = len(cat)
 
     #ADM plot the redshift histogram
-    #ADM set the number of bins for the redshift histogram (determined from trial and error)
-    nbins = 35
 
-    #ADM the density value of the peak redshift histogram bin
-    h, b = np.histogram(cat["TRUEZ"],bins=nbins)
-    peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
-    ypeak = np.max(h)
+    # Get the unique combination of template types and subtypes
+    templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
+    templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
 
+    truez = cat["TRUEZ"]
+    binsz = 0.05
+    
     #ADM set up and make the plot
     plt.clf()
-    #ADM give a little space for labels on the y-axis
-    plt.ylim((0,ypeak*1.2))
-    plt.xlabel('TRUE z')
+    plt.xlabel('True Redshift z')
     plt.ylabel('N(z)')
-    plt.hist(cat["TRUEZ"], bins=nbins, histtype='stepfilled', alpha=0.6, 
-             label='Observed {} Redshift Distribution (Peak z={:.0f})'.format(objtype,peak))
-    #plt.legend(loc='upper left', frameon=False)
+    for templatetype in sorted(set(templatetypes)):
+        for templatesubtype in set(templatesubtypes):
+            these = np.where( (templatetype == templatetypes) * (templatesubtype == templatesubtypes) )[0]
+            if len(these) > 0:
+                if templatesubtype == '':
+                    label = '{} is {}'.format(objtype, templatetype)
+                else:
+                    label = '{} is {}-{}'.format(objtype, templatetype, templatesubtype)
+                    
+                nbin = np.max( (np.rint( np.ptp(truez[these]) / binsz).astype(int), 1) )
+                
+                nn, bins = np.histogram(truez[these], bins=nbin, 
+                                        range=(truez[these].min(), truez[these].max()))
+                cbins = (bins[:-1] + bins[1:]) / 2.0
+                plt.bar(cbins, nn, align='center', alpha=0.75, label=label, width=binsz)
+                        
+    plt.legend(loc='upper right', frameon=True)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
     #ADM plot the z vs. mag scatter plot
-    from matplotlib.colors import LogNorm
     plt.clf()
-    plt.xlabel('mag')
-    plt.ylabel('TRUE z')
+    plt.ylabel('Normalization magnitude')
+    plt.xlabel('True Redshift z')
     plt.set_cmap('inferno')
 
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        plt.hist2d(cat["MAG"],cat["TRUEZ"],bins=100,norm=LogNorm())
+        plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
         plt.colorbar()
     #ADM...otherwise make a scatter plot
     else:
-        plt.plot(cat["MAG"],cat["TRUEZ"],'b,')
+        for templatetype in sorted(set(templatetypes)):
+            for templatesubtype in set(templatesubtypes):
+                these = np.where( (templatetype == templatetypes) * (templatesubtype == templatesubtypes) )[0]
+                if len(these) > 0:
+                    if templatesubtype == '':
+                        label = '{} is {}'.format(objtype, templatetype)
+                    else:
+                        label = '{} is {}-{}'.format(objtype, templatetype, templatesubtype)
+                    plt.scatter(cat["TRUEZ"][these], cat["MAG"][these], alpha=0.6, label=label)
+                    
+        #plt.plot(cat["TRUEZ"],cat["MAG"],'bo', alpha=0.6)
+        plt.ylim( cat["MAG"].min(), cat["MAG"].max()+0.75 )
+        plt.legend(loc='upper right', frameon=True, ncol=3)
 
     #ADM create the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
+
+    import pdb ; pdb.set_trace()
 
     return
 
@@ -1865,8 +1892,6 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
         ``{qadir}/{fileprefix}-{bands}-{objtype}.png``
         where bands might be, e.g., ``grz``
     """
-
-    from matplotlib.colors import LogNorm
 
     #ADM unextinct fluxes
     gflux = cat['FLUX_G'] / extinction['MW_TRANSMISSION_G']
@@ -1899,7 +1924,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
         plt.colorbar()
     #ADM...otherwise make a scatter plot
     else:
-        plt.plot(r-z,g-r,'bo')
+        plt.plot(r-z,g-r,'bo', alpha=0.6)
     #ADM make the plot
     pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
@@ -2073,6 +2098,9 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
             #ADM make N(z) and z vx. zerr plots
             mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
             log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+            
+            import pdb ; pdb.set_trace()
+            
             #ADM make color-color plots
             qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir, fileprefix="mock-color")
             log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
@@ -2377,10 +2405,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         #ADM add special plots if we have mock data
         if mocks:
             html.write('<hr>\n')
-            html.write('<h1>DESI Additional Mock QA\n')
+            html.write('<h1>DESI Mock QA\n')
 
             #ADM redshift plots
-            html.write('<h2>Redshift (TRUE z) plots</h2>\n')
+            html.write('<h2>True Redshift plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             #ADM add the plots...
@@ -2419,8 +2447,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, 
-                      qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+        print('HACK!!!!!!!!!!!!!!')
+        #make_qa_plots(targs, 
+        #              qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
         if mocks:
             mock_make_qa_plots(targs, truths, 
                                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
