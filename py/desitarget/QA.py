@@ -1564,6 +1564,9 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     counts = np.bincount(pixels, weights=weights, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
 
+    if objtype == 'LRG':
+        import pdb ; pdb.set_trace()
+
     label = '{} (targets/deg$^2$)'.format(objtype)
 
     #ADM clip the targets to avoid high densities, if requested
@@ -2164,7 +2167,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         bin_area = hp.nside2pixarea(nside, degrees=True)
         if bin_area <= max_bin_area:
             break
-
+        
     #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
     #ADM downstream
     from desimodel import io, footprint
