@@ -1564,9 +1564,6 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     counts = np.bincount(pixels, weights=weights, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
 
-    if objtype == 'LRG':
-        import pdb ; pdb.set_trace()
-
     label = '{} (targets/deg$^2$)'.format(objtype)
 
     #ADM clip the targets to avoid high densities, if requested
@@ -2348,9 +2345,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=left><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" height=450 width=700></A></left></td>\n'
+        html.write('<td align=center><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" width=100% height=auto></A></td>\n'
                    .format(objtype,objtype))
-        html.write('<td WIDTH="25%" align=left><A HREF="histo-{}.png"><img SRC="histo-{}.png" height=430 width=510></A></left></td>\n'
+        html.write('<td align=center><A HREF="histo-{}.png"><img SRC="histo-{}.png" width=75% height=auto></A></td>\n'
                    .format(objtype,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
@@ -2361,7 +2358,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<tr>\n')
         #ADM add the plots...
         for colors in ["grz","rzW1","rzW1W2"]:
-            html.write('<td WIDTH="25%" align=left><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" height=400 width=480></A></left></td>\n'
+            html.write('<td align=center><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" width=95% height=auto></A></td>\n'
                        .format(colors,objtype,colors,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
@@ -2372,7 +2369,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<tr>\n')
         #ADM add the plots...
         for band in ["g","r","z","W1"]:
-            html.write('<td WIDTH="25%" align=left><A HREF="mag-{}-{}.png"><img SRC="mag-{}-{}.png" height=375 width=450></A></left></td>\n'
+            html.write('<td align=center><A HREF="mag-{}-{}.png"><img SRC="mag-{}-{}.png" width=95% height=auto></A></td>\n'
                        .format(band,objtype,band,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
@@ -2387,9 +2384,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             #ADM add the plots...
-            html.write('<td WIDTH="25%" align=left><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=500 width=600></A></left></td>\n'
+            html.write('<td align=center><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=auto width=95%></A></td>\n'
                        .format(objtype,objtype))
-            html.write('<td WIDTH="25%" align=left><A HREF="mock-zvmag-{}.png"><img SRC="mock-zvmag-{}.png" height=500 width=600></A></left></td>\n'
+            html.write('<td align=center><A HREF="mock-zvmag-{}.png"><img SRC="mock-zvmag-{}.png" height=auto width=95%></A></td>\n'
                        .format(objtype,objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
@@ -2400,17 +2397,17 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('<tr>\n')
             #ADM add the plots...
             for colors in ["grz","rzW1","rzW1W2"]:
-                html.write('<td WIDTH="25%" align=left><A HREF="mock-color-{}-{}.png"><img SRC="mock-color-{}-{}.png" height=400 width=480></A></left></td>\n'
+                html.write('<td align=center><A HREF="mock-color-{}-{}.png"><img SRC="mock-color-{}-{}.png" height=auto width=95%></A></td>\n'
                        .format(colors,objtype,colors,objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
 
             #ADM classification fraction plots
             html.write('<h2>Fraction of each spectral type plots</h2>\n')
-            html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('<table COLS=1 WIDTH="40%">\n')
             html.write('<tr>\n')
             #ADM add the plots...
-            html.write('<td WIDTH="25%" align=left><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=500 width=600></A></left></td>\n'
+            html.write('<td align=center><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=auto width=95%></A></td>\n'
                        .format("mock-fractype",objtype,"mock-fractype",objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
