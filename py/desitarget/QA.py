@@ -34,6 +34,7 @@ import warnings, itertools
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
+#from matplotlib.colors import LogNorm
 
 import healpy as hp
 
@@ -748,6 +749,7 @@ def construct_QA_file(nrows):
             ])
     return data
 
+
 def construct_HPX_file(nrows):
     """Create a recarray to be populated with HEALPixel information
 
@@ -1345,8 +1347,16 @@ def _load_targdens():
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FSTAR'] = 0
     targdens['STD_BRIGHT'] = 0
+    targdens['MWS_ANY'] = 0
     #ADM set "ALL" to be the sum over all the target classes
     targdens['ALL'] = sum(list(targdens.values()))
+
+    ##ADM for quick debugging
+    #targdens = {}
+    #targdens['LRG'] = targdict['ntarget_lrg']
+    #targdens['ELG'] = targdict['ntarget_elg']
+    #targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+    #targdens['MWS_ANY'] = 0
 
     return targdens
 
@@ -1388,6 +1398,58 @@ def _javastring():
     """)
 
     return js
+
+
+def collect_mock_data(targfile):
+    """Given a full path to a mock target file, read in all relevant mock data
+
+    Parameters
+    ----------
+    targs : :class:`str`
+        The full path to a mock target file in the DESI X per cent survey directory structure
+        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/
+
+    Returns
+    -------
+    :class:`~numpy.array` 
+        A rec array containing the mock targets
+    :class:`~numpy.array` 
+        A rec array containing the mock truth objects used to generate the mock targets
+
+    Notes
+    -----
+        - Will return 0 if the file structure is incorrect (i.e. if the "truths" can't be
+          found based on the "targs")
+    """
+
+    start = time()
+
+    #ADM set up the default logger from desiutil
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    #ADM retrieve the directory that contains the targets
+    targdir = os.path.dirname(targfile) 
+
+    #ADM retrieve the mock data release name
+    dcdir = os.path.dirname(targdir)
+    dc = os.path.basename(dcdir)
+
+    #ADM the file containing truth
+    truthfile = '{}/truth.fits'.format(targdir)
+
+    #ADM check that the truth file exists
+    if not os.path.exists(truthfile):
+        log.warning("Directory structure to truth file is not as expected")
+        return 0
+
+    #ADM read in the relevant mock data and return it
+    targs = fitsio.read(targfile)
+    log.info('Read in mock targets...t = {:.1f}s'.format(time()-start))
+    truths = fitsio.read(truthfile)
+    log.info('Read in mock truth objects...t = {:.1f}s'.format(time()-start))
+
+    return targs, truths
 
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
@@ -1530,6 +1592,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     plt.ylim((0,ypeak*1.2))
     plt.xlabel(label)
     plt.ylabel('Number of HEALPixels')
+
     plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
              label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
     if objtype in targdens.keys():
@@ -1545,7 +1608,276 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     return
 
 
-def qacolor(cat, objtype, qadir='.', fileprefix="color"):
+def qamag(cat, objtype, qadir='.', fileprefix="mag"):
+    """Make magnitude-based DESI targeting QA plots given a passed set of targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least ``FLUX_G``, ``FLUX_R``, ``FLUX_Z`` and 
+        ``FLUX_W1``, columns for magnitude information
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to ``"mag"`` for
+        string to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{filter}-{objtype}.png``
+        where filter might be, e.g., ``g``
+    """
+
+    #ADM columns in the passed cat as an array 
+    cols = np.array(list(cat.dtype.names))
+
+    #ADM value of flux to clip at for plotting purposes
+    loclip = 1e-16
+
+    #ADM magnitudes for which to plot histograms
+    filters = ['G','R','Z','W1']
+    magnames = [ 'FLUX_' + filter for filter in filters ]
+        
+    for fluxname in magnames:
+
+        #ADM convert to magnitudes (fluxes are in nanomaggies)
+        #ADM should be fine to clip for plotting purposes
+        mag = 22.5-2.5*np.log10(cat[fluxname].clip(loclip))
+
+        #ADM the name of the filters
+        filtername = fluxname[5:].lower()
+        #ADM WISE bands have upper-case filter names
+        if filtername[0] == 'w':
+            filtername = filtername.upper()
+        
+        #ADM plot the magnitude histogram
+        #ADM set the number of bins for the redshift histogram to run in 
+        #ADM 0.5 intervals from 14 to 14 + 0.5*bins
+        nbins = 20
+        bins = np.arange(nbins)*0.5+14
+        #ADM insert a 0 bin and a 100 bin to catch the edges
+        np.insert(bins,0,0.)
+        np.insert(bins,len(bins),100.)
+
+        #ADM the density value of the peak redshift histogram bin
+        h, b = np.histogram(mag,bins=bins)
+        peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
+        ypeak = np.max(h)
+
+        #ADM set up and make the plot
+        plt.clf()
+        #ADM restrict the magnitude limits
+        plt.xlim(14, 23)
+        #ADM give a little space for labels on the y-axis
+        plt.ylim((0,ypeak*1.2))
+        plt.xlabel(filtername)
+        plt.ylabel('N('+filtername+')')
+        plt.hist(mag, bins=bins, histtype='stepfilled', alpha=0.6, 
+             label='Observed {} {}-mag Distribution (Peak {}={:.0f})'.format(objtype,filtername,filtername,peak))
+        plt.legend(loc='upper left', frameon=False)
+
+        pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix,filtername,objtype))
+        plt.savefig(pngfile,bbox_inches='tight')
+        plt.close()
+
+    return
+
+
+def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
+    """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least ``TRUESPECTYPE``
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to ``"mock-fractype"`` for
+        string to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{objtype}.png``
+    """
+
+    #ADM for this type of object, create the names of the possible contaminants
+    from desitarget import contam_mask
+    types = np.array(contam_mask.names())
+    #ADM this is something of a hack as it assumes we'll keept
+    #ADM the first 3 letters of each object ("BGS", "ELG" etc.) as sacred
+    wtypes = np.where(np.array([ objtype[:3] in type[:3] for type in types ]))
+
+    #ADM only make a plot if we have contaminant information
+    if len(wtypes[0]) > 0:
+        #ADM the relevant contaminant types for this object class
+        types = types[wtypes]
+
+        #ADM count each type of object
+        ntypes = len(types)
+        typecnt = []
+        for typ in types:
+            w = np.where(  (cat["CONTAM_TARGET"] & contam_mask[typ]) != 0 )
+            typecnt.append(len(w[0]))
+
+        #ADM express each type as a fraction of all objects in the catalog
+        frac = np.array(typecnt)/len(cat)
+
+        #ADM set up and make the bar plot with the legend
+        plt.clf()
+        plt.ylabel('fraction')
+        if np.max(frac) > 0:
+            plt.ylim(0,1.2*np.max(frac))
+            
+        x = np.arange(ntypes)
+        plt.bar(x,frac,alpha=0.6,
+                label='Fraction of {} classified as'.format(objtype))
+        plt.legend(loc='upper left', frameon=False)
+    
+        #ADM add the names of the types to the x-axis
+        #ADM first converting the strings to unicode if they're byte-type
+        if isinstance(types[0],bytes):
+            types = [ type.decode() for type in types ]
+        
+        #ADM to save space, only plot the name of the contaminant on the x-axis 
+        #ADM not the object type (e.g. label as LRG not "QSO_IS_LRG"
+        labels = [typ.split('_')[-1] for typ in types]
+        plt.xticks(x, labels)
+
+    #ADM if there was no contaminant info for this objtype, 
+    #ADM then make an empty plot with a message
+    else:
+        log = get_logger()
+        log.warning('No contaminant information for objects of type {}'.format(objtype))
+        plt.clf()
+        plt.ylabel('fraction')
+        plt.xlim(0.,1.)
+        plt.ylim(0.,1.)
+        plt.text(0.5,0.5,'NO DATA')
+
+    #ADM write out the plot
+    pngfile = os.path.join(qadir,'{}-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    return
+
+
+def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
+    """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least ``TRUEZ`` for redshift information 
+        and ``MAG`` for magnitude information
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
+        string to be added to the front of the output N(z) plot file name
+    fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
+        string to be added to the front of the output z vs. mag plot file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of target colors are written to ``qadir``. Two plots are made:
+           The file containing N(z) is called:
+                 ``{qadir}/{fileprefixz}-{objtype}.png``
+           The file containing z vs. zerr is called:
+                 ``{qadir}/{fileprefixzmag}-{objtype}.png``
+    """
+
+    #ADM the number of passed objects
+    nobjs = len(cat)
+
+    #ADM plot the redshift histogram
+
+    # Get the unique combination of template types and subtypes
+    templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
+    templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
+
+    truez = cat["TRUEZ"]
+    binsz = 0.04
+    
+    #ADM set up and make the plot
+    plt.clf()
+    plt.xlabel('True Redshift z')
+    plt.ylabel('N(z)')
+    for templatetype in sorted(set(templatetypes)):
+        for templatesubtype in set(templatesubtypes):
+            these = np.where( (templatetype == templatetypes) * (templatesubtype == templatesubtypes) )[0]
+            if len(these) > 0:
+                if templatesubtype == '':
+                    label = '{} is {}'.format(objtype, templatetype)
+                else:
+                    label = '{} is {}-{}'.format(objtype, templatetype, templatesubtype)
+                    
+                nbin = np.max( (np.rint( np.ptp(truez[these]) / binsz).astype(int), 1) )
+                
+                nn, bins = np.histogram(truez[these], bins=nbin, 
+                                        range=(truez[these].min(), truez[these].max()))
+                cbins = (bins[:-1] + bins[1:]) / 2.0
+                plt.bar(cbins, nn, align='center', alpha=0.75, label=label,
+                        width=binsz, linewidth=0)
+                        
+    plt.legend(loc='upper right', frameon=True)
+
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    #ADM plot the z vs. mag scatter plot
+    plt.clf()
+    plt.ylabel('Normalization magnitude')
+    plt.xlabel('True Redshift z')
+    plt.set_cmap('inferno')
+
+    zlim =  (-0.05, cat["TRUEZ"].max()*1.05)
+    maglim =  (cat["MAG"].min(), cat["MAG"].max()+0.75)
+
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        #plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
+        #plt.colorbar()
+        hb = plt.hexbin(cat["TRUEZ"], cat["MAG"], mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*zlim, *maglim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        
+    #ADM...otherwise make a scatter plot
+    else:
+        for templatetype in sorted(set(templatetypes)):
+            for templatesubtype in set(templatesubtypes):
+                these = np.where( (templatetype == templatetypes) * (templatesubtype == templatesubtypes) )[0]
+                if len(these) > 0:
+                    if templatesubtype == '':
+                        label = '{} is {}'.format(objtype, templatetype)
+                    else:
+                        label = '{} is {}-{}'.format(objtype, templatetype, templatesubtype)
+                    plt.scatter(cat["TRUEZ"][these], cat["MAG"][these], alpha=0.6, label=label)
+                    
+        #plt.plot(cat["TRUEZ"],cat["MAG"],'bo', alpha=0.6)
+        plt.xlim(zlim)
+        plt.ylim(maglim)
+        plt.legend(loc='upper right', frameon=True, ncol=3)
+
+    #ADM create the plot
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    return
+
+def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False):
     """Make color-based DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1555,10 +1887,15 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         ``FLUX_W1``, ``FLUX_W2`` columns for color information
     objtype : :class:`str`
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    extinction : :class:`~numpy.array`
+        An array containing the extinction in each band of interest, must contain at least the columns
+        MW_TRANSMISSION_G, MW_TRANSMISSION_R, MW_TRANSMISSION_Z, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"color"`` for
         string to be added to the front of the output file name
+    nodustcorr : :class:`boolean`, optional, defaults to False
+        Do not correct for dust extinction.
 
     Returns
     -------
@@ -1567,57 +1904,346 @@ def qacolor(cat, objtype, qadir='.', fileprefix="color"):
         ``{qadir}/{fileprefix}-{bands}-{objtype}.png``
         where bands might be, e.g., ``grz``
     """
+    from matplotlib.patches import Polygon
 
-    from matplotlib.colors import LogNorm
+    def elg_colorbox(ax, plottype='gr-rz', verts=None):
+        """Draw the ELG selection box."""
+        
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
 
-    #ADM convenience function to retrieve and unextinct DESI fluxes
-    from desitarget.cuts import unextinct_fluxes
-    flux = unextinct_fluxes(cat)
+        if plottype == 'gr-rz':
+            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+            verts = [(rzmin, ylim[0]),
+                     (rzmin, np.polyval(coeff0, rzmin)),
+                     (rzpivot, np.polyval(coeff1, rzpivot)),
+                     ((ylim[0] - 0.1 - coeff1[1]) / coeff1[0], ylim[0] - 0.1)
+                ]
+        if verts:
+            ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
+
+    def qso_colorbox(ax, plottype='gr-rz', verts=None):
+        """Draw the QSO selection boxes."""
+
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        if plottype == 'gr-rz':
+            verts = [(-0.3, 1.3),
+                     (1.1, 1.3),
+                     (1.1, ylim[0]-0.05),
+                     (-0.3, ylim[0]-0.05)
+                    ]
+
+        if plottype == 'r-W1W2':
+            verts = None
+            ax.axvline(x=22.7, ls='--', lw=3, color='k')
+            ax.axhline(y=-0.4, ls='--', lw=3, color='k')
+
+        if plottype == 'gz-grzW':
+            gzaxis = np.linspace(-0.5, 2.0, 50)
+            ax.plot(gzaxis, np.polyval([1.0, -1.0], gzaxis), 
+                     ls='--', lw=3, color='k')
+
+        if verts:
+            ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
+
+    #ADM unextinct fluxes
+    if nodustcorr:
+        gflux = cat['FLUX_G']
+        rflux = cat['FLUX_R']
+        zflux = cat['FLUX_Z']
+        w1flux = cat['FLUX_W1']
+        w2flux = cat['FLUX_W2']
+    else:
+        gflux = cat['FLUX_G'] / extinction['MW_TRANSMISSION_G']
+        rflux = cat['FLUX_R'] / extinction['MW_TRANSMISSION_R']
+        zflux = cat['FLUX_Z'] / extinction['MW_TRANSMISSION_Z']
+        w1flux = cat['FLUX_W1'] / extinction['MW_TRANSMISSION_W1']
+        w2flux = cat['FLUX_W2'] / extinction['MW_TRANSMISSION_W2']
+
+    #ADM the number of passed objects
+    nobjs = len(cat)
 
     #ADM convert to magnitudes (fluxes are in nanomaggies)
     #ADM should be fine to clip for plotting purposes
     loclip = 1e-16
-    g = 22.5-2.5*np.log10(flux['GFLUX'].clip(loclip))
-    r = 22.5-2.5*np.log10(flux['RFLUX'].clip(loclip))
-    z = 22.5-2.5*np.log10(flux['ZFLUX'].clip(loclip))
-    W1 = 22.5-2.5*np.log10(flux['W1FLUX'].clip(loclip))
-    W2 = 22.5-2.5*np.log10(flux['W2FLUX'].clip(loclip))
+    g = 22.5-2.5*np.log10(gflux.clip(loclip))
+    r = 22.5-2.5*np.log10(rflux.clip(loclip))
+    z = 22.5-2.5*np.log10(zflux.clip(loclip))
+    W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
+    W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
 
+    # Some color ranges -- need to be smarter here
+    if objtype == 'LRG':
+        grlim = (0.5, 3)
+        rzlim = (0.5, 3)
+        rW1lim = (1.5, 5.0)
+    else:
+        grlim = (-0.5, 1.6)
+        rzlim = (-0.5, 1.5)
+        rW1lim = (-1.0, 3.0)
+        
+    W1W2lim = (-1.0, 1.0)
+
+    #ADM-------------------------------------------------------
     #ADM set up the r-z, g-r plot
     plt.clf()
-    plt.xlabel('r - z')
-    plt.ylabel('g - r')
-    plt.set_cmap('inferno')
-    plt.hist2d(r-z,g-r,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-    plt.colorbar()
+    plt.xlabel(r'$r - z$')
+    plt.ylabel(r'$g - r$')
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:    
+        hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*grlim, *rzlim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.scatter(r-z, g-r, alpha=0.6)
+
+    plt.xlim(rzlim)
+    plt.ylim(grlim)
+        
+    if objtype == 'ELG':
+        elg_colorbox(plt.gca(), plottype='gr-rz')
+    if objtype == 'QSO':
+        qso_colorbox(plt.gca(), plottype='gr-rz')
+
     #ADM make the plot
     pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
+    #ADM-------------------------------------------------------
     #ADM set up the r-z, r-W1 plot
     plt.clf()
-    plt.xlabel('r - z')
-    plt.ylabel('r - W1')
-    plt.set_cmap('inferno')
-    counts, xedges, yedges, image = \
-        plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-    if np.sum(counts) > 0:
-        plt.colorbar()
+    plt.xlabel(r'$r - z$')
+    plt.ylabel(r'$r - W_1$')
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        
+        #plt.set_cmap('inferno')
+        #counts, xedges, yedges, image = \
+        #    plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        #if np.sum(counts) > 0:
+        #    plt.colorbar()
+        #else:
+        #    nobjs = 0
+    #ADM...otherwise make a scatter plot
     else:
-        log = get_logger()
-        log.error('No data within r-W1 vs. r-z ranges')
-        plt.clf()
-        plt.xlabel('r - z')
-        plt.ylabel('r - W1')
-        plt.xlim([-1,3])
-        plt.ylim([-1,3])
-        plt.text(0, 0, 'No data')
+        plt.scatter(r-z, r-W1, alpha=0.6)
+
+    plt.xlim(rzlim)
+    plt.ylim(rW1lim)
+
+    ##ADM...or we might not have any WISE data
+    #if nobjs == 0:
+    #    log = get_logger()
+    #    log.warning('No data within r-W1 vs. r-z ranges')
+    #    plt.clf()
+    #    plt.xlabel('r - z')
+    #    plt.ylabel('r - W1')
+    #    plt.xlim(rzlim)
+    #    plt.ylim(rW1lim)
+    #    plt.text(1.,1.,'NO DATA')
 
     #ADM save the plot
     pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
+
+    #ADM-------------------------------------------------------
+    #ADM set up the r-z, W1-W2 plot
+    plt.clf()
+    plt.xlabel(r'$r - z$')
+    plt.ylabel(r'$W_1 - W_2$')
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        
+        #plt.set_cmap('inferno')
+        #counts, xedges, yedges, image = \
+        #    plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        #if np.sum(counts) > 0:
+        #    plt.colorbar()
+        #else:
+        #    nobjs = 0
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.scatter(r-z, W1-W2, alpha=0.6)
+
+    plt.xlim(rzlim)
+    plt.ylim(W1W2lim)
+
+    ##ADM...or we might not have any WISE data
+    #if nobjs == 0:
+    #    log = get_logger()
+    #    log.warning('No data within r-W1 vs. r-z ranges')
+    #    plt.clf()
+    #    plt.xlabel('r - z')
+    #    plt.ylabel('W1 - W2')
+    #    plt.xlim([-1,3])
+    #    plt.ylim([-1,3])
+    #    plt.text(1.,1.,'NO DATA')
+
+    #ADM save the plot
+    pngfile=os.path.join(qadir, '{}-rzW1W2-{}.png'.format(fileprefix,objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+
+def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+    """Make DESI targeting QA plots given a passed set of MOCK targets
+
+    Parameters
+    ----------
+    targs : :class:`~numpy.array` or `str`
+        An array of (mock) targets in the DESI data model format. If a string is passed then the
+        targets are read from the file with the passed name (supply the full directory path)
+    truths : :class:`~numpy.array` or `str`
+        The truth objects from which the targs were derived in the DESI data model format. 
+        If a string is passed then read from that file (supply the full directory path)
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    targdens : :class:`dictionary`, optional, set automatically by the code if not passed
+        A dictionary of DESI target classes and the goal density for that class. Used to
+        label the goal density on histogram plots
+    max_bin_area : :class:`float`, optional, defaults to 1 degree
+        The bin size in the passed coordinates is chosen automatically to be as close as
+        possible to this value without exceeding it
+    weight : :class:`boolean`, optional, defaults to True
+        If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
+        ameliorate under dense pixels at the footprint edges
+
+    Returns
+    -------
+    Nothing
+        But a set of .png plots for target QA are written to qadir
+
+    Notes
+    -----
+    The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
+    that overlap the DESI footprint
+    """
+
+    #ADM set up the default logger from desiutil
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+    from desimodel import io, footprint
+
+    start = time()
+    log.info('Start making (mock) targeting QA plots...t = {:.1f}s'.format(time()-start))
+
+    #ADM if filenames were passed, read in the targets from those files
+    if isinstance(targs, str):
+        targs = fitsio.read(targs)
+        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+    if isinstance(truths, str):
+        targs = fitsio.read(truths)
+        log.info('Read in truth...t = {:.1f}s'.format(time()-start))
+        
+    #ADM determine the nside for the passed max_bin_area
+    for n in range(1, 25):
+        nside = 2 ** n
+        bin_area = hp.nside2pixarea(nside, degrees=True)
+        if bin_area <= max_bin_area:
+            break
+
+    #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
+    #ADM downstream
+    from desimodel import io, footprint
+    pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
+    log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
+             .format(time()-start))
+
+    #ADM set up the weight of each HEALPixel, if requested.
+    weights = np.ones(len(targs))
+    if weight:
+        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
+        pixweight = io.load_pixweight(nside)
+        #ADM determine what HEALPixels each target is in, to set the weights
+        fracarea = pixweight[pix]
+        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+        #ADM except for zero pixels, which are all outside of the footprint
+        w = np.where(fracarea == 0)
+        fracarea[w] = 1 #ADM to guard against division by zero warnings
+        weights = 1./fracarea
+        weights[w] = 0
+        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
+                 .format(time()-start))
+
+    #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
+    if targdens is None:
+        targdens = _load_targdens()
+
+    #ADM clip the target densities at an upper density to improve plot edges
+    #ADM by rejecting highly dense outliers
+    upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
+                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500}
+
+    for objtype in targdens:
+        if 'ALL' in objtype:
+            wobjtype = np.arange(len(targs))
+        else:
+            wobjtype = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
+
+        if len(wobjtype) > 0:
+            #ADM make color-color plots
+            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir,
+                    fileprefix="mock-color", nodustcorr=True)
+            log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+            #ADM make N(z) plots
+            mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz",
+                      fileprefixzmag="mock-zvmag")
+            log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+            
+            ##ADM plot what fraction of each selected object is actually a contaminant
+            #mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
+            #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                
+    log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
+
+
+def _in_desi_footprint(targs):
+    """Convenience function for using is_point_in_desi to find which targets are in the footprint
+    Parameters
+    ----------
+    targs : :class:`~numpy.array` or `str`
+        Targets in the DESI data model format, or any array that contains "RA" and "DEC" columns
+
+    Returns
+    -------
+    :class:`integer`
+        The INDICES of the input targs that are in the DESI footprint
+    """
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    start = time()
+    log.info('Start restricting to DESI footprint...t = {:.1f}s'.format(time()-start))
+
+    #ADM restrict targets to just the DESI footprint
+    from desimodel import io, footprint
+    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+    windesi = np.where(indesi)
+    if len(windesi[0]) > 0:
+        log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
+    else:
+        log.error("ZERO input targets are within the official DESI footprint!!!")
+
+    log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
+
+    return windesi
 
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
@@ -1654,20 +2280,14 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
-    from desimodel import io, footprint
 
     start = time()
-    log.info('Start making targeting QA density plots...t = {:.1f}s'.format(time()-start))
+    log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
 
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-
-    #ADM restrict targets to just the DESI footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
-    targs = targs[indesi]
-    log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
     for n in range(1, 25):
@@ -1675,9 +2295,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         bin_area = hp.nside2pixarea(nside, degrees=True)
         if bin_area <= max_bin_area:
             break
-
+        
     #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
     #ADM downstream
+    from desimodel import io, footprint
     pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
     log.info('Calculated HEALPixel for each target...t = {:.1f}s'
              .format(time()-start))
@@ -1706,7 +2327,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
     upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
-                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500}
+                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500,
+                  'MWS_ANY': 1500}
 
     for objtype in targdens:
         if 'ALL' in objtype:
@@ -1718,25 +2340,26 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             #ADM make RA/Dec skymaps
             qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
                      weights=weights[w], max_bin_area=max_bin_area)
-
             log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             #ADM make histograms of densities. We already calculated the correctly 
             #ADM ordered HEALPixels and so don't need to repeat that calculation
             qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
                     weights=weights[w], max_bin_area = max_bin_area, catispix=True)
-
             log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             #ADM make color-color plots
-            qacolor(targs[w], objtype, qadir=qadir, fileprefix="color")
-
+            qacolor(targs[w], objtype, targs[w], qadir=qadir, fileprefix="color")
             log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-    log.info('Made QA density plots...t = {:.1f}s'.format(time()-start))
+            #ADM make magnitude histograms
+            qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
+            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+    log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
 
 
-def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True):
+def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True, clip2foot=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -1744,6 +2367,8 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     targs : :class:`~numpy.array` or `str`
         An array of targets in the DESI data model format. If a string is passed then the
         targets are read fron the file with the passed name (supply the full directory path)
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage
     makeplots : :class:`boolean`, optional, default=True
         If ``True``, then create the plots as well as the webpage
     max_bin_area : :class:`float`, optional, defaults to 1 degree
@@ -1754,6 +2379,10 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
+    clip2foot : :class:`boolean`, optional, defaults to True
+        use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
+        only those that lie within the DESI footprint
+
     Returns
     -------
     Nothing
@@ -1764,17 +2393,40 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
     If making plots, then the ``DESIMODEL`` environment variable must be set to find 
     the file of HEALPixels that overlap the DESI footprint
     """
+
     from desispec.io.util import makepath
+    #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
 
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
+    #ADM if mocks was passed, build the full set of relevant data
+    if mocks:
+        if isinstance(targs, str):
+            mockdata = collect_mock_data(targs)
+            if mockdata == 0:
+                mocks = False
+            else:
+                targs, truths = mockdata
+        else:
+            log.warning('To make mock-related plots, targs must be a directory+file-location string...')
+            log.warning('...will proceed by only producing the non-mock plots...')
+            mocks = False
+        
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+
+    #ADM if requested, restrict the targets (and mock files) to the DESI footprint
+    if clip2foot:
+        w = _in_desi_footprint(targs)
+        targs = targs[w]
+        #ADM ASSUMES THAT the targets and truth objects are row-by-row parallel
+        if mocks:
+            truths = truths[w]
 
     #ADM make a DR string based on the RELEASE column
     #ADM potentially there are multiple DRs in a file
@@ -1825,24 +2477,72 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=left><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" height=450 width=700></A></left></td>\n'
+        html.write('<td align=center><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" width=100% height=auto></A></td>\n'
                    .format(objtype,objtype))
-        html.write('<td WIDTH="25%" align=left><A HREF="histo-{}.png"><img SRC="histo-{}.png" height=430 width=510></A></left></td>\n'
+        html.write('<td align=center><A HREF="histo-{}.png"><img SRC="histo-{}.png" width=75% height=auto></A></td>\n'
                    .format(objtype,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
         #ADM color-color plots
-        html.write('<h2>Color-color plots (corrected for Galactic extinction)</h2>\n')
-        html.write('<table COLS=2 WIDTH="100%">\n')
+        html.write('<h2>Target color-color plots (corrected for Galactic extinction)</h2>\n')
+        html.write('<table COLS=3 WIDTH="100%">\n')
         html.write('<tr>\n')
         #ADM add the plots...
-        html.write('<td WIDTH="25%" align=left><A HREF="color-grz-{}.png"><img SRC="color-rzW1-{}.png" height=500 width=600></A></left></td>\n'
-                   .format(objtype,objtype))
-        html.write('<td WIDTH="25%" align=left><A HREF="color-rzW1-{}.png"><img SRC="color-grz-{}.png" height=500 width=600></A></left></td>\n'
-                   .format(objtype,objtype))
+        for colors in ["grz","rzW1","rzW1W2"]:
+            html.write('<td align=center><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" width=95% height=auto></A></td>\n'
+                       .format(colors,objtype,colors,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
+
+        #ADM magnitude plots
+        html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
+        html.write('<table COLS=4 WIDTH="100%">\n')
+        html.write('<tr>\n')
+        #ADM add the plots...
+        for band in ["g","r","z","W1"]:
+            html.write('<td align=center><A HREF="mag-{}-{}.png"><img SRC="mag-{}-{}.png" width=95% height=auto></A></td>\n'
+                       .format(band,objtype,band,objtype))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+
+        #ADM add special plots if we have mock data
+        if mocks:
+            html.write('<hr>\n')
+            html.write('<h1>DESI Mock QA\n')
+
+            #ADM redshift plots
+            html.write('<h2>True Redshift plots</h2>\n')
+            html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            html.write('<td align=center><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=auto width=95%></A></td>\n'
+                       .format(objtype,objtype))
+            html.write('<td align=center><A HREF="mock-zvmag-{}.png"><img SRC="mock-zvmag-{}.png" height=auto width=95%></A></td>\n'
+                       .format(objtype,objtype))
+            html.write('</tr>\n')
+            html.write('</table>\n')
+
+            #ADM color-color plots
+            html.write('<h2>(Truth) color-color plots (corrected for Galactic extinction)</h2>\n')
+            html.write('<table COLS=3 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            for colors in ["grz","rzW1","rzW1W2"]:
+                html.write('<td align=center><A HREF="mock-color-{}-{}.png"><img SRC="mock-color-{}-{}.png" height=auto width=95%></A></td>\n'
+                       .format(colors,objtype,colors,objtype))
+            html.write('</tr>\n')
+            html.write('</table>\n')
+
+            ##ADM classification fraction plots
+            #html.write('<h2>Fraction of each spectral type plots</h2>\n')
+            #html.write('<table COLS=1 WIDTH="40%">\n')
+            #html.write('<tr>\n')
+            ##ADM add the plots...
+            #html.write('<td align=center><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=auto width=95%></A></td>\n'
+            #           .format("mock-fractype",objtype,"mock-fractype",objtype))
+            #html.write('</tr>\n')
+            #html.write('</table>\n')
 
         #ADM html postamble
         html.write('<b><i>Last updated {}</b></i>\n'.format(js))
@@ -1851,4 +2551,16 @@ def make_qa_page(targs, makeplots=True, max_bin_area=1.0, qadir='.', weight=True
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+        make_qa_plots(targs, 
+                      qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                      weight=weight)
+        if mocks:
+            mock_make_qa_plots(targs, truths, 
+                               qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                               weight=weight)
+
+    #ADM make sure all of the relevant directories and plots can be read by a web-browser
+    cmd = 'chmod 644 {}/*'.format(qadir)
+    ok = os.system(cmd)
+    cmd = 'chmod 775 {}'.format(qadir)
+    ok = os.system(cmd)
