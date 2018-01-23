@@ -2514,15 +2514,15 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('</tr>\n')
             html.write('</table>\n')
 
-            #ADM classification fraction plots
-            html.write('<h2>Fraction of each spectral type plots</h2>\n')
-            html.write('<table COLS=1 WIDTH="40%">\n')
-            html.write('<tr>\n')
-            #ADM add the plots...
-            html.write('<td align=center><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=auto width=95%></A></td>\n'
-                       .format("mock-fractype",objtype,"mock-fractype",objtype))
-            html.write('</tr>\n')
-            html.write('</table>\n')
+            ##ADM classification fraction plots
+            #html.write('<h2>Fraction of each spectral type plots</h2>\n')
+            #html.write('<table COLS=1 WIDTH="40%">\n')
+            #html.write('<tr>\n')
+            ##ADM add the plots...
+            #html.write('<td align=center><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=auto width=95%></A></td>\n'
+            #           .format("mock-fractype",objtype,"mock-fractype",objtype))
+            #html.write('</tr>\n')
+            #html.write('</table>\n')
 
         #ADM html postamble
         html.write('<b><i>Last updated {}</b></i>\n'.format(js))
