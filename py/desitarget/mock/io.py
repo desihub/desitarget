@@ -4,26 +4,12 @@
 desitarget.mock.io
 ==================
 
-Code to read in all the mock data.
+Code to find the location of the mock data.
 
 """
 from __future__ import absolute_import, division, print_function
 
 import os
-import numpy as np
-from glob import glob
-
-import fitsio
-from scipy import constants
-
-from desitarget.io import check_fitsio_version, iter_files
-from desitarget.mock.sample import SampleGMM
-from desiutil.brick import brickname as get_brickname_from_radec
-from desiutil.brick import Bricks
-from desimodel.footprint import radec2pix
-
-from desiutil.log import get_logger, DEBUG
-log = get_logger()
 
 def get_healpix_dir(nside, pixnum, basedir='.'):
     '''
