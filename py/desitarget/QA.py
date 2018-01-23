@@ -1347,14 +1347,16 @@ def _load_targdens():
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FSTAR'] = 0
     targdens['STD_BRIGHT'] = 0
+    targdens['MWS_ANY'] = 0
     #ADM set "ALL" to be the sum over all the target classes
     targdens['ALL'] = sum(list(targdens.values()))
 
-    #ADM for quick debugging
-    print('HACK!!!!!!!!!!!')
-    targdens = {}
-    targdens['ELG'] = targdict['ntarget_elg']
+    ##ADM for quick debugging
+    #targdens = {}
+    #targdens['LRG'] = targdict['ntarget_lrg']
+    #targdens['ELG'] = targdict['ntarget_elg']
     #targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+    #targdens['MWS_ANY'] = 0
 
     return targdens
 
@@ -1590,6 +1592,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     plt.ylim((0,ypeak*1.2))
     plt.xlabel(label)
     plt.ylabel('Number of HEALPixels')
+
     plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
              label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
     if objtype in targdens.keys():
@@ -1803,7 +1806,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
 
     truez = cat["TRUEZ"]
-    binsz = 0.05
+    binsz = 0.04
     
     #ADM set up and make the plot
     plt.clf()
@@ -1823,7 +1826,8 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
                 nn, bins = np.histogram(truez[these], bins=nbin, 
                                         range=(truez[these].min(), truez[these].max()))
                 cbins = (bins[:-1] + bins[1:]) / 2.0
-                plt.bar(cbins, nn, align='center', alpha=0.75, label=label, width=binsz)
+                plt.bar(cbins, nn, align='center', alpha=0.75, label=label,
+                        width=binsz, linewidth=0)
                         
     plt.legend(loc='upper right', frameon=True)
 
@@ -1837,10 +1841,18 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     plt.xlabel('True Redshift z')
     plt.set_cmap('inferno')
 
+    zlim =  (-0.05, cat["TRUEZ"].max()*1.05)
+    maglim =  (cat["MAG"].min(), cat["MAG"].max()+0.75)
+
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
-        plt.colorbar()
+        #plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
+        #plt.colorbar()
+        hb = plt.hexbin(cat["TRUEZ"], cat["MAG"], mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*zlim, *maglim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        
     #ADM...otherwise make a scatter plot
     else:
         for templatetype in sorted(set(templatetypes)):
@@ -1854,7 +1866,8 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
                     plt.scatter(cat["TRUEZ"][these], cat["MAG"][these], alpha=0.6, label=label)
                     
         #plt.plot(cat["TRUEZ"],cat["MAG"],'bo', alpha=0.6)
-        plt.ylim( cat["MAG"].min(), cat["MAG"].max()+0.75 )
+        plt.xlim(zlim)
+        plt.ylim(maglim)
         plt.legend(loc='upper right', frameon=True, ncol=3)
 
     #ADM create the plot
@@ -1962,17 +1975,23 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
     W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
 
-    # Some color ranges
-    grlim = (-0.5, 1.5)
-    rzlim = (-0.5, 1.5)
-    rW1lim = (-1.0, 3.0)
+    # Some color ranges -- need to be smarter here
+    if objtype == 'LRG':
+        grlim = (0.5, 3)
+        rzlim = (0.5, 3)
+        rW1lim = (1.5, 5.0)
+    else:
+        grlim = (-0.5, 1.6)
+        rzlim = (-0.5, 1.5)
+        rW1lim = (-1.0, 3.0)
+        
     W1W2lim = (-1.0, 1.0)
 
     #ADM-------------------------------------------------------
     #ADM set up the r-z, g-r plot
     plt.clf()
-    plt.xlabel('r - z')
-    plt.ylabel('g - r')
+    plt.xlabel(r'$r - z$')
+    plt.ylabel(r'$g - r$')
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:    
         hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
@@ -1984,8 +2003,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     else:
         plt.scatter(r-z, g-r, alpha=0.6)
 
-    plt.xlim(grlim)
-    plt.ylim(rzlim)
+    plt.xlim(rzlim)
+    plt.ylim(grlim)
         
     if objtype == 'ELG':
         elg_colorbox(plt.gca(), plottype='gr-rz')
@@ -2000,8 +2019,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     #ADM-------------------------------------------------------
     #ADM set up the r-z, r-W1 plot
     plt.clf()
-    plt.xlabel('r - z')
-    plt.ylabel('r - W1')
+    plt.xlabel(r'$r - z$')
+    plt.ylabel(r'$r - W_1$')
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
         hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
@@ -2042,12 +2061,12 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     #ADM-------------------------------------------------------
     #ADM set up the r-z, W1-W2 plot
     plt.clf()
-    plt.xlabel('r - z')
-    plt.ylabel('W1 - W2')
+    plt.xlabel(r'$r - z$')
+    plt.ylabel(r'$W_1 - W_2$')
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
         hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
-                        bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+                        bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
         
@@ -2060,7 +2079,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         #    nobjs = 0
     #ADM...otherwise make a scatter plot
     else:
-        plt.scatter(r-W1, W1-W2, alpha=0.6)
+        plt.scatter(r-z, W1-W2, alpha=0.6)
 
     plt.xlim(rzlim)
     plt.ylim(W1W2lim)
@@ -2179,18 +2198,18 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
 
         if len(wobjtype) > 0:
             #ADM make color-color plots
-            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir, fileprefix="mock-color", nodustcorr=True)
+            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir,
+                    fileprefix="mock-color", nodustcorr=True)
             log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-            import pdb ; pdb.set_trace()
-            
             #ADM make N(z) plots
-            mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
+            mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz",
+                      fileprefixzmag="mock-zvmag")
             log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
             
-            #ADM plot what fraction of each selected object is actually a contaminant
-            mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
-            log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+            ##ADM plot what fraction of each selected object is actually a contaminant
+            #mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
+            #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
     log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
 
@@ -2308,7 +2327,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
     upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
-                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500}
+                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500,
+                  'MWS_ANY': 1500}
 
     for objtype in targdens:
         if 'ALL' in objtype:
@@ -2531,12 +2551,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        print('HACK!!!!!!!!!!!!!!')
-        #make_qa_plots(targs, 
-        #              qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+        make_qa_plots(targs, 
+                      qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                      weight=weight)
         if mocks:
             mock_make_qa_plots(targs, truths, 
-                               qadir=qadir, targdens=targdens, max_bin_area=max_bin_area, weight=weight)
+                               qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                               weight=weight)
 
     #ADM make sure all of the relevant directories and plots can be read by a web-browser
     cmd = 'chmod 644 {}/*'.format(qadir)
