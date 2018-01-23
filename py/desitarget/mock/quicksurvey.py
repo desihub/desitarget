@@ -3254,3 +3254,689 @@ class SelectTargets(object):
                         # away too many other "real" targets.
                         toss = self.rand.choice(onbrick, ntoss, replace=False)
                         targets['DESI_TARGET'][toss] = 0 
+
+
+#############
+# Code previously in desitarget.mock.QA
+#############
+
+import os
+import warnings
+
+import numpy as np
+import healpy as hp
+import matplotlib.pyplot as plt
+
+from desimodel.footprint import radec2pix
+from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+
+def target_density(cat, nside=128):
+    """Determine the target density by grouping targets in healpix pixels.  The code
+    below was code shamelessly taken from desiutil.plot.plot_sky_binned (by
+    D. Kirkby).
+    
+    Args:
+        cat: Table with columns RA and DEC
+    
+    Optional:
+        nside: healpix nside, integer power of 2
+
+    """
+    npix = hp.nside2npix(nside)
+    bin_area = hp.nside2pixarea(nside, degrees=True)
+
+    pixels = radec2pix(nside, cat['RA'], cat['DEC'])
+    #pixels = hp.ang2pix(nside, np.radians(90 - cat['DEC']), 
+    #                    np.radians(cat['RA']), nest=False)
+    counts = np.bincount(pixels, weights=None, minlength=npix)
+    dens = counts[np.flatnonzero(counts)] / bin_area
+            
+    return dens
+
+def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, qadir='.'):
+    """Visualize the target density with a skymap and histogram.
+    
+    """
+    from desiutil.plots import init_sky, plot_sky_binned
+    
+    label = '{} (targets/deg$^2$)'.format(objtype)
+    if targdens:
+        fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
+    else:
+        fig, ax = plt.subplots(1)
+    ax = np.atleast_1d(ax)
+       
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+        plot_sky_binned(cat['RA'], cat['DEC'], max_bin_area=max_bin_area,
+                        clip_lo='!1', cmap='jet', plot_type='healpix', 
+                        label=label, basemap=basemap)
+        
+    if targdens:
+        dens = target_density(cat)
+        ax[1].hist(dens, bins=100, histtype='stepfilled', alpha=0.6, label='Observed {} Density'.format(objtype))
+        if objtype in targdens.keys():
+            ax[1].axvline(x=targdens[objtype], ls='--', color='k', label='Goal {} Density'.format(objtype))
+        ax[1].set_xlabel(label)
+        ax[1].set_ylabel('Number of Healpixels')
+        ax[1].legend(loc='upper left', frameon=False)
+        fig.subplots_adjust(wspace=0.2)
+
+    pngfile = os.path.join(qadir, '{}_target_density.png'.format(objtype))
+    fig.savefig(pngfile)
+
+    return pngfile
+
+def qa_qso(targets, truth, qadir='.'):
+    """Detailed QA plots for QSOs."""
+    
+    dens = dict()
+    
+    these = np.where(targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0)[0]
+    dens['QSO_TARGETS'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] < 2.1))[0]
+    dens['QSO_TRACER'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] >= 2.1))[0]
+    dens['QSO_LYA'] = target_density(targets[these])
+    
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * 
+                     (truth['CONTAM_TARGET'] & contam_mask.mask('QSO_IS_GALAXY')) != 0)[0]
+    dens['QSO_IS_GALAXY'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * 
+                     (truth['CONTAM_TARGET'] & contam_mask.mask('QSO_IS_STAR')) != 0)[0]
+    dens['QSO_IS_STAR'] = target_density(targets[these])
+
+    bins = 50
+    lim = (0, 280)
+    
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    ax[0].hist(dens['QSO_TARGETS'], bins=bins, range=lim, label='All Targets',
+               color='k', lw=1, histtype='step')
+    ax[0].hist(dens['QSO_TRACER'], bins=bins, range=lim, alpha=0.6, ls='--',
+               lw=2, label='Tracer QSOs')#, histtype='step')
+    ax[0].hist(dens['QSO_LYA'], bins=bins, range=lim, lw=2, label='Lya QSOs')
+    ax[0].set_ylabel('Number of Healpixels')
+    ax[0].set_xlabel('Targets / deg$^2$')
+    ax[0].set_title('True QSOs')
+    ax[0].legend(loc='upper right')
+    
+    lim = (0, 100)
+    
+    #ax[1].hist(dens['QSO_TARGETS'], bins=bins, range=lim, label='All Targets',
+    #           color='k', lw=1, histtype='step')
+    ax[1].hist(dens['QSO_IS_STAR'], bins=bins, range=lim, alpha=0.3, label='QSO_IS_STAR')
+    ax[1].hist(dens['QSO_IS_GALAXY'], bins=bins, range=lim, alpha=0.5, label='QSO_IS_GALAXY')
+    ax[1].set_ylabel('Number of Healpixels')
+    ax[1].set_xlabel('Targets / deg$^2$')
+    ax[1].set_title('QSO Contaminants')
+    ax[1].legend(loc='upper right')
+
+    pngfile = os.path.join(qadir, '{}_detail_density.png'.format('qso'))
+    fig.savefig(pngfile)
+    
+    return pngfile
+
+def qa_elg(targets, truth, qadir='.'):
+    """Detailed QA plots for ELGs."""
+
+    dens_all = 2400
+    dens_loz = dens_all*0.05
+    dens_hiz = dens_all*0.05
+    dens_star = dens_all*0.1
+    dens_rightz = dens_all - dens_loz - dens_hiz - dens_star
+    
+    dens = dict()
+
+    these = np.where(targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0)[0]
+    dens['ELG_TARGETS'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0) *
+                     (truth['TRUEZ'] >= 0.6) * (truth['TRUEZ'] <= 1.6))[0]
+    dens['ELG_IS_RIGHTZ'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] < 0.6))[0]
+    dens['ELG_IS_LOZ'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] > 1.6))[0]
+    dens['ELG_IS_HIZ'] = target_density(targets[these])
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0) * 
+                     (truth['CONTAM_TARGET'] & contam_mask.mask('ELG_IS_STAR')) != 0)[0]
+    dens['ELG_IS_STAR'] = target_density(targets[these])
+
+    bins = 50
+    lim = (0, 3000)
+    
+    fig, ax = plt.subplots(1, 2, figsize=(12, 5))
+    #line = ax[0].axvline(x=dens_all, ls='-')
+    ax[0].hist(dens['ELG_TARGETS'], bins=bins, range=lim, #color=line.get_color(),
+               color='k', lw=1, label='All Targets', histtype='step')
+    
+    #line = ax[0].axvline(x=dens_rightz, ls='--')
+    ax[0].hist(dens['ELG_IS_RIGHTZ'], bins=bins, range=lim, alpha=0.6, # color=line.get_color(), 
+               ls='--', lw=2, label='ELG (0.6<z<1.6)')#, histtype='step')
+    ax[0].set_ylabel('Number of Healpixels')
+    ax[0].set_xlabel('Targets / deg$^2$')
+    ax[0].set_title('True ELGs')
+    ax[0].legend(loc='upper left')
+
+    lim = (0, 300)
+    
+    #ax[1].hist(dens['ELG_TARGETS'], bins=bins, range=lim, label='All Targets',
+    #           color='k', lw=1, histtype='step')
+    #line = ax[1].axvline(x=dens_star, ls='-')
+    ax[1].hist(dens['ELG_IS_STAR'], bins=bins, range=lim, #color=line.get_color(), 
+               alpha=0.5, label='ELG_IS_STAR')
+
+    #line = ax[1].axvline(x=dens_loz, ls='-')
+    ax[1].hist(dens['ELG_IS_LOZ'], bins=bins, range=lim, #color=line.get_color(),
+               alpha=0.5, label='ELG_IS_LOZ (z<0.6)')
+
+    #line = ax[1].axvline(x=dens_hiz, ls='-')
+    ax[1].hist(dens['ELG_IS_HIZ'], bins=bins, range=lim, #color=line.get_color(),
+               alpha=0.5, label='ELG_IS_HIZ (z>1.6)')
+
+    ax[1].set_ylabel('Number of Healpixels')
+    ax[1].set_xlabel('Targets / deg$^2$')
+    ax[1].set_title('ELG Contaminants')
+    ax[1].legend(loc='upper right')
+
+    pngfile = os.path.join(qadir, '{}_detail_density.png'.format('elg'))
+    fig.savefig(pngfile)
+        
+    return pngfile
+
+def _img2html(html, pngfile, log):
+    log.info('Writing {}'.format(pngfile))
+    html.write('<a><img width=1024 src="{}" href="{}"></a>\n'.format(
+        os.path.basename(pngfile), os.path.basename(pngfile) ))
+
+def qa_targets_truth(output_dir, verbose=True):
+    """Generate QA plots from the joined targets and truth catalogs.
+
+    time select_mock_targets --output_dir debug --qa
+
+    """
+    import fitsio
+
+    from desiutil.log import get_logger, DEBUG
+    from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+
+    qadir = os.path.join(output_dir, 'qa')
+    if os.path.exists(qadir):
+        if os.listdir(qadir):
+            log.warning('Output directory {} is not empty.'.format(qadir))
+    else:
+        log.info('Creating directory {}'.format(qadir))
+        os.makedirs(qadir)
+    log.info('Writing to output QA directory {}'.format(qadir))
+
+    # Read the catalogs.
+    targfile = os.path.join(output_dir, 'targets.fits')
+    truthfile = os.path.join(output_dir, 'truth.fits')
+    skyfile = os.path.join(output_dir, 'sky.fits')
+    stddarkfile = os.path.join(output_dir, 'standards-dark.fits')
+    stdbrightfile = os.path.join(output_dir, 'standards-bright.fits')
+
+    cat = list()
+    for ff in (targfile, truthfile, skyfile, stddarkfile, stdbrightfile):
+        if os.path.exists(ff):
+            log.info('Reading {}'.format(ff))
+            cat.append( fitsio.read(ff, ext=1, upper=True) )
+        else:
+            log.warning('File {} not found.'.format(ff))
+            cat.append( None )
+
+    targets, truth, sky, stddark, stdbright = [cc for cc in cat]
+
+    # Do some sanity checking of the catalogs.
+    nobj, nsky, ndark, nbright = [len(cc) for cc in (targets, sky, stddark, stdbright)]
+    if nobj != len(truth):
+        log.fatal('Mismatch in the number of objects in targets.fits (N={}) and truth.fits (N={})!'.format(
+            nobj, len(truth)))
+        raise ValueError
+
+    # Assign healpixels to estimate the area covered by the catalog.
+    nside = 256
+    npix = hp.nside2npix(nside)
+    areaperpix = hp.nside2pixarea(nside, degrees=True)
+    pix = radec2pix(nside, targets['RA'], targets['DEC'])
+    counts = np.bincount(pix, weights=None, minlength=npix)
+    area = np.sum(counts > 10) * areaperpix
+    log.info('Approximate area spanned by catalog = {:.2f} deg2'.format(area))
+
+    binarea = 1.0
+
+    htmlfile = os.path.join(qadir, 'index.html')
+    log.info('Building {}'.format(htmlfile))
+    html = open(htmlfile, 'w')
+    html.write('<html><body>\n')
+    html.write('<h1>QA directory: {}</h1>\n'.format(qadir))
+
+    html.write('<ul>\n')
+    html.write('<li>Approximate total area = {:.1f} deg2</li>\n'.format(area))
+    html.write('<li>Science targets = {}</li>\n'.format(nobj))
+    html.write('<li>Sky targets = {}</li>\n'.format(nsky))
+    html.write('<li>Dark standards = {}</li>\n'.format(ndark))
+    html.write('<li>Bright standards = {}</li>\n'.format(nbright))
+    html.write('</ul>\n')
+
+    # Desired target densities, including contaminants.
+    html.write('<hr>\n')
+    html.write('<hr>\n')
+    html.write('<h2>Raw target densities (including contaminants)</h2>\n')
+    targdens = {'ELG': 2400, 'LRG': 350, 'QSO': 260, 'SKY': 1400} 
+
+    if nobj > 0:
+        html.write('<h3>Science targets - ELG, LRG, QSO, BGS_ANY, MWS_ANY</h3>\n')
+        for obj in ('ELG', 'LRG', 'QSO', 'BGS_ANY', 'MWS_ANY'):
+            these = np.where((targets['DESI_TARGET'] & desi_mask.mask(obj)) != 0)[0]
+            if len(these) > 0:
+                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
+                _img2html(html, pngfile, log)
+    
+        html.write('<h3>Science targets - BGS_BRIGHT, BGS_FAINT</h3>\n')
+        for obj in ('BGS_BRIGHT', 'BGS_FAINT'):
+            these = np.where((targets['BGS_TARGET'] & bgs_mask.mask(obj)) != 0)[0]
+            if len(these) > 0:
+                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
+                _img2html(html, pngfile, log)
+    
+        html.write('<h3>Science targets - MWS_MAIN, MWS_MAIN_VERY_FAINT, MWS_NEARBY, MWS_WD</h3>\n')
+        for obj in ('MWS_MAIN', 'MWS_MAIN_VERY_FAINT', 'MWS_NEARBY', 'MWS_WD'):
+            these = np.where((targets['MWS_TARGET'] & mws_mask.mask(obj)) != 0)[0]
+            if len(these) > 0:
+                pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
+                _img2html(html, pngfile, log)
+        html.write('<hr>\n')
+
+    if nsky > 0:
+        html.write('<h3>Sky targets</h3>\n')
+        obj = 'SKY'
+        these = np.where((sky['DESI_TARGET'] & desi_mask.mask(obj)) != 0)[0]
+        if len(these) > 0:
+            pngfile = qadensity(sky[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
+            _img2html(html, pngfile, log)
+        html.write('<hr>\n')
+
+    if ndark > 0 or nbright > 0:
+        html.write('<h3>Standard Stars</h3>\n')
+        for cat, nn, obj in zip( (stddark, stdbright), (ndark, nbright),
+                                 ('STD_FSTAR', 'STD_BRIGHT') ):
+            if nn > 0:
+                these = np.where((cat['DESI_TARGET'] & desi_mask.mask(obj)) != 0)[0]
+                if len(these) > 0:
+                    pngfile = qadensity(cat[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
+                    _img2html(html, pngfile, log)
+    
+    html.write('<hr>\n')
+    html.write('<hr>\n')
+
+    # Desired target densities, including contaminants.
+    html.write('<h2>Detailed target densities</h2>\n')
+
+    html.write('<h3>QSOs</h3>\n')
+    pngfile = qa_qso(targets, truth, qadir=qadir)
+    _img2html(html, pngfile, log)
+    html.write('<hr>\n')
+
+    html.write('<h3>ELGs</h3>\n')
+    pngfile = qa_elg(targets, truth, qadir=qadir)
+    _img2html(html, pngfile, log)
+
+    html.write('<hr>\n')
+
+    html.write('</html></body>\n')
+    html.close()
+
+
+#############
+# Code previously in desitarget.mock.brickinfo
+#############
+
+
+import os
+import numpy as np
+
+class BrickInfo(object):
+    """Gather information on all the bricks.
+
+    """
+    def __init__(self, random_state=None, dust_dir=None, bricksize=0.25,
+                 decals_brick_info=None, target_names=None, log=None):
+        """Initialize the class.
+
+        Args:
+          random_state : random number generator object
+          dust_dir : path where the E(B-V) maps are stored
+          bricksize : brick size (default 0.25 deg, square)
+          decals_brick_info : filename of the DECaLS brick information structure
+          target_names : list of targets (e.g., BGS, ELG, etc.)
+
+        """
+        if log:
+            self.log = log
+        else:
+            self.log = get_logger()
+            
+        if random_state is None:
+            random_state = np.random.RandomState()
+        self.random_state = random_state
+
+        self.dust_dir = dust_dir
+        self.bricksize = bricksize
+        self.decals_brick_info = decals_brick_info
+        self.target_names = target_names
+
+    def generate_brick_info(self):
+        """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
+        max_dec).
+
+        [Doesn't this functionality exist elsewhere?!?]
+
+        """
+        from desiutil.brick import Bricks
+
+        brick_info = Bricks(bricksize=self.bricksize).to_table()
+        nbrick = len(brick_info)
+
+        self.log.info('Generated brick information for {} brick(s) with bricksize {:g} deg.'.\
+                      format(nbrick, self.bricksize))
+
+        return brick_info
+
+    def extinction_across_bricks(self, brick_info):
+        """Estimates E(B-V) across bricks.
+
+        Args:
+          brick_info : dictionary gathering brick information. It must have at
+            least two keys 'RA' and 'DEC'.
+
+        """
+        #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
+        a = Table()
+        a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
+
+        return a
+
+    def depths_across_bricks(self, brick_info):
+        """
+        Generates a sample of magnitud dephts for a set of bricks.
+
+        This model was built from the Data Release 3 of DECaLS.
+
+        Args:
+            brick_info(Dictionary). Containts at least the following keys:
+                RA (float): numpy array of RA positions
+                DEC (float): numpy array of Dec positions
+
+        Returns:
+            depths (dictionary). keys include
+                'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
+                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
+                The values ofr each key ar numpy arrays (float) with size equal to
+                the input ra, dec arrays.
+
+        """
+        ra = brick_info['RA']
+        dec = brick_info['DEC']
+
+        n_to_generate = len(ra)
+        #mean and std deviation of the difference between PSFDEPTH and GALDEPTH in the DR3 data.
+        differences = {}
+        differences['PSFDEPTH_G'] = [0.22263251, 0.059752077]
+        differences['PSFDEPTH_R'] = [0.26939404, 0.091162138]
+        differences['PSFDEPTH_Z'] = [0.34058815, 0.056099825]
+
+        # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
+
+        points = {}
+        points['PSFDEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
+                      24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
+        points['PSFDEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
+                      24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
+        points['PSFDEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
+                      23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
+
+        fractions = {}
+        fractions['PSFDEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['PSFDEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
+        fractions['PSFDEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
+
+        names = ['PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z']
+        depths = Table()
+        for name in names:
+            fracs = self.random_state.random_sample(n_to_generate)
+            depths[name] = np.interp(fracs, fractions[name], points[name])
+
+            depth_minus_galdepth = self.random_state.normal(
+                loc=differences[name][0],
+                scale=differences[name][1], size=n_to_generate)
+            depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
+
+            depths[name.replace('PSF', 'GAL')] = depths[name] - depth_minus_galdepth
+            #log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
+
+        return depths
+
+    def fluctuations_across_bricks(self, brick_info):
+        """
+        Generates number density fluctuations.
+
+        Args:
+          decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS.
+          brick_info(Dictionary). Containts at least the following keys:
+            PSFDEPTH_G(float) : array of depth magnitudes in the G band.
+
+        Returns:
+          fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
+            corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
+            i.e. fluctuation[FLUC_DEPTH_G_MWS] holds the number density as a funtion
+            is a dictionary with keys corresponding to the different galaxy types.
+
+        """
+        from desitarget.QA import generate_fluctuations
+
+        fluctuation = Table()
+
+        depth_available = []
+    #   for k in brick_info.keys():
+        for k in ['GALDEPTH_R', 'EBV']:
+            if ('PSFDEPTH' in k or 'EBV' in k):
+                depth_available.append(k)
+
+        for depth in depth_available:
+            for ttype in self.target_names:
+                fluctuation['FLUC_{}_{}'.format(depth, ttype)] = generate_fluctuations(
+                    self.decals_brick_info, ttype, depth, brick_info[depth].data,
+                    random_state=self.random_state
+                    )
+                #log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
+                #    ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
+        return fluctuation
+
+    def targetinfo(self):
+        """Read target info from DESIMODEL, change all the keys to upper case, and
+        append into brick_info.
+
+        """
+        import yaml
+        with open(os.path.join( os.getenv('DESIMODEL'), 'data', 'targets', 'targets.yaml' ), 'r') as filein:
+            td = yaml.load(filein)
+        target_desimodel = Table()
+        for t in td.keys():
+            if 'ntarget' in t.upper():
+                target_desimodel[t.upper()] = td[t]
+
+        return target_desimodel
+
+    def build_brickinfo(self):
+        """Build the complete information structure."""
+        from astropy.table import hstack
+
+        brick_info = self.generate_brick_info()
+        brick_info = hstack( (brick_info, self.extinction_across_bricks(brick_info)) )   # add extinction
+        brick_info = hstack( (brick_info, self.depths_across_bricks(brick_info)) )       # add depths
+        brick_info = hstack( (brick_info, self.fluctuations_across_bricks(brick_info)) ) # add number density fluctuations
+        #brick_info = hstack( (brick_info, self.targetinfo()) )                          # add nominal target densities
+
+        return brick_info
+
+
+
+#############
+# Code previously in desitarget.mock.sample
+#############
+
+from desiutil.log import get_logger
+log = get_logger()
+
+class SampleGMM(object):
+    """Sample magnitudes based on target type (i.e. LRG, ELG, QSO, BGS).
+
+    Can sample multiple targets at once and needs only to be called
+    once for each target_type.
+
+    Args:
+      target_type (str) : One of four object types (LRG, ELG, QSO, BGS).
+      n_targets (int) : Number of sampled magntiudes to be returned for the
+        specified target_type.
+    random_state: RandomState or an int seed.  A random number generator.
+
+    Returns: np.ndarray length n_targets :
+        Structured array with columns g, r, z, w1, w2, w3, w4, exp_r, exp_e1,
+        exp_e2, dev_r, dev_e1, dev_e2 of sampled magnitudes.
+
+    """
+    def __init__(self, random_state=None):
+        from pkg_resources import resource_filename
+        from desiutil.sklearn import GaussianMixtureModel
+
+        bgsfile = resource_filename('desitarget', 'mock/data/bgs_gmm.fits')
+        elgfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
+        lrgfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
+        qsofile = resource_filename('desitarget', 'mock/data/qso_gmm.fits')
+
+        self.bgsmodel = GaussianMixtureModel.load(bgsfile)
+        self.elgmodel = GaussianMixtureModel.load(elgfile)
+        self.lrgmodel = GaussianMixtureModel.load(lrgfile)
+        self.qsomodel = GaussianMixtureModel.load(qsofile)
+
+        self.random_state = random_state
+
+    def sample(self, target_type='LRG', n_targets=1):
+        import numpy as np
+
+        if target_type not in ('BGS', 'ELG', 'LRG', 'QSO'):
+            log.fatal('Unknown object type {}!'.format(target_type))
+            raise ValueError
+
+        # Generate a sample of magnitudes/shapes of size n_targets.
+        if target_type == 'BGS':
+            params = self.bgsmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'ELG':
+            params = self.elgmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'LRG':
+            params = self.lrgmodel.sample(n_targets, self.random_state).astype('f4')
+        elif target_type == 'QSO':
+            params = self.qsomodel.sample(n_targets, self.random_state).astype('f4')
+
+        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        if target_type != 'QSO':
+            tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+
+        samp = np.empty( n_targets, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
+        for ii, tt in enumerate(tags):
+            samp[tt] = params[:, ii]
+            
+        return samp
+
+def sample_mag_shape(target_type, n_targets, random_state=None):
+    """Sample magnitudes and shapes based on target type (i.e. LRG, ELG, QSO, BGS).
+
+    Can sample multiple targets at once and needs only to be called
+    once for each target_type.
+
+    Parameters
+    ----------
+    target_type : str
+        One of four object types (LRG, ELG, QSO, BGS).
+    n_targets : int
+        Number of sampled magntiudes and shapes to be returned for the specified
+        target_type.
+    random_state: RandomState or an int seed
+        A random number generator.
+
+
+    Returns
+    -------
+    np.ndarray length n_targets
+        Structured array with columns g,r,z,w1,w2,w3,w4,exp_r,exp_e1, exp_e2,
+        dev_r, dev_e1, dev_e2 of sampled magnitudes and shapes. Note that
+        target_type='QSO' only returns magnitudes.
+    """
+    import numpy as np
+    from pkg_resources import resource_filename
+    from desiutil.sklearn import GaussianMixtureModel
+
+    #Path to model .fits files
+    pathToModels = resource_filename('desitarget', "mock/data")
+
+    #Load the mixture model for the specified target_type
+    if target_type == 'LRG':
+        model = GaussianMixtureModel.load(pathToModels + '/lrg_gmm.fits')
+    elif target_type == 'ELG':
+        model = GaussianMixtureModel.load(pathToModels + '/elg_gmm.fits')
+    elif target_type == 'QSO':
+        model = GaussianMixtureModel.load(pathToModels + '/qso_gmm.fits')
+    elif target_type == 'BGS':
+        model = GaussianMixtureModel.load(pathToModels + '/bgs_gmm.fits')
+
+    #Generate a sample of magnitudes of size n_targets
+    params = model.sample(n_samples=n_targets, random_state=random_state)
+
+    if target_type == 'QSO':
+
+        samp = np.empty(n_targets, dtype=[('g', 'f4'), ('r', 'f4'), ('z', 'f4'),
+                                          ('w1', 'f4'), ('w2', 'f4'), ('w3', 'f4'),
+                                          ('w4', 'f4')])
+
+        samp['g'] = params[:,0]
+        samp['r'] = params[:,1]
+        samp['z'] = params[:,2]
+        samp['w1'] = params[:,3]
+        samp['w2'] = params[:,4]
+        samp['w3'] = params[:,5]
+        samp['w4'] = params[:,6]
+
+    else:
+
+        samp = np.empty(n_targets, dtype=[('g', 'f4'), ('r', 'f4'), ('z', 'f4'), ('w1', 'f4'),
+                                          ('w2', 'f4'), ('w3', 'f4'), ('w4', 'f4'),
+                                          ('exp_r', 'f4'), ('exp_e1', 'f4'), ('exp_e2', 'f4'),
+                                          ('dev_r', 'f4'), ('dev_e1', 'f4'), ('dev_e2', 'f4')])
+
+        samp['g'] = params[:,0]
+        samp['r'] = params[:,1]
+        samp['z'] = params[:,2]
+        samp['w1'] = params[:,3]
+        samp['w2'] = params[:,4]
+        samp['w3'] = params[:,5]
+        samp['w4'] = params[:,6]
+        samp['exp_r'] = params[:,7]
+        samp['exp_e1'] = params[:,8]
+        samp['exp_e2'] = params[:,9]
+        samp['dev_r'] = params[:,10]
+        samp['dev_e1'] = params[:,11]
+        samp['dev_e2'] = params[:,12]
+
+    return samp
