@@ -1353,8 +1353,8 @@ def _load_targdens():
     #ADM for quick debugging
     print('HACK!!!!!!!!!!!')
     targdens = {}
-    #targdens['ELG'] = targdict['ntarget_elg']
-    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+    targdens['ELG'] = targdict['ntarget_elg']
+    #targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
 
     return targdens
 
@@ -1862,12 +1862,9 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
-    import pdb ; pdb.set_trace()
-
     return
 
-
-def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
+def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False):
     """Make color-based DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -1884,6 +1881,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"color"`` for
         string to be added to the front of the output file name
+    nodustcorr : :class:`boolean`, optional, defaults to False
+        Do not correct for dust extinction.
 
     Returns
     -------
@@ -1892,13 +1891,64 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
         ``{qadir}/{fileprefix}-{bands}-{objtype}.png``
         where bands might be, e.g., ``grz``
     """
+    from matplotlib.patches import Polygon
+
+    def elg_colorbox(ax, plottype='gr-rz', verts=None):
+        """Draw the ELG selection box."""
+        
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        if plottype == 'gr-rz':
+            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
+            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
+            verts = [(rzmin, ylim[0]),
+                     (rzmin, np.polyval(coeff0, rzmin)),
+                     (rzpivot, np.polyval(coeff1, rzpivot)),
+                     ((ylim[0] - 0.1 - coeff1[1]) / coeff1[0], ylim[0] - 0.1)
+                ]
+        if verts:
+            ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
+
+    def qso_colorbox(ax, plottype='gr-rz', verts=None):
+        """Draw the QSO selection boxes."""
+
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+
+        if plottype == 'gr-rz':
+            verts = [(-0.3, 1.3),
+                     (1.1, 1.3),
+                     (1.1, ylim[0]-0.05),
+                     (-0.3, ylim[0]-0.05)
+                    ]
+
+        if plottype == 'r-W1W2':
+            verts = None
+            ax.axvline(x=22.7, ls='--', lw=3, color='k')
+            ax.axhline(y=-0.4, ls='--', lw=3, color='k')
+
+        if plottype == 'gz-grzW':
+            gzaxis = np.linspace(-0.5, 2.0, 50)
+            ax.plot(gzaxis, np.polyval([1.0, -1.0], gzaxis), 
+                     ls='--', lw=3, color='k')
+
+        if verts:
+            ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
 
     #ADM unextinct fluxes
-    gflux = cat['FLUX_G'] / extinction['MW_TRANSMISSION_G']
-    rflux = cat['FLUX_R'] / extinction['MW_TRANSMISSION_R']
-    zflux = cat['FLUX_Z'] / extinction['MW_TRANSMISSION_Z']
-    w1flux = cat['FLUX_W1'] / extinction['MW_TRANSMISSION_W1']
-    w2flux = cat['FLUX_W2'] / extinction['MW_TRANSMISSION_W2']
+    if nodustcorr:
+        gflux = cat['FLUX_G']
+        rflux = cat['FLUX_R']
+        zflux = cat['FLUX_Z']
+        w1flux = cat['FLUX_W1']
+        w2flux = cat['FLUX_W2']
+    else:
+        gflux = cat['FLUX_G'] / extinction['MW_TRANSMISSION_G']
+        rflux = cat['FLUX_R'] / extinction['MW_TRANSMISSION_R']
+        zflux = cat['FLUX_Z'] / extinction['MW_TRANSMISSION_Z']
+        w1flux = cat['FLUX_W1'] / extinction['MW_TRANSMISSION_W1']
+        w2flux = cat['FLUX_W2'] / extinction['MW_TRANSMISSION_W2']
 
     #ADM the number of passed objects
     nobjs = len(cat)
@@ -1912,6 +1962,12 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
     W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
     W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
 
+    # Some color ranges
+    grlim = (-0.5, 1.5)
+    rzlim = (-0.5, 1.5)
+    rW1lim = (-1.0, 3.0)
+    W1W2lim = (-1.0, 1.0)
+
     #ADM-------------------------------------------------------
     #ADM set up the r-z, g-r plot
     plt.clf()
@@ -1919,12 +1975,23 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
     plt.ylabel('g - r')
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:    
-        plt.set_cmap('inferno')
-        plt.hist2d(r-z,g-r,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        plt.colorbar()
+        hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*grlim, *rzlim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+
     #ADM...otherwise make a scatter plot
     else:
-        plt.plot(r-z,g-r,'bo', alpha=0.6)
+        plt.scatter(r-z, g-r, alpha=0.6)
+
+    plt.xlim(grlim)
+    plt.ylim(rzlim)
+        
+    if objtype == 'ELG':
+        elg_colorbox(plt.gca(), plottype='gr-rz')
+    if objtype == 'QSO':
+        qso_colorbox(plt.gca(), plottype='gr-rz')
+
     #ADM make the plot
     pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
     plt.savefig(pngfile,bbox_inches='tight')
@@ -1937,27 +2004,35 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
     plt.ylabel('r - W1')
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        plt.set_cmap('inferno')
-        counts, xedges, yedges, image = \
-            plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        if np.sum(counts) > 0:
-            plt.colorbar()
-        else:
-            nobjs = 0
+        hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        
+        #plt.set_cmap('inferno')
+        #counts, xedges, yedges, image = \
+        #    plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        #if np.sum(counts) > 0:
+        #    plt.colorbar()
+        #else:
+        #    nobjs = 0
     #ADM...otherwise make a scatter plot
     else:
-        plt.plot(r-z,r-W1,'bo')
+        plt.scatter(r-z, r-W1, alpha=0.6)
 
-    #ADM...or we might not have any WISE data
-    if nobjs == 0:
-        log = get_logger()
-        log.warning('No data within r-W1 vs. r-z ranges')
-        plt.clf()
-        plt.xlabel('r - z')
-        plt.ylabel('r - W1')
-        plt.xlim([-1,3])
-        plt.ylim([-1,3])
-        plt.text(1.,1.,'NO DATA')
+    plt.xlim(rzlim)
+    plt.ylim(rW1lim)
+
+    ##ADM...or we might not have any WISE data
+    #if nobjs == 0:
+    #    log = get_logger()
+    #    log.warning('No data within r-W1 vs. r-z ranges')
+    #    plt.clf()
+    #    plt.xlabel('r - z')
+    #    plt.ylabel('r - W1')
+    #    plt.xlim(rzlim)
+    #    plt.ylim(rW1lim)
+    #    plt.text(1.,1.,'NO DATA')
 
     #ADM save the plot
     pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
@@ -1971,27 +2046,35 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color"):
     plt.ylabel('W1 - W2')
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        plt.set_cmap('inferno')
-        counts, xedges, yedges, image = \
-            plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        if np.sum(counts) > 0:
-            plt.colorbar()
-        else:
-            nobjs = 0
+        hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        
+        #plt.set_cmap('inferno')
+        #counts, xedges, yedges, image = \
+        #    plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        #if np.sum(counts) > 0:
+        #    plt.colorbar()
+        #else:
+        #    nobjs = 0
     #ADM...otherwise make a scatter plot
     else:
-        plt.plot(r-W1,W1-W2,'bo')
+        plt.scatter(r-W1, W1-W2, alpha=0.6)
 
-    #ADM...or we might not have any WISE data
-    if nobjs == 0:
-        log = get_logger()
-        log.warning('No data within r-W1 vs. r-z ranges')
-        plt.clf()
-        plt.xlabel('r - z')
-        plt.ylabel('W1 - W2')
-        plt.xlim([-1,3])
-        plt.ylim([-1,3])
-        plt.text(1.,1.,'NO DATA')
+    plt.xlim(rzlim)
+    plt.ylim(W1W2lim)
+
+    ##ADM...or we might not have any WISE data
+    #if nobjs == 0:
+    #    log = get_logger()
+    #    log.warning('No data within r-W1 vs. r-z ranges')
+    #    plt.clf()
+    #    plt.xlabel('r - z')
+    #    plt.ylabel('W1 - W2')
+    #    plt.xlim([-1,3])
+    #    plt.ylim([-1,3])
+    #    plt.text(1.,1.,'NO DATA')
 
     #ADM save the plot
     pngfile=os.path.join(qadir, '{}-rzW1W2-{}.png'.format(fileprefix,objtype))
@@ -2095,15 +2178,16 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
             wobjtype = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
 
         if len(wobjtype) > 0:
-            #ADM make N(z) and z vx. zerr plots
+            #ADM make color-color plots
+            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir, fileprefix="mock-color", nodustcorr=True)
+            log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+            import pdb ; pdb.set_trace()
+            
+            #ADM make N(z) plots
             mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
             log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
             
-            import pdb ; pdb.set_trace()
-            
-            #ADM make color-color plots
-            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir, fileprefix="mock-color")
-            log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
             #ADM plot what fraction of each selected object is actually a contaminant
             mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
             log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
