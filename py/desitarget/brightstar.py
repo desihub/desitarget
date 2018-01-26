@@ -83,7 +83,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
-        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output structure of bright stars
 
@@ -91,6 +91,50 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     -------
     :class:`recarray`
         The structure of bright stars from the sweeps limited in the passed band(s) to the
+        passed maglim(s).
+    """
+    #ADM set up default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM this is just a special case of collect_bright_sources
+    sourcestruc = collect_bright_sources(bands,maglim,
+                                         numproc=numproc,rootdirname=rootdirname,outfilename=outfilename)
+    #ADM check if a source is unresolved
+    #ADM remember to check both byte and unicode strings (Python2 and 3)
+    psflike = ((sourcestruc["TYPE"] == 'PSF') | (sourcestruc["TYPE"] == b'PSF'))
+    wstar = np.where(psflike)
+    if len(wstar[0]) > 0:
+        return sourcestruc[wstar]
+    else:
+        log.error('No PSF-like objects brighter than {} in {} in files in {}'.format(str(maglim),bands,rootdirname))
+        return -1
+
+def collect_bright_sources(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/5.0',outfilename=None):
+    """Extract a structure from the sweeps containing all bright sources in a given band to a given magnitude limit
+
+    Parameters
+    ----------
+    bands : :class:`str`
+        A magnitude band from the sweeps, e.g., "G", "R", "Z".
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        list of the same length as the string
+    maglim : :class:`float`
+        The upper limit in that magnitude band for which to assemble a list of bright sources.
+        Can pass a list of magnitude limits, in which case bands has to be a string of the
+        same length (e.g., "GRZ" for [12.3,12.7,12.6]
+    numproc : :class:`int`, optional
+        Number of processes over which to parallelize
+    rootdirname : :class:`str`, optional, defaults to dr5
+        Root directory containing either sweeps or tractor files...e.g. for dr5 this might be
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/dr5.0
+    outfilename : :class:`str`, optional, defaults to not writing anything to file
+        (FITS) File name to which to write the output structure of bright sources
+
+    Returns
+    -------
+    :class:`recarray`
+        The structure of bright sources from the sweeps limited in the passed band(s) to the
         passed maglim(s).
     """
     #ADM set up default logger
@@ -121,9 +165,9 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
 
     #ADM parallel formalism from this step forward is stolen from cuts.select_targets
 
-    #ADM function to grab the bright stars from a given file
-    def _get_bright_stars(filename):
-        '''Retrieves bright stars from a sweeps/Tractor file'''
+    #ADM function to grab the bright sources from a given file
+    def _get_bright_sources(filename):
+        '''Retrieves bright sources from a sweeps/Tractor file'''
         objs = io.read_tractor(filename)
         #ADM write the fluxes as an array instead of as named columns
         fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
@@ -138,7 +182,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     totfiles = np.ones((),dtype='i8')*len(infiles)
     nfiles = np.ones((), dtype='i8')
     t0 = time()
-    log.info('Collecting bright stars from sweeps...')
+    log.info('Collecting bright sources from sweeps...')
 
     def _update_status(result):
         '''wrapper function for the critical reduction operation,
@@ -154,26 +198,26 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            starstruc = pool.map(_get_bright_stars, infiles, reduce=_update_status)
+            sourcestruc = pool.map(_get_bright_sources, infiles, reduce=_update_status)
     else:
-        starstruc = []
+        sourcestruc = []
         for file in infiles:
-            starstruc.append(_update_status(_get_bright_stars(file)))
+            sourcestruc.append(_update_status(_get_bright_sources(file)))
 
-    #ADM note that if there were no bright stars in a file then
-    #ADM the _get_bright_stars function will have returned NoneTypes
+    #ADM note that if there were no bright sources in a file then
+    #ADM the _get_bright_sources function will have returned NoneTypes
     #ADM so we need to filter those out
-    starstruc = [x for x in starstruc if x is not None]
-    if len(starstruc) == 0:
-        raise IOError('There are no stars brighter than {} in {} in files in {} with which to make a mask'.format(str(maglim),bands,rootdirname))
+    sourcestruc = [x for x in sourcestruc if x is not None]
+    if len(sourcestruc) == 0:
+        raise IOError('There are no sources brighter than {} in {} in files in {} with which to make a mask'.format(str(maglim),bands,rootdirname))
     #ADM concatenate all of the output recarrays
-    starstruc = np.hstack(starstruc)
+    sourcestruc = np.hstack(sourcestruc)
 
     #ADM if the name of a file for output is passed, then write to it
     if outfilename is not None:
-        fitsio.write(outfilename, starstruc, clobber=True)
+        fitsio.write(outfilename, sourcestruc, clobber=True)
 
-    return starstruc
+    return sourcestruc
 
 
 def model_bright_stars(band,instarfile,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/'):
@@ -281,7 +325,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
-        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
     infilename : :class:`str`, optional,
         if this exists, then the list of bright stars is read in from the file of this name
         if this is not passed, then code defaults to deriving the recarray of bright stars
@@ -689,7 +733,7 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
-        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweeps/dr3.1
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask ONE OF outfilename or
         instarmaskfile MUST BE PASSED
