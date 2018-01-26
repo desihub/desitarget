@@ -28,158 +28,11 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid
+from desitarget.geomask import circles, ellipses, cap_area, circle_boundaries
 
 from desiutil import depend, brick
 
 import healpy as hp
-
-def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
-    """Make a scatter plot of circles. Similar to plt.scatter, but the size of circles are in data scale
-
-    Parameters
-    ----------
-    x, y : scalar or array_like, shape (n, )
-        Input data
-    s : scalar or array_like, shape (n, )
-        Radius of circles.
-    c : color or sequence of color, optional, default : 'b'
-        `c` can be a single color format string, or a sequence of color
-        specifications of length `N`, or a sequence of `N` numbers to be
-        mapped to colors using the `cmap` and `norm` specified via kwargs.
-        Note that `c` should not be a single numeric RGB or RGBA sequence
-        because that is indistinguishable from an array of values
-        to be colormapped. (If you insist, use `color` instead.)
-        `c` can be a 2-D array in which the rows are RGB or RGBA, however.
-    vmin, vmax : scalar, optional, default: None
-        `vmin` and `vmax` are used in conjunction with `norm` to normalize
-        luminance data.  If either are `None`, the min and max of the
-        color array is used.
-    kwargs : `~matplotlib.collections.Collection` properties
-        Eg. alpha, edgecolor(ec), facecolor(fc), linewidth(lw), linestyle(ls),
-        norm, cmap, transform, etc.
-
-    Returns
-    -------
-    paths : `~matplotlib.collections.PathCollection`
-
-    Examples
-    --------
-    a = np.arange(11)
-    circles(a, a, s=a*0.2, c=a, alpha=0.5, ec='none')
-    plt.colorbar()
-
-    References
-    ----------
-    With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
-    """
-
-    if np.isscalar(c):
-        kwargs.setdefault('color', c)
-        c = None
-    if 'fc' in kwargs:
-        kwargs.setdefault('facecolor', kwargs.pop('fc'))
-    if 'ec' in kwargs:
-        kwargs.setdefault('edgecolor', kwargs.pop('ec'))
-    if 'ls' in kwargs:
-        kwargs.setdefault('linestyle', kwargs.pop('ls'))
-    if 'lw' in kwargs:
-        kwargs.setdefault('linewidth', kwargs.pop('lw'))
-    # You can set `facecolor` with an array for each patch,
-    # while you can only set `facecolors` with a value for all.
-
-    patches = [Circle((x_, y_), s_)
-               for x_, y_, s_ in np.broadcast(x, y, s)]
-    collection = PatchCollection(patches, **kwargs)
-    if c is not None:
-        collection.set_array(np.asarray(c))
-        collection.set_clim(vmin, vmax)
-
-    ax = plt.gca()
-    ax.add_collection(collection)
-    ax.autoscale_view()
-    plt.draw_if_interactive()
-    if c is not None:
-        plt.sci(collection)
-    return collection
-
-
-def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
-    """Make a scatter plot of ellipses
-
-    Parameters
-    ----------
-    x, y : scalar or array_like, shape (n, )
-        Center of ellipses.
-    w, h : scalar or array_like, shape (n, )
-        Total length (diameter) of horizontal/vertical axis.
-        `h` is set to be equal to `w` by default, ie. circle.
-    rot : scalar or array_like, shape (n, )
-        Rotation in degrees (anti-clockwise).
-    c : color or sequence of color, optional, default : 'b'
-        `c` can be a single color format string, or a sequence of color
-        specifications of length `N`, or a sequence of `N` numbers to be
-        mapped to colors using the `cmap` and `norm` specified via kwargs.
-        Note that `c` should not be a single numeric RGB or RGBA sequence
-        because that is indistinguishable from an array of values
-        to be colormapped. (If you insist, use `color` instead.)
-        `c` can be a 2-D array in which the rows are RGB or RGBA, however.
-    vmin, vmax : scalar, optional, default: None
-        `vmin` and `vmax` are used in conjunction with `norm` to normalize
-        luminance data.  If either are `None`, the min and max of the
-        color array is used.
-    kwargs : `~matplotlib.collections.Collection` properties
-        Eg. alpha, edgecolor(ec), facecolor(fc), linewidth(lw), linestyle(ls),
-        norm, cmap, transform, etc.
-
-    Returns
-    -------
-    paths : `~matplotlib.collections.PathCollection`
-
-    Examples
-    --------
-    a = np.arange(11)
-    ellipses(a, a, w=4, h=a, rot=a*30, c=a, alpha=0.5, ec='none')
-    plt.colorbar()
-
-    References
-    ----------
-    With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
-    """
-
-    if np.isscalar(c):
-        kwargs.setdefault('color', c)
-        c = None
-
-    if 'fc' in kwargs:
-        kwargs.setdefault('facecolor', kwargs.pop('fc'))
-    if 'ec' in kwargs:
-        kwargs.setdefault('edgecolor', kwargs.pop('ec'))
-    if 'ls' in kwargs:
-        kwargs.setdefault('linestyle', kwargs.pop('ls'))
-    if 'lw' in kwargs:
-        kwargs.setdefault('linewidth', kwargs.pop('lw'))
-    # You can set `facecolor` with an array for each patch,
-    # while you can only set `facecolors` with a value for all.
-
-    if h is None:
-        h = w
-
-    zipped = np.broadcast(x, y, w, h, rot)
-    patches = [Ellipse((x_, y_), w_, h_, rot_)
-               for x_, y_, w_, h_, rot_ in zipped]
-    collection = PatchCollection(patches, **kwargs)
-    if c is not None:
-        c = np.broadcast_to(c, zipped.shape).ravel()
-        collection.set_array(c)
-        collection.set_clim(vmin, vmax)
-
-    ax = plt.gca()
-    ax.add_collection(collection)
-    ax.autoscale_view()
-    plt.draw_if_interactive()
-    if c is not None:
-        plt.sci(collection)
-    return collection
 
 
 def max_objid_bricks(targs):
@@ -211,81 +64,6 @@ def max_objid_bricks(targs):
 
     #ADM return a dictionary of the maximum OBJID (values) for each BRICKID (keys)
     return dict(ordered[maxind])
-
-
-def cap_area(theta):
-    """True area of a circle of a given radius drawn on the surface of a sphere
-
-    Parameters
-    ----------
-    theta : array_like
-        (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
-        
-    Returns
-    -------
-    area : array_like
-       surface area on the sphere included within the passed angular radius
-
-    Notes
-    -----
-        - The approximate formula pi*theta**2 is only accurate to ~0.0025% at 1o, ~0.25% at 10o,
-          sufficient for bright star mask purposes. But the equation in this function is more general.
-        - We recast the input array as float64 to circumvent precision issues with np.cos()
-          when radii of only a few arcminutes are passed
-        - Even for passed radii of 1 (0.1) arcsec, float64 is sufficiently precise to give the correct
-          area to ~0.00043 (~0.043%) using np.cos()
-    """
-
-    #ADM recast input array as float64
-    theta = theta.astype('<f8')
-    
-    #ADM factor to convert steradians to sq.deg.
-    st2sq = 180.*180./np.pi/np.pi
-
-    #ADM return area
-    return st2sq*2*np.pi*(1-(np.cos(np.radians(theta))))
-
-
-def sphere_circle_ra_off(theta,centdec,declocs):
-    """Offsets in RA needed for given declinations in order to draw a (small) circle on the sphere
-
-    Parameters
-    ----------
-    theta : :class:`float`
-        (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
-        
-    centdec : :class:`float`
-        declination of the center of the circle to be drawn on the sphere (in DEGREES)
-
-    declocs : array_like
-        declinations of positions on the boundary of the circle at which to calculate RA offsets (in DEGREES)
-
-    Returns
-    -------
-    raoff : array_like
-        offsets in RA that correspond to the passed dec locations for the given dec circle center (IN DEGREES)
-
-    Notes
-    -----
-        - This function is ambivalent to the SIGN of the offset. In other words, it can only draw the semi-circle
-          in theta from -90o->90o, which corresponds to offsets in the POSITIVE RA direction. The user must determine
-          which offsets are to the negative side of the circle, or call this function twice.
-    """
-
-    #ADM convert the input angles from degrees to radians
-    thetar = np.radians(theta)
-    centdecr = np.radians(centdec)
-    declocsr = np.radians(declocs)
-
-    #ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g. converting
-    #ADM to Cartesian coordinates and using dot products). The answer is the arccos of the following:
-    cosoffrar = (np.cos(thetar) - (np.sin(centdecr)*np.sin(declocsr))) / (np.cos(centdecr)*np.cos(declocsr))
-
-    #ADM catch cases where the offset angle is very close to 0 
-    offrar = np.arccos(np.clip(cosoffrar,-1,1))
-
-    #ADM return the angular offsets in degrees
-    return  np.degrees(offrar)
 
 
 def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None):
@@ -739,11 +517,11 @@ def generate_safe_locations(starmask,Npersqdeg):
 
     Notes
     -----
-        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
+        - See Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for details
     """
     
-    #ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
-    radius = 1.001*starmask["IN_RADIUS"]/60.
+    #ADM the radius of each mask in degrees
+    radius = starmask["IN_RADIUS"]/60.
 
     #ADM determine the area of each mask
     area = cap_area(radius)
@@ -752,24 +530,9 @@ def generate_safe_locations(starmask,Npersqdeg):
     #ADM mask given the passed number of locations per sq. deg.
     Nsafe = np.ceil(area*Npersqdeg).astype('i')
 
-    #ADM determine Nsafe Dec offsets equally spaced around the perimeter for each mask
-    offdec = [ rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(Nsafe,radius) ]
+    ras, decs = circle_boundaries(starmask["RA"],starmask["DEC"],radius*3600.,Nsafe)
 
-    #ADM use offsets to determine DEC positions
-    dec = starmask["DEC"] + offdec
-
-    #ADM determine the offsets in RA at these Decs given the mask center Dec
-    offrapos =  [ sphere_circle_ra_off(th,cen,declocs) for th,cen,declocs in zip(radius,starmask["DEC"],dec) ]
-
-    #ADM determine which of the RA offsets are in the positive direction
-    sign = [ np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in Nsafe ]
-
-    #ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
-    offra = [ o*s for o,s in zip(offrapos,sign) ]
-    ra = starmask["RA"] + offra
-
-    #ADM have to turn the generated locations into 1-D arrays before returning them
-    return np.hstack(ra), np.hstack(dec)
+    return ras, decs
 
 
 def append_safe_targets(targs,starmask,nside=None,drbricks=None):
