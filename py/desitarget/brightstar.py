@@ -29,11 +29,16 @@ from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid
 from desitarget.geomask import circles, ellipses, cap_area, circle_boundaries
+from desitarget.cuts import _psflike
 
 from desiutil import depend, brick
 
 import healpy as hp
 
+#ADM factor by which the "in" radius is smaller than the "near" radius
+#ADM and vice-versa
+infac = 0.5
+nearfac = 1./infac
 
 def max_objid_bricks(targs):
     """For a set of targets, return the maximum value of BRICK_OBJID in each BRICK_ID
@@ -102,7 +107,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
                                          numproc=numproc,rootdirname=rootdirname,outfilename=outfilename)
     #ADM check if a source is unresolved
     #ADM remember to check both byte and unicode strings (Python2 and 3)
-    psflike = ((sourcestruc["TYPE"] == 'PSF') | (sourcestruc["TYPE"] == b'PSF'))
+    psflike = _psflike(sourcestruc["TYPE"])
     wstar = np.where(psflike)
     if len(wstar[0]) > 0:
         return sourcestruc[wstar]
@@ -338,7 +343,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     :class:`recarray`
         The bright star mask in the form RA, DEC, TARGETID, IN_RADIUS, NEAR_RADIUS (may also be written to file
         if "outfilename" is passed)
-        The radii are in ARCMINUTES
+        The radii are in ARCSECONDS
         TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
 
     Notes
@@ -348,7 +353,7 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
           the NEAR_RADIUS:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
-          and half that radius to set the IN_RADIUS.
+          and half that radius to set the IN_RADIUS. We convert this from arcminutes to arcseconds.
         - It's an open question as to what the correct radii are for DESI observations
 
     """
@@ -395,8 +400,9 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
 
     #ADM convert the largest magnitude into radii for "in" and "near" bright objects. This will require 
     #ADM more consideration to determine the truly correct numbers for DESI
-    near_radius = (0.0802*mags*mags - 1.860*mags + 11.625)
-    in_radius = 0.5*(0.0802*mags*mags - 1.860*mags + 11.625)
+    #ADM this calculation for Tycho corresponded to arcminutes, so we convert it to arcseconds.
+    near_radius = (0.0802*mags*mags - 1.860*mags + 11.625)*60.
+    in_radius = infac * near_radius
 
     #ADM calculate the TARGETID
     targetid = encode_targetid(objid=objs['OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
@@ -405,6 +411,137 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     done = objs[['RA','DEC']].copy()
     done = rfn.append_fields(done,["TARGETID","IN_RADIUS","NEAR_RADIUS"],[targetid,in_radius,near_radius],
                              usemask=False,dtypes=['>i8','<f8','<f8'])
+
+    if outfilename is not None:
+        fitsio.write(outfilename, done, clobber=True)
+
+    return done
+
+
+def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/5.0',infilename=None,outfilename=None):
+    """Make a mask of bright sources from a structure of bright sources drawn from the sweeps
+
+    Parameters
+    ----------
+    bands : :class:`str`
+        A magnitude band from the sweeps, e.g., "G", "R", "Z".
+        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        list of the same length as the string
+    maglim : :class:`float`
+        The upper limit in that magnitude band for which to assemble a list of bright stars.
+        Can pass a list of magnitude limits, in which case bands has to be a string of the
+        same length (e.g., "GRZ" for [12.3,12.7,12.6]
+    numproc : :class:`int`, optional
+        Number of processes over which to parallelize
+    rootdirname : :class:`str`, optional, defaults to dr3
+        Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
+    infilename : :class:`str`, optional,
+        if this exists, then the list of bright stars is read in from the file of this name
+        if this is not passed, then code defaults to deriving the recarray of bright stars
+        via a call to collect_bright_stars
+    outfilename : :class:`str`, optional, defaults to not writing anything to file
+        (FITS) File name to which to write the output bright star mask
+
+    Returns
+    -------
+    :class:`recarray`
+        - The bright source mask in the form `RA`, `DEC`, `TARGETID`, `IN_RADIUS`, `NEAR_RADIUS`, `E1`, `E2`, `TYPE` 
+          (may also be written to file if "outfilename" is passed)
+        - TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
+        - The radii are in ARCSECONDS (they default to equivalents of half-light radii for ellipses)
+        - `E1` and `E2` are the ellipticity components as defined at the bottom of, e.g.:
+          http://legacysurvey.org/dr5/catalogs/
+        - `TYPE` is the `TYPE` from the sweeps files, see, e.g.:
+          http://legacysurvey.org/dr5/files/#sweep-catalogs
+
+    Notes
+    -----
+        - `IN_RADIUS` is a smaller radius that corresponds to the `IN_BRIGHT_OBJECT` bit in data/targetmask.yaml
+        - `NEAR_RADIUS` is a radius that corresponds to the `NEAR_BRIGHT_OBJECT` bit in data/targetmask.yaml
+        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
+          the `NEAR_RADIUS`:
+          R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
+          and half that radius to set the `IN_RADIUS`. We convert this from arcminutes to arcseconds.
+        - It's an open question as to what the correct radii are for DESI observations
+
+    """
+
+    #ADM set bands to uppercase if passed as lower case
+    bands = bands.upper()
+    #ADM the band names and nobs columns as arrays instead of strings
+    bandnames = np.array([ "FLUX_"+band for band in bands ])
+    nobsnames = np.array([ "NOBS_"+band for band in bands ])
+
+    #ADM force the input maglim to be a list (in case a single value was passed)
+    if type(maglim) == type(16) or type(maglim) == type(16.):
+        maglim = [maglim]
+
+    if len(bandnames) != len(maglim):
+        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandnames),len(maglim)))
+
+    #ADM change input magnitude(s) to a flux to test against
+    fluxlim = 10.**((22.5-np.array(maglim))/2.5)
+
+    if infilename is not None:
+        objs = io.read_tractor(infilename)
+    else:
+        objs = collect_bright_sources(bands,maglim,numproc,rootdirname,outfilename)
+
+    #ADM write the fluxes and bands as arrays instead of named columns
+    fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
+    nobs = objs[nobsnames].view(objs[nobsnames].dtype[0]).reshape(objs[nobsnames].shape + (-1,))
+
+    #ADM set any observations with NOBS = 0 to have small flux so glitches don't end up as bright object masks. 
+    w = np.where(nobs == 0)
+    if len(w[0]) > 0:
+        fluxes[w] = 0.
+
+    #ADM limit to the passed faint limit
+    w = np.where(np.any(fluxes > fluxlim,axis=1))
+    fluxes = fluxes[w]
+    objs = objs[w]
+
+    #ADM grab the (GRZ) magnitudes for observations
+    #ADM and record only the largest flux (smallest magnitude)
+    fluxmax = np.max(fluxes,axis=1)
+    mags = 22.5-2.5*np.log10(fluxmax)
+
+    #ADM each object's TYPE
+    objtype = objs["TYPE"]
+
+    #ADM calculate the TARGETID
+    targetid = encode_targetid(objid=objs['OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
+
+    #ADM first set the shape parameters assuming everything is an exponential
+    #ADM this will correctly assign e1, e2 of 0 to things with zero shape
+    in_radius = objs['SHAPEEXP_R']
+    e1 = objs['SHAPEEXP_E1']
+    e2 = objs['SHAPEEXP_E2']
+    #ADM now to account for deVaucouleurs objects, or things that are dominated by
+    #ADM deVaucouleurs profiles, update objects with a larger "DEV" than "EXP" radius
+    wdev = np.where(objs['SHAPEDEV_R'] > objs['SHAPEEXP_R'])
+    if len(wdev[0]) > 0:
+        in_radius = objs[wdev]['SHAPEDEV_R']
+        e1 = objs[wdev]['SHAPEDEV_E1']
+        e2 = objs[wdev]['SHAPEDEV_E2']
+    #ADM finally use the Tycho radius (see the notes above) for PSF or star-like objects
+    #ADM More consideration will be needed to derive correct numbers for this for DESI!!!
+    #ADM this calculation was for "near" Tycho objects and was in arcmin, so we convert 
+    #ADM it to arcsec and multiply it by infac (see the top of the module)
+    tycho_in_radius = infac*(0.0802*mags*mags - 1.860*mags + 11.625)*60.
+    wpsf = np.where(_psflike(objtype))
+    in_radius[wpsf] = tycho_in_radius[wpsf]
+
+    #ADM set "near" as a multiple of "in" radius using the factor at the top of the code
+    near_radius = in_radius*nearfac
+
+    #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
+    done = objs[['RA','DEC']].copy()
+    done = rfn.append_fields(done,["TARGETID","IN_RADIUS","NEAR_RADIUS","E1","E2","TYPE"],
+                             [targetid,in_radius,near_radius,e1,e2,objtype],
+                             usemask=False,
+                             dtypes=['>i8','>f4','>f4','>f4','>f4','|S4'])
 
     if outfilename is not None:
         fitsio.write(outfilename, done, clobber=True)
