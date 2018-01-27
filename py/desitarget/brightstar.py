@@ -104,13 +104,17 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
 
     #ADM this is just a special case of collect_bright_sources
     sourcestruc = collect_bright_sources(bands,maglim,
-                                         numproc=numproc,rootdirname=rootdirname,outfilename=outfilename)
+                                         numproc=numproc,
+                                         rootdirname=rootdirname,outfilename=None)
     #ADM check if a source is unresolved
     #ADM remember to check both byte and unicode strings (Python2 and 3)
     psflike = _psflike(sourcestruc["TYPE"])
     wstar = np.where(psflike)
     if len(wstar[0]) > 0:
-        return sourcestruc[wstar]
+        done = sourcestruc[wstar]
+        if outfilename is not None:
+            fitsio.write(outfilename, done, clobber=True)
+        return done
     else:
         log.error('No PSF-like objects brighter than {} in {} in files in {}'.format(str(maglim),bands,rootdirname))
         return -1
@@ -330,92 +334,56 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
-        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1. This is only
+        used if `infilename` is not passed
     infilename : :class:`str`, optional,
         if this exists, then the list of bright stars is read in from the file of this name
         if this is not passed, then code defaults to deriving the recarray of bright stars
-        via a call to collect_bright_stars
+        from `rootdirname` via a call to `collect_bright_stars`
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask
 
     Returns
     -------
     :class:`recarray`
-        The bright star mask in the form RA, DEC, TARGETID, IN_RADIUS, NEAR_RADIUS (may also be written to file
-        if "outfilename" is passed)
-        The radii are in ARCSECONDS
-        TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
+        - The bright source mask in the form `RA`, `DEC`, `TARGETID`, `IN_RADIUS`, `NEAR_RADIUS`, `E1`, `E2`, `TYPE` 
+          (may also be written to file if "outfilename" is passed)
+        - TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
+        - The radii are in ARCSECONDS (they default to equivalents of half-light radii for ellipses)
+        - `E1` and `E2` are ellipticity components, which are 0 for unresolved objects
+        - `TYPE` is always `PSF` for star-like objects. This is taken from the sweeps files, see, e.g.:
+          http://legacysurvey.org/dr5/files/#sweep-catalogs
 
     Notes
     -----
-        - IN_RADIUS is a smaller radius that corresponds to the IN_BRIGHT_OBJECT bit in data/targetmask.yaml
-        - NEAR_RADIUS is a radius that corresponds to the NEAR_BRIGHT_OBJECT bit in data/targetmask.yaml
+        - `IN_RADIUS` is a smaller radius that corresponds to the `IN_BRIGHT_OBJECT` bit in data/targetmask.yaml
+        - `NEAR_RADIUS` is a radius that corresponds to the `NEAR_BRIGHT_OBJECT` bit in data/targetmask.yaml
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
-          the NEAR_RADIUS:
+          the `NEAR_RADIUS`:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
-          and half that radius to set the IN_RADIUS. We convert this from arcminutes to arcseconds.
+          and half that radius to set the `IN_RADIUS`. We convert this from arcminutes to arcseconds.
         - It's an open question as to what the correct radii are for DESI observations
-
     """
+    #ADM set up default logger
+    from desiutil.log import get_logger
+    log = get_logger()
 
-    #ADM set bands to uppercase if passed as lower case
-    bands = bands.upper()
-    #ADM the band names and nobs columns as arrays instead of strings
-    bandnames = np.array([ "FLUX_"+band for band in bands ])
-    nobsnames = np.array([ "NOBS_"+band for band in bands ])
-
-    #ADM force the input maglim to be a list (in case a single value was passed)
-    if type(maglim) == type(16) or type(maglim) == type(16.):
-        maglim = [maglim]
-
-    if len(bandnames) != len(maglim):
-        raise IOError('bands has to be the same length as maglim and {} does not equal {}'.format(len(bandnames),len(maglim)))
-
-    #ADM change input magnitude(s) to a flux to test against
-    fluxlim = 10.**((22.5-np.array(maglim))/2.5)
-
-    if infilename is not None:
-        objs = io.read_tractor(infilename)
+    #ADM this is just a special case of make_bright_source_mask
+    sourcemask = make_bright_source_mask(bands,maglim,
+                                         numproc=numproc,rootdirname=rootdirname,
+                                         infilename=infilename,outfilename=None)
+    #ADM check if a source is unresolved
+    #ADM remember to check both byte and unicode strings (Python2 and 3)
+    psflike = _psflike(sourcemask["TYPE"])
+    wstar = np.where(psflike)
+    if len(wstar[0]) > 0:
+        done = sourcemask[wstar]
+        if outfilename is not None:
+            fitsio.write(outfilename, done, clobber=True)
+        return done
     else:
-        objs = collect_bright_stars(bands,maglim,numproc,rootdirname,outfilename)
-
-    #ADM write the fluxes and bands as arrays instead of named columns
-    fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
-    nobs = objs[nobsnames].view(objs[nobsnames].dtype[0]).reshape(objs[nobsnames].shape + (-1,))
-
-    #ADM set any observations with NOBS = 0 to have small flux so glitches don't end up as bright star masks. 
-    w = np.where(nobs == 0)
-    if len(w[0]) > 0:
-        fluxes[w] = 0.
-
-    #ADM limit to the passed faint limit
-    w = np.where(np.any(fluxes > fluxlim,axis=1))
-    fluxes = fluxes[w]
-    objs = objs[w]
-
-    #ADM grab the (GRZ) magnitudes for observations
-    #ADM and record only the largest flux (smallest magnitude)
-    fluxmax = np.max(fluxes,axis=1)
-    mags = 22.5-2.5*np.log10(fluxmax)
-
-    #ADM convert the largest magnitude into radii for "in" and "near" bright objects. This will require 
-    #ADM more consideration to determine the truly correct numbers for DESI
-    #ADM this calculation for Tycho corresponded to arcminutes, so we convert it to arcseconds.
-    near_radius = (0.0802*mags*mags - 1.860*mags + 11.625)*60.
-    in_radius = infac * near_radius
-
-    #ADM calculate the TARGETID
-    targetid = encode_targetid(objid=objs['OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
-
-    #ADM create an output recarray that is just RA, Dec, TARGETID and the radius
-    done = objs[['RA','DEC']].copy()
-    done = rfn.append_fields(done,["TARGETID","IN_RADIUS","NEAR_RADIUS"],[targetid,in_radius,near_radius],
-                             usemask=False,dtypes=['>i8','<f8','<f8'])
-
-    if outfilename is not None:
-        fitsio.write(outfilename, done, clobber=True)
-
-    return done
+        log.error('No PSF-like objects brighter than {} in {}'.format(str(maglim),bands))
+        return -1
 
 
 def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/5.0',infilename=None,outfilename=None):
@@ -428,20 +396,21 @@ def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/
         Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
         list of the same length as the string
     maglim : :class:`float`
-        The upper limit in that magnitude band for which to assemble a list of bright stars.
+        The upper limit in that magnitude band for which to assemble a list of bright sources.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
         same length (e.g., "GRZ" for [12.3,12.7,12.6]
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
-        Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
-        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
+        Root directory containing either sweeps or tractor files...e.g. for dr5 this might be
+        /global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/dr5.0. This is only
+        used if `infilename` is not passed
     infilename : :class:`str`, optional,
-        if this exists, then the list of bright stars is read in from the file of this name
-        if this is not passed, then code defaults to deriving the recarray of bright stars
-        via a call to collect_bright_stars
+        if this exists, then the list of bright sources is read in from the file of this name
+        if this is not passed, then code defaults to deriving the recarray of bright sources
+        from `rootdirname` via a call to `collect_bright_sources`
     outfilename : :class:`str`, optional, defaults to not writing anything to file
-        (FITS) File name to which to write the output bright star mask
+        (FITS) File name to which to write the output bright source mask
 
     Returns
     -------
