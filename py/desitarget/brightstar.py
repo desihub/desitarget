@@ -522,9 +522,9 @@ def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/
     #ADM deVaucouleurs profiles, update objects with a larger "DEV" than "EXP" radius
     wdev = np.where(objs['SHAPEDEV_R'] > objs['SHAPEEXP_R'])
     if len(wdev[0]) > 0:
-        in_radius = objs[wdev]['SHAPEDEV_R']
-        e1 = objs[wdev]['SHAPEDEV_E1']
-        e2 = objs[wdev]['SHAPEDEV_E2']
+        in_radius[wdev] = objs[wdev]['SHAPEDEV_R']
+        e1[wdev] = objs[wdev]['SHAPEDEV_E1']
+        e2[wdev] = objs[wdev]['SHAPEDEV_E2']
     #ADM finally use the Tycho radius (see the notes above) for PSF or star-like objects
     #ADM More consideration will be needed to derive correct numbers for this for DESI!!!
     #ADM this calculation was for "near" Tycho objects and was in arcmin, so we convert 
