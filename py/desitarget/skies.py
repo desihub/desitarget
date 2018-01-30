@@ -316,7 +316,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     """
 
     import matplotlib.pyplot as plt
-    from desitarget.brightstar import ellipses
+    from desitarget.geomask import ellipses
     from matplotlib.patches import Polygon
     from matplotlib.collections import PatchCollection
 
@@ -373,6 +373,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     majoraxis = minoraxis/np.cos(np.radians(objs["DEC"]))
     log.info('Plotting avoidance zones...t = {:.1f}s'.format(time()-start))
     #ADM plot the avoidance zones as circles, stretched by their DEC position
+    #ADM note that "ellipses" takes the diameter, not the radius
     out = ellipses(objs[smallsepw]["RA"], objs[smallsepw]["DEC"], 
                    2*majoraxis[smallsepw], 2*minoraxis[smallsepw], alpha=0.4, edgecolor='none')
 

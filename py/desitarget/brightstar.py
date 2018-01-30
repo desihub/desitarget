@@ -19,7 +19,7 @@ import os
 import re
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Ellipse, Rectangle
+from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
 from . import __version__ as desitarget_version
@@ -28,7 +28,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid
-from desitarget.geomask import circles, ellipses, cap_area, circle_boundaries
+from desitarget.geomask import circles, ellipses, cap_area, circle_boundaries, ellipse_boundary
 from desitarget.cuts import _psflike
 
 from desiutil import depend, brick
@@ -118,6 +118,7 @@ def collect_bright_stars(bands,maglim,numproc=4,rootdirname='/global/project/pro
     else:
         log.error('No PSF-like objects brighter than {} in {} in files in {}'.format(str(maglim),bands,rootdirname))
         return -1
+
 
 def collect_bright_sources(bands,maglim,numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/5.0',outfilename=None):
     """Extract a structure from the sweeps containing all bright sources in a given band to a given magnitude limit
@@ -524,23 +525,30 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
     Parameters
     ----------
     mask : :class:`recarray`
-        A mask constructed by make_bright_star_mask (or read in from file in the make_bright_star_mask format)
+        A mask constructed by make_bright_source_mask
+        (or read in from file in the make_bright_source_mask format)
     limits : :class:`list`, optional
-        A list defining the RA/Dec limits of the plot as would be passed to matplotlib.pyplot.axis
+        The RA/Dec limits of the plot in the form [ramin, ramax, decmin, decmax]
     radius : :class: `str`, optional
-        Which of the mask radii to plot ("IN_RADIUS" or "NEAR_RADIUS"). Both can be plotted by calling
-        this function twice with show=False the first time and over=True the second time                    
+        Which mask radius to plot ("IN_RADIUS" or "NEAR_RADIUS"). Both can be plotted 
+        by calling this function twice with show=False and then with over=True
     over : :class:`boolean`
-        If True, then don't set-up the plot commands. Just issue the command to plot the mask so that the 
+        If True, then just issue the commands to plot the mask so that the 
         mask will be over-plotted on any existing plot (of targets etc.)
     show : :class:`boolean`
-        If True, then display the plot, Otherwise, just execute the plot commands so it can be shown or
-        saved to file later              
+        If True, then display the plot, Otherwise, just execute the plot commands 
+        so it can be shown or saved to file later              
 
     Returns
     -------
-        Nothing
+    Nothing
     """
+    #ADM set up the default log                                                                  
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger(DEBUG)
+
+    #ADM make this work even for a single mask
+    mask = np.atleast_1d(mask)
 
     #ADM set up the plot
     if not over:
@@ -549,20 +557,42 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",over=False,show=True):
         plt.xlabel('RA (o)')
         plt.ylabel('Dec (o)')
 
-        if limits is not None:
-            plt.axis(limits)
+    #ADM set up some default plot limits if they weren't passed
+    if limits is None:
+        maskra, maskdec, tol = mask["RA"], mask["DEC"], mask[radius]/3600.
+        limits = [np.min(maskra-tol),np.max(maskra+tol),
+                  np.min(maskdec-tol),np.max(maskdec+tol)]
+    plt.axis(limits)
 
-    #ADM draw ellipse patches from the mask information converting radius to degrees
-    #ADM include the cos(dec) term to expand the RA semi-major axis at higher declination
-    #ADM note the "ellipses" takes the diameter, not the radius
-    minoraxis = mask[radius]/60.
-    majoraxis = minoraxis/np.cos(np.radians(mask["DEC"]))
-    out = ellipses(mask["RA"], mask["DEC"], 2*majoraxis, 2*minoraxis, alpha=0.2, edgecolor='none')
+    #ADM only consider a limited mask range corresponding to a few
+    #ADM times the largest mask radius beyond the requested limits
+    #ADM remember that the passed mask sizes are in arcseconds
+    tol = 3.*np.max(mask[radius])/3600.
+    w = np.where( (mask["RA"] > limits[0] - tol) & (mask["RA"] < limits[1] + tol) &
+                  (mask["DEC"] > limits[2] - tol) & (mask["DEC"] < limits[3] + tol) )
+    if len(w[0])==0:
+        log.error('No mask entries within specified limits ({})'.format(limits))
+    else:
+        mask = mask[w]
+                
+    #ADM create ellipse polygons for each entry in the mask and 
+    #ADM make a list of matplotlib patches for them
+    patches = []
+    for i, ellipse in enumerate(mask):
+        #ADM create points on the ellipse boundary
+        ras, decs = ellipse_boundary(ellipse["RA"], ellipse["DEC"], ellipse[radius],
+                                     ellipse["E1"], ellipse["E2"])
+        polygon = Polygon(np.array(list(zip(ras,decs))), True)
+        patches.append(polygon)
+
+    p = PatchCollection(patches, alpha=0.4, facecolors='b', edgecolors='b')
+    ax.add_collection(p)
 
     if show:
         plt.show()
 
     return
+
 
 def is_in_bright_star(targs,starmask):
     """Determine whether a set of targets is in a bright star mask
@@ -613,6 +643,7 @@ def is_in_bright_star(targs,starmask):
 
     return in_mask, near_mask
 
+
 def is_bright_star(targs,starmask):
     """Determine whether any of a set of targets are, themselves, a bright star mask
 
@@ -647,6 +678,7 @@ def is_bright_star(targs,starmask):
     is_mask[w_mask] = 'True'
 
     return is_mask
+
 
 def generate_safe_locations(starmask,Npersqdeg):
     """Given a bright star mask, generate SAFE (BADSKY) locations at its periphery
