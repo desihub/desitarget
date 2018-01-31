@@ -215,7 +215,7 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as RA/Dec that is True
+        An array that is the same length as ras/decs that is True
         for points that are in the mask and False for points that
         are not in the mask
 
