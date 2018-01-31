@@ -716,17 +716,17 @@ def is_bright_source(targs,sourcemask):
     return is_mask
 
 
-def generate_safe_locations(starmask,Npersqdeg):
-    """Given a bright star mask, generate SAFE (BADSKY) locations at its periphery
+def generate_safe_locations(sourcemask,Nperradius):
+    """Given a bright source mask, generate SAFE (BADSKY) locations at its periphery
 
     Parameters
     ----------
-    starmask : :class:`recarray`
-        A recarray containing a bright star mask as made by, e.g., 
+    sourcemask : :class:`recarray`
+        A recarray containing a bright mask as made by, e.g., 
         :mod:`desitarget.brightmask.make_bright_star_mask` or
         :mod:`desitarget.brightmask.make_bright_source_mask`
-    npersqdeg : :class:`int`
-        The number of safe locations to generate per square degree of each mask
+    Nperradius : :class:`int`
+        The number of safe locations to generate scaled by the radius of each mask
 
     Returns
     -------
@@ -740,15 +740,12 @@ def generate_safe_locations(starmask,Npersqdeg):
         - See Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for details
     """
     
-    #ADM the radius of each mask in degrees
-    radius = starmask["IN_RADIUS"]/60.
-
-    #ADM determine the area of each mask
-    area = cap_area(radius)
+    #ADM the radius of each mask in arcseconds
+    radius = starmask["IN_RADIUS"]
 
     #ADM determine the number of SAFE locations to assign to each
-    #ADM mask given the passed number of locations per sq. deg.
-    Nsafe = np.ceil(area*Npersqdeg).astype('i')
+    #ADM mask given the passed number of locations per unit radius
+    Nsafe = np.ceil(radius*Nperradius).astype('i')
 
     ras, decs = circle_boundaries(starmask["RA"],starmask["DEC"],radius*3600.,Nsafe)
 
