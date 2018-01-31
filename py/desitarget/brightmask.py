@@ -1,7 +1,7 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-desitarget.brightstar
+desitarget.brightmask
 =====================
 
 Module for studying and masking bright stars in the sweeps
@@ -601,8 +601,8 @@ def is_in_bright_mask(targs,sourcemask):
         A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`
     sourcemask : :class:`recarray`
         A recarray containing a mask as made by, e.g.,  
-        :mod:`desitarget.brightstar.make_bright_star_mask` or 
-        :mod:`desitarget.brightstar.make_bright_source_mask`
+        :mod:`desitarget.brightmask.make_bright_star_mask` or 
+        :mod:`desitarget.brightmask.make_bright_source_mask`
 
     Returns
     -------
@@ -678,17 +678,17 @@ def is_in_bright_mask(targs,sourcemask):
     return in_mask, near_mask
 
 
-def is_bright_star(targs,starmask):
-    """Determine whether any of a set of targets are, themselves, a bright star mask
+def is_bright_source(targs,sourcemask):
+    """Determine whether any of a set of targets are, themselves, a bright source mask
 
     Parameters
     ----------
     targs : :class:`recarray`
         A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`
-    starmask : :class:`recarray`
-        A recarray containing a bright star mask as made by, e.g.,
-        :mod:`desitarget.brightstar.make_bright_star_mask` or 
-        :mod:`desitarget.brightstar.make_bright_source_mask` or 
+    sourcemask : :class:`recarray`
+        A recarray containing a bright source mask as made by, e.g.,
+        :mod:`desitarget.brightmask.make_bright_star_mask` or 
+        :mod:`desitarget.brightmask.make_bright_source_mask` or 
     
     Returns
     -------
@@ -697,7 +697,7 @@ def is_bright_star(targs,starmask):
 
     """
 
-    #ADM initialize an array of all False (nothing yet has been shown to correspond to a star mask)
+    #ADM initialize an array of all False (nothing yet has been shown to correspond to a mask)
     is_mask = np.zeros(len(targs), dtype=bool)
 
     #ADM calculate the TARGETID for the targets
@@ -706,12 +706,12 @@ def is_bright_star(targs,starmask):
                                release=targs['RELEASE'])
 
     #ADM super-fast set-based look-up of which TARGETIDs are matches between the masks and the targets
-    matches = set(starmask["TARGETID"]).intersection(set(targetid))
+    matches = set(sourcemask["TARGETID"]).intersection(set(targetid))
     #ADM determine the indexes of the targets that have a TARGETID in matches
     w_mask = [ index for index, item in enumerate(targetid) if item in matches ]
 
-    #ADM w_mask now contains the target indices that match to a bright star mask on TARGETID
-    is_mask[w_mask] = 'True'
+    #ADM w_mask now contains the target indices that match to a bright mask on TARGETID
+    is_mask[w_mask] = True
 
     return is_mask
 
@@ -723,8 +723,8 @@ def generate_safe_locations(starmask,Npersqdeg):
     ----------
     starmask : :class:`recarray`
         A recarray containing a bright star mask as made by, e.g., 
-        :mod:`desitarget.brightstar.make_bright_star_mask` or
-        :mod:`desitarget.brightstar.make_bright_source_mask`
+        :mod:`desitarget.brightmask.make_bright_star_mask` or
+        :mod:`desitarget.brightmask.make_bright_source_mask`
     npersqdeg : :class:`int`
         The number of safe locations to generate per square degree of each mask
 
@@ -766,8 +766,8 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
         The HEALPix nside used throughout the DESI data model
     starmask : :class:`~numpy.ndarray`
         A recarray containing a bright source mask as made by, e.g. 
-        :mod:`desitarget.brightstar.make_bright_star_mask` or
-        :mod:`desitarget.brightstar.make_bright_source_mask` or
+        :mod:`desitarget.brightmask.make_bright_star_mask` or
+        :mod:`desitarget.brightmask.make_bright_source_mask` or
     drbricks : :class:`~numpy.ndarray`, optional
         A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file. 
         This is typically used for testing only.
@@ -859,7 +859,7 @@ def set_target_bits(targs,sourcemask):
     targs : :class:`recarray`
         A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`
     sourcemask : :class:`recarray`
-        A recarray containing a bright star mask as made by desitarget.brightstar.make_bright_star_mask
+        A recarray containing a bright star mask as made by desitarget.brightmask.make_bright_star_mask
 
     Returns
     -------
@@ -894,7 +894,7 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         A recarray of targets created by desitarget.cuts.select_targets OR a filename of
         a file that contains such a set of targets
     instarmaskfile : :class:`str`, optional
-        An input bright star mask created by desitarget.brightstar.make_bright_star_mask
+        An input bright star mask created by desitarget.brightmask.make_bright_star_mask
         If None, defaults to making the bright star mask from scratch
         The next 5 parameters are only relevant to making the bright star mask from scratch
     nside : :class:`integer`
