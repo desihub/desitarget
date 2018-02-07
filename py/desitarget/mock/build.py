@@ -45,7 +45,7 @@ def _initialize(params, verbose=False, seed=1, output_dir='./',
 
     """
     from desiutil.log import get_logger, DEBUG
-    #from desitarget.mock.selection import SelectTargets
+    from desimodel.footprint import tiles2pix
 
     # Initialize logger
     if verbose:
@@ -70,9 +70,10 @@ def _initialize(params, verbose=False, seed=1, output_dir='./',
         os.makedirs(output_dir)    
     log.info('Writing to output directory {}'.format(output_dir))      
         
-    # Default set of healpixels is the whole sky (yikes!)
+    # Default set of healpixels is the whole DESI footprint (yikes!)
     if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(nside))
+        log.warning('List of healpixels not provided; processing the whole DESI footprint!')
+        healpixels = tiles2pix(nside)
 
     areaperpix = hp.nside2pixarea(nside, degrees=True)
     totarea = len(healpixels) * areaperpix
@@ -289,28 +290,28 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
         
     return [targets, truth, trueflux]
 
-def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
-                  nside_chunk=128, healpixels=None, verbose=False):
+def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
+                  healpixels=None, nside_chunk=128, verbose=False):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
     (with, e.g., the true redshift) for use in simulations.
 
     Args:
         params : dict
             Source parameters.
-        seed: int
-            Seed for the random number generation.
         output_dir : str
             Output directory (default '.').
+        seed: int
+            Seed for the random number generation.
         nproc : int
             Number of parallel processes to use (default 1).
         nside : int
             Healpix resolution corresponding to healpixels (default 16).
-        nside_chunk : int
-            Healpix resolution for chunking the sample (NB: nside_chunk must be
-            <= nside).
         healpixels : numpy.ndarray or int
             Restrict the sample of mock targets analyzed to those lying inside
             this set (array) of healpix pixels.  (Default: None)
+        nside_chunk : int
+            Healpix resolution for chunking the sample (NB: nside_chunk must be
+            <= nside).
         verbose: bool
             Be verbose. (Default: False)
 
@@ -327,6 +328,10 @@ def targets_truth(params, output_dir='./', seed=None, nproc=1, nside=16,
     log, rand, healpixels, areaperpix = _initialize(params, verbose=verbose,
                                                     seed=seed, output_dir=output_dir,
                                                     nside=nside, healpixels=healpixels)
+
+    if nside is None:
+        log.warning('Healpix nside input is required.')
+        raise ValueError
 
     # Loop over each source / object type.
     for healpix in healpixels:
