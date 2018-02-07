@@ -687,6 +687,10 @@ class ReadGalaxia(object):
         if mockfile is None:
             log.warning('Mockfile input is required.')
             raise ValueError
+
+        if nside_galaxia is None:
+            log.warning('Nside_galaxy input is required.')
+            raise ValueError
         
         mockfile_nside = os.path.join(mockfile, str(nside_galaxia))
         if not os.path.isdir(mockfile_nside):
