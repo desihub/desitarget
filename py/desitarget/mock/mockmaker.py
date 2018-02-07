@@ -2093,7 +2093,7 @@ class BGSMaker(SelectTargets):
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'bgs', 'mXXL', 'desi_footprint',
+                                             'bgs', 'MXXL', 'desi_footprint',
                                              'v0.0.4', 'BGS.hdf5')
 
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
