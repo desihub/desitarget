@@ -330,7 +330,7 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
                                                     nside=nside, healpixels=healpixels)
 
     if nside is None:
-        log.warning('Healpix nside input is required.')
+        log.warning('NSIDE input is required.')
         raise ValueError
 
     # Loop over each source / object type.
