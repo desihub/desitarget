@@ -54,7 +54,15 @@ def _initialize(params, verbose=False, seed=1, output_dir='./',
         log = get_logger()
     
     if params is None:
-        log.fatal('Required params input not given!')
+        log.fatal('PARAMS input is required.')
+        raise ValueError
+
+    if nside is None:
+        log.fatal('NSIDE input is required.')
+        raise ValueError
+
+    if nside > 256:
+        log.warning('NSIDE = {} exceeds the number of bits available for BRICKID in targets.encode_targetid.')
         raise ValueError
 
     # Check for required parameters in the input 'params' dict
@@ -328,11 +336,7 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
     log, rand, healpixels, areaperpix = _initialize(params, verbose=verbose,
                                                     seed=seed, output_dir=output_dir,
                                                     nside=nside, healpixels=healpixels)
-
-    if nside is None:
-        log.warning('NSIDE input is required.')
-        raise ValueError
-
+    
     # Loop over each source / object type.
     for healpix in healpixels:
         alltargets = list()
