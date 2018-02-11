@@ -631,6 +631,110 @@ class ReadGaussianField(object):
 
         return out
 
+class ReadUniformSky(object):
+    """Read a uniform sky style mock catalog.
+
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
+    def __init__(self, dust_dir=None, bricksize=0.25):
+        self.dust_dir = dust_dir
+        self.bricksize = bricksize
+
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name=''):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data files are not found.
+        ValueError
+            If mockfile is not defined or if healpixels is not a scalar.
+
+        """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+            
+        if not os.path.isfile(mockfile):
+            log.warning('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
+        
+        # Read the ra,dec coordinates, generate mockid, and then restrict to the
+        # input healpixel.
+        log.info('Reading {}'.format(mockfile))
+        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj = len(radec)
+
+        files = list()
+        n_per_file = list()
+        files.append(mockfile)
+        n_per_file.append(nobj)
+
+        objid = np.arange(nobj, dtype='i8')
+        mockid = make_mockid(objid, n_per_file)
+
+        log.info('Assigning healpix pixels with nside = {}'.format(nside))
+        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+        else:
+            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
+
+        objid = objid[cut]
+        mockid = mockid[cut]
+        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = radec['DEC'][cut].astype('f8')
+        del radec
+
+        # Assign bricknames.
+        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+
+        # Add redshifts.
+        zz = np.zeros(len(ra))
+            
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
+               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz,
+               'FILES': files, 'N_PER_FILE': n_per_file}
+
+        # Add MW transmission and the imaging depth.
+        mw_transmission(out, dust_dir=self.dust_dir)
+        imaging_depth(out)
+
+        return out
+
 class ReadGalaxia(object):
     """Read a Galaxia style mock catalog.
 
@@ -689,7 +793,7 @@ class ReadGalaxia(object):
             raise ValueError
 
         if nside_galaxia is None:
-            log.warning('Nside_galaxy input is required.')
+            log.warning('Nside_galaxia input is required.')
             raise ValueError
         
         mockfile_nside = os.path.join(mockfile, str(nside_galaxia))
@@ -1335,7 +1439,7 @@ class QSOMaker(SelectTargets):
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
-                                             'v0.0.5', 'QSO.fits')
+                                             'v0.0.7_2LPT', 'QSO.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=[], nside=[], **kwargs):
@@ -1698,7 +1802,7 @@ class LRGMaker(SelectTargets):
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
-                                             'v0.0.5', 'LRG.fits')
+                                             'v0.0.7_2LPT', 'LRG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=[], nside=[], nside_chunk=128, **kwargs):
@@ -1896,7 +2000,7 @@ class ELGMaker(SelectTargets):
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
-                                             'v0.0.5', 'ELG.fits')
+                                             'v0.0.7_2LPT', 'ELG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=[], nside=[], nside_chunk=128, **kwargs):
@@ -3190,8 +3294,8 @@ class SKYMaker(SelectTargets):
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'GaussianRandomField',
-                                             'v0.0.1', '2048', 'random.fits')
+                                             'uniformsky', '0.1',
+                                             'uniformsky-2048-0.1.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=[], nside=[], **kwargs):
@@ -3226,7 +3330,9 @@ class SKYMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         
-        if self.mockformat == 'gaussianfield':
+        if self.mockformat == 'uniformsky':
+            MockReader = ReadUniformSky(dust_dir=dust_dir)
+        elif self.mockformat == 'gaussianfield':
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
