@@ -11,6 +11,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
+import warnings
 import numpy as np
 from pkg_resources import resource_filename
 
@@ -523,6 +524,45 @@ class SelectTargets(object):
 
         return targets, truth
 
+    def qamock_sky(self, data, png=None):
+        """Generate a QAplot showing the sky and redshift distribution of the objects in
+        the mock.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+
+        """
+        import matplotlib.pyplot as plt
+        from desiutil.plots import init_sky, plot_sky_binned
+        
+        fig, ax = plt.subplots(1, 2, figsize=(12, 4))
+        with warnings.catch_warnings():
+            warnings.simplefilter('ignore')
+            basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+            plot_sky_binned(data['RA'], data['DEC'], verbose=False, 
+                            clip_lo='!1', cmap='jet', plot_type='healpix', 
+                            label=r'{} (targets/deg$^2$)'.format(self.objtype), 
+                            basemap=basemap)
+        if 'Z' in data.keys():
+            ax[1].hist(data['Z'], bins=100, histtype='stepfilled',
+                       alpha=0.6, label=self.objtype)
+            ax[1].set_xlabel('Redshift')
+            ax[1].set_xlim(0, 4)
+            ax[1].yaxis.set_major_formatter(plt.NullFormatter())
+            ax[1].legend(loc='upper right', frameon=False)
+        else:
+            ax[1].axis('off')
+        fig.subplots_adjust(wspace=0.2)
+
+        if png:
+            print('Writing {}'.format(png))
+            fig.savefig(png)
+            plt.close(fig)
+        else:
+            plt.show()
+
 class ReadGaussianField(object):
     """Read a Gaussian random field style mock catalog.
 
@@ -539,7 +579,7 @@ class ReadGaussianField(object):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name=''):
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name=''):
         """Read the catalog.
 
         Parameters
@@ -574,10 +614,18 @@ class ReadGaussianField(object):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
-            log.warning('Healpixels and nside must be scalar inputs.')
+        # Default set of healpixels is the whole DESI footprint.
+        if healpixels is None:
+            from desimodel.footprint import tiles2pix
+            if nside is None:
+                nside = 16
+            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            healpixels = tiles2pix(nside)
+
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
             raise ValueError
-        
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
         log.info('Reading {}'.format(mockfile))
@@ -626,7 +674,8 @@ class ReadGaussianField(object):
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -647,7 +696,7 @@ class ReadUniformSky(object):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name=''):
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name=''):
         """Read the catalog.
 
         Parameters
@@ -730,7 +779,8 @@ class ReadUniformSky(object):
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -751,7 +801,7 @@ class ReadGalaxia(object):
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='',
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='',
                  nside_galaxia=8, magcut=None):
         """Read the catalog.
 
@@ -906,7 +956,8 @@ class ReadGalaxia(object):
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -961,7 +1012,7 @@ class ReadLyaCoLoRe(object):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='LYA',
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='LYA',
                  nside_lya=16):
         """Read the catalog.
 
@@ -1054,7 +1105,8 @@ class ReadLyaCoLoRe(object):
                'RA': ra, 'DEC': dec, 'Z': zz}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -1075,7 +1127,7 @@ class ReadMXXL(object):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='BGS',
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='BGS',
                  magcut=None):
         """Read the catalog.
 
@@ -1186,7 +1238,8 @@ class ReadMXXL(object):
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -1207,7 +1260,7 @@ class ReadMWS_WD(object):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='WD'):
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='WD'):
         """Read the catalog.
 
         Parameters
@@ -1296,7 +1349,8 @@ class ReadMWS_WD(object):
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -1317,7 +1371,7 @@ class ReadMWS_NEARBY(object):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='MWS_NEARBY'):
+    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='MWS_NEARBY'):
         """Read the catalog.
 
         Parameters
@@ -1407,7 +1461,8 @@ class ReadMWS_NEARBY(object):
                'FILES': files, 'N_PER_FILE': n_per_file}
 
         # Add MW transmission and the imaging depth.
-        mw_transmission(out, dust_dir=self.dust_dir)
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
         imaging_depth(out)
 
         return out
@@ -1442,7 +1497,7 @@ class QSOMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'QSO.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=[], nside=[], **kwargs):
+             healpixels=None, nside=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1588,7 +1643,7 @@ class LYAMaker(SelectTargets):
                                              'lya_forest', 'v2.0.2', 'master.fits')
 
     def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
-             healpixels=[], nside=[], nside_lya=16, **kwargs):
+             healpixels=None, nside=None, nside_lya=16, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1805,7 +1860,7 @@ class LRGMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'LRG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=[], nside=[], nside_chunk=128, **kwargs):
+             healpixels=None, nside=None, nside_chunk=128, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2003,7 +2058,7 @@ class ELGMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'ELG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=[], nside=[], nside_chunk=128, **kwargs):
+             healpixels=None, nside=None, nside_chunk=128, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2205,7 +2260,7 @@ class BGSMaker(SelectTargets):
                                              'v0.0.4', 'BGS.hdf5')
 
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=[], nside=[], nside_chunk=128, magcut=None, **kwargs):
+             healpixels=None, nside=None, nside_chunk=128, magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2599,7 +2654,7 @@ class MWS_MAINMaker(STARMaker):
                                              'v0.0.5', 'healpix')
 
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=[], nside=[], nside_galaxia=8, magcut=None,
+             healpixels=None, nside=None, nside_galaxia=8, magcut=None,
              **kwargs):
         """Read the catalog.
 
@@ -2777,7 +2832,7 @@ class FAINTSTARMaker(STARMaker):
                                              '0.0.5_superfaint', 'healpix')
 
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=[], nside=[], nside_galaxia=8, magcut=None,
+             healpixels=None, nside=None, nside_galaxia=8, magcut=None,
              **kwargs):
         """Read the catalog.
 
@@ -2958,7 +3013,7 @@ class MWS_NEARBYMaker(STARMaker):
 
 
     def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
-             healpixels=[], nside=[], **kwargs):
+             healpixels=None, nside=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3111,7 +3166,7 @@ class WDMaker(SelectTargets):
                                              'mock_wd.fits')
 
     def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
-             healpixels=[], nside=[], **kwargs):
+             healpixels=None, nside=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3298,7 +3353,7 @@ class SKYMaker(SelectTargets):
                                              'uniformsky-2048-0.1.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=[], nside=[], **kwargs):
+             healpixels=None, nside=None, **kwargs):
         """Read the catalog.
 
         Parameters
