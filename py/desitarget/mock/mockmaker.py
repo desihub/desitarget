@@ -20,7 +20,7 @@ from astropy.table import Table, Column
 
 from desisim.io import read_basis_templates
 from desiutil.brick import brickname as get_brickname_from_radec
-from desimodel.footprint import radec2pix
+from desimodel import footprint
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger()
@@ -348,7 +348,7 @@ def _sample_vdisp(data, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
     nobj = len(data['RA'])
     vdisp = np.zeros(nobj)
 
-    healpix = radec2pix(nside, data['RA'], data['DEC'])
+    healpix = footprint.radec2pix(nside, data['RA'], data['DEC'])
     for pix in set(healpix):
         these = np.in1d(healpix, pix)
         vdisp[these] = _sample(nmodel=np.count_nonzero(these))
@@ -616,15 +616,27 @@ class ReadGaussianField(object):
 
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
-            from desimodel.footprint import tiles2pix
             if nside is None:
                 nside = 16
             log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
-            healpixels = tiles2pix(nside)
+            healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
             log.warning('Nside must be a scalar input.')
             raise ValueError
+
+        #weights = np.ones(len(targs))
+        #if weight:
+        #    #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
+        #    pixweight = footprint.io.load_pixweight(nside)
+        #    #ADM determine what HEALPixels each target is in, to set the weights
+        #    fracarea = pixweight[pix]
+        #    #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+        #    #ADM except for zero pixels, which are all outside of the footprint
+        #    w = np.where(fracarea == 0)
+        #    fracarea[w] = 1 #ADM to guard against division by zero warnings
+        #    weights = 1./fracarea
+        #    weights[w] = 0
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
@@ -641,7 +653,7 @@ class ReadGaussianField(object):
         mockid = make_mockid(objid, n_per_file)
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -676,7 +688,7 @@ class ReadGaussianField(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
 
@@ -731,10 +743,17 @@ class ReadUniformSky(object):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
-            log.warning('Healpixels and nside must be scalar inputs.')
+        # Default set of healpixels is the whole DESI footprint.
+        if healpixels is None:
+            if nside is None:
+                nside = 16
+            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            healpixels = footprint.tiles2pix(nside)
+
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
             raise ValueError
-        
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
         log.info('Reading {}'.format(mockfile))
@@ -750,7 +769,7 @@ class ReadUniformSky(object):
         mockid = make_mockid(objid, n_per_file)
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -781,7 +800,7 @@ class ReadUniformSky(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
 
@@ -801,7 +820,7 @@ class ReadGalaxia(object):
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='',
+    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='',
                  nside_galaxia=8, magcut=None):
         """Read the catalog.
 
@@ -851,6 +870,8 @@ class ReadGalaxia(object):
             log.warning('Galaxia top-level directory {} not found!'.format(mockfile_nside))
             raise IOError
 
+        # Because of the size of the Galaxia mock, healpixels (and nside) must
+        # be scalars.
         if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
             log.warning('Healpixels and nside must be scalar inputs.')
             raise ValueError
@@ -892,7 +913,7 @@ class ReadGalaxia(object):
         objid = np.arange(nobj, dtype='i8')
         mockid = make_mockid(objid, n_per_file)
 
-        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -958,7 +979,7 @@ class ReadGalaxia(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
 
@@ -1053,8 +1074,15 @@ class ReadLyaCoLoRe(object):
 
         mockdir = os.path.dirname(mockfile)
     
-        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
-            log.warning('Healpixels and nside must be scalar inputs.')
+        # Default set of healpixels is the whole DESI footprint.
+        if healpixels is None:
+            if nside is None:
+                nside = 16
+            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            healpixels = footprint.tiles2pix(nside)
+
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
             raise ValueError
 
         # Read the ra,dec coordinates and then restrict to the desired
@@ -1072,7 +1100,7 @@ class ReadLyaCoLoRe(object):
         del tmp
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = radec2pix(nside, ra, dec)
+        allpix = footprint.radec2pix(nside, ra, dec)
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -1107,7 +1135,7 @@ class ReadLyaCoLoRe(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
 
@@ -1168,8 +1196,15 @@ class ReadMXXL(object):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
-            log.warning('Healpixels and nside must be scalar inputs.')
+        # Default set of healpixels is the whole DESI footprint.
+        if healpixels is None:
+            if nside is None:
+                nside = 16
+            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            healpixels = footprint.tiles2pix(nside)
+
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
             raise ValueError
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
@@ -1188,7 +1223,7 @@ class ReadMXXL(object):
         mockid = make_mockid(objid, n_per_file)
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = radec2pix(nside, ra, dec)
+        allpix = footprint.radec2pix(nside, ra, dec)
         these = np.in1d(allpix, healpixels)
         cut = np.where( these*1 )[0]
 
@@ -1240,7 +1275,7 @@ class ReadMXXL(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
 
@@ -1295,10 +1330,17 @@ class ReadMWS_WD(object):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
-            log.warning('Healpixels and nside must be scalar inputs.')
+        # Default set of healpixels is the whole DESI footprint.
+        if healpixels is None:
+            if nside is None:
+                nside = 16
+            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            healpixels = footprint.tiles2pix(nside)
+
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
             raise ValueError
-            
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
         log.info('Reading {}'.format(mockfile))
@@ -1314,7 +1356,7 @@ class ReadMWS_WD(object):
         mockid = make_mockid(objid, n_per_file)
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -1351,7 +1393,7 @@ class ReadMWS_WD(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
     
@@ -1406,8 +1448,15 @@ class ReadMWS_NEARBY(object):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
 
-        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
-            log.warning('Healpixels and nside must be scalar inputs.')
+        # Default set of healpixels is the whole DESI footprint.
+        if healpixels is None:
+            if nside is None:
+                nside = 16
+            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            healpixels = footprint.tiles2pix(nside)
+
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
             raise ValueError
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
@@ -1425,7 +1474,7 @@ class ReadMWS_NEARBY(object):
         mockid = make_mockid(objid, n_per_file)
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = radec2pix(nside, radec['RA'], radec['DEC'])
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
@@ -1463,7 +1512,7 @@ class ReadMWS_NEARBY(object):
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
-        imaging_depth(out)
+            imaging_depth(out)
 
         return out
 
