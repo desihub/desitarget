@@ -1,5 +1,5 @@
 """                                                                                                                               
-desispec.gfa                                                                                                                      
+desitarget.gfa                                                                                                                      
 ============                                                                                                                      
                                                                                                                                   
 Guide/Focus/Aligment targets
