@@ -37,6 +37,9 @@ if args.input_fiberassign:
 else:
     fiberassign_tilefiles = []
 
+if not os.path.isdir(args.output_dir):
+    os.makedirs(args.output_dir, exist_ok=True)
+
 # list sweep files to be used
 sweep_files = desitarget.io.list_sweepfiles(args.input_sweep)
 n_sweep = len(sweep_files)
