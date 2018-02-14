@@ -8,8 +8,18 @@ import desimodel.io
 import desimodel.footprint
 import matplotlib.pyplot as plt
 import glob
+import time
 import os.path
 import argparse
+
+def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
+    delta_RA = data['RA'] - tilera
+    delta_dec = data['DEC'] - tiledec
+    jj = np.fabs(delta_RA) < window_ra
+    jj = jj | ((delta_RA + 360.0) < window_ra)
+    jj = jj | ((360.0 - delta_RA) < window_ra)
+    jj = jj & (np.fabs(delta_dec)<window_dec)
+    return jj
 
 parser = argparse.ArgumentParser()
 
@@ -21,45 +31,63 @@ parser.add_argument('-t', '--input_tiles', help='Input file with the tileid gfa 
 args = parser.parse_args()
 
 # list tilefiles already available
-fiberassign_tilefiles = glob.glob(os.path.join(args.input_fiberassign,"tile*.fits"))
-print(len(fiberassign_tilefiles))
+if args.input_fiberassign:
+    fiberassign_tilefiles = glob.glob(os.path.join(args.input_fiberassign,"tile*.fits"))
+    print(len(fiberassign_tilefiles), 'fiberassign tile files')
+else:
+    fiberassign_tilefiles = []
 
 # list sweep files to be used
 sweep_files = desitarget.io.list_sweepfiles(args.input_sweep)
 n_sweep = len(sweep_files)
-print(len(sweep_files))
+print(len(sweep_files), 'sweep files')
 
 # list of tiles to be computed
-gfa_tiles = np.int_(np.loadtxt(args.input_tiles))
-print(len(gfa_tiles))
+desi_tiles = desimodel.io.load_tiles()
+if args.input_tiles is not None:
+    gfa_tiles = np.int_(np.loadtxt(args.input_tiles))
+    print(len(gfa_tiles), 'tiles to process')
+
+    # Check that all of them are known DESI tiles
+    unknown_tiles = ~np.in1d(gfa_tiles, desi_tiles['TILEID'])
+    if np.any(unknown_tiles):
+        nbad = np.count_nonzero(unknown_tiles)
+        print('{} unknown tiles: {}'.format(nbad, gfa_tiles[unknown_tiles]))
+
+    # Trim DESI tiles list to the requested subset
+    ii = np.in1d(desi_tiles['TILEID'], gfa_tiles)
+    desi_tiles = desi_tiles[ii]
 
 #load all sweep data
 sweep_data = []
-#n_sweep = 10
+# n_sweep = 10
 for i in range(n_sweep):
     sweep_file = sweep_files[i]
-    sweep_data.append(fitsio.read(sweep_file, columns=['RA', 'DEC', 'FLUX_R']))
+    data = fitsio.read(sweep_file, columns=['RA', 'DEC', 'FLUX_R'])
+
+    #- Faster for a small number of test tiles, but slower if using all tiles
+    # keep = np.zeros(len(data), dtype=bool)
+    # for tile in desi_tiles:
+    #     keep |= near_tile(data, tile['RA'], tile['DEC'])
+    # if np.any(keep):
+    #     sweep_data.append(data[keep])
+
+    sweep_data.append(data)
+
     print('Loaded file {} out of {}'.format(i, n_sweep))
+
 all_sweep = np.concatenate(sweep_data, axis=0)
 
-print('There are {:.2f}M targets in the sweeps'.format(len(all_sweep)/1E6))
-
-desi_tiles = desimodel.io.load_tiles()
+print('There are {:.2f}M targets near tiles in the sweeps'.format(len(all_sweep)/1E6))
 
 #find IDs of targets on every individual tile
 
-for tile_id in gfa_tiles:
-    ii = desi_tiles['TILEID'] == tile_id
-    print('computing TILEID {:05d} on RA {} DEC {}'.format(tile_id, desi_tiles['RA'][ii], desi_tiles['DEC'][ii]))
+for i in range(len(desi_tiles)):
+    tile_id = desi_tiles['TILEID'][i]
+    print('computing TILEID {:05d} on RA {:6.2f} DEC {:6.2f}'.format(tile_id, desi_tiles['RA'][i], desi_tiles['DEC'][i]))
     
     # select targets in a smaller window centered on tile
-    window_ra = 4.0 / np.cos(np.deg2rad(desi_tiles['DEC'][ii]))
-    window_dec = 4.0
-    print(window_ra, window_dec)
-    jj = np.fabs(all_sweep['RA'] - desi_tiles['RA'][ii])<window_ra
-    jj = jj | ((all_sweep['RA'] - desi_tiles['RA'][ii] +360.0) < window_ra)
-    jj = jj | ((desi_tiles['RA'][ii] - all_sweep['RA'] +360.0) < window_ra)
-    jj = jj & (np.fabs(all_sweep['DEC']-desi_tiles['DEC'][ii])<window_dec)
+    jj = near_tile(all_sweep, desi_tiles['RA'][i], desi_tiles['DEC'][i])
     
     #find GFA targets in the smaller input window
     if np.count_nonzero(jj):
@@ -70,9 +98,13 @@ for tile_id in gfa_tiles:
         print('Found {:d} targets on TILEID {:05d}'.format(len(targetindices), tile_id))
 
         if len(targetindices):
+            gfa_targets = np.lib.recfunctions.append_fields(
+                    mini_sweep[targetindices], 'GFA_LOC', gfaindices,
+                    usemask=False)
+
             filename = os.path.join(args.output_dir, "gfa_targets_tile_{:05d}.fits".format(tile_id))        
             print("writing to {}".format(filename))
-            a = fitsio.write(filename, mini_sweep[targetindices])
+            a = fitsio.write(filename, gfa_targets, extname='GFA', clobber=True)
             
 
 #rewrite a new tilefile with all the info in three HDUs
@@ -99,6 +131,6 @@ for gfa_id in gfa_tile_id.keys():
         potential_data = fitsio.read(fa_tile_id[gfa_id], ext=2)
 
         tileout = os.path.join(args.output_dir, 'tile_{}.fits'.format(gfa_id))
-        fitsio.write(tileout, fiber_data, extname='FIBERASSIGN')
+        fitsio.write(tileout, fiber_data, extname='FIBERASSIGN', clobber=True)
         fitsio.write(tileout, potential_data, extname='POTENTIAL')
         fitsio.write(tileout, gfa_data, extname='GFA')

@@ -8,9 +8,11 @@ desitarget Change Log
 * New target density fluctuations model based on DR5 healpixel info [`PR
   #254`_].
 * Include (initial) mock QA plots on targeting QA page [`PR #262`_]
+* Added `select_gfa` script [`PR #275`_]
 
 .. _`PR #254`: https://github.com/desihub/desitarget/pull/254
 .. _`PR #262`: https://github.com/desihub/desitarget/pull/262
+.. _`PR #275`: https://github.com/desihub/desitarget/pull/275
 
 0.17.1 (2017-12-20)
 -------------------
