@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 import numpy as np
 import desimodel.io
 import glob
@@ -8,6 +7,8 @@ import os.path
 import argparse
 import desitarget.gfa
 
+from desiutil.log import get_logger
+log = get_logger()
 
 parser = argparse.ArgumentParser()
 
@@ -25,25 +26,25 @@ if not os.path.isdir(args.output_dir):
 desi_tiles = desimodel.io.load_tiles()
 if args.input_tiles is not None:
     gfa_tiles = np.int_(np.loadtxt(args.input_tiles))
-    print(len(gfa_tiles), 'tiles to process')
+    log.info('{} tiles to process'.format(len(gfa_tiles)))
 
     # Check that all of them are known DESI tiles
     unknown_tiles = ~np.in1d(gfa_tiles, desi_tiles['TILEID'])
     if np.any(unknown_tiles):
         nbad = np.count_nonzero(unknown_tiles)
-        print('{} unknown tiles: {}'.format(nbad, gfa_tiles[unknown_tiles]))
+        log.info('{} unknown tiles: {}'.format(nbad, gfa_tiles[unknown_tiles]))
 
     # Trim DESI tiles list to the requested subset
     ii = np.in1d(desi_tiles['TILEID'], gfa_tiles)
     desi_tiles = desi_tiles[ii]
 
 # Find and write GFA targets in desi_tiles 
-desitarget.gfa.write_gfa_targets(args.input_sweep, desi_tiles, args.output_dir)
+desitarget.gfa.write_gfa_targets(args.input_sweep, desi_tiles, args.output_dir, log=log)
 
 # Rewrite fiberassign tiles with the GFA info
-desitarget.gfa.add_gfa_info_to_tiles(gfa_file_path=args.output_dir, 
+desitarget.gfa.add_gfa_info_to_fa_tiles(gfa_file_path=args.output_dir, 
                                      fa_file_path=args.input_fiberassign, 
-                                     output_path=args.output_dir)
+                                     output_path=args.output_dir, log=log)
 
 
 
