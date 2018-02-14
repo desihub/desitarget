@@ -65,6 +65,11 @@ for i in range(n_sweep):
     sweep_file = sweep_files[i]
     data = fitsio.read(sweep_file, columns=['RA', 'DEC', 'FLUX_R'])
 
+    #- Keep just mag>18
+    rfluxlim = 10**(0.4*(22.5-18))
+    ii = data['FLUX_R'] > rfluxlim
+    data = data[ii]
+
     #- Faster for a small number of test tiles, but slower if using all tiles
     # keep = np.zeros(len(data), dtype=bool)
     # for tile in desi_tiles:
@@ -134,3 +139,5 @@ for gfa_id in gfa_tile_id.keys():
         fitsio.write(tileout, fiber_data, extname='FIBERASSIGN', clobber=True)
         fitsio.write(tileout, potential_data, extname='POTENTIAL')
         fitsio.write(tileout, gfa_data, extname='GFA')
+
+
