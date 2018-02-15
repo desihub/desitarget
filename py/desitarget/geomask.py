@@ -510,7 +510,8 @@ def sphere_circle_ra_off(theta,centdec,declocs):
     """
 
     #ADM convert the input angles from degrees to radians
-    thetar = np.radians(theta)
+    #ADM cast theta as float 64 to help deal with the cosine of very small angles
+    thetar = np.radians(theta).astype('<f8')
     centdecr = np.radians(centdec)
     declocsr = np.radians(declocs)
 

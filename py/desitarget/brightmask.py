@@ -377,8 +377,8 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
 
     Notes
     -----
-        - `IN_RADIUS` is a smaller radius that corresponds to the `IN_BRIGHT_OBJECT` bit in data/targetmask.yaml
-        - `NEAR_RADIUS` is a radius that corresponds to the `NEAR_BRIGHT_OBJECT` bit in data/targetmask.yaml
+        - `IN_RADIUS` is a smaller radius that corresponds to the `IN_BRIGHT_OBJECT` bit in data/targetmask.yaml (and is in ARCSECONDS)
+        - `NEAR_RADIUS` is a radius that corresponds to the `NEAR_BRIGHT_OBJECT` bit in data/targetmask.yaml (and is in ARCSECONDS)
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
           the `NEAR_RADIUS`:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
@@ -447,8 +447,8 @@ def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/
 
     Notes
     -----
-        - `IN_RADIUS` is a smaller radius that corresponds to the `IN_BRIGHT_OBJECT` bit in data/targetmask.yaml
-        - `NEAR_RADIUS` is a radius that corresponds to the `NEAR_BRIGHT_OBJECT` bit in data/targetmask.yaml
+        - `IN_RADIUS` is a smaller radius that corresponds to the `IN_BRIGHT_OBJECT` bit in data/targetmask.yaml (and is in ARCSECONDS)
+        - `NEAR_RADIUS` is a radius that corresponds to the `NEAR_BRIGHT_OBJECT` bit in data/targetmask.yaml (and is in ARCSECONDS)
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask (in every band) to set
           the `NEAR_RADIUS`:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
@@ -568,8 +568,8 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
     mask = np.atleast_1d(mask)
 
     #ADM set up the plot
-    if not over:
-        plt.figure(figsize=(8,8))
+    plt.figure(figsize=(8,8))
+    fig, ax = plt.subplots(1)
         
     plt.xlabel('RA (o)')
     plt.ylabel('Dec (o)')
@@ -579,7 +579,7 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
         maskra, maskdec, tol = mask["RA"], mask["DEC"], mask[radius]/3600.
         limits = [np.min(maskra-tol),np.max(maskra+tol),
                   np.min(maskdec-tol),np.max(maskdec+tol)]
-    plt.axis(limits)
+    ax.axis(limits)
 
     #ADM only consider a limited mask range corresponding to a few
     #ADM times the largest mask radius beyond the requested limits
@@ -603,7 +603,7 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
         patches.append(polygon)
 
     p = PatchCollection(patches, alpha=0.4, facecolors='b', edgecolors='b')
-    plt.add_collection(p)
+    ax.add_collection(p)
 
     if show:
         plt.show()
@@ -733,7 +733,7 @@ def is_bright_source(targs,sourcemask):
     return is_mask
 
 
-def generate_safe_locations(sourcemask,Nperradius):
+def generate_safe_locations(sourcemask,Nperradius=1):
     """Given a bright source mask, generate SAFE (BADSKY) locations at its periphery
 
     Parameters
@@ -742,8 +742,9 @@ def generate_safe_locations(sourcemask,Nperradius):
         A recarray containing a bright mask as made by, e.g., 
         :mod:`desitarget.brightmask.make_bright_star_mask` or
         :mod:`desitarget.brightmask.make_bright_source_mask`
-    Nperradius : :class:`int`
+    Nperradius : :class:`int`, optional, defaults to 1 per arcsec of radius
         The number of safe locations to generate scaled by the radius of each mask
+        in ARCSECONDS (i.e. the number of positions per arcsec of radius)
 
     Returns
     -------
@@ -777,14 +778,14 @@ def generate_safe_locations(sourcemask,Nperradius):
     if len(w_circle[0]) > 0:
         circras, circdecs = circle_boundaries(sourcemask[w_circle]["RA"],
                                               sourcemask[w_circle]["DEC"],
-                                              radius[w_circle]*3600.,Nsafe[w_circle])
+                                              radius[w_circle],Nsafe[w_circle])
         ras, decs = np.concatenate((ras,circras)), np.concatenate((decs,circdecs))
         
     #ADM generate the safe location for elliptical masks (which is slower as it requires a loop)
     if len(w_ellipse[0]) > 0:
         for w in w_ellipse[0]:
             ellras, elldecs = ellipse_boundary(sourcemask[w]["RA"],sourcemask[w]["DEC"],
-                                               radius[w]*3600.,
+                                               radius[w],
                                                sourcemask[w]["E1"],sourcemask[w]["E2"],
                                                Nsafe[w])
             ras, decs = np.concatenate((ras,ellras)), np.concatenate((decs,elldecs))
