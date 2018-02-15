@@ -41,6 +41,25 @@ import healpy as hp
 infac = 0.5
 nearfac = 1./infac
 
+def _rexlike(rextype):
+    """If the object is REX (a round exponential galaxy)"""
+
+    #ADM set up default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM explicitly checking for an empty input
+    if rextype is None:
+        log.error("NoneType submitted to _rexflike function")
+
+    rextype = np.asarray(rextype)
+    #ADM in Python3 these string literals become byte-like
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    rexlike = ((rextype == 'REX') | (rextype == b'REX'))
+    return rexlike
+
+
 def max_objid_bricks(targs):
     """For a set of targets, return the maximum value of BRICK_OBJID in each BRICK_ID
 
@@ -636,9 +655,7 @@ def is_in_bright_mask(targs,sourcemask):
 
     #ADM need to differentiate targets that are in ellipse-on-the-sky masks
     #ADM from targets that are in circle-on-the-sky masks
-    rex_or_psf = ( (sourcemask[idmask]["TYPE"] == 'REX') | 
-                   (sourcemask[idmask]["TYPE"] == b'REX') |
-                   _psflike(sourcemask[idmask]["TYPE"]) )
+    rex_or_psf = _rexlike(sourcemask[idmask]["TYPE"]) | _psflike(sourcemask[idmask]["TYPE"])
     w_ellipse = np.where(~rex_or_psf)
 
     #ADM only continue if there are any elliptical masks
@@ -655,7 +672,7 @@ def is_in_bright_mask(targs,sourcemask):
         in_ell_mask = np.zeros(len(ellras), dtype=bool)
         near_ell_mask = np.zeros(len(ellras), dtype=bool)
 
-        for i, mask in enumerate(ellmask):
+        for mask in ellmask:
             in_ell_mask |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
                                          mask["IN_RADIUS"],mask["E1"],mask["E2"])
             near_ell_mask |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
@@ -741,18 +758,41 @@ def generate_safe_locations(sourcemask,Nperradius):
     """
     
     #ADM the radius of each mask in arcseconds
-    radius = starmask["IN_RADIUS"]
+    radius = sourcemask["IN_RADIUS"]
 
     #ADM determine the number of SAFE locations to assign to each
     #ADM mask given the passed number of locations per unit radius
     Nsafe = np.ceil(radius*Nperradius).astype('i')
 
-    ras, decs = circle_boundaries(starmask["RA"],starmask["DEC"],radius*3600.,Nsafe)
+    #ADM need to differentiate targets that are in ellipse-on-the-sky masks
+    #ADM from targets that are in circle-on-the-sky masks
+    rex_or_psf = _rexlike(sourcemask["TYPE"]) | _psflike(sourcemask["TYPE"])
+    w_ellipse = np.where(~rex_or_psf)
+    w_circle = np.where(rex_or_psf)
+
+    #ADM set up an array to hold coordinates around the mask peripheries
+    ras, decs = np.array([]), np.array([])
+
+    #ADM generate the safe location for circular masks (which is quicker)
+    if len(w_circle[0]) > 0:
+        circras, circdecs = circle_boundaries(sourcemask[w_circle]["RA"],
+                                              sourcemask[w_circle]["DEC"],
+                                              radius[w_circle]*3600.,Nsafe[w_circle])
+        ras, decs = np.concatenate((ras,circras)), np.concatenate((decs,circdecs))
+        
+    #ADM generate the safe location for elliptical masks (which is slower as it requires a loop)
+    if len(w_ellipse[0]) > 0:
+        for w in w_ellipse[0]:
+            ellras, elldecs = ellipse_boundary(sourcemask[w]["RA"],sourcemask[w]["DEC"],
+                                               radius[w]*3600.,
+                                               sourcemask[w]["E1"],sourcemask[w]["E2"],
+                                               Nsafe[w])
+            ras, decs = np.concatenate((ras,ellras)), np.concatenate((decs,elldecs))
 
     return ras, decs
 
 
-def append_safe_targets(targs,starmask,nside=None,drbricks=None):
+def append_safe_targets(targs,sourcemask,nside=None,drbricks=None):
     """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET
 
     Parameters
@@ -761,7 +801,7 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
         A recarray of targets as made by, e.g. :mod"`desitarget.cuts.select_targets`
     nside : :class:`integer`
         The HEALPix nside used throughout the DESI data model
-    starmask : :class:`~numpy.ndarray`
+    sourcemask : :class:`~numpy.ndarray`
         A recarray containing a bright source mask as made by, e.g. 
         :mod:`desitarget.brightmask.make_bright_star_mask` or
         :mod:`desitarget.brightmask.make_bright_source_mask` or
@@ -779,16 +819,15 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
           on the SAFE (BADSKY) locations
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348 for more details
           on setting the SKY bit in TARGETID
-        - Currently hard-coded to create an additional 10,000 safe locations per sq. deg. of mask. What is the 
-          correct number per sq. deg. (Npersqdeg) for DESI is an open question.
-        - Perhaps we should move the default nside to a config file, somewhere?
+        - Currently hard-coded to create an additional 10,000 safe locations per radial element of mask. What is the 
+          correct number per radial element (Nperradius) for DESI is an open question.
     """
 
     #ADM Number of safe locations per sq. deg. of each mask in starmask
-    Npersqdeg = 10000
+    Nperradius = 10000
 
-    #ADM generate SAFE locations at the periphery of the star masks appropriate to a density of Npersqdeg
-    ra, dec = generate_safe_locations(starmask,Npersqdeg)
+    #ADM generate SAFE locations at the periphery of the masks appropriate to a density of Nperradius
+    ra, dec = generate_safe_locations(sourcemask,Nperradius)
 
     #ADM duplicate the targs rec array with a number of rows equal to the generated safe locations
     nrows = len(ra)
@@ -849,7 +888,7 @@ def append_safe_targets(targs,starmask,nside=None,drbricks=None):
 
 
 def set_target_bits(targs,sourcemask):
-    """Apply bright star mask to targets, return desi_target array
+    """Apply bright source mask to targets, return desi_target array
 
     Parameters
     ----------

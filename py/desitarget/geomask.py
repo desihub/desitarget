@@ -89,7 +89,7 @@ def ellipse_matrix(r, e1, e2):
     return T
 
 
-def ellipse_boundary(RAcen, DECcen, r, e1, e2):
+def ellipse_boundary(RAcen, DECcen, r, e1, e2, nloc=50):
     """Return RA/Dec of an elliptical boundary on the sky
 
     Parameters
@@ -104,6 +104,9 @@ def ellipse_boundary(RAcen, DECcen, r, e1, e2):
         First ellipticity component of the ellipse
     e2 : :class:`float`
         Second ellipticity component of the ellipse
+    nloc : :class:`int`, optional, defaults to 50
+        the number of locations to generate, equally spaced around the
+        periphery of the ellipse
 
     Returns
     -------
@@ -124,7 +127,7 @@ def ellipse_boundary(RAcen, DECcen, r, e1, e2):
     T = ellipse_matrix(r, e1, e2)
 
     #ADM create a circle in effective-half-light-radius
-    angle = np.linspace(0, 2.*np.pi, 50)
+    angle = np.linspace(0, 2.*np.pi, nloc)
     vv = np.vstack([np.sin(angle),np.cos(angle)])
 
     #ADM transform circle to elliptical boundary
@@ -522,7 +525,7 @@ def sphere_circle_ra_off(theta,centdec,declocs):
     return  np.degrees(offrar)
 
 
-def circle_boundaries(RAcens, DECcens, r, nloc=50):
+def circle_boundaries(RAcens, DECcens, r, nloc):
     """Return RAs/Decs of a set of circular boundaries on the sky
 
     Parameters
@@ -533,9 +536,9 @@ def circle_boundaries(RAcens, DECcens, r, nloc=50):
         Declination of the centers of the circles (DEGREES) 
     r : :class:`~numpy.ndarray`
         radius of the circles (ARCSECONDS) 
-    nloc : :class:`~numpy.ndarray`, optional, defaults to 50
+    nloc : :class:`~numpy.ndarray`
         the number of locations to generate, equally spaced around the
-        periphery of each circle
+        periphery of *each* circle
 
     Returns
     -------
