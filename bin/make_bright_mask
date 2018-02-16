@@ -6,7 +6,7 @@ import os, sys
 import numpy as np
 
 from desitarget import io
-from desitarget.brightstar import make_bright_star_mask
+from desitarget.brightmask import make_bright_source_mask
 
 import warnings
 warnings.simplefilter('error')
@@ -22,10 +22,10 @@ ap = ArgumentParser()
 ap.add_argument("src", help="root directory with tractor/sweeps files from which to build mask")
 ap.add_argument("dest", help='Output file name to which to write mask')
 ap.add_argument("--bands", 
-                help='Bands to use to build the star mask (e.g. GRZ)',
+                help='Bands to use to build the mask (e.g. GRZ)',
                 default="GRZ")
 ap.add_argument("--maglim",
-                help='Magnitude limits for building the star mask (e.g. 10,10,10)',
+                help='Magnitude limits for building the mask (e.g. 10,10,10)',
                 default="10,10,10")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--numproc", type=int,
@@ -42,8 +42,8 @@ if len(infiles) == 0:
 
 maglim = [ float(ml) for ml in ns.maglim.split(',') ]
 
-starmask = make_bright_star_mask(ns.bands,maglim,numproc=ns.numproc,
-                                 rootdirname=ns.src,outfilename=ns.dest)
+sourcemask = make_bright_source_mask(ns.bands,maglim,numproc=ns.numproc,
+                                   rootdirname=ns.src,outfilename=ns.dest)
 
-log.info('wrote a file of {} masks to {}'.format(len(starmask), ns.dest))
+log.info('wrote a file of {} masks to {}'.format(len(sourcemask), ns.dest))
 

@@ -479,7 +479,9 @@ def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/
         objs = collect_bright_sources(bands,maglim,numproc,rootdirname,outfilename)
 
     #ADM write the fluxes and bands as arrays instead of named columns
-    fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
+    #ADM to circumvent a numpy future warning, this requires two copies of the fluxes array
+    fluxcheck = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
+    fluxes = fluxcheck.copy()
     nobs = objs[nobsnames].view(objs[nobsnames].dtype[0]).reshape(objs[nobsnames].shape + (-1,))
 
     #ADM set any observations with NOBS = 0 to have small flux so glitches don't end up as bright object masks. 
@@ -705,7 +707,7 @@ def is_bright_source(targs,sourcemask):
     sourcemask : :class:`recarray`
         A recarray containing a bright source mask as made by, e.g.,
         :mod:`desitarget.brightmask.make_bright_star_mask` or 
-        :mod:`desitarget.brightmask.make_bright_source_mask` or 
+        :mod:`desitarget.brightmask.make_bright_source_mask`
     
     Returns
     -------
@@ -805,7 +807,7 @@ def append_safe_targets(targs,sourcemask,nside=None,drbricks=None):
     sourcemask : :class:`~numpy.ndarray`
         A recarray containing a bright source mask as made by, e.g. 
         :mod:`desitarget.brightmask.make_bright_star_mask` or
-        :mod:`desitarget.brightmask.make_bright_source_mask` or
+        :mod:`desitarget.brightmask.make_bright_source_mask`
     drbricks : :class:`~numpy.ndarray`, optional
         A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file. 
         This is typically used for testing only.
@@ -820,12 +822,12 @@ def append_safe_targets(targs,sourcemask,nside=None,drbricks=None):
           on the SAFE (BADSKY) locations
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348 for more details
           on setting the SKY bit in TARGETID
-        - Currently hard-coded to create an additional 10,000 safe locations per radial element of mask. What is the 
+        - Currently hard-coded to create an additional 1 safe location per arcsec of mask radius. What is the 
           correct number per radial element (Nperradius) for DESI is an open question.
     """
 
-    #ADM Number of safe locations per sq. deg. of each mask in starmask
-    Nperradius = 10000
+    #ADM Number of safe locations per radial arcsec of each mask in starmask
+    Nperradius = 1
 
     #ADM generate SAFE locations at the periphery of the masks appropriate to a density of Nperradius
     ra, dec = generate_safe_locations(sourcemask,Nperradius)
@@ -896,21 +898,23 @@ def set_target_bits(targs,sourcemask):
     targs : :class:`recarray`
         A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`
     sourcemask : :class:`recarray`
-        A recarray containing a bright star mask as made by desitarget.brightmask.make_bright_star_mask
+        A recarray containing a bright source mask as made by, e.g.
+        :mod:`desitarget.brightmask.make_bright_star_mask` or 
+        :mod:`desitarget.brightmask.make_bright_source_mask`
 
     Returns
     -------
-        an ndarray of the updated desi_target bit that includes bright star information
+        an ndarray of the updated desi_target bit that includes bright source information
 
     Notes
     -----
-        - Sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT via coordinate matches to the mask centers and radii
+        - Sets IN_BRIGHT_OBJECT and NEAR_BRIGHT_OBJECT via matches to circular and/or elliptical masks
         - Sets BRIGHT_OBJECT via an index match on TARGETID (defined as in :mod:`desitarget.targets.encode_targetid`)
 
     See :mod:`desitarget.targetmask` for the definition of each bit
     """
 
-    bright_object = is_bright_star(targs,sourcemask)
+    bright_object = is_bright_source(targs,sourcemask)
     in_bright_object, near_bright_object = is_in_bright_mask(targs,sourcemask)
 
     desi_target = targs["DESI_TARGET"].copy()
@@ -922,18 +926,20 @@ def set_target_bits(targs,sourcemask):
     return desi_target
 
 
-def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,drbricks=None):
-    """Add bits for whether objects are in a bright star mask, and SAFE (BADSKY) sky locations, to a list of targets
+def mask_targets(targs,inmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],numproc=4,rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',outfilename=None,drbricks=None):
+    """Add bits for if objects are in a bright mask, and SAFE (BADSKY) locations, to a target set
 
     Parameters
     ----------
     targs : :class:`str` or `~numpy.ndarray`
-        A recarray of targets created by desitarget.cuts.select_targets OR a filename of
+        A recarray of targets created by :mod:`desitarget.cuts.select_targets` OR a filename of
         a file that contains such a set of targets
-    instarmaskfile : :class:`str`, optional
-        An input bright star mask created by desitarget.brightmask.make_bright_star_mask
-        If None, defaults to making the bright star mask from scratch
-        The next 5 parameters are only relevant to making the bright star mask from scratch
+    inmaskfile : :class:`str`, optional
+        An input bright souece mask created by, e.g.
+          :mod:`desitarget.brightmask.make_bright_star_mask` or 
+          :mod:`desitarget.brightmask.make_bright_source_mask`
+        If None, defaults to making the bright mask from scratch
+        The next 5 parameters are only relevant to making the bright mask from scratch
     nside : :class:`integer`
         The HEALPix nside used throughout the DESI data model
     bands : :class:`str`
@@ -941,9 +947,9 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
         list of the same length as the string
     maglim : :class:`float`
-        The upper limit in that magnitude band for which to assemble a list of bright stars.
+        The upper limit in that magnitude band for which to assemble a list of bright sources.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
-        same length (e.g., "GRZ" for [12.3,12.7,12.6]
+        same length (e.g., "GRZ" for [12.3,12.7,12.6])
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -951,7 +957,7 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask ONE OF outfilename or
-        instarmaskfile MUST BE PASSED
+        inmaskfile MUST BE PASSED
     drbricks : :class:`~numpy.ndarray`, optional
         A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
         This is typically used for testing only.
@@ -960,14 +966,14 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
     -------
     :class:`~numpy.ndarray`
         the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits
-        and SAFE (BADSKY) sky locations added around the perimeter of the bright star mask.
+        and SAFE (BADSKY) sky locations added around the perimeter of the bright source mask.
 
     Notes
     -----
         - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
           about SAFE (BADSKY) locations
         - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
-        - (not including 5-10 minutes to build the star mask from scratch)
+        - (not including 5-10 minutes to build the source mask from scratch)
     """
 
     #ADM set up default logger
@@ -976,8 +982,8 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
 
     t0 = time()
 
-    if instarmaskfile is None and outfilename is None:
-        raise IOError('One of instarmaskfile or outfilename must be passed')
+    if inmaskfile is None and outfilename is None:
+        raise IOError('One of inmaskfile or outfilename must be passed')
 
     #ADM Check if targs is a filename or the structure itself
     if isinstance(targs, str):
@@ -986,23 +992,23 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
         targs = fitsio.read(targs)
 
     #ADM check if a file for the bright star mask was passed, if not then create it
-    if instarmaskfile is None:
-        starmask = make_bright_star_mask(bands,maglim,numproc=numproc,
-                                         rootdirname=rootdirname,outfilename=outfilename)
+    if inmaskfile is None:
+        sourcemask = make_bright_source_mask(bands,maglim,numproc=numproc,
+                                             rootdirname=rootdirname,outfilename=outfilename)
     else:
-        starmask = fitsio.read(instarmaskfile)
+        sourcemask = fitsio.read(inmaskfile)
 
     ntargsin = len(targs)
     log.info('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
-    log.info('Number of star masks {}...t={:.1f}s'.format(len(starmask), time()-t0))
+    log.info('Number of masks {}...t={:.1f}s'.format(len(sourcemask), time()-t0))
 
     #ADM generate SAFE locations and add them to the target list
-    targs = append_safe_targets(targs,starmask,nside=nside,drbricks=drbricks)
+    targs = append_safe_targets(targs,sourcemask,nside=nside,drbricks=drbricks)
     
     log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
 
     #ADM update the bits depending on whether targets are in a mask
-    dt = set_target_bits(targs,starmask)
+    dt = set_target_bits(targs,sourcemask)
     done = targs.copy()
     done["DESI_TARGET"] = dt
 
@@ -1018,4 +1024,4 @@ def mask_targets(targs,instarmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,
     log.info('Finishing up...t={:.1f}s'.format(time()-t0))
 
     return done
- 
+
