@@ -8,7 +8,7 @@ import fitsio
 
 from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
-from desitarget.brightstar import mask_targets
+from desitarget.brightmask import mask_targets
 from desitarget.skies import select_skies
 
 import warnings
@@ -55,7 +55,7 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
     if ns.mask:
-        targets = mask_targets(targets, instarmaskfile=ns.mask, nside=nside)
+        targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     if ns.skies:
         skies = select_skies(infiles,numproc=ns.numproc)

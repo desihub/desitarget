@@ -56,7 +56,9 @@ def _rexlike(rextype):
     #ADM in Python3 these string literals become byte-like
     #ADM so to retain Python2 compatibility we need to check
     #ADM against both bytes and unicode
-    rexlike = ((rextype == 'REX') | (rextype == b'REX'))
+    #ADM, also 'REX' for astropy.io.fits; 'REX ' for fitsio (sigh)
+    rexlike = ( (rextype == 'REX') | (rextype == b'REX') |
+                (rextype == 'REX ') | (rextype == b'REX ') )
     return rexlike
 
 
@@ -570,9 +572,8 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
     mask = np.atleast_1d(mask)
 
     #ADM set up the plot
-    plt.figure(figsize=(8,8))
-    fig, ax = plt.subplots(1)
-        
+    fig, ax = plt.subplots(1,figsize=(8,8))
+
     plt.xlabel('RA (o)')
     plt.ylabel('Dec (o)')
 
@@ -633,6 +634,12 @@ def is_in_bright_mask(targs,sourcemask):
         True for array entries that correspond to a target that is NEAR a mask
 
     """
+    
+    t0 = time()
+
+    #ADM set up default logger
+    from desiutil.log import get_logger
+    log = get_logger()
 
     #ADM initialize an array of all False (nothing is yet in a mask)
     in_mask = np.zeros(len(targs), dtype=bool)
@@ -662,27 +669,36 @@ def is_in_bright_mask(targs,sourcemask):
 
     #ADM only continue if there are any elliptical masks
     if len(w_ellipse[0]) > 0:
+        idelltargs = idtargs[w_ellipse]
+        idellmask = idmask[w_ellipse]
 
-        #ADM here are the unique elliptical masks that we need to check against
-        ellmask = sourcemask[np.array(list(set(idmask[w_ellipse])))]
-        #ADM here are the targets that are potentially in them
-        ellras = targs[idtargs[w_ellipse]]["RA"]
-        elldecs = targs[idtargs[w_ellipse]]["DEC"]
+        log.info('Testing {} total targets against {} total elliptical masks...t={:.1f}s'
+                 .format(len(set(idelltargs)), len(set(idellmask)), time()-t0))
 
-        #ADM loop through these masks and determine which relevant points occupy
-        #ADM then for both the IN_RADIUS and the NEAR_RADIUS
-        in_ell_mask = np.zeros(len(ellras), dtype=bool)
-        near_ell_mask = np.zeros(len(ellras), dtype=bool)
+        #ADM to speed the calculation, make a dictionary of which targets (the
+        #ADM values) are associated with each mask (the keys)
+        targidineachmask = {}
+        #ADM first initiate a list for each relevant key (mask ID)
+        for maskid in set(idellmask):
+            targidineachmask[maskid] = []
+        #ADM then append those lists until they contain the IDs of each 
+        #ADM relevant target as the values
+        for index, targid in enumerate(idelltargs):
+            targidineachmask[idellmask[index]].append(targid)
 
-        for mask in ellmask:
-            in_ell_mask |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
+        #ADM loop through the masks and determine which relevant points occupy
+        #ADM them for both the IN_RADIUS and the NEAR_RADIUS
+        for maskid in targidineachmask:
+            targids = targidineachmask[maskid]
+            ellras, elldecs = targs[targids]["RA"], targs[targids]["DEC"]
+            mask = sourcemask[maskid]
+            #ADM Refine True/False for being in a mask based on the elliptical masks
+            in_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
                                          mask["IN_RADIUS"],mask["E1"],mask["E2"])
-            near_ell_mask |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
+            near_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
                                            mask["NEAR_RADIUS"],mask["E1"],mask["E2"])
             
-        #ADM Refine True/False for being in a mask based on the elliptical masks
-        in_mask[idtargs[w_ellipse]] = in_ell_mask
-        near_mask[idtargs[w_ellipse]] = near_ell_mask
+        log.info('Done with elliptical masking...t={:1f}s'.format(time()-t0))
 
     #ADM finally, record targets that were in a circles-on-the-sky mask, which
     #ADM trumps any information about just being in an elliptical mask
