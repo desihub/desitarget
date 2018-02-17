@@ -4,7 +4,7 @@
 desitarget.brightmask
 =====================
 
-Module for studying and masking bright stars in the sweeps
+Module for studying and masking bright sources in the sweeps
 """
 from __future__ import (absolute_import, division)
 
@@ -842,7 +842,7 @@ def append_safe_targets(targs,sourcemask,nside=None,drbricks=None):
           correct number per radial element (Nperradius) for DESI is an open question.
     """
 
-    #ADM Number of safe locations per radial arcsec of each mask in starmask
+    #ADM Number of safe locations per radial arcsec of each mask
     Nperradius = 1
 
     #ADM generate SAFE locations at the periphery of the masks appropriate to a density of Nperradius
@@ -972,7 +972,7 @@ def mask_targets(targs,inmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
     outfilename : :class:`str`, optional, defaults to not writing anything to file
-        (FITS) File name to which to write the output bright star mask ONE OF outfilename or
+        (FITS) File name to which to write the output mask ONE OF outfilename or
         inmaskfile MUST BE PASSED
     drbricks : :class:`~numpy.ndarray`, optional
         A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
@@ -1007,7 +1007,7 @@ def mask_targets(targs,inmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],
             raise ValueError("{} doesn't exist".format(targs))
         targs = fitsio.read(targs)
 
-    #ADM check if a file for the bright star mask was passed, if not then create it
+    #ADM check if a file for the bright source mask was passed, if not then create it
     if inmaskfile is None:
         sourcemask = make_bright_source_mask(bands,maglim,numproc=numproc,
                                              rootdirname=rootdirname,outfilename=outfilename)
