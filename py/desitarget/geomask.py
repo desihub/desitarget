@@ -252,8 +252,6 @@ def is_in_circle(ras, decs, RAcens, DECcens, r):
 
     Parameters
     ----------
-    Parameters
-    ----------
     ras : :class:`~numpy.ndarray`
         Array of Right Ascensions to test
     decs : :class:`~numpy.ndarray`
@@ -262,7 +260,7 @@ def is_in_circle(ras, decs, RAcens, DECcens, r):
         Right Ascension of the centers of the circles (DEGREES)
     DECcen : :class:`~numpy.ndarray`
         Declination of the centers of the circles (DEGREES)
-    r : :class:``~numpy.ndarray`
+    r : :class:`~numpy.ndarray`
         Radius of the circles (ARCSECONDS)
 
     Returns
@@ -332,9 +330,9 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
 
     Examples
     --------
-    a = np.arange(11)
-    circles(a, a, s=a*0.2, c=a, alpha=0.5, ec='none')
-    plt.colorbar()
+    >>> a = np.arange(11)
+    >>> circles(a, a, s=a*0.2, c=a, alpha=0.5, ec='none')
+    >>> plt.colorbar()
 
     References
     ----------
@@ -405,9 +403,9 @@ def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
 
     Examples
     --------
-    a = np.arange(11)
-    ellipses(a, a, w=4, h=a, rot=a*30, c=a, alpha=0.5, ec='none')
-    plt.colorbar()
+    >>> a = np.arange(11)
+    >>> ellipses(a, a, w=4, h=a, rot=a*30, c=a, alpha=0.5, ec='none')
+    >>> plt.colorbar()
 
     References
     ----------

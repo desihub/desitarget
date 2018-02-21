@@ -954,8 +954,8 @@ def mask_targets(targs,inmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],
         a file that contains such a set of targets
     inmaskfile : :class:`str`, optional
         An input bright souece mask created by, e.g.
-          :mod:`desitarget.brightmask.make_bright_star_mask` or 
-          :mod:`desitarget.brightmask.make_bright_source_mask`
+        :mod:`desitarget.brightmask.make_bright_star_mask` or 
+        :mod:`desitarget.brightmask.make_bright_source_mask`
         If None, defaults to making the bright mask from scratch
         The next 5 parameters are only relevant to making the bright mask from scratch
     nside : :class:`integer`
