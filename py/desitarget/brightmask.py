@@ -580,7 +580,7 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
     #ADM set up some default plot limits if they weren't passed
     if limits is None:
         maskra, maskdec, tol = mask["RA"], mask["DEC"], mask[radius]/3600.
-        limits = [np.min(maskra-tol),np.max(maskra+tol),
+        limits = [np.max(maskra-tol),np.min(maskra+tol),
                   np.min(maskdec-tol),np.max(maskdec+tol)]
     ax.axis(limits)
 
@@ -588,8 +588,10 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
     #ADM times the largest mask radius beyond the requested limits
     #ADM remember that the passed mask sizes are in arcseconds
     tol = 3.*np.max(mask[radius])/3600.
-    w = np.where( (mask["RA"] > limits[0] - tol) & (mask["RA"] < limits[1] + tol) &
-                  (mask["DEC"] > limits[2] - tol) & (mask["DEC"] < limits[3] + tol) )
+    #ADM the np.min/np.max combinations are to guard against people
+    #ADM passing flipped RAs (so RA increases to the east)
+    w = np.where( (mask["RA"] > np.min(limits[:2])-tol) & (mask["RA"] < np.max(limits[:2])+tol) &
+                  (mask["DEC"] > np.min(limits[-2:])-tol) & (mask["DEC"] < np.max(limits[-2:])+tol) )
     if len(w[0])==0:
         log.error('No mask entries within specified limits ({})'.format(limits))
     else:
