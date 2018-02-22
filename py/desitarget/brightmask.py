@@ -50,7 +50,7 @@ def _rexlike(rextype):
 
     #ADM explicitly checking for an empty input
     if rextype is None:
-        log.error("NoneType submitted to _rexflike function")
+        log.error("NoneType submitted to _rexlike function")
 
     rextype = np.asarray(rextype)
     #ADM in Python3 these string literals become byte-like
@@ -778,8 +778,9 @@ def generate_safe_locations(sourcemask,Nperradius=1):
         - See Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for details
     """
     
-    #ADM the radius of each mask in arcseconds
-    radius = sourcemask["IN_RADIUS"]
+    #ADM the radius of each mask in arcseconds with a 0.1% kick to
+    #ADM ensure that positions are beyond the mask edges
+    radius = sourcemask["IN_RADIUS"]*1.001
 
     #ADM determine the number of SAFE locations to assign to each
     #ADM mask given the passed number of locations per unit radius
