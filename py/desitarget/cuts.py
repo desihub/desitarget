@@ -564,13 +564,13 @@ def _psflike(psftype):
     if psftype is None:
         raise ValueError("NoneType submitted to _psfflike function")
 
-    #- 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    #ADM fixed this in I/O.
     psftype = np.asarray(psftype)
     #ADM in Python3 these string literals become byte-like
     #ADM so to retain Python2 compatibility we need to check
     #ADM against both bytes and unicode
-    psflike = ((psftype == 'PSF') | (psftype == b'PSF'))
+    #ADM, also 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
+    psflike = ( (psftype == 'PSF') | (psftype == b'PSF') | 
+                (psftype == 'PSF ') | (psftype == b'PSF ') )
     return psflike
 
 def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):

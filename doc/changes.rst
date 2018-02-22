@@ -9,10 +9,13 @@ desitarget Change Log
   #254`_].
 * Include (initial) mock QA plots on targeting QA page [`PR #262`_]
 * Added `select_gfa` script [`PR #275`_]
+* Update masking for ellipses ("galaxies") in addition to circles 
+  ("stars") [`PR #277`_].
 
 .. _`PR #254`: https://github.com/desihub/desitarget/pull/254
 .. _`PR #262`: https://github.com/desihub/desitarget/pull/262
 .. _`PR #275`: https://github.com/desihub/desitarget/pull/275
+.. _`PR #277`: https://github.com/desihub/desitarget/pull/277
 
 0.17.1 (2017-12-20)
 -------------------

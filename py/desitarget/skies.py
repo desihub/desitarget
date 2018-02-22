@@ -20,221 +20,12 @@ from desiutil import brick
 from desitarget import io, desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
+from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix
 
 #ADM the default PSF SIZE to adopt, i.e., seeing will be
 #ADM NO WORSE than this for the DESI survey at the Mayall
 #ADM this can typically be scaled using the navoid parameter
 psfsize = 2.
-
-def ellipse_matrix(r, e1, e2):
-    """Calculate transformation matrix from half-light-radius to ellipse
-
-    Parameters
-    ----------
-    r : :class:`float` or `~numpy.ndarray`
-        Half-light radius of the ellipse (ARCSECONDS)
-    e1 : :class:`float` or `~numpy.ndarray`
-        First ellipticity component of the ellipse
-    e2 : :class:`float` or `~numpy.ndarray`
-        Second ellipticity component of the ellipse
-
-    Returns
-    -------
-    :class:`~numpy.ndarray` 
-        A 2x2 matrix to transform points measured in coordinates of the
-        effective-half-light-radius to RA/Dec offset coordinates
-
-    Notes
-    -----
-        - If a float is passed then the output shape is (2,2,1)
-             otherwise it's (2,2,len(r))
-        - The parametrization is explained at 
-             http://legacysurvey.org/dr4/catalogs/
-        - Much of the math is taken from:
-             https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
-    """
-    
-    #ADM derive the eccentricity from the ellipticity
-    #ADM guarding against the option that floats were passed
-    e = np.atleast_1d(np.hypot(e1, e2))
-
-    #ADM the position angle in radians and its cos/sin
-    theta = np.atleast_1d(np.arctan2(e2, e1) / 2.)
-    ct = np.cos(theta)
-    st = np.sin(theta)
-
-    #ADM ensure there's a maximum ratio of the semi-major
-    #ADM to semi-minor axis, and calculate that ratio
-    maxab = 1000.
-    ab = np.zeros(len(e))+maxab
-    w = np.where(e < 1)
-    ab[w] = (1.+e[w])/(1.-e[w])
-    w = np.where(ab > maxab)
-    ab[w] = maxab
-
-    #ADM convert the half-light radius to degrees
-    r_deg = r / 3600.
-
-    #ADM the 2x2 matrix to transform points measured in 
-    #ADM effective-half-light-radius to RA/Dec offsets
-    T = r_deg * np.array([[ct / ab, st], [-st / ab, ct]])
-    
-    return T
-
-
-def ellipse_boundary(RAcen, DECcen, r, e1, e2):
-    """Return RA/Dec of an elliptical boundary on the sky
-
-    Parameters
-    ----------
-    RAcen : :class:`float`
-        Right Ascension of the center of the ellipse (DEGREES)
-    DECcen : :class:`float`
-        Declination of the center of the ellipse (DEGREES)
-    r : :class:`float`
-        Half-light radius of the ellipse (ARCSECONDS)
-    e1 : :class:`float`
-        First ellipticity component of the ellipse
-    e2 : :class:`float`
-        Second ellipticity component of the ellipse
-
-    Returns
-    -------
-    :class:`~numpy.ndarray`
-        Right Ascensions along the boundary of (each) ellipse
-    :class:`~numpy.ndarray`
-        Declinations along the boundary of (each) ellipse
-
-    Notes
-    -----
-        - The parametrization is explained at 
-             http://legacysurvey.org/dr4/catalogs/
-        - Much of the math is taken from:
-             https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
-    """
-    #ADM Retrieve the 2x2 matrix to transform points measured in 
-    #ADM effective-half-light-radius to RA/Dec offsets
-    T = ellipse_matrix(r, e1, e2)
-
-    #ADM create a circle in effective-half-light-radius
-    angle = np.linspace(0, 2.*np.pi, 50)
-    vv = np.vstack([np.sin(angle),np.cos(angle)])
-
-    #ADM transform circle to elliptical boundary
-    dra, ddec = np.dot(T[...,0],vv)
-
-    #ADM return the RA, Dec of the boundary, remembering to correct for
-    #ADM spherical projection in Dec
-    decs = DECcen + ddec
-    #ADM note that this is only true for the small angle approximation
-    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
-    ras = RAcen + (dra/np.cos(np.radians(decs)))
-
-    return ras, decs
-
-
-def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
-    """Determine whether points lie within an elliptical mask on the sky
-
-    Parameters
-    ----------
-    ras : :class:`~numpy.ndarray`
-        Array of Right Ascensions to test
-    decs : :class:`~numpy.ndarray`
-        Array of Declinations to test
-    RAcen : :class:`float`
-        Right Ascension of the center of the ellipse (DEGREES)
-    DECcen : :class:`float`
-        Declination of the center of the ellipse (DEGREES)
-    r : :class:`float`
-        Half-light radius of the ellipse (ARCSECONDS)
-    e1 : :class:`float`
-        First ellipticity component of the ellipse
-    e2 : :class:`float`
-        Second ellipticity component of the ellipse
-
-    Returns
-    -------
-    :class:`boolean`
-        An array that is the same length as RA/Dec that is True
-        for points that are in the mask and False for points that
-        are not in the mask
-
-    Notes
-    -----
-        - The parametrization is explained at 
-             http://legacysurvey.org/dr4/catalogs/
-        - Much of the math is taken from:
-             https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
-    """
-    
-    #ADM Retrieve the 2x2 matrix to transform points measured in 
-    #ADM effective-half-light-radius to RA/Dec offsets...
-    G = ellipse_matrix(r, e1, e2)
-    #ADM ...and invert it
-    Ginv = np.linalg.inv(G[...,0])
-
-    #ADM remember to correct for the spherical projection in Dec
-    #ADM note that this is only true for the small angle approximation
-    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
-    dra = (ras - RAcen)*np.cos(np.radians(decs))
-    ddec = decs - DECcen
-
-    #ADM test whether points are larger than the effective
-    #ADM circle of radius 1 generated in half-light-radius coordinates
-    dx, dy = np.dot(Ginv,[dra,ddec])
-
-    return np.hypot(dx,dy) < 1
-
-
-def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
-    """Determine whether points lie within an elliptical mask on the sky
-
-    Parameters
-    ----------
-    ras : :class:`~numpy.ndarray`
-        Array of Right Ascensions to test
-    decs : :class:`~numpy.ndarray`
-        Array of Declinations to test
-    RAcen : :class:`float`
-        Right Ascension of the center of the ellipse (DEGREES)
-    DECcen : :class:`float`
-        Declination of the center of the ellipse (DEGREES)
-    G : :class:`~numpy.ndarray` 
-        A 2x2 matrix to transform points measured in coordinates of the
-        effective-half-light-radius to RA/Dec offset coordinates
-        as generated by, e.g., :mod:`desitarget.skies.ellipse_matrix`
-
-    Returns
-    -------
-    :class:`boolean`
-        An array that is the same length as RA/Dec that is True
-        for points that are in the mask and False for points that
-        are not in the mask
-
-    Notes
-    -----
-        - The parametrization is explained at 
-             http://legacysurvey.org/dr4/catalogs/
-        - Much of the math is taken from:
-             https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
-        - G should have a shape of (2,2) (i.e. np.shape(G) gives (2,2)
-    """
-    
-    #ADM Invert the transformation matrix
-    Ginv = np.linalg.inv(G)
-
-    #ADM remember to correct for the spherical projection in Dec
-    #ADM note that this is only true for the small angle approximation
-    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
-    dra = (ras - RAcen)*np.cos(np.radians(decs))
-    ddec = decs - DECcen
-
-    #ADM test whether points are larger than the effective
-    #ADM circle of radius 1 generated in half-light-radius coordinates
-    dx, dy = np.dot(Ginv,[dra,ddec])
-
-    return np.hypot(dx,dy) < 1
 
 
 def density_of_sky_fibers(margin=10.):
@@ -525,7 +316,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     """
 
     import matplotlib.pyplot as plt
-    from desitarget.brightstar import ellipses
+    from desitarget.geomask import ellipses
     from matplotlib.patches import Polygon
     from matplotlib.collections import PatchCollection
 
@@ -582,6 +373,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     majoraxis = minoraxis/np.cos(np.radians(objs["DEC"]))
     log.info('Plotting avoidance zones...t = {:.1f}s'.format(time()-start))
     #ADM plot the avoidance zones as circles, stretched by their DEC position
+    #ADM note that "ellipses" takes the diameter, not the radius
     out = ellipses(objs[smallsepw]["RA"], objs[smallsepw]["DEC"], 
                    2*majoraxis[smallsepw], 2*minoraxis[smallsepw], alpha=0.4, edgecolor='none')
 
