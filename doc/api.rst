@@ -5,10 +5,13 @@ desitarget API
 .. automodule:: desitarget
     :members:
 
-.. automodule:: desitarget.brightstar
+.. automodule:: desitarget.brightmask
     :members:
 
 .. automodule:: desitarget.cuts
+    :members:
+
+.. automodule:: desitarget.geomask
     :members:
 
 .. automodule:: desitarget.internal
