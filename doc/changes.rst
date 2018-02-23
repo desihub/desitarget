@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.17.2 (unreleased)
+0.18.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.18.0 (2018-02-23)
 -------------------
 
 * New target density fluctuations model based on DR5 healpixel info [`PR
