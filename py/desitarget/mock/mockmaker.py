@@ -16,30 +16,32 @@ import numpy as np
 from pkg_resources import resource_filename
 
 import fitsio
+import healpy as hp
 from astropy.table import Table, Column
 
 from desisim.io import read_basis_templates
 from desiutil.brick import brickname as get_brickname_from_radec
 from desimodel import footprint
+from desitarget.targets import encode_targetid
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger()
 
-"""How to distribute 52 user bits of targetid.
-
-Used to generate target IDs as combination of input file and row in input file.
-Sets the maximum number of rows per input file for mocks using this scheme to
-generate target IDs
-
-"""
-# First 32 bits are row
-ENCODE_ROW_END     = 32
-ENCODE_ROW_MASK    = 2**ENCODE_ROW_END - 2**0
-ENCODE_ROW_MAX     = ENCODE_ROW_MASK
-# Next 20 bits are file
-ENCODE_FILE_END    = 52
-ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
-ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
+#"""How to distribute 52 user bits of targetid.
+#
+#Used to generate target IDs as combination of input file and row in input file.
+#Sets the maximum number of rows per input file for mocks using this scheme to
+#generate target IDs
+#
+#"""
+## First 32 bits are row
+#ENCODE_ROW_END     = 32
+#ENCODE_ROW_MASK    = 2**ENCODE_ROW_END - 2**0
+#ENCODE_ROW_MAX     = ENCODE_ROW_MASK
+## Next 20 bits are file
+#ENCODE_FILE_END    = 52
+#ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
+#ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
 
 try:
     from scipy import constants
@@ -47,83 +49,83 @@ try:
 except TypeError: # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
 
-def encode_rownum_filenum(rownum, filenum):
-    """Encodes row and file number in 52 packed bits.
-
-    Parameters
-    ----------
-    rownum : :class:`int`
-        Row in input file.
-    filenum : :class:`int`
-        File number in input file set.
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-        52 packed bits encoding row and file number.
-
-    """
-    assert(np.shape(rownum) == np.shape(filenum))
-    assert(np.all(rownum  >= 0))
-    assert(np.all(rownum  <= int(ENCODE_ROW_MAX)))
-    assert(np.all(filenum >= 0))
-    assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
-
-    # This should be a 64 bit integer.
-    encoded_value = ( (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) +
-                      np.asarray(rownum, dtype=np.uint64) )
-
-    # Note return signed
-    return np.asarray(encoded_value, dtype=np.int64)
-
-def decode_rownum_filenum(encoded_values):
-    """Invert encode_rownum_filenum to obtain row number and file number.
-
-    Parameters
-    ----------
-    encoded_values : :class:`int64 ndarray`
-        Input encoded values.
-
-    Returns
-    -------
-    filenum : :class:`str`
-        File number.
-    rownum : :class:`int`
-        Row number.
-    
-    """
-    filenum = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_FILE_MASK) >> ENCODE_ROW_END
-    rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
-    return rownum, filenum
-
-def make_mockid(objid, n_per_file):
-    """
-    Compute mockid from row and file IDs.
-
-    Parameters
-    ----------
-    objid : :class:`numpy.ndarray`
-        Row identification number.
-    n_per_file : :class:`list`
-        Number of items per file that went into objid.
-
-    Returns
-    -------
-    mockid : :class:`numpy.ndarray`
-        Encoded row and file ID.
-
-    """
-    n_files = len(n_per_file)
-    n_obj = len(objid)
-
-    n_p_file = np.array(n_per_file)
-    n_per_file_cumsum = n_p_file.cumsum()
-
-    filenum = np.zeros(n_obj, dtype='int64')
-    for n in range(1, n_files):
-        filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
-
-    return encode_rownum_filenum(objid, filenum)
+#def encode_rownum_filenum(rownum, filenum):
+#    """Encodes row and file number in 52 packed bits.
+#
+#    Parameters
+#    ----------
+#    rownum : :class:`int`
+#        Row in input file.
+#    filenum : :class:`int`
+#        File number in input file set.
+#
+#    Returns
+#    -------
+#    :class:`numpy.ndarray`
+#        52 packed bits encoding row and file number.
+#
+#    """
+#    assert(np.shape(rownum) == np.shape(filenum))
+#    assert(np.all(rownum  >= 0))
+#    assert(np.all(rownum  <= int(ENCODE_ROW_MAX)))
+#    assert(np.all(filenum >= 0))
+#    assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
+#
+#    # This should be a 64 bit integer.
+#    encoded_value = ( (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) +
+#                      np.asarray(rownum, dtype=np.uint64) )
+#
+#    # Note return signed
+#    return np.asarray(encoded_value, dtype=np.int64)
+#
+#def decode_rownum_filenum(encoded_values):
+#    """Invert encode_rownum_filenum to obtain row number and file number.
+#
+#    Parameters
+#    ----------
+#    encoded_values : :class:`int64 ndarray`
+#        Input encoded values.
+#
+#    Returns
+#    -------
+#    filenum : :class:`str`
+#        File number.
+#    rownum : :class:`int`
+#        Row number.
+#    
+#    """
+#    filenum = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_FILE_MASK) >> ENCODE_ROW_END
+#    rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
+#    return rownum, filenum
+#
+#def make_mockid(objid, n_per_file):
+#    """
+#    Compute mockid from row and file IDs.
+#
+#    Parameters
+#    ----------
+#    objid : :class:`numpy.ndarray`
+#        Row identification number.
+#    n_per_file : :class:`list`
+#        Number of items per file that went into objid.
+#
+#    Returns
+#    -------
+#    mockid : :class:`numpy.ndarray`
+#        Encoded row and file ID.
+#
+#    """
+#    n_files = len(n_per_file)
+#    n_obj = len(objid)
+#
+#    n_p_file = np.array(n_per_file)
+#    n_per_file_cumsum = n_p_file.cumsum()
+#
+#    filenum = np.zeros(n_obj, dtype='int64')
+#    for n in range(1, n_files):
+#        filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
+#
+#    return encode_rownum_filenum(objid, filenum)
 
 def mw_transmission(source_data, dust_dir=None):
     """Compute the grzW1W2 Galactic transmission for every object.
@@ -371,6 +373,7 @@ class SelectTargets(object):
 
     """
     def __init__(self):
+        from astropy.io import fits
         from desitarget import (desi_mask, bgs_mask, mws_mask,
                                 contam_mask, obsconditions)
         
@@ -379,6 +382,11 @@ class SelectTargets(object):
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
         self.obsconditions = obsconditions
+
+        # Read and cache the default pixel weight map.
+        pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
+        with fits.open(pixfile) as hdulist:
+            self.pixmap = hdulist[0].data
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            qaplot=False):
@@ -524,7 +532,7 @@ class SelectTargets(object):
 
         return targets, truth
 
-    def qamock_sky(self, data, png=None):
+    def qamock_sky(self, data, xlim=(0, 4), png=None):
         """Generate a QAplot showing the sky and redshift distribution of the objects in
         the mock.
 
@@ -541,15 +549,17 @@ class SelectTargets(object):
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
             basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
-            plot_sky_binned(data['RA'], data['DEC'], verbose=False, 
-                            clip_lo='!1', cmap='jet', plot_type='healpix', 
-                            label=r'{} (targets/deg$^2$)'.format(self.objtype), 
-                            basemap=basemap)
+            plot_sky_binned(data['RA'], data['DEC'], weights=data['WEIGHT'],
+                            max_bin_area=hp.nside2pixarea(data['NSIDE'], degrees=True),
+                            verbose=False, clip_lo='!1', cmap='viridis',
+                            plot_type='healpix', basemap=basemap,
+                            label=r'{} (targets/deg$^2$)'.format(self.objtype))
+            
         if 'Z' in data.keys():
             ax[1].hist(data['Z'], bins=100, histtype='stepfilled',
-                       alpha=0.6, label=self.objtype)
+                       alpha=0.6, label=self.objtype, weights=data['WEIGHT'])
             ax[1].set_xlabel('Redshift')
-            ax[1].set_xlim(0, 4)
+            ax[1].set_xlim( xlim )
             ax[1].yaxis.set_major_formatter(plt.NullFormatter())
             ax[1].legend(loc='upper right', frameon=False)
         else:
@@ -563,7 +573,7 @@ class SelectTargets(object):
         else:
             plt.show()
 
-class ReadGaussianField(object):
+class ReadGaussianField(SelectTargets):
     """Read a Gaussian random field style mock catalog.
 
     Parameters
@@ -576,6 +586,8 @@ class ReadGaussianField(object):
 
     """
     def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadGaussianField, self).__init__()
+        
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
@@ -625,46 +637,33 @@ class ReadGaussianField(object):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        #weights = np.ones(len(targs))
-        #if weight:
-        #    #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-        #    pixweight = footprint.io.load_pixweight(nside)
-        #    #ADM determine what HEALPixels each target is in, to set the weights
-        #    fracarea = pixweight[pix]
-        #    #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
-        #    #ADM except for zero pixels, which are all outside of the footprint
-        #    w = np.where(fracarea == 0)
-        #    fracarea[w] = 1 #ADM to guard against division by zero warnings
-        #    weights = 1./fracarea
-        #    weights[w] = 0
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
         log.info('Reading {}'.format(mockfile))
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+
         nobj = len(radec)
-
-        files = list()
-        n_per_file = list()
-        files.append(mockfile)
-        n_per_file.append(nobj)
-
         objid = np.arange(nobj, dtype='i8')
-        mockid = make_mockid(objid, n_per_file)
-
-        log.info('Assigning healpix pixels with nside = {}'.format(nside))
+        
+        log.info('Assigning healpix pixels with nside = {}.'.format(nside))
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+        mockid = encode_targetid(objid=objid, brickid=allpix, mock=1)
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
         else:
-            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
+            log.info('Trimmed to {} {}s in {} healpixel(s).'.format(nobj, target_name, len(healpixels)))
 
-        objid = objid[cut]
         mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = radec['DEC'][cut].astype('f8')
         del radec
@@ -681,9 +680,9 @@ class ReadGaussianField(object):
             
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz,
-               'FILES': files, 'N_PER_FILE': n_per_file}
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -854,7 +853,6 @@ class ReadGalaxia(object):
             If mockfile is not defined or if healpixels is not a scalar.
 
         """
-        import healpy as hp
         from desitarget.mock.io import get_healpix_dir, findfile
 
         if mockfile is None:
@@ -1587,8 +1585,8 @@ class QSOMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
 
-        if bool(data):
-            data = self._prepare_spectra(data)
+        #if bool(data):
+        #    data = self._prepare_spectra(data)
 
         return data
 
