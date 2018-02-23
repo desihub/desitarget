@@ -884,7 +884,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
 
     # Read the ra,dec coordinates, generate mockid, and then restrict to the
     # desired healpixels.
-    f = h5py.File(mockfile)
+    f = h5py.File(mockfile, mode='r')
     ra  = f['Data/ra'][...].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = f['Data/dec'][...].astype('f8')
     nobj = len(ra)
