@@ -154,6 +154,13 @@ if len(rankpix) > 0:
         t0 = time.time()
         try:
             with stdouterr_redirected(to=logfile):
+                log.info('Calling targets_truth() with the following options')
+                log.info('  output_dir {}'.format(args.output_dir))
+                log.info('  seed       {}'.format(rankseeds[i]))
+                log.info('  nside      {}'.format(args.nside))
+                log.info('  nproc      {}'.format(args.nproc))
+                log.info('  verbose    {}'.format(args.verbose))
+                log.info('  healpixels {}'.format(rankpix[i:i+n]))
                 targets_truth(params, output_dir=args.output_dir, seed=rankseeds[i],
                               nside=args.nside, nproc=args.nproc, verbose=args.verbose,
                               healpixels=rankpix[i:i+n])
@@ -165,6 +172,7 @@ if len(rankpix) > 0:
             log.error('Pixels {} failed after {:.1f} minutes'.format(rankpix[i:i+n], runtime))
             import traceback
             msg = traceback.format_exc()
+            log.error(msg)
             sys.stdout.flush()
             sys.stderr.flush()
 
