@@ -1207,7 +1207,7 @@ class ReadMXXL(object):
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
-        f = h5py.File(mockfile)
+        f = h5py.File(mockfile, mode='r')
         ra  = f['Data/ra'][...].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = f['Data/dec'][...].astype('f8')
         nobj = len(ra)
@@ -1585,9 +1585,6 @@ class QSOMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
 
-        #if bool(data):
-        #    data = self._prepare_spectra(data)
-
         return data
 
     def _prepare_spectra(self, data):
@@ -1623,6 +1620,9 @@ class QSOMaker(SelectTargets):
             Corresponding truth table.
         
         """
+        if 'TRUESPECTYPE' not in data.keys():
+            data = self._prepare_spectra(data)
+
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
