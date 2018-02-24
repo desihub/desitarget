@@ -17,46 +17,51 @@ from astropy.table import vstack
 
 from desimodel.footprint import radec2pix
 
-def _initialize(params, verbose=False, seed=1, output_dir='./', 
-                nside=16, healpixels=None):
-    """Initialize various objects needed to generate mock targets (with and without
-    spectra).
+def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.', 
+                             seed=None, verbose=False):
+    """Initialize various objects needed to generate mock targets.
 
-    Args:
-        params : dict
-            Source parameters.
-        seed: int
-            Seed for the random number generator
-        output_dir : str
-            Output directory (default '.').
-        nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None).
+    Parameters
+    ----------
+    params : :class:`dict`
+        Dictionary defining the mock from which to generate targets.
+    healpixels : :class:`numpy.ndarray` or :class:`int`
+        Generate mock targets within this set of healpix pixels.
+    nside : :class:`int`
+        Healpix resolution corresponding to healpixels.
+    output_dir : :class:`str`, optional.
+        Output directory.  Defaults to '.' (current directory).
+    seed: :class:`int`, optional
+        Seed for the random number generator.  Defaults to None.
+    verbose: :class:`bool`, optional
+        Be verbose. Defaults to False.
 
-    Returns:
-        log: desiutil.logger
-           Logger object.
-        rand: numpy.random.RandomState
-           Object for random number generation.
-        selection: desitarget.mock.SelectTargets
-            Object to select targets from the input mock catalogs.
+    Returns
+    -------
+    log : :class:`desiutil.logger`
+       Logger object.
+    healpixseeds : :class:`numpy.ndarray` or :class:`int`
+       Array of random number seeds (one per healpixels pixel) needed to ensure
+       reproducibility.
+
+    Raises
+    ------
+    ValueError
+        If params, healpixels, or nside are not defined.  A ValueError is also
+        raised if nside > 256, since this exceeds the number of bits that can be
+        accommodated by desitarget.targets.encode_targetid.
 
     """
     from desiutil.log import get_logger, DEBUG
-    from desimodel.footprint import tiles2pix
 
-    # Initialize logger
-    if verbose:
-        log = get_logger(DEBUG)
-    else:
-        log = get_logger()
-    
     if params is None:
         log.fatal('PARAMS input is required.')
         raise ValueError
 
+    if healpixels is None:
+        log.fatal('HEALPIXELS input is required.')
+        raise ValueError
+        
     if nside is None:
         log.fatal('NSIDE input is required.')
         raise ValueError
@@ -65,9 +70,16 @@ def _initialize(params, verbose=False, seed=1, output_dir='./',
         log.warning('NSIDE = {} exceeds the number of bits available for BRICKID in targets.encode_targetid.')
         raise ValueError
 
-    # Check for required parameters in the input 'params' dict
+    if verbose:
+        log = get_logger(DEBUG)
+    else:
+        log = get_logger()
+    
+    npix = len(np.atleast_1d(healpixels))
+
     # Initialize the random seed
     rand = np.random.RandomState(seed)
+    healpixseeds = rand.randint(2**31, size=npix)
 
     # Create the output directories
     if os.path.exists(output_dir):
@@ -78,17 +90,11 @@ def _initialize(params, verbose=False, seed=1, output_dir='./',
         os.makedirs(output_dir)    
     log.info('Writing to output directory {}'.format(output_dir))      
         
-    # Default set of healpixels is the whole DESI footprint (yikes!)
-    if healpixels is None:
-        log.warning('List of healpixels not provided; processing the whole DESI footprint!')
-        healpixels = tiles2pix(nside)
-
     areaperpix = hp.nside2pixarea(nside, degrees=True)
-    totarea = len(healpixels) * areaperpix
     log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, totarea))
+        len(healpixels), nside, areaperpix, npix * areaperpix))
 
-    return log, rand, healpixels, areaperpix
+    return log, healpixseeds
     
 def _density_fluctuations(data, log, nside=16, nside_chunk=128, rand=None):
     """Density fluctuations model."""
@@ -390,43 +396,45 @@ def get_spectra(data, MakeMock, log, nside=16, nside_chunk=128, nproc=1,
         
     return targets, truth, trueflux
 
-def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
-                  healpixels=None, nside_chunk=128, verbose=False):
-    """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
-    (with, e.g., the true redshift) for use in simulations.
+def targets_truth(params, healpixels=None, nside=None, output_dir='.',
+                  seed=None, nproc=1, nside_chunk=128, verbose=False):
+    """Generate truth and targets catalogs, and noiseless spectra.
 
-    Args:
-        params : dict
-            Source parameters.
-        output_dir : str
-            Output directory (default '.').
-        seed: int
-            Seed for the random number generation.
-        nproc : int
-            Number of parallel processes to use (default 1).
-        nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels.  (Default: None)
-        nside_chunk : int
-            Healpix resolution for chunking the sample (NB: nside_chunk must be
-            <= nside).
-        verbose: bool
-            Be verbose. (Default: False)
+    Parameters
+    ----------
+    params : :class:`dict`
+        Source parameters.
+    healpixels : :class:`numpy.ndarray` or :class:`int`
+        Restrict the sample of mock targets analyzed to those lying inside
+        this set (array) of healpix pixels.
+    nside : :class:`int`
+        Healpix resolution corresponding to healpixels.
+    output_dir : :class:`str`, optional
+        Output directory.    Defaults to '.' (current directory).
+    seed : :class:`int`
+        Seed for the random number generation.  Defaults to None.
+    nproc : :class:`int`, optional
+        Number of parallel processes to use.  Defaults to 1 (i.e., no
+        multiprocessing).
+    nside_chunk : :class:`int`
+        Healpix resolution for chunking the sample to avoid memory problems.
+        (NB: nside_chunk must be <= nside).
+    verbose: :class:`bool`, optional
+        Be verbose. Defaults to False.
 
-    Returns:
-        Files 'targets.fits', 'truth.fits', 'sky.fits', 'standards-dark.fits',
-        and 'standards-bright.fits' written to disk for a list of healpixels.
+    Returns
+    -------
+    Files 'targets.fits', 'truth.fits', 'sky.fits', 'standards-dark.fits', and
+    'standards-bright.fits' written to output_dir for the given list of
+    healpixels.
 
     """
-    # Initialize a bunch of objects we need.
-    log, rand, healpixels, areaperpix = _initialize(params, verbose=verbose,
-                                                    seed=seed, output_dir=output_dir,
-                                                    nside=nside, healpixels=healpixels)
-    
+    log, healpixseeds = initialize_targets_truth(
+        params, verbose=verbose, seed=seed, nside=nside,
+        output_dir=output_dir, healpixels=healpixels)
+
     # Loop over each source / object type.
-    for healpix in healpixels:
+    for healpix, healseed in zip(healpixels, healpixseeds):
         alltargets = list()
         alltruth = list()
         alltrueflux = list()
@@ -436,18 +444,18 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
         for source_name in sorted(params['sources'].keys()):
             targets, truth, skytargets, skytruth = [], [], [], []
 
-            # Read the data and if there are no targets in this healpixel, keep
-            # going.
+            # Read the data and ithere are no targets, keep going.
             log.info('Reading source : {}'.format(source_name))
             data, MakeMock = read_mock(params['sources'][source_name],
                                        log, dust_dir=params['dust_dir'],
-                                       seed=seed, healpixels=healpix,
+                                       seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk)
             if not bool(data):
                 continue
 
-            # Generate spectra using parallelization.  Sky targets are a special
-            # case.
+            import pdb ; pdb.set_trace()
+
+            # Generate spectra using parallelization.
             sky = source_name.upper() == 'SKY'
             targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
                                                    nside_chunk=nside_chunk, nproc=nproc,
@@ -465,6 +473,7 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
         if len(alltargets) == 0 and len(allskytargets) == 0: # all done
             continue
 
+        # Pack it all together and then add some final columns.
         if len(alltargets) > 0:
             targets = vstack(alltargets)
             truth = vstack(alltruth)
@@ -478,9 +487,9 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
         else:
             skytargets = []
 
-        # Add some final columns.
-        targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
-                                                              nside, healpix, rand, log)
+        targets, truth, skytargets, skytruth = finish_catalog(
+            targets, truth, skytargets, skytruth, nside,
+            healpix, rand, log)
 
         # Finally, write the results.
         write_targets_truth(targets, truth, skytargets, skytruth,  
