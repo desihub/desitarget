@@ -226,39 +226,37 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
+def get_spectra_onepixel(data, indx, MakeMock, rand, log, ntarget, maxiter=10):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
-    Args:
-        source_data : dict
-            Dictionary with all the mock data (candidate mock targets).
-        indx : int or np.ndarray
-            Indices of candidate mock targets to consider.
-        Spectra : desitarget.mock.spectra.MockSpectra
-            Object to assign spectra to each target class.
-        select_targets_function : desitarget.mock.selection.SelectTargets.*_select
-            Object to assign bits and select targets.
-        rand : numpy.random.RandomState
-           Object for random number generation.
-        log : desiutil.logger
-           Logger object.
-        ntarget : int
-           Desired number of targets to generate.
+    Parameters
+    ----------
+    data : :class:`dict`
+        Dictionary with all the mock data (candidate mock targets).
+    indx : :class:`int` or :class:`numpy.ndarray`
+        Indices of candidate mock targets to consider.
+    MakeMock : :class:`desitarget.mock.mockmaker` object
+        Object to assign spectra to each target class.
+    rand : :class:`numpy.random.RandomState`
+       Object for random number generation.
+    log : :class:`desiutil.logger`
+       Logger object.
+    ntarget : :class:`int`
+       Desired number of targets to generate.
+    maxiter : :class:`int`
+       Maximum number of iterations to generate targets.
 
-    Returns:
-        targets : astropy.table.Table
-            Table of mock targets.
-        truth : astropy.table.Table
-            Corresponding truth table.
-        trueflux : numpy.ndarray
-            Array [npixel, ntarget] of observed-frame spectra.  Only computed
-            and returned for non-sky targets.
-
+    Returns
+    -------
+    targets : :class:`astropy.table.Table`
+        Target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table.
+    trueflux : :class:`numpy.ndarray`
+        Array [npixel, ntarget] of observed-frame spectra.  Only computed
+        and returned for non-sky targets.
+    
     """
-    if len(indx) < ntarget:
-        log.warning('Too few candidate targets ({}) than desired ({}).'.format(
-            len(indx), ntarget))        
-
     # Build spectra in chunks and stop when we have enough.
     nchunk = np.ceil(len(indx) / ntarget).astype('int')
     
@@ -268,51 +266,52 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
 
     boss_std = None
     
-    ntot = 0
     for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
 
         # Temporary hack to use BOSS standard stars.
-        if 'BOSS_STD' in source_data.keys():
-            boss_std = source_data['BOSS_STD'][chunkindx]
+        if 'BOSS_STD' in data.keys():
+            boss_std = data['BOSS_STD'][chunkindx]
 
         # Faintstar targets are a special case.
-        if source_data['TARGET_NAME'].lower() == 'faintstar':
+        if data['TARGET_NAME'].lower() == 'faintstar':
             chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
-                source_data, indx=chunkindx, boss_std=boss_std)
+                data, indx=chunkindx, boss_std=boss_std)
 
         else:
-            # Generate the spectra.
-            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
-                source_data, indx=chunkindx)
+            # Generate the spectra iteratively until we achieve the required
+            # target density.
+            makemore, itercount = True, 0
+            while makemore:
+                chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+                    data, indx=chunkindx)
 
-            # Select targets.
-            MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
+                MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
 
-        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-        nkeep = len(keep)
+                keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+                nkeep = len(keep)
+                if nkeep > 0:
+                    log.debug('Selected {} / {} targets on chunk {} / {} on iteration {}'.format(
+                        nkeep, len(chunkindx), ii+1, nchunk, itercount))
 
-        log.debug('Selected {} / {} targets on chunk {} / {}'.format(
-            nkeep, len(chunkindx), ii+1, nchunk))
+                    targets.append(chunktargets[keep])
+                    truth.append(chunktruth[keep])
+                    trueflux.append(chunkflux[keep, :])
 
-        if nkeep > 0:
-            targets.append(chunktargets[keep])
-            truth.append(chunktruth[keep])
-            trueflux.append(chunkflux[keep, :])
+                itercount += 1
+                if itercount == maxiter:
+                    log.warning('Maximum number of iterations reached on chunk {}.'.format(ii))
+                    makemore = False
+                else:
+                    need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
+                    if len(need) > 0:
+                        chunkindx = chunkindx[need]
+                    else:
+                        makemore = False
 
-        # If we have enough, get out!
-        ntot += nkeep
-        if ntot >= ntarget:
-            break
-        
     targets = vstack(targets)
     truth = vstack(truth)
     trueflux = np.concatenate(trueflux)
 
-    # Only keep as many targets as we need.
-    targets = targets[:ntarget]
-    truth = truth[:ntarget]
-    trueflux = trueflux[:ntarget, :]
-        
     return [targets, truth, trueflux]
 
 def get_spectra(data, MakeMock, log, nside=16, nside_chunk=128, nproc=1,
@@ -321,6 +320,7 @@ def get_spectra(data, MakeMock, log, nside=16, nside_chunk=128, nproc=1,
 
     Parameters
     ----------
+    ...
 
     Returns
     -------
@@ -366,17 +366,19 @@ def get_spectra(data, MakeMock, log, nside=16, nside_chunk=128, nproc=1,
     if nproc > 1:
         pool = sharedmem.MapReduce(np=nproc)
         with pool:
-            pixel_results = pool.map(_get_spectra_onepixel, specargs,
-                                     reduce=_update_spectra_status)
+            results = pool.map(_get_spectra_onepixel, specargs,
+                               reduce=_update_spectra_status)
     else:
-        pixel_results = list()
+        results = list()
         for args in specargs:
-            pixel_results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
+            results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
 
     # Unpack the results and return; note that sky targets are a special case.
-    pixel_results = list(zip(*pixel_results))
-    targets = vstack(pixel_results[0])
-    truth = vstack(pixel_results[1])
+    results = list(zip(*results))
+    targets = vstack(results[0])
+    truth = vstack(results[1])
+
+    import pdb ; pdb.set_trace()
     
     if sky:
         trueflux = None

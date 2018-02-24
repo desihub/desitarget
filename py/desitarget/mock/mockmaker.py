@@ -1655,7 +1655,7 @@ class QSOMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate tracer QSO spectra.
 
         Parameters
@@ -1665,6 +1665,8 @@ class QSOMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -1683,12 +1685,15 @@ class QSOMaker(SelectTargets):
         if 'TRUESPECTYPE' not in data.keys():
             data = self._prepare_spectra(data)
 
+        if seed is None:
+            seed = self.seed
+
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
             
         flux, wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][indx], seed=self.seed,
+            nmodel=nobj, redshift=data['Z'][indx], seed=seed,
             lyaforest=False, nocolorcuts=True)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
