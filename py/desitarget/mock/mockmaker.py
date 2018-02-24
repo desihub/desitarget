@@ -135,6 +135,9 @@ def mw_transmission(source_data, dust_dir=None):
     source_data : :class:`dict`
         Input dictionary of sources with RA, Dec coordinates, modified on output
         to contain reddening and the MW transmission in various bands.
+    params : :class:`dict`
+        Dictionary summary of the input configuration file, restricted to a
+        particular source_name (e.g., 'QSO').
     dust_dir : :class:`str`
         Full path to the dust maps.
 
