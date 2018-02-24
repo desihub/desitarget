@@ -591,7 +591,8 @@ class ReadGaussianField(SelectTargets):
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name=''):
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='', mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -604,6 +605,9 @@ class ReadGaussianField(SelectTargets):
             Healpixel nside corresponding to healpixels.
         target_name : :class:`str`
             Name of the target being read (e.g., ELG, LRG).
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
 
         Returns
         -------
@@ -690,7 +694,59 @@ class ReadGaussianField(SelectTargets):
             mw_transmission(out, dust_dir=self.dust_dir)
             imaging_depth(out)
 
+        # Optionally compute the mean mock density.
+        if mock_density:
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+
         return out
+
+    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
+        """Compute the median density of targets in the full mock. 
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog.
+        nside : :class:`int`
+            Healpixel nside for the calculation.
+        density_per_pixel : :class:`bool`, optional
+            Return the density per healpixel rather than just the median
+            density, which may be useful for statistical purposes.
+
+        Returns
+        -------
+        mock_density : :class:`int` or :class:`numpy.ndarray`
+            Median density of targets per deg2 or target density in all
+            healpixels (if density_per_pixel=True).  
+
+        Raises
+        ------
+        ValueError
+            If mockfile is not defined.
+
+        """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        areaperpix = hp.nside2pixarea(nside, degrees=True)
+
+        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+
+        # Get the weight per pixel, protecting against divide-by-zero.
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        weight = np.zeros_like(radec['RA'])
+        good = np.nonzero(pixweight[healpix])
+        weight[good] = 1 / pixweight[healpix[good]]
+
+        mock_density = np.bincount(healpix, weights=weight) / areaperpix # [targets/deg]
+        mock_density = mock_density[np.flatnonzero(mock_density)]
+
+        if density_per_pixel:
+            return mock_density
+        else:
+            return np.median(mock_density)
 
 class ReadUniformSky(object):
     """Read a uniform sky style mock catalog.
@@ -1545,7 +1601,7 @@ class QSOMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'QSO.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, **kwargs):
+             healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1560,10 +1616,12 @@ class QSOMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
-        :class:`dict`
+        data : :class:`dict`
             Dictionary of target properties with various keys (to be documented). 
 
         Raises
@@ -1584,7 +1642,8 @@ class QSOMaker(SelectTargets):
             mockfile = self.default_mockfile
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside)
+                                   healpixels=healpixels, nside=nside,
+                                   mock_density=mock_density)
 
         return data
 

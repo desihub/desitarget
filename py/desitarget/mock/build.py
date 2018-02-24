@@ -145,29 +145,28 @@ def _density_fluctuations(params, data, log, nside=16, nside_chunk=128, rand=Non
     return indxperchunk, np.array(ntargetperchunk)
 
 def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
-              nside=16, nside_chunk=128, in_desi=True):
-    """Read one specified mock catalog.
+              nside=16, nside_chunk=128):
+    """Read a mock catalog.
     
-    Args:
-        params: dict
-            Dictionary summary of the input configuration file, restricted to a
-            particular source_name (e.g., 'QSO').
-        log: desiutil.logger
-           Logger object.
-        rand: numpy.random.RandomState
-           Object for random number generation.
-        healpixels : numpy.ndarray or int
-            List of healpixels to process. The mocks are cut to match these
-            pixels.
-        nside: int
-            nside for healpix
-        in_desi: boolean
-            Decides whether the targets will be trimmed to be inside the DESI
-            footprint.
+    Parameters
+    ----------
+    params : :class:`dict`
+        Dictionary summary of the input configuration file, restricted to a
+        particular source_name (e.g., 'QSO').
+    log : :class:`desiutil.logger`
+        Logger object.
+    rand : :class:`numpy.random.RandomState`
+        Object for random number generation.
+    healpixels : :class:`numpy.ndarray` or `int`
+        List of healpixels to process. The mocks are cut to match these
+        pixels.
+    nside : :class:`int`
+        nside for healpix
             
-    Returns:
-        source_data : dict
-            Parsed source data based on the input mock catalog.
+    Returns
+    -------
+    data : :class:`dict`
+        Parsed source data based on the input mock catalog.
 
     """
     from desitarget.mock import mockmaker
@@ -182,28 +181,15 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
     MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed)
-    source_data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
-                                healpixels=healpixels, nside=nside,
-                                nside_chunk=nside_chunk, magcut=magcut,
-                                nside_lya=nside_lya, nside_galaxia=nside_galaxia,
-                                dust_dir=dust_dir)
+    data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
+                         healpixels=healpixels, nside=nside,
+                         nside_chunk=nside_chunk, magcut=magcut,
+                         nside_lya=nside_lya, nside_galaxia=nside_galaxia,
+                         dust_dir=dust_dir, mock_density=True)
 
-    # Return only the points that are in the DESI footprint.
-    if bool(source_data):
-        if in_desi:
-            import desimodel.io
-            import desimodel.footprint
-
-            n_obj = len(source_data['RA'])
-            tiles = desimodel.io.load_tiles()
-            if n_obj > 0:
-                indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
-                for k in source_data.keys():
-                    if type(source_data[k]) is np.ndarray:
-                        if n_obj == len(source_data[k]):
-                            source_data[k] = source_data[k][indesi]
-                        
-    return source_data, MakeMock
+    import pdb ; pdb.set_trace()
+    
+    return data, MakeMock
 
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
@@ -298,7 +284,7 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
         
     return [targets, truth, trueflux]
 
-def get_spectra():
+def get_spectra(data, log):
     """Generate spectra for a set of targets.
 
     Parameters
@@ -317,8 +303,10 @@ def get_spectra():
 
     Returns
     -------
-    :class:`dict`
-        Dictionary with various keys (to be documented).
+    targets : :class:`astropy.table.Table`
+        Target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table.
 
     Raises
     ------
@@ -331,6 +319,8 @@ def get_spectra():
 
     # Parallelize by chunking the sample into smaller healpixels and
     # determine the number of targets per chunk.
+    import pdb ; pdb.set_trace()
+
     indxperchunk, ntargetperchunk = _density_fluctuations(
         params['sources'][source_name], source_data, log, nside=nside,
         nside_chunk=nside_chunk, rand=rand)
@@ -438,19 +428,17 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
 
             # Read the data.
             log.info('Reading source : {}'.format(source_name))
-            source_data, MakeMock = read_mock(params['sources'][source_name],
-                                              log, dust_dir=params['dust_dir'],
-                                              seed=seed, healpixels=healpix,
-                                              nside=nside, nside_chunk=nside_chunk)
-
-            import pdb ; pdb.set_trace()
+            data, MakeMock = read_mock(params['sources'][source_name],
+                                       log, dust_dir=params['dust_dir'],
+                                       seed=seed, healpixels=healpix,
+                                       nside=nside, nside_chunk=nside_chunk)
             
             # If there are no sources, keep going.
-            if not bool(source_data):
+            if not bool(data):
                 continue
 
             # Generate spectra 
-            targets, truth, trueflux = get_spectra(source_data, log)
+            targets, truth, trueflux = get_spectra(data, log)
 
             import pdb ; pdb.set_trace()
 
