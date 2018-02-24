@@ -298,6 +298,94 @@ def get_spectra_onepixel(source_data, indx, MakeMock, rand, log, ntarget):
         
     return [targets, truth, trueflux]
 
+def get_spectra():
+    """Generate spectra for a set of targets.
+
+    Parameters
+    ----------
+    mockfile : :class:`str`
+        Full path to the top-level directory of the CoLoRe mock catalog.
+    healpixels : :class:`int`
+        Healpixel number to read.
+    nside : :class:`int`
+        Healpixel nside corresponding to healpixels.
+    target_name : :class:`str`
+        Name of the target being read (if not BGS).
+    magcut : :class:`float`
+        Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+        brighter than magcut. 
+
+    Returns
+    -------
+    :class:`dict`
+        Dictionary with various keys (to be documented).
+
+    Raises
+    ------
+    IOError
+        If the mock data files are not found.
+    ValueError
+        If mockfile is not defined or if healpixels is not a scalar.
+
+    """
+
+    # Parallelize by chunking the sample into smaller healpixels and
+    # determine the number of targets per chunk.
+    indxperchunk, ntargetperchunk = _density_fluctuations(
+        params['sources'][source_name], source_data, log, nside=nside,
+        nside_chunk=nside_chunk, rand=rand)
+
+    nchunk = len(indxperchunk)
+    ntarget = np.sum(ntargetperchunk)
+    density = ntarget / areaperpix
+
+    log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
+        ntarget, source_name, density))
+
+    specargs = list()
+    for indx, ntarg in zip( indxperchunk, ntargetperchunk ):
+        if len(indx) > 0:
+            specargs.append( (source_data, indx, MakeMock, rand, log, ntarg) )
+
+    # Multiprocessing.
+    nn = np.zeros((), dtype='i8')
+    t0 = time()
+    def _update_spectra_status(result):
+        if nn % 2 == 0 and nn > 0:
+            rate = (time() - t0) / nn
+            log.info('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
+        nn[...] += 1    # in-place modification
+        return result
+
+    if nproc > 1:
+        pool = sharedmem.MapReduce(np=nproc)
+        with pool:
+            pixel_results = pool.map(_get_spectra_onepixel, specargs,
+                                     reduce=_update_spectra_status)
+    else:
+        pixel_results = list()
+        for args in specargs:
+            pixel_results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
+
+        # Unpack the results; sky targets are a special case.
+        pixel_results = list(zip(*pixel_results))
+
+    if source_name.upper() == 'SKY':
+        skytargets = vstack(pixel_results[0])
+        skytruth = vstack(pixel_results[1])
+        log.info('Generated {} sky targets.'.format(len(skytargets)))
+
+        allskytargets.append(skytargets)
+        allskytruth.append(skytruth)
+    else:
+        targets = vstack(pixel_results[0])
+        truth = vstack(pixel_results[1])
+        trueflux = np.concatenate(pixel_results[2])
+        log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
+            len(targets), source_name, len(targets) / areaperpix))
+
+    return targets, truth, trueflux
+
 def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
                   healpixels=None, nside_chunk=128, verbose=False):
     """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
@@ -355,68 +443,20 @@ def targets_truth(params, output_dir='.', seed=None, nproc=1, nside=None,
                                               seed=seed, healpixels=healpix,
                                               nside=nside, nside_chunk=nside_chunk)
 
+            import pdb ; pdb.set_trace()
+            
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
 
-            # Parallelize by chunking the sample into smaller healpixels and
-            # determine the number of targets per chunk.
-            indxperchunk, ntargetperchunk = _density_fluctuations(
-                params['sources'][source_name], source_data, log, nside=nside,
-                nside_chunk=nside_chunk, rand=rand)
+            # Generate spectra 
+            targets, truth, trueflux = get_spectra(source_data, log)
 
-            nchunk = len(indxperchunk)
-            ntarget = np.sum(ntargetperchunk)
-            density = ntarget / areaperpix
-            
-            log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
-                ntarget, source_name, density))
+            import pdb ; pdb.set_trace()
 
-            specargs = list()
-            for indx, ntarg in zip( indxperchunk, ntargetperchunk ):
-                if len(indx) > 0:
-                    specargs.append( (source_data, indx, MakeMock, rand, log, ntarg) )
-
-            # Multiprocessing.
-            nn = np.zeros((), dtype='i8')
-            t0 = time()
-            def _update_spectra_status(result):
-                if nn % 2 == 0 and nn > 0:
-                    rate = (time() - t0) / nn
-                    log.info('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
-                nn[...] += 1    # in-place modification
-                return result
-
-            if nproc > 1:
-                pool = sharedmem.MapReduce(np=nproc)
-                with pool:
-                    pixel_results = pool.map(_get_spectra_onepixel, specargs,
-                                             reduce=_update_spectra_status)
-            else:
-                pixel_results = list()
-                for args in specargs:
-                    pixel_results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
-
-            # Unpack the results; sky targets are a special case.
-            pixel_results = list(zip(*pixel_results))
-
-            if source_name.upper() == 'SKY':
-                skytargets = vstack(pixel_results[0])
-                skytruth = vstack(pixel_results[1])
-                log.info('Generated {} sky targets.'.format(len(skytargets)))
-
-                allskytargets.append(skytargets)
-                allskytruth.append(skytruth)
-            else:
-                targets = vstack(pixel_results[0])
-                truth = vstack(pixel_results[1])
-                trueflux = np.concatenate(pixel_results[2])
-                log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
-                    len(targets), source_name, len(targets) / areaperpix))
-
-                alltargets.append(targets)
-                alltruth.append(truth)
-                alltrueflux.append(trueflux)
+            alltargets.append(targets)
+            alltruth.append(truth)
+            alltrueflux.append(trueflux)
 
             # Contaminants here?
 

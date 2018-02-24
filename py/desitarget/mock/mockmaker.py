@@ -659,7 +659,8 @@ class ReadGaussianField(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
         else:
-            log.info('Trimmed to {} {}s in {} healpixel(s).'.format(nobj, target_name, len(healpixels)))
+            log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+                nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
         allpix = allpix[cut]
