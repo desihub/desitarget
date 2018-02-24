@@ -381,12 +381,12 @@ def get_spectra(data, MakeMock, log, nside=16, nside_chunk=128, nproc=1,
     import pdb ; pdb.set_trace()
     
     if sky:
-        trueflux = None
-        log.info('Generated {} sky targets.'.format(len(targets)))
+        trueflux = []
     else:
         trueflux = np.concatenate(pixel_results[2])
-        log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
-            len(targets), data['TARGET_NAME'], len(targets) / areaperpixel))
+        
+    log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
+        len(targets), data['TARGET_NAME'], len(targets) / areaperpixel))
         
     return targets, truth, trueflux
 
