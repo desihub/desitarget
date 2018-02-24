@@ -2,7 +2,19 @@
 desitarget Change Log
 =====================
 
-0.17.2 (unreleased)
+0.18.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.18.1 (2018-02-23)
+-------------------
+
+* Open BGS hdf5 mocks read-only to fix parallelism bug [`PR #278`_].
+
+.. _`PR #278`: https://github.com/desihub/desitarget/pull/278
+
+0.18.0 (2018-02-23)
 -------------------
 
 * New target density fluctuations model based on DR5 healpixel info [`PR

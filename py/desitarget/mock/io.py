@@ -44,4 +44,3 @@ def findfile(filetype, nside, pixnum, basedir='.', ext='fits'):
     filename = '{filetype}-{nside}-{pixnum}.{ext}'.format(
         filetype=filetype, nside=nside, pixnum=pixnum, ext=ext)
     return os.path.join(path, filename)
-
