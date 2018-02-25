@@ -258,22 +258,22 @@ def _indesi(data):
                 if n_obj == len(source_data[k]):
                     source_data[k] = source_data[k][indesi]
 
-def _sample_vdisp(data, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
-                  rand=None, nside=128):
+def _sample_vdisp(ra, dec, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
+                  seed=None, nside=128):
     """Assign velocity dispersions to a subset of objects."""
-    if rand is None:
-        rand = np.random.RandomState()
+    rand = np.random.RandomState(seed)
 
     def _sample(nmodel=1):
         nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
         vvdisp = 10**rand.normal(loc=mean, scale=sigma, size=nvdisp)
         return rand.choice(vvdisp, nmodel)
 
-    # Hack! Assign the same velocity dispersion to galaxies in the same healpixel.
-    nobj = len(data['RA'])
+    # Hack! Assign the same velocity dispersion to galaxies in the same
+    # healpixel.
+    nobj = len(ra)
     vdisp = np.zeros(nobj)
 
-    healpix = footprint.radec2pix(nside, data['RA'], data['DEC'])
+    healpix = footprint.radec2pix(nside, ra, dec)
     for pix in set(healpix):
         these = np.in1d(healpix, pix)
         vdisp[these] = _sample(nmodel=np.count_nonzero(these))
@@ -378,7 +378,9 @@ class SelectTargets(object):
         plt.legend(loc='upper left')
         plt.show()
 
-    def populate_targets_truth(self, data, meta, indx=None, psf=True):
+    def populate_targets_truth(self, data, meta, indx=None, psf=True, gmm=None, 
+                               truespectype='', templatetype='',
+                               templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
         source properties and a spectral metadata table.  
 
@@ -432,18 +434,30 @@ class SelectTargets(object):
             targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
-        for key, source_key in zip( ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                    ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-            if isinstance(data[source_key], np.ndarray):
-                truth[key][:] = data[source_key][indx]
+        for value, key in zip( (truespectype, templatetype, templatesubtype),
+                               ('TRUESPECTYPE', 'TEMPLATETYPE', 'TEMPLATESUBTYPE') ):
+            if isinstance(key, np.ndarray):
+                truth[key][:] = value
             else:
-                truth[key][:] = np.repeat(data[source_key], nobj)
+                truth[key][:] = np.repeat(value, nobj)
+        #for key, source_key in zip( ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
+        #                            ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
+        #    if isinstance(data[source_key], np.ndarray):
+        #        truth[key][:] = data[source_key][indx]
+        #    else:
+        #        truth[key][:] = np.repeat(data[source_key], nobj)
 
-        # Add shapes and sizes (if available for this target class).
-        if 'SHAPEEXP_R' in data.keys():
-            for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                        'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-                targets[key][:] = data[key][indx]
+        if gmm is not None:
+            for gmmkey, key in zip( ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2'),
+                                    ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+                                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2') ):
+                targets[key][:] = gmm[gmmkey]
+
+        ## Add shapes and sizes (if available for this target class).
+        #if 'SHAPEEXP_R' in data.keys():
+        #    for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
+        #                'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
+        #        targets[key][:] = data[key][indx]
 
         # Copy various quantities from the metadata table.
         for key in ('TEMPLATEID', 'SEED', 'REDSHIFT', 'MAG', 'VDISP', 'FLUX_G', 'FLUX_R', 'FLUX_Z',
@@ -564,19 +578,17 @@ class ReadGaussianField(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
         log.info('Reading {}'.format(mockfile))
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
 
-        nobj = len(radec)
-        objid = np.arange(nobj, dtype='i8')
+        mockid = np.arange(len(radec)) # unique ID/row number
         
         log.info('Assigning healpix pixels with nside = {}.'.format(nside))
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-        mockid = encode_targetid(objid=objid, brickid=allpix, mock=1)
-
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
@@ -1196,7 +1208,8 @@ class ReadMXXL(SelectTargets):
 
         pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
         
-        # Read the data and then restrict to the desired healpixels.
+        # Read the data, generate mockid, and then restrict to the input
+        # healpixel.
         with h5py.File(mockfile, mode='r') as f:
             ra  = f['Data/ra'][:].astype('f8') % 360.0 # enforce 0 < ra < 360
             dec = f['Data/dec'][:].astype('f8')
@@ -1211,8 +1224,7 @@ class ReadMXXL(SelectTargets):
         allpix = footprint.radec2pix(nside, ra, dec)
 
         fracarea = pixweight[allpix]
-        these = np.in1d(allpix, healpixels) * (fracarea > 0) # force DESI footprint
-        cut = np.where( these*1 )[0] 
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
@@ -1521,7 +1533,7 @@ class QSOMaker(SelectTargets):
         each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-g'):
+    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
         from desisim.templates import SIMQSO
 
         super(QSOMaker, self).__init__()
@@ -1585,14 +1597,6 @@ class QSOMaker(SelectTargets):
 
         return data
 
-    def _prepare_spectra(self, data):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        data.update({
-            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': '',
-            })
-
-        return data
-
     def make_spectra(self, data=None, indx=None, seed=None):
         """Generate tracer QSO spectra.
 
@@ -1620,9 +1624,6 @@ class QSOMaker(SelectTargets):
             Corresponding truth table.
         
         """
-        if 'TRUESPECTYPE' not in data.keys():
-            data = self._prepare_spectra(data)
-
         if seed is None:
             seed = self.seed
 
@@ -1634,7 +1635,8 @@ class QSOMaker(SelectTargets):
             nmodel=nobj, redshift=data['Z'][indx], seed=seed,
             lyaforest=False, nocolorcuts=True)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
+                                                     truespectype='QSO', templatetype='QSO')
 
         return flux, self.wave, meta, targets, truth
 
@@ -2280,15 +2282,19 @@ class BGSMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    nside_chunk : :class:`int`
+        Healpixel nside for further subdividing the sample when assigning
+        velocity dispersion to targets.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, nside_chunk=128):
         from scipy.spatial import cKDTree as KDTree
         from desiutil.sklearn import GaussianMixtureModel
 
         super(BGSMaker, self).__init__()
 
         self.seed = seed
+        self.nside_chunk = nside_chunk
         self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'BGS'
@@ -2326,9 +2332,6 @@ class BGSMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
-        nside_chunk : :class:`int`
-            Healpixel nside for further subdividing the sample when assigning
-            velocity dispersion to targets.
         magcut : :class:`float`
             Magnitude cut (hard-coded to SDSS r-band) to subselect targets
             brighter than magcut. 
@@ -2346,6 +2349,7 @@ class BGSMaker(SelectTargets):
             If mockformat is not recognized.
 
         """
+        from desisim.templates import BGS
         self.mockformat = mockformat.lower()
         
         if self.mockformat == 'durham_mxxl_hdf5':
@@ -2361,11 +2365,15 @@ class BGSMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    magcut=magcut, only_coords=only_coords)
 
+        self.template_maker = BGS(wave=self.wave, normfilter=data['NORMFILTER'])
+
         return data
 
-    def _GMMsample(self, nsample=1):
+    def _GMMsample(self, nsample=1, seed=None):
         """Sample from the Gaussian mixture model (GMM) for BGS."""
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        rand = np.random.RandomState(seed)
+        params = self.GMM.sample(nsample, rand).astype('f4')
 
         tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
         tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
@@ -2376,31 +2384,12 @@ class BGSMaker(SelectTargets):
             
         return samp
 
-    def _prepare_spectra(self, data, nside_chunk=128):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        from desisim.templates import BGS
-
-        gmm = self._GMMsample(len(data['RA']))
-        self.template_maker = BGS(wave=self.wave, normfilter=data['NORMFILTER'])
-
-        seed = self.rand.randint(2**32, size=len(data['RA']))
-        vdisp = _sample_vdisp(data, mean=1.9, sigma=0.15, rand=self.rand, nside=nside_chunk)
-
-        data.update({
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'BGS', 'TEMPLATESUBTYPE': '',
-            'SEED': seed, 'VDISP': vdisp, 
-            'SHAPEEXP_R': gmm['exp_r'], 'SHAPEEXP_E1': gmm['exp_e1'], 'SHAPEEXP_E2': gmm['exp_e2'], 
-            'SHAPEDEV_R': gmm['dev_r'], 'SHAPEDEV_E1': gmm['dev_e1'], 'SHAPEDEV_E2': gmm['dev_e2'],
-            })
-
-        return data
-
     def _query(self, matrix):
         """Return the nearest template number based on the KD Tree."""
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate BGS spectra.
 
         Parameters
@@ -2410,6 +2399,8 @@ class BGSMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -2427,18 +2418,20 @@ class BGSMaker(SelectTargets):
         """
         from desisim.io import empty_metatable
         
-        if 'TRUESPECTYPE' not in data.keys():
-            print('NOT SURE IF THIS WILL WORK!')
-            data = self._prepare_spectra(data)
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
 
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
-
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
-                                  ('SEED', 'MAG', 'Z', 'VDISP')):
-            input_meta[inkey] = data[datakey][indx]
+
+        input_meta['SEED'] = rand.randint(2**31, size=nobj)
+        input_meta['REDSHIFT'] = data['Z'][indx]
+        input_meta['MAG'] = data['MAG'][indx]
+        input_meta['VDISP'] = _sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
+                                            sigma=0.15, seed=seed, nside=self.nside_chunk)
 
         if self.mockformat == 'durham_mxxl_hdf5':
             alldata = np.vstack((data['Z'][indx],
@@ -2450,7 +2443,9 @@ class BGSMaker(SelectTargets):
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
+                                                     gmm=self._GMMsample(nobj, seed=seed),
+                                                     truespectype='GALAXY', templatetype='BGS')
         
         return flux, self.wave, meta, targets, truth
 

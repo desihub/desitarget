@@ -148,11 +148,11 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
 
     log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
-    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed)
+    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
     data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                          healpixels=healpixels, nside=nside,
-                         nside_chunk=nside_chunk, magcut=magcut,
-                         nside_lya=nside_lya, nside_galaxia=nside_galaxia,
+                         magcut=magcut, nside_lya=nside_lya,
+                         nside_galaxia=nside_galaxia,
                          dust_dir=dust_dir, mock_density=mock_density)
 
     # Add the information we need to incorporate density fluctuations.
@@ -163,8 +163,10 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
         
         data['DENSITY'] = params['density']
         data['DENSITY_FACTOR'] = data['DENSITY'] / data['MOCK_DENSITY']
+        data['MAXITER'] = 10
     else:
         data['DENSITY_FACTOR'] = 1.0 # keep them all
+        data['MAXITER'] = 1
 
     return data, MakeMock
 
@@ -172,7 +174,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=10):
+def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Parameters
@@ -249,7 +251,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=10):
 
                 itercount += 1
                 if itercount == maxiter:
-                    log.warning('Maximum number of iterations reached on chunk {}.'.format(ii))
+                    if maxiter > 1:
+                        log.warning('Maximum number of iterations reached on chunk {}.'.format(ii))
                     makemore = False
                 else:
                     need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
@@ -264,7 +267,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=10):
 
     return [targets, truth, trueflux]
 
-def _density_fluctuations(data, log, nside, nside_chunk, seed=None):
+def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     """Determine the density of targets to generate, accounting for fluctuations due
     to reddening, imaging systematics, and large-scale structure.
 
@@ -386,13 +389,15 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     
     # Parallelize by chunking the sample into smaller healpixels and
     # determine the number of targets per chunk.
-    indxperchunk, ntargperchunk, areaperpixel = _density_fluctuations(
+    indxperchunk, ntargperchunk, area = density_fluctuations(
         data, log, nside=nside, nside_chunk=nside_chunk, seed=seed)
+
+    maxiter = data.get('MAXITER')
 
     nchunk = len(indxperchunk)
     nalltarget = np.sum(ntargperchunk)
     log.info('Goal: Generate spectra for {} {} targets ({:.2f} / deg2).'.format(
-        nalltarget, data['TARGET_NAME'], nalltarget / areaperpixel))
+        nalltarget, data['TARGET_NAME'], nalltarget / area))
 
     rand = np.random.RandomState(seed)
     chunkseeds = rand.randint(2**31, size=nchunk)
@@ -401,7 +406,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     specargs = list()
     for indx, ntarg, chunkseed in zip( indxperchunk, ntargperchunk, chunkseeds ):
         if len(indx) > 0:
-            specargs.append( (data, indx, MakeMock, chunkseed, log, ntarg) )
+            specargs.append( (data, indx, MakeMock, chunkseed, log, ntarg, maxiter) )
 
     nn = np.zeros((), dtype='i8')
     t0 = time()
@@ -422,13 +427,12 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         results = list()
         for args in specargs:
             results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
+    ttime = time() - t0
 
     # Unpack the results and return; note that sky targets are a special case.
     results = list(zip(*results))
     targets = vstack(results[0])
     truth = vstack(results[1])
-
-    log.info('Total time to generate spectra = {:.3f} minutes'.format((time() - t0) / 60))
 
     if sky:
         trueflux = []
@@ -436,8 +440,11 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         trueflux = np.concatenate(results[2])
         
     log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
-        len(targets), data['TARGET_NAME'], len(targets) / areaperpixel))
-        
+        len(targets), data['TARGET_NAME'], len(targets) / area))
+
+    log.info('Total time = {:.3f} minutes ({:.3f} sec/deg2/cpu).'.format(
+        ttime / 60, ttime / area / nproc))
+
     return targets, truth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
