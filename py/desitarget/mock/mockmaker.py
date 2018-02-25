@@ -1539,11 +1539,11 @@ class QSOMaker(SelectTargets):
         super(QSOMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'QSO'
+        self.normfilter = normfilter
 
-        self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+        self.template_maker = SIMQSO(wave=self.wave, normfilter=self.normfilter)
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -1885,20 +1885,29 @@ class LRGMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    nside_chunk : :class:`int`
+        Healpixel nside for further subdividing the sample when assigning
+        velocity dispersion to targets.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-z`.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z'):
         from scipy.spatial import cKDTree as KDTree
+        from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
 
         super(LRGMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
+        self.nside_chunk = nside_chunk
         self.wave = _default_wave()
         self.objtype = 'LRG'
+        self.normfilter = normfilter
 
         self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
+        self.template_maker = LRG(wave=self.wave, normfilter=self.normfilter)
 
         zobj = self.meta['Z'].data
         self.tree = KDTree(np.vstack((zobj)).T)
@@ -1912,7 +1921,7 @@ class LRGMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'LRG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, **kwargs):
+             healpixels=None, nside=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1927,9 +1936,6 @@ class LRGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
-        nside_chunk : :class:`int`
-            Healpixel nside for further subdividing the sample when assigning
-            velocity dispersion to targets.
 
         Returns
         -------
@@ -1943,7 +1949,6 @@ class LRGMaker(SelectTargets):
 
         """
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'gaussianfield':
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
@@ -1956,8 +1961,8 @@ class LRGMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
 
-        if bool(data):
-            data = self._prepare_spectra(data, nside_chunk=nside_chunk)
+        #if bool(data):
+        #    data = self._prepare_spectra(data, nside_chunk=nside_chunk)
             
         return data
 
@@ -2285,21 +2290,26 @@ class BGSMaker(SelectTargets):
     nside_chunk : :class:`int`
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-r`.
 
     """
-    def __init__(self, seed=None, nside_chunk=128):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
         from scipy.spatial import cKDTree as KDTree
+        from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
 
         super(BGSMaker, self).__init__()
 
         self.seed = seed
         self.nside_chunk = nside_chunk
-        self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'BGS'
+        self.normfilter = normfilter
 
         self.meta = read_basis_templates(objtype='BGS', onlymeta=True)
+        self.template_maker = BGS(wave=self.wave, normfilter=self.normfilter)
 
         zobj = self.meta['Z'].data
         mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
@@ -2316,8 +2326,7 @@ class BGSMaker(SelectTargets):
                                              'v0.0.4', 'BGS.hdf5')
 
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, magcut=None,
-             only_coords=False, **kwargs):
+             healpixels=None, nside=None, magcut=None, only_coords=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2349,9 +2358,7 @@ class BGSMaker(SelectTargets):
             If mockformat is not recognized.
 
         """
-        from desisim.templates import BGS
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'durham_mxxl_hdf5':
             MockReader = ReadMXXL(dust_dir=dust_dir)
         else:
@@ -2364,8 +2371,6 @@ class BGSMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    magcut=magcut, only_coords=only_coords)
-
-        self.template_maker = BGS(wave=self.wave, normfilter=data['NORMFILTER'])
 
         return data
 
