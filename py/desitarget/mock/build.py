@@ -163,6 +163,10 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
         
         data['DENSITY'] = params['density']
         data['DENSITY_FACTOR'] = data['DENSITY'] / data['MOCK_DENSITY']
+        if data['DENSITY_FACTOR'] > 1:
+            log.warning('Density factor {} should not be > 1!'.format(data['DENSITY_FACTOR']))
+            data['DENSITY_FACTOR'] = 1.0
+        
         data['MAXITER'] = 5
 
         log.info('Computed median mock density for {}s of {:.2f} targets/deg2.'.format(

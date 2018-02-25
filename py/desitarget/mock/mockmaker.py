@@ -617,9 +617,9 @@ class ReadGaussianField(SelectTargets):
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
-        else:
-            log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
-                nobj, target_name, len(np.atleast_1d(healpixels))))
+
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
         allpix = allpix[cut]
@@ -703,7 +703,7 @@ class ReadGaussianField(SelectTargets):
         else:
             return np.median(mock_density)
 
-class ReadUniformSky(object):
+class ReadUniformSky(SelectTargets):
     """Read a uniform sky style mock catalog.
 
     Parameters
@@ -716,10 +716,13 @@ class ReadUniformSky(object):
 
     """
     def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadUniformSky, self).__init__()
+
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name=''):
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='', mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -732,6 +735,9 @@ class ReadUniformSky(object):
             Healpixel nside corresponding to healpixels.
         target_name : :class:`str`
             Name of the target being read (e.g., ELG, LRG).
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
 
         Returns
         -------
@@ -765,33 +771,32 @@ class ReadUniformSky(object):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
         log.info('Reading {}'.format(mockfile))
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-        nobj = len(radec)
 
-        files = list()
-        n_per_file = list()
-        files.append(mockfile)
-        n_per_file.append(nobj)
-
-        objid = np.arange(nobj, dtype='i8')
-        mockid = make_mockid(objid, n_per_file)
+        mockid = np.arange(len(radec)) # unique ID/row number
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+
+        fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
-        else:
-            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
 
-        objid = objid[cut]
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = radec['DEC'][cut].astype('f8')
         del radec
@@ -799,21 +804,70 @@ class ReadUniformSky(object):
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
-        # Add redshifts.
-        zz = np.zeros(len(ra))
-            
         # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz,
-               'FILES': files, 'N_PER_FILE': n_per_file}
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'uniformsky',
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra))}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
             mw_transmission(out, dust_dir=self.dust_dir)
             imaging_depth(out)
 
+        # Optionally compute the mean mock density.
+        if mock_density:
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+
         return out
+
+    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
+        """Compute the median density of targets in the full mock. 
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog.
+        nside : :class:`int`
+            Healpixel nside for the calculation.
+        density_per_pixel : :class:`bool`, optional
+            Return the density per healpixel rather than just the median
+            density, which may be useful for statistical purposes.
+
+        Returns
+        -------
+        mock_density : :class:`int` or :class:`numpy.ndarray`
+            Median density of targets per deg2 or target density in all
+            healpixels (if density_per_pixel=True).  
+
+        Raises
+        ------
+        ValueError
+            If mockfile is not defined.
+
+        """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        areaperpix = hp.nside2pixarea(nside, degrees=True)
+
+        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+
+        # Get the weight per pixel, protecting against divide-by-zero.
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        weight = np.zeros_like(radec['RA'])
+        good = np.nonzero(pixweight[healpix])
+        weight[good] = 1 / pixweight[healpix[good]]
+
+        mock_density = np.bincount(healpix, weights=weight) / areaperpix # [targets/deg]
+        mock_density = mock_density[np.flatnonzero(mock_density)]
+
+        if density_per_pixel:
+            return mock_density
+        else:
+            return np.median(mock_density)
 
 class ReadGalaxia(object):
     """Read a Galaxia style mock catalog.
@@ -3443,7 +3497,7 @@ class SKYMaker(SelectTargets):
         Seed for reproducibility and random number generation.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, **kwargs):
         super(SKYMaker, self).__init__()
 
         self.seed = seed
@@ -3457,7 +3511,7 @@ class SKYMaker(SelectTargets):
                                              'uniformsky-2048-0.1.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, **kwargs):
+             healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3472,9 +3526,8 @@ class SKYMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
-        nside_chunk : :class:`int`
-            Healpixel nside for further subdividing the sample when assigning
-            velocity dispersion to targets.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -3488,7 +3541,6 @@ class SKYMaker(SelectTargets):
 
         """
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'uniformsky':
             MockReader = ReadUniformSky(dust_dir=dust_dir)
         elif self.mockformat == 'gaussianfield':
@@ -3501,24 +3553,13 @@ class SKYMaker(SelectTargets):
             mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
-
-        return data
-
-    def _prepare_spectra(self, data):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        seed = self.rand.randint(2**32, size=len(data['RA']))
-        data.update({
-            'TRUESPECTYPE': 'SKY', 'TEMPLATETYPE': 'SKY', 'TEMPLATESUBTYPE': '',
-            'SEED': seed,
-            })
+                                   healpixels=healpixels, nside=nside,
+                                   mock_density=mock_density)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate SKY spectra.
 
         Parameters
@@ -3528,6 +3569,8 @@ class SKYMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -3545,16 +3588,23 @@ class SKYMaker(SelectTargets):
         """
         from desisim.io import empty_metatable
         
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
-            
+
         meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'REDSHIFT'), ('SEED', 'Z')):
-            meta[inkey] = data[datakey][indx]
+        meta['SEED'] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'] = data['Z'][indx]
+        
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
+                                                     seed=seed, truespectype='SKY',
+                                                     templatetype='SKY')
 
         return flux, self.wave, meta, targets, truth
 
