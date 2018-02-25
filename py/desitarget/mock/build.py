@@ -240,7 +240,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=10):
                 keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
                 nkeep = len(keep)
                 if nkeep > 0:
-                    log.debug('Selected {} / {} targets on chunk {} / {} on iteration {}'.format(
+                    log.debug('Selected {} / {} targets on chunk {} / {} on iteration {}.'.format(
                         nkeep, len(chunkindx), ii+1, nchunk, itercount))
 
                     targets.append(chunktargets[keep])
@@ -428,7 +428,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     targets = vstack(results[0])
     truth = vstack(results[1])
 
-    log.info('Total time = {:.3f} minutes'.format((time() - t0) / 60))
+    log.info('Total time to generate spectra = {:.3f} minutes'.format((time() - t0) / 60))
 
     if sky:
         trueflux = []

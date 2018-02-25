@@ -27,105 +27,11 @@ from desitarget.targets import encode_targetid
 from desiutil.log import get_logger, DEBUG
 log = get_logger()
 
-#"""How to distribute 52 user bits of targetid.
-#
-#Used to generate target IDs as combination of input file and row in input file.
-#Sets the maximum number of rows per input file for mocks using this scheme to
-#generate target IDs
-#
-#"""
-## First 32 bits are row
-#ENCODE_ROW_END     = 32
-#ENCODE_ROW_MASK    = 2**ENCODE_ROW_END - 2**0
-#ENCODE_ROW_MAX     = ENCODE_ROW_MASK
-## Next 20 bits are file
-#ENCODE_FILE_END    = 52
-#ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
-#ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
-
 try:
     from scipy import constants
     C_LIGHT = constants.c/1000.0
 except TypeError: # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
-
-#def encode_rownum_filenum(rownum, filenum):
-#    """Encodes row and file number in 52 packed bits.
-#
-#    Parameters
-#    ----------
-#    rownum : :class:`int`
-#        Row in input file.
-#    filenum : :class:`int`
-#        File number in input file set.
-#
-#    Returns
-#    -------
-#    :class:`numpy.ndarray`
-#        52 packed bits encoding row and file number.
-#
-#    """
-#    assert(np.shape(rownum) == np.shape(filenum))
-#    assert(np.all(rownum  >= 0))
-#    assert(np.all(rownum  <= int(ENCODE_ROW_MAX)))
-#    assert(np.all(filenum >= 0))
-#    assert(np.all(filenum <= int(ENCODE_FILE_MAX)))
-#
-#    # This should be a 64 bit integer.
-#    encoded_value = ( (np.asarray(filenum,dtype=np.uint64) << ENCODE_ROW_END) +
-#                      np.asarray(rownum, dtype=np.uint64) )
-#
-#    # Note return signed
-#    return np.asarray(encoded_value, dtype=np.int64)
-#
-#def decode_rownum_filenum(encoded_values):
-#    """Invert encode_rownum_filenum to obtain row number and file number.
-#
-#    Parameters
-#    ----------
-#    encoded_values : :class:`int64 ndarray`
-#        Input encoded values.
-#
-#    Returns
-#    -------
-#    filenum : :class:`str`
-#        File number.
-#    rownum : :class:`int`
-#        Row number.
-#    
-#    """
-#    filenum = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_FILE_MASK) >> ENCODE_ROW_END
-#    rownum  = (np.asarray(encoded_values,dtype=np.uint64) & ENCODE_ROW_MASK)
-#    return rownum, filenum
-#
-#def make_mockid(objid, n_per_file):
-#    """
-#    Compute mockid from row and file IDs.
-#
-#    Parameters
-#    ----------
-#    objid : :class:`numpy.ndarray`
-#        Row identification number.
-#    n_per_file : :class:`list`
-#        Number of items per file that went into objid.
-#
-#    Returns
-#    -------
-#    mockid : :class:`numpy.ndarray`
-#        Encoded row and file ID.
-#
-#    """
-#    n_files = len(n_per_file)
-#    n_obj = len(objid)
-#
-#    n_p_file = np.array(n_per_file)
-#    n_per_file_cumsum = n_p_file.cumsum()
-#
-#    filenum = np.zeros(n_obj, dtype='int64')
-#    for n in range(1, n_files):
-#        filenum[n_per_file_cumsum[n-1]:n_per_file_cumsum[n]] = n
-#
-#    return encode_rownum_filenum(objid, filenum)
 
 def mw_transmission(source_data, dust_dir=None):
     """Compute the grzW1W2 Galactic transmission for every object.
@@ -323,6 +229,20 @@ def empty_truth_table(nobj=1):
     truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
 
     return truth
+
+def _get_mockid(ra, dec, nside=8):
+    """Get the mock ID for a set of targets assigned to healpixels."""
+
+    nobj = len(np.atleast_1d(ra))
+    mockid = np.zeros(nobj, dtype=np.int64)
+
+    healpix = footprint.radec2pix(nside, ra, dec)
+    for pix in set(healpix):
+        these = pix == healpix
+        objid = np.arange(np.count_nonzero(these), dtype='i8')
+        mockid[np.where(these)[0]] = encode_targetid(objid=objid, brickid=pix, mock=1)
+
+    return mockid
 
 def _indesi(data):
     """Demand that all objects lie within the DESI footprint."""
@@ -644,8 +564,6 @@ class ReadGaussianField(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
-
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
         log.info('Reading {}'.format(mockfile))
@@ -657,6 +575,8 @@ class ReadGaussianField(SelectTargets):
         log.info('Assigning healpix pixels with nside = {}.'.format(nside))
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
         mockid = encode_targetid(objid=objid, brickid=allpix, mock=1)
+
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
@@ -1197,7 +1117,7 @@ class ReadLyaCoLoRe(object):
 
         return out
 
-class ReadMXXL(object):
+class ReadMXXL(SelectTargets):
     """Read a MXXL mock catalog of BGS targets.
 
     Parameters
@@ -1210,11 +1130,14 @@ class ReadMXXL(object):
 
     """
     def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadMXXL, self).__init__()
+
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='BGS',
-                 magcut=None):
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='BGS', magcut=None, only_coords=False,
+                 mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -1230,6 +1153,12 @@ class ReadMXXL(object):
         magcut : :class:`float`
             Magnitude cut (hard-coded to SDSS r-band) to subselect targets
             brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
 
         Returns
         -------
@@ -1265,43 +1194,43 @@ class ReadMXXL(object):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        # Read the ra,dec coordinates, generate mockid, and then restrict to the
-        # desired healpixels.
-        f = h5py.File(mockfile, mode='r')
-        ra  = f['Data/ra'][...].astype('f8') % 360.0 # enforce 0 < ra < 360
-        dec = f['Data/dec'][...].astype('f8')
-        nobj = len(ra)
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        
+        # Read the data and then restrict to the desired healpixels.
+        with h5py.File(mockfile, mode='r') as f:
+            ra  = f['Data/ra'][:].astype('f8') % 360.0 # enforce 0 < ra < 360
+            dec = f['Data/dec'][:].astype('f8')
+            zz = f['Data/z_obs'][:].astype('f4')
+            rmag = f['Data/app_mag'][:].astype('f4')
+            absmag = f['Data/abs_mag'][:].astype('f4')
+            gr = f['Data/g_r'][:].astype('f4')
 
-        files = list()
-        files.append(mockfile)
-        n_per_file = list()
-        n_per_file.append(nobj)
-
-        objid = np.arange(nobj, dtype='i8')
-        mockid = make_mockid(objid, n_per_file)
-
+        mockid = np.arange(len(ra)) # unique ID/row number
+        
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, ra, dec)
-        these = np.in1d(allpix, healpixels)
-        cut = np.where( these*1 )[0]
+
+        fracarea = pixweight[allpix]
+        these = np.in1d(allpix, healpixels) * (fracarea > 0) # force DESI footprint
+        cut = np.where( these*1 )[0] 
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
-        else:
-            log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
-        objid = objid[cut]
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = ra[cut]
         dec = dec[cut]
-
-        zz = f['Data/z_obs'][these].astype('f4')
-        rmag = f['Data/app_mag'][these].astype('f4')
-        absmag = f['Data/abs_mag'][these].astype('f4')
-        gr = f['Data/g_r'][these].astype('f4')
-        f.close()
+        zz = zz[cut]
+        rmag = rmag[cut]
+        absmag = absmag[cut]
+        gr = gr[cut]
 
         if magcut:
             cut = rmag < magcut
@@ -1309,8 +1238,9 @@ class ReadMXXL(object):
                 log.warning('No objects with r < {}!'.format(magcut))
                 return dict()
             else:
-                objid = objid[cut]
                 mockid = mockid[cut]
+                allpix = allpix[cut]
+                weight = weight[cut]
                 ra = ra[cut]
                 dec = dec[cut]
                 zz = zz[cut]
@@ -1320,15 +1250,20 @@ class ReadMXXL(object):
                 nobj = len(ra)
                 log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'MAG': rmag, 'WEIGHT': weight, 'NSIDE': nside}
+
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'durham_mxxl_hdf5',
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
-               'SDSS_01gr': gr, 'NORMFILTER': 'sdss2010-r',
-               'FILES': files, 'N_PER_FILE': n_per_file}
+               'SDSS_01gr': gr, 'NORMFILTER': 'sdss2010-r'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2375,7 +2310,8 @@ class BGSMaker(SelectTargets):
                                              'v0.0.4', 'BGS.hdf5')
 
     def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, magcut=None, **kwargs):
+             healpixels=None, nside=None, nside_chunk=128, magcut=None,
+             only_coords=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2393,6 +2329,11 @@ class BGSMaker(SelectTargets):
         nside_chunk : :class:`int`
             Healpixel nside for further subdividing the sample when assigning
             velocity dispersion to targets.
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
 
         Returns
         -------
@@ -2418,10 +2359,7 @@ class BGSMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   magcut=magcut)
-
-        if bool(data):
-            data = self._prepare_spectra(data, nside_chunk=nside_chunk)
+                                   magcut=magcut, only_coords=only_coords)
 
         return data
 
@@ -2489,6 +2427,10 @@ class BGSMaker(SelectTargets):
         """
         from desisim.io import empty_metatable
         
+        if 'TRUESPECTYPE' not in data.keys():
+            print('NOT SURE IF THIS WILL WORK!')
+            data = self._prepare_spectra(data)
+
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
