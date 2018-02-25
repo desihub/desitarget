@@ -391,8 +391,6 @@ class SelectTargets(object):
 
         return vdisp
 
-
-
     def populate_targets_truth(self, data, meta, indx=None, seed=None, psf=True,
                                gmm=None,  truespectype='', templatetype='',
                                templatesubtype=''):
@@ -456,28 +454,16 @@ class SelectTargets(object):
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
                                ('TRUESPECTYPE', 'TEMPLATETYPE', 'TEMPLATESUBTYPE') ):
-            if isinstance(key, np.ndarray):
+            if isinstance(value, np.ndarray):
                 truth[key][:] = value
             else:
                 truth[key][:] = np.repeat(value, nobj)
-        #for key, source_key in zip( ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-        #                            ['TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        #    if isinstance(data[source_key], np.ndarray):
-        #        truth[key][:] = data[source_key][indx]
-        #    else:
-        #        truth[key][:] = np.repeat(data[source_key], nobj)
 
         if gmm is not None:
             for gmmkey, key in zip( ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2'),
                                     ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
                                      'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2') ):
                 targets[key][:] = gmm[gmmkey]
-
-        ## Add shapes and sizes (if available for this target class).
-        #if 'SHAPEEXP_R' in data.keys():
-        #    for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-        #                'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-        #        targets[key][:] = data[key][indx]
 
         # Copy various quantities from the metadata table.
         for key in ('TEMPLATEID', 'SEED', 'REDSHIFT', 'MAG', 'VDISP', 'FLUX_G', 'FLUX_R', 'FLUX_Z',
@@ -784,7 +770,7 @@ class ReadUniformSky(SelectTargets):
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
 
         fracarea = pixweight[allpix]
-        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
@@ -1476,7 +1462,7 @@ class ReadMWS_WD(object):
 
         return out
     
-class ReadMWS_NEARBY(object):
+class ReadMWS_NEARBY(SelectTargets):
     """Read a mock catalog of Milky Way Survey nearby targets (MWS_NEARBY). 
 
     Parameters
@@ -1489,10 +1475,13 @@ class ReadMWS_NEARBY(object):
 
     """
     def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadMWS_NEARBY, self).__init__()
+
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='MWS_NEARBY'):
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='MWS_NEARBY'):
         """Read the catalog.
 
         Parameters
@@ -1538,33 +1527,32 @@ class ReadMWS_NEARBY(object):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
         log.info('Reading {}'.format(mockfile))
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-        nobj = len(radec)
 
-        files = list()
-        n_per_file = list()
-        files.append(mockfile)
-        n_per_file.append(nobj)
-
-        objid = np.arange(nobj, dtype='i8')
-        mockid = make_mockid(objid, n_per_file)
+        mockid = np.arange(len(radec)) # unique ID/row number
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
-        else:
-            log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
-        objid = objid[cut]
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = radec['DEC'][cut].astype('f8')
         del radec
@@ -1583,10 +1571,10 @@ class ReadMWS_NEARBY(object):
 
         # Pack into a basic dictionary.  Is the normalization filter g-band???
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
-               'FILES': files, 'N_PER_FILE': n_per_file}
+               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2605,25 +2593,34 @@ class STARMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-r`.
+    star_normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        the faint stars.  Defaults to `sdss2010-r`.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, normfilter='decam2014-r',
+                 star_normfilter = 'sdss2010-r', **kwargs):
+        from desisim.templates import STAR
+
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters
 
         super(STARMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'STAR'
 
-        # Pre-compute normalized synthetic photometry for the full set of stellar templates.
-        flux, wave, meta = read_basis_templates(objtype='STAR')
-        self.meta = meta
+        self.template_maker = STAR(wave=self.wave, normfilter=normfilter)
+        self.meta = self.template_maker.basemeta
 
-        # Assume a normalization filter of SDSS-r.
-        self.star_normfilter = 'sdss2010-r'
+        # Pre-compute normalized synthetic photometry for the full set of stellar templates.
+        flux, wave = self.template_maker.baseflux, self.template_maker.basewave
+
+        self.star_normfilter = star_normfilter
         sdssr = filters.load_filters(self.star_normfilter)
         decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                          'wise2010-W1', 'wise2010-W2')
@@ -2642,20 +2639,6 @@ class STARMaker(SelectTargets):
                                       self.meta['LOGG'].data,
                                       self.meta['FEH'].data)).T)
         
-    def _prepare_spectra(self, data):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        from desisim.templates import STAR
-
-        self.template_maker = STAR(wave=self.wave, normfilter=data['NORMFILTER'])
-        seed = self.rand.randint(2**32, size=len(data['RA']))
-
-        data.update({
-            'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
-            'SEED': seed, 
-            })
-
-        return data
-
     def _query(self, matrix):
         """Return the nearest template number based on the KD Tree."""
         dist, indx = self.tree.query(matrix)
@@ -3159,16 +3142,18 @@ class MWS_NEARBYMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None):
-        super(MWS_NEARBYMaker, self).__init__(seed=seed)
+    def __init__(self, seed=None, **kwargs):
+        super(MWS_NEARBYMaker, self).__init__(seed=seed, **kwargs)
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'mws', '100pc', 'v0.0.3',
                                              'mock_100pc.fits')
-
 
     def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
              healpixels=None, nside=None, **kwargs):
@@ -3199,7 +3184,6 @@ class MWS_NEARBYMaker(STARMaker):
 
         """
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'mws_100pc':
             MockReader = ReadMWS_NEARBY(dust_dir=dust_dir)
         else:
@@ -3211,13 +3195,11 @@ class MWS_NEARBYMaker(STARMaker):
 
         data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
                                    healpixels=healpixels, nside=nside)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate MWS_NEARBY stellar spectra.
 
         Parameters
@@ -3227,6 +3209,8 @@ class MWS_NEARBYMaker(STARMaker):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -3244,14 +3228,21 @@ class MWS_NEARBYMaker(STARMaker):
         """
         from desisim.io import empty_metatable
         
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+        
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
-                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
-            input_meta[inkey] = data[datakey][indx]
+        input_meta['SEED'] = rand.randint(2**31, size=nobj)
+        input_meta['REDSHIFT'] = data['Z'][indx]
+        input_meta['MAG'] = data['MAG'][indx]
+        input_meta['TEFF'] = data['TEFF'][indx]
+        input_meta['LOGG'] = data['LOGG'][indx]
+        input_meta['FEH'] = data['FEH'][indx]
 
         if self.mockformat == 'mws_100pc':
             alldata = np.vstack((data['TEFF'][indx],
@@ -3263,7 +3254,10 @@ class MWS_NEARBYMaker(STARMaker):
         # Note! No colorcuts.
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
+                                                     seed=seed, truespectype='STAR',
+                                                     templatetype='STAR',
+                                                     templatesubtype=data['TEMPLATESUBTYPE'][indx])
                                                            
         return flux, self.wave, meta, targets, truth
 
