@@ -144,7 +144,7 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     if 'density' in params.keys():
         mock_density = True
     else:
-        mock_density = True
+        mock_density = False
 
     log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
@@ -163,7 +163,12 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
         
         data['DENSITY'] = params['density']
         data['DENSITY_FACTOR'] = data['DENSITY'] / data['MOCK_DENSITY']
-        data['MAXITER'] = 10
+        data['MAXITER'] = 5
+
+        log.info('Computed median mock density for {}s of {:.2f} targets/deg2.'.format(
+            target_name, data['MOCK_DENSITY']))
+        log.info('Target density = {:.2f} targets/deg2 (downsampling factor = {:.3f}).'.format(
+            data['DENSITY'], data['DENSITY_FACTOR']))
     else:
         data['DENSITY_FACTOR'] = 1.0 # keep them all
         data['MAXITER'] = 1
@@ -329,7 +334,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         # Subsample the targets on this mini healpixel.
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
-        ntargthispix = np.rint( len(allindxthispix) * density_factor ).astype('int')
+        ntargthispix = np.ceil( len(allindxthispix) * density_factor ).astype('int')
         indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
 
         indxperchunk.append(indxthispix)

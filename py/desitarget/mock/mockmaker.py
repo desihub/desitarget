@@ -258,28 +258,6 @@ def _indesi(data):
                 if n_obj == len(source_data[k]):
                     source_data[k] = source_data[k][indesi]
 
-def _sample_vdisp(ra, dec, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
-                  seed=None, nside=128):
-    """Assign velocity dispersions to a subset of objects."""
-    rand = np.random.RandomState(seed)
-
-    def _sample(nmodel=1):
-        nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
-        vvdisp = 10**rand.normal(loc=mean, scale=sigma, size=nvdisp)
-        return rand.choice(vvdisp, nmodel)
-
-    # Hack! Assign the same velocity dispersion to galaxies in the same
-    # healpixel.
-    nobj = len(ra)
-    vdisp = np.zeros(nobj)
-
-    healpix = footprint.radec2pix(nside, ra, dec)
-    for pix in set(healpix):
-        these = np.in1d(healpix, pix)
-        vdisp[these] = _sample(nmodel=np.count_nonzero(these))
-
-    return vdisp
-
 def _default_wave(wavemin=None, wavemax=None, dw=0.2):
     """Generate a default wavelength vector for the output spectra."""
     from desimodel.io import load_throughput
@@ -312,7 +290,7 @@ class SelectTargets(object):
             self.pixmap = hdulist[0].data
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
-                           qaplot=False):
+                           seed=None, qaplot=False):
         """Add noise to the input (noiseless) photometry based on the depth.  The input
         targets table is modified in place.
 
@@ -330,10 +308,16 @@ class SelectTargets(object):
         psf : :class:`bool`, optional
             For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
             otherwise use GALDEPTH.  Defaults to True.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
         qaplot : :class:`bool`, optional
             Generate a QA plot for debugging.
 
         """
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+            
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -350,14 +334,14 @@ class SelectTargets(object):
             depthkey = '{}DEPTH_{}'.format(depthprefix, band)
 
             sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
-            targets[fluxkey][:] = truth[fluxkey] + self.rand.normal(scale=sigma)
+            targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
         for band in ('W1', 'W2'):
             fluxkey = 'FLUX_{}'.format(band)
             depthkey = 'PSFDEPTH_{}'.format(band)
 
             sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
-            targets[fluxkey][:] = truth[fluxkey] + self.rand.normal(scale=sigma)
+            targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
         if qaplot:
             self._qaplot_scatter_photometry(targets, truth)
@@ -378,8 +362,39 @@ class SelectTargets(object):
         plt.legend(loc='upper left')
         plt.show()
 
-    def populate_targets_truth(self, data, meta, indx=None, psf=True, gmm=None, 
-                               truespectype='', templatetype='',
+    def _update_normfilter(self, normfilter):
+        """Update the normalization filter."""
+        from speclite import filters
+        if normfilter is not None:
+            self.template_maker.normfilter = normfilter
+            self.template_maker.normfilt = filters.load_filters(normfilter)
+
+    def _sample_vdisp(self, ra, dec, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
+                      seed=None, nside=128):
+        """Assign velocity dispersions to a subset of objects."""
+        rand = np.random.RandomState(seed)
+
+        def _sample(nmodel=1):
+            nvdisp = int(np.max( ( np.min( ( np.round(nmodel * fracvdisp[0]), fracvdisp[1] ) ), 1 ) ))
+            vvdisp = 10**rand.normal(loc=mean, scale=sigma, size=nvdisp)
+            return rand.choice(vvdisp, nmodel)
+
+        # Hack! Assign the same velocity dispersion to galaxies in the same
+        # healpixel.
+        nobj = len(ra)
+        vdisp = np.zeros(nobj)
+
+        healpix = footprint.radec2pix(nside, ra, dec)
+        for pix in set(healpix):
+            these = np.in1d(healpix, pix)
+            vdisp[these] = _sample(nmodel=np.count_nonzero(these))
+
+        return vdisp
+
+
+
+    def populate_targets_truth(self, data, meta, indx=None, seed=None, psf=True,
+                               gmm=None,  truespectype='', templatetype='',
                                templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
         source properties and a spectral metadata table.  
@@ -393,6 +408,8 @@ class SelectTargets(object):
         indx : :class:`numpy.ndarray`, optional
             Populate the tables of a subset of the objects in the data
             dictionary, as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
         psf : :class:`bool`, optional
             For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
             otherwise use GALDEPTH.  Defaults to True.
@@ -405,6 +422,9 @@ class SelectTargets(object):
             Corresponding truth table.
 
         """
+        if seed is None:
+            seed = self.seed
+            
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -465,7 +485,7 @@ class SelectTargets(object):
             truth[key.replace('REDSHIFT', 'TRUEZ')][:] = meta[key]
 
         # Scatter the photometry based on the depth.
-        self.scatter_photometry(data, truth, targets, indx=indx, psf=psf)
+        self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
         return targets, truth
 
@@ -1541,9 +1561,8 @@ class QSOMaker(SelectTargets):
         self.seed = seed
         self.wave = _default_wave()
         self.objtype = 'QSO'
-        self.normfilter = normfilter
 
-        self.template_maker = SIMQSO(wave=self.wave, normfilter=self.normfilter)
+        self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -1594,6 +1613,7 @@ class QSOMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
@@ -1635,8 +1655,10 @@ class QSOMaker(SelectTargets):
             nmodel=nobj, redshift=data['Z'][indx], seed=seed,
             lyaforest=False, nocolorcuts=True)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
-                                                     truespectype='QSO', templatetype='QSO')
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx,
+                                                     psf=True, seed=seed,
+                                                     truespectype='QSO',
+                                                     templatetype='QSO')
 
         return flux, self.wave, meta, targets, truth
 
@@ -1904,10 +1926,9 @@ class LRGMaker(SelectTargets):
         self.nside_chunk = nside_chunk
         self.wave = _default_wave()
         self.objtype = 'LRG'
-        self.normfilter = normfilter
 
-        self.meta = read_basis_templates(objtype='LRG', onlymeta=True)
-        self.template_maker = LRG(wave=self.wave, normfilter=self.normfilter)
+        self.template_maker = LRG(wave=self.wave, normfilter=normfilter)
+        self.meta = self.template_maker.basemeta
 
         zobj = self.meta['Z'].data
         self.tree = KDTree(np.vstack((zobj)).T)
@@ -1921,7 +1942,7 @@ class LRGMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'LRG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, **kwargs):
+             healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1936,6 +1957,8 @@ class LRGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -1959,16 +1982,17 @@ class LRGMaker(SelectTargets):
             mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside)
+                                   healpixels=healpixels, nside=nside,
+                                   mock_density=mock_density)
+        self._update_normfilter(data.get('NORMFILTER'))
 
-        #if bool(data):
-        #    data = self._prepare_spectra(data, nside_chunk=nside_chunk)
-            
         return data
 
-    def _GMMsample(self, nsample=1):
+    def _GMMsample(self, nsample=1, seed=None):
         """Sample from the Gaussian mixture model (GMM) for LRGs."""
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        rand = np.random.RandomState(seed)
+        params = self.GMM.sample(nsample, rand).astype('f4')
 
         tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
         tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
@@ -1979,33 +2003,12 @@ class LRGMaker(SelectTargets):
             
         return samp
 
-    def _prepare_spectra(self, data, nside_chunk=128):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        from desisim.templates import LRG
-
-        gmm = self._GMMsample(len(data['RA']))
-        normmag = gmm['z']
-        normfilter = 'decam2014-z'
-        self.template_maker = LRG(wave=self.wave, normfilter=normfilter)
-        
-        seed = self.rand.randint(2**32, size=len(data['RA']))
-        vdisp = _sample_vdisp(data, mean=2.3, sigma=0.1, rand=self.rand, nside=nside_chunk)
-
-        data.update({
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
-            'SEED': seed, 'VDISP': vdisp, 'MAG': normmag, 
-            'SHAPEEXP_R': gmm['exp_r'], 'SHAPEEXP_E1': gmm['exp_e1'], 'SHAPEEXP_E2': gmm['exp_e2'], 
-            'SHAPEDEV_R': gmm['dev_r'], 'SHAPEDEV_E1': gmm['dev_e1'], 'SHAPEDEV_E2': gmm['dev_e2'],
-            })
-
-        return data
-
     def _query(self, matrix):
         """Return the nearest template number based on the KD Tree."""
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate LRG spectra.
 
         Parameters
@@ -2015,6 +2018,8 @@ class LRGMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -2031,25 +2036,42 @@ class LRGMaker(SelectTargets):
         
         """
         from desisim.io import empty_metatable
+
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
         
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
-                                  ('SEED', 'MAG', 'Z', 'VDISP')):
-            input_meta[inkey] = data[datakey][indx]
+        gmm = self._GMMsample(nobj, seed=seed)
 
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        input_meta['SEED'] = rand.randint(2**31, size=nobj)
+        input_meta['REDSHIFT'] = data['Z'][indx]
+        input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
+                                                 mean=2.3, sigma=0.1, seed=seed,
+                                                 nside=self.nside_chunk)
+
+        input_meta['MAG'] = gmm['z']
+        if self.template_maker.normfilter != 'decam2014-z':
+            log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
+                'decam2014-z', self.template_maker.normfilter))
+            raise ValueError
+        
         if self.mockformat == 'gaussianfield':
             # This is not quite right, but choose a template with equal probability.
-            templateid = self.rand.choice(self.meta['TEMPLATEID'], nobj)
+            templateid = rand.choice(self.meta['TEMPLATEID'], nobj)
             input_meta['TEMPLATEID'] = templateid
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
+                                                     seed=seed, gmm=gmm,
+                                                     truespectype='GALAXY',
+                                                     templatetype='LRG')
 
         return flux, self.wave, meta, targets, truth
 
@@ -2306,10 +2328,9 @@ class BGSMaker(SelectTargets):
         self.nside_chunk = nside_chunk
         self.wave = _default_wave()
         self.objtype = 'BGS'
-        self.normfilter = normfilter
 
-        self.meta = read_basis_templates(objtype='BGS', onlymeta=True)
-        self.template_maker = BGS(wave=self.wave, normfilter=self.normfilter)
+        self.template_maker = BGS(wave=self.wave, normfilter=normfilter)
+        self.meta = self.template_maker.basemeta
 
         zobj = self.meta['Z'].data
         mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
@@ -2371,6 +2392,7 @@ class BGSMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    magcut=magcut, only_coords=only_coords)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
@@ -2430,13 +2452,16 @@ class BGSMaker(SelectTargets):
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
-        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
 
+        gmm = self._GMMsample(nobj, seed=seed)
+
+        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         input_meta['SEED'] = rand.randint(2**31, size=nobj)
         input_meta['REDSHIFT'] = data['Z'][indx]
         input_meta['MAG'] = data['MAG'][indx]
-        input_meta['VDISP'] = _sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
-                                            sigma=0.15, seed=seed, nside=self.nside_chunk)
+        input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
+                                                 mean=1.9, sigma=0.15, seed=seed,
+                                                 nside=self.nside_chunk)
 
         if self.mockformat == 'durham_mxxl_hdf5':
             alldata = np.vstack((data['Z'][indx],
@@ -2449,8 +2474,9 @@ class BGSMaker(SelectTargets):
                                                            nocolorcuts=True, novdisp=False)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
-                                                     gmm=self._GMMsample(nobj, seed=seed),
-                                                     truespectype='GALAXY', templatetype='BGS')
+                                                     seed=seed, gmm=gmm,
+                                                     truespectype='GALAXY',
+                                                     templatetype='BGS')
         
         return flux, self.wave, meta, targets, truth
 
