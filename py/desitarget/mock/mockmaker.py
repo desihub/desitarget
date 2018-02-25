@@ -2053,7 +2053,6 @@ class LRGMaker(SelectTargets):
         input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
                                                  mean=2.3, sigma=0.1, seed=seed,
                                                  nside=self.nside_chunk)
-
         input_meta['MAG'] = gmm['z']
         if self.template_maker.normfilter != 'decam2014-z':
             log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
@@ -2108,20 +2107,25 @@ class ELGMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-z`.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
         from scipy.spatial import cKDTree as KDTree
+        from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
 
         super(ELGMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
+        self.nside_chunk = nside_chunk
         self.wave = _default_wave()
         self.objtype = 'ELG'
 
-        self.meta = read_basis_templates(objtype='ELG', onlymeta=True)
+        self.template_maker = ELG(wave=self.wave, normfilter=normfilter)
+        self.meta = self.template_maker.basemeta
 
         zobj = self.meta['Z'].data
         gr = self.meta['DECAM_G'].data - self.meta['DECAM_R'].data
@@ -2137,7 +2141,7 @@ class ELGMaker(SelectTargets):
                                              'v0.0.7_2LPT', 'ELG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, nside_chunk=128, **kwargs):
+             healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2152,9 +2156,8 @@ class ELGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
-        nside_chunk : :class:`int`
-            Healpixel nside for further subdividing the sample when assigning
-            velocity dispersion to targets.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -2168,7 +2171,6 @@ class ELGMaker(SelectTargets):
 
         """
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'gaussianfield':
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
@@ -2179,16 +2181,17 @@ class ELGMaker(SelectTargets):
             mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside)
-
-        if bool(data):
-            data = self._prepare_spectra(data, nside_chunk=nside_chunk)
+                                   healpixels=healpixels, nside=nside,
+                                   mock_density=mock_density)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
             
-    def _GMMsample(self, nsample=1):
+    def _GMMsample(self, nsample=1, seed=None):
         """Sample from the Gaussian mixture model (GMM) for ELGs."""
-        params = self.GMM.sample(nsample, self.rand).astype('f4')
+
+        rand = np.random.RandomState(seed)
+        params = self.GMM.sample(nsample, rand).astype('f4')
 
         tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
         tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
@@ -2227,7 +2230,7 @@ class ELGMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate ELG spectra.
 
         Parameters
@@ -2237,6 +2240,8 @@ class ELGMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -2254,26 +2259,42 @@ class ELGMaker(SelectTargets):
         """
         from desisim.io import empty_metatable
         
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
+        gmm = self._GMMsample(nobj, seed=seed)
+
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
-                                  ('SEED', 'MAG', 'Z', 'VDISP')):
-            input_meta[inkey] = data[datakey][indx]
+        input_meta['SEED'] = rand.randint(2**31, size=nobj)
+        input_meta['REDSHIFT'] = data['Z'][indx]
+        input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
+                                                 mean=1.9, sigma=0.15, seed=seed,
+                                                 nside=self.nside_chunk)
+        input_meta['MAG'] = gmm['r']
+        if self.template_maker.normfilter != 'decam2014-r':
+            log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
+                'decam2014-z', self.template_maker.normfilter))
+            raise ValueError
 
         if self.mockformat == 'gaussianfield':
             alldata = np.vstack((data['Z'][indx],
-                                 data['GR'][indx],
-                                 data['RZ'][indx])).T
+                                 gmm['g']-gmm['r'],
+                                 gmm['r']-gmm['z'])).T
             _, templateid = self._query(alldata)
             input_meta['TEMPLATEID'] = templateid
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
+                                                     seed=seed, gmm=gmm,
+                                                     truespectype='GALAXY',
+                                                     templatetype='ELG')
 
         return flux, self.wave, meta, targets, truth
 
