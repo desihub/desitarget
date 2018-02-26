@@ -1812,6 +1812,8 @@ class LYAMaker(SelectTargets):
             skewer files on-disk.
 
         """
+        import numpy.ma as ma
+        from desispec.interpolation import resample_flux
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
         if seed is None:
@@ -1833,23 +1835,22 @@ class LYAMaker(SelectTargets):
         for lyafile in uniquelyafiles:
             these = np.where( alllyafile == lyafile )[0]
 
-            import pdb ; pdb.set_trace()
-
-            objid_in_data = data['OBJID'][indx][these]
-            objid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
+            mockid_in_data = data['MOCKID'][indx][these]
+            mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                          ext=1).astype(float)).astype(int)
             o2i = dict()
-            for i, o in enumerate(objid_in_mock):
+            for i, o in enumerate(mockid_in_mock):
                 o2i[o] = i
-            indices_in_mock_healpix = np.zeros(objid_in_data.size).astype(int)
-            for i, o in enumerate(objid_in_data):
+            indices_in_mock_healpix = np.zeros(mockid_in_data.size).astype(int)
+            for i, o in enumerate(mockid_in_data):
                 if not o in o2i:
                     log.warning("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile))
                     raise KeyError
                 
                 indices_in_mock_healpix[i] = o2i[o]
 
-            tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(lyafile, indices=indices_in_mock_healpix) 
+            tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(
+                lyafile, indices=indices_in_mock_healpix) 
 
             if skewer_wave is None:
                 skewer_wave = tmp_wave
@@ -1871,24 +1872,40 @@ class LYAMaker(SelectTargets):
         assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx]))<0.000001)
         assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
 
-        # Now generate the QSO spectra simultaneously.
+        # Now generate the QSO spectra simultaneously **at full wavelength
+        # resolution**.  We do this because the Lya forest (and DLAs) will have
+        # changed the colors, so we need to re-synthesize the photometry.
         qso_flux, qso_wave, meta = self.template_maker.make_templates(
             nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-            lyaforest=False, nocolorcuts=True, noresample=False)
+            lyaforest=False, nocolorcuts=True, noresample=True)
         meta['SUBTYPE'] = 'LYA'
 
         # Apply the Lya forest transmission.
-        flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
+        _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
-        print('GET THE PHOTOMETRY!!!!!!!!!!!!')
+        # Add DLAs (ToDo).
+        # ...
 
-        # Add DLAa (ToDo).
+        # Update the photometry
+        maggies = self.template_maker.decamwise.get_ab_maggies(
+            1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
+        for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'),
+                               ('decam2014-g', 'decam2014-r', 'decam2014-z',
+                                'wise2010-W1', 'wise2010-W2') ):
+            meta[band] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
 
+        # Unfortunately, to resample to the desired output wavelength vector we
+        # need to loop.
+        flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+        for ii in range(nobj):
+            flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :],
+                                        extrapolate=True)
+                                     
         targets, truth = self.populate_targets_truth(data, meta, indx=indx,
                                                      psf=True,seed=seed,
                                                      truespectype='QSO',
                                                      templatetype='QSO',
-                                                     templatesubtype='LYA',)
+                                                     templatesubtype='LYA')
 
         return flux, self.wave, meta, targets, truth
 
