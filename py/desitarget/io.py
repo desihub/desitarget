@@ -22,7 +22,7 @@ from desiutil import depend
 #ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South" 
 #ADM photometric system. This will expand with the definition of RELEASE in the 
 #ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched) 
-releasedict = {3000: 'S', 4000: 'N', 5000: 'S'}
+releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N'}
 
 oldtscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
