@@ -214,71 +214,70 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
         and returned for non-sky targets.
     
     """
+    nobj = len(np.atleast_1d(indx))
+    targname = data['TARGET_NAME']
+
     rand = np.random.RandomState(seed)
 
-    # Build spectra in chunks and stop when we have enough.
-    nchunk = np.ceil(len(indx) / ntarget).astype('int')
-    
     targets = list()
     truth = list()
     trueflux = list()
 
     boss_std = None
 
-    for ii, chunkindx in enumerate(np.array_split(indx, nchunk)):
+    # Temporary hack to use BOSS standard stars.
+    if 'BOSS_STD' in data.keys():
+        boss_std = data['BOSS_STD'][indx]
 
-        # Temporary hack to use BOSS standard stars.
-        if 'BOSS_STD' in data.keys():
-            boss_std = data['BOSS_STD'][chunkindx]
+    # Faintstar targets are a special case.
+    if targname.lower() == 'faintstar':
+        chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+            data, indx=indx, boss_std=boss_std)
 
-        # Faintstar targets are a special case.
-        if data['TARGET_NAME'].lower() == 'faintstar':
+        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+        nkeep = len(keep)
+
+        log.debug('Selected {} / {} {} targets'.format(nkeep, nobj, targname))
+
+        if nkeep > 0:
+            targets.append(chunktargets[keep])
+            truth.append(chunktruth[keep])
+            trueflux.append(chunkflux[keep, :])
+    else:
+        # Generate the spectra iteratively until we achieve the required
+        # target density.
+        iterseeds = rand.randint(2**31, size=maxiter)
+
+        makemore, itercount, ntot = True, 0, 0
+        while makemore:
             chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
-                data, indx=chunkindx, boss_std=boss_std)
+                data, indx=indx, seed=iterseeds[itercount])
+
+            MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             nkeep = len(keep)
-
-            log.debug('Selected {} / {} targets on chunk {} / {}'.format(
-                nkeep, len(chunkindx), ii+1, nchunk))
-
             if nkeep > 0:
+                log.debug('Generated {} / {} {} targets on iteration {} / {}.'.format(
+                    nkeep, nobj, targname, itercount, maxiter))
+                ntot += nkeep
+
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
                 trueflux.append(chunkflux[keep, :])
-        else:
-            # Generate the spectra iteratively until we achieve the required
-            # target density.
-            iterseeds = rand.randint(2**31, size=maxiter)
 
-            makemore, itercount = True, 0
-            while makemore:
-                chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
-                    data, indx=chunkindx, seed=iterseeds[itercount])
-
-                MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
-
-                keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-                nkeep = len(keep)
-                if nkeep > 0:
-                    log.debug('Selected {} / {} targets on chunk {} / {} on iteration {}.'.format(
-                        nkeep, len(chunkindx), ii+1, nchunk, itercount))
-
-                    targets.append(chunktargets[keep])
-                    truth.append(chunktruth[keep])
-                    trueflux.append(chunkflux[keep, :])
-
-                itercount += 1
-                if itercount == maxiter:
-                    if maxiter > 1:
-                        log.warning('Maximum number of iterations reached on chunk {}.'.format(ii))
-                    makemore = False
+            itercount += 1
+            if itercount == maxiter:
+                if maxiter > 1:
+                    log.warning('Generated only {} / {} {} targets after {} iterations.'.format(
+                        ntot, nobj, targname, maxiter))
+                makemore = False
+            else:
+                need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
+                if len(need) > 0:
+                    indx = indx[need]
                 else:
-                    need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
-                    if len(need) > 0:
-                        chunkindx = chunkindx[need]
-                    else:
-                        makemore = False
+                    makemore = False
 
     targets = vstack(targets)
     truth = vstack(truth)
