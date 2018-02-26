@@ -11,7 +11,10 @@ except ImportError:
     # This can happen during documentation builds.
     #
     def BitMask(*args): return None
-
+#ADM this is a way to force different behavior during sphinx builds
+import sys
+if 'sphinx' in sys.modules:
+    def BitMask(*args): return None
 
 _bitdefs = None
 def _load_bits():
