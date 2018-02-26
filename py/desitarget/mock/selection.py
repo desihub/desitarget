@@ -1,4 +1,4 @@
-B41;281;0c# Licensed under a 4-clause BSD style license - see LICENSE.rst
+# Licensed under a 4-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 desitarget.mock.selection
