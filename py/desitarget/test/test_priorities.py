@@ -3,7 +3,7 @@ import numpy as np
 
 from astropy.table import Table
 
-from desitarget import desi_mask, bgs_mask, mws_mask, obsmask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
 from desitarget.targets import calc_priority
 
 class TestPriorities(unittest.TestCase):

@@ -9,7 +9,7 @@ import numpy as np
 #ADM therefore called brightstar instead of brightmask
 from desitarget import brightmask as brightstar
 #ADM these remain useful tests to increase coverage, though
-from desitarget import desi_mask, targetid_mask
+from desitarget.targetmask import desi_mask, targetid_mask
 
 class TestBRIGHTSTAR(unittest.TestCase):
 

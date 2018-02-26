@@ -18,7 +18,8 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 from desiutil import depend, brick
-from desitarget import io, desi_mask, targetid_mask
+from desitarget import io
+from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 

@@ -9,8 +9,8 @@ import numpy as np
 import sys
 from astropy.table import Table, join
 
-from .targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from .targets    import calc_numobs, calc_priority, encode_mtl_targetid
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
+from desitarget.targets    import calc_numobs, calc_priority, encode_mtl_targetid
 
 
 ############################################################

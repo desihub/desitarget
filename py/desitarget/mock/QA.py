@@ -17,7 +17,8 @@ import healpy as hp
 import matplotlib.pyplot as plt
 
 from desimodel.footprint import radec2pix
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+from desitarget.contammask import contam_mask
 
 def target_density(cat, nside=128):
     """Determine the target density by grouping targets in healpix pixels.  The code
@@ -213,7 +214,8 @@ def qa_targets_truth(output_dir, verbose=True):
     import fitsio
 
     from desiutil.log import get_logger, DEBUG
-    from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
+    from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+    from desitarget.contammask import contam_mask
 
     if verbose:
         log = get_logger(DEBUG)

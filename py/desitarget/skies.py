@@ -17,7 +17,8 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 from desiutil import brick
-from desitarget import io, desi_mask, targetid_mask
+from desitarget import io
+from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix

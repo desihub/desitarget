@@ -37,6 +37,7 @@ def gitversion():
         return 'unknown'
 
 # desitarget.targetmask makes more sense?
-from .targetmask import obsconditions, obsmask
-from .targetmask import desi_mask, mws_mask, bgs_mask, targetid_mask
-from .contammask import contam_mask
+# ADM these imports were breaking the readthedocs build
+#from .targetmask import obsconditions, obsmask
+#from .targetmask import desi_mask, mws_mask, bgs_mask, targetid_mask
+#from .contammask import contam_mask

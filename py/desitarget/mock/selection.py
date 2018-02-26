@@ -1,4 +1,4 @@
-# Licensed under a 4-clause BSD style license - see LICENSE.rst
+B41;281;0c# Licensed under a 4-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 desitarget.mock.selection
@@ -18,7 +18,8 @@ class SelectTargets(object):
 
     """
     def __init__(self, logger=None, rand=None, brick_info=None):
-        from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, obsconditions
+        from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsconditions
+        from desitarget.contammask import contam_mask
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
