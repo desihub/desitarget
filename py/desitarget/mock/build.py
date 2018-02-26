@@ -236,6 +236,16 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
             chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
                 data, indx=chunkindx, boss_std=boss_std)
 
+            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+            nkeep = len(keep)
+
+            log.debug('Selected {} / {} targets on chunk {} / {}'.format(
+                nkeep, len(chunkindx), ii+1, nchunk))
+
+            if nkeep > 0:
+                targets.append(chunktargets[keep])
+                truth.append(chunktruth[keep])
+                trueflux.append(chunkflux[keep, :])
         else:
             # Generate the spectra iteratively until we achieve the required
             # target density.

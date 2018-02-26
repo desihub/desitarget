@@ -230,34 +230,6 @@ def empty_truth_table(nobj=1):
 
     return truth
 
-def _get_mockid(ra, dec, nside=8):
-    """Get the mock ID for a set of targets assigned to healpixels."""
-
-    nobj = len(np.atleast_1d(ra))
-    mockid = np.zeros(nobj, dtype=np.int64)
-
-    healpix = footprint.radec2pix(nside, ra, dec)
-    for pix in set(healpix):
-        these = pix == healpix
-        objid = np.arange(np.count_nonzero(these), dtype='i8')
-        mockid[np.where(these)[0]] = encode_targetid(objid=objid, brickid=pix, mock=1)
-
-    return mockid
-
-def _indesi(data):
-    """Demand that all objects lie within the DESI footprint."""
-    import desimodel.io
-    import desimodel.footprint
-
-    n_obj = len(source_data['RA'])
-    tiles = desimodel.io.load_tiles()
-    if n_obj > 0:
-        indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
-        for k in source_data.keys():
-            if type(source_data[k]) is np.ndarray:
-                if n_obj == len(source_data[k]):
-                    source_data[k] = source_data[k][indesi]
-
 def _default_wave(wavemin=None, wavemax=None, dw=0.2):
     """Generate a default wavelength vector for the output spectra."""
     from desimodel.io import load_throughput
@@ -566,9 +538,9 @@ class ReadGaussianField(SelectTargets):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If mockfile is not defined or if nside is not a scalar.
 
         """
         if mockfile is None:
@@ -739,9 +711,9 @@ class ReadUniformSky(SelectTargets):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If mockfile is not defined or if nside is not a scalar.
 
         """
         if mockfile is None:
@@ -879,11 +851,6 @@ class ReadGalaxia(SelectTargets):
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', 'galaxia', 'alpha',
-                                             'v0.0.5', 'healpix')
-
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
                  target_name='MWS_MAIN', magcut=None):
         """Read the catalog.
@@ -913,17 +880,18 @@ class ReadGalaxia(SelectTargets):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the top-level Galaxia directory is not found.
         ValueError
-            If healpixels is not a scalar.
+            (1) If either mockfile or nside_galaxia are not defined; (2) if
+            healpixels or nside are not scalar inputs; or (3) if the input
+            target_name is not recognized.
 
         """
         from desitarget.mock.io import get_healpix_dir, findfile
 
         if mockfile is None:
-            mockfile = self.default_mockfile
-            #log.warning('Mockfile input is required.')
-            #raise ValueError
+            log.warning('Mockfile input is required.')
+            raise ValueError
 
         if nside_galaxia is None:
             log.warning('Nside_galaxia input is required.')
@@ -1084,7 +1052,7 @@ class ReadGalaxia(SelectTargets):
         
         return is_std
 
-class ReadLyaCoLoRe(object):
+class ReadLyaCoLoRe(SelectTargets):
     """Read a CoLoRe mock catalog of Lya skewers.
 
     Parameters
@@ -1097,11 +1065,13 @@ class ReadLyaCoLoRe(object):
 
     """
     def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadLyaCoLoRe, self).__init__()
+
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='LYA',
-                 nside_lya=16):
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='LYA', nside_lya=16):
         """Read the catalog.
 
         Parameters
@@ -1126,13 +1096,17 @@ class ReadLyaCoLoRe(object):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the top-level mock data file is not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If mockfile, nside, or nside_lya are not defined.
 
         """
         if mockfile is None:
             log.warning('Mockfile input is required.')
+            raise ValueError
+        
+        if nside_lya is None:
+            log.warning('Nside_lya input is required.')
             raise ValueError
         
         if not os.path.isfile(mockfile):
@@ -1152,6 +1126,8 @@ class ReadLyaCoLoRe(object):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+
         # Read the ra,dec coordinates and then restrict to the desired
         # healpixels.
         log.info('Reading {}'.format(mockfile))
@@ -1161,26 +1137,32 @@ class ReadLyaCoLoRe(object):
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
         zz = tmp['Z'].astype('f4')
-        objid = (tmp['MOCKID'].astype(float)).astype(int) # will change
         mockpix = tmp['PIXNUM']
-        mockid = objid.copy()
+        mockid = (tmp['MOCKID'].astype(float)).astype(int)
+        #objid = (tmp['MOCKID'].astype(float)).astype(int) # will change
+        #mockid = objid.copy()
         del tmp
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, ra, dec)
-        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
-        else:
-            log.info('Trimmed to {} {}s in healpixel(s) {}'.format(nobj, target_name, healpixels))
 
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = ra[cut]
         dec = dec[cut]
         zz = zz[cut]
-        objid = objid[cut]
+        #objid = objid[cut]
         mockpix = mockpix[cut]
         mockid = mockid[cut]
 
@@ -1194,10 +1176,11 @@ class ReadLyaCoLoRe(object):
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
         # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
-               'LYAFILES': np.array(lyafiles),
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz}
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',               
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               #'OBJID': objid,
+               'MOCKID': mockid, 'LYAFILES': np.array(lyafiles),
+               'BRICKNAME': brickname, 'RA': ra, 'DEC': dec, 'Z': zz}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -1257,9 +1240,9 @@ class ReadMXXL(SelectTargets):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If mockfile is not defined or if nside is not a scalar.
 
         """
         import h5py
@@ -1402,9 +1385,9 @@ class ReadMWS_WD(SelectTargets):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If mockfile is not defined or if nside is not a scalar.
 
         """
         if mockfile is None:
@@ -1522,9 +1505,9 @@ class ReadMWS_NEARBY(SelectTargets):
         Raises
         ------
         IOError
-            If the mock data files are not found.
+            If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If mockfile is not defined or if nside is not a scalar.
 
         """
         if mockfile is None:
@@ -1761,13 +1744,12 @@ class LYAMaker(SelectTargets):
         each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-g'):
+    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
         from desisim.templates import SIMQSO
 
         super(LYAMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'LYA'
 
@@ -1822,21 +1804,11 @@ class LYAMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
-    def _prepare_spectra(self, data):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        data.update({
-            'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': 'QSO', 'TEMPLATESUBTYPE': 'LYA',
-            })
-
-        return data
-
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate QSO spectra with the 3D Lya forest skewers included. 
 
         Parameters
@@ -1846,6 +1818,8 @@ class LYAMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -1869,6 +1843,9 @@ class LYAMaker(SelectTargets):
         """
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
+        if seed is None:
+            seed = self.seed
+            
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -1884,6 +1861,9 @@ class LYAMaker(SelectTargets):
 
         for lyafile in uniquelyafiles:
             these = np.where( alllyafile == lyafile )[0]
+
+            import pdb ; pdb.set_trace()
+
             objid_in_data = data['OBJID'][indx][these]
             objid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                          ext=1).astype(float)).astype(int)
@@ -1902,14 +1882,14 @@ class LYAMaker(SelectTargets):
 
             if skewer_wave is None:
                 skewer_wave = tmp_wave
-                dw = skewer_wave[1]-skewer_wave[0] # this is just to check same wavelength
+                dw = skewer_wave[1] - skewer_wave[0] # this is just to check same wavelength
                 skewer_trans = np.zeros((nobj, skewer_wave.size)) # allocate skewer_array
                 skewer_meta = dict()
                 for k in tmp_meta.dtype.names:
                     skewer_meta[k] = np.zeros(nobj).astype(tmp_meta[k].dtype)
             else :
                 # check wavelength is the same for all skewers
-                assert(np.max(np.abs(wave-tmp_wave))<0.001*dw)
+                assert( np.max(np.abs(wave-tmp_wave)) < 0.001*dw )
 
             skewer_trans[these] = tmp_trans
             for k in skewer_meta.keys():
@@ -1922,7 +1902,7 @@ class LYAMaker(SelectTargets):
 
         # Now generate the QSO spectra simultaneously.
         qso_flux, qso_wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][indx], seed=self.seed,
+            nmodel=nobj, redshift=data['Z'][indx], seed=seed,
             lyaforest=False, nocolorcuts=True, noresample=False)
         meta['SUBTYPE'] = 'LYA'
 
@@ -1931,7 +1911,11 @@ class LYAMaker(SelectTargets):
 
         # Add DLAa (ToDo).
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx,
+                                                     psf=True,seed=seed,
+                                                     truespectype='QSO',
+                                                     templatetype='QSO',
+                                                     templatesubtype='LYA',)
 
         return flux, self.wave, meta, targets, truth
 
@@ -2262,29 +2246,6 @@ class ELGMaker(SelectTargets):
             samp[tt] = params[:, ii]
             
         return samp
-
-    def _prepare_spectra(self, data, nside_chunk=128):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        from desisim.templates import ELG
-
-        gmm = self._GMMsample(len(data['RA']))
-        normmag = gmm['r']
-        normfilter = 'decam2014-r'
-        self.template_maker = ELG(wave=self.wave, normfilter=normfilter)
-        
-        seed = self.rand.randint(2**32, size=len(data['RA']))
-        vdisp = _sample_vdisp(data, mean=1.9, sigma=0.15, rand=self.rand, nside=nside_chunk)
-
-        data.update({
-            'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
-            'SEED': seed, 'VDISP': vdisp, 'MAG': normmag,
-            'GR': gmm['g']-gmm['r'], 'RZ': gmm['r']-gmm['z'],
-            'RW1': gmm['r']-gmm['w1'], 'W1W2': gmm['w1']-gmm['w2'],
-            'SHAPEEXP_R': gmm['exp_r'], 'SHAPEEXP_E1': gmm['exp_e1'], 'SHAPEEXP_E2': gmm['exp_e2'], 
-            'SHAPEDEV_R': gmm['dev_r'], 'SHAPEDEV_E1': gmm['dev_e1'], 'SHAPEDEV_E2': gmm['dev_e2'],
-            })
-
-        return data
 
     def _query(self, matrix):
         """Return the nearest template number based on the KD Tree."""
@@ -2622,10 +2583,9 @@ class STARMaker(SelectTargets):
     """
     def __init__(self, seed=None, normfilter='decam2014-r',
                  star_normfilter = 'sdss2010-r', **kwargs):
-        from desisim.templates import STAR
-
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters
+        from desisim.templates import STAR
 
         super(STARMaker, self).__init__()
 
@@ -2805,10 +2765,10 @@ class MWS_MAINMaker(STARMaker):
         Seed for reproducibility and random number generation.
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-g`.
+        each target.  Defaults to `decam2014-r`.
 
     """
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
         super(MWS_MAINMaker, self).__init__()
 
         # Default mock catalog.
@@ -2992,9 +2952,12 @@ class FAINTSTARMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-r`.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
         super(FAINTSTARMaker, self).__init__()
 
         # Default mock catalog.
@@ -3035,7 +2998,6 @@ class FAINTSTARMaker(STARMaker):
 
         """
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'galaxia':
             MockReader = ReadGalaxia(dust_dir=dust_dir)
         else:
@@ -3048,13 +3010,11 @@ class FAINTSTARMaker(STARMaker):
         data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
                                    healpixels=healpixels, nside=nside,
                                    nside_galaxia=nside_galaxia, magcut=magcut)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
-    def make_spectra(self, data=None, indx=None, boss_std=None):
+    def make_spectra(self, data=None, indx=None, boss_std=None, seed=None):
         """Generate FAINTSTAR stellar spectra.
 
         Note: These (numerous!) objects are only used as contaminants, so we use
@@ -3072,6 +3032,8 @@ class FAINTSTARMaker(STARMaker):
             Boolean array generated by ReadGalaxia.select_sdss_std indicating
             whether a star satisfies the SDSS/BOSS standard-star selection
             criteria.  Defaults to None.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -3093,6 +3055,12 @@ class FAINTSTARMaker(STARMaker):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+
+        objseeds = rand.randint(2**31, size=nobj)
+        
         if self.mockformat == 'galaxia':
             alldata = np.vstack((data['TEFF'][indx],
                                  data['LOGG'][indx],
@@ -3123,17 +3091,22 @@ class FAINTSTARMaker(STARMaker):
 
         if len(keep) > 0:
             input_meta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
-            for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
-                                      ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
-                input_meta[inkey] = data[datakey][indx][keep]
-                
+            input_meta['SEED'] = objseeds[keep]
+            input_meta['REDSHIFT'] = data['Z'][indx][keep]
+            input_meta['MAG'] = data['MAG'][indx][keep]
+            input_meta['TEFF'] = data['TEFF'][indx][keep]
+            input_meta['LOGG'] = data['LOGG'][indx][keep]
+            input_meta['FEH'] = data['FEH'][indx][keep]
             input_meta['TEMPLATEID'] = templateid[keep]
 
             # Note! No colorcuts.
             flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
 
             # Force consistency in the noisy photometry so we select the same targets. 
-            targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep], psf=True)
+            targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
+                                                         psf=True, seed=seed,
+                                                         truespectype='STAR',
+                                                         templatetype='STAR')
             for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
                 targets[filt][:] = _targets[filt][keep]
 
@@ -3177,7 +3150,7 @@ class MWS_NEARBYMaker(STARMaker):
         each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
         super(MWS_NEARBYMaker, self).__init__()
 
         # Default mock catalog.
@@ -3524,7 +3497,6 @@ class SKYMaker(SelectTargets):
         super(SKYMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'SKY'
 
