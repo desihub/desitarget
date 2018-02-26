@@ -11,7 +11,6 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import os
-import warnings
 import numpy as np
 from pkg_resources import resource_filename
 
@@ -19,10 +18,8 @@ import fitsio
 import healpy as hp
 from astropy.table import Table, Column
 
-from desisim.io import read_basis_templates
-from desiutil.brick import brickname as get_brickname_from_radec
 from desimodel import footprint
-from desitarget.targets import encode_targetid
+from desiutil.brick import brickname as get_brickname_from_radec
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger()
@@ -453,6 +450,54 @@ class SelectTargets(object):
 
         return targets, truth
 
+    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
+        """Compute the median density of targets in the full mock. 
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog.
+        nside : :class:`int`
+            Healpixel nside for the calculation.
+        density_per_pixel : :class:`bool`, optional
+            Return the density per healpixel rather than just the median
+            density, which may be useful for statistical purposes.
+
+        Returns
+        -------
+        mock_density : :class:`int` or :class:`numpy.ndarray`
+            Median density of targets per deg2 or target density in all
+            healpixels (if density_per_pixel=True).  
+
+        Raises
+        ------
+        ValueError
+            If mockfile is not defined.
+
+        """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        areaperpix = hp.nside2pixarea(nside, degrees=True)
+
+        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+
+        # Get the weight per pixel, protecting against divide-by-zero.
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        weight = np.zeros_like(radec['RA'])
+        good = np.nonzero(pixweight[healpix])
+        weight[good] = 1 / pixweight[healpix[good]]
+
+        mock_density = np.bincount(healpix, weights=weight) / areaperpix # [targets/deg]
+        mock_density = mock_density[np.flatnonzero(mock_density)]
+
+        if density_per_pixel:
+            return mock_density
+        else:
+            return np.median(mock_density)
+
     def qamock_sky(self, data, xlim=(0, 4), png=None):
         """Generate a QAplot showing the sky and redshift distribution of the objects in
         the mock.
@@ -463,6 +508,7 @@ class SelectTargets(object):
             Dictionary of source properties.
 
         """
+        import warnings
         import matplotlib.pyplot as plt
         from desiutil.plots import init_sky, plot_sky_binned
         
@@ -619,54 +665,6 @@ class ReadGaussianField(SelectTargets):
 
         return out
 
-    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
-        """Compute the median density of targets in the full mock. 
-
-        Parameters
-        ----------
-        mockfile : :class:`str`
-            Full path to the mock catalog.
-        nside : :class:`int`
-            Healpixel nside for the calculation.
-        density_per_pixel : :class:`bool`, optional
-            Return the density per healpixel rather than just the median
-            density, which may be useful for statistical purposes.
-
-        Returns
-        -------
-        mock_density : :class:`int` or :class:`numpy.ndarray`
-            Median density of targets per deg2 or target density in all
-            healpixels (if density_per_pixel=True).  
-
-        Raises
-        ------
-        ValueError
-            If mockfile is not defined.
-
-        """
-        if mockfile is None:
-            log.warning('Mockfile input is required.')
-            raise ValueError
-
-        areaperpix = hp.nside2pixarea(nside, degrees=True)
-
-        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-        healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-
-        # Get the weight per pixel, protecting against divide-by-zero.
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
-        weight = np.zeros_like(radec['RA'])
-        good = np.nonzero(pixweight[healpix])
-        weight[good] = 1 / pixweight[healpix[good]]
-
-        mock_density = np.bincount(healpix, weights=weight) / areaperpix # [targets/deg]
-        mock_density = mock_density[np.flatnonzero(mock_density)]
-
-        if density_per_pixel:
-            return mock_density
-        else:
-            return np.median(mock_density)
-
 class ReadUniformSky(SelectTargets):
     """Read a uniform sky style mock catalog.
 
@@ -785,54 +783,6 @@ class ReadUniformSky(SelectTargets):
 
         return out
 
-    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
-        """Compute the median density of targets in the full mock. 
-
-        Parameters
-        ----------
-        mockfile : :class:`str`
-            Full path to the mock catalog.
-        nside : :class:`int`
-            Healpixel nside for the calculation.
-        density_per_pixel : :class:`bool`, optional
-            Return the density per healpixel rather than just the median
-            density, which may be useful for statistical purposes.
-
-        Returns
-        -------
-        mock_density : :class:`int` or :class:`numpy.ndarray`
-            Median density of targets per deg2 or target density in all
-            healpixels (if density_per_pixel=True).  
-
-        Raises
-        ------
-        ValueError
-            If mockfile is not defined.
-
-        """
-        if mockfile is None:
-            log.warning('Mockfile input is required.')
-            raise ValueError
-
-        areaperpix = hp.nside2pixarea(nside, degrees=True)
-
-        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-        healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-
-        # Get the weight per pixel, protecting against divide-by-zero.
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
-        weight = np.zeros_like(radec['RA'])
-        good = np.nonzero(pixweight[healpix])
-        weight[good] = 1 / pixweight[healpix[good]]
-
-        mock_density = np.bincount(healpix, weights=weight) / areaperpix # [targets/deg]
-        mock_density = mock_density[np.flatnonzero(mock_density)]
-
-        if density_per_pixel:
-            return mock_density
-        else:
-            return np.median(mock_density)
-
 class ReadGalaxia(SelectTargets):
     """Read a Galaxia style mock catalog.
 
@@ -887,6 +837,7 @@ class ReadGalaxia(SelectTargets):
             target_name is not recognized.
 
         """
+        from desitarget.targets import encode_targetid
         from desitarget.mock.io import get_healpix_dir, findfile
 
         if mockfile is None:
@@ -1071,7 +1022,7 @@ class ReadLyaCoLoRe(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='LYA', nside_lya=16):
+                 target_name='LYA', nside_lya=16, mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -1087,6 +1038,9 @@ class ReadLyaCoLoRe(SelectTargets):
         nside_lya : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 16.
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
 
         Returns
         -------
@@ -1187,6 +1141,10 @@ class ReadLyaCoLoRe(SelectTargets):
             mw_transmission(out, dust_dir=self.dust_dir)
             imaging_depth(out)
 
+        # Optionally compute the mean mock density.
+        if mock_density:
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+
         return out
 
 class ReadMXXL(SelectTargets):
@@ -1208,8 +1166,7 @@ class ReadMXXL(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='BGS', magcut=None, only_coords=False,
-                 mock_density=False):
+                 target_name='BGS', magcut=None, only_coords=False):
         """Read the catalog.
 
         Parameters
@@ -1228,9 +1185,6 @@ class ReadMXXL(SelectTargets):
         only_coords : :class:`bool`, optional
             To get some improvement in speed, only read the target coordinates
             and some other basic info.
-        mock_density : :class:`bool`, optional
-            Compute and return the median target density in the mock.  Defaults
-            to False.
 
         Returns
         -------
@@ -1363,7 +1317,7 @@ class ReadMWS_WD(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='WD'):
+                 target_name='WD', mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -1376,6 +1330,9 @@ class ReadMWS_WD(SelectTargets):
             Healpixel nside corresponding to healpixels.
         target_name : :class:`str`
             Name of the target being read (if not WD).
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
 
         Returns
         -------
@@ -1462,6 +1419,10 @@ class ReadMWS_WD(SelectTargets):
             mw_transmission(out, dust_dir=self.dust_dir)
             imaging_depth(out)
 
+        # Optionally compute the mean mock density.
+        if mock_density:
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+
         return out
     
 class ReadMWS_NEARBY(SelectTargets):
@@ -1483,7 +1444,7 @@ class ReadMWS_NEARBY(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='MWS_NEARBY'):
+                 target_name='MWS_NEARBY', mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -1496,6 +1457,9 @@ class ReadMWS_NEARBY(SelectTargets):
             Healpixel nside corresponding to healpixels.
         target_name : :class:`str`
             Name of the target being read (if not MWS_NEARBY).
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
 
         Returns
         -------
@@ -1583,6 +1547,10 @@ class ReadMWS_NEARBY(SelectTargets):
             mw_transmission(out, dust_dir=self.dust_dir)
             imaging_depth(out)
 
+        # Optionally compute the mean mock density.
+        if mock_density:
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+            
         return out
 
 class QSOMaker(SelectTargets):
@@ -1760,7 +1728,8 @@ class LYAMaker(SelectTargets):
                                              'lya_forest', 'v2.0.2', 'master.fits')
 
     def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
-             healpixels=None, nside=None, nside_lya=16, **kwargs):
+             healpixels=None, nside=None, nside_lya=16, mock_density=False,
+             **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1778,6 +1747,8 @@ class LYAMaker(SelectTargets):
         nside_lya : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 16.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -1803,7 +1774,7 @@ class LYAMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   nside_lya=nside_lya)
+                                   nside_lya=nside_lya, mock_density=mock_density)
         self._update_normfilter(data.get('NORMFILTER'))
 
         return data
@@ -1909,6 +1880,8 @@ class LYAMaker(SelectTargets):
         # Apply the Lya forest transmission.
         flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
+        print('GET THE PHOTOMETRY!!!!!!!!!!!!')
+
         # Add DLAa (ToDo).
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx,
@@ -1952,9 +1925,9 @@ class LRGMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    nside_chunk : :class:`int`
+    nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
-        velocity dispersion to targets.
+        velocity dispersion to targets.  Defaults to 128.
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-z`.
@@ -2152,6 +2125,9 @@ class ELGMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    nside_chunk : :class:`int`, optional
+        Healpixel nside for further subdividing the sample when assigning
+        velocity dispersion to targets.  Defaults to 128.
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-z`.
@@ -2352,9 +2328,9 @@ class BGSMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    nside_chunk : :class:`int`
+    nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
-        velocity dispersion to targets.
+        velocity dispersion to targets.  Defaults to 128.
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-r`.
@@ -3159,7 +3135,7 @@ class MWS_NEARBYMaker(STARMaker):
                                              'mock_100pc.fits')
 
     def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
-             healpixels=None, nside=None, **kwargs):
+             healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3174,6 +3150,8 @@ class MWS_NEARBYMaker(STARMaker):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -3197,7 +3175,8 @@ class MWS_NEARBYMaker(STARMaker):
             mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
-                                   healpixels=healpixels, nside=nside)
+                                   healpixels=healpixels, nside=nside,
+                                   mock_density=mock_density)
         self._update_normfilter(data.get('NORMFILTER'))
 
         return data
@@ -3327,7 +3306,7 @@ class WDMaker(SelectTargets):
                                              'mock_wd.fits')
 
     def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
-             healpixels=None, nside=None, **kwargs):
+             healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3342,6 +3321,8 @@ class WDMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -3365,7 +3346,8 @@ class WDMaker(SelectTargets):
             mockfile = self.default_mockfile
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
-                                   healpixels=healpixels, nside=nside)
+                                   healpixels=healpixels, nside=nside,
+                                   mock_density=mock_density)
         self._update_normfilter(data.get('NORMFILTER'), objtype=self.objtype)
 
         return data
