@@ -557,38 +557,40 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             skytargets = []
 
         targets, truth, skytargets, skytruth = finish_catalog(
-            targets, truth, skytargets, skytruth, nside,
-            healpix, healseed, log)
+            targets, truth, skytargets, skytruth, healpix,
+            nside, log, seed=healseed)
 
-        # Finally, write the results.
+        # Finally, write the results to disk.
         write_targets_truth(targets, truth, skytargets, skytruth,  
-                            nside, healpix, healseed, log, output_dir)
+                            healpix, nside, log, output_dir,
+                            seed=healseed)
         
-def finish_catalog(targets, truth, skytargets, skytruth, nside,
-                   healpix, seed, log, use_brickid=False):
-    """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
+def finish_catalog(targets, truth, skytargets, skytruth, healpix,
+                   nside, log, seed=None):
+    """Add brickid, brick_objid, targetid, and subpriority to target catalog.
     
-    Args:
-        targets: astropy.table
-            Final set of Targets. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        skytargets: astropy.table
-            Sky positions
-        nside: int
-            nside for healpix
-        healpix: int
-            healpixel
-        rand: numpy.random.RandomState
-           Object for random number generation.
-        log: desiutil.logger
-           Logger object.
-        use_brickid: bool
-           Assign brickid based on the brickname rather than the healpix
-           numbers.  (Deprecated because it results in duplicated targetid.)
+    Parameters
+    ----------
+    targets : :class:`astropy.table.Table`
+        Final set of targets. 
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table for targets.
+    skytargets : :class:`astropy.table.Table`
+        Sky targets.
+    skytruth : :class:`astropy.table.Table`
+        Corresponding truth table for sky targets.
+    healpix : : :class:`int`
+        Healpixel number.
+    nside : :class:`int`
+        Nside corresponding to healpix.
+    log : :class:`desiutil.logger`
+       Logger object.
+    seed : :class:`int`, optional
+        Seed for the random number generation.  Defaults to None.
             
-    Returns:
-        Updated versions of: targets, truth, and skytargets.
+    Returns
+    -------
+    Updated versions of targets, truth, skytargets, and skytruth.
 
     """
     from desitarget.targets import encode_targetid
@@ -599,100 +601,61 @@ def finish_catalog(targets, truth, skytargets, skytruth, nside,
     nsky = len(skytargets)
     log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
 
-    if use_brickid:
+    objid = np.arange(nobj + nsky)
+    targetid = encode_targetid(objid=objid, brickid=healpix, mock=1)
+    subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
-        # Assign the correct BRICKID and unique OBJIDs for every object on this brick.
-        from desiutil.brick import Bricks
+    if nobj > 0:
+        targets['BRICKID'][:] = healpix
+        targets['BRICK_OBJID'][:] = objid[:nobj]
+        targets['TARGETID'][:] = targetid[:nobj]
+        targets['SUBPRIORITY'][:] = subpriority[:nobj]
+        truth['TARGETID'][:] = targetid[:nobj]
 
-        brick_info = Bricks().to_table()
-
-        if nobj > 0 and nsky > 0:
-            allbrickname = set(targets['BRICKNAME']) | set(skytargets['BRICKNAME'])
-        if nobj > 0 and nsky == 0:
-            allbrickname = set(targets['BRICKNAME'])
-        if nobj == 0 and nsky > 0:
-            allbrickname = set(skytargets['BRICKNAME'])
-
-        for brickname in allbrickname:
-            iinfo = np.where(brickname == brick_info['BRICKNAME'])[0]
-
-            nobj_brick = 0
-            if nobj > 0:
-                itarg = np.where(brickname == targets['BRICKNAME'])[0]
-                nobj_brick = len(itarg)
-                targets['BRICKID'][itarg] = brick_info['BRICKID'][iinfo]
-                targets['BRICK_OBJID'][itarg] = np.arange(nobj_brick)
-
-            if nsky > 0:
-                iskytarg = np.where(brickname == skytargets['BRICKNAME'])[0]
-                nsky_brick = len(iskytarg)
-                skytargets['BRICKID'][iskytarg] = brick_info['BRICKID'][iinfo]
-                skytargets['BRICK_OBJID'][iskytarg] = np.arange(nsky_brick) + nobj_brick
-
-        subpriority = rand.uniform(0.0, 1.0, size=nobj+nsky)
-
-        if nobj > 0:
-            targetid = encode_targetid(objid=targets['BRICK_OBJID'], brickid=targets['BRICKID'], mock=1)
-            truth['TARGETID'][:] = targetid
-            targets['TARGETID'][:] = targetid
-            targets['SUBPRIORITY'][:] = subpriority[:nobj]
-
-            targets['HPXPIXEL'][:] = radec2pix(nside, targets['RA'], targets['DEC'])
-
-        if nsky > 0:
-            skytargetid = encode_targetid(objid=skytargets['BRICK_OBJID'], brickid=skytargets['BRICKID'], mock=1, sky=1)
-            skytargets['TARGETID'][:] = skytargetid
-            skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
-
-            skytargets['HPXPIXEL'][:] = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-                
-    else:
-        objid = np.arange(nobj + nsky)
-        targetid = encode_targetid(objid=objid, brickid=healpix, mock=1)
-        subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
-
-        if nobj > 0:
-            targets['BRICKID'][:] = healpix
-            targets['BRICK_OBJID'][:] = objid[:nobj]
-            targets['TARGETID'][:] = targetid[:nobj]
-            targets['SUBPRIORITY'][:] = subpriority[:nobj]
-            truth['TARGETID'][:] = targetid[:nobj]
-
-        if nsky > 0:
-            skytargets['BRICKID'][:] = healpix
-            skytargets['BRICK_OBJID'][:] = objid[nobj:]
-            skytargets['TARGETID'][:] = targetid[nobj:]
-            skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
-            skytruth['TARGETID'][:] = targetid[nobj:]
+    if nsky > 0:
+        skytargets['BRICKID'][:] = healpix
+        skytargets['BRICK_OBJID'][:] = objid[nobj:]
+        skytargets['TARGETID'][:] = targetid[nobj:]
+        skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
+        skytruth['TARGETID'][:] = targetid[nobj:]
         
     return targets, truth, skytargets, skytruth
 
-def write_targets_truth(targets, truth, skytargets, skytruth, nside,
-                        healpix_id, seed, log, output_dir):
-    """Writes targets to disk.
+def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
+                        nside, log, output_dir, seed=None):
+    """Writes all the final catalogs to disk.
     
-    Args:
-        targets: astropy.table
-            Final set of Targets. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        skytargets: astropy.table
-            Sky positions
-        skytruth: astropy.table
-            Corresponding Truth to Sky
-        nside: int
-            nside for healpix
-        healpix_id: int
-            ID of current healpix
-        seed: int
-            Seed used for the random number generator
-        log: logger object
-        output_dir: str
-            Directory where the outputs are written.
+    Parameters
+    ----------
+    targets : :class:`astropy.table.Table`
+        Final target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table for targets.
+    skytargets : :class:`astropy.table.Table`
+        Sky targets.
+    skytruth : :class:`astropy.table.Table`
+        Corresponding truth table for sky targets.
+    healpix : : :class:`int`
+        Healpixel number.
+    nside : :class:`int`
+        Nside corresponding to healpix.
+    log : :class:`desiutil.logger`
+       Logger object.
+    seed : :class:`int`, optional
+        Seed for the random number generation.  Defaults to None.
+    output_dir : :class:`str`
+        Output directory.
             
-    Output:
-        Files "targets", "truth", "sky", "standards" written to disk.
-    
+    Returns
+    -------
+    Files targets-{nside}-{healpix}.fits, truth-{nside}-{healpix}.fits,
+    sky-{nside}-{healpix}.fits, standards-bright-{nside}-{healpix}.fits, and
+    standards-dark-{nside}-{healpix}.fits are all written to disk.
+
+    Raises
+    ------
+    ValueError
+        If there are duplicate targetid ids.
     """
     from astropy.io import fits
     from desiutil import depend
@@ -717,11 +680,11 @@ def write_targets_truth(targets, truth, skytargets, skytruth, nside,
     targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
     targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
-    outdir = mockio.get_healpix_dir(nside, healpix_id, basedir=output_dir)
+    outdir = mockio.get_healpix_dir(nside, healpix, basedir=output_dir)
     os.makedirs(outdir, exist_ok=True)
 
     # Write out the sky catalog.
-    skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
+    skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
     if nsky > 0:
         log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
         write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
@@ -734,7 +697,7 @@ def write_targets_truth(targets, truth, skytargets, skytruth, nside,
     if nobj > 0:
     # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix_id, basedir=output_dir)
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix, basedir=output_dir)
             istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
                    (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
 
@@ -748,8 +711,8 @@ def write_targets_truth(targets, truth, skytargets, skytruth, nside,
                 log.info('  Standard star file {} not written.'.format(stdfile))
 
         # Finally write out the rest of the targets.
-        targetsfile = mockio.findfile('targets', nside, healpix_id, basedir=output_dir)
-        truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
+        targetsfile = mockio.findfile('targets', nside, healpix, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, healpix, basedir=output_dir)
    
         log.info('Writing {} targets to:'.format(nobj))
         log.info('  {}'.format(targetsfile))
