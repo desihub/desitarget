@@ -362,12 +362,18 @@ class SelectTargets(object):
         plt.legend(loc='upper left')
         plt.show()
 
-    def _update_normfilter(self, normfilter):
+    def _update_normfilter(self, normfilter, objtype=None):
         """Update the normalization filter."""
         from speclite import filters
         if normfilter is not None:
-            self.template_maker.normfilter = normfilter
-            self.template_maker.normfilt = filters.load_filters(normfilter)
+            if objtype == 'WD':
+                self.da_template_maker.normfilter = normfilter
+                self.db_template_maker.normfilter = normfilter
+                self.da_template_maker.normfilt = filters.load_filters(normfilter)
+                self.db_template_maker.normfilt = filters.load_filters(normfilter)
+            else:
+                self.template_maker.normfilter = normfilter
+                self.template_maker.normfilt = filters.load_filters(normfilter)
 
     def _sample_vdisp(self, ra, dec, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
                       seed=None, nside=128):
@@ -855,7 +861,7 @@ class ReadUniformSky(SelectTargets):
         else:
             return np.median(mock_density)
 
-class ReadGalaxia(object):
+class ReadGalaxia(SelectTargets):
     """Read a Galaxia style mock catalog.
 
     Parameters
@@ -868,11 +874,18 @@ class ReadGalaxia(object):
 
     """
     def __init__(self, bricksize=0.25, dust_dir=None):
+        super(ReadGalaxia, self).__init__()
+
         self.bricksize = bricksize
         self.dust_dir = dust_dir
 
-    def readmock(self, mockfile=None, healpixels=[], nside=[], target_name='',
-                 nside_galaxia=8, magcut=None):
+        # Default mock catalog.
+        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
+                                             'mws', 'galaxia', 'alpha',
+                                             'v0.0.5', 'healpix')
+
+    def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
+                 target_name='MWS_MAIN', magcut=None):
         """Read the catalog.
 
         Parameters
@@ -883,11 +896,11 @@ class ReadGalaxia(object):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
-        target_name : :class:`str`
-            Name of the target being read (e.g., MWS_MAIN).
         nside_galaxia : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read (e.g., MWS_MAIN).
         magcut : :class:`float`
             Magnitude cut (hard-coded to SDSS r-band) to subselect targets
             brighter than magcut. 
@@ -902,14 +915,15 @@ class ReadGalaxia(object):
         IOError
             If the mock data files are not found.
         ValueError
-            If mockfile is not defined or if healpixels is not a scalar.
+            If healpixels is not a scalar.
 
         """
         from desitarget.mock.io import get_healpix_dir, findfile
 
         if mockfile is None:
-            log.warning('Mockfile input is required.')
-            raise ValueError
+            mockfile = self.default_mockfile
+            #log.warning('Mockfile input is required.')
+            #raise ValueError
 
         if nside_galaxia is None:
             log.warning('Nside_galaxia input is required.')
@@ -925,6 +939,8 @@ class ReadGalaxia(object):
         if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
             log.warning('Healpixels and nside must be scalar inputs.')
             raise ValueError
+
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
 
         # Get the set of nside_galaxia pixels that belong to the desired
         # healpixels (which have nside).  This will break if healpixels is a
@@ -955,23 +971,22 @@ class ReadGalaxia(object):
         radec = fitsio.read(galaxiafile, columns=['RA', 'DEC'], upper=True, ext=1)
         nobj = len(radec)
 
-        files = list()
-        n_per_file = list()
-        files.append(galaxiafile)
-        n_per_file.append(nobj)
-
-        objid = np.arange(nobj, dtype='i8')
-        mockid = make_mockid(objid, n_per_file)
+        objid = np.arange(nobj)
+        mockid = encode_targetid(objid=objid, brickid=pixnum, mock=1)
 
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        objid = objid[cut]
         mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = radec['DEC'][cut].astype('f8')
         del radec
@@ -987,14 +1002,15 @@ class ReadGalaxia(object):
         logg = data['LOGG'].astype('f4')
         feh = data['FEH'].astype('f4')
 
-        # Temporary hack to select SDSS standards se extinction-corrected SDSS mags.
+        # Temporary hack to select SDSS standards using extinction-corrected
+        # SDSS mags.
         boss_std = self.select_sdss_std(data['SDSSU_TRUE_NODUST'],
                                         data['SDSSG_TRUE_NODUST'],
                                         data['SDSSR_TRUE_NODUST'],
                                         data['SDSSI_TRUE_NODUST'],
                                         data['SDSSZ_TRUE_NODUST'],
                                         obs_rmag=None)
-
+        
         if magcut:
             cut = mag < magcut
             if np.count_nonzero(cut) == 0:
@@ -1002,7 +1018,8 @@ class ReadGalaxia(object):
                 return dict()
             else:
                 mockid = mockid[cut]
-                objid = objid[cut]
+                allpix = allpix[cut]
+                weight = weight[cut]
                 ra = ra[cut]
                 dec = dec[cut]
                 boss_std = boss_std[cut]
@@ -1020,11 +1037,11 @@ class ReadGalaxia(object):
         
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std, 
-               'FILES': files, 'N_PER_FILE': n_per_file}
+               'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -1344,7 +1361,7 @@ class ReadMXXL(SelectTargets):
 
         return out
 
-class ReadMWS_WD(object):
+class ReadMWS_WD(SelectTargets):
     """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD). 
 
     Parameters
@@ -1357,10 +1374,13 @@ class ReadMWS_WD(object):
 
     """
     def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadMWS_WD, self).__init__()
+
         self.dust_dir = dust_dir
         self.bricksize = bricksize
 
-    def readmock(self, mockfile=None, healpixels=None, nside=None, target_name='WD'):
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='WD'):
         """Read the catalog.
 
         Parameters
@@ -1406,33 +1426,32 @@ class ReadMWS_WD(object):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
+        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
         log.info('Reading {}'.format(mockfile))
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-        nobj = len(radec)
 
-        files = list()
-        n_per_file = list()
-        files.append(mockfile)
-        n_per_file.append(nobj)
-
-        objid = np.arange(nobj, dtype='i8')
-        mockid = make_mockid(objid, n_per_file)
+        mockid = np.arange(len(radec)) # unique ID/row number
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
-        cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
-        else:
-            log.info('Trimmed to {} {}s in healpixels {}'.format(nobj, target_name, healpixels))
 
-        objid = objid[cut]
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
         ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = radec['DEC'][cut].astype('f8')
         del radec
@@ -1450,10 +1469,10 @@ class ReadMWS_WD(object):
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
-               'OBJID': objid, 'MOCKID': mockid, 'BRICKNAME': brickname,
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
-               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
-               'FILES': files, 'N_PER_FILE': n_per_file}
+               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2784,10 +2803,13 @@ class MWS_MAINMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None):
-        super(MWS_MAINMaker, self).__init__(seed=seed)
+    def __init__(self, seed=None, **kwargs):
+        super(MWS_MAINMaker, self).__init__()
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -2827,7 +2849,6 @@ class MWS_MAINMaker(STARMaker):
 
         """
         self.mockformat = mockformat.lower()
-        
         if self.mockformat == 'galaxia':
             MockReader = ReadGalaxia(dust_dir=dust_dir)
         else:
@@ -2840,13 +2861,11 @@ class MWS_MAINMaker(STARMaker):
         data = MockReader.readmock(mockfile, target_name='MWS_MAIN',
                                    healpixels=healpixels, nside=nside,
                                    nside_galaxia=nside_galaxia, magcut=magcut)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
+        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate MWS_MAIN stellar spectra.
 
         Parameters
@@ -2856,6 +2875,8 @@ class MWS_MAINMaker(STARMaker):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -2877,10 +2898,17 @@ class MWS_MAINMaker(STARMaker):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+        
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'FEH'),
-                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'FEH')):
-            input_meta[inkey] = data[datakey][indx]
+        input_meta['SEED'] = rand.randint(2**31, size=nobj)
+        input_meta['REDSHIFT'] = data['Z'][indx]
+        input_meta['MAG'] = data['MAG'][indx]
+        input_meta['TEFF'] = data['TEFF'][indx]
+        input_meta['LOGG'] = data['LOGG'][indx]
+        input_meta['FEH'] = data['FEH'][indx]
 
         if self.mockformat == 'galaxia':
             alldata = np.vstack((data['TEFF'][indx],
@@ -2892,7 +2920,9 @@ class MWS_MAINMaker(STARMaker):
         # Note! No colorcuts.
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
+                                                     seed=seed, truespectype='STAR',
+                                                     templatetype='STAR')
                                                            
         return flux, self.wave, meta, targets, truth
 
@@ -2965,7 +2995,7 @@ class FAINTSTARMaker(STARMaker):
 
     """
     def __init__(self, seed=None):
-        super(FAINTSTARMaker, self).__init__(seed=seed)
+        super(FAINTSTARMaker, self).__init__()
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -3148,7 +3178,7 @@ class MWS_NEARBYMaker(STARMaker):
 
     """
     def __init__(self, seed=None, **kwargs):
-        super(MWS_NEARBYMaker, self).__init__(seed=seed, **kwargs)
+        super(MWS_NEARBYMaker, self).__init__()
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -3292,20 +3322,26 @@ class WDMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    normfilter : :class:`str`, optional
+        Normalization filter for defining normalization (apparent) magnitude of
+        each target.  Defaults to `decam2014-r`.
 
     """
-    def __init__(self, seed=None):
+    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+        from desisim.templates import WD
         from scipy.spatial import cKDTree as KDTree
         
         super(WDMaker, self).__init__()
 
         self.seed = seed
-        self.rand = np.random.RandomState(self.seed)
         self.wave = _default_wave()
         self.objtype = 'WD'
+
+        self.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=normfilter)
+        self.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=normfilter)
         
-        self.meta_da = read_basis_templates(objtype='WD', subtype='DA', onlymeta=True)
-        self.meta_db = read_basis_templates(objtype='WD', subtype='DB', onlymeta=True)
+        self.meta_da = self.da_template_maker.basemeta
+        self.meta_db = self.db_template_maker.basemeta
 
         self.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
                                          self.meta_da['LOGG'].data)).T)
@@ -3346,7 +3382,6 @@ class WDMaker(SelectTargets):
 
         """
         self.mockformat = mockformat.lower()
-
         if self.mockformat == 'mws_wd':
             MockReader = ReadMWS_WD(dust_dir=dust_dir)
         else:
@@ -3358,24 +3393,7 @@ class WDMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside)
-
-        if bool(data):
-            data = self._prepare_spectra(data)
-
-        return data
-
-    def _prepare_spectra(self, data):
-        """Update the data dictionary with quantities needed to generate spectra.""" 
-        from desisim.templates import WD
-        
-        self.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=data['NORMFILTER'])
-        self.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=data['NORMFILTER'])
-
-        seed = self.rand.randint(2**32, size=len(data['RA']))
-
-        data.update({
-            'TRUESPECTYPE': 'WD', 'TEMPLATETYPE': 'WD', 'SEED': seed, # no subtype here
-            })
+        self._update_normfilter(data.get('NORMFILTER'), objtype=self.objtype)
 
         return data
 
@@ -3391,7 +3409,7 @@ class WDMaker(SelectTargets):
 
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None):
+    def make_spectra(self, data=None, indx=None, seed=None):
         """Generate WD spectra, dealing with DA vs DB white dwarfs separately.
         
         Parameters
@@ -3401,6 +3419,8 @@ class WDMaker(SelectTargets):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -3418,15 +3438,22 @@ class WDMaker(SelectTargets):
         """
         from desisim.io import empty_metatable
         
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+        
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
         input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'TEFF', 'LOGG', 'SUBTYPE'),
-                                  ('SEED', 'MAG', 'Z', 'TEFF', 'LOGG', 'TEMPLATESUBTYPE')):
-            input_meta[inkey] = data[datakey][indx]
-            
+        input_meta['SEED'] = rand.randint(2**31, size=nobj)
+        input_meta['REDSHIFT'] = data['Z'][indx]
+        input_meta['MAG'] = data['MAG'][indx]
+        input_meta['TEFF'] = data['TEFF'][indx]
+        input_meta['LOGG'] = data['LOGG'][indx]
+        input_meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
+        
         if self.mockformat == 'mws_wd':
             meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
@@ -3446,8 +3473,10 @@ class WDMaker(SelectTargets):
                     meta[these] = meta1
                     flux[these, :] = flux1
             
-
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True)
+        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
+                                                     seed=seed, truespectype='WD',
+                                                     templatetype='WD',
+                                                     templatesubtype=data['TEMPLATESUBTYPE'][indx])
 
         return flux, self.wave, meta, targets, truth
 

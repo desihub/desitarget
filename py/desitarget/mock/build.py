@@ -405,7 +405,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     nchunk = len(indxperchunk)
     nalltarget = np.sum(ntargperchunk)
-    log.info('Goal: Generate spectra for {} {} targets ({:.2f} / deg2).'.format(
+    log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
         nalltarget, data['TARGET_NAME'], nalltarget / area))
 
     rand = np.random.RandomState(seed)
@@ -448,7 +448,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     else:
         trueflux = np.concatenate(results[2])
         
-    log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
+    log.info('Done: generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
     log.info('Total time for {}s = {:.3f} minutes ({:.3f} sec/deg2/cpu).'.format(
