@@ -3094,6 +3094,11 @@ class FAINTSTARMaker(STARMaker):
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             _truth[key][:] = self.star_maggies[key][templateid] * normmag
 
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+            for prefix in ('MW_TRANSMISSION', 'PSFDEPTH'):
+                key = '{}_{}'.format(prefix, band)
+                _targets[key][:] = data[key][indx]
+
         self.scatter_photometry(data, _truth, _targets, indx=indx, psf=True, qaplot=False)
 
         self.select_targets(_targets, _truth, boss_std=boss_std)
