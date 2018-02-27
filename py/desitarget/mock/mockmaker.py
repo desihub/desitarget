@@ -364,6 +364,17 @@ class SelectTargets(object):
 
         return vdisp
 
+    def deredden(self, targets):
+        """Correct photometry for Galactic extinction."""
+
+        unredflux = list()
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+            unredflux.append(targets['FLUX_{}'.format(band)] /
+                             targets['MW_TRANSMISSION_{}'.format(band)])
+        gflux, rflux, zflux, w1flux, w2flux = unredflux
+
+        return gflux, rflux, zflux, w1flux, w2flux
+
     def populate_targets_truth(self, data, meta, indx=None, seed=None, psf=True,
                                gmm=None,  truespectype='', templatetype='',
                                templatesubtype=''):
@@ -1699,11 +1710,9 @@ class QSOMaker(SelectTargets):
         """
         from desitarget.cuts import isQSO_colors
           
-        qso = isQSO_colors(gflux=targets['FLUX_G'],
-                           rflux=targets['FLUX_R'],
-                           zflux=targets['FLUX_Z'],
-                           w1flux=targets['FLUX_W1'],
-                           w2flux=targets['FLUX_W2'])
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                           w1flux=w1flux, w2flux=w2flux)
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
@@ -1934,9 +1943,7 @@ class LYAMaker(SelectTargets):
         """
         from desitarget.cuts import isQSO_colors
 
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-          
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux)
 
@@ -2134,9 +2141,7 @@ class LRGMaker(SelectTargets):
         """
         from desitarget.cuts import isLRG_colors
 
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
         lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux)
 
@@ -2338,9 +2343,7 @@ class ELGMaker(SelectTargets):
         """
         from desitarget.cuts import isELG
 
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-        
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
 
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
@@ -2541,7 +2544,7 @@ class BGSMaker(SelectTargets):
         """
         from desitarget.cuts import isBGS_bright, isBGS_faint
 
-        rflux = targets['FLUX_R']
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
 
         # Select BGS_BRIGHT targets.
         bgs_bright = isBGS_bright(rflux=rflux)
@@ -2646,10 +2649,8 @@ class STARMaker(SelectTargets):
         """
         from desitarget.cuts import isFSTD
 
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-
-        obs_rflux = rflux / targets['MW_TRANSMISSION_R'] # attenuate for Galactic dust
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
+        obs_rflux = targets['FLUX_R'] # observed (attenuated) flux
 
         gsnr, rsnr, zsnr = gflux*0+100, rflux*0+100, zflux*0+100    # Hack -- fixed S/N
         gfracflux, rfracflux, zfracflux = gflux*0, rflux*0, zflux*0 # # No contamination from neighbors.
@@ -2701,8 +2702,7 @@ class STARMaker(SelectTargets):
         """ 
         from desitarget.cuts import isBGS_faint, isELG, isLRG_colors, isQSO_colors
 
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
 
         # Select stellar contaminants for BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
@@ -2922,8 +2922,7 @@ class MWS_MAINMaker(STARMaker):
             faint &= rflux <= 10**( (22.5 - 19.0) / 2.5 )
             return faint
         
-        gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
-          targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
 
         # Select MWS_MAIN targets.
         mws_main = _isMWS_MAIN(rflux=rflux)
