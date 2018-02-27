@@ -460,8 +460,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     log.info('Done: generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
-    log.info('Total time for {}s = {:.3f} minutes ({:.3f} sec/deg2/cpu).'.format(
-        data['TARGET_NAME'], ttime / 60, ttime / area / nproc))
+    log.info('Total time for {}s = {:.3f} minutes ({:.3f} cpu minutes/deg2).'.format(
+        data['TARGET_NAME'], ttime / 60, (ttime*nproc) / 60 / area ))
 
     return targets, truth, trueflux
 
