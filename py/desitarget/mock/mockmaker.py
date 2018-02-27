@@ -624,7 +624,7 @@ class ReadGaussianField(SelectTargets):
         if healpixels is None:
             if nside is None:
                 nside = 16
-            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
@@ -749,7 +749,7 @@ class ReadUniformSky(SelectTargets):
         if healpixels is None:
             if nside is None:
                 nside = 16
-            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
@@ -1096,7 +1096,7 @@ class ReadLyaCoLoRe(SelectTargets):
         if healpixels is None:
             if nside is None:
                 nside = 16
-            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
@@ -1236,7 +1236,7 @@ class ReadMXXL(SelectTargets):
         if healpixels is None:
             if nside is None:
                 nside = 16
-            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
@@ -1382,7 +1382,7 @@ class ReadMWS_WD(SelectTargets):
         if healpixels is None:
             if nside is None:
                 nside = 16
-            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
@@ -1509,7 +1509,7 @@ class ReadMWS_NEARBY(SelectTargets):
         if healpixels is None:
             if nside is None:
                 nside = 16
-            log.info('Reading the whole DESI footprint with nside = {}!'.format(nside))
+            log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
         if nside is None:
