@@ -30,12 +30,12 @@ try:
 except TypeError: # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
 
-def mw_transmission(source_data, dust_dir=None):
+def mw_transmission(data, dust_dir=None):
     """Compute the grzW1W2 Galactic transmission for every object.
     
     Parameters
     ----------
-    source_data : :class:`dict`
+    data : :class:`dict`
         Input dictionary of sources with RA, Dec coordinates, modified on output
         to contain reddening and the MW transmission in various bands.
     params : :class:`dict`
@@ -57,12 +57,10 @@ def mw_transmission(source_data, dust_dir=None):
         raise ValueError
 
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    source_data['EBV'] = sfdmap.ebv(source_data['RA'],
-                                    source_data['DEC'],
-                                    mapdir=dust_dir)
+    data['EBV'] = sfdmap.ebv(data['RA'], data['DEC'], mapdir=dust_dir)
 
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        source_data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * source_data['EBV'])
+        data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
 
 def imaging_depth(source_data):
     """Add the imaging depth to the source_data dictionary.
@@ -386,7 +384,16 @@ class SelectTargets(object):
         psf : :class:`bool`, optional
             For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
             otherwise use GALDEPTH.  Defaults to True.
-
+        gmm : :class:`numpy.ndarray`, optional
+            Sample properties drawn from
+            desiutil.sklearn.GaussianMixtureModel.sample.
+        truespectype : :class:`str` or :class:`numpy.array`, optional
+            True spectral type.  Defaults to ''.
+        templatetype : :class:`str` or :class:`numpy.array`, optional
+            True template type.  Defaults to ''.
+        templatesubtype : :class:`str` or :class:`numpy.array`, optional
+            True template subtype.  Defaults to ''.
+        
         Returns
         -------
         targets : :class:`astropy.table.Table`
@@ -448,6 +455,11 @@ class SelectTargets(object):
         # Scatter the photometry based on the depth.
         self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
+        # Finally, attenuate the observed photometry for Galactic extinction.
+        for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
+                              ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+            targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
+        
         return targets, truth
 
     def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
