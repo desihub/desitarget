@@ -2,15 +2,25 @@
 desitarget Change Log
 =====================
 
-0.18.2 (unreleased)
+0.19.1 (unreleased)
 -------------------
 
+* No changes yet.
+
+0.19.0 (2018-02-27)
+-------------------
+
+This release includes significant non-backwards compatible changes
+to importing target mask bits and how mock spectra are generated.
+
 * Major refactor of select_mock_targets code infrastructure[`PR #264`_].
-* Remove extraneous imports from __init__.py, fix read the docs build
+* Restructure desi_mask, bgs_mask, etc. imports to fix readthedocs build
   [`PR #282`_].
+* Update RELEASE dictionary with 6000 (northern) for DR6 [`PR #281`_].
 
 .. _`PR #264`: https://github.com/desihub/desitarget/pull/264
 .. _`PR #282`: https://github.com/desihub/desitarget/pull/282
+.. _`PR #281`: https://github.com/desihub/desitarget/pull/281
 
 0.18.1 (2018-02-23)
 -------------------
