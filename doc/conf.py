@@ -138,10 +138,10 @@ napoleon_include_private_with_doc = True
 # some external dependencies are not met at build time and break the
 # building process.
 autodoc_mock_imports = ['astropy.coordinates', 'astropy.io.fits', 'astropy.table', 'astropy.units',
-                        'desimodel.io','desimodel.footprint',
+                        'desimodel.io', 'desimodel.focalplane', 'desimodel.footprint',
                         'desisim.io',
-                        'desispec.brick', 'desispec.io', 'desispec.io.util',
-                        'desiutil', 'desiutil.bitmask', 'desiutil.log',
+                        'desispec.io', 'desispec.io.util',
+                        'desiutil', 'desiutil.bitmask', 'desiutil.brick', 'desiutil.log', 'desiutil.plots',
                         'fitsio',
                         'healpy',
                         'matplotlib', 'matplotlib.pyplot',
