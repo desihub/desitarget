@@ -242,8 +242,8 @@ class SelectTargets(object):
     """
     def __init__(self):
         from astropy.io import fits
-        from desitarget import (desi_mask, bgs_mask, mws_mask,
-                                contam_mask, obsconditions)
+        from ..targetmask import (desi_mask, bgs_mask, mws_mask, obsconditions)
+        from ..contammask import contam_mask
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask

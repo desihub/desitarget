@@ -660,7 +660,7 @@ def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
     from desiutil import depend
     from desispec.io.util import fitsheader, write_bintable
     import desitarget.mock.io as mockio
-    from desitarget import desi_mask
+    from ..targetmask import desi_mask
     
     nobj = len(targets)
     nsky = len(skytargets)
