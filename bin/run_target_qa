@@ -11,9 +11,6 @@ from desitarget.QA import make_qa_page
 from desiutil.log import get_logger
 log = get_logger()
 
-import warnings
-warnings.simplefilter('error')
-
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr3.1-dr4.0-all-0.14.0.fits)")

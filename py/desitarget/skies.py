@@ -17,7 +17,8 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 
 from desiutil import brick
-from desitarget import io, desi_mask, targetid_mask
+from desitarget import io
+from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix
@@ -83,7 +84,7 @@ def calculate_separations(objs,navoid=2.):
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
-        numpy structured array with UPPERCASE columns, OR a string 
+        numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
     navoid : :class:`float`, optional, defaults to 2.
@@ -93,7 +94,7 @@ def calculate_separations(objs,navoid=2.):
     Returns
     -------
     :class:`float`
-        an array of maximum separations (in arcseconds) based on 
+        an array of maximum separations (in arcseconds) based on
         de Vaucouleurs, Exponential or point-source half-light radii
     """
 
@@ -118,8 +119,8 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
 
     Parameters
     ----------
-    objs : :class:`~numpy.ndarray` 
-        numpy structured array with UPPERCASE columns, OR a string 
+    objs : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
     navoid : :class:`float`, optional, defaults to 2.
@@ -136,11 +137,11 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
         array of Dec coordinates for good sky positions
     rabad : :class:`~numpy.array`
         array of RA coordinates for bad sky positions, i.e. positions that
-        ARE within navoid half-light radii of a galaxy (or navoid*psfsize 
+        ARE within navoid half-light radii of a galaxy (or navoid*psfsize
         arcseconds for a PSF object)
     decbad : :class:`~numpy.array`
         array of Dec coordinates for bad sky positions, i.e. positions that
-        ARE within navoid half-light radii of a galaxy (or navoid*psfsize 
+        ARE within navoid half-light radii of a galaxy (or navoid*psfsize
         arcseconds for a PSF object)
     """
     #ADM set up the default log
@@ -205,8 +206,8 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
         cskies = SkyCoord(ra*u.degree, dec*u.degree)
         cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
 
-        #ADM split the objects up using a separation of just larger than psfsize*navoid 
-        #ADM arcseconds in order to speed up the coordinate matching when we have some 
+        #ADM split the objects up using a separation of just larger than psfsize*navoid
+        #ADM arcseconds in order to speed up the coordinate matching when we have some
         #ADM objects with large radii
         sepsplit = (psfsize*navoid)+1e-8
         bigsepw = np.where(sep > sepsplit)[0]
@@ -233,11 +234,11 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
                      .format(maxrad,time()-start))
             #ADM the transformation matrixes (shapes) for DEV and EXP objects
             #ADM with a factor of navoid in the half-light-radius
-            TDEV = ellipse_matrix(objs[bigsepw]["SHAPEDEV_R"]*navoid, 
-                                  objs[bigsepw]["SHAPEDEV_E1"], 
+            TDEV = ellipse_matrix(objs[bigsepw]["SHAPEDEV_R"]*navoid,
+                                  objs[bigsepw]["SHAPEDEV_E1"],
                                   objs[bigsepw]["SHAPEDEV_E2"])
-            TEXP = ellipse_matrix(objs[bigsepw]["SHAPEEXP_R"]*navoid, 
-                                  objs[bigsepw]["SHAPEEXP_E1"], 
+            TEXP = ellipse_matrix(objs[bigsepw]["SHAPEEXP_R"]*navoid,
+                                  objs[bigsepw]["SHAPEEXP_E1"],
                                   objs[bigsepw]["SHAPEEXP_E2"])
             #ADM loop through the DEV and EXP shapes, and where they are defined
             #ADM (radius > tiny), determine if any sky positions occupy them
@@ -246,12 +247,12 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
                     log.info('Done {}/{}...t = {:.1f}s'.format(i,len(bigsepw),time()-start))
                 is_in = np.array(np.zeros(nchunk),dtype='bool')
                 if objs[valobj]["SHAPEEXP_R"] > 1e-16:
-                    is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg, 
-                                                 cobjs[valobj].ra.deg, cobjs[valobj].dec.deg, 
+                    is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg,
+                                                 cobjs[valobj].ra.deg, cobjs[valobj].dec.deg,
                                                  TEXP[...,i])
                 if objs[valobj]["SHAPEDEV_R"] > 1e-16:
-                    is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg, 
-                                                 cobjs[valobj].ra.deg, cobjs[valobj].dec.deg, 
+                    is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg,
+                                                 cobjs[valobj].ra.deg, cobjs[valobj].dec.deg,
                                                  TDEV[...,i])
                 w = np.where(is_in)
                 if len(w[0]) > 0:
@@ -296,8 +297,8 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     decbad : :class:`~numpy.array`
         array of Dec coordinates for bad sky positions, i.e. positions that
         ARE within the avoidance zones of the "objs"
-    objs : :class:`~numpy.ndarray` 
-        numpy structured array with UPPERCASE columns, OR a string 
+    objs : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
     navoid : :class:`float`, optional, defaults to 2.
@@ -306,7 +307,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     limits : :class:`~numpy.array`, optional, defaults to None
         plot limits in the form [ramin, ramax, decmin, decmax] if None
         is passed, then the entire area is plotted
-    plotname : :class:`str`, defaults to None    
+    plotname : :class:`str`, defaults to None
         If a name is passed use matplotlib's savefig command to save the
         plot to that file name. Otherwise, display the plot
 
@@ -342,7 +343,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     if ramax - ramin > 180.:
         ramax -= 360.
 
-    #ADM the avoidance separation (in arcseconds) for each object based on 
+    #ADM the avoidance separation (in arcseconds) for each object based on
     #ADM its half-light radius/profile
     sep = calculate_separations(objs,navoid)
     #ADM the maximum such separation for any object in the passed set IN DEGREES
@@ -374,7 +375,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     log.info('Plotting avoidance zones...t = {:.1f}s'.format(time()-start))
     #ADM plot the avoidance zones as circles, stretched by their DEC position
     #ADM note that "ellipses" takes the diameter, not the radius
-    out = ellipses(objs[smallsepw]["RA"], objs[smallsepw]["DEC"], 
+    out = ellipses(objs[smallsepw]["RA"], objs[smallsepw]["DEC"],
                    2*majoraxis[smallsepw], 2*minoraxis[smallsepw], alpha=0.4, edgecolor='none')
 
     #ADM now the elliptical or "large separation objects"...
@@ -385,14 +386,14 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
         if objs[valobj]["SHAPEEXP_R"] > 0:
             #ADM points on the ellipse boundary for EXP objects
             ras, decs = ellipse_boundary(objs[valobj]["RA"], objs[valobj]["DEC"],
-                                       objs[valobj]["SHAPEEXP_R"]*navoid, 
-                                       objs[valobj]["SHAPEEXP_E1"], objs[valobj]["SHAPEEXP_E2"])  
+                                       objs[valobj]["SHAPEEXP_R"]*navoid,
+                                       objs[valobj]["SHAPEEXP_E1"], objs[valobj]["SHAPEEXP_E2"])
             polygon = Polygon(np.array(list(zip(ras,decs))), True)
             patches.append(polygon)
         if objs[valobj]["SHAPEDEV_R"] > 0:
             #ADM points on the ellipse boundary for DEV objects
             ras, decs = ellipse_boundary(objs[valobj]["RA"], objs[valobj]["DEC"],
-                                       objs[valobj]["SHAPEDEV_R"]*navoid, 
+                                       objs[valobj]["SHAPEDEV_R"]*navoid,
                                        objs[valobj]["SHAPEDEV_E1"], objs[valobj]["SHAPEDEV_E2"])
             polygon = Polygon(np.array(list(zip(ras,decs))), True)
             patches.append(polygon)
@@ -405,7 +406,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
         log.info('Displaying plot...t = {:.1f}s'.format(time()-start))
         plt.show()
     else:
-        plt.savefig(plotname)    
+        plt.savefig(plotname)
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
@@ -417,8 +418,8 @@ def make_sky_targets(objs,navoid=2.,nskymin=None):
 
     Parameters
     ----------
-    objs : :class:`~numpy.ndarray` 
-        numpy structured array with UPPERCASE columns, OR a string 
+    objs : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
     navoid : :class:`float`, optional, defaults to 2.
@@ -501,7 +502,7 @@ def select_skies(infiles, numproc=4):
     infiles : :class:`list` or `str`
         list of input filenames (tractor or sweep files),
             OR a single filename
-    numproc : :clsss:`int`, optional, defaults to 4 
+    numproc : :class:`int`, optional, defaults to 4 
         number of parallel processes to use. Pass numproc=1 to run in serial
 
     Returns
@@ -541,7 +542,7 @@ def select_skies(infiles, numproc=4):
     nbrick = np.zeros((), dtype='i8')
 
     start = time()
-    
+
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
         that occurs on the main parallel process'''
@@ -551,7 +552,7 @@ def select_skies(infiles, numproc=4):
 
         nbrick[...] += 1    # this is an in-place modification
         return result
-    
+
     if numproc > 1:
         #ADM process the input files in parallel
         pool = sharedmem.MapReduce(np=numproc)
@@ -566,5 +567,3 @@ def select_skies(infiles, numproc=4):
     skies = np.concatenate(skies)
 
     return skies
-
-

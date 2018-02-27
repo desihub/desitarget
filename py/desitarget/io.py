@@ -13,7 +13,6 @@ import numpy as np
 import fitsio
 import os, re
 from . import __version__ as desitarget_version
-from . import gitversion
 import numpy.lib.recfunctions as rfn
 import healpy as hp
 
@@ -31,8 +30,8 @@ oldtscolumns = [
     'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
     'WISE_FLUX', 'WISE_MW_TRANSMISSION',
     'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2', 
-    'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2_IVAR', 
+    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2',
+    'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2_IVAR',
     'SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
     'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2_IVAR',
     'DCHISQ'
@@ -40,20 +39,20 @@ oldtscolumns = [
 
 #ADM this is an empty array of the full TS data model columns and dtypes
 tsdatamodel = np.array([], dtype=[
-        ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'), 
-        ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'), 
-        ('DEC', '>f8'), ('DEC_IVAR', '>f4'), 
-        ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
-        ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'), 
-        ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
-        ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'), 
-        ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'), 
-        ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'), 
-        ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'), 
-        ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'), 
-        ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'), 
-        ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
-        ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'), 
+        ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
+        ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
+        ('DEC', '>f8'), ('DEC_IVAR', '>f4'),
+        ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
+        ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'),
+        ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'),
+        ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'),
+        ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'),
+        ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
+        ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
+        ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'),
+        ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'),
+        ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
+        ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'),
         ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
         ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
         ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
@@ -104,7 +103,7 @@ def convert_from_old_data_model(fx,columns=None):
 
     #ADM create a new numpy array with the fields from the new data model...
     outdata = np.empty(nrows, dtype=dt)
-    
+
     #ADM ...and populate them with the passed columns of data
     for col in sharedcols:
         outdata[col] = indata[col]
@@ -129,7 +128,7 @@ def convert_from_old_data_model(fx,columns=None):
     outdata['RELEASE'] = 3000
 
     return outdata
-    
+
 
 def read_tractor(filename, header=False, columns=None):
     """Read a tractor catalogue file.
@@ -166,7 +165,7 @@ def read_tractor(filename, header=False, columns=None):
             readcolumns = list(oldtscolumns)
     else:
         readcolumns = list(columns)
-        
+
     #- tractor files have BRICK_PRIMARY; sweep files don't
     if (columns is None) and \
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
@@ -184,7 +183,7 @@ def read_tractor(filename, header=False, columns=None):
     if (columns is None) and \
        (('SUBPRIORITY' not in fxcolnames) and ('subpriority' not in fxcolnames)):
         subpriority = np.zeros(len(data), dtype='>f4')
-        #ADM populate the subpriority array randomly from 0->1, retaining the dtype 
+        #ADM populate the subpriority array randomly from 0->1, retaining the dtype
         subpriority[...] = np.random.random(len(data))
         data = rfn.append_fields(data, 'SUBPRIORITY', subpriority, usemask=False)
 
@@ -245,7 +244,7 @@ def release_to_photsys(release):
     :class:`str` or :class:`~numpy.ndarray`
         'N' if the RELEASE corresponds to the northern photometric
         system (MzLS+BASS) and 'S' if it's the southern system (DECaLS)
-        
+
     Notes
     -----
     Defaults to 'U' if the system is not recognized
@@ -267,7 +266,7 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def write_targets(filename, data, indir=None, qso_selection=None, 
+def write_targets(filename, data, indir=None, qso_selection=None,
                   sandboxcuts=False, nside=None):
     """Write a target catalogue.
 
@@ -276,7 +275,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     filename : output target selection file
     data     : numpy structured array of targets to save
     nside: :class:`int`
-        If passed, add a column to the targets array popluated 
+        If passed, add a column to the targets array popluated
         with HEALPix pixels at resolution nside
     """
     # FIXME: assert data and tsbits schema
@@ -319,7 +318,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
     #ADM add PHOTSYS column, mapped from RELEASE
     photsys = release_to_photsys(data["RELEASE"])
-    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)    
+    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
@@ -517,3 +516,24 @@ def whitespace_fits_read(filename, **kwargs):
         return data, header
 
     return data
+
+
+def gitversion():
+    """Returns `git describe --tags --dirty --always`,
+    or 'unknown' if not a git repo"""
+    import os
+    from subprocess import Popen, PIPE, STDOUT
+    origdir = os.getcwd()
+    os.chdir(os.path.dirname(__file__))
+    try:
+        p = Popen(['git', "describe", "--tags", "--dirty", "--always"], stdout=PIPE, stderr=STDOUT)
+    except EnvironmentError:
+        return 'unknown'
+
+    os.chdir(origdir)
+    out = p.communicate()[0]
+    if p.returncode == 0:
+        #- avoid py3 bytes and py3 unicode; get native str in both cases
+        return str(out.rstrip().decode('ascii'))
+    else:
+        return 'unknown'

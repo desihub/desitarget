@@ -8,10 +8,16 @@ desitarget API
 .. automodule:: desitarget.brightmask
     :members:
 
+.. automodule:: desitarget.contammask
+    :members:
+
 .. automodule:: desitarget.cuts
     :members:
 
 .. automodule:: desitarget.geomask
+    :members:
+
+.. automodule:: desitarget.gfa
     :members:
 
 .. automodule:: desitarget.internal
@@ -35,6 +41,9 @@ desitarget API
 .. automodule:: desitarget.mock.mockmaker
     :members:
 
+.. automodule:: desitarget.mock.sample
+    :members:
+
 .. automodule:: desitarget.mock.sfdmap
     :members:
 
@@ -54,6 +63,12 @@ desitarget API
     :members:
 
 .. automodule:: desitarget.sandbox.cuts
+    :members:
+
+.. automodule:: desitarget.skies
+    :members:
+
+.. automodule:: desitarget.skyfibers
     :members:
 
 .. automodule:: desitarget.targetmask

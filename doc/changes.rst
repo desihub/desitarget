@@ -5,7 +5,12 @@ desitarget Change Log
 0.18.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Major refactor of select_mock_targets code infrastructure[`PR #264`_].
+* Remove extraneous imports from __init__.py, fix read the docs build
+  [`PR #282`_].
+
+.. _`PR #264`: https://github.com/desihub/desitarget/pull/264
+.. _`PR #282`: https://github.com/desihub/desitarget/pull/282
 
 0.18.1 (2018-02-23)
 -------------------
@@ -20,14 +25,12 @@ desitarget Change Log
 * New target density fluctuations model based on DR5 healpixel info [`PR
   #254`_].
 * Include (initial) mock QA plots on targeting QA page [`PR #262`_]
-* Major refactor of select_mock_targets code infrastructure[`PR #264`_].
 * Added `select_gfa` script [`PR #275`_]
 * Update masking for ellipses ("galaxies") in addition to circles 
   ("stars") [`PR #277`_].
 
 .. _`PR #254`: https://github.com/desihub/desitarget/pull/254
 .. _`PR #262`: https://github.com/desihub/desitarget/pull/262
-.. _`PR #264`: https://github.com/desihub/desitarget/pull/264
 .. _`PR #275`: https://github.com/desihub/desitarget/pull/275
 .. _`PR #277`: https://github.com/desihub/desitarget/pull/277
 

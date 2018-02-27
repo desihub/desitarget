@@ -3,8 +3,8 @@ import unittest
 import numpy as np
 from astropy.table import Table
 
-from desitarget import desi_mask as Mx
-from desitarget import obsconditions
+from desitarget.targetmask import desi_mask as Mx
+from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
 
 class TestMTL(unittest.TestCase):

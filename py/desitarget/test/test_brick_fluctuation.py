@@ -2,8 +2,8 @@ import unittest
 import numpy as np
 from astropy.table import Table
 
-from desitarget import desi_mask as Mx
-from desitarget import desi_mask
+from desitarget.targetmask import desi_mask as Mx
+from desitarget.targetmask import desi_mask
 from desitarget.targets import calc_numobs
 from desitarget.mock import build
 
