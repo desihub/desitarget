@@ -521,7 +521,7 @@ class SelectTargets(object):
         else:
             return np.median(mock_density)
 
-    def qamock_sky(self, data, xlim=(0, 4), png=None):
+    def qamock_sky(self, data, xlim=(0, 4), nozhist=False, png=None):
         """Generate a QAplot showing the sky and redshift distribution of the objects in
         the mock.
 
@@ -545,7 +545,7 @@ class SelectTargets(object):
                             plot_type='healpix', basemap=basemap,
                             label=r'{} (targets/deg$^2$)'.format(self.objtype))
             
-        if 'Z' in data.keys():
+        if not nozhist:
             ax[1].hist(data['Z'], bins=100, histtype='stepfilled',
                        alpha=0.6, label=self.objtype, weights=data['WEIGHT'])
             ax[1].set_xlabel('Redshift')
