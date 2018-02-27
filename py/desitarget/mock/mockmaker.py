@@ -1246,7 +1246,10 @@ class ReadMXXL(SelectTargets):
         pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
         
         # Read the data, generate mockid, and then restrict to the input
-        # healpixel.
+        # healpixel.  Work around hdf5 <1.10 bug on /project; see
+        # http://www.nersc.gov/users/data-analytics/data-management/i-o-libraries/hdf5-2/h5py/
+        hdf5_flock = os.getenv('HDF5_USE_FILE_LOCKING')
+        os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
         with h5py.File(mockfile, mode='r') as f:
             ra  = f['Data/ra'][:].astype('f8') % 360.0 # enforce 0 < ra < 360
             dec = f['Data/dec'][:].astype('f8')
@@ -1254,6 +1257,11 @@ class ReadMXXL(SelectTargets):
             rmag = f['Data/app_mag'][:].astype('f4')
             absmag = f['Data/abs_mag'][:].astype('f4')
             gr = f['Data/g_r'][:].astype('f4')
+
+        if hdf5_flock is not None:
+            os.environ['HDF5_USE_FILE_LOCKING'] = hdf5_flock
+        else:
+            del os.environ['HDF5_USE_FILE_LOCKING']
 
         mockid = np.arange(len(ra)) # unique ID/row number
         
