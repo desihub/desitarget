@@ -137,15 +137,20 @@ napoleon_include_private_with_doc = True
 # This value contains a list of modules to be mocked up. This is useful when
 # some external dependencies are not met at build time and break the
 # building process.
-autodoc_mock_imports = ['fitsio', 'desisim.io', 'numpy', 'numpy.lib.recfunctions',
-                        'astropy.coordinates', 'astropy.io.fits', 'astropy.table',
-                        'scipy', 'scipy.optimize', 'matplotlib', 'matplotlib.pyplot',
-                        'matplotlib.patches', 'matplotlib.collections',
+autodoc_mock_imports = ['astropy.coordinates', 'astropy.io.fits', 'astropy.table', 'astropy.units',
+                        'desimodel.io','desimodel.footprint',
+                        'desisim.io',
                         'desispec.brick', 'desispec.io', 'desispec.io.util',
                         'desiutil', 'desiutil.bitmask', 'desiutil.log',
+                        'fitsio',
+                        'healpy',
+                        'matplotlib', 'matplotlib.pyplot',
+                        'matplotlib.patches', 'matplotlib.collections',
+                        'numpy', 'numpy.lib.recfunctions', 'numpy.ma',
+                        'scipy', 'scipy.optimize', 'scipy.spatial',
                         'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree',
-                        'astropy.units', 'healpy', 'specter', 'desimodel.io',
-                        'desimodel.footprint', 'scipy.spatial', 'numpy.ma']
+                        'specter',
+                        'yaml']
 
 # -- Options for HTML output ----------------------------------------------
 
