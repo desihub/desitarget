@@ -5,9 +5,11 @@ desitarget Change Log
 0.18.2 (unreleased)
 -------------------
 
+* Major refactor of select_mock_targets code infrastructure[`PR #264`_].
 * Remove extraneous imports from __init__.py, fix read the docs build
   [`PR #282`_].
 
+.. _`PR #264`: https://github.com/desihub/desitarget/pull/264
 .. _`PR #282`: https://github.com/desihub/desitarget/pull/282
 
 0.18.1 (2018-02-23)

@@ -38,19 +38,13 @@ desitarget API
 .. automodule:: desitarget.mock.io
     :members:
 
-.. automodule:: desitarget.mock.QA
+.. automodule:: desitarget.mock.mockmaker
     :members:
 
 .. automodule:: desitarget.mock.sample
     :members:
 
-.. automodule:: desitarget.mock.selection
-    :members:
-
 .. automodule:: desitarget.mock.sfdmap
-    :members:
-
-.. automodule:: desitarget.mock.spectra
     :members:
 
 .. automodule:: desitarget.mtl

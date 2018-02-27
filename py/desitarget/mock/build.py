@@ -4,854 +4,667 @@
 desitarget.mock.build
 =====================
 
-Build a truth catalog (including spectra) and a targets catalog for the mocks.
+Build truth and targets catalogs, including spectra, for the mocks.
 
 """
-from __future__ import (absolute_import, division, print_function)
+from __future__ import absolute_import, division, print_function
 
 import os
-
 import numpy as np
-from astropy.table import Table, Column, vstack, hstack
+import healpy as hp
 
-from desiutil.log import get_logger, DEBUG
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask, obsconditions
-from desitarget.contammask import contam_mask
-import desitarget.mock.io as mockio
-from desitarget.mock import sfdmap
+from astropy.table import vstack
 
-from desitarget.targets import encode_targetid
+from desimodel.footprint import radec2pix
 
-def fileid_filename(source_data, output_dir, log):
-    '''
-    Outputs text file with mapping between mock filenum and file on disk
+def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.', 
+                             seed=None, verbose=False):
+    """Initialize various objects needed to generate mock targets.
 
-    returns mapping dictionary map[mockanme][filenum] = filepath
+    Parameters
+    ----------
+    params : :class:`dict`
+        Dictionary defining the mock from which to generate targets.
+    healpixels : :class:`numpy.ndarray` or :class:`int`
+        Generate mock targets within this set of healpix pixels.
+    nside : :class:`int`
+        Healpix resolution corresponding to healpixels.
+    output_dir : :class:`str`, optional.
+        Output directory.  Defaults to '.' (current directory).
+    seed: :class:`int`, optional
+        Seed for the random number generator.  Defaults to None.
+    verbose: :class:`bool`, optional
+        Be verbose. Defaults to False.
 
-    '''
-    outfile = os.path.join(output_dir, 'map_id_filename.txt')
-    log.info('Writing {}'.format(outfile))
-    
-    out = open(outfile, 'w')
-    map_id_name = {}
-    for k in source_data.keys():
-        map_id_name[k] = {}
-        data = source_data[k]
-        if 'FILES' in data.keys():
-            filenames = data['FILES']
-            n_files = len(filenames)
-            for i in range(n_files):
-                map_id_name[k][i] = filenames[i]
-                out.write('{} {} {}\n'.format(k, i, map_id_name[k][i]))
-    out.close()
+    Returns
+    -------
+    log : :class:`desiutil.logger`
+       Logger object.
+    healpixseeds : :class:`numpy.ndarray` or :class:`int`
+       Array of random number seeds (one per healpixels pixel) needed to ensure
+       reproducibility.
 
-    return map_id_name
-
-class BrickInfo(object):
-    """Gather information on all the bricks.
-
-    """
-    def __init__(self, random_state=None, dust_dir=None, bricksize=0.25,
-                 decals_brick_info=None, target_names=None, log=None):
-        """Initialize the class.
-
-        Args:
-          random_state : random number generator object
-          dust_dir : path where the E(B-V) maps are stored
-          bricksize : brick size (default 0.25 deg, square)
-          decals_brick_info : filename of the DECaLS brick information structure
-          target_names : list of targets (e.g., BGS, ELG, etc.)
-
-        """
-        if log:
-            self.log = log
-        else:
-            self.log = get_logger()
-            
-        if random_state is None:
-            random_state = np.random.RandomState()
-        self.random_state = random_state
-
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
-        self.decals_brick_info = decals_brick_info
-        self.target_names = target_names
-
-    def generate_brick_info(self):
-        """Generate the brick dictionary in the region (min_ra, max_ra, min_dec,
-        max_dec).
-
-        [Doesn't this functionality exist elsewhere?!?]
-
-        """
-        from desiutil.brick import Bricks
-
-        brick_info = Bricks(bricksize=self.bricksize).to_table()
-        nbrick = len(brick_info)
-
-        self.log.info('Generated brick information for {} brick(s) with bricksize {:g} deg.'.\
-                      format(nbrick, self.bricksize))
-
-        return brick_info
-
-    def extinction_across_bricks(self, brick_info):
-        """Estimates E(B-V) across bricks.
-
-        Args:
-          brick_info : dictionary gathering brick information. It must have at
-            least two keys 'RA' and 'DEC'.
-
-        """
-        #log.info('Generated extinction for {} bricks'.format(len(brick_info['RA'])))
-        a = Table()
-        a['EBV'] = sfdmap.ebv(brick_info['RA'], brick_info['DEC'], mapdir=self.dust_dir)
-
-        return a
-
-    def depths_across_bricks(self, brick_info):
-        """
-        Generates a sample of magnitud dephts for a set of bricks.
-
-        This model was built from the Data Release 3 of DECaLS.
-
-        Args:
-            brick_info(Dictionary). Containts at least the following keys:
-                RA (float): numpy array of RA positions
-                DEC (float): numpy array of Dec positions
-
-        Returns:
-            depths (dictionary). keys include
-                'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'.
-                The values ofr each key ar numpy arrays (float) with size equal to
-                the input ra, dec arrays.
-
-        """
-        ra = brick_info['RA']
-        dec = brick_info['DEC']
-
-        n_to_generate = len(ra)
-        #mean and std deviation of the difference between PSFDEPTH and GALDEPTH in the DR3 data.
-        differences = {}
-        differences['PSFDEPTH_G'] = [0.22263251, 0.059752077]
-        differences['PSFDEPTH_R'] = [0.26939404, 0.091162138]
-        differences['PSFDEPTH_Z'] = [0.34058815, 0.056099825]
-
-        # (points, fractions) provide interpolation to the integrated probability distributions from DR3 data
-
-        points = {}
-        points['PSFDEPTH_G'] = np.array([ 12.91721153,  18.95317841,  20.64332008,  23.78604698,  24.29093361,
-                      24.4658947,   24.55436325,  24.61874771,  24.73129845,  24.94996071])
-        points['PSFDEPTH_R'] = np.array([ 12.91556168,  18.6766777,   20.29519463,  23.41814804,  23.85244179,
-                      24.10131454,  24.23338318,  24.34066582,  24.53495026,  24.94865227])
-        points['PSFDEPTH_Z'] = np.array([ 13.09378147,  21.06531525,  22.42395782,  22.77471352,  22.96237755,
-                      23.04913139,  23.43119431,  23.69817734,  24.1913662,   24.92163849])
-
-        fractions = {}
-        fractions['PSFDEPTH_G'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-        fractions['PSFDEPTH_R'] = np.array([0.0, 0.01, 0.02, 0.08, 0.2, 0.3, 0.4, 0.5, 0.7, 1.0])
-        fractions['PSFDEPTH_Z'] = np.array([0.0, 0.01, 0.03, 0.08, 0.2, 0.3, 0.7, 0.9, 0.99, 1.0])
-
-        names = ['PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z']
-        depths = Table()
-        for name in names:
-            fracs = self.random_state.random_sample(n_to_generate)
-            depths[name] = np.interp(fracs, fractions[name], points[name])
-
-            depth_minus_galdepth = self.random_state.normal(
-                loc=differences[name][0],
-                scale=differences[name][1], size=n_to_generate)
-            depth_minus_galdepth[depth_minus_galdepth<0] = 0.0
-
-            depths[name.replace('PSF', 'GAL')] = depths[name] - depth_minus_galdepth
-            #log.info('Generated {} and GAL{} for {} bricks'.format(name, name, len(ra)))
-
-        return depths
-
-    def fluctuations_across_bricks(self, brick_info):
-        """
-        Generates number density fluctuations.
-
-        Args:
-          decals_brick_info (string). file summarizing tile statistics Data Release 3 of DECaLS.
-          brick_info(Dictionary). Containts at least the following keys:
-            PSFDEPTH_G(float) : array of depth magnitudes in the G band.
-
-        Returns:
-          fluctuations (dictionary) with keys 'FLUC+'depth, each one with values
-            corresponding to a dictionary with keys ['ALL','LYA','MWS','BGS','QSO','ELG','LRG'].
-            i.e. fluctuation[FLUC_DEPTH_G_MWS] holds the number density as a funtion
-            is a dictionary with keys corresponding to the different galaxy types.
-
-        """
-        from desitarget.QA import generate_fluctuations
-
-        fluctuation = Table()
-
-        depth_available = []
-    #   for k in brick_info.keys():
-        for k in ['GALDEPTH_R', 'EBV']:
-            if ('PSFDEPTH' in k or 'EBV' in k):
-                depth_available.append(k)
-
-        for depth in depth_available:
-            for ttype in self.target_names:
-                fluctuation['FLUC_{}_{}'.format(depth, ttype)] = generate_fluctuations(
-                    self.decals_brick_info, ttype, depth, brick_info[depth].data,
-                    random_state=self.random_state
-                    )
-                #log.info('Generated target fluctuation for type {} using {} as input for {} bricks'.format(
-                #    ttype, depth, len(fluctuation['FLUC_'+depth][ttype])))
-        return fluctuation
-
-    def targetinfo(self):
-        """Read target info from DESIMODEL, change all the keys to upper case, and
-        append into brick_info.
-
-        """
-        import yaml
-        with open(os.path.join( os.getenv('DESIMODEL'), 'data', 'targets', 'targets.yaml' ), 'r') as filein:
-            td = yaml.load(filein)
-        target_desimodel = Table()
-        for t in td.keys():
-            if 'ntarget' in t.upper():
-                target_desimodel[t.upper()] = td[t]
-
-        return target_desimodel
-
-    def build_brickinfo(self):
-        """Build the complete information structure."""
-        from astropy.table import hstack
-
-        brick_info = self.generate_brick_info()
-        brick_info = hstack( (brick_info, self.extinction_across_bricks(brick_info)) )   # add extinction
-        brick_info = hstack( (brick_info, self.depths_across_bricks(brick_info)) )       # add depths
-        brick_info = hstack( (brick_info, self.fluctuations_across_bricks(brick_info)) ) # add number density fluctuations
-        #brick_info = hstack( (brick_info, self.targetinfo()) )                          # add nominal target densities
-
-        return brick_info
-
-def add_mock_shapes_and_fluxes(mocktargets, realtargets=None, random_state=None):
-    '''Add SHAPEDEV_R and SHAPEEXP_R from a real target catalog.'''
-
-    if random_state is None:
-        random_state = np.random.RandomState()
-
-    n = len(mocktargets)
-
-    for objtype in ('ELG', 'LRG', 'QSO'):
-        mask = desi_mask.mask(objtype)
-        #- indices where mock (ii) and real (jj) match the mask
-        ii = np.where((mocktargets['DESI_TARGET'] & mask) != 0)[0]
-        jj = np.where((realtargets['DESI_TARGET'] & mask) != 0)[0]
-        if len(jj) == 0:
-            log.warning('Real target catalog missing {}'.format(objtype))
-            raise ValueError
-
-        #- Which random jj should be used to fill in values for ii?
-        kk = jj[random_state.randint(0, len(jj), size=len(ii))]
-        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
-        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
-
-    for objtype in ('BGS_FAINT', 'BGS_BRIGHT'):
-        mask = bgs_mask.mask(objtype)
-        #- indices where mock (ii) and real (jj) match the mask
-        ii = np.where((mocktargets['BGS_TARGET'] & mask) != 0)[0]
-        jj = np.where((realtargets['BGS_TARGET'] & mask) != 0)[0]
-        if len(jj) == 0:
-            log.warning('Real target catalog missing {}'.format(objtype))
-            raise ValueError
-
-        #- Which jj should be used to fill in values for ii?
-        #- NOTE: not filling in BGS or MWS fluxes, only shapes
-        kk = jj[random_state.randint(0, len(jj), size=len(ii))]
-        mocktargets['SHAPEDEV_R'][ii] = realtargets['SHAPEDEV_R'][kk]
-        mocktargets['SHAPEEXP_R'][ii] = realtargets['SHAPEEXP_R'][kk]
-
-def empty_targets_table(nobj=1):
-    """Initialize an empty 'targets' table.  The required output columns in order
-    for fiberassignment to work are: TARGETID, RA, DEC, DESI_TARGET, BGS_TARGET,
-    MWS_TARGET, and SUBPRIORITY.  Everything else is gravy.
+    Raises
+    ------
+    ValueError
+        If params, healpixels, or nside are not defined.  A ValueError is also
+        raised if nside > 256, since this exceeds the number of bits that can be
+        accommodated by desitarget.targets.encode_targetid.
 
     """
-    targets = Table()
+    from desiutil.log import get_logger, DEBUG
 
-    # RELEASE
-    targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
-    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
-    # TYPE
-    targets.add_column(Column(name='RA', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='DEC', length=nobj, dtype='f8'))
-    # RA_IVAR
-    # DEC_IVAR
-    targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
-    # FLUX_W3
-    # FLUX_W4
-    # FLUX_IVAR_G
-    # FLUX_IVAR_R
-    # FLUX_IVAR_Z
-    # FLUX_IVAR_W1
-    # FLUX_IVAR_W2
-    # FLUX_IVAR_W3
-    # FLUX_IVAR_W4
-    targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4'))
+    if params is None:
+        log.fatal('PARAMS input is required.')
+        raise ValueError
 
-    targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-
-    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
-    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
-
-
-    return targets
-
-def empty_truth_table(nobj=1):
-    """Initialize the truth table for each mock object, with spectra.
-
-    """
-    truth = Table()
-    truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
-    truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
-    truth.add_column(Column(name='CONTAM_TARGET', length=nobj, dtype='i8'))
-
-    truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
-    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='U10')) # ELG, BGS, STAR, WD, etc.
-    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='U10')) # DA, DB, etc.
-
-    truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+99))
-    
-    truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4'))
-    truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4'))
-
-    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-
-    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
-    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
-
-    return truth
-
-def _get_spectra_onebrick(specargs):
-    """Filler function for the multiprocessing."""
-    return get_spectra_onebrick(*specargs)
-
-def get_spectra_onebrick(target_name, mockformat, thisbrick, brick_info, Spectra, dust_dir,
-                         select_targets_function, source_data, rand, log):
-    """Wrapper function to generate spectra for all the objects on a single brick."""
-
-    brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-    onbrick = np.where(source_data['BRICKNAME'] == thisbrick)[0]
-    nobj = len(onbrick)
-
-    # Initialize the output targets and truth catalogs and populate them with
-    # the quantities of interest.
-    targets = empty_targets_table(nobj)
-    truth = empty_truth_table(nobj)
-
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][onbrick]
-
-    for key in ('BRICKID', 'PSFDEPTH_G', 'PSFDEPTH_R', 'PSFDEPTH_Z',
-                'GALDEPTH_G', 'GALDEPTH_R', 'GALDEPTH_Z'):
-        targets[key][:] = brick_info[key][brickindx]
-
-    # Assign unique OBJID values and reddenings.  See
-    #   http://legacysurvey.org/dr4/catalogs
-    targets['BRICK_OBJID'][:] = np.arange(nobj)
-
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
-
-    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
-    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
-    # for now.
-    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
-                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
-    
-    # Add shapes and sizes.
-    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key][:] = source_data[key][onbrick]
-
-    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][onbrick]
-        else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
-
-    # Sky targets are a special case without redshifts.
-    if target_name == 'sky':
-        select_targets_function(targets, truth)
-        return [targets, truth]
-
-    truth['TRUEZ'][:] = source_data['Z'][onbrick]
-
-    # For FAINTSTAR targets, preselect stars that are going to pass target
-    # selection cuts without actually generating spectra, in order to save
-    # memory and time.
-    if target_name == 'faintstar':
-        if mockformat.lower() == 'galaxia':
-            alldata = np.vstack((source_data['TEFF'][onbrick],
-                                 source_data['LOGG'][onbrick],
-                                 source_data['FEH'][onbrick])).T
-            _, templateid = Spectra.tree.query('STAR', alldata)
-            templateid = templateid.flatten()
-        else:
-            raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-
-        normmag = 1E9 * 10**(-0.4 * source_data['MAG'][onbrick]) # nanomaggies
-
-        for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-            truth[fluxkey][:] = getattr( Spectra.tree, 'star_{}'.format(fluxkey.lower()) )[templateid] * normmag
-            targets[fluxkey][:] = truth[fluxkey][:] + \
-              rand.normal(scale=onesigma[band], size=nobj)
-
-        select_targets_function(targets, truth)
-
-        keep = np.where(targets['DESI_TARGET'] != 0)[0]
-        nobj = len(keep)
-
-        # Temporary debugging plot.
-        if False:
-            import matplotlib.pyplot as plt
-            gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-            rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-            gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-            rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-            plt.scatter(rz1, gr1, color='red', alpha=0.5, edgecolor='none', edgewidth=2, label='Noiseless Photometry')
-            plt.scatter(rz1[keep], gr1[keep], color='red', edgecolor='k')
-            plt.scatter(rz, gr, alpha=0.5, color='green', edgecolor='none', label='Noisy Photometry')
-            plt.scatter(rz[keep], gr[keep], color='green', edgecolor='k', edgewidth=2)
-            plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
-            plt.legend(loc='upper left')
-            plt.show()
-            import pdb ; pdb.set_trace()
+    if healpixels is None:
+        log.fatal('HEALPIXELS input is required.')
+        raise ValueError
         
-        if nobj == 0:
-            log.warning('No {} targets identified!'.format(target_name.upper()))
-            return [empty_targets_table(1), empty_truth_table(1), np.zeros( [1, len(Spectra.wave)], dtype='f4' )]
-        else:
-            onbrick = onbrick[keep]
-            truth = truth[keep]
-            targets = targets[keep]
+    if nside is None:
+        log.fatal('NSIDE input is required.')
+        raise ValueError
 
-    # Finally build the spectra and select targets.
-    trueflux, meta = getattr(Spectra, target_name)(source_data, index=onbrick, mockformat=mockformat)
-
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
-
-    # Perturb the photometry based on the variance on this brick and apply
-    # target selection.
-    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-        targets[fluxkey][:] = truth[fluxkey][:] + rand.normal(scale=onesigma[band], size=nobj)
-
-    if False:
-        import matplotlib.pyplot as plt
-        def elg_colorbox(ax):
-            """Draw the ELG selection box."""
-            from matplotlib.patches import Polygon
-            grlim = ax.get_ylim()
-            coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
-            rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
-            verts = [(rzmin, grlim[0]),
-                     (rzmin, np.polyval(coeff0, rzmin)),
-                     (rzpivot, np.polyval(coeff1, rzpivot)),
-                     ((grlim[0] - 0.1 - coeff1[1]) / coeff1[0], grlim[0] - 0.1)
-                     ]
-            ax.add_patch(Polygon(verts, fill=False, ls='--', color='k'))
-        gr1 = -2.5 * np.log10( truth['FLUX_G'] / truth['FLUX_R'] )
-        rz1 = -2.5 * np.log10( truth['FLUX_R'] / truth['FLUX_Z'] )
-        gr = -2.5 * np.log10( targets['FLUX_G'] / targets['FLUX_R'] )
-        rz = -2.5 * np.log10( targets['FLUX_R'] / targets['FLUX_Z'] )
-        
-        fig, ax = plt.subplots()
-        ax.scatter(rz1, gr1, color='red', label='Noiseless Photometry')
-        ax.scatter(rz, gr, alpha=0.5, color='green', label='Noisy Photometry')
-        ax.set_xlim(-0.5, 2)
-        ax.set_ylim(-0.5, 2)
-        elg_colorbox(ax)
-        ax.legend(loc='upper left')
-        plt.show()
-        import pdb ; pdb.set_trace()
-        
-    if 'BOSS_STD' in source_data.keys():
-        boss_std = source_data['BOSS_STD'][onbrick]
-    else:
-        boss_std = None
-    select_targets_function(targets, truth, boss_std=boss_std)
-
-    keep = np.where(targets['DESI_TARGET'] != 0)[0]
-    nobj = len(keep)
-
-    if nobj == 0:
-        log.warning('No {} targets identified!'.format(target_name.upper()))
-    else:
-        log.debug('Selected {} {}s on brick {}.'.format(nobj, target_name.upper(), thisbrick))
-        targets = targets[keep]
-        truth = truth[keep]
-        trueflux = trueflux[keep, :]
-
-    return [targets, truth, trueflux]
-
-#from memory_profiler import profile
-#@profile
-def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=False,
-                  bricksize=0.25, nproc=1, nside=16, healpixels=None):
-    """Generate a catalog of targets, spectra, and the corresponding "truth" catalog
-    (with, e.g., the true redshift) for use in simulations.
-
-    Args:
-        params : dict
-            Source parameters.
-        output_dir : str
-            Output directory (default '.').
-        realtargets : astropy.table
-            Real target catalog table, e.g. from DR3 (deprecated!).
-        bricksize : float
-            Brick size for assigning bricknames, which should match the imaging
-            team value (default 0.25 deg).
-        nproc : int
-            Number of parallel processes to use (default 1).
-        nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels.
-
-    Returns:
-        A variety of fits files are written to output_dir.
-
-    """
-    import healpy as hp
-    from time import time
-
-    from astropy.io import fits
-
-    from desiutil import depend
-    from desispec.io.util import fitsheader, write_bintable
-    from desitarget.mock.selection import SelectTargets
-    from desitarget.mock.spectra import MockSpectra
-    from desitarget.internal import sharedmem
-    from desimodel.footprint import radec2pix
-    from desitarget.targetmask import obsconditions
+    if nside > 256:
+        log.warning('NSIDE = {} exceeds the number of bits available for BRICKID in targets.encode_targetid.')
+        raise ValueError
 
     if verbose:
         log = get_logger(DEBUG)
     else:
         log = get_logger()
-
-    if params is None:
-        log.fatal('Required params input not given!')
-        raise ValueError
+    
+    npix = len(np.atleast_1d(healpixels))
 
     # Initialize the random seed
     rand = np.random.RandomState(seed)
+    healpixseeds = rand.randint(2**31, size=npix)
 
-    # Create the output directories and clean them up if necessary.
+    # Create the output directories
     if os.path.exists(output_dir):
         if os.listdir(output_dir):
             log.warning('Output directory {} is not empty.'.format(output_dir))
     else:
         log.info('Creating directory {}'.format(output_dir))
-        os.makedirs(output_dir)
+        os.makedirs(output_dir)    
+    log.info('Writing to output directory {}'.format(output_dir))      
         
-    log.info('Writing to output directory {}'.format(output_dir))
-    print()
-
-    # Default set of healpixels is the whole sky (yikes!)
-    if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(nside))
-
     areaperpix = hp.nside2pixarea(nside, degrees=True)
-    skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, skyarea))
+    log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
+        len(healpixels), nside, areaperpix, npix * areaperpix))
 
-    brick_info = BrickInfo(random_state=rand, dust_dir=params['dust_dir'], bricksize=bricksize,
-                           decals_brick_info=params['decals_brick_info'], log=log,
-                           target_names=list(params['sources'].keys())).build_brickinfo()
+    return log, healpixseeds
+    
+def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
+              nside=None, nside_chunk=128):
+    """Read a mock catalog.
+    
+    Parameters
+    ----------
+    params : :class:`dict`
+        Dictionary defining the mock from which to generate targets.
+    log : :class:`desiutil.logger`
+        Logger object.
+    params : :class:`dict`
+        Dictionary summary of the input configuration file, restricted to a
+        particular source_name (e.g., 'QSO').
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    seed: :class:`int`, optional
+        Seed for the random number generator.  Defaults to None.
+    healpixels : :class:`numpy.ndarray` or `int`
+        List of healpixels to read.
+    nside : :class:`int`
+        Healpix resolution corresponding to healpixels.
+    nside_chunk : :class:`int`, optional
+        Healpix resolution for chunking the sample to avoid memory problems.
+        (NB: nside_chunk must be <= nside).  Defaults to 128.
+            
+    Returns
+    -------
+    data : :class:`dict`
+        Parsed source data based on the input mock catalog (to be documented).
 
-    # Initialize the Classes used to assign spectra and select targets.  Note:
-    # The default wavelength array gets initialized here, too.
-    log.info('Initializing the MockSpectra and SelectTargets Classes.')
-    Spectra = MockSpectra(rand=rand, verbose=verbose, nproc=nproc)
-    Selection = SelectTargets(logger=log, rand=rand,
-                              brick_info=brick_info)
-    print()
+    Raises
+    ------
+    ValueError
+        If the mock_density was not returned when expected.
 
-    current_pixel_ID = 0 
-    # Loop over each source / object type.
-    alltargets = list()
-    alltruth = list()
-    alltrueflux = list()
+    """
+    from desitarget.mock import mockmaker
 
-    for source_name in sorted(params['sources'].keys()):
-        # Read the mock catalog.
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-        mockformat = params['sources'][source_name]['format']
+    target_name = params.get('target_name')
+    mockfile = params.get('mockfile')
+    mockformat = params.get('format')
+    magcut = params.get('magcut')
+    nside_lya = params.get('nside_lya')
+    nside_galaxia = params.get('nside_galaxia')
 
-        mock_dir_name = params['sources'][source_name]['mock_dir_name']
-        if 'magcut' in params['sources'][source_name].keys():
-            magcut = params['sources'][source_name]['magcut']
-        else:
-            magcut = None
+    if 'density' in params.keys():
+        mock_density = True
+    else:
+        mock_density = False
 
-        log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
-        log.info('Reading {}'.format(mock_dir_name))
+    log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
-        mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
-        if 'LYA' in params['sources'][source_name].keys():
-            lya = params['sources'][source_name]['LYA']
-        else:
-            lya = None
-        source_data = mockread_function(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                                        magcut=magcut, nproc=nproc, lya=lya,
-                                        healpixels=healpixels, nside=nside)
+    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
+    data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
+                         healpixels=healpixels, nside=nside,
+                         magcut=magcut, nside_lya=nside_lya,
+                         nside_galaxia=nside_galaxia,
+                         dust_dir=dust_dir, mock_density=mock_density)
 
-        # If there are no sources, keep going.
-        if not bool(source_data):
-            continue
-
-        selection_function = '{}_select'.format(target_name.lower())
-        select_targets_function = getattr(Selection, selection_function)
-
-        # Assign spectra by parallel-processing the bricks.
-        brickname = source_data['BRICKNAME']
-        unique_bricks = sorted(set(brickname))
-
-        # Quickly check that all the brick info is here.
-        if False:
-            for thisbrick in unique_bricks:
-                brickindx = np.where(brick_info['BRICKNAME'] == thisbrick)[0]
-                if (len(brickindx) != 1):
-                    log.fatal('One or too many matching brick(s) {}! This should not happen...'.format(thisbrick))
-                    ww = np.where( (brick_info['RA'] > source_data['RA'].min()) *
-                                   (brick_info['RA'] < source_data['RA'].max()) *
-                                   (brick_info['DEC'] > source_data['DEC'].min()) *
-                                   (brick_info['DEC'] < source_data['DEC'].max()) )[0]
-                    print(brick_info['BRICKNAME'][ww])
-                    import matplotlib.pyplot as plt
-                    plt.scatter(source_data['RA'], source_data['DEC'])
-                    plt.scatter(brick_info['RA'], brick_info['DEC'])
-                    plt.xlim(source_data['RA'].min()-0.2, source_data['RA'].max()+0.2)
-                    plt.ylim(source_data['DEC'].min()-0.2, source_data['DEC'].max()+0.3)
-                    plt.show()
-                    import pdb ; pdb.set_trace()
+    # Add the information we need to incorporate density fluctuations.
+    if 'density' in params.keys():
+        if 'MOCK_DENSITY' not in data.keys():
+            log.warning('Expected mock_density value not found!')
+            raise ValueError
         
-        log.info('Assigned {} {}s to {} unique {}x{} deg2 bricks.'.format(
-            len(brickname), source_name, len(unique_bricks), bricksize, bricksize))
+        data['DENSITY'] = params['density']
+        data['DENSITY_FACTOR'] = data['DENSITY'] / data['MOCK_DENSITY']
+        if data['DENSITY_FACTOR'] > 1:
+            log.warning('Density factor {} should not be > 1!'.format(data['DENSITY_FACTOR']))
+            data['DENSITY_FACTOR'] = 1.0
+        
+        data['MAXITER'] = 5
 
-        nbrick = np.zeros((), dtype='i8')
-        t0 = time()
-        def _update_spectra_status(result):
-            if nbrick % 10 == 0 and nbrick > 0:
-                rate = (time() - t0) / nbrick
-                log.info('{} bricks; {:.1f} sec / brick'.format(nbrick, rate))
-            nbrick[...] += 1    # this is an in-place modification
-            return result
+        log.info('Computed median mock density for {}s of {:.2f} targets/deg2.'.format(
+            target_name, data['MOCK_DENSITY']))
+        log.info('Target density = {:.2f} targets/deg2 (downsampling factor = {:.3f}).'.format(
+            data['DENSITY'], data['DENSITY_FACTOR']))
+    else:
+        data['DENSITY_FACTOR'] = 1.0 # keep them all
+        data['MAXITER'] = 1
 
-        specargs = list()
-        for thisbrick in unique_bricks:
-            specargs.append( (target_name.lower(), mockformat, thisbrick, brick_info,
-                              Spectra, params['dust_dir'], select_targets_function,
-                              source_data, rand, log) )
+    return data, MakeMock
 
-        if nproc > 1:
-            pool = sharedmem.MapReduce(np=nproc)
-            with pool:
-                out = pool.map(_get_spectra_onebrick, specargs,
+def _get_spectra_onepixel(specargs):
+    """Filler function for the multiprocessing."""
+    return get_spectra_onepixel(*specargs)
+
+def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
+    """Wrapper function to generate spectra for all targets on a single healpixel.
+
+    Parameters
+    ----------
+    data : :class:`dict`
+        Dictionary with all the mock data (candidate mock targets).
+    indx : :class:`int` or :class:`numpy.ndarray`
+        Indices of candidate mock targets to consider.
+    MakeMock : :class:`desitarget.mock.mockmaker` object
+        Object to assign spectra to each target class.
+    seed: :class:`int`
+        Seed for the random number generator.
+    log : :class:`desiutil.logger`
+       Logger object.
+    ntarget : :class:`int`
+       Desired number of targets to generate.
+    maxiter : :class:`int`
+       Maximum number of iterations to generate targets.
+
+    Returns
+    -------
+    targets : :class:`astropy.table.Table`
+        Target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table.
+    trueflux : :class:`numpy.ndarray`
+        Array [npixel, ntarget] of observed-frame spectra.  Only computed
+        and returned for non-sky targets.
+    
+    """
+    nobj = len(np.atleast_1d(indx))
+    targname = data['TARGET_NAME']
+
+    rand = np.random.RandomState(seed)
+
+    targets = list()
+    truth = list()
+    trueflux = list()
+
+    boss_std = None
+
+    # Temporary hack to use BOSS standard stars.
+    if 'BOSS_STD' in data.keys():
+        boss_std = data['BOSS_STD'][indx]
+
+    # Faintstar targets are a special case.
+    if targname.lower() == 'faintstar':
+        chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+            data, indx=indx, boss_std=boss_std)
+
+        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+        nkeep = len(keep)
+
+        log.debug('Selected {} / {} {} targets'.format(nkeep, nobj, targname))
+
+        if nkeep > 0:
+            targets.append(chunktargets[keep])
+            truth.append(chunktruth[keep])
+            trueflux.append(chunkflux[keep, :])
+    else:
+        # Generate the spectra iteratively until we achieve the required
+        # target density.
+        iterseeds = rand.randint(2**31, size=maxiter)
+
+        makemore, itercount, ntot = True, 0, 0
+        while makemore:
+            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+                data, indx=indx, seed=iterseeds[itercount])
+
+            MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
+
+            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+            nkeep = len(keep)
+            if nkeep > 0:
+                log.debug('Generated {} / {} {} targets on iteration {} / {}.'.format(
+                    nkeep, nobj, targname, itercount, maxiter))
+                ntot += nkeep
+
+                targets.append(chunktargets[keep])
+                truth.append(chunktruth[keep])
+                trueflux.append(chunkflux[keep, :])
+
+            itercount += 1
+            if itercount == maxiter:
+                if maxiter > 1:
+                    log.warning('Generated only {} / {} {} targets after {} iterations.'.format(
+                        ntot, nobj, targname, maxiter))
+                makemore = False
+            else:
+                need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
+                if len(need) > 0:
+                    indx = indx[need]
+                else:
+                    makemore = False
+
+    targets = vstack(targets)
+    truth = vstack(truth)
+    trueflux = np.concatenate(trueflux)
+
+    return [targets, truth, trueflux]
+
+def density_fluctuations(data, log, nside, nside_chunk, seed=None):
+    """Determine the density of targets to generate, accounting for fluctuations due
+    to reddening, imaging systematics, and large-scale structure.
+
+    Parameters
+    ----------
+    data : :class:`dict`
+        Data on the input mock targets (to be documented).
+    log : :class:`desiutil.logger`
+        Logger object.
+    nside : :class:`int`
+        Healpix resolution.
+    nside_chunk : :class:`int`
+        Healpix resolution for chunking the sample.
+    seed: :class:`int`, optional
+        Seed for the random number generator.  Defaults to None.
+
+    Returns
+    -------
+    indxperchunk : :class:`list`
+        Indices (in data) of the mock targets to generate per healpixel chunk. 
+    ntargperchunk : :class:`numpy.ndarray`
+        Number of targets to generate per healpixel chunk.
+    areaperpixel : :class:`float`
+        Area per healpixel (used to construct useful log messages).
+    
+    """
+    rand = np.random.RandomState(seed)
+
+    ## Fluctuations model coefficients from --
+    ##   https://github.com/desihub/desitarget/blob/master/doc/nb/target-fluctuations.ipynb
+    #model = dict()
+    #model['LRG'] = (0.27216, 2.631, 0.145) # slope, intercept, and scatter
+    #model['ELG'] = (-0.55792, 3.380, 0.081)
+    #model['QSO'] = (0.33321, 3.249, 0.112)
+    #coeff = model.get(data['TARGET_NAME'])
+    
+    # Chunk each healpixel into a smaller set of healpixels, for
+    # parallelization.
+    if nside >= nside_chunk:
+        log.warning('Nside must be <= nside_chunk.')
+        nside_chunk = nside
+        
+    areaperpixel = hp.nside2pixarea(nside, degrees=True)
+    areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
+
+    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
+    log.info('Dividing each nside={} healpixel ({:.2f} deg2) into {} nside={} healpixel(s) ({:.2f} deg2).'.format(
+        nside, areaperpixel, nchunk, nside_chunk, areaperchunk))
+
+    # Assign sources to healpix chunks.
+    #ntarget = len(data['RA'])
+    healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
+
+    density_factor = data.get('DENSITY_FACTOR')
+
+    indxperchunk, ntargperchunk = list(), list()
+    for pixchunk in set(healpix_chunk):
+
+        # Subsample the targets on this mini healpixel.
+        allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+
+        ntargthispix = np.ceil( len(allindxthispix) * density_factor ).astype('int')
+        indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
+
+        indxperchunk.append(indxthispix)
+        ntargperchunk.append(ntargthispix)
+
+        #print(pixchunk, ntargthispix, ntargthispix / areaperchunk)
+
+        #if coeff:
+        #    # Number of targets in this chunk, based on the fluctuations model.
+        #    denschunk = density * 10**( np.polyval(coeff[:2], data['EBV'][indx]) - np.polyval(coeff[:2], 0) +
+        #                                rand.normal(scale=coeff[2]) )            # [ntarget/deg2]
+        #    ntarg = np.rint( np.median(denschunk) * areaperchunk ).astype('int') # [ntarget]
+        #    ntargetperchunk.append(ntarg)
+        #else:
+        #    # Divide the targets evenly among chunks.
+        #    ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
+
+    ntargperchunk = np.array(ntargperchunk)
+
+    return indxperchunk, ntargperchunk, areaperpixel
+
+def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
+                nproc=1, sky=False):
+    """Generate spectra (in parallel) for a set of targets.
+
+    Parameters
+    ----------
+    data : :class:`dict`
+        Data on the input mock targets (to be documented).
+    MakeMock : :class:`desitarget.mock.mockmaker` object
+        Object to assign spectra to each target class.
+    log : :class:`desiutil.logger`
+       Logger object.
+    nside : :class:`int`
+        Healpix resolution corresponding to healpixels.
+    nside_chunk : :class:`int`
+        Healpix resolution for chunking the sample to avoid memory problems.
+    seed: :class:`int`, optional
+        Seed for the random number generator.  Defaults to None.
+    nproc : :class:`int`, optional
+        Number of parallel processes to use.  Defaults to 1.
+    sky : :class:`bool`
+        Processing sky targets (which are a special case).  Defaults to False.
+
+    Returns
+    -------
+    targets : :class:`astropy.table.Table`
+        Target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table.
+    trueflux : :class:`numpy.ndarray`
+        Corresponding noiseless spectra.
+
+    """
+    from time import time
+    from desitarget.internal import sharedmem
+    
+    # Parallelize by chunking the sample into smaller healpixels and
+    # determine the number of targets per chunk.
+    indxperchunk, ntargperchunk, area = density_fluctuations(
+        data, log, nside=nside, nside_chunk=nside_chunk, seed=seed)
+
+    maxiter = data.get('MAXITER')
+
+    nchunk = len(indxperchunk)
+    nalltarget = np.sum(ntargperchunk)
+    log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
+        nalltarget, data['TARGET_NAME'], nalltarget / area))
+
+    rand = np.random.RandomState(seed)
+    chunkseeds = rand.randint(2**31, size=nchunk)
+
+    # Set up the multiprocessing.
+    specargs = list()
+    for indx, ntarg, chunkseed in zip( indxperchunk, ntargperchunk, chunkseeds ):
+        if len(indx) > 0:
+            specargs.append( (data, indx, MakeMock, chunkseed, log, ntarg, maxiter) )
+
+    nn = np.zeros((), dtype='i8')
+    t0 = time()
+    def _update_spectra_status(result):
+        """Status update."""
+        if nn % 2 == 0 and nn > 0:
+            rate = (time() - t0) / nn
+            log.debug('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
+        nn[...] += 1    # in-place modification
+        return result
+    
+    if nproc > 1:
+        pool = sharedmem.MapReduce(np=nproc)
+        with pool:
+            results = pool.map(_get_spectra_onepixel, specargs,
                                reduce=_update_spectra_status)
-        else:
-            out = list()
-            for ii in range(len(unique_bricks)):
-                out.append( _update_spectra_status( _get_spectra_onebrick(specargs[ii]) ) )
+    else:
+        results = list()
+        for args in specargs:
+            results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
+    ttime = time() - t0
 
-        del source_data # memory clean-up
+    # Unpack the results and return; note that sky targets are a special case.
+    results = list(zip(*results))
+    targets = vstack(results[0])
+    truth = vstack(results[1])
 
-        # Unpack the results removing any possible bricks without targets.
-        out = list(zip(*out))
-
-        # SKY are a special case of targets without truth or trueflux.
-        targets = vstack(out[0])
-        truth = vstack(out[1])
-        if target_name.upper() != 'SKY':
-            trueflux = np.concatenate(out[2])
+    if sky:
+        trueflux = []
+    else:
+        trueflux = np.concatenate(results[2])
         
-            keep = np.where(targets['DESI_TARGET'] != 0)[0]
-            if len(keep) == 0:
+    log.info('Done: generated spectra for {} {} targets ({:.2f} / deg2).'.format(
+        len(targets), data['TARGET_NAME'], len(targets) / area))
+
+    log.info('Total time for {}s = {:.3f} minutes ({:.3f} cpu minutes/deg2).'.format(
+        data['TARGET_NAME'], ttime / 60, (ttime*nproc) / 60 / area ))
+
+    return targets, truth, trueflux
+
+def targets_truth(params, healpixels=None, nside=None, output_dir='.',
+                  seed=None, nproc=1, nside_chunk=128, verbose=False):
+    """Generate truth and targets catalogs, and noiseless spectra.
+
+    Parameters
+    ----------
+    params : :class:`dict`
+        Source parameters.
+    healpixels : :class:`numpy.ndarray` or :class:`int`
+        Restrict the sample of mock targets analyzed to those lying inside
+        this set (array) of healpix pixels.
+    nside : :class:`int`
+        Healpix resolution corresponding to healpixels.
+    output_dir : :class:`str`, optional
+        Output directory.    Defaults to '.' (current directory).
+    seed : :class:`int`
+        Seed for the random number generation.  Defaults to None.
+    nproc : :class:`int`, optional
+        Number of parallel processes to use.  Defaults to 1 (i.e., no
+        multiprocessing).
+    nside_chunk : :class:`int`, optional
+        Healpix resolution for chunking the sample to avoid memory problems.
+        (NB: nside_chunk must be <= nside).  Defaults to 128.
+    verbose : :class:`bool`, optional
+        Be verbose. Defaults to False.
+
+    Returns
+    -------
+    Files 'targets.fits', 'truth.fits', 'sky.fits', 'standards-dark.fits', and
+    'standards-bright.fits' written to output_dir for the given list of
+    healpixels.
+
+    """
+    log, healpixseeds = initialize_targets_truth(
+        params, verbose=verbose, seed=seed, nside=nside,
+        output_dir=output_dir, healpixels=healpixels)
+
+    # Loop over each source / object type.
+    for healpix, healseed in zip(healpixels, healpixseeds):
+        alltargets = list()
+        alltruth = list()
+        alltrueflux = list()
+        allskytargets = list()
+        allskytruth = list()
+
+        for source_name in sorted(params['sources'].keys()):
+            targets, truth, skytargets, skytruth = [], [], [], []
+
+            # Read the data and ithere are no targets, keep going.
+            log.info('Reading source : {}'.format(source_name))
+            data, MakeMock = read_mock(params['sources'][source_name],
+                                       log, dust_dir=params['dust_dir'],
+                                       seed=healseed, healpixels=healpix,
+                                       nside=nside, nside_chunk=nside_chunk)
+            if not bool(data):
                 continue
 
-            targets = targets[keep]
-            truth = truth[keep]
-            trueflux = trueflux[keep, :]
-        del out
-
-        # Finally downsample based on the desired number density.
-        if 'density' in params['sources'][source_name].keys():
-            density = params['sources'][source_name]['density']
-            if target_name != 'QSO':
-                log.info('Downsampling {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                
-            if target_name == 'QSO':
-                # Distinguish between the Lyman-alpha and tracer QSOs
-                if 'LYA' in params['sources'][source_name].keys():
-                    density_lya = params['sources'][source_name]['LYA']['density']
-                    zcut = params['sources'][source_name]['LYA']['zcut']
-                    tracer = truth['TRUEZ'] < zcut
-                    lya = truth['TRUEZ'] >= zcut
-                    if len(tracer) > 0:
-                        log.info('Downsampling tracer {}s to desired target density of {} targets/deg2.'.format(target_name, density))
-                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
-                                                 density=density, subset=tracer)
-                        print()
-                    if len(lya) > 0:
-                        log.info('Downsampling Lya {}s to desired target density of {} targets/deg2.'.format(target_name, density_lya))
-                        Selection.density_select(targets, truth, source_name=source_name, target_name=target_name,
-                                                 density=density_lya, subset=lya)
-
-                else:
-                    Selection.density_select(targets, truth, source_name=source_name,
-                                             target_name=target_name, density=density)
-                    
-            else:
-                Selection.density_select(targets, truth, source_name=source_name,
-                                         target_name=target_name, density=density)            
-
-            keep = np.where(targets['DESI_TARGET'] != 0)[0]
-            #keep = np.where( np.any( ((targets['DESI_TARGET'] != 0), (truth['CONTAM_TARGET'] != 0)), axis=0) )[0]
-
-            if len(keep) == 0:
-                log.warning('All {} targets rejected!'.format(target_name))
-            else:
-                targets = targets[keep]
-                truth = truth[keep]
-                if target_name.upper() != 'SKY':
-                    trueflux = trueflux[keep, :]
-
-        #rewrite the target ID to be sure that it is unique in this brick
-        if len(targets):
-            new_pixel_ID = current_pixel_ID + len(targets)
-            targets['BRICK_OBJID'][:]= np.arange(current_pixel_ID,new_pixel_ID)
-            current_pixel_ID = new_pixel_ID
+            # Generate spectra using parallelization.
+            sky = source_name.upper() == 'SKY'
+            targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
+                                                   nside_chunk=nside_chunk, seed=healseed,
+                                                   nproc=nproc, sky=sky)
             
-        if target_name.upper() == 'SKY':
-            skytruth = truth.copy()
-            skytargets = targets.copy()
+            if sky:
+                allskytargets.append(targets)
+                allskytruth.append(truth)
+            else:
+                alltargets.append(targets)
+                alltruth.append(truth)
+                alltrueflux.append(trueflux)
+
+            # Contaminants here?
+
+        if len(alltargets) == 0 and len(allskytargets) == 0: # all done
+            continue
+
+        # Pack it all together and then add some final columns.
+        if len(alltargets) > 0:
+            targets = vstack(alltargets)
+            truth = vstack(alltruth)
+            trueflux = np.concatenate(alltrueflux)
         else:
-            alltargets.append(targets)
-            alltruth.append(truth)
-            alltrueflux.append(trueflux)
-        print()
+            targets = []
 
-    del brick_info # memory clean-up
+        if len(allskytargets) > 0:
+            skytargets = vstack(allskytargets)
+            skytruth = vstack(allskytruth)
+        else:
+            skytargets = []
 
-    # Consolidate across all the mocks.  Note that the code quits if alltargets
-    #is zero-length, even if skytargets is non-zero length. In other words, if
-    #the parameter file only contains SKY the code will (wrongly) quit anyway.
-    if len(alltargets) == 0:
-        log.info('No targets; all done.')
-        return
+        targets, truth, skytargets, skytruth = finish_catalog(
+            targets, truth, skytargets, skytruth, healpix,
+            nside, log, seed=healseed)
 
-    
-    targets = vstack(alltargets)
-    truth = vstack(alltruth)
-    trueflux = np.concatenate(alltrueflux)
-
-    # Finally downsample contaminants.  The way this is being done isn't ideal
-    # because in principle an object could be a contaminant in one target class
-    # (and be tossed) but be a contaminant for another target class and be kept.
-    # But I think this is mostly OK.
-    for source_name in sorted(params['sources'].keys()):
-        target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
+        # Finally, write the results to disk.
+        write_targets_truth(targets, truth, skytargets, skytruth,  
+                            healpix, nside, log, output_dir,
+                            seed=healseed)
         
-        if 'contam' in params['sources'][source_name].keys():
-            log.info('Downsampling {} contaminant(s) to desired target density.'.format(target_name))
-            contam = params['sources'][source_name]['contam']
-
-            Selection.contaminants_select(targets, truth, source_name=source_name,
-                                          target_name=target_name, contam=contam)
+def finish_catalog(targets, truth, skytargets, skytruth, healpix,
+                   nside, log, seed=None):
+    """Add brickid, brick_objid, targetid, and subpriority to target catalog.
+    
+    Parameters
+    ----------
+    targets : :class:`astropy.table.Table`
+        Final set of targets. 
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table for targets.
+    skytargets : :class:`astropy.table.Table`
+        Sky targets.
+    skytruth : :class:`astropy.table.Table`
+        Corresponding truth table for sky targets.
+    healpix : : :class:`int`
+        Healpixel number.
+    nside : :class:`int`
+        Nside corresponding to healpix.
+    log : :class:`desiutil.logger`
+       Logger object.
+    seed : :class:`int`, optional
+        Seed for the random number generation.  Defaults to None.
             
-            keep = np.where(targets['DESI_TARGET'] != 0)[0]
-            if len(keep) == 0:
-                log.warning('All {} contaminants rejected!'.format(target_name))
-            else:
-                targets = targets[keep]
-                truth = truth[keep]
-                trueflux = trueflux[keep, :]
+    Returns
+    -------
+    Updated versions of targets, truth, skytargets, and skytruth.
 
-    # Write out the fileid-->filename mapping.  This doesn't work right now.
-    #map_fileid_filename = fileid_filename(source_data_all, output_dir, log)
+    """
+    from desitarget.targets import encode_targetid
 
-    # Deprecated:  add mock shapes and fluxes from the real target catalog.
-    if realtargets is not None:
-        add_mock_shapes_and_fluxes(targets, realtargets, random_state=rand)
-
-    # Finally assign TARGETIDs and subpriorities.
-    ntarget = len(targets)
-    try:
-        nsky = len(skytargets)
-    except:
-        nsky = 0
-
-    #compute target healpixel number
-    targpix = radec2pix(nside, targets['RA'], targets['DEC'])
-    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targpix, mock=1)
-    truth['TARGETID'][:] = targetid
-    targets['TARGETID'][:] = targetid
-    del targetid
-
+    rand = np.random.RandomState(seed)
     
+    nobj = len(targets)
+    nsky = len(skytargets)
+    log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
+
+    objid = np.arange(nobj + nsky)
+    targetid = encode_targetid(objid=objid, brickid=healpix, mock=1)
+    subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
+
+    if nobj > 0:
+        targets['BRICKID'][:] = healpix
+        targets['BRICK_OBJID'][:] = objid[:nobj]
+        targets['TARGETID'][:] = targetid[:nobj]
+        targets['SUBPRIORITY'][:] = subpriority[:nobj]
+        truth['TARGETID'][:] = targetid[:nobj]
+
+    if nsky > 0:
+        skytargets['BRICKID'][:] = healpix
+        skytargets['BRICK_OBJID'][:] = objid[nobj:]
+        skytargets['TARGETID'][:] = targetid[nobj:]
+        skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
+        skytruth['TARGETID'][:] = targetid[nobj:]
+        
+    return targets, truth, skytargets, skytruth
+
+def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
+                        nside, log, output_dir, seed=None):
+    """Writes all the final catalogs to disk.
     
-    if nsky > 0:
-        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['TARGETID'][:] = encode_targetid(objid=skytargets['BRICK_OBJID'],
-                                                    brickid=skypix, mock=1, sky=1)
+    Parameters
+    ----------
+    targets : :class:`astropy.table.Table`
+        Final target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table for targets.
+    skytargets : :class:`astropy.table.Table`
+        Sky targets.
+    skytruth : :class:`astropy.table.Table`
+        Corresponding truth table for sky targets.
+    healpix : : :class:`int`
+        Healpixel number.
+    nside : :class:`int`
+        Nside corresponding to healpix.
+    log : :class:`desiutil.logger`
+       Logger object.
+    seed : :class:`int`, optional
+        Seed for the random number generation.  Defaults to None.
+    output_dir : :class:`str`
+        Output directory.
+            
+    Returns
+    -------
+    Files targets-{nside}-{healpix}.fits, truth-{nside}-{healpix}.fits,
+    sky-{nside}-{healpix}.fits, standards-bright-{nside}-{healpix}.fits, and
+    standards-dark-{nside}-{healpix}.fits are all written to disk.
 
-    subpriority = rand.uniform(0.0, 1.0, size=ntarget + nsky)
-    targets['SUBPRIORITY'][:] = subpriority[:ntarget]
-    if nsky > 0:
-        skytargets['SUBPRIORITY'][:] = subpriority[ntarget:ntarget+nsky]
-
-    # Write the final catalogs out by healpixel.
+    Raises
+    ------
+    ValueError
+        If there are duplicate targetid ids.
+    """
+    from astropy.io import fits
+    from desiutil import depend
+    from desispec.io.util import fitsheader, write_bintable
+    import desitarget.mock.io as mockio
+    from ..targetmask import desi_mask
+    
+    nobj = len(targets)
+    nsky = len(skytargets)
+    
     if seed is None:
         seed1 = 'None'
     else:
@@ -866,91 +679,60 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
     targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
-    targets['HPXPIXEL'][:] = targpix
+    outdir = mockio.get_healpix_dir(nside, healpix, basedir=output_dir)
+    os.makedirs(outdir, exist_ok=True)
 
+    # Write out the sky catalog.
+    skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
     if nsky > 0:
-        skypix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['HPXPIXEL'][:] = skypix
-
-    for pixnum in healpixels:
-        # healsuffix = '{}-{}.fits'.format(nside, pixnum)
-        outdir = mockio.get_healpix_dir(nside, pixnum, basedir=output_dir)
-        os.makedirs(outdir, exist_ok=True)
-
-        # Write out the sky catalog.
-        if nsky > 0:
-            isky = pixnum == skypix
-            if np.count_nonzero(isky) > 0:
-                # skyfile = os.path.join(output_dir, 'sky-{}.fits'.format(healsuffix))
-                skyfile = mockio.findfile('sky', nside, pixnum, basedir=output_dir)
-            
-                log.info('Writing {} SKY targets to {}'.format(np.sum(isky), skyfile))
-                write_bintable(skyfile+'.tmp', skytargets[isky], extname='SKY',
+        log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
+        write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
                                header=targetshdr, clobber=True)
-                os.rename(skyfile+'.tmp', skyfile)
+        os.rename(skyfile+'.tmp', skyfile)
+    else:
+        log.info('No sky targets generated; {} not written.'.format(skyfile))
+        log.info('  Sky file {} not written.'.format(skyfile))
 
-        # Select targets in this pixel
-        inpixel     = (pixnum == targpix)
-        npixtargets = np.count_nonzero(inpixel)
-
-        # Write out the dark- and bright-time standard stars.
-        for stdsuffix in ('dark', 'bright'):
-            # Standards taken from targets
-
-            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, pixnum, basedir=output_dir)
-
-            # Select all targets with each of the standard star types and
-            # matching obsconditions
-            if stdsuffix == 'dark':
-                dark_std_mask = desi_mask.STD_FSTAR | desi_mask.STD_WD
-                istd = inpixel & ((targets['DESI_TARGET'] & dark_std_mask) != 0)
-            elif stdsuffix == 'bright':
-                bright_std_mask = desi_mask.STD_BRIGHT | desi_mask.STD_WD
-                istd = inpixel & ((targets['DESI_TARGET'] & bright_std_mask) != 0)
-            else:
-                raise RuntimeError('unknown stdsuffix {}'.format(stdsuffix))
+    if nobj > 0:
+    # Write out the dark- and bright-time standard stars.
+        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
+            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix, basedir=output_dir)
+            istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
+                   (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
 
             if np.count_nonzero(istd) > 0:
-                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, pixnum, stdfile))
+                log.info('Writing {} {} standards to {}'.format(np.sum(istd), stdsuffix.upper(), stdfile))
                 write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
                                header=targetshdr, clobber=True)
                 os.rename(stdfile+'.tmp', stdfile)
             else:
-                log.error('No {} standards on healpix {}, {} not written.'.format(stdsuffix, pixnum, stdfile))
+                log.info('No {} standards stars selected.'.format(stdsuffix))
+                log.info('  Standard star file {} not written.'.format(stdfile))
 
         # Finally write out the rest of the targets.
-        targetsfile = mockio.findfile('targets', nside, pixnum, basedir=output_dir)
-        truthfile = mockio.findfile('truth', nside, pixnum, basedir=output_dir)
+        targetsfile = mockio.findfile('targets', nside, healpix, basedir=output_dir)
+        truthfile = mockio.findfile('truth', nside, healpix, basedir=output_dir)
+   
+        log.info('Writing {} targets to:'.format(nobj))
+        log.info('  {}'.format(targetsfile))
+        targets.meta['EXTNAME'] = 'TARGETS'
+        write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
+                          header=targetshdr, clobber=True)
+        os.rename(targetsfile+'.tmp', targetsfile)
 
-        if npixtargets > 0:
-            log.info('Writing {} targets to {}'.format(npixtargets, targetsfile))
-            targets.meta['EXTNAME'] = 'TARGETS'
-            write_bintable(targetsfile+'.tmp', targets[inpixel], extname='TARGETS',
-                           header=targetshdr, clobber=True)
-            os.rename(targetsfile+'.tmp', targetsfile)
+        log.info('  {}'.format(truthfile))
+        hx = fits.HDUList()
+        hdu = fits.convenience.table_to_hdu(truth)
+        hdu.header['EXTNAME'] = 'TRUTH'
+        hx.append(hdu)
 
-            log.info('Writing {}'.format(truthfile))
-            hx = fits.HDUList()
-            hdu = fits.convenience.table_to_hdu(truth[inpixel])
-            hdu.header['EXTNAME'] = 'TRUTH'
-            hx.append(hdu)
+        try:
+            hx.writeto(truthfile+'.tmp', overwrite=True)
+        except:
+            hx.writeto(truthfile+'.tmp', clobber=True)
+        os.rename(truthfile+'.tmp', truthfile)
 
-            hdu = fits.ImageHDU(Spectra.wave.astype(np.float32), name='WAVE', header=truthhdr)
-            hdu.header['BUNIT'] = 'Angstrom'
-            hdu.header['AIRORVAC'] = 'vac'
-            hx.append(hdu)
-
-            hdu = fits.ImageHDU(trueflux[inpixel, :].astype(np.float32), name='FLUX')
-            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
-            hx.append(hdu)
-
-            try:
-                hx.writeto(truthfile+'.tmp', overwrite=True)
-            except:
-                hx.writeto(truthfile+'.tmp', clobber=True)
-            os.rename(truthfile+'.tmp', truthfile)
-
-def merge_file_tables(fileglob, ext, outfile=None, comm=None):
+def _merge_file_tables(fileglob, ext, outfile=None, comm=None):
     '''
     parallel merge tables from individual files into an output file
 
@@ -964,6 +746,8 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
     '''
     import fitsio
     import glob
+    from desiutil.log import get_logger
+    
     if comm is not None:
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -1000,7 +784,9 @@ def merge_file_tables(fileglob, ext, outfile=None, comm=None):
         
         # Find duplicates
         vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
-        assert len(vals) == len(data)
+        if len(vals) != len(data):
+            log.warning('Non-unique TARGETIDs found!')
+            raise ValueError
         
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
@@ -1047,29 +833,31 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         todo = comm.bcast(todo, root=0)
 
     if todo['sky']:
-        merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
-                    outfile=outdir+'/sky.fits', comm=comm)
+        _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
+                           outfile=outdir+'/sky.fits', comm=comm)
 
     if todo['stddark']:
-        merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
-                    outfile=outdir+'/standards-dark.fits', comm=comm)
+        _merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
+                           outfile=outdir+'/standards-dark.fits', comm=comm)
 
     if todo['stdbright']:
-        merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
-                    outfile=outdir+'/standards-bright.fits', comm=comm)
+        _merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
+                           outfile=outdir+'/standards-bright.fits', comm=comm)
 
     if todo['targets']:
-        merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
-                    outfile=outdir+'/targets.fits', comm=comm)
+        _merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
+                           outfile=outdir+'/targets.fits', comm=comm)
 
     if todo['truth']:
-        merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
-                    outfile=outdir+'/truth.fits', comm=comm)
+        _merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
+                           outfile=outdir+'/truth.fits', comm=comm)
 
     #- Make initial merged target list (MTL) using rank 0
     if rank == 0 and todo['mtl']:
         from desitarget import mtl
+        from desiutil.log import get_logger
         log = get_logger()
+        
         out_mtl = os.path.join(outdir, 'mtl.fits')
         log.info('Generating merged target list {}'.format(out_mtl))
         targets = fitsio.read(outdir+'/targets.fits')
@@ -1080,690 +868,4 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         os.rename(tmpout, out_mtl)
 
 
-def initialize(params, verbose=False, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None):
-    """Initializes variables to prepare mock target generation.
 
-    Args:
-        params : dict
-            Source parameters.
-        seed: int
-            Seed for the random number generator
-        output_dir : str
-            Output directory (default '.').
-        nproc : int
-            Number of parallel processes to use (default 1).
-        nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None).
-
-
-    Output:
-        log: logger object.
-        rand: numpy.random.RandomState
-
-        seed: int
-            Seed used for the random number generator.
-
-        magnitudes: desitarget.mock.Magnitudes
-            This object contains the information to assign magnitudes to each kind of targets.
-        selection: desitarget.mock.Selection
-            This object contains the information from the configuration file used to start the construction of the mock target files.
-        output_dir: str
-            Directory where the outputs are written.
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None).
-            If the input is None, the output are the pixels on the whole sky. 
-    """
-   
-    from desitarget.mock.spectra import MockMagnitudes
-    from desitarget.mock.selection import SelectTargets
-    import healpy as hp
-
-    # Initialize logger
-    if verbose:
-        log = get_logger(DEBUG)
-    else:
-        log = get_logger()
-    
-    if params is None:
-        log.fatal('Required params input not given!')
-        raise ValueError
-
-    # Check for required parameters in the input 'params' dict
-    # Initialize the random seed
-    rand = np.random.RandomState(seed)
-
-    # Create the output directories
-    if os.path.exists(output_dir):
-        if os.listdir(output_dir):
-            log.warning('Output directory {} is not empty.'.format(output_dir))
-    else:
-        log.info('Creating directory {}'.format(output_dir))
-        os.makedirs(output_dir)    
-    log.info('Writing to output directory {}'.format(output_dir))
-      
-        
-    # Default set of healpixels is the whole sky (yikes!)
-    if healpixels is None:
-        healpixels = np.arange(hp.nside2npix(nside))
-
-    areaperpix = hp.nside2pixarea(nside, degrees=True)
-    skyarea = len(healpixels) * areaperpix
-    log.info('Grouping into {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
-        len(healpixels), nside, areaperpix, skyarea))
-
-    # Initialize the Classes used to assign spectra and select targets.  Note:
-    # The default wavelength array gets initialized here, too.
-    log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
-    magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
-    selection = SelectTargets(logger=log, rand=rand)
-    
-    print()
-    current_pixel_ID = 0
-    # Loop over each source / object type.
-    alltargets = list()
-    alltruth = list()
-    
-    return log, rand, magnitudes, selection, healpixels
-
-def read_catalog(source_name, params, log, rand=None, nproc=1, healpixels=None, nside=16, in_desi=True):
-    """Reads a mock file.
-    
-    Args:
-        source_name: string
-            Name of the target being processesed, i.e. "QSO"
-        params: dictionary
-            Gathers the information of the input configuration file.
-        log: logger object
-        nproc: int
-            Number of processors to be used for reading.
-        rand: numpy.random.RandomState
-        healpixels: numpy.array
-            List of healpixels to process. The mocks are cut to match these pixels.
-        nside: int
-            nside for healpix
-        in_desi: boolean
-            Decides whether the targets will be trimmed to be inside the DESI footprint.
-        Magnitudes: desitarget.mock.Magnitudes
-            This object contains the information to assign magnitudes to each kind of targets.
-        source_data: dictionary
-            This corresponds to the "raw" data coming directly from the mock file.
-        mockformat: string
-            Format of the mock files used to read the data.
-            
-    Output:
-        source_data: dictionary
-            Raw information from the input mock file.
-
-    """
-    import desimodel.io
-    import desimodel.footprint
-    
-    # Read the mock catalog.
-    target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
-    mockformat = params['sources'][source_name]['format']
-
-    mock_dir_name = params['sources'][source_name]['mock_dir_name']
-    if 'magcut' in params['sources'][source_name].keys():
-        magcut = params['sources'][source_name]['magcut']
-    else:
-        magcut = None
-
-    log.info('Source: {}, target: {}, format: {}'.format(source_name, target_name.upper(), mockformat))
-    log.info('Reading {}'.format(mock_dir_name))
-
-    mockread_function = getattr(mockio, 'read_{}'.format(mockformat))
-    if 'LYA' in params['sources'][source_name].keys():
-        lya = params['sources'][source_name]['LYA']
-    else:
-        lya = None
-    source_data = mockread_function(mock_dir_name, target_name, rand=rand,
-                                    magcut=magcut, nproc=nproc, lya=lya,
-                                    healpixels=healpixels, nside=nside)
-
-    #returns only the points that are in DESI footprint
-    if bool(source_data):
-        if in_desi:
-            n_obj = len(source_data['RA'])
-            tiles = desimodel.io.load_tiles()
-            if n_obj>0:
-                indesi = desimodel.footprint.is_point_in_desi(tiles, source_data['RA'], source_data['DEC'])
-                for k in source_data.keys():
-                    if (n_obj == len(source_data[k])) and (type(source_data[k]) is np.ndarray):
-                        source_data[k] = source_data[k][indesi]
-    return source_data
-
-def get_magnitudes_onepixel(Magnitudes, source_data, target_name, mockformat, 
-                            rand, log, nside, healpix_id, dust_dir):
-    """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
-    
-    Args:
-        Magnitudes: desitarget.mock.Magnitudes
-            This object contains the information to assign magnitudes to each kind of targets.
-        source_data: dictionary
-            This corresponds to the "raw" data coming directly from the mock file.
-        target_name: string
-            Name of the target being processesed, i.e. "QSO"
-        mockformat: string
-            Format of the mock files used to read the data.
-        rand: numpy.random.RandomState
-        log: logger object
-        nside: int
-            nside for healpix
-        healpix_id: int
-            ID of current healpix
-        seed: int
-            Seed used for the random number generator
-        dust_dir: str
-            Directory where the E(B-V) information is stored.
-            
-    Output:
-        targets: astropy.table
-            Targets on the pixel healpix_id.
-        truth: astropy.table
-            Corresponding Truth to Targets
-    """
-    from desimodel.footprint import radec2pix
-
-    obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
-    onpix = np.where(obj_pix_id == healpix_id)[0]
-    
-    log.info('{} objects of type {} in healpix_id {}'.format(np.count_nonzero(onpix), target_name, healpix_id))
-    
-    nobj = len(onpix)
-
-    # Initialize the output targets and truth catalogs and populate them with
-    # the quantities of interest.
-    targets = empty_targets_table(nobj)
-    truth = empty_truth_table(nobj)
-
-    for key in ('RA', 'DEC', 'BRICKNAME'):
-        targets[key][:] = source_data[key][onpix]
-
-    # Assign unique OBJID values and reddenings. 
-    targets['HPXPIXEL'][:] = np.arange(nobj)
-
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    ebv = sfdmap.ebv(targets['RA'], targets['DEC'], mapdir=dust_dir)
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        targets['MW_TRANSMISSION_{}'.format(band)][:] = 10**(-0.4 * extcoeff[band] * ebv)
-
-    # Hack! Assume a constant 5-sigma depth of g=24.7, r=23.9, and z=23.0 for
-    # all bricks: http://legacysurvey.org/dr3/description and a constant depth
-    # (W1=22.3-->1.2 nanomaggies, W2=23.8-->0.3 nanomaggies) in the WISE bands
-    # for now.
-    onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
-                10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
-    
-    # Add shapes and sizes.
-    if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
-        for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2'):
-            targets[key][:] = source_data[key][onpix]
-
-    for key, source_key in zip( ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'],
-                                ['MOCKID', 'SEED', 'TEMPLATETYPE', 'TEMPLATESUBTYPE', 'TRUESPECTYPE'] ):
-        if isinstance(source_data[source_key], np.ndarray):
-            truth[key][:] = source_data[source_key][onpix]
-        else:
-            truth[key][:] = np.repeat(source_data[source_key], nobj)
-
-    if target_name.lower() == 'sky':
-        return [targets, truth]
-            
-    truth['TRUEZ'][:] = source_data['Z'][onpix]
-
-    # Assign the magnitudes
-    meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=mockformat)
-
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
-                'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-        truth[key][:] = meta[key]
-
-    for band, fluxkey in enumerate( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-        targets[fluxkey][:] = truth[fluxkey][:] #+ rand.normal(scale=onesigma[band], size=nobj)
-
-    return [targets, truth]
-
-def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir):
-    """Applies target selection functions to a set of targets and truth tables.
-    
-    Args:
-        Selection: desitarget.mock.Selection 
-            This object contains the information from the configuration file
-            used to start the construction of the mock target files.
-        target_name: string
-            Name of the target being processesed, i.e. "QSO"
-        targets: astropy.table
-            Initial set of targets coming from the input files. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        nside: int
-            nside for healpix
-        healpix_id: int
-            ID of current healpix
-        seed: int
-            Seed used for the random number generator
-        rand: numpy.random.RandomState
-        log: logger object
-        output_dir: str
-            Directory where the outputs are written.
-            
-    Output:
-        targets: astropy.table
-            Final set of targets after target selection. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-
-    """
-    
-    selection_function = '{}_select'.format(target_name.lower())
-    select_targets_function = getattr(Selection, selection_function)
-
-    select_targets_function(targets, truth, boss_std=1)
-    keep = np.where(targets['DESI_TARGET'] != 0)[0]
-
-    targets = targets[keep]
-    truth = truth[keep]
-    if len(keep) == 0:
-        log.warning('All {} targets rejected!'.format(target_name))
-    else:
-        log.warning('{} targets accepted out of a total of {}'.format(len(keep), len(targets)))
-    
-    #Make a final check. Some of the TARGET flags must have been selected. 
-    no_target_class = np.ones(len(targets), dtype=bool)
-    if 'DESI_TARGET' in targets.dtype.names:
-        no_target_class &=  targets['DESI_TARGET'] == 0
-    if 'BGS_TARGET' in targets.dtype.names:
-        no_target_class &= targets['BGS_TARGET']  == 0
-    if 'MWS_TARGET' in targets.dtype.names:
-        no_target_class &= targets['MWS_TARGET']  == 0
-
-    n_no_target_class = np.sum(no_target_class)
-    if n_no_target_class > 0:
-        raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
-    
-    return targets, truth
-
-def estimate_number_density(ra, dec):
-    """Estimates the number density of points with positions RA, DEC.
-    
-    Args:
-        ra: numpy.array
-            RA positions in degrees.
-        dec: numpy.array
-            DEC positions in degrees.
-            
-    Output: 
-        average number density: float
-    """
-    import healpy as hp
-    if len(ra) != len(dec):
-        raise ValueError('Arrays ra,dec must have same size.')
-    
-    n_tot = len(ra)
-    nside = 64 # this produces a bin area close to 1 deg^2
-    bin_area = hp.nside2pixarea(nside, degrees=True)
-    pixels = hp.ang2pix(nside, np.radians(90 - dec), np.radians(ra), False)
-    counts = np.bincount(pixels)
-    if  n_tot == 0:
-        return 0.0
-    else:
-        # This is a weighted density that does not take into account empty healpixels
-        return np.sum(counts*counts)/np.sum(counts)/bin_area
-
-def downsample_pixel(density, zcut, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir, contam=False):
-    """Reduces the number of targets to match a desired number density.
-    
-    Args:
-        density: np.array
-            Array of number densities desired in different redshift intervals. Units of targets/deg^2
-        zcut: np.array
-            Array defining the redshift intervals to set the desired number densities.
-        target_name: string
-            Name of the target being processesed, i.e. "QSO"
-        targets: astropy.table
-            Final set of Targets. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        nside: int
-            nside for healpix
-        healpix_id: int
-            ID of current healpix
-        seed: int
-            Seed used for the random number generator
-        rand: numpy.random.RandomState
-        log: logger object
-        output_dir: str
-            Directory where the outputs are written.
-        contam: bool
-            If True the subsampling is only applied to contaminants. If False it is applied only to noncontaminated targets.
-    Output:
-        Updated versions of the tables:
-            targets
-            truth.
-            
-    Example:
-        If density = [300,400] and zcut=[0.0,2.0, 3.0] the first number density cap of 300
-        will be applied to all targets with redshifts 0.0 < z < 2.0, while the second cap
-        of 400 will be applied to all targets with redshifts 2.0 < z < 3.0
-    """
-    import healpy as hp
-    
-    n_cuts = len(density)
-    n_obj = len(targets)
-    
-    
-        
-    r = rand.uniform(0.0, 1.0, size=n_obj)
-    keep = r <= 1.0
-    
-    if contam:
-        good_targets = (truth['CONTAM_TARGET'] & contam_mask.mask(target_name+'_CONTAM')) !=0
-    else:
-        good_targets = (truth['TEMPLATETYPE']==target_name) & (truth['CONTAM_TARGET']==0)
-        
-    if contam:
-        log.info('Downsampling {} contaminants'.format(target_name))
-    else:
-        log.info('Downsampling pure {} targets'.format(target_name))
-        
-    for i in range(n_cuts):
-        in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1]) & (good_targets)
-        input_density = estimate_number_density(targets['RA'][in_z], targets['DEC'][in_z])
-        if density[i] < input_density:
-            frac_keep = density[i]/input_density
-            keep[in_z] = (r[in_z]<frac_keep)
-            log.info('Downsampling for {}. Going from {} to {} obs/deg^2'.format(target_name, input_density, density[i]))
-        else:
-            log.info('Cannot go from {} to {} obs/deg^2 for object {}'.format(input_density, density[i], target_name))
-            
-    targets = targets[keep]
-    truth = truth[keep]
-    return targets, truth
-
-    
-def finish_catalog(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
-    """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
-    
-    Args:
-        targets: astropy.table
-            Final set of Targets. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        skytargets: astropy.table
-            Sky positions
-        skytruth: astropy.table
-            Corresponding Truth to Sky
-        nside: int
-            nside for healpix
-        healpix_id: int
-            ID of current healpix
-        seed: int
-            Seed used for the random number generator
-        rand: numpy.random.RandomState
-        log: logger object
-        output_dir: str
-            Directory where the outputs are written.
-            
-    Output:
-        Updated versions of: targets, truth, skytargets, skytruth
-    """
-    from desimodel.footprint import radec2pix
-
-    n_obj = len(targets)
-    n_sky = len(skytargets)
-    log.info('Total number of targets and sky in pixel {}: {} {}'.format(healpix_id, n_obj, n_sky))
-    objid = np.arange(n_obj + n_sky)
-    
-    if n_obj > 0:
-        targetid = encode_targetid(objid=objid, brickid=healpix_id*np.ones(n_obj+n_sky, dtype=int), mock=1)
-        subpriority = rand.uniform(0.0, 1.0, size=n_obj+n_sky)
-
-        truth['TARGETID'][:] = targetid[:n_obj]
-        targets['TARGETID'][:] = targetid[:n_obj]
-        targets['SUBPRIORITY'][:] = subpriority[:n_obj]
-    
-    if n_sky > 0:
-        skytargets['TARGETID'][:] = targetid[n_obj:]
-        skytargets['SUBPRIORITY'][:] = subpriority[n_obj:]
-        
-    if n_obj > 0:
-        targpix = radec2pix(nside, targets['RA'], targets['DEC'])
-        targets['HPXPIXEL'][:] = targpix
-
-    if n_sky > 0:
-        targpix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
-        skytargets['HPXPIXEL'][:] = targpix
-    
-    return targets, truth, skytargets, skytruth
-
-def write_to_disk(targets, truth, skytargets, skytruth, nside, healpix_id, seed, rand, log, output_dir):
-    """Writes targets to disk.
-    
-    Args:
-        targets: astropy.table
-            Final set of Targets. 
-        truth: astropy.table
-            Corresponding Truth to Targets
-        skytargets: astropy.table
-            Sky positions
-        skytruth: astropy.table
-            Corresponding Truth to Sky
-        nside: int
-            nside for healpix
-        healpix_id: int
-            ID of current healpix
-        seed: int
-            Seed used for the random number generator
-        rand: numpy.random.RandomState
-        log: logger object
-        output_dir: str
-            Directory where the outputs are written.
-            
-    Output:
-        None. 
-        Files "targets", "truth", "sky", "standards" written to disk.
-    """
-    from desispec.io.util import fitsheader, write_bintable
-    from desiutil import depend
-    from astropy.io import fits
-    
-    
-    n_obj = len(targets)
-    n_sky = len(skytargets)
-    
-    # Write the final catalogs
-    if seed is None:
-        seed1 = 'None'
-    else:
-        seed1 = seed
-    truthhdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed')
-        ))
-
-    targetshdr = fitsheader(dict(
-        SEED = (seed1, 'initial random seed')
-        ))
-    targetshdr['HPXNSIDE'] = (nside, 'HEALPix nside')
-    targetshdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
-
-    outdir = mockio.get_healpix_dir(nside, healpix_id, basedir=output_dir)
-    os.makedirs(outdir, exist_ok=True)
-
-    # Write out the sky catalog.
-    if n_sky > 0:
-        skyfile = mockio.findfile('sky', nside, healpix_id, basedir=output_dir)
-        log.info('Writing {} SKY targets to {}'.format(n_sky, skyfile))
-        write_bintable(skyfile+'.tmp', skytargets, extname='SKY',
-                               header=targetshdr, clobber=True)
-        os.rename(skyfile+'.tmp', skyfile)
-
-    if n_obj > 0:
-    # Write out the dark- and bright-time standard stars.
-        for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
-            stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix_id, basedir=output_dir)
-            istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
-                   (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
-
-            if np.count_nonzero(istd) > 0:
-                log.info('Writing {} {} standards on healpix {} to {}'.format(np.sum(istd), stdsuffix, healpix_id, stdfile))
-                write_bintable(stdfile+'.tmp', targets[istd], extname='STD',
-                               header=targetshdr, clobber=True)
-                os.rename(stdfile+'.tmp', stdfile)
-            else:
-                log.info('No {} standards on healpix {}, {} not written.'.format(stdsuffix, healpix_id, stdfile))
-
-        # Finally write out the rest of the targets.
-        targetsfile = mockio.findfile('targets', nside, healpix_id, basedir=output_dir)
-        truthfile = mockio.findfile('truth', nside, healpix_id, basedir=output_dir)
-
-   
-        log.info('Writing {} targets to {}'.format(n_obj, targetsfile))
-        targets.meta['EXTNAME'] = 'TARGETS'
-        write_bintable(targetsfile+'.tmp', targets, extname='TARGETS',
-                          header=targetshdr, clobber=True)
-        os.rename(targetsfile+'.tmp', targetsfile)
-
-        log.info('Writing {}'.format(truthfile))
-        hx = fits.HDUList()
-        hdu = fits.convenience.table_to_hdu(truth)
-        hdu.header['EXTNAME'] = 'TRUTH'
-        hx.append(hdu)
-
-        try:
-            hx.writeto(truthfile+'.tmp', overwrite=True)
-        except:
-            hx.writeto(truthfile+'.tmp', clobber=True)
-        os.rename(truthfile+'.tmp', truthfile)
-
-
-def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16, healpixels=None, verbose=False, dust_dir="./"):
-    """Generate a catalog of targets and the corresponding truth catalog.
-    
-    Inputs:
-        params: dictionary
-            Input parameters read from the configuration files.
-        seed: int
-            Seed for the random number generation.
-        output_dir : str
-            Output directory (default '.').
-        nproc : int
-            Number of parallel processes to use (default 1).
-        nside : int
-            Healpix resolution corresponding to healpixels (default 16).
-        healpixels : numpy.ndarray or int
-            Restrict the sample of mock targets analyzed to those lying inside
-            this set (array) of healpix pixels. Default (None)
-        verbose: bool
-            Degree of verbosity.
-            
-    Outputs:
-        Files "targets", "truth", "sky", "standards" written to disk for a list of healpixels.
-    """
-    log, rand, Magnitudes, Selection, healpixels = initialize(params, verbose = verbose, 
-                                       seed = seed, 
-                                       output_dir = output_dir, 
-                                       nproc = nproc, 
-                                       healpixels = healpixels)
-    
-    # Loop over each source / object type.
-   
-    
-    for healpix in healpixels:
-        alltargets = list()
-        alltruth = list()
-        allskytargets = list()
-        allskytruth = list()
-          
-        for source_name in sorted(params['sources'].keys()):
-            
-            #Read the data
-            mockformat = params['sources'][source_name]['format']
-            log.info('Reading  source : {}'.format(source_name))
-            source_data = read_catalog(source_name, params, log, 
-                                    rand=rand, nproc=nproc, healpixels=healpix, nside=nside)
-        
-            # If there are no sources, keep going.
-            if not bool(source_data):
-                continue
-                
-            #Initialize variables for density subsampling
-            if 'density' in params['sources'][source_name].keys():
-                density = [params['sources'][source_name]['density']]
-                zcut=[-1000,1000]
-            
-            # assign magnitudes for targets in that pixel
-            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, mockformat, rand, log, 
-                                        nside, healpix, dust_dir=params['dust_dir'])
-            
-            targets = pixel_results[0]
-            truth = pixel_results[1]
-            
-            # Make target selection and downsample number density if necessary. SKY is an special case.
-            if source_name.upper() == 'SKY':
-                if 'density' in params['sources'][source_name].keys():
-                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
-                allskytargets.append(targets)
-                allskytruth.append(truth)                    
-            else:
-                targets, truth = target_selection(Selection, source_name, targets, truth,
-                                                             nside, healpix, seed, rand, log, output_dir)
-                
-                # Downsample to a global number density if required
-                if 'density' in params['sources'][source_name].keys():
-                    if source_name == 'QSO':
-                        # Distinguish between the Lyman-alpha and tracer QSOs
-                        if 'LYA' in params['sources'][source_name].keys():
-                            density = [params['sources'][source_name]['density'], 
-                                      params['sources'][source_name]['LYA']['density']]
-                            zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
-                    
-                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                    nside, healpix, seed, rand, log, output_dir, contam=False)
-               
-                    
-                if len(targets)>0:
-                    alltargets.append(targets)
-                    alltruth.append(truth)
-               
-        if len(alltargets)==0 and len(allskytargets)==0:
-            continue
-        
-        #Merge all sources
-        if len(alltargets):
-            targets = vstack(alltargets)
-            truth = vstack(alltruth)
-            
-            # downsample contaminants for each class
-            for source_name in sorted(params['sources'].keys()):
-                if 'contam' in params['sources'][source_name].keys():
-                    # Initialize variables for density subsampling
-                    zcut=[-1000,1000]
-                    density = [params['sources'][source_name]['contam']['density']]
-                    targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
-                                                  nside, healpix, seed, rand, log, output_dir, contam=True)
-        else:
-            targets = []
-            truth = []
-        
- 
-                    
-        if len(allskytargets):
-            skytargets = vstack(allskytargets)
-            skytruth = vstack(allskytruth)
-        else:
-            skytargets = []
-            skytruth = []
-
-        #Add some final columns
-        targets, truth, skytargets, skytruth = finish_catalog(targets, truth, skytargets, skytruth,
-                                                              nside,healpix, seed, rand, log, output_dir)
-        #write the results
-        write_to_disk(targets, truth, skytargets, skytruth,  
-                          nside, healpix, seed, rand, log, output_dir)
-    return

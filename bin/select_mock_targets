@@ -12,7 +12,7 @@ import yaml
 import healpy as hp
 from astropy.table import Table
 
-from desitarget.mock.build import targets_truth, targets_truth_no_spectra
+from desitarget.mock.build import targets_truth
 from desiutil.log import get_logger, DEBUG
 import desimodel
 import desitarget.mock.io as mockio
@@ -25,14 +25,14 @@ parser.add_argument('-c', '--config', default='input.yaml')
 parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type=str, default='./')
 parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
 parser.add_argument('-n', '--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
-parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=64)
+parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=None)
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
-parser.add_argument('--realtargets', '-r', help='Path to real target catalog', type=str)
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
 parser.add_argument('--qa', action='store_true', help='Generate QA plots from the joined target and truth files in output_dir.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
-parser.add_argument('--no-spectra', action='store_true')
+parser.add_argument('--no-spectra', action='store_true', help='Do not generate spectra.')
+parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files.')
 
 args = parser.parse_args()
 
@@ -43,6 +43,10 @@ else:
 
 log.info('Starting select_mock_targets at {}'.format(time.asctime()))
 
+if args.nside is None:
+    log.warning('NSIDE is a required input.')
+    raise ValueError
+
 # Divide the DESI footprint into healpix pixels.
 if args.nside < 2:
     log.fatal('NSIDE = {} must be >=2'.format(args.nside))
@@ -51,7 +55,6 @@ if args.nside < 2:
 if args.tiles and args.healpixels:
     log.error('use --tiles or --healpixels but not both')
     sys.exit(1)
-
     
 if args.tiles is not None:
     if args.tiles.endswith('.ecsv'):
@@ -64,23 +67,18 @@ if args.tiles is not None:
 else:
     healpixels = np.array(args.healpixels)
 
-keep = list()
-for i, pixnum in enumerate(healpixels):
-    truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
-    if not os.path.exists(truthfile):
-        keep.append(i)
-
-log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
-healpixels = healpixels[keep]
-    
-# Optionally read the "real" target catalog.
-if args.realtargets is not None:
-    from astropy.io import fits
-    log.info('Loading real targets from {}'.format(args.realtargets))
-    realtargets = fits.getdata(args.realtargets, 1)
+if args.overwrite:
+    log.info('Processing {} pixel(s).'.format(len(healpixels)))
 else:
-    realtargets = None
+    keep = list()
+    for i, pixnum in enumerate(healpixels):
+        truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
+        if not os.path.exists(truthfile):
+            keep.append(i)
 
+    log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
+    healpixels = healpixels[keep]
+    
 if args.join:
     from desitarget.mock.build import join_targets_truth
     join_targets_truth(args.output_dir, nside=args.nside, healpixels=healpixels, verbose=args.verbose)
@@ -103,13 +101,13 @@ with open(args.config, 'r') as pfile:
 
 log.info('Calling targets_truth at {}'.format(time.asctime()))
 if args.no_spectra:
-    targets_truth_no_spectra(params, output_dir=args.output_dir,seed=args.seed,
+    from desitarget.mock.build import targets_truth_no_spectra
+    targets_truth_no_spectra(params, output_dir=args.output_dir, seed=args.seed,
                   verbose=args.verbose, nproc=args.nproc, nside=args.nside,
                   healpixels=healpixels)
 else:
-    targets_truth(params, args.output_dir, realtargets=realtargets, seed=args.seed,
-                  verbose=args.verbose, nproc=args.nproc, nside=args.nside,
-                  healpixels=healpixels)
+    targets_truth(params, output_dir=args.output_dir, seed=args.seed, nside=args.nside,
+                  verbose=args.verbose, nproc=args.nproc, healpixels=healpixels)
 
     
 log.info('All done at {}'.format(time.asctime()))
