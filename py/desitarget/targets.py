@@ -9,7 +9,7 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
-from desitarget import desi_mask, bgs_mask, mws_mask, targetid_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask
 
 ############################################################
 # TARGETID bit packing

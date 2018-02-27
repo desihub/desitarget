@@ -28,7 +28,7 @@ from . import __version__ as desitarget_version
 from desiutil import brick
 from desiutil.log import get_logger, DEBUG
 from desiutil.plots import init_sky, plot_sky_binned
-from desitarget import desi_mask
+from desitarget.targetmask import desi_mask
 
 import warnings, itertools
 import matplotlib

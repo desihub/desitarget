@@ -7,7 +7,8 @@ import numpy.lib.recfunctions as rfn
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from desitarget import brightmask, desi_mask, targetid_mask, io
+from desitarget import brightmask, io
+from desitarget.targetmask import desi_mask, targetid_mask
 
 from desiutil import brick
 

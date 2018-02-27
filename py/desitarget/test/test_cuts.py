@@ -9,9 +9,8 @@ from astropy.table import Table
 import fitsio
 import numpy as np
 
-from desitarget import io
-from desitarget import cuts
-from desitarget import desi_mask
+from desitarget import io, cuts
+from desitarget.targetmask import desi_mask
 
 class TestCuts(unittest.TestCase):
 

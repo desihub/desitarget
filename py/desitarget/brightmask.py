@@ -26,7 +26,7 @@ from . import __version__ as desitarget_version
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget import desi_mask, targetid_mask
+from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid
 from desitarget.geomask import circles, cap_area, circle_boundaries
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse

@@ -23,7 +23,7 @@ from pkg_resources import resource_filename
 from desitarget import io
 from desitarget.internal import sharedmem
 import desitarget.targets
-from desitarget import desi_mask, bgs_mask, mws_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):

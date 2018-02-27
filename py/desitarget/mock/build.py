@@ -15,7 +15,8 @@ import numpy as np
 from astropy.table import Table, Column, vstack, hstack
 
 from desiutil.log import get_logger, DEBUG
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask, targetid_mask, obsconditions
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask, obsconditions
+from desitarget.contammask import contam_mask
 import desitarget.mock.io as mockio
 from desitarget.mock import sfdmap
 
@@ -570,7 +571,7 @@ def targets_truth(params, output_dir='.', realtargets=None, seed=None, verbose=F
     from desitarget.mock.spectra import MockSpectra
     from desitarget.internal import sharedmem
     from desimodel.footprint import radec2pix
-    from desitarget import obsconditions
+    from desitarget.targetmask import obsconditions
 
     if verbose:
         log = get_logger(DEBUG)

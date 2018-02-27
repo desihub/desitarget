@@ -11,7 +11,7 @@ import desimodel.footprint
 
 from desitarget.mock.build import add_mock_shapes_and_fluxes
 from desitarget.mock.sky import random_sky
-from desitarget import desi_mask, bgs_mask, mws_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 class TestMockBuild(unittest.TestCase):
     

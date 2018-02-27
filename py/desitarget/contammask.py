@@ -2,22 +2,17 @@
 desitarget.contammask
 =====================
 
+Documentation goes here.
 """
-try:
-    from desiutil.bitmask import BitMask
-except ImportError:
-    #
-    # This can happen during documentation builds.
-    #
-    def BitMask(*args): return None
+from desiutil.bitmask import BitMask
+import yaml
+from pkg_resources import resource_filename
 
 _bitdefs = None
 def _load_bits():
     """Load bit definitions from yaml file.
     """
     global _bitdefs
-    import yaml
-    from pkg_resources import resource_filename
     if _bitdefs is None:
         _filepath = resource_filename('desitarget', "data/contammask.yaml")
         with open(_filepath) as fx:
@@ -27,4 +22,7 @@ def _load_bits():
 #- convert to BitMask objects
 if _bitdefs is None:
     _load_bits()
-contam_mask = BitMask('contam_mask', _bitdefs)
+try:
+    contam_mask = BitMask('contam_mask', _bitdefs)
+except TypeError:
+    contam_mask = object()
