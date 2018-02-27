@@ -5,7 +5,9 @@ desitarget Change Log
 0.18.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Remove extraneous imports from __init__.py, fix read the docs build
+  [`PR #282`_].
+.. _`PR #282`: https://github.com/desihub/desitarget/pull/282
 
 0.18.1 (2018-02-23)
 -------------------
