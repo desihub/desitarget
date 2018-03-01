@@ -5,7 +5,10 @@ desitarget Change Log
 0.19.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Fix bug whereby FLUX and WAVE weren't being written to truth.fits files [`PR
+  #287`_].
+
+.. _`PR #287`: https://github.com/desihub/desitarget/pull/287
 
 0.19.0 (2018-02-27)
 -------------------
@@ -13,7 +16,7 @@ desitarget Change Log
 This release includes significant non-backwards compatible changes
 to importing target mask bits and how mock spectra are generated.
 
-* Major refactor of select_mock_targets code infrastructure[`PR #264`_].
+* Major refactor of select_mock_targets code infrastructure [`PR #264`_].
 * Restructure desi_mask, bgs_mask, etc. imports to fix readthedocs build
   [`PR #282`_].
 * Update RELEASE dictionary with 6000 (northern) for DR6 [`PR #281`_].
