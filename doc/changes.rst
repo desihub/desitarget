@@ -5,10 +5,12 @@ desitarget Change Log
 0.19.1 (unreleased)
 -------------------
 
-* Fix bug whereby FLUX and WAVE weren't being written to truth.fits files [`PR
-  #287`_].
+* Fix bug whereby FLUX and WAVE weren't being written to truth.fits files
+  [`PR #287`_].
+* Include OBSCONDITIONS in mock sky/stdstar files for fiberassign [`PR #288`_].
 
 .. _`PR #287`: https://github.com/desihub/desitarget/pull/287
+.. _`PR #288`: https://github.com/desihub/desitarget/pull/288
 
 0.19.0 (2018-02-27)
 -------------------

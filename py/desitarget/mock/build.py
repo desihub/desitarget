@@ -748,15 +748,18 @@ def write_targets_truth(targets, truth, trueflux, truewave, skytargets,
             hx.writeto(truthfile+'.tmp', clobber=True)
         os.rename(truthfile+'.tmp', truthfile)
 
-def _merge_file_tables(fileglob, ext, outfile=None, comm=None):
+def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None):
     '''
     parallel merge tables from individual files into an output file
 
     Args:
-        comm: MPI communicator object
         fileglob (str): glob of files to combine (e.g. '*/blat-*.fits')
         ext (str or int): FITS file extension name or number
+
+    Options:
         outfile (str): output file to write
+        comm: MPI communicator object
+        addcols: dict extra columns to add with fill values, e.g. dict(OBSCONDITIONS=1)
 
     Returns merged table as np.ndarray
     '''
@@ -803,7 +806,18 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None):
         if len(vals) != len(data):
             log.warning('Non-unique TARGETIDs found!')
             raise ValueError
-        
+
+        if addcols is not None:
+            numrows = len(data)
+            colnames = list()
+            coldata = list()
+            for colname, value in addcols.items():
+                colnames.append(colname)
+                coldata.append(np.full(numrows, value))
+
+            data = np.lib.recfunctions.append_fields(data, colnames, coldata,
+                                                     usemask=False)
+
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
         os.rename(tmpout, outfile)
 
@@ -822,6 +836,7 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
         comm: MPI communicator; if not None, read data in parallel
     '''
     import fitsio
+    from desitarget.targetmask import obsconditions as obsmask
     if outdir is None:
         outdir = mockdir
 
@@ -850,15 +865,18 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
 
     if todo['sky']:
         _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
-                           outfile=outdir+'/sky.fits', comm=comm)
+                           outfile=outdir+'/sky.fits', comm=comm,
+                           addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
 
     if todo['stddark']:
         _merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
-                           outfile=outdir+'/standards-dark.fits', comm=comm)
+                           outfile=outdir+'/standards-dark.fits', comm=comm,
+                           addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY')))
 
     if todo['stdbright']:
         _merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
-                           outfile=outdir+'/standards-bright.fits', comm=comm)
+                           outfile=outdir+'/standards-bright.fits', comm=comm,
+                           addcols=dict(OBSCONDITIONS=obsmask.mask('BRIGHT')))
 
     if todo['targets']:
         _merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
