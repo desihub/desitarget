@@ -174,8 +174,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
     # PHOTSYS
-    # Do we need obsconditions or not?!?
-    #targets.add_column(Column(name='OBSCONDITIONS', length=nobj, dtype='i8'))
 
     return targets
 
@@ -242,14 +240,13 @@ class SelectTargets(object):
     """
     def __init__(self):
         from astropy.io import fits
-        from ..targetmask import (desi_mask, bgs_mask, mws_mask, obsconditions)
+        from ..targetmask import (desi_mask, bgs_mask, mws_mask)
         from ..contammask import contam_mask
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
-        self.obsconditions = obsconditions
 
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
@@ -1724,10 +1721,6 @@ class QSOMaker(SelectTargets):
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
-        #targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.QSO.obsconditions)
-        #targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.QSO_SOUTH.obsconditions)
 
 class LYAMaker(SelectTargets):
     """Read LYA mocks, generate spectra, and select targets.
@@ -1957,10 +1950,6 @@ class LYAMaker(SelectTargets):
 
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
-        #targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.QSO.obsconditions)
-        #targets['OBSCONDITIONS'] |= (qso != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.QSO_SOUTH.obsconditions)
 
 class LRGMaker(SelectTargets):
     """Read LRG mocks, generate spectra, and select targets.
@@ -2155,10 +2144,6 @@ class LRGMaker(SelectTargets):
 
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
-        #targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.LRG.obsconditions)
-        #targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.LRG_SOUTH.obsconditions)
 
 class ELGMaker(SelectTargets):
     """Read ELG mocks, generate spectra, and select targets.
@@ -2356,10 +2341,6 @@ class ELGMaker(SelectTargets):
 
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        #targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.ELG.obsconditions)
-        #targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.ELG_SOUTH.obsconditions)
 
 class BGSMaker(SelectTargets):
     """Read BGS mocks, generate spectra, and select targets.
@@ -2560,26 +2541,12 @@ class BGSMaker(SelectTargets):
         targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
         targets['DESI_TARGET'] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
 
-        #targets['OBSCONDITIONS'] |= (bgs_bright != 0) * self.obsconditions.mask(
-        #    self.bgs_mask.BGS_BRIGHT.obsconditions)
-        #targets['OBSCONDITIONS'] |= (bgs_bright != 0) * self.obsconditions.mask(
-        #    self.bgs_mask.BGS_BRIGHT_SOUTH.obsconditions)
-        #targets['OBSCONDITIONS'] |= (bgs_bright != 0) * self.obsconditions.mask(
-        #    self.desi_mask.BGS_ANY.obsconditions)
-        
         # Select BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
         
-        #targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
-        #    self.bgs_mask.BGS_FAINT.obsconditions)
-        #targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
-        #    self.bgs_mask.BGS_FAINT_SOUTH.obsconditions)
-        #targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
-        #    self.desi_mask.BGS_ANY.obsconditions)
-
 class STARMaker(SelectTargets):
     """Lower-level Class for preparing for stellar spectra to be generated,
     selecting standard stars, and selecting stars as contaminants for
@@ -2677,8 +2644,6 @@ class STARMaker(SelectTargets):
                           obs_rflux=obs_rflux)
 
         targets['DESI_TARGET'] |= (fstd != 0) * self.desi_mask.STD_FSTAR
-        #targets['OBSCONDITIONS'] |= (fstd != 0) * self.obsconditions.mask(
-        #    self.desi_mask.STD_FSTAR.obsconditions)
 
         # Select bright-time FSTD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
@@ -2693,8 +2658,6 @@ class STARMaker(SelectTargets):
                                  obs_rflux=obs_rflux, bright=True)
 
         targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
-        #targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(
-        #    self.desi_mask.STD_BRIGHT.obsconditions)
 
     def select_contaminants(self, targets, truth):
         """Select stellar (faint and bright) contaminants for the extragalactic targets.
@@ -2718,13 +2681,6 @@ class STARMaker(SelectTargets):
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
         
-        #targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
-        #    self.bgs_mask.BGS_FAINT.obsconditions)
-        #targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
-        #    self.bgs_mask.BGS_FAINT_SOUTH.obsconditions)
-        #targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
-        #    self.desi_mask.BGS_ANY.obsconditions)
-        
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
 
@@ -2732,11 +2688,6 @@ class STARMaker(SelectTargets):
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        
-        #targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.ELG.obsconditions)
-        #targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.ELG_SOUTH.obsconditions)
         
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
@@ -2747,11 +2698,6 @@ class STARMaker(SelectTargets):
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
         targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
 
-        #targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.LRG.obsconditions)
-        #targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
-        #    self.desi_mask.LRG_SOUTH.obsconditions)
-        
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
 
@@ -2761,11 +2707,6 @@ class STARMaker(SelectTargets):
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
 
-        #targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(
-        #    self.desi_mask.QSO.obsconditions)
-        #targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(
-        #    self.desi_mask.QSO_SOUTH.obsconditions)
-        
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
@@ -2938,18 +2879,10 @@ class MWS_MAINMaker(STARMaker):
         
         targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
         targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
-        #targets['OBSCONDITIONS'] |= (mws_main != 0)  * self.obsconditions.mask(
-        #    self.mws_mask.MWS_MAIN.obsconditions)
-        #targets['OBSCONDITIONS'] |= (mws_main != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.MWS_ANY.obsconditions)
         
         mws_main_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
         targets['MWS_TARGET'] |= (mws_main_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
         targets['DESI_TARGET'] |= (mws_main_very_faint != 0) * self.desi_mask.MWS_ANY
-        #targets['OBSCONDITIONS'] |= (mws_main_very_faint != 0)  * self.obsconditions.mask(
-        #    self.mws_mask.MWS_MAIN_VERY_FAINT.obsconditions)
-        #targets['OBSCONDITIONS'] |= (mws_main_very_faint != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.MWS_ANY.obsconditions)
 
         # Select standard stars.
         self.select_standards(targets, truth, boss_std=boss_std)
@@ -3303,10 +3236,6 @@ class MWS_NEARBYMaker(STARMaker):
 
         targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
         targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
-        #targets['OBSCONDITIONS'] |= (mws_nearby != 0)  * self.obsconditions.mask(
-        #    self.mws_mask.MWS_NEARBY.obsconditions)
-        #targets['OBSCONDITIONS'] |= (mws_nearby != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.MWS_ANY.obsconditions)
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
@@ -3496,16 +3425,10 @@ class WDMaker(SelectTargets):
 
         targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
         targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
-        #targets['OBSCONDITIONS'] |= (mws_wd != 0)  * self.obsconditions.mask(
-        #    self.mws_mask.MWS_WD.obsconditions)
-        #targets['OBSCONDITIONS'] |= (mws_wd != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.MWS_ANY.obsconditions)
 
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
         targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
-        #targets['OBSCONDITIONS'] |= (std_wd != 0)  * self.obsconditions.mask(
-        #    self.desi_mask.STD_WD.obsconditions)
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -3638,5 +3561,3 @@ class SKYMaker(SelectTargets):
 
         """
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
-        #targets['OBSCONDITIONS'] |= self.obsconditions.mask(
-        #    self.desi_mask.SKY.obsconditions)
