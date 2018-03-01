@@ -759,8 +759,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None):
     Options:
         outfile (str): output file to write
         comm: MPI communicator object
-        addcols: dict extra columns to add with fill values, e.g.
-            dict(OBSCONDITIONS=1)
+        addcols: dict extra columns to add with fill values, e.g. dict(OBSCONDITIONS=1)
 
     Returns merged table as np.ndarray
     '''
