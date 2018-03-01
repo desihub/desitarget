@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.19.1 (unreleased)
+0.19.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.19.1 (2018-03-01)
 -------------------
 
 * Fix bug whereby FLUX and WAVE weren't being written to truth.fits files
