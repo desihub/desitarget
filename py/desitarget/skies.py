@@ -184,7 +184,7 @@ def format_as_mask(objs,navoid=2.):
     return done
 
 
-def generate_sky_positions(objs,navoid=2.,nskymin=None):
+def generate_sky_positions(objs,navoid=2.,nskymin=None,maglim=[22,22,22]):
     """Use a basic avoidance-of-other-objects approach to generate sky positions
 
     Parameters
@@ -199,6 +199,9 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
         objects out to when placing sky fibers
     nskymin : :class:`float`, optional, defaults to reading from desimodel.io
         the minimum DENSITY of sky fibers to generate
+    maglim : :class:`list`, optional, defaules to [22,22,22]
+        The "upper limit" in each of the three optical DESI selection bands. 
+        Objects fainter than these limits in g, r, z will NOT be masked
 
     Returns
     -------
@@ -232,18 +235,30 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
     if isinstance(objs, str):
         objs = io.read_tractor(objs)
 
-    #ADM format the objs into a mask to use the desitarget brightmask module
-    mask = objs[['RA','DEC']].copy()
+    #ADM change input magnitude(s) to a flux to test against
+    fluxlim = 10.**((22.5-np.array(maglim))/2.5)
+    #ADM retrieve only objects at requested flux limits
+    w = np.where(  (objs["FLUX_G"] > fluxlim[0]) 
+                 | (objs["FLUX_R"] > fluxlim[1])  
+                 | (objs["FLUX_Z"] > fluxlim[2]) )
+    nobjs = len(w[0])
+    if nobjs > 0:
+        objs = objs[w]
+    else:
+        log.error('No objects in [G,R,Z] brighter than {}'.format(maglim))
 
+    #ADM format the passed objects as a mask to facilitate working with the 
+    #ADM masking software in the brightmask module
+    mask = format_as_mask(objs)
+    
+    #ADM to speed things up, split the masks into a
+        #ADM split the objects up using a separation of just larger than psfsize*navoid
+        #ADM arcseconds in order to speed up the coordinate matching when we have some
+        #ADM objects with large radii
+        sepsplit = (psfsize*navoid)+1e-8
+        bigsepw = np.where(sep > sepsplit)[0]
+        smallsepw = np.where(sep <= sepsplit)[0]
 
-    nobjs = len(objs)
-
-    #ADM an avoidance separation (in arcseconds) for each
-    #ADM object based on its half-light radius/profile
-    log.info('Calculating avoidance zones...t = {:.1f}s'.format(time()-start))
-    sep = calculate_separations(objs,navoid)
-    #ADM the maximum such separation for any object in the passed set in arcsec
-    maxrad = max(sep)
 
     #ADM the coordinate limits and corresponding area of the passed objs
     ramin, ramax = np.min(objs["RA"]), np.max(objs["RA"])
@@ -284,13 +299,6 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
         #ADM set up the coordinate objects
         cskies = SkyCoord(ra*u.degree, dec*u.degree)
         cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
-
-        #ADM split the objects up using a separation of just larger than psfsize*navoid
-        #ADM arcseconds in order to speed up the coordinate matching when we have some
-        #ADM objects with large radii
-        sepsplit = (psfsize*navoid)+1e-8
-        bigsepw = np.where(sep > sepsplit)[0]
-        smallsepw = np.where(sep <= sepsplit)[0]
 
         #ADM set up a list of skies that don't match an object
         goodskies = np.ones(len(cskies),dtype=bool)
