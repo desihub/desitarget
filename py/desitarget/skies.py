@@ -22,6 +22,7 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix
+from desitarget.cuts import _psflike
 
 #ADM the default PSF SIZE to adopt, i.e., seeing will be
 #ADM NO WORSE than this for the DESI survey at the Mayall
@@ -114,6 +115,75 @@ def calculate_separations(objs,navoid=2.):
     return sep
 
 
+def format_as_mask(objs,navoid=2.):
+    """format a set of objects as a mask to use with desitarget.brightmask
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns, OR a string
+        tractor/sweep filename. Must contain at least the columns
+        "RA", "DEC", "SHAPEDEV_R", "SHAPEDEV_E1", "SHAPEDEV_E2"
+        "SHAPEEXP_R", "SHAPEEXP_E1", "SHAPEDEV_E2", "TYPE"
+
+    navoid : :class:`float`, optional, defaults to 2.
+        the number of times the galaxy half-light radius (or seeing) to avoid
+        objects out to when placing sky fibers
+
+    Returns
+    -------
+    :class:`recarray`
+        - The bright source mask in the form `RA`,`DEC`,`TARGETID`,`IN_RADIUS`,`NEAR_RADIUS`,`E1`,`E2`,`TYPE`
+        - TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
+        - The radii are in ARCSECONDS (they default to equivalents of half-light radii for ellipses)
+        - `E1` and `E2` are ellipticity components, which are 0 for unresolved objects
+        - `TYPE` is always `PSF` for star-like objects. This is taken from the sweeps files, see, e.g.:
+          http://legacysurvey.org/dr5/files/#sweep-catalogs                                                     
+    """
+
+    #ADM Create an output recarray that's just RA, Dec, TARGETID and the radii
+    nrows = len(objs)
+    dnames = ['RA','DEC','TARGETID','IN_RADIUS','NEAR_RADIUS','E1','E2','TYPE']
+    dtypes = ['>f8','>f8','>i8','>f4','>f4','>f4','>f4','|S4']
+    dt = list(zip(dnames,dtypes))
+    done = np.empty(nrows, dtype=dt)
+
+    #ADM each mask's coordinates and type
+    done['RA'] = objs['RA']
+    done['DEC'] = objs['DEC']
+    done['TYPE'] = objs['TYPE']
+
+    #ADM calculate the TARGETID
+    targetid = encode_targetid(objid=objs['OBJID'], brickid=objs['BRICKID'], release=objs['RELEASE'])
+    done['TARGETID'] = targetid
+
+    #ADM first set the shape parameters assuming everything is an exponential
+    #ADM this will correctly assign e1, e2 of 0 to things with zero shape
+    in_radius = objs['SHAPEEXP_R']*navoid
+    e1 = objs['SHAPEEXP_E1']
+    e2 = objs['SHAPEEXP_E2']
+
+    #ADM now to account for deVaucouleurs objects, or things that are dominated by
+    #ADM deVaucouleurs profiles, update objects with a larger "DEV" than "EXP" radius
+    wdev = np.where(objs['SHAPEDEV_R'] > objs['SHAPEEXP_R'])
+    if len(wdev[0]) > 0:
+        in_radius[wdev] = objs[wdev]['SHAPEDEV_R']*navoid
+        e1[wdev] = objs[wdev]['SHAPEDEV_E1']
+        e2[wdev] = objs[wdev]['SHAPEDEV_E2']
+
+    #ADM set anything that is type PSF to navoid times the psfsize
+    wpsf = np.where(_psflike(objs['TYPE']))
+    in_radius[wpsf] = psfsize*navoid
+
+    #ADM set the remaining columns
+    done['IN_RADIUS'] = in_radius
+    done['NEAR_RADIUS'] = in_radius
+    done['E1'] = e1
+    done['E2'] = e2
+
+    return done
+
+
 def generate_sky_positions(objs,navoid=2.,nskymin=None):
     """Use a basic avoidance-of-other-objects approach to generate sky positions
 
@@ -122,7 +192,8 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
     objs : :class:`~numpy.ndarray`
         numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
-        "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
+        "RA", "DEC", "SHAPEDEV_R", "SHAPEDEV_E1", "SHAPEDEV_E2"
+        "SHAPEEXP_R", "SHAPEEXP_E1", "SHAPEDEV_E2", "TYPE"
     navoid : :class:`float`, optional, defaults to 2.
         the number of times the galaxy half-light radius (or seeing) to avoid
         objects out to when placing sky fibers
@@ -160,6 +231,11 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
     #ADM check if input objs is a filename or the actual data
     if isinstance(objs, str):
         objs = io.read_tractor(objs)
+
+    #ADM format the objs into a mask to use the desitarget brightmask module
+    mask = objs[['RA','DEC']].copy()
+
+
     nobjs = len(objs)
 
     #ADM an avoidance separation (in arcseconds) for each
@@ -199,8 +275,11 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None):
 
         #ADM generate random points in RA and Dec (correctly distributed on the sphere)
         log.info('Generated {} test positions...t = {:.1f}s'.format(nchunk,time()-start))
-        ra = np.random.uniform(ramin,ramax,nchunk)
-        dec = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))
+        skies = np.empty(nchunk, dtype=[('RA', '>f8'), ('DEC', '>f8')])
+        skies["RA"] = np.random.uniform(ramin,ramax,nchunk)
+        skies["DEC"] = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))
+
+        
 
         #ADM set up the coordinate objects
         cskies = SkyCoord(ra*u.degree, dec*u.degree)
