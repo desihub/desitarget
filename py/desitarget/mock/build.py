@@ -560,8 +560,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             nside, log, seed=healseed)
 
         # Finally, write the results to disk.
-        write_targets_truth(targets, truth, skytargets, skytruth,  
-                            healpix, nside, log, output_dir,
+        write_targets_truth(targets, truth, trueflux, MakeMock.wave, skytargets,
+                            skytruth,  healpix, nside, log, output_dir, 
                             seed=healseed)
         
 def finish_catalog(targets, truth, skytargets, skytruth, healpix,
@@ -620,8 +620,9 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
         
     return targets, truth, skytargets, skytruth
 
-def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
-                        nside, log, output_dir, seed=None):
+def write_targets_truth(targets, truth, trueflux, truewave, skytargets,
+                        skytruth, healpix, nside, log, output_dir,
+                        seed=None):
     """Writes all the final catalogs to disk.
     
     Parameters
@@ -630,6 +631,10 @@ def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
         Final target catalog.
     truth : :class:`astropy.table.Table`
         Corresponding truth table for targets.
+    trueflux : :class:`numpy.ndarray`
+        Array [npixel, ntarget] of observed-frame spectra.  
+    truewave : :class:`numpy.ndarray`
+        Wavelength array corresponding to trueflux.
     skytargets : :class:`astropy.table.Table`
         Sky targets.
     skytruth : :class:`astropy.table.Table`
@@ -697,8 +702,8 @@ def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
     # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FSTAR', 'STD_BRIGHT')):
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix, basedir=output_dir)
-            istd   = (((targets['DESI_TARGET'] & desi_mask.mask(stdbit)) | 
-                   (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0)
+            istd = ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
+                     (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards to {}'.format(np.sum(istd), stdsuffix.upper(), stdfile))
@@ -725,6 +730,17 @@ def write_targets_truth(targets, truth, skytargets, skytruth, healpix,
         hdu = fits.convenience.table_to_hdu(truth)
         hdu.header['EXTNAME'] = 'TRUTH'
         hx.append(hdu)
+
+        if len(trueflux) > 0:
+            hdu = fits.ImageHDU(truewave.astype(np.float32),
+                                name='WAVE', header=truthhdr)
+            hdu.header['BUNIT'] = 'Angstrom'
+            hdu.header['AIRORVAC'] = 'vac'
+            hx.append(hdu)
+
+            hdu = fits.ImageHDU(trueflux.astype(np.float32), name='FLUX')
+            hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
+            hx.append(hdu)
 
         try:
             hx.writeto(truthfile+'.tmp', overwrite=True)
