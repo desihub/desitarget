@@ -22,6 +22,7 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix
+from desitarget.brightmask import is_in_bright_mask
 from desitarget.cuts import _psflike
 
 #ADM the default PSF SIZE to adopt, i.e., seeing will be
@@ -79,7 +80,7 @@ def model_density_of_sky_fibers(margin=10.):
     return nskymin
 
 
-def calculate_separations(objs,navoid=2.):
+def calculate_separations(objs,navoid=1.):
     """Generate an array of separations (in arcseconds) for a set of objects
 
     Parameters
@@ -115,7 +116,7 @@ def calculate_separations(objs,navoid=2.):
     return sep
 
 
-def format_as_mask(objs,navoid=2.):
+def format_as_mask(objs,navoid=1.):
     """format a set of objects as a mask to use with desitarget.brightmask
 
     Parameters
@@ -184,7 +185,7 @@ def format_as_mask(objs,navoid=2.):
     return done
 
 
-def generate_sky_positions(objs,navoid=2.,nskymin=None,maglim=[22,22,22]):
+def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[22,22,22]):
     """Use a basic avoidance-of-other-objects approach to generate sky positions
 
     Parameters
@@ -235,6 +236,17 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None,maglim=[22,22,22]):
     if isinstance(objs, str):
         objs = io.read_tractor(objs)
 
+    #ADM the coordinate limits and corresponding area of the passed objs
+    ramin, ramax = np.min(objs["RA"]), np.max(objs["RA"])
+    #ADM guard against the wraparound bug (should never be an issue for the sweeps, anyway)
+    if ramax - ramin > 180.:
+        ramax -= 360.
+    decmin, decmax = np.min(objs["DEC"]),np.max(objs["DEC"])
+    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
+    spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
+    log.info('Area covered by passed objects is {:.3f} sq. deg....t = {:.1f}s'
+             .format(spharea,time()-start))
+
     #ADM change input magnitude(s) to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
     #ADM retrieve only objects at requested flux limits
@@ -251,25 +263,16 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None,maglim=[22,22,22]):
     #ADM masking software in the brightmask module
     mask = format_as_mask(objs)
     
-    #ADM to speed things up, split the masks into a
-        #ADM split the objects up using a separation of just larger than psfsize*navoid
-        #ADM arcseconds in order to speed up the coordinate matching when we have some
-        #ADM objects with large radii
-        sepsplit = (psfsize*navoid)+1e-8
-        bigsepw = np.where(sep > sepsplit)[0]
-        smallsepw = np.where(sep <= sepsplit)[0]
-
-
-    #ADM the coordinate limits and corresponding area of the passed objs
-    ramin, ramax = np.min(objs["RA"]), np.max(objs["RA"])
-    #ADM guard against the wraparound bug (should never be an issue for the sweeps, anyway)
-    if ramax - ramin > 180.:
-        ramax -= 360.
-    decmin, decmax = np.min(objs["DEC"]),np.max(objs["DEC"])
-    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
-    spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
-    log.info('Area covered by passed objects is {:.3f} sq. deg....t = {:.1f}s'
-             .format(spharea,time()-start))
+    #ADM split the mask on roughly arcminute scales, which seems to greatly
+    #ADM speed up the masking when there are a few objects with large radii
+    biggerthansep = mask["IN_RADIUS"] > 60.
+    wbig = np.where(biggerthansep)
+    wsmall = np.where(~biggerthansep)
+    if len(wbig[0]) > 0:
+        bigmask = mask[wbig]
+        smallmask = mask[wsmall]
+    else:
+        smallmask = mask
 
     #ADM how many sky positions we need to generate to meet the minimum density requirements
     nskies = int(spharea*nskymin)
@@ -292,58 +295,13 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None,maglim=[22,22,22]):
         log.info('Generated {} test positions...t = {:.1f}s'.format(nchunk,time()-start))
         skies = np.empty(nchunk, dtype=[('RA', '>f8'), ('DEC', '>f8')])
         skies["RA"] = np.random.uniform(ramin,ramax,nchunk)
-        skies["DEC"] = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))
+        skies["DEC"] = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))        
 
-        
+        #ADM determine which of the sky positions are in an object (mask)
+        #ADM first for the small objects
+        is_in_bright_mask(skies,smallmask)
 
-        #ADM set up the coordinate objects
-        cskies = SkyCoord(ra*u.degree, dec*u.degree)
-        cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
 
-        #ADM set up a list of skies that don't match an object
-        goodskies = np.ones(len(cskies),dtype=bool)
-
-        #ADM guard against the case where there are no objects with small radii
-        if len(smallsepw) > 0:
-            #ADM match the small-separation objects and flag any skies that match such an object
-            log.info('Match positions out to {:.1f} arcsec...t = {:.1f}s'
-                     .format(sepsplit,time()-start))
-            idskies, idobjs, d2d, _ = cobjs[smallsepw].search_around_sky(cskies,sepsplit*u.arcsec)
-            w = np.where(d2d.arcsec < sep[smallsepw[idobjs]])
-            #ADM remember to guard against the case with no bad positions
-            if len(w[0]) > 0:
-                goodskies[idskies[w]] = False
-
-        #ADM guard against the case where there are no objects with large radii
-        if len(bigsepw) > 0:
-            #ADM match the large-separation objects and flag any skies that match such an object
-            log.info('(Elliptically) Match additional positions out to {:.1f} arcsec...t = {:.1f}s'
-                     .format(maxrad,time()-start))
-            #ADM the transformation matrixes (shapes) for DEV and EXP objects
-            #ADM with a factor of navoid in the half-light-radius
-            TDEV = ellipse_matrix(objs[bigsepw]["SHAPEDEV_R"]*navoid,
-                                  objs[bigsepw]["SHAPEDEV_E1"],
-                                  objs[bigsepw]["SHAPEDEV_E2"])
-            TEXP = ellipse_matrix(objs[bigsepw]["SHAPEEXP_R"]*navoid,
-                                  objs[bigsepw]["SHAPEEXP_E1"],
-                                  objs[bigsepw]["SHAPEEXP_E2"])
-            #ADM loop through the DEV and EXP shapes, and where they are defined
-            #ADM (radius > tiny), determine if any sky positions occupy them
-            for i, valobj in enumerate(bigsepw):
-                if i%1000 == 999:
-                    log.info('Done {}/{}...t = {:.1f}s'.format(i,len(bigsepw),time()-start))
-                is_in = np.array(np.zeros(nchunk),dtype='bool')
-                if objs[valobj]["SHAPEEXP_R"] > 1e-16:
-                    is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg,
-                                                 cobjs[valobj].ra.deg, cobjs[valobj].dec.deg,
-                                                 TEXP[...,i])
-                if objs[valobj]["SHAPEDEV_R"] > 1e-16:
-                    is_in += is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg,
-                                                 cobjs[valobj].ra.deg, cobjs[valobj].dec.deg,
-                                                 TDEV[...,i])
-                w = np.where(is_in)
-                if len(w[0]) > 0:
-                    goodskies[w] = False
 
         #ADM good sky positions we found
         wgood = np.where(goodskies)[0]
@@ -369,7 +327,7 @@ def generate_sky_positions(objs,navoid=2.,nskymin=None,maglim=[22,22,22]):
     return ragood, decgood, rabad, decbad
 
 
-def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,plotname=None):
+def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,limits=None,plotname=None):
     """plot an example set of sky positions to check if they avoid real objects
 
     Parameters
@@ -500,7 +458,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=2.,limits=None,pl
     return
 
 
-def make_sky_targets(objs,navoid=2.,nskymin=None):
+def make_sky_targets(objs,navoid=1.,nskymin=None):
     """Generate sky targets and translate them into the typical format for DESI targets
 
     Parameters
@@ -621,7 +579,7 @@ def select_skies(infiles, numproc=4):
     #ADM function to run file-by-file for each sweeps file
     def _select_skies_file(filename):
         '''Returns targets in filename that pass the cuts'''
-        return make_sky_targets(filename,navoid=2.,nskymin=None)
+        return make_sky_targets(filename,navoid=1.,nskymin=None)
 
     #ADM to count the number of files that have been processed
     #ADM use of a numpy scalar is for backwards-compatability with Python 2
