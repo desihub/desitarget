@@ -297,10 +297,13 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[22,22,22]):
         skies["RA"] = np.random.uniform(ramin,ramax,nchunk)
         skies["DEC"] = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))        
 
-        #ADM determine which of the sky positions are in an object (mask)
-        #ADM first for the small objects
-        is_in_bright_mask(skies,smallmask)
+        #ADM set up a list of skies that don't match an object
+        goodskies = np.ones(len(skies),dtype=bool)
 
+        #ADM determine which of the sky positions are in an object (mask)
+        #ADM first for the big objects
+        isin, _ = is_in_bright_mask(skies,smallmask)
+        goodskies = 
 
 
         #ADM good sky positions we found
