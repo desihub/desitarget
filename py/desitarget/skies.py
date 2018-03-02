@@ -134,9 +134,9 @@ def format_as_mask(objs,navoid=1.):
     Returns
     -------
     :class:`recarray`
-        - The bright source mask in the form `RA`,`DEC`,`TARGETID`,`IN_RADIUS`,`NEAR_RADIUS`,`E1`,`E2`,`TYPE`
+        - The bright source mask in the form `RA`,`DEC`,`TARGETID`,`IN_RADIUS`,`E1`,`E2`,`TYPE`
         - TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`
-        - The radii are in ARCSECONDS (they default to equivalents of half-light radii for ellipses)
+        - The radius is in ARCSECONDS (and defaults to the equivalent of half-light radius for ellipses)
         - `E1` and `E2` are ellipticity components, which are 0 for unresolved objects
         - `TYPE` is always `PSF` for star-like objects. This is taken from the sweeps files, see, e.g.:
           http://legacysurvey.org/dr5/files/#sweep-catalogs                                                     
@@ -144,8 +144,8 @@ def format_as_mask(objs,navoid=1.):
 
     #ADM Create an output recarray that's just RA, Dec, TARGETID and the radii
     nrows = len(objs)
-    dnames = ['RA','DEC','TARGETID','IN_RADIUS','NEAR_RADIUS','E1','E2','TYPE']
-    dtypes = ['>f8','>f8','>i8','>f4','>f4','>f4','>f4','|S4']
+    dnames = ['RA','DEC','TARGETID','IN_RADIUS','E1','E2','TYPE']
+    dtypes = ['>f8','>f8','>i8','>f4','>f4','>f4','|S4']
     dt = list(zip(dnames,dtypes))
     done = np.empty(nrows, dtype=dt)
 
@@ -178,7 +178,6 @@ def format_as_mask(objs,navoid=1.):
 
     #ADM set the remaining columns
     done['IN_RADIUS'] = in_radius
-    done['NEAR_RADIUS'] = in_radius
     done['E1'] = e1
     done['E2'] = e2
 
