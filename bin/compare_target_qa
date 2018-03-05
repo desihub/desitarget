@@ -1,0 +1,66 @@
+#!/usr/bin/env python
+
+"""
+Generate a comparison webpage of two DESI target selection QA runs
+"""
+
+from __future__ import absolute_import, division, print_function
+import sys, os
+import glob
+import argparse
+
+parser = argparse.ArgumentParser(usage = "{prog} [options]")
+parser.add_argument("indir1", type=str,  help="input QA directory 1")
+parser.add_argument("indir2", type=str,  help="input QA directory 2")
+parser.add_argument("outfile", type=str, help="output HTML file")
+
+args = parser.parse_args()
+outdir = os.path.split(os.path.abspath(args.outfile))[0]
+
+if not os.path.isdir(outdir):
+    os.makedirs(outdir)
+
+with open(args.outfile, 'w') as fx:
+    fx.write('<HEAD></HEAD>\n')
+    fx.write('<BODY>\n')
+
+    fx.write('<P>\nComparing QA from\n')
+    fx.write('<UL>')
+    fx.write('  <LI>{} (left plots)</LI>'.format(args.indir1))
+    fx.write('  <LI>{} (right plots)</LI>'.format(args.indir2))
+    fx.write('</UL>')
+
+    #- Read images from each input directory
+    images1 = sorted(glob.glob(args.indir1 + '/*.png'))
+    images2 = sorted(glob.glob(args.indir2 + '/*.png'))
+
+    #- Fixed set of known target types in the order we want to show them
+    target_types = ('ALL', 'ELG', 'LRG', 'QSO', 'BGS_ANY', 'STD_FSTAR', 'STD_BRIGHT')
+
+    for targtype in target_types:
+        #- Filter the subset of images for this targtype
+        targimages1 = [x for x in images1 if x.endswith(targtype+'.png')]
+        targimages2 = [x for x in images2 if x.endswith(targtype+'.png')]
+        fx.write('<HR/>\n')
+        fx.write('<H1>{}</H1>'.format(targtype))
+
+        #- Always show skymap and histo first, and then any other prefixes.
+        #- Files are of the form {dir}/{prefix}-{targtype}.png
+        prefixes = ['skymap', 'histo']
+        for x in targimages1:
+            prefix = '-'.join(os.path.basename(x).split('-')[0:-1])
+            if prefix not in prefixes:
+                prefixes.append(prefix)
+
+        for prefix in prefixes:
+            #- Make relative path for the HTML
+            img1 = '{}/{}-{}.png'.format(args.indir1, prefix, targtype)
+            img2 = '{}/{}-{}.png'.format(args.indir2, prefix, targtype)
+            img1 = os.path.relpath(img1, start=outdir)
+            img2 = os.path.relpath(img2, start=outdir)
+            fx.write('<IMG SRC="{}" ALT="{}" WIDTH=500>\n'.format(img1, img1))
+            fx.write('<IMG SRC="{}" ALT="{}" WIDTH=500>\n'.format(img2, img2))
+            fx.write('<BR/>\n')
+
+    fx.write('</BODY>\n')
+
