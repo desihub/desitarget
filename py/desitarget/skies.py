@@ -267,7 +267,10 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     biggerthansep = mask["IN_RADIUS"] > 60.
     wbig = np.where(biggerthansep)
     wsmall = np.where(~biggerthansep)
-    if len(wbig[0]) > 0:
+    nbig = len(wbig[0])
+    nsmall = len(wsmall[0])
+    log.info("{} out of {} big masks".format(nbig,nsmall+nbig))
+    if nbig > 0:
         bigmask = mask[wbig]
         smallmask = mask[wsmall]
     else:
@@ -297,16 +300,17 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
         skies["DEC"] = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))        
 
         #ADM set up a list of skies that don't match an object
-        goodskies = np.zeros(len(skies),dtype=bool)
+        goodskies = np.ones(len(skies),dtype=bool)
 
         #ADM determine which of the sky positions are in an object (mask)
-        #ADM first for the big objects
-        isin = is_in_bright_mask(skies,bigmask,inonly=True)
-        wbad = np.where(isin)
-        wgood = np.where(~isin)
-        #ADM set every sky that is NOT in a big mask to True
-        if len(wbad[0]) > 0:
-            goodskies[wgood] = True
+        #ADM first for the big objects (if there are any)
+        if nbig > 0:
+            isin = is_in_bright_mask(skies,bigmask,inonly=True)
+            wbad = np.where(isin)
+            wgood = np.where(~isin)
+            #ADM set every sky that is in a big mask to False
+            if len(wbad[0]) > 0:
+                goodskies[wbad] = False
 
         if not len(wgood[0]) > 0:
             #ADM if everything intersected a "big" mask on the first pass
@@ -315,12 +319,11 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
                 ramin,ramax,decmin,decmax))
             return np.array([]), np.array([]), skies["RA"], skies["DEC"]
 
-        #ADM now for the small objects, test only the good sky positions
-        isin = is_in_bright_mask(skies[wgood],smallmask,inonly=True)
-        w = np.where(isin)
-        #ADM set every currently good position that IS in a small mask to False
-        if len(w[0]) > 0:
-            wbad = wgood[0][w]
+        #ADM now for the small objects
+        isin = is_in_bright_mask(skies,smallmask,inonly=True)
+        wbad = np.where(isin)
+        #ADM set every sky that is in a small mask to False
+        if len(wbad[0]) > 0:
             goodskies[wbad] = False
 
         #ADM record the good sky positions we found
