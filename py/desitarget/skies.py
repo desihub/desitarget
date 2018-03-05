@@ -31,7 +31,7 @@ from desitarget.cuts import _psflike
 psfsize = 2.
 
 
-def density_of_sky_fibers(margin=1.):
+def density_of_sky_fibers(margin=1.5):
     """Use positioner patrol size to determine sky fiber density for DESI
 
     Parameters
@@ -57,7 +57,7 @@ def density_of_sky_fibers(margin=1.):
     return nskymin
 
 
-def model_density_of_sky_fibers(margin=1.):
+def model_density_of_sky_fibers(margin=1.5):
     """Use desihub products to find required density of sky fibers for DESI
 
     Parameters
@@ -246,7 +246,7 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     log.info('Area covered by passed objects is {:.3f} sq. deg....t = {:.1f}s'
              .format(spharea,time()-start))
 
-    #ADM change input magnitude(s) to a flux to test against
+    #ADM change input magnitude limits to a flux to test against
     fluxlim = 10.**((22.5-np.array(maglim))/2.5)
     #ADM retrieve only objects at requested flux limits
     w = np.where(  (objs["FLUX_G"] > fluxlim[0]) 
@@ -348,7 +348,8 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     return ragood, decgood, rabad, decbad
 
 
-def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,limits=None,plotname=None):
+def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,maglim=[20,20,20],
+                       limits=None,plotname=None):
     """plot an example set of sky positions to check if they avoid real objects
 
     Parameters
@@ -370,6 +371,9 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,limits=None,pl
     navoid : :class:`float`, optional, defaults to 2.
         the number of times the galaxy half-light radius (or seeing) that
         objects (objs) were avoided out to when generating sky positions
+    maglim : :class:`list`, optional, defaules to [22,22,22]
+        The "upper limit" in each of the three optical DESI selection bands. 
+        Masks fainter than these limits in g, r, z will NOT be plotted
     limits : :class:`~numpy.array`, optional, defaults to None
         plot limits in the form [ramin, ramax, decmin, decmax] if None
         is passed, then the entire area is plotted
@@ -401,6 +405,18 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,limits=None,pl
     #ADM check if input objs is a filename or the actual data
     if isinstance(objs, str):
         objs = io.read_tractor(objs)
+
+    #ADM change input magnitude limits to a flux to test against
+    fluxlim = 10.**((22.5-np.array(maglim))/2.5)
+    #ADM retrieve only objects at requested flux limits
+    w = np.where(  (objs["FLUX_G"] > fluxlim[0]) 
+                 | (objs["FLUX_R"] > fluxlim[1])  
+                 | (objs["FLUX_Z"] > fluxlim[2]) )
+    nobjs = len(w[0])
+    if nobjs > 0:
+        objs = objs[w]
+    else:
+        log.error('No objects in [G,R,Z] brighter than {}'.format(maglim))
 
     #ADM coordinate limits for the passed objs
     ramin, ramax = np.min(objs["RA"]), np.max(objs["RA"])

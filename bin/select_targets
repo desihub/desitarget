@@ -16,7 +16,6 @@ warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-print(nproc)
 nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
 from desiutil.log import get_logger
