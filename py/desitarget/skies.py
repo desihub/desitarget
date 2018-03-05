@@ -184,7 +184,7 @@ def format_as_mask(objs,navoid=1.):
     return done
 
 
-def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[22,22,22]):
+def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     """Use a basic avoidance-of-other-objects approach to generate sky positions
 
     Parameters
@@ -297,15 +297,34 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[22,22,22]):
         skies["DEC"] = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nchunk)))        
 
         #ADM set up a list of skies that don't match an object
-        goodskies = np.ones(len(skies),dtype=bool)
+        goodskies = np.zeros(len(skies),dtype=bool)
 
         #ADM determine which of the sky positions are in an object (mask)
         #ADM first for the big objects
-        isin, _ = is_in_bright_mask(skies,smallmask)
-        goodskies = 
+        isin = is_in_bright_mask(skies,bigmask,inonly=True)
+        wbad = np.where(isin)
+        wgood = np.where(~isin)
+        #ADM set every sky that is NOT in a big mask to True
+        if len(wbad[0]) > 0:
+            goodskies[wgood] = True
 
+        if not len(wgood[0]) > 0:
+            #ADM if everything intersected a "big" mask on the first pass
+            #ADM then we may as well return everything as a "bad" sky
+            log.warning("No possible good skies in {:.2f},{:.2f},{:.2f},{:.2f} box".format(
+                ramin,ramax,decmin,decmax))
+            return np.array([]), np.array([]), skies["RA"], skies["DEC"]
 
-        #ADM good sky positions we found
+        #ADM now for the small objects, test only the good sky positions
+        isin = is_in_bright_mask(skies[wgood],smallmask,inonly=True)
+        w = np.where(isin)
+        #ADM set every currently good position that IS in a small mask to False
+        if len(w[0]) > 0:
+            wbad = wgood[0][w]
+            goodskies[wbad] = False
+
+        #ADM record the good sky positions we found
+        ra, dec = skies["RA"], skies["DEC"]
         wgood = np.where(goodskies)[0]
         n1 = nskies - ngenerate
         ngenerate = max(0, ngenerate - len(wgood))
