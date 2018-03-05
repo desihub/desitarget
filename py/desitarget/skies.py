@@ -31,7 +31,7 @@ from desitarget.cuts import _psflike
 psfsize = 2.
 
 
-def density_of_sky_fibers(margin=1.5):
+def density_of_sky_fibers(margin=1.):
     """Use positioner patrol size to determine sky fiber density for DESI
 
     Parameters
@@ -57,7 +57,7 @@ def density_of_sky_fibers(margin=1.5):
     return nskymin
 
 
-def model_density_of_sky_fibers(margin=1.5):
+def model_density_of_sky_fibers(margin=1.):
     """Use desihub products to find required density of sky fibers for DESI
 
     Parameters
