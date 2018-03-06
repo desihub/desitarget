@@ -11,7 +11,7 @@ desitarget Change Log
      avoid only objects that are genuinely detected in the sweeps).
    * Reduce the default margin to produce ~1700 sky positions per sq. deg.
    
-.. _`PR #288`: https://github.com/desihub/desitarget/pull/290
+.. _`PR #290`: https://github.com/desihub/desitarget/pull/290
 
 0.19.1 (2018-03-01)
 -------------------
