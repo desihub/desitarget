@@ -8,7 +8,7 @@ desitarget Change Log
 * Update of sky selection code [`PR #290`_]. Includes:
    * Use the :mod:`desitarget.brightmask` formalism to speed calculations.
    * Pass around a magnitude limit on masks from the sweeps (to better
-     mask only objects that are genuinely detected in the sweeps).
+     avoid only objects that are genuinely detected in the sweeps).
    * Reduce the default margin to produce ~1700 sky positions per sq. deg.
    
 .. _`PR #288`: https://github.com/desihub/desitarget/pull/290
