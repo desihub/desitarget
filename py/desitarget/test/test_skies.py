@@ -19,7 +19,8 @@ class TestSKIES(unittest.TestCase):
     def setUp(self):
         #ADM at this nskymin you always seem to get at least 1 bad position
         self.nskymin = 5000000
-        self.navoid = 2.
+        #ADM choose a somewhat unusual navoid to try to break the code
+        self.navoid = 3.
         self.psfsize = psfsize
         #ADM set the magnitude limits to something extremely faint
         #ADM so that nothing is limited on magnitude
