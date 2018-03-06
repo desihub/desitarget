@@ -131,6 +131,17 @@ class TestSKIES(unittest.TestCase):
                                          TEXP[...,i])
             self.assertFalse(np.any(is_in))
 
+    def test_format_as_mask(self):
+        """
+        Check that a set of input objects can be recast in the mask format
+        """
+        #ADM format the input objects as a mask
+        mask = skies.format_as_mask(self.objs)
+        
+        #ADM check the output mask has the necessary columns
+        for name in ['RA','DEC','TARGETID','IN_RADIUS','E1','E2','TYPE']:
+            self.assertTrue(name in mask.dtype.names)
+
     def test_make_sky_targets_bits(self):
         """
         Check that the output bit formatting from make_sky_targets is correct

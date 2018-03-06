@@ -61,8 +61,9 @@ else:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     if ns.skies:
-        maglim = [ float(ml) for ml in ns.maglim.split(',') ]
-        skies = select_skies(infiles,numproc=ns.numproc)
+        maglim = [ float(ml) for ml in ns.skymaglim.split(',') ]
+        log.info("sky magnitude limits set to {}".format(maglim))
+        skies = select_skies(infiles,numproc=ns.numproc,maglim=maglim)
         ntargs = len(targets)
         nskies = len(skies)
         nobjs = ntargs + nskies
