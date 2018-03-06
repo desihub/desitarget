@@ -5,8 +5,7 @@ desitarget Change Log
 0.19.2 (unreleased)
 -------------------
 
-* Update of sky selection code [`PR #290`_]. This is still not the expected 
-  final algorithm, but this update includes:
+* Update of sky selection code [`PR #290`_]. Includes:
    * Use the :mod:`desitarget.brightmask` formalism to speed calculations.
    * Pass around a magnitude limit on masks from the sweeps (to better
      mask only objects that are genuinely detected in the sweeps).
@@ -147,7 +146,7 @@ to importing target mask bits and how mock spectra are generated.
 0.14.0 (2017-07-10)
 -------------------
 
-* Significant updated to handle transition from pre-DR4 to post-DR4 data model [`PR #189`_]:
+* Significant update to handle transition from pre-DR4 to post-DR4 data model [`PR #189`_]:
    * :mod:`desitarget.io` can now read old DR3-style and new DR4-style tractor and sweeps files
    * :mod:`desitarget.cuts` now always uses DR4-style column names and formats
    * new 60-bit ``TARGETID`` schema that incorporates ``RELEASE`` column from imaging surveys
