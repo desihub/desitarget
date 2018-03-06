@@ -31,7 +31,7 @@ from desitarget.cuts import _psflike
 psfsize = 2.
 
 
-def density_of_sky_fibers(margin=1.):
+def density_of_sky_fibers(margin=1.5):
     """Use positioner patrol size to determine sky fiber density for DESI
 
     Parameters
@@ -57,7 +57,7 @@ def density_of_sky_fibers(margin=1.):
     return nskymin
 
 
-def model_density_of_sky_fibers(margin=1.):
+def model_density_of_sky_fibers(margin=1.5):
     """Use desihub products to find required density of sky fibers for DESI
 
     Parameters
@@ -260,7 +260,7 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
 
     #ADM format the passed objects as a mask to facilitate working with the 
     #ADM masking software in the brightmask module
-    mask = format_as_mask(objs)
+    mask = format_as_mask(objs,navoid=navoid)
     
     #ADM split the mask on roughly arcminute scales, which seems to greatly
     #ADM speed up the masking when there are a few objects with large radii
@@ -269,7 +269,7 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     wsmall = np.where(~biggerthansep)
     nbig = len(wbig[0])
     nsmall = len(wsmall[0])
-    log.info("{} out of {} big masks".format(nbig,nsmall+nbig))
+    log.info('{} out of {} masks are "big"'.format(nbig,nsmall+nbig))
     if nbig > 0:
         bigmask = mask[wbig]
         smallmask = mask[wsmall]
@@ -312,12 +312,12 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
             if len(wbad[0]) > 0:
                 goodskies[wbad] = False
 
-        if not len(wgood[0]) > 0:
-            #ADM if everything intersected a "big" mask on the first pass
-            #ADM then we may as well return everything as a "bad" sky
-            log.warning("No possible good skies in {:.2f},{:.2f},{:.2f},{:.2f} box".format(
-                ramin,ramax,decmin,decmax))
-            return np.array([]), np.array([]), skies["RA"], skies["DEC"]
+            if not len(wgood[0]) > 0:
+                #ADM if everything intersected a "big" mask on the first pass
+                #ADM then we may as well return everything as a "bad" sky
+                log.warning("No possible good skies in {:.2f},{:.2f},{:.2f},{:.2f} box".format(
+                    ramin,ramax,decmin,decmax))
+                return np.array([]), np.array([]), skies["RA"], skies["DEC"]
 
         #ADM now for the small objects
         isin = is_in_bright_mask(skies,smallmask,inonly=True)

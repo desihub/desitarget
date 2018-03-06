@@ -8,8 +8,11 @@ from astropy import units as u
 
 from desitarget import skies, io, targets
 from desitarget.skies import psfsize
+from desitarget.cuts import _psflike
 
 from desiutil import brick
+
+from desitarget.geomask import ellipse_matrix, is_in_ellipse_matrix
 
 class TestSKIES(unittest.TestCase):
 
@@ -18,6 +21,9 @@ class TestSKIES(unittest.TestCase):
         self.nskymin = 5000000
         self.navoid = 2.
         self.psfsize = psfsize
+        #ADM set the magnitude limits to something extremely faint
+        #ADM so that nothing is limited on magnitude
+        self.maglim = [100,100,100]
 
         #ADM location of input test file
         self.datadir = resource_filename('desitarget.test', 't')
@@ -28,9 +34,9 @@ class TestSKIES(unittest.TestCase):
         
         #ADM need to ensure that one object has a large enough half-light radius
         #ADM to cover matching sky positions to larger objects
-        self.objs['SHAPEDEV_R'][0] = (self.psfsize*self.navoid)+1e-8
-        self.objs['SHAPEDEV_E1'][0] = -0.22389728
-        self.objs['SHAPEDEV_E2'][0] = 0.42635256
+        self.objs['SHAPEEXP_R'][0] = 120.
+        self.objs['SHAPEEXP_E1'][0] = -0.22389728
+        self.objs['SHAPEEXP_E2'][0] = 0.42635256
 
         #ADM create a "maximum" search distance that is as large as the 
         #ADM diagonal across all objects in the test sweeps file
@@ -62,35 +68,33 @@ class TestSKIES(unittest.TestCase):
         """
         Test bad sky positions match objects and good ones don't, using circles on the sky
         """
+        #ADM retrieve only the "PSF" type objects
+        wpsf = np.where(_psflike(self.objs["TYPE"]))
+        psfobjs = self.objs[wpsf]
+
+        #ADM the avoidance radius for PSF-like objects should be this
+        sep = self.navoid*psfsize
+
         #ADM generate good and bad sky positions at a high density for testing
+        #ADM of the PSF-like objects
         ragood, decgood, rabad, decbad = skies.generate_sky_positions(
-            self.objs,navoid=self.navoid,nskymin=self.nskymin)
+            psfobjs,navoid=self.navoid,nskymin=self.nskymin,maglim=self.maglim)
           
-        #ADM navoid x the largest half-light radius of a galaxy in the field
-        #ADM or the PSF assuming a seeing of 2"
-        nobjs = len(self.objs)
-        sep = self.navoid*np.max(np.vstack(
-            [self.objs["SHAPEDEV_R"], self.objs["SHAPEEXP_R"], np.ones(nobjs)*self.psfsize]).T,axis=1)
-
-        #ADM divider for "big" (or galaxy-like) and "small" (or PSF-like) objects
-        sepsplit = (self.psfsize*self.navoid)+1e-8
-        smallsepw = np.where(sep <= sepsplit)[0]
-
         #ADM the object positions from the mock sweeps file
-        cobjs = SkyCoord(self.objs["RA"]*u.degree, self.objs["DEC"]*u.degree)
+        cobjs = SkyCoord(psfobjs["RA"]*u.degree, psfobjs["DEC"]*u.degree)
         #ADM the calculated good sky positions from generate_sky_positions
         cskies = SkyCoord(ragood*u.degree, decgood*u.degree)
         
         #ADM test that none of the good sky positions match to a PSF object
-        idskies, idobjs, d2d, _ = cobjs[smallsepw].search_around_sky(cskies,self.maxrad*u.arcsec)
-        self.assertFalse(np.any(sep[smallsepw][idobjs] > d2d.arcsec))
+        idskies, idobjs, d2d, _ = cobjs.search_around_sky(cskies,self.maxrad*u.arcsec)
+        self.assertFalse(np.any(d2d.arcsec < sep))
 
         #ADM test that all of the bad sky positions match to an object
         #ADM for brevity just perform a circular match on the maximum radius
         cskies = SkyCoord(rabad*u.degree, decbad*u.degree)
         idskies, idobjs, d2d, _ = cobjs.search_around_sky(cskies,self.maxrad*u.arcsec)
         #ADM a list of indices where any sky position matched an object
-        w = np.where(sep[idobjs] > d2d.arcsec)
+        w = np.where(sep > d2d.arcsec)
         #ADM do we have the same total of unique (each sky position counted
         #ADM only once) matches as the total number of bad sky positions?
         self.assertEqual(len(np.unique(idskies[w])),len(rabad))
@@ -99,36 +103,32 @@ class TestSKIES(unittest.TestCase):
         """
         Test good sky positions don't match elliptical avoidance zones
         """
+        #ADM retrieve only the objects that are EXP in type
+        morph = self.objs["TYPE"]
+        explike = ( (morph == 'EXP')  | (morph == b'EXP') |
+                    (morph == 'EXP ') | (morph == b'EXP ') )
+        well = np.where(explike)
+        ellobjs = self.objs[well]
+
         #ADM generate good and bad sky positions at a high density for testing
         ragood, decgood, rabad, decbad = skies.generate_sky_positions(
-            self.objs,navoid=self.navoid,nskymin=self.nskymin)
+            ellobjs,navoid=self.navoid,nskymin=self.nskymin,maglim=self.maglim)
           
-        #ADM navoid x the largest half-light radius of a galaxy in the field
-        #ADM or the PSF assuming a seeing of 2"
-        nobjs = len(self.objs)
-        sep = self.navoid*np.max(np.vstack(
-            [self.objs["SHAPEDEV_R"], self.objs["SHAPEEXP_R"], np.ones(nobjs)*self.psfsize]).T,axis=1)
-
-        #ADM divider for "big" (or galaxy-like) and "small" (or PSF-like) objects
-        sepsplit = (self.psfsize*self.navoid)+1e-8
-        bigsepw = np.where(sep > sepsplit)[0]
-
         #ADM the object positions from the mock sweeps file
-        cobjs = SkyCoord(self.objs["RA"]*u.degree, self.objs["DEC"]*u.degree)
+        cobjs = SkyCoord(ellobjs["RA"]*u.degree, ellobjs["DEC"]*u.degree)
         #ADM the calculated good sky positions from generate_sky_positions
         cskies = SkyCoord(ragood*u.degree, decgood*u.degree)
         
         #ADM test that none of the good sky positions match to 
         #ADM one of the elliptical objects
-        TDEV = skies.ellipse_matrix(self.objs[bigsepw]["SHAPEDEV_R"]*self.navoid,
-                                    self.objs[bigsepw]["SHAPEDEV_E1"],
-                                    self.objs[bigsepw]["SHAPEDEV_E2"])
-        for i, valobj in enumerate(bigsepw):
-            if self.objs[valobj]["SHAPEDEV_R"] > 0:
-                is_in = skies.is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg,
-                                                   cobjs[valobj].ra.deg, cobjs[valobj].dec.deg,
-                                                   TDEV[...,i])
-                self.assertFalse(np.any(is_in))
+        TEXP = ellipse_matrix(ellobjs["SHAPEEXP_R"]*self.navoid,
+                                    ellobjs["SHAPEEXP_E1"],ellobjs["SHAPEEXP_E2"])
+
+        for i, dum in enumerate(cobjs):
+            is_in = is_in_ellipse_matrix(cskies.ra.deg, cskies.dec.deg,
+                                         cobjs[i].ra.deg, cobjs[i].dec.deg,
+                                         TEXP[...,i])
+            self.assertFalse(np.any(is_in))
 
     def test_make_sky_targets_bits(self):
         """
