@@ -27,7 +27,7 @@ ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/
 ap.add_argument("dest", help="Output target selection file")
 ap.add_argument('-s', "--skies", action='store_true',help="Generate blank sky positions in addition to targets")
 ap.add_argument("--skymaglim",
-                help='Magnitude limits for building avoidance zones from objects in the sweeps (e.g. 20,20,20)',
+                help='Faint (g,r,z) magnitude limits for masks (for building avoidance zones from objects in the sweeps; e.g. "20,20,20")',
                 default="20,20,20")
 ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('-m', "--mask", help="If sent then mask the targets, the name of the mask file should be supplied")

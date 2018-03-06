@@ -200,8 +200,8 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     nskymin : :class:`float`, optional, defaults to reading from desimodel.io
         the minimum DENSITY of sky fibers to generate
     maglim : :class:`list`, optional, defaules to [20,20,20]
-        The "upper limit" in each of the three optical DESI selection bands. 
-        Objects fainter than these limits in ALL of g, r, z will NOT be masked
+        The "upper limit" in the three optical DESI selection bands. Objects 
+        fainter than these limits in ALL of g, r, z will NOT be used as masks.
 
     Returns
     -------
@@ -375,8 +375,8 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,maglim=[20,20,
         the number of times the galaxy half-light radius (or seeing) that
         objects (objs) were avoided out to when generating sky positions
     maglim : :class:`list`, optional, defaules to [20,20,20]
-        The "upper limit" in each of the three optical DESI selection bands. 
-        Masks fainter than these limits in g, r, z will NOT be plotted
+        The "upper limit" in the three optical DESI selection bands. Objects 
+        fainter than these limits in ALL of g, r, z will NOT be used as masks.
     limits : :class:`~numpy.array`, optional, defaults to None
         plot limits in the form [ramin, ramax, decmin, decmax] if None
         is passed, then the entire area is plotted
@@ -514,7 +514,7 @@ def make_sky_targets(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
         the minimum DENSITY of sky fibers to generate
     maglim : :class:`list`, optional, defaules to [20,20,20]
         The "upper limit" in each of the three optical DESI selection bands. 
-        Objects fainter than these limits in ALL of g, r, z will NOT be masked
+        Masks fainter than these limits in g, r, z will NOT be plotted
 
     Returns
     -------
@@ -594,8 +594,8 @@ def select_skies(infiles, numproc=4, maglim=[20,20,20]):
     numproc : :class:`int`, optional, defaults to 4 
         number of parallel processes to use. Pass numproc=1 to run in serial
     maglim : :class:`list`, optional, defaules to [20,20,20]
-        The "upper limit" in each of the three optical DESI selection bands. 
-        Objects fainter than these limits in ALL of g, r, z will NOT be masked
+        The "upper limit" in the three optical DESI selection bands. Objects 
+        fainter than these limits in ALL of g, r, z will NOT be used as masks.
 
     Returns
     -------
