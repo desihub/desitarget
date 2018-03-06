@@ -36,7 +36,7 @@ def density_of_sky_fibers(margin=1.5):
 
     Parameters
     ----------
-    margin : :class:`float`, optional, defaults to 10.
+    margin : :class:`float`, optional, defaults to 1.5
         Factor of extra sky positions to generate. So, for margin=10, 10x as
         many sky positions as the default requirements will be generated
 
@@ -62,7 +62,7 @@ def model_density_of_sky_fibers(margin=1.5):
 
     Parameters
     ----------
-    margin : :class:`float`, optional, defaults to 10.
+    margin : :class:`float`, optional, defaults to 1.5
         Factor of extra sky positions to generate. So, for margin=10, 10x as
         many sky positions as the default requirements will be generated
 
@@ -89,7 +89,7 @@ def calculate_separations(objs,navoid=1.):
         numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
-    navoid : :class:`float`, optional, defaults to 2.
+    navoid : :class:`float`, optional, defaults to 1.
         the number of times the galaxy half-light radius (or seeing) to avoid
         objects out to when placing sky fibers
 
@@ -127,7 +127,7 @@ def format_as_mask(objs,navoid=1.):
         "RA", "DEC", "SHAPEDEV_R", "SHAPEDEV_E1", "SHAPEDEV_E2"
         "SHAPEEXP_R", "SHAPEEXP_E1", "SHAPEDEV_E2", "TYPE"
 
-    navoid : :class:`float`, optional, defaults to 2.
+    navoid : :class:`float`, optional, defaults to 1.
         the number of times the galaxy half-light radius (or seeing) to avoid
         objects out to when placing sky fibers
 
@@ -194,14 +194,14 @@ def generate_sky_positions(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEDEV_E1", "SHAPEDEV_E2"
         "SHAPEEXP_R", "SHAPEEXP_E1", "SHAPEDEV_E2", "TYPE"
-    navoid : :class:`float`, optional, defaults to 2.
+    navoid : :class:`float`, optional, defaults to 1.
         the number of times the galaxy half-light radius (or seeing) to avoid
         objects out to when placing sky fibers
     nskymin : :class:`float`, optional, defaults to reading from desimodel.io
         the minimum DENSITY of sky fibers to generate
-    maglim : :class:`list`, optional, defaules to [22,22,22]
+    maglim : :class:`list`, optional, defaules to [20,20,20]
         The "upper limit" in each of the three optical DESI selection bands. 
-        Objects fainter than these limits in g, r, z will NOT be masked
+        Objects fainter than these limits in ALL of g, r, z will NOT be masked
 
     Returns
     -------
@@ -371,10 +371,10 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,maglim=[20,20,
         numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
-    navoid : :class:`float`, optional, defaults to 2.
+    navoid : :class:`float`, optional, defaults to 1.
         the number of times the galaxy half-light radius (or seeing) that
         objects (objs) were avoided out to when generating sky positions
-    maglim : :class:`list`, optional, defaules to [22,22,22]
+    maglim : :class:`list`, optional, defaules to [20,20,20]
         The "upper limit" in each of the three optical DESI selection bands. 
         Masks fainter than these limits in g, r, z will NOT be plotted
     limits : :class:`~numpy.array`, optional, defaults to None
@@ -498,7 +498,7 @@ def plot_sky_positions(ragood,decgood,rabad,decbad,objs,navoid=1.,maglim=[20,20,
     return
 
 
-def make_sky_targets(objs,navoid=1.,nskymin=None):
+def make_sky_targets(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     """Generate sky targets and translate them into the typical format for DESI targets
 
     Parameters
@@ -507,11 +507,14 @@ def make_sky_targets(objs,navoid=1.,nskymin=None):
         numpy structured array with UPPERCASE columns, OR a string
         tractor/sweep filename. Must contain at least the columns
         "RA", "DEC", "SHAPEDEV_R", "SHAPEEXP_R"
-    navoid : :class:`float`, optional, defaults to 2.
+    navoid : :class:`float`, optional, defaults to 1.
         the number of times the galaxy half-light radius (or seeing) to avoid
         objects out to when placing sky fibers
     nskymin : :class:`float`, optional, defaults to reading from desimodel.io
         the minimum DENSITY of sky fibers to generate
+    maglim : :class:`list`, optional, defaules to [20,20,20]
+        The "upper limit" in each of the three optical DESI selection bands. 
+        Objects fainter than these limits in ALL of g, r, z will NOT be masked
 
     Returns
     -------
@@ -531,7 +534,8 @@ def make_sky_targets(objs,navoid=1.,nskymin=None):
 
     log.info('Generating sky positions...t = {:.1f}s'.format(time()-start))
     #ADM generate arrays of good and bad objects for this sweeps file (or set)
-    ragood, decgood, rabad, decbad = generate_sky_positions(objs,navoid=navoid,nskymin=nskymin)
+    ragood, decgood, rabad, decbad = generate_sky_positions(objs,navoid=navoid,
+                                                            nskymin=nskymin,maglim=maglim)
     ngood = len(ragood)
     nbad = len(rabad)
     nskies = ngood + nbad
@@ -579,7 +583,7 @@ def make_sky_targets(objs,navoid=1.,nskymin=None):
     return skies
 
 
-def select_skies(infiles, numproc=4):
+def select_skies(infiles, numproc=4, maglim=[20,20,20]):
     """Process input files in parallel to select blank sky positions
 
     Parameters
@@ -589,6 +593,9 @@ def select_skies(infiles, numproc=4):
             OR a single filename
     numproc : :class:`int`, optional, defaults to 4 
         number of parallel processes to use. Pass numproc=1 to run in serial
+    maglim : :class:`list`, optional, defaules to [20,20,20]
+        The "upper limit" in each of the three optical DESI selection bands. 
+        Objects fainter than these limits in ALL of g, r, z will NOT be masked
 
     Returns
     -------
@@ -619,7 +626,7 @@ def select_skies(infiles, numproc=4):
     #ADM function to run file-by-file for each sweeps file
     def _select_skies_file(filename):
         '''Returns targets in filename that pass the cuts'''
-        return make_sky_targets(filename,navoid=1.,nskymin=None)
+        return make_sky_targets(filename,navoid=1.,nskymin=None,maglim=maglim)
 
     #ADM to count the number of files that have been processed
     #ADM use of a numpy scalar is for backwards-compatability with Python 2
