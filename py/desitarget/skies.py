@@ -699,13 +699,26 @@ def select_skies(infiles, numproc=4, maglim=[20,20,20]):
     #ADM because sweeps may not contain unique bricks (a brick can span multiple
     #ADM sweeps files), it may be necessary to update the OBJIDs to be unique
     #ADM this is typically only the case for a small number of objects so its
-    #ADM quickest just to update those objects
-    log.info('Reassigning unique TARGETIDs to sky objects...t = {:.1f}s'
-             .format(time()-start))
-    bricknobjsdict = max_objid_bricks(skies)
-    bricksort = skies["BRICKID"].argsort()
-        
-
-
+    #ADM quickest just to update those objects...
+    #ADM ...only proceed if duplicates exist, as finding duplicates is slow
+    if len(skies) - len(set(skies["TARGETID"])) > 0:
+        log.info('Reassigning unique TARGETIDs to sky objects...t = {:.1f}s'
+                 .format(time()-start))
+        dd = find_duplicates_and_indexes(skies["TARGETID"])
+        #ADM the maximum current OBJID (anything above this will be unique)
+        maxobjid = np.max(skies["BRICK_OBJID"])
+        #ADM the indexes of all of the duplicates
+        dups = np.hstack(dd.values())
+        ndups = len(dups)
+        #ADM assign all duplicates a new OBJID that is higher than any other
+        newobjid = np.arange(maxobjid,maxobjid+ndups)+1
+        newskies = skies.copy()
+        skies["BRICK_OBJID"][dups] = newobjid
+        #ADM recalculate the TARGETID for these newly assigned OBJIDs
+        targetid = encode_targetid(objid=skies['BRICK_OBJID'][dups], 
+                                   brickid=skies['BRICKID'][dups], 
+                                   release=skies['RELEASE'][dups],
+                                   sky=1)    
+        skies["TARGETID"][dups] = targetid
 
     return skies
