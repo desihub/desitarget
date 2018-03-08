@@ -32,8 +32,8 @@ from collections import defaultdict
 #ADM this can typically be scaled using the navoid parameter
 psfsize = 2.
 
-def find_duplicates_and_indexes(targetid)
-    """For a list of integers, return the indexes of duplicates
+def find_duplicates_and_indexes(targetid):
+    """For a list of integers, return any duplicates and indexes of duplicates
 
     Parameters
     ----------
