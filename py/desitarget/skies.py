@@ -22,14 +22,41 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix
-from desitarget.brightmask import is_in_bright_mask
+from desitarget.brightmask import is_in_bright_mask, max_objid_bricks
 from desitarget.cuts import _psflike
+
+from collections import defaultdict
 
 #ADM the default PSF SIZE to adopt, i.e., seeing will be
 #ADM NO WORSE than this for the DESI survey at the Mayall
 #ADM this can typically be scaled using the navoid parameter
 psfsize = 2.
 
+def find_duplicates_and_indexes(targetid)
+    """For a list of integers, return the indexes of duplicates
+
+    Parameters
+    ----------
+    targetid : :class:`list` or `~numpy.ndarray`
+        A list or array of integers
+
+    Returns
+    -------
+    :class:`dictionary`
+        A dictionary of the duplicates where the keys are the duplicated
+        targetids and the values are the indexes of the duplicates
+
+    Notes
+    -----
+    h/t to https://stackoverflow.com/questions/11236006/identify-duplicate-values-in-a-list-in-python#11236042
+    """
+
+    dd = defaultdict(list)
+    for index, item in enumerate(targetid):
+        dd[item].append(index)
+    dd = { key:value for key,value in dd.items() if len(value)>1 }
+
+    return dd
 
 def density_of_sky_fibers(margin=1.5):
     """Use positioner patrol size to determine sky fiber density for DESI
@@ -520,6 +547,12 @@ def make_sky_targets(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     -------
     :class:`~numpy.ndarray`
         a structured array of good and bad sky positions in the DESI target format
+
+    Notes
+    -----
+    The code generates unique OBJIDs based on an integer counter for the numbers of
+    objects (objs) passed. It will therefore fail if the length of objs is longer
+    than the number of bits reserved for OBJID in `desitarget.targetmask`
     """
 
     #ADM initialize the default logger
@@ -527,6 +560,12 @@ def make_sky_targets(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     log = get_logger(DEBUG)
 
     start = time()
+
+    nobjs = len(objs)
+    #ADM ensure that objs isn't longer than the largest possible OBJID
+    if nobjs > 2**targetid_mask.OBJID.nbits:
+        log.error('{} objects passed, but OBJID cannot exceed {}'
+                  .format(nobjs,2**targetid_mask.OBJID.nbits))
 
     #ADM check if input objs is a filename or the actual data
     if isinstance(objs, str):
@@ -569,7 +608,6 @@ def make_sky_targets(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
 
     #ADM set the objid (just use a sequential number as setting skies
     #ADM to 1 in the TARGETID will make these unique
-    #ADM *MAKE SURE TO SET THE BRIGHT STAR SAFE LOCATIONS OF THE MAXIMUM SKY OBJID*!!!
     skies["OBJID"] = np.arange(nskies)
 
     log.info('Finalizing target bits...t = {:.1f}s'.format(time()-start))
@@ -657,5 +695,17 @@ def select_skies(infiles, numproc=4, maglim=[20,20,20]):
             skies.append(_update_status(_select_skies_file(file)))
 
     skies = np.concatenate(skies)
+
+    #ADM because sweeps may not contain unique bricks (a brick can span multiple
+    #ADM sweeps files), it may be necessary to update the OBJIDs to be unique
+    #ADM this is typically only the case for a small number of objects so its
+    #ADM quickest just to update those objects
+    log.info('Reassigning unique TARGETIDs to sky objects...t = {:.1f}s'
+             .format(time()-start))
+    bricknobjsdict = max_objid_bricks(skies)
+    bricksort = skies["BRICKID"].argsort()
+        
+
+
 
     return skies
