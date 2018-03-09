@@ -22,7 +22,7 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.internal import sharedmem
 from desitarget.geomask import ellipse_matrix, ellipse_boundary, is_in_ellipse_matrix
-from desitarget.brightmask import is_in_bright_mask, max_objid_bricks
+from desitarget.brightmask import is_in_bright_mask
 from desitarget.cuts import _psflike
 
 from collections import defaultdict
