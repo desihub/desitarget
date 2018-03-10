@@ -17,7 +17,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 import sys
 import os
 import os.path
-
+from importlib import import_module
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
@@ -137,20 +137,14 @@ napoleon_include_private_with_doc = True
 # This value contains a list of modules to be mocked up. This is useful when
 # some external dependencies are not met at build time and break the
 # building process.
-autodoc_mock_imports = ['astropy.coordinates', 'astropy.io.fits', 'astropy.table', 'astropy.units',
-                        'desimodel.io', 'desimodel.focalplane', 'desimodel.footprint',
-                        'desisim.io',
-                        'desispec.io', 'desispec.io.util',
-                        'desiutil', 'desiutil.bitmask', 'desiutil.brick', 'desiutil.log', 'desiutil.plots',
-                        'fitsio',
-                        'healpy',
-                        'matplotlib', 'matplotlib.pyplot',
-                        'matplotlib.patches', 'matplotlib.collections',
-                        'numpy', 'numpy.lib.recfunctions', 'numpy.ma',
-                        'scipy', 'scipy.optimize', 'scipy.spatial',
-                        'sklearn.ensemble', 'sklearn.externals', 'sklearn.tree',
-                        'specter',
-                        'yaml']
+autodoc_mock_imports = []
+for missing in ('astropy', 'desimodel', 'desisim', 'desispec', 'desiutil',
+                'fitsio', 'healpy', 'matplotlib', 'numpy', 'scipy', 'sklearn',
+                'specter', 'yaml'):
+    try:
+        foo = import_module(missing)
+    except ImportError:
+        autodoc_mock_imports.append(missing)
 
 # -- Options for HTML output ----------------------------------------------
 
