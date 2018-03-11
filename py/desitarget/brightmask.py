@@ -616,7 +616,7 @@ def plot_mask(mask,limits=None,radius="IN_RADIUS",show=True):
     return
 
 
-def is_in_bright_mask(targs,sourcemask):
+def is_in_bright_mask(targs,sourcemask,inonly=False):
     """Determine whether a set of targets is in a bright source mask
 
     Parameters
@@ -627,6 +627,9 @@ def is_in_bright_mask(targs,sourcemask):
         A recarray containing a mask as made by, e.g.,  
         :mod:`desitarget.brightmask.make_bright_star_mask` or 
         :mod:`desitarget.brightmask.make_bright_source_mask`
+    inonly : :class:`boolean`, optional, defaults to False
+        If True, then only calculate the in_mask return but not the near_mask return,
+        which is about a factor of 2 faster
 
     Returns
     -------
@@ -654,7 +657,9 @@ def is_in_bright_mask(targs,sourcemask):
     #ADM this is the largest search radius we should need to consider
     #ADM in the future an obvious speed up is to split on radius
     #ADM as large radii are rarer but take longer
-    maxrad = max(sourcemask["NEAR_RADIUS"])*u.arcsec
+    maxrad = max(sourcemask["IN_RADIUS"])*u.arcsec
+    if not inonly:
+        maxrad = max(sourcemask["NEAR_RADIUS"])*u.arcsec
 
     #ADM coordinate match the masks and the targets
     #ADM assuming all of the masks are circles-on-the-sky
@@ -662,6 +667,8 @@ def is_in_bright_mask(targs,sourcemask):
 
     #ADM catch the case where nothing fell in a mask
     if len(idmask) == 0:
+        if inonly:
+            return in_mask
         return in_mask, near_mask
 
     #ADM need to differentiate targets that are in ellipse-on-the-sky masks
@@ -697,22 +704,25 @@ def is_in_bright_mask(targs,sourcemask):
             #ADM Refine True/False for being in a mask based on the elliptical masks
             in_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
                                          mask["IN_RADIUS"],mask["E1"],mask["E2"])
-            near_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
-                                           mask["NEAR_RADIUS"],mask["E1"],mask["E2"])
-            
+            if not inonly:
+                near_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
+                                                    mask["NEAR_RADIUS"],mask["E1"],mask["E2"])
+                
         log.info('Done with elliptical masking...t={:1f}s'.format(time()-t0))
 
     #ADM finally, record targets that were in a circles-on-the-sky mask, which
     #ADM trumps any information about just being in an elliptical mask
     #ADM find angular separations less than the mask radius for circle masks
-    w_in = np.where((d2d.arcsec < sourcemask[idmask]["IN_RADIUS"]) & rex_or_psf)
-    w_near = np.where((d2d.arcsec < sourcemask[idmask]["NEAR_RADIUS"]) & rex_or_psf)
-        
     #ADM matches that meet these criteria are in a circle mask (at least one)
+    w_in = np.where((d2d.arcsec < sourcemask[idmask]["IN_RADIUS"]) & rex_or_psf)        
     in_mask[idtargs[w_in]] = True
-    near_mask[idtargs[w_near]] = True
 
-    return in_mask, near_mask
+    if not inonly:
+        w_near = np.where((d2d.arcsec < sourcemask[idmask]["NEAR_RADIUS"]) & rex_or_psf)
+        near_mask[idtargs[w_near]] = True
+        return in_mask, near_mask
+
+    return in_mask
 
 
 def is_bright_source(targs,sourcemask):
