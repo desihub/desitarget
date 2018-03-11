@@ -2255,7 +2255,7 @@ class ELGMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate ELG spectra.
 
         Parameters
@@ -2312,6 +2312,9 @@ class ELGMaker(SelectTargets):
                                  gmm['r']-gmm['z'])).T
             _, templateid = self._query(alldata)
             input_meta['TEMPLATEID'] = templateid
+
+        if no_spectra:
+            import pdb ; pdb.set_trace()
 
         flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
                                                            nocolorcuts=True, novdisp=False)

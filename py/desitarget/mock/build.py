@@ -183,7 +183,8 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
+def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
+                         maxiter=1, no_spectra=False):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Parameters
@@ -202,6 +203,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
        Desired number of targets to generate.
     maxiter : :class:`int`
        Maximum number of iterations to generate targets.
+    no_spectra : :class:`bool`, optional
+        Do not generate spectra, e.g., for use with quicksurvey.
 
     Returns
     -------
@@ -211,8 +214,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
         Corresponding truth table.
     trueflux : :class:`numpy.ndarray`
         Array [npixel, ntarget] of observed-frame spectra.  Only computed
-        and returned for non-sky targets.
-    
+        and returned for non-sky targets and if no_spectra=False.
+
     """
     nobj = len(np.atleast_1d(indx))
     targname = data['TARGET_NAME']
@@ -251,7 +254,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
         makemore, itercount, ntot = True, 0, 0
         while makemore:
             chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
-                data, indx=indx, seed=iterseeds[itercount])
+                data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
 
             MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
 
@@ -370,7 +373,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
-                nproc=1, sky=False):
+                nproc=1, sky=False, no_spectra=False):
     """Generate spectra (in parallel) for a set of targets.
 
     Parameters
@@ -391,6 +394,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         Number of parallel processes to use.  Defaults to 1.
     sky : :class:`bool`
         Processing sky targets (which are a special case).  Defaults to False.
+    no_spectra : :class:`bool`, optional
+        Do not generate spectra, e.g., for use with quicksurvey.
 
     Returns
     -------
@@ -424,7 +429,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     specargs = list()
     for indx, ntarg, chunkseed in zip( indxperchunk, ntargperchunk, chunkseeds ):
         if len(indx) > 0:
-            specargs.append( (data, indx, MakeMock, chunkseed, log, ntarg, maxiter) )
+            specargs.append( (data, indx, MakeMock, chunkseed, log,
+                              ntarg, maxiter, no_spectra) )
 
     nn = np.zeros((), dtype='i8')
     t0 = time()
@@ -461,7 +467,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
     log.info('Total time for {}s = {:.3f} minutes ({:.3f} cpu minutes/deg2).'.format(
-        data['TARGET_NAME'], ttime / 60, (ttime*nproc) / 60 / area ))
+        data['TARGET_NAME'], ttime / 60, (ttime*nproc) / area ))
 
     return targets, truth, trueflux
 
@@ -525,11 +531,11 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             if not bool(data):
                 continue
 
-            # Generate spectra using parallelization.
+            # Generate targets in parallel; SKY targets are special. 
             sky = source_name.upper() == 'SKY'
             targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
                                                    nside_chunk=nside_chunk, seed=healseed,
-                                                   nproc=nproc, sky=sky)
+                                                   nproc=nproc, sky=sky, no_spectra=no_spectra)
             
             if sky:
                 allskytargets.append(targets)
