@@ -41,10 +41,16 @@ desitarget API
 .. automodule:: desitarget.mock.mockmaker
     :members:
 
+.. automodule:: desitarget.mock.quicksurvey
+    :members:
+
 .. automodule:: desitarget.mock.sample
     :members:
 
 .. automodule:: desitarget.mock.sfdmap
+    :members:
+
+.. automodule:: desitarget.mock.sky
     :members:
 
 .. automodule:: desitarget.mtl

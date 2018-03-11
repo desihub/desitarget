@@ -12,20 +12,53 @@ here temporarily and will be cleaned up in a second pass.
 from __future__ import absolute_import, division, print_function
 
 import os
-import numpy as np
 from glob import glob
-
-import fitsio
+import warnings
+import numpy as np
+import healpy as hp
+import matplotlib.pyplot as plt
 from scipy import constants
 
-from desitarget.io import check_fitsio_version, iter_files
-from desitarget.mock.sample import SampleGMM
+import fitsio
+
 from desiutil.brick import brickname as get_brickname_from_radec
 from desiutil.brick import Bricks
+from desiutil.log import get_logger, DEBUG
+
 from desimodel.footprint import radec2pix
 
-from desiutil.log import get_logger, DEBUG
+from desisim.io import read_basis_templates, empty_metatable
+
+from ..io import check_fitsio_version, iter_files
+from ..targetmask import desi_mask, bgs_mask, mws_mask
+from ..contammask import contam_mask
+from .sample import SampleGMM
+
 log = get_logger()
+#
+# How to distribute 52 user bits of targetid.
+#
+# Used to generate target IDs as combination of input file and row in input file.
+# Sets the maximum number of rows per input file for mocks using this scheme to
+# generate target IDs
+#
+# First 32 bits are row
+ENCODE_ROW_END     = 32
+ENCODE_ROW_MASK    = 2**ENCODE_ROW_END - 2**0
+ENCODE_ROW_MAX     = ENCODE_ROW_MASK
+# Next 20 bits are file
+ENCODE_FILE_END    = 52
+ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
+ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
+
+try:
+    C_LIGHT = constants.c/1000.0
+except TypeError:
+    #
+    # This can happen during documentation builds.
+    #
+    C_LIGHT = 299792458.0/1000.0
+
 
 #############
 # Code previously in desitarget.mock.build
@@ -33,15 +66,15 @@ log = get_logger()
 
 def target_selection(Selection, target_name, targets, truth, nside, healpix_id, seed, rand, log, output_dir):
     """Applies target selection functions to a set of targets and truth tables.
-    
+
     Args:
-        Selection: desitarget.mock.Selection 
+        Selection: desitarget.mock.Selection
             This object contains the information from the configuration file
             used to start the construction of the mock target files.
         target_name: string
             Name of the target being processesed, i.e. "QSO"
         targets: astropy.table
-            Initial set of targets coming from the input files. 
+            Initial set of targets coming from the input files.
         truth: astropy.table
             Corresponding Truth to Targets
         nside: int
@@ -54,15 +87,15 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-            
+
     Output:
         targets: astropy.table
-            Final set of targets after target selection. 
+            Final set of targets after target selection.
         truth: astropy.table
             Corresponding Truth to Targets
 
     """
-    
+
     selection_function = '{}_select'.format(target_name.lower())
     select_targets_function = getattr(Selection, selection_function)
 
@@ -75,8 +108,8 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
         log.warning('All {} targets rejected!'.format(target_name))
     else:
         log.warning('{} targets accepted out of a total of {}'.format(len(keep), len(targets)))
-    
-    #Make a final check. Some of the TARGET flags must have been selected. 
+
+    #Make a final check. Some of the TARGET flags must have been selected.
     no_target_class = np.ones(len(targets), dtype=bool)
     if 'DESI_TARGET' in targets.dtype.names:
         no_target_class &=  targets['DESI_TARGET'] == 0
@@ -88,25 +121,25 @@ def target_selection(Selection, target_name, targets, truth, nside, healpix_id, 
     n_no_target_class = np.sum(no_target_class)
     if n_no_target_class > 0:
         raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
-    
+
     return targets, truth
 
 def estimate_number_density(ra, dec):
     """Estimates the number density of points with positions RA, DEC.
-    
+
     Args:
         ra: numpy.array
             RA positions in degrees.
         dec: numpy.array
             DEC positions in degrees.
-            
-    Output: 
+
+    Output:
         average number density: float
     """
     import healpy as hp
     if len(ra) != len(dec):
         raise ValueError('Arrays ra,dec must have same size.')
-    
+
     n_tot = len(ra)
     nside = 64 # this produces a bin area close to 1 deg^2
     bin_area = hp.nside2pixarea(nside, degrees=True)
@@ -121,7 +154,7 @@ def estimate_number_density(ra, dec):
 def downsample_pixel(density, zcut, target_name, targets, truth, nside,
                      healpix_id, seed, rand, log, output_dir, contam=False):
     """Reduces the number of targets to match a desired number density.
-    
+
     Args:
         density: np.array
             Array of number densities desired in different redshift intervals. Units of targets/deg^2
@@ -130,7 +163,7 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
         target_name: string
             Name of the target being processesed, i.e. "QSO"
         targets: astropy.table
-            Final set of Targets. 
+            Final set of Targets.
         truth: astropy.table
             Corresponding Truth to Targets
         nside: int
@@ -147,7 +180,7 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
             If True the subsampling is only applied to contaminants. If False it
             is applied only to noncontaminated targets.  Output: Updated
             versions of the tables: targets truth.
-            
+
     Example:
         If density = [300,400] and zcut=[0.0,2.0, 3.0] the first number density cap of 300
         will be applied to all targets with redshifts 0.0 < z < 2.0, while the second cap
@@ -155,23 +188,23 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
 
     """
     import healpy as hp
-    
+
     n_cuts = len(density)
     n_obj = len(targets)
-        
+
     r = rand.uniform(0.0, 1.0, size=n_obj)
     keep = r <= 1.0
-    
+
     if contam:
         good_targets = (truth['CONTAM_TARGET'] & contam_mask.mask(target_name+'_CONTAM')) !=0
     else:
         good_targets = (truth['TEMPLATETYPE']==target_name) & (truth['CONTAM_TARGET']==0)
-        
+
     if contam:
         log.info('Downsampling {} contaminants'.format(target_name))
     else:
         log.info('Downsampling pure {} targets'.format(target_name))
-        
+
     for i in range(n_cuts):
         in_z = (truth['TRUEZ'] > zcut[i]) & (truth['TRUEZ']<zcut[i+1]) & (good_targets)
         input_density = estimate_number_density(targets['RA'][in_z], targets['DEC'][in_z])
@@ -181,15 +214,15 @@ def downsample_pixel(density, zcut, target_name, targets, truth, nside,
             log.info('Downsampling for {}. Going from {} to {} obs/deg^2'.format(target_name, input_density, density[i]))
         else:
             log.info('Cannot go from {} to {} obs/deg^2 for object {}'.format(input_density, density[i], target_name))
-            
+
     targets = targets[keep]
     truth = truth[keep]
     return targets, truth
-    
+
 def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
                          healpixels=None, nside=16, in_desi=True):
     """Read one specified mock catalog.
-    
+
     Args:
         source_name: str
             Name of the target being processesed, e.g., 'QSO'.
@@ -209,7 +242,7 @@ def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
         in_desi: boolean
             Decides whether the targets will be trimmed to be inside the DESI
             footprint.
-            
+
     Returns:
         source_data : dict
             Parsed source data based on the input mock catalog.
@@ -217,7 +250,7 @@ def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
     """
     # Read the mock catalog.
     import desitarget.mock.io as mockio
-    
+
     target_name = params['sources'][source_name]['target_name'] # Target type (e.g., ELG)
     mockformat = params['sources'][source_name]['format']
 
@@ -263,7 +296,7 @@ def read_mock_no_spectra(source_name, params, log, rand=None, nproc=1,
                     if type(source_data[k]) is np.ndarray:
                         if n_obj == len(source_data[k]):
                             source_data[k] = source_data[k][indesi]
-                        
+
     return source_data
 
 def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc=1,
@@ -291,7 +324,7 @@ def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc
            Logger object.
         rand: numpy.random.RandomState
            Object for random number generation.
-        magnitudes: desitarget.mock.MockMagnitudes    
+        magnitudes: desitarget.mock.MockMagnitudes
             Object to assign magnitudes to each target class.
         selection: desitarget.mock.SelectTargets
             Object to select targets from the input mock catalogs.
@@ -307,7 +340,7 @@ def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc
         log = get_logger(DEBUG)
     else:
         log = get_logger()
-    
+
     if params is None:
         log.fatal('Required params input not given!')
         raise ValueError
@@ -322,9 +355,9 @@ def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc
             log.warning('Output directory {} is not empty.'.format(output_dir))
     else:
         log.info('Creating directory {}'.format(output_dir))
-        os.makedirs(output_dir)    
-    log.info('Writing to output directory {}'.format(output_dir))      
-        
+        os.makedirs(output_dir)
+    log.info('Writing to output directory {}'.format(output_dir))
+
     # Default set of healpixels is the whole sky (yikes!)
     if healpixels is None:
         healpixels = np.arange(hp.nside2npix(nside))
@@ -339,16 +372,16 @@ def _initialize_no_spectra(params, verbose=False, seed=1, output_dir="./", nproc
     log.info('Initializing the MockMagnitudes and SelectTargets Classes.')
     selection = SelectTargets(verbose=verbose, rand=rand)
     Magnitudes = MockMagnitudes(rand=rand, verbose=verbose, nproc=nproc)
-    
-    return log, rand, Magnitudes, selection, healpixels    
+
+    return log, rand, Magnitudes, selection, healpixels
 
 def finish_catalog_no_spectra(targets, truth, skytargets, skytruth, nside,
                               healpix_id, seed, rand, log, output_dir):
     """Adds TARGETID, SUBPRIORITY and HPXPIXEL to targets.
-    
+
     Args:
         targets: astropy.table
-            Final set of Targets. 
+            Final set of Targets.
         truth: astropy.table
             Corresponding Truth to Targets
         skytargets: astropy.table
@@ -365,7 +398,7 @@ def finish_catalog_no_spectra(targets, truth, skytargets, skytruth, nside,
         log: logger object
         output_dir: str
             Directory where the outputs are written.
-            
+
     Output:
         Updated versions of: targets, truth, skytargets, skytruth
     """
@@ -375,7 +408,7 @@ def finish_catalog_no_spectra(targets, truth, skytargets, skytruth, nside,
     n_sky = len(skytargets)
     log.info('Total number of targets and sky in pixel {}: {} {}'.format(healpix_id, n_obj, n_sky))
     objid = np.arange(n_obj + n_sky)
-    
+
     if n_obj > 0:
         targetid = encode_targetid(objid=objid, brickid=healpix_id*np.ones(n_obj+n_sky, dtype=int), mock=1)
         subpriority = rand.uniform(0.0, 1.0, size=n_obj+n_sky)
@@ -383,11 +416,11 @@ def finish_catalog_no_spectra(targets, truth, skytargets, skytruth, nside,
         truth['TARGETID'][:] = targetid[:n_obj]
         targets['TARGETID'][:] = targetid[:n_obj]
         targets['SUBPRIORITY'][:] = subpriority[:n_obj]
-    
+
     if n_sky > 0:
         skytargets['TARGETID'][:] = targetid[n_obj:]
         skytargets['SUBPRIORITY'][:] = subpriority[n_obj:]
-        
+
     if n_obj > 0:
         targpix = radec2pix(nside, targets['RA'], targets['DEC'])
         targets['HPXPIXEL'][:] = targpix
@@ -395,13 +428,13 @@ def finish_catalog_no_spectra(targets, truth, skytargets, skytruth, nside,
     if n_sky > 0:
         targpix = radec2pix(nside, skytargets['RA'], skytargets['DEC'])
         skytargets['HPXPIXEL'][:] = targpix
-    
+
     return targets, truth, skytargets, skytruth
 
 def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
                             nside, healpix_id, dust_dir):
     """Assigns magnitudes to set of targets and truth dictionaries located on the pixel healpix_id.
-    
+
     Args:
         Magnitudes: desitarget.mock.Magnitudes
             This object contains the information to assign magnitudes to each kind of targets.
@@ -419,7 +452,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
             Seed used for the random number generator
         dust_dir: str
             Directory where the E(B-V) information is stored.
-            
+
     Output:
         targets: astropy.table
             Targets on the pixel healpix_id.
@@ -431,9 +464,9 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
 
     obj_pix_id = radec2pix(nside, source_data['RA'], source_data['DEC'])
     onpix = np.where(obj_pix_id == healpix_id)[0]
-    
+
     log.info('{} objects of type {} in healpix_id {}'.format(np.count_nonzero(onpix), target_name, healpix_id))
-    
+
     nobj = len(onpix)
 
     # Initialize the output targets and truth catalogs and populate them with
@@ -444,7 +477,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
     for key in ('RA', 'DEC', 'BRICKNAME'):
         targets[key][:] = source_data[key][onpix]
 
-    # Assign unique OBJID values and reddenings. 
+    # Assign unique OBJID values and reddenings.
     targets['HPXPIXEL'][:] = np.arange(nobj)
 
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
@@ -458,7 +491,7 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
     # for now.
     onesigma = np.hstack([10**(0.4 * (22.5 - np.array([24.7, 23.9, 23.0])) ) / 5,
                 10**(0.4 * (22.5 - np.array([22.3, 23.8])) )])
-    
+
     # Add shapes and sizes.
     if 'SHAPEEXP_R' in source_data.keys(): # not all target types have shape information
         for key in ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
@@ -474,13 +507,13 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
 
     if target_name.lower() == 'sky':
         return [targets, truth]
-            
+
     truth['TRUEZ'][:] = source_data['Z'][onpix]
 
     # Assign the magnitudes
     meta = getattr(Magnitudes, target_name.lower())(source_data, index=onpix, mockformat=source_data['MOCKFORMAT'])
 
-    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2', 
+    for key in ('TEMPLATEID', 'MAG', 'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2',
                 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
         truth[key][:] = meta[key]
 
@@ -490,9 +523,9 @@ def get_magnitudes_onepixel(Magnitudes, source_data, target_name, rand, log,
     return [targets, truth]
 
 def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
-                             healpixels=None, verbose=False, dust_dir="./"): 
+                             healpixels=None, verbose=False, dust_dir="./"):
     """Generate a catalog of targets and the corresponding truth catalog.
-    
+
     Inputs:
         params: dictionary
             Input parameters read from the configuration files.
@@ -509,86 +542,86 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
             this set (array) of healpix pixels. Default (None)
         verbose: bool
             Degree of verbosity.
-            
+
     Returns:
         Files 'targets.fits', 'truth.fits', 'sky.fits', 'standards-dark.fits',
         and 'standards-bright.fits' written to disk for a list of healpixels.
-    
+
     """
     log, rand, Magnitudes, Selection, healpixels = _initialize_no_spectra(params,
                                                                           verbose=verbose,
-                                                                          seed=seed, 
-                                                                          output_dir=output_dir, 
+                                                                          seed=seed,
+                                                                          output_dir=output_dir,
                                                                           nproc=nproc,
                                                                           nside=nside,
                                                                           healpixels=healpixels)
-    
+
     # Loop over each source / object type.
     for healpix in healpixels:
         alltargets = list()
         alltruth = list()
         allskytargets = list()
         allskytruth = list()
-          
+
         for source_name in sorted(params['sources'].keys()):
-            
+
             # Read the data.
             log.info('Reading  source : {}'.format(source_name))
             source_data = read_mock_no_spectra(source_name, params, log, rand=rand, nproc=nproc,
                                                healpixels=healpix, nside=nside)
-        
+
             # If there are no sources, keep going.
             if not bool(source_data):
                 continue
-                
+
             #Initialize variables for density subsampling
             if 'density' in params['sources'][source_name].keys():
                 density = [params['sources'][source_name]['density']]
                 zcut = [-1000, 1000]
-            
+
             # assign magnitudes for targets in that pixel
-            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, rand, log, 
+            pixel_results = get_magnitudes_onepixel(Magnitudes, source_data, source_name, rand, log,
                                                     nside, healpix, dust_dir=params['dust_dir'])
-            
+
             targets = pixel_results[0]
             truth = pixel_results[1]
-            
+
             # Make target selection and downsample number density if necessary. SKY is an special case.
             if source_name.upper() == 'SKY':
                 if 'density' in params['sources'][source_name].keys():
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
                                                       nside, healpix, seed, rand, log, output_dir, contam=False)
                 allskytargets.append(targets)
-                allskytruth.append(truth)                    
+                allskytruth.append(truth)
             else:
                 targets, truth = target_selection(Selection, source_name, targets, truth,
                                                              nside, healpix, seed, rand, log, output_dir)
-                
+
                 # Downsample to a global number density if required
                 if 'density' in params['sources'][source_name].keys():
                     if source_name == 'QSO':
                         # Distinguish between the Lyman-alpha and tracer QSOs
                         if 'LYA' in params['sources'][source_name].keys():
-                            density = [params['sources'][source_name]['density'], 
+                            density = [params['sources'][source_name]['density'],
                                       params['sources'][source_name]['LYA']['density']]
                             zcut = [-1000,params['sources'][source_name]['LYA']['zcut'],1000]
-                    
+
                     targets, truth = downsample_pixel(density, zcut, source_name, targets, truth,
                                                     nside, healpix, seed, rand, log, output_dir, contam=False)
-               
-                    
+
+
                 if len(targets)>0:
                     alltargets.append(targets)
                     alltruth.append(truth)
-               
+
         if len(alltargets)==0 and len(allskytargets)==0:
             continue
-        
+
         #Merge all sources
         if len(alltargets):
             targets = vstack(alltargets)
             truth = vstack(alltruth)
-            
+
             # downsample contaminants for each class
             for source_name in sorted(params['sources'].keys()):
                 if 'contam' in params['sources'][source_name].keys():
@@ -600,7 +633,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         else:
             targets = []
             truth = []
-                    
+
         if len(allskytargets):
             skytargets = vstack(allskytargets)
             skytruth = vstack(allskytruth)
@@ -612,7 +645,7 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
         targets, truth, skytargets, skytruth = finish_catalog_no_spectra(targets, truth, skytargets, skytruth,
                                                                          nside,healpix, seed, rand, log, output_dir)
         #write the results
-        _write_targets_truth(targets, truth, skytargets, skytruth,  
+        _write_targets_truth(targets, truth, skytargets, skytruth,
                              nside, healpix, seed, log, output_dir)
     return
 
@@ -620,30 +653,6 @@ def targets_truth_no_spectra(params, seed=1, output_dir="./", nproc=1, nside=16,
 #############
 # Code previously in desitarget.mock.io
 #############
-
-"""How to distribute 52 user bits of targetid.
-
-Used to generate target IDs as combination of input file and row in input file.
-Sets the maximum number of rows per input file for mocks using this scheme to
-generate target IDs
-
-"""
-# First 32 bits are row
-ENCODE_ROW_END     = 32
-ENCODE_ROW_MASK    = 2**ENCODE_ROW_END - 2**0
-ENCODE_ROW_MAX     = ENCODE_ROW_MASK
-# Next 20 bits are file
-ENCODE_FILE_END    = 52
-ENCODE_FILE_MASK   = 2**ENCODE_FILE_END - 2**ENCODE_ROW_END
-ENCODE_FILE_MAX    = ENCODE_FILE_MASK >> ENCODE_ROW_END
-
-try:
-    C_LIGHT = constants.c/1000.0
-except TypeError:
-    #
-    # This can happen during documentation builds.
-    #
-    C_LIGHT = 299792458.0/1000.0
 
 def print_all_mocks_info(params):
     """Prints parameters to read mock files.
@@ -717,7 +726,7 @@ def load_all_mocks(params, rand=None, bricksize=0.25, nproc=1, healpixels=None, 
         func = globals()[read_function]
         if 'LYA' in params['sources'][source_name].keys():
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
-                          magcut=magcut, nproc=nproc, bounds=bounds, 
+                          magcut=magcut, nproc=nproc, bounds=bounds,
                           lya=params['sources'][source_name]['LYA'])
         else:
             result = func(mock_dir_name, target_name, rand=rand, bricksize=bricksize,
@@ -1159,7 +1168,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
     dec = radec['DEC'][cut].astype('f8')
     del radec
-        
+
     if target_name != 'SKY':
         data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
         zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
@@ -1176,55 +1185,55 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
     # Combine the QSO and Lyman-alpha samples.
     if target_name == 'QSO' and lya:
         log.info('  Adding Lya QSOs.')
-        
+
         new_format = ("nside" in lya)
-        
+
         if new_format :
             log.info('  Using new format with 2D images in healpix files')
         else :
             log.info('  Using old format with 1 HDU per skewer')
-        
+
         mockfile_lya = lya['mock_dir_name']
         try:
             os.stat(mockfile_lya)
         except:
             log.fatal('Mock file {} not found!'.format(mockfile_lya))
             raise IOError
-        
+
         if new_format:
             tmp         = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKID' ,'Z','PIXNUM'],
                                       upper=True, ext=1)
             ra_lya      = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
-            dec_lya     = tmp['DEC'].astype('f8')            
+            dec_lya     = tmp['DEC'].astype('f8')
             zz_lya      = tmp['Z'].astype('f4')
             objid_lya   = (tmp['MOCKID'].astype(float)).astype(int) # will change
             mockpix_lya = tmp['PIXNUM']
-            mockid_lya  = objid_lya.copy() # the logic to read the spectra is in spectra.py, not here            
+            mockid_lya  = objid_lya.copy() # the logic to read the spectra is in spectra.py, not here
             #log.warning("FIXED gmag=22 for now, that's where we should use a QSO luminosity function")
             #mag_lya     = 22.*np.ones(zz_lya.size).astype('f4') # g-band
             mag_lya = 22.*np.ones(zz_lya.size).astype('f4') # g-band magnitude place-holder
             del tmp
         else:
-            
+
             tmp = fitsio.read(mockfile_lya, columns=['RA', 'DEC', 'MOCKFILEID', 'MOCKHDUNUM', 'MAG_G', 'Z'],
                               upper=True, ext=1)
             nobj_lya  = len(tmp)
-            
+
             objid_lya = np.arange(nobj_lya, dtype='i8')
             n_per_file.append(nobj_lya)
             mockid_lya = make_mockid(objid_lya, [n_per_file[1]])
             zz_lya      = tmp['Z'].astype('f4')
             ra_lya      = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
             dec_lya     = tmp['DEC'].astype('f8')
-            
+
             mag_lya     = tmp['MAG_G'].astype('f4')
             mockfileid_lya = tmp['MOCKFILEID']
             hdu_lya        = tmp['MOCKHDUNUM']
             del tmp
-            
+
             lyainfo   = fitsio.read(mockfile_lya, upper=True, ext=2)
-            files_lya = lyainfo['MOCKFILE'][mockfileid_lya]            
-        
+            files_lya = lyainfo['MOCKFILE'][mockfileid_lya]
+
         # apply sky cut
         allpix = radec2pix(nside, ra_lya, dec_lya)
         cut = np.where( np.in1d(allpix, healpixels)*1 )[0]
@@ -1237,14 +1246,14 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             templatetype = templatetype_qso
             templatesubtype = templatesubtype_qso
         else:
-            log.info('Trimmed to {} Lya QSO skewers in healpixels {}'.format(nobj_lya, healpixels))            
+            log.info('Trimmed to {} Lya QSO skewers in healpixels {}'.format(nobj_lya, healpixels))
             objid_lya  = objid_lya[cut]
             mockid_lya = mockid_lya[cut]
             ra_lya     = ra_lya[cut]
             dec_lya    = dec_lya[cut]
             zz_lya     = zz_lya[cut]
-            mag_lya    = mag_lya[cut] 
-            
+            mag_lya    = mag_lya[cut]
+
             # adding file path
             if new_format :
                 mockpix_lya = mockpix_lya[cut]
@@ -1254,13 +1263,13 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
                 for mpix in mockpix_lya:
                     lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(mockdir,mpix/100,mpix,mocknside,mpix))
                 lyafiles = np.hstack((lyafiles_qso, lyafiles))
-                
+
             else:
                 mockdir = os.path.dirname(mockfile_lya)
                 lyafiles = np.hstack( (lyafiles_qso, np.array([os.path.join(
                     mockdir, ff.decode('utf-8')) for ff in files_lya[cut]])) )
                 lyahdu = np.hstack( (lyahdu_qso, hdu_lya[cut]) )
-                        
+
             # Join the QSO + Lya samples
             ra = np.hstack((ra, ra_lya))
             dec = np.hstack((dec, dec_lya))
@@ -1269,17 +1278,17 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             objid = np.hstack((objid, objid_lya))
             mockid = np.hstack((mockid, mockid_lya))
             nobj = len(ra)
-            
+
             templatetype = np.hstack( (templatetype_qso, np.repeat('QSO', nobj_lya)) )
             templatesubtype = np.hstack( (np.repeat('', nobj_qso), np.repeat('LYA', nobj_lya)) )
-            
+
         log.info('The combined QSO sample has {} targets.'.format(nobj))
-        
+
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
     seed = rand.randint(2**32, size=nobj)
 
     # Create a basic dictionary for SKY.
-    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 
+    out = {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec,
            'BRICKNAME': brickname, 'SEED': seed, 'FILES': files,
            'N_PER_FILE': n_per_file}
 
@@ -1302,14 +1311,14 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
                     iselg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
                     fracelg = np.sum(iselg)/nobj
                     #print(niter, fracelg)
-    
+
                     need = np.where(iselg == False)[0]
                     if len(need) > 0:
                         newmags = GMM.sample(target_name, len(need))
                         mags[need] = newmags
-                    
+
                     niter = niter + 1
-    
+
                 #import matplotlib.pyplot as plt
                 #plt.scatter(mags['r'] - mags['z'], mags['g'] - mags['r'])
                 #plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
@@ -1321,7 +1330,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
         if target_name in ('ELG', 'LRG'):
             out.update({
-                'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'], 
+                'SHAPEEXP_R': mags['exp_r'], 'SHAPEEXP_E1': mags['exp_e1'], 'SHAPEEXP_E2': mags['exp_e2'],
                 'SHAPEDEV_R': mags['dev_r'], 'SHAPEDEV_E1': mags['dev_e1'], 'SHAPEDEV_E2': mags['dev_e2']
                 })
 
@@ -1333,7 +1342,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             for bb in sorted(set(brickname)):
                 these = np.where( bb == brickname )[0]
                 vdisp[these] = _sample_vdisp((1.9, 0.15), nmodel=len(these), rand=rand)
-            
+
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'ELG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags['r'], 'FILTERNAME': 'decam2014-r'})
 
@@ -1345,7 +1354,7 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
             for bb in sorted(set(brickname)):
                 these = np.where( bb == brickname )[0]
                 vdisp[these] = _sample_vdisp((2.3, 0.1), nmodel=len(these), rand=rand)
-                
+
             out.update({'TRUESPECTYPE': 'GALAXY', 'TEMPLATETYPE': 'LRG', 'TEMPLATESUBTYPE': '',
                         'VDISP': vdisp, 'MAG': mags['z'], 'FILTERNAME': 'decam2014-z'})
 
@@ -1357,14 +1366,14 @@ def read_gaussianfield(mock_dir_name, target_name, rand=None, bricksize=0.25,
 
             if new_format :
                 out.update({
-                    'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype, 
+                    'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
                     'LYAFILES': lyafiles,
                     'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
             else :
                 out.update({
-                    'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype, 
+                    'TRUESPECTYPE': 'QSO', 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
                     #'TRUESPECTYPE': truespectype, 'TEMPLATETYPE': templatetype, 'TEMPLATESUBTYPE': templatesubtype,
-                    'LYAFILES': lyafiles, 'LYAHDU': lyahdu, 
+                    'LYAFILES': lyafiles, 'LYAHDU': lyahdu,
                     'MAG': mag, 'FILTERNAME': 'decam2014-g'}) # Lya is normalized in the g-band
 
         else:
@@ -1476,7 +1485,7 @@ def read_durham_mxxl_hdf5(mock_dir_name, target_name='BGS', rand=None, bricksize
     mockid = mockid[cut]
     ra = ra[cut]
     dec = dec[cut]
-    
+
     zz = f['Data/z_obs'][these].astype('f4')
     rmag = f['Data/app_mag'][these].astype('f4')
     absmag = f['Data/abs_mag'][these].astype('f4')
@@ -1566,29 +1575,29 @@ def load_galaxia_file(target_name, mockfile, healpixels, nside):
 
     def select_sdss_std(umag, gmag, rmag, imag, zmag, obs_rmag=None):
         """Select standard stars using SDSS photometry and the BOSS selection.
-        
+
         According to http://www.sdss.org/dr12/algorithms/boss_std_ts the r-band
         magnitude for the magnitude cuts is the extinction corrected magnitude.
-    
+
         """
         umg_cut = ((umag - gmag) - 0.82)**2
         gmr_cut = ((gmag - rmag) - 0.30)**2
         rmi_cut = ((rmag - imag) - 0.09)**2
         imz_cut = ((imag - zmag) - 0.02)**2
-    
+
         is_std = np.sqrt((umg_cut + gmr_cut + rmi_cut + imz_cut)) < 0.08
-    
+
         if obs_rmag is not None:
             is_std &= (15.0 < obs_rmag) & (obs_rmag < 19)
-        
+
         return is_std
 
-    # Use extinction-corrected SDSS mags 
+    # Use extinction-corrected SDSS mags
     istd = select_sdss_std(data['SDSSU_TRUE_NODUST'], data['SDSSG_TRUE_NODUST'],
                            data['SDSSR_TRUE_NODUST'], data['SDSSI_TRUE_NODUST'],
                            data['SDSSZ_TRUE_NODUST'], obs_rmag=None)
-    
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': istd, 
+
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': istd,
             'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs, 'TEFF': teff,
             'LOGG': logg, 'FEH': feh, 'FILES': files, 'N_PER_FILE': n_per_file}
 
@@ -1658,7 +1667,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     """
     import multiprocessing
     import healpy as hp
-    
+
     # Figure out which mock files to read based on the input healpixels.
     brickfile = os.path.join(mock_dir_name, 'bricks.fits')
     try:
@@ -1691,7 +1700,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
         suffix = '_superfaint'
     else:
         suffix = ''
-        
+
     file_list = []
     bricks = brickinfo['BRICKNAME'][these]
     for bb in bricks:
@@ -1708,14 +1717,14 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     if nfiles == 0:
         log.warning('No files found in {}!'.format(mock_dir_name))
         return dict()
-    
+
     file_list = list( np.concatenate(file_list) )
-    
+
     # Multiprocess the I/O
     mpargs = list()
     for ff in file_list:
         mpargs.append((target_name, ff, healpixels, nside))
-        
+
     if nproc > 1:
         p = multiprocessing.Pool(nproc)
         data1 = p.map(_load_galaxia_file, mpargs)
@@ -1812,7 +1821,7 @@ def read_galaxia(mock_dir_name, target_name='STAR', rand=None, bricksize=0.25,
     seed = rand.randint(2**32, size=nobj)
     brickname = get_brickname_from_radec(ra, dec, bricksize=bricksize)
 
-    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': boss_std, 
+    return {'OBJID': objid, 'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'BOSS_STD': boss_std,
             'Z': zz, 'BRICKNAME': brickname, 'SEED': seed, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
             'MAG_OBS': mag_obs, 'FILTERNAME': 'sdss2010-r',
             'TRUESPECTYPE': 'STAR', 'TEMPLATETYPE': 'STAR', 'TEMPLATESUBTYPE': '',
@@ -1830,8 +1839,8 @@ def _load_lya_file(lyafile, hdu):
         raise IOError
 
     log.info('Reading HDU {} from {}.'.format(lyafile))
-    
-    
+
+
     h = fitsio.FITS(lyafile)
     heads = [head.read_header() for head in h]
 
@@ -2000,9 +2009,6 @@ def read_lya(mock_dir_name, target_name='QSO', rand=None, bricksize=0.25,
 # Code previously in desitarget.mock.spectra
 #############
 
-import numpy as np
-from desisim.io import read_basis_templates, empty_metatable
-
 class TemplateKDTree(object):
     """Build a KD Tree for each object type.
 
@@ -2016,7 +2022,7 @@ class TemplateKDTree(object):
             self.log = get_logger(DEBUG)
         else:
             self.log = get_logger()
-            
+
         self.nproc = nproc
         self.verbose = verbose
 
@@ -2055,7 +2061,7 @@ class TemplateKDTree(object):
         self.star_flux_z = star_maggies['decam2014-z']
         self.star_flux_w1 = star_maggies['wise2010-W1']
         self.star_flux_w2 = star_maggies['wise2010-W1']
-        
+
         self.star_meta = star_meta
 
     def _bgs(self):
@@ -2071,7 +2077,7 @@ class TemplateKDTree(object):
 
     def _elg(self):
         """Quantities we care about: redshift, g-r, r-z."""
-        
+
         zobj = self.elg_meta['Z'].data
         gr = self.elg_meta['DECAM_G'].data - self.elg_meta['DECAM_R'].data
         rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
@@ -2080,7 +2086,7 @@ class TemplateKDTree(object):
 
     def _lrg(self):
         """Quantities we care about: r-z, r-W1."""
-        
+
         zobj = self.elg_meta['Z'].data
         gr = self.elg_meta['DECAM_G'].data - self.elg_meta['DECAM_R'].data
         rz = self.elg_meta['DECAM_R'].data - self.elg_meta['DECAM_Z'].data
@@ -2098,7 +2104,7 @@ class TemplateKDTree(object):
 
     #def qso(self):
     #    """Quantities we care about: redshift, XXX"""
-    #    pass 
+    #    pass
 
     def _wd_da(self):
         """DA white dwarf.  Quantities we care about: Teff and logg.
@@ -2129,23 +2135,23 @@ class TemplateKDTree(object):
         Returns:
           dist: distance to nearest template
           indx: index of nearest template
-        
+
         """
         if objtype.upper() == 'BGS':
             dist, indx = self.bgs_tree.query(matrix)
-            
+
         elif objtype.upper() == 'ELG':
             dist, indx = self.elg_tree.query(matrix)
-            
+
         elif objtype.upper() == 'LRG':
             dist, indx = self.lrg_tree.query(matrix)
-            
+
         elif objtype.upper() == 'STAR':
             dist, indx = self.star_tree.query(matrix)
-            
+
         elif objtype.upper() == 'QSO':
             dist, indx = self.qso_tree.query(matrix)
-            
+
         elif objtype.upper() == 'WD':
             if subtype.upper() == 'DA':
                 dist, indx = self.wd_da_tree.query(matrix)
@@ -2154,7 +2160,7 @@ class TemplateKDTree(object):
             else:
                 self.log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
                 raise ValueError
-                
+
         return dist, indx
 
 class MockSpectra(object):
@@ -2176,7 +2182,7 @@ class MockSpectra(object):
             wavemin = load_throughput('b').wavemin - 10.0
         if wavemax is None:
             wavemax = load_throughput('z').wavemax + 10.0
-            
+
         self.wavemin = wavemin
         self.wavemax = wavemax
         self.dw = dw
@@ -2198,7 +2204,7 @@ class MockSpectra(object):
         self.star_templates = STAR(wave=self.wave, normfilter='decam2014-r')
         self.wd_da_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DA')
         self.wd_db_templates = WD(wave=self.wave, normfilter='decam2014-g', subtype='DB')
-        
+
     def bgs(self, data, index=None, mockformat='durham_mxxl_hdf5'):
         """Generate spectra for BGS.
 
@@ -2211,7 +2217,7 @@ class MockSpectra(object):
         objtype = 'BGS'
         if index is None:
             index = np.arange(len(data['Z']))
-            
+
         input_meta = empty_metatable(nmodel=len(index), objtype=objtype)
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT', 'VDISP'),
                                   ('SEED', 'MAG', 'Z', 'VDISP')):
@@ -2396,7 +2402,7 @@ class MockSpectra(object):
                                  data['LOGG'][index],
                                  data['FEH'][index])).T
             _, templateid = self.tree.query(objtype, alldata)
-            
+
         elif mockformat.lower() == 'galaxia':
             alldata = np.vstack((data['TEFF'][index],
                                  data['LOGG'][index],
@@ -2450,7 +2456,7 @@ class MockSpectra(object):
         if mockformat.lower() == 'wd':
             meta = empty_metatable(nmodel=nobj, objtype=objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-            
+
             for subtype in ('DA', 'DB'):
                 these = np.where(input_meta['SUBTYPE'] == subtype)[0]
                 if len(these) > 0:
@@ -2459,14 +2465,14 @@ class MockSpectra(object):
                     _, templateid = self.tree.query(objtype, alldata, subtype=subtype)
 
                     input_meta['TEMPLATEID'][these] = templateid
-                    
+
                     template_function = 'wd_{}_templates'.format(subtype.lower())
                     flux1, _, meta1 = getattr(self, template_function).make_templates(input_meta=input_meta[these],
                                                           verbose=self.verbose)
-                    
+
                     meta[these] = meta1
                     flux[these, :] = flux1
-            
+
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
 
@@ -2511,8 +2517,8 @@ class MockSpectra(object):
             if len(lya) > 0:
                 ilya = index[lya].astype(int)
                 nqso = ilya.size
-                                
-                if 'LYAHDU' in data : 
+
+                if 'LYAHDU' in data :
                     # this is the old format with one HDU per spectrum
                     alllyafile = data['LYAFILES'][ilya]
                     alllyahdu = data['LYAHDU'][ilya]
@@ -2531,11 +2537,11 @@ class MockSpectra(object):
                     skewer_wave = None
                     skewer_trans = None
                     skewer_meta = None
-                    
+
                     # All the files that contain at least one QSO skewer.
                     alllyafile = data['LYAFILES'][ilya]
                     uniquelyafiles = sorted(set(alllyafile))
-                                        
+
                     for lyafile in uniquelyafiles:
                         these = np.where( alllyafile == lyafile )[0]
                         objid_in_data = data['OBJID'][ilya][these]
@@ -2550,9 +2556,9 @@ class MockSpectra(object):
                                 self.log.error("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile))
                                 raise(KeyError("No MOCKID={} in {}. It's a bug, should never happen".format(o,lyafile)))
                             indices_in_mock_healpix[i] = o2i[o]
-                        
-                        tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(lyafile, indices=indices_in_mock_healpix) 
-                                                
+
+                        tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(lyafile, indices=indices_in_mock_healpix)
+
                         if skewer_wave is None:
                             skewer_wave = tmp_wave
                             dw = skewer_wave[1]-skewer_wave[0] # this is just to check same wavelength
@@ -2563,35 +2569,35 @@ class MockSpectra(object):
                         else :
                             # check wavelength is the same for all skewers
                             assert(np.max(np.abs(wave-tmp_wave))<0.001*dw)
-                        
+
                         skewer_trans[these] = tmp_trans
                         for k in skewer_meta.keys():
                             skewer_meta[k][these] = tmp_meta[k]
-                    
+
                     # Check we matched things correctly.
                     assert(np.max(np.abs(skewer_meta["Z"]-data['Z'][ilya]))<0.000001)
                     assert(np.max(np.abs(skewer_meta["RA"]-data['RA'][ilya]))<0.000001)
                     assert(np.max(np.abs(skewer_meta["DEC"]-data['DEC'][ilya]))<0.000001)
-                    
+
                     # Now we create a series of QSO spectra all at once, which
                     # is faster than calling each one at a time.
-                    
+
                     #seed = self.rand.randint(2**32)
                     #qso  = self.lya_templates
                     qso_flux, qso_wave, qso_meta = self.simqso_templates.make_templates(
                         nmodel=nqso, redshift=data['Z'][ilya], #seed=seed,
                         lyaforest=False, nocolorcuts=True)
-                    
+
                     # apply transmission to QSOs
                     qso_flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
-                    
+
                     qso_meta['SUBTYPE'] = 'LYA'
                     meta[lya] = qso_meta
                     flux[lya, :] = qso_flux
-                    
+
         else:
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
-            
+
         return flux, meta
 
     def sky(self, data, index=None, mockformat=None):
@@ -2602,7 +2608,7 @@ class MockSpectra(object):
         if index is None:
             index = np.arange(len(data['Z']))
         nobj = len(index)
-            
+
         meta = empty_metatable(nmodel=nobj, objtype=objtype)
         for inkey, datakey in zip(('SEED', 'REDSHIFT'),
                                   ('SEED', 'Z')):
@@ -2622,7 +2628,7 @@ class MockMagnitudes(object):
         """Generate magnitudes for BGS.
         Currently only the MXXL (durham_mxxl_hdf5) mock is supported.  DATA
         needs to have Z, SDSS_absmag_r01, SDSS_01gr, VDISP, and SEED, which are
-        assigned in mock.io.read_durham_mxxl_hdf5.  
+        assigned in mock.io.read_durham_mxxl_hdf5.
         """
         objtype = 'BGS'
         if index is None:
@@ -2638,7 +2644,7 @@ class MockMagnitudes(object):
         meta['FLUX_R'][:] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
         meta['FLUX_G'][:] = 10**((22.5-(data['SDSS_01gr'][index] + data['MAG'][index]))/2.5) # g-band flux
         return meta
-    
+
     def mws(self, data, index=None, mockformat='galaxia'):
         """Generate magnitudes for the MWS_NEARBY and MWS_MAIN samples.
         """
@@ -2657,7 +2663,7 @@ class MockMagnitudes(object):
 
         meta['FLUX_R'][:] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
         return meta
-                
+
     def mws_nearby(self, data, index=None, mockformat='100pc'):
         """Generate magnitudes for the MWS_NEARBY sample.
         """
@@ -2675,12 +2681,12 @@ class MockMagnitudes(object):
         """
         meta = self.mws(data, index=index, mockformat=mockformat)
         return meta
-        
+
     def elg(self, data, index=None, mockformat='gaussianfield'):
         """Generate magnitudes for the ELG sample.
         Currently only the GaussianField mock sample is supported.  DATA needs
         to have Z, GR, RZ, VDISP, and SEED, which are assigned in
-        mock.io.read_gaussianfield.  
+        mock.io.read_gaussianfield.
         """
         objtype = 'ELG'
         if index is None:
@@ -2694,17 +2700,17 @@ class MockMagnitudes(object):
         if mockformat.lower() != 'gaussianfield':
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
             return meta
-        
+
         meta['FLUX_G'][:] = 10**((22.5 - (data['GR'][index] + data['MAG'][index]))/2.5) # g-band flux
         meta['FLUX_R'][:] = 10**((22.5 - data['MAG'][index])/2.5) # r-band flux
         meta['FLUX_Z'][:] = 10**((22.5 - (data['MAG'][index] - data['RZ'][index]))/2.5) # z-band flux
         return meta
-    
+
     def lrg(self, data, index=None, mockformat='gaussianfield'):
         """Generate magnitudes for the LRG sample.
         Currently only the GaussianField mock sample is supported.  DATA needs
         to have Z, GR, RZ, VDISP, and SEED, which are assigned in
-        mock.io.read_gaussianfield.  
+        mock.io.read_gaussianfield.
         """
         objtype = 'LRG'
         if index is None:
@@ -2719,20 +2725,20 @@ class MockMagnitudes(object):
         if mockformat.lower() != 'gaussianfield':
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
             return meta
-        
-        meta['FLUX_G'][:] = 10**((22.5 - (data['GR'][index] + data['RZ'][index] + data['MAG'][index]))/2.5) # g-band flux  
+
+        meta['FLUX_G'][:] = 10**((22.5 - (data['GR'][index] + data['RZ'][index] + data['MAG'][index]))/2.5) # g-band flux
         meta['FLUX_R'][:] =  10**((22.5 - (data['MAG'][index] + data['RZ'][index]))/2.5) # r-band flux
         meta['FLUX_Z'][:] = 10**((22.5 - data['MAG'][index])/2.5) # z-band flux
         meta['FLUX_W1'][:] = 10**((22.5 - (data['RZ'][index] + data['MAG'][index] - data['RW1'][index]))/2.5)# wise flux 1
         meta['FLUX_W2'][:] = 10**((22.5 - (data['RZ'][index] + data['MAG'][index] - data['RW1'][index] - data['W1W2'][index]))/2.5)# wise flux 2
-        
+
         return meta
-    
+
     def qso(self, data, index=None, mockformat='gaussianfield'):
         """Generate magnitudes for the QSO or QSO/LYA samples.
         """
         from desisim.lya_spectra import get_spectra
-                
+
         objtype = 'QSO'
         if index is None:
             index = np.arange(len(data['Z']))
@@ -2742,21 +2748,21 @@ class MockMagnitudes(object):
         if mockformat.lower() != 'gaussianfield':
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
             return meta
-        
+
         for inkey, datakey in zip(('SEED', 'MAG', 'REDSHIFT'),
                                       ('SEED', 'MAG', 'Z')):
             meta[inkey] = data[datakey][index]
-        
+
         meta['FLUX_G'][:] = 10**((22.5 - data['MAG'][index])/2.5) # g-band flux
         meta['FLUX_R'][:] = 10**((22.5 - (data['MAG'][index] - data['GR'][index]))/2.5) # r-band flux
         meta['FLUX_Z'][:] = 10**((22.5 - (data['MAG'][index] - data['GR'][index] - data['RZ'][index]))/2.5) # z-band flux
         meta['FLUX_W1'][:] = 10**((22.5 - (data['MAG'][index] - data['GR'][index] - data['RW1'][index]))/2.5)# wise flux 1
         meta['FLUX_W2'][:] = 10**((22.5 - (data['MAG'][index] - data['GR'][index] - data['RW1'][index] - data['W1W2'][index]))/2.5)# wise flux 2
-        
-        lya = np.where( data['TEMPLATESUBTYPE'][index] == 'LYA' )[0]                 
+
+        lya = np.where( data['TEMPLATESUBTYPE'][index] == 'LYA' )[0]
         if len(lya) > 0:
             meta['SUBTYPE'][lya] = 'LYA'
-                                       
+
         return meta
     def mws_wd(self, data, index=None, mockformat='wd'):
         """Generate magnitudes for the MWS_WD sample.  Deal with DA vs DB white dwarfs
@@ -2775,16 +2781,16 @@ class MockMagnitudes(object):
         if mockformat.lower() != 'wd':
             raise ValueError('Unrecognized mockformat {}!'.format(mockformat))
             return meta
-            
+
         for subtype in ('DA', 'DB'):
             these = np.where(meta['SUBTYPE'] == subtype)[0]
             if len(these) > 0:
-                meta['SUBTYPE'][these] = subtype    
+                meta['SUBTYPE'][these] = subtype
                 meta['TEMPLATEID'][:] = -1
-    
+
         meta['FLUX_G'][:] = 10**((22.5 - data['MAG'][index])/2.5) # g-band flux
         return meta
-    
+
     def sky(self, data, index=None, mockformat=None):
         """Generate spectra for SKY.
 
@@ -2793,20 +2799,18 @@ class MockMagnitudes(object):
         if index is None:
             index = np.arange(len(data['Z']))
         nobj = len(index)
-            
+
         meta = empty_metatable(nmodel=nobj, objtype=objtype)
         for inkey, datakey in zip(('SEED', 'REDSHIFT'),
                                   ('SEED', 'Z')):
             meta[inkey] = data[datakey][index]
-            
+
         return meta
 
 
 #############
 # Code previously in desitarget.mock.selection
 #############
-
-import numpy as np
 
 class SelectTargets(object):
     """Select various types of targets.  Most of this functionality is taken from
@@ -2815,7 +2819,7 @@ class SelectTargets(object):
 
     """
     def __init__(self, rand=None, brick_info=None, verbose=False):
-        
+
         from desitarget import (desi_mask, bgs_mask, mws_mask,
                                 contam_mask, obsconditions)
         from desiutil.log import get_logger, DEBUG
@@ -2824,13 +2828,13 @@ class SelectTargets(object):
             self.log = get_logger(DEBUG)
         else:
             self.log = get_logger()
-        
+
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
         self.obsconditions = obsconditions
-        
+
         self.rand = rand
         self.brick_info = brick_info
 
@@ -2838,7 +2842,7 @@ class SelectTargets(object):
         """Select stellar (faint and bright) contaminants for the extragalactic
         targets.
 
-        """ 
+        """
         from desitarget.cuts import isBGS_faint, isELG, isLRG_colors, isQSO_colors
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
@@ -2849,14 +2853,14 @@ class SelectTargets(object):
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
-        
+
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.bgs_mask.BGS_FAINT.obsconditions)
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.bgs_mask.BGS_FAINT_SOUTH.obsconditions)
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.desi_mask.BGS_ANY.obsconditions)
-        
+
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
         truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
 
@@ -2864,12 +2868,12 @@ class SelectTargets(object):
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        
+
         targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
             self.desi_mask.ELG.obsconditions)
         targets['OBSCONDITIONS'] |= (elg != 0) * self.obsconditions.mask(
             self.desi_mask.ELG_SOUTH.obsconditions)
-        
+
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
         truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
 
@@ -2883,12 +2887,12 @@ class SelectTargets(object):
             self.desi_mask.LRG.obsconditions)
         targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
             self.desi_mask.LRG_SOUTH.obsconditions)
-        
+
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
         truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
 
         # Select stellar contaminants for QSO targets.
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
@@ -2897,7 +2901,7 @@ class SelectTargets(object):
             self.desi_mask.QSO.obsconditions)
         targets['OBSCONDITIONS'] |= (qso != 0) * self.obsconditions.mask(
             self.desi_mask.QSO_SOUTH.obsconditions)
-        
+
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
         truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
 
@@ -2918,8 +2922,8 @@ class SelectTargets(object):
         # standard-star selection algorith.
         if boss_std is None:
             fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
-                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                           obs_rflux=obs_rflux)
         else:
             rbright, rfaint = 16, 19
@@ -2933,8 +2937,8 @@ class SelectTargets(object):
         # standard-star selection algorith.
         if boss_std is None:
             fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                                 gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
-                                 gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                                 gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                                 gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                                  obs_rflux=obs_rflux, bright=True)
         else:
             rbright, rfaint = 14, 17
@@ -2943,7 +2947,7 @@ class SelectTargets(object):
         targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
         targets['OBSCONDITIONS'] |= (fstd_bright != 0) * self.obsconditions.mask(
             self.desi_mask.STD_BRIGHT.obsconditions)
-        
+
     def bgs_select(self, targets, truth, boss_std=None):
         """Select BGS targets.
 
@@ -2964,13 +2968,13 @@ class SelectTargets(object):
             self.bgs_mask.BGS_BRIGHT_SOUTH.obsconditions)
         targets['OBSCONDITIONS'] |= (bgs_bright != 0) * self.obsconditions.mask(
             self.desi_mask.BGS_ANY.obsconditions)
-        
+
         # Select BGS_FAINT targets.
         bgs_faint = isBGS_faint(rflux=rflux)
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
         targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
         targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
-        
+
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
             self.bgs_mask.BGS_FAINT.obsconditions)
         targets['OBSCONDITIONS'] |= (bgs_faint != 0) * self.obsconditions.mask(
@@ -2984,7 +2988,7 @@ class SelectTargets(object):
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-        
+
         elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
 
         targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
@@ -2998,7 +3002,7 @@ class SelectTargets(object):
         # cut here, too, so we're going to overestimate the number of
         # contaminants.  To make sure we don't reduce the number density of true
         # ELGs, demand that the QSO contaminants are not also selected as ELGs.
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * (elg == 0) * self.desi_mask.QSO_SOUTH
@@ -3012,7 +3016,7 @@ class SelectTargets(object):
         truth['CONTAM_TARGET'] |= (qso != 0) * (elg == 0) * self.contam_mask.QSO_CONTAM
 
     def faintstar_select(self, targets, truth, boss_std=None):
-        """Select faint stellar contaminants for the extragalactic targets.""" 
+        """Select faint stellar contaminants for the extragalactic targets."""
 
         self._star_select(targets, truth)
 
@@ -3032,12 +3036,12 @@ class SelectTargets(object):
             self.desi_mask.LRG.obsconditions)
         targets['OBSCONDITIONS'] |= (lrg != 0) * self.obsconditions.mask(
             self.desi_mask.LRG_SOUTH.obsconditions)
-        
+
         # Select LRG contaminants for QSO targets.  There should be a morphology
         # cut here, too, so we're going to overestimate the number of
         # contaminants.  To make sure we don't reduce the number density of true
         # LRGs, demand that the QSO contaminants are not also selected as LRGs.
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                            w2flux=w2flux, optical=False) # Note optical=False!
         targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO
         targets['DESI_TARGET'] |= (qso != 0) * (lrg == 0) * self.desi_mask.QSO_SOUTH
@@ -3045,7 +3049,7 @@ class SelectTargets(object):
             self.desi_mask.QSO.obsconditions)
         targets['OBSCONDITIONS'] |= (qso != 0) * (lrg == 0)  * self.obsconditions.mask(
             self.desi_mask.QSO_SOUTH.obsconditions)
-        
+
         truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_LRG
         truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_IS_GALAXY
         truth['CONTAM_TARGET'] |= (qso != 0) * (lrg == 0) * self.contam_mask.QSO_CONTAM
@@ -3067,21 +3071,21 @@ class SelectTargets(object):
             faint = rflux > 10**( (22.5 - 20.0) / 2.5 )
             faint &= rflux <= 10**( (22.5 - 19.0) / 2.5 )
             return faint
-        
+
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
 
         # Select MWS_MAIN targets.
         mws_main = _isMWS_MAIN(rflux=rflux)
         #mws_main = np.ones(len(targets)) # select everything!
-        
+
         targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
         targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         targets['OBSCONDITIONS'] |= (mws_main != 0)  * self.obsconditions.mask(
             self.mws_mask.MWS_MAIN.obsconditions)
         targets['OBSCONDITIONS'] |= (mws_main != 0)  * self.obsconditions.mask(
             self.desi_mask.MWS_ANY.obsconditions)
-        
+
         mws_main_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
         targets['MWS_TARGET'] |= (mws_main_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
         targets['DESI_TARGET'] |= (mws_main_very_faint != 0) * self.desi_mask.MWS_ANY
@@ -3092,7 +3096,7 @@ class SelectTargets(object):
 
         # Select standard stars.
         self._std_select(targets, truth, boss_std=boss_std)
-        
+
         # Select bright stellar contaminants for the extragalactic targets.
         self._star_select(targets, truth)
 
@@ -3138,7 +3142,7 @@ class SelectTargets(object):
 
         gflux, rflux, zflux, w1flux, w2flux = targets['FLUX_G'], targets['FLUX_R'], \
           targets['FLUX_Z'], targets['FLUX_W1'], targets['FLUX_W2']
-          
+
         qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                            w1flux=w1flux, w2flux=w2flux, optical=True)
 
@@ -3189,7 +3193,7 @@ class SelectTargets(object):
             n_in_brick = len(onbrick)
             if n_in_brick == 0:
                 self.log.info('No {}s on brick {}.'.format(target_name, thisbrick))
-                
+
             if density and n_in_brick > 0:
                 mock_density = n_in_brick / brick_area
                 desired_density = float(self.brick_info['FLUC_EBV_{}'.format(source_name)][brickindx] * density)
@@ -3206,7 +3210,7 @@ class SelectTargets(object):
 
                     self.log.info('Downsampling from {:.0f} to {:.0f} targets/deg2 (N={:g} to N={:g}) on brick {}.'.format(
                         mock_density, desired_density, n_in_brick, n_in_brick - ntoss, thisbrick))
-                    
+
                     toss = self.rand.choice(onbrick, ntoss, replace=False)
                     targets['DESI_TARGET'][toss] = 0
 
@@ -3231,7 +3235,7 @@ class SelectTargets(object):
 
                 if n_in_brick == 0:
                     self.log.debug('No {}_IS_{} contaminants on brick {}.'.format(target_name, contam_name, thisbrick))
-                
+
                 if n_in_brick > 0:
                     contam_density = len(onbrick) / brick_area
                     desired_density = float(self.brick_info['FLUC_EBV_{}'.format(source_name)][brickindx] * contam[contam_name])
@@ -3253,31 +3257,21 @@ class SelectTargets(object):
                         # This isn't quite right because we occassionally throw
                         # away too many other "real" targets.
                         toss = self.rand.choice(onbrick, ntoss, replace=False)
-                        targets['DESI_TARGET'][toss] = 0 
+                        targets['DESI_TARGET'][toss] = 0
 
 
 #############
 # Code previously in desitarget.mock.QA
 #############
 
-import os
-import warnings
-
-import numpy as np
-import healpy as hp
-import matplotlib.pyplot as plt
-
-from desimodel.footprint import radec2pix
-from desitarget import desi_mask, bgs_mask, mws_mask, contam_mask
-
 def target_density(cat, nside=128):
     """Determine the target density by grouping targets in healpix pixels.  The code
     below was code shamelessly taken from desiutil.plot.plot_sky_binned (by
     D. Kirkby).
-    
+
     Args:
         cat: Table with columns RA and DEC
-    
+
     Optional:
         nside: healpix nside, integer power of 2
 
@@ -3286,33 +3280,33 @@ def target_density(cat, nside=128):
     bin_area = hp.nside2pixarea(nside, degrees=True)
 
     pixels = radec2pix(nside, cat['RA'], cat['DEC'])
-    #pixels = hp.ang2pix(nside, np.radians(90 - cat['DEC']), 
+    #pixels = hp.ang2pix(nside, np.radians(90 - cat['DEC']),
     #                    np.radians(cat['RA']), nest=False)
     counts = np.bincount(pixels, weights=None, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
-            
+
     return dens
 
 def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, qadir='.'):
     """Visualize the target density with a skymap and histogram.
-    
+
     """
     from desiutil.plots import init_sky, plot_sky_binned
-    
+
     label = '{} (targets/deg$^2$)'.format(objtype)
     if targdens:
         fig, ax = plt.subplots(1, 2, figsize=(12, 4.5))
     else:
         fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
-       
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
         plot_sky_binned(cat['RA'], cat['DEC'], max_bin_area=max_bin_area,
-                        clip_lo='!1', cmap='jet', plot_type='healpix', 
+                        clip_lo='!1', cmap='jet', plot_type='healpix',
                         label=label, basemap=basemap)
-        
+
     if targdens:
         dens = target_density(cat)
         ax[1].hist(dens, bins=100, histtype='stepfilled', alpha=0.6, label='Observed {} Density'.format(objtype))
@@ -3330,9 +3324,9 @@ def qadensity(cat, objtype, targdens=None, max_bin_area=1.0, qadir='.'):
 
 def qa_qso(targets, truth, qadir='.'):
     """Detailed QA plots for QSOs."""
-    
+
     dens = dict()
-    
+
     these = np.where(targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0)[0]
     dens['QSO_TARGETS'] = target_density(targets[these])
 
@@ -3341,18 +3335,18 @@ def qa_qso(targets, truth, qadir='.'):
 
     these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] >= 2.1))[0]
     dens['QSO_LYA'] = target_density(targets[these])
-    
-    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * 
+
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) *
                      (truth['CONTAM_TARGET'] & contam_mask.mask('QSO_IS_GALAXY')) != 0)[0]
     dens['QSO_IS_GALAXY'] = target_density(targets[these])
 
-    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * 
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) *
                      (truth['CONTAM_TARGET'] & contam_mask.mask('QSO_IS_STAR')) != 0)[0]
     dens['QSO_IS_STAR'] = target_density(targets[these])
 
     bins = 50
     lim = (0, 280)
-    
+
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
     ax[0].hist(dens['QSO_TARGETS'], bins=bins, range=lim, label='All Targets',
                color='k', lw=1, histtype='step')
@@ -3363,9 +3357,9 @@ def qa_qso(targets, truth, qadir='.'):
     ax[0].set_xlabel('Targets / deg$^2$')
     ax[0].set_title('True QSOs')
     ax[0].legend(loc='upper right')
-    
+
     lim = (0, 100)
-    
+
     #ax[1].hist(dens['QSO_TARGETS'], bins=bins, range=lim, label='All Targets',
     #           color='k', lw=1, histtype='step')
     ax[1].hist(dens['QSO_IS_STAR'], bins=bins, range=lim, alpha=0.3, label='QSO_IS_STAR')
@@ -3377,7 +3371,7 @@ def qa_qso(targets, truth, qadir='.'):
 
     pngfile = os.path.join(qadir, '{}_detail_density.png'.format('qso'))
     fig.savefig(pngfile)
-    
+
     return pngfile
 
 def qa_elg(targets, truth, qadir='.'):
@@ -3388,7 +3382,7 @@ def qa_elg(targets, truth, qadir='.'):
     dens_hiz = dens_all*0.05
     dens_star = dens_all*0.1
     dens_rightz = dens_all - dens_loz - dens_hiz - dens_star
-    
+
     dens = dict()
 
     these = np.where(targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0)[0]
@@ -3404,20 +3398,20 @@ def qa_elg(targets, truth, qadir='.'):
     these = np.where((targets['DESI_TARGET'] & desi_mask.mask('QSO') != 0) * (truth['TRUEZ'] > 1.6))[0]
     dens['ELG_IS_HIZ'] = target_density(targets[these])
 
-    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0) * 
+    these = np.where((targets['DESI_TARGET'] & desi_mask.mask('ELG') != 0) *
                      (truth['CONTAM_TARGET'] & contam_mask.mask('ELG_IS_STAR')) != 0)[0]
     dens['ELG_IS_STAR'] = target_density(targets[these])
 
     bins = 50
     lim = (0, 3000)
-    
+
     fig, ax = plt.subplots(1, 2, figsize=(12, 5))
     #line = ax[0].axvline(x=dens_all, ls='-')
     ax[0].hist(dens['ELG_TARGETS'], bins=bins, range=lim, #color=line.get_color(),
                color='k', lw=1, label='All Targets', histtype='step')
-    
+
     #line = ax[0].axvline(x=dens_rightz, ls='--')
-    ax[0].hist(dens['ELG_IS_RIGHTZ'], bins=bins, range=lim, alpha=0.6, # color=line.get_color(), 
+    ax[0].hist(dens['ELG_IS_RIGHTZ'], bins=bins, range=lim, alpha=0.6, # color=line.get_color(),
                ls='--', lw=2, label='ELG (0.6<z<1.6)')#, histtype='step')
     ax[0].set_ylabel('Number of Healpixels')
     ax[0].set_xlabel('Targets / deg$^2$')
@@ -3425,11 +3419,11 @@ def qa_elg(targets, truth, qadir='.'):
     ax[0].legend(loc='upper left')
 
     lim = (0, 300)
-    
+
     #ax[1].hist(dens['ELG_TARGETS'], bins=bins, range=lim, label='All Targets',
     #           color='k', lw=1, histtype='step')
     #line = ax[1].axvline(x=dens_star, ls='-')
-    ax[1].hist(dens['ELG_IS_STAR'], bins=bins, range=lim, #color=line.get_color(), 
+    ax[1].hist(dens['ELG_IS_STAR'], bins=bins, range=lim, #color=line.get_color(),
                alpha=0.5, label='ELG_IS_STAR')
 
     #line = ax[1].axvline(x=dens_loz, ls='-')
@@ -3447,7 +3441,7 @@ def qa_elg(targets, truth, qadir='.'):
 
     pngfile = os.path.join(qadir, '{}_detail_density.png'.format('elg'))
     fig.savefig(pngfile)
-        
+
     return pngfile
 
 def _img2html(html, pngfile, log):
@@ -3534,7 +3528,7 @@ def qa_targets_truth(output_dir, verbose=True):
     html.write('<hr>\n')
     html.write('<hr>\n')
     html.write('<h2>Raw target densities (including contaminants)</h2>\n')
-    targdens = {'ELG': 2400, 'LRG': 350, 'QSO': 260, 'SKY': 1400} 
+    targdens = {'ELG': 2400, 'LRG': 350, 'QSO': 260, 'SKY': 1400}
 
     if nobj > 0:
         html.write('<h3>Science targets - ELG, LRG, QSO, BGS_ANY, MWS_ANY</h3>\n')
@@ -3543,14 +3537,14 @@ def qa_targets_truth(output_dir, verbose=True):
             if len(these) > 0:
                 pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                 _img2html(html, pngfile, log)
-    
+
         html.write('<h3>Science targets - BGS_BRIGHT, BGS_FAINT</h3>\n')
         for obj in ('BGS_BRIGHT', 'BGS_FAINT'):
             these = np.where((targets['BGS_TARGET'] & bgs_mask.mask(obj)) != 0)[0]
             if len(these) > 0:
                 pngfile = qadensity(targets[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                 _img2html(html, pngfile, log)
-    
+
         html.write('<h3>Science targets - MWS_MAIN, MWS_MAIN_VERY_FAINT, MWS_NEARBY, MWS_WD</h3>\n')
         for obj in ('MWS_MAIN', 'MWS_MAIN_VERY_FAINT', 'MWS_NEARBY', 'MWS_WD'):
             these = np.where((targets['MWS_TARGET'] & mws_mask.mask(obj)) != 0)[0]
@@ -3577,7 +3571,7 @@ def qa_targets_truth(output_dir, verbose=True):
                 if len(these) > 0:
                     pngfile = qadensity(cat[these], obj, targdens, qadir=qadir, max_bin_area=binarea)
                     _img2html(html, pngfile, log)
-    
+
     html.write('<hr>\n')
     html.write('<hr>\n')
 
@@ -3604,9 +3598,6 @@ def qa_targets_truth(output_dir, verbose=True):
 #############
 
 
-import os
-import numpy as np
-
 class BrickInfo(object):
     """Gather information on all the bricks.
 
@@ -3627,7 +3618,7 @@ class BrickInfo(object):
             self.log = log
         else:
             self.log = get_logger()
-            
+
         if random_state is None:
             random_state = np.random.RandomState()
         self.random_state = random_state
@@ -3797,9 +3788,6 @@ class BrickInfo(object):
 # Code previously in desitarget.mock.sample
 #############
 
-from desiutil.log import get_logger
-log = get_logger()
-
 class SampleGMM(object):
     """Sample magnitudes based on target type (i.e. LRG, ELG, QSO, BGS).
 
@@ -3857,7 +3845,7 @@ class SampleGMM(object):
         samp = np.empty( n_targets, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
         for ii, tt in enumerate(tags):
             samp[tt] = params[:, ii]
-            
+
         return samp
 
 def sample_mag_shape(target_type, n_targets, random_state=None):
