@@ -25,6 +25,30 @@ from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
+def shift_photo_north(gflux=None, rflux=None, zflux=None):
+    """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system
+
+    Parameters
+    ----------
+    gflux, rflux, zflux : :class:`array_like` or `float`
+        The flux in nano-maggies of g, r, z bands.
+
+    Returns
+    -------
+    The equivalent fluxes shifted to the southern system.
+
+    Notes
+    -----
+        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+
+    """
+    gshift = gflux * 10**(-0.4*0.029) * (gflux/rflux)**(-0.068)
+    rshift = rflux * 10**(+0.4*0.012) * (rflux/zflux)**(-0.029)
+    zshift = zflux * 10**(-0.4*0.000) * (rflux/zflux)**(+0.009)
+
+    return gshift, rshift, zshift
+
+
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
@@ -91,7 +115,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
         gflux, rflux_snr, zflux_snr, w1flux_snr: array_like
             The signal-to-noise in the r, z and W1 bands defined as the flux
-            per band divided by sigma (flux x the sqrt of the inverse variance)
+            per band divided by sigma (flux x the sqrt of the inverse variance).
         gflux_ivar: array_like
             The inverse variance of the flux in g-band
         primary: array_like or None
@@ -137,9 +161,9 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
         gflux, rflux_snr, zflux_snr, w1flux_snr: array_like
             The signal-to-noise in the r, z and W1 bands defined as the flux
-            per band divided by sigma (flux x the sqrt of the inverse variance)
+            per band divided by sigma (flux x the sqrt of the inverse variance).
         gflux_ivar: array_like
-            The inverse variance of the flux in g-band
+            The inverse variance of the flux in g-band.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
 
