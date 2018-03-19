@@ -18,6 +18,7 @@ import fitsio
 import healpy as hp
 from astropy.table import Table, Column
 
+from desimodel.io import load_pixweight
 from desimodel import footprint
 from desiutil.brick import brickname as get_brickname_from_radec
 
@@ -505,7 +506,7 @@ class SelectTargets(object):
         healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
 
         # Get the weight per pixel, protecting against divide-by-zero.
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
         weight = np.zeros_like(radec['RA'])
         good = np.nonzero(pixweight[healpix])
         weight[good] = 1 / pixweight[healpix[good]]
@@ -628,7 +629,7 @@ class ReadGaussianField(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
@@ -753,7 +754,7 @@ class ReadUniformSky(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
@@ -879,7 +880,7 @@ class ReadGalaxia(SelectTargets):
             log.warning('Healpixels and nside must be scalar inputs.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
 
         # Get the set of nside_galaxia pixels that belong to the desired
         # healpixels (which have nside).  This will break if healpixels is a
@@ -1100,7 +1101,7 @@ class ReadLyaCoLoRe(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
 
         # Read the ra,dec coordinates and then restrict to the desired
         # healpixels.
@@ -1240,7 +1241,7 @@ class ReadMXXL(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
         
         # Read the data, generate mockid, and then restrict to the input
         # healpixel.  Work around hdf5 <1.10 bug on /project; see
@@ -1394,7 +1395,7 @@ class ReadMWS_WD(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
@@ -1521,7 +1522,7 @@ class ReadMWS_NEARBY(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = footprint.io.load_pixweight(nside, pixmap=self.pixmap)
+        pixweight = load_pixweight(nside, pixmap=self.pixmap)
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # desired healpixels.
