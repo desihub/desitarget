@@ -174,7 +174,7 @@ def read_tractor(filename, header=False, columns=None):
     if (columns is None) and \
        (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
-        #ADM we default to writing RELEASE = 3000 ("DR3 or before data')
+        #ADM we default to writing RELEASE = 3000 ("DR3, or before, data")
         data = convert_from_old_data_model(fx,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
@@ -201,12 +201,29 @@ def read_tractor(filename, header=False, columns=None):
         if kind == 'U' or kind == 'S':
             data[colname] = np.char.rstrip(data[colname])
 
+    #ADM add the PHOTSYS column to unambiguously check whether we're using imaging
+    #ADM from the "North" or "South", mapped from RELEASE
+    initialcols = data.dtype.names
+    dd = data.dtype.descr
+    dd.append(('PHOTSYS','|S1')) 
+    newdt = np.dtype(dd)
+    nrows = len(data)
+    #ADM create and populate a new numpy array with the PHOTSYS field...
+    outdata = np.empty(nrows, dtype=newdt)
+    for col in initialcols:
+        outdata[col] = data[col]
+    #ADM add the PHOTSYS column
+    photsys = release_to_photsys(data["RELEASE"])
+    outdata['PHOTSYS'] = photsys
+    #ADM the commented-out line is more compact but ~15% slower:
+#    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)
+
     if header:
         fx.close()
-        return data, hdr
+        return outdata, hdr
     else:
         fx.close()
-        return data
+        return outdata
 
 
 def fix_tractor_dr1_dtype(objects):
@@ -315,10 +332,6 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
-
-    #ADM add PHOTSYS column, mapped from RELEASE
-    photsys = release_to_photsys(data["RELEASE"])
-    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
