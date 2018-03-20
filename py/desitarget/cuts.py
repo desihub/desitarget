@@ -529,9 +529,59 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
                release=None, objtype=None, primary=None):
-    """Cuts based QSO target selection
+    """Cuts based QSO target selection for the BASS/MzLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        w1snr: array_like[ntargets]
+            S/N in the W1 band.
+        w2snr: array_like[ntargets]
+            S/N in the W2 band.
+        deltaChi2: array_like[ntargets]
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+        objtype (optional): array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        primary (optional): array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    Notes:
+        Uses isQSO_colors() to make color cuts first, then applies
+            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
+
+    """
+    qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                       w1flux=w1flux, w2flux=w2flux)
+
+    qso &= w1snr > 4
+    qso &= w2snr > 2
+
+    #ADM default to RELEASE of 6000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+6000
+
+    qso &= ((deltaChi2>40.) | (release>=5000) )
+
+    if primary is not None:
+        qso &= primary
+
+    if objtype is not None:
+        qso &= _psflike(objtype)
+
+    return qso
+
+
+def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+               release=None, objtype=None, primary=None):
+    """Cuts based QSO target selection for the DECaLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -578,9 +628,94 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
 
     return qso
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+
+def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                        objtype=None, release=None, deltaChi2=None, primary=None):
-    """Target Definition of QSO using a random forest returning a boolean array.
+    """Target definition of QSO using a random forest for the BASS/MzLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+        deltaChi2: array_like or None
+             If given, difference in chi2 bteween PSF and SIMP morphology
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    """
+    #----- Quasars
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+
+    #ADM default to RELEASE of 6000 if nothing is passed
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+6000
+
+    # build variables for random forest
+    nfeatures=11 # number of variables in random forest
+    nbEntries=rflux.size
+    colors, r, photOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
+
+    #Preselection to speed up the process, store the indexes
+    rMax = 22.7  # r<22.7
+    #ADM this previous had no np.where but was flagging DeprecationWarnings on
+    #ADM indexing a Boolean, so I switched the Boolean to an integer via np.where
+    preSelection = np.where( (r<rMax) & _psflike(objtype) & photOK )
+    colorsCopy = colors.copy()
+    colorsReduced = colorsCopy[preSelection]
+    colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
+    colorsReducedIndex =  colorsIndex[preSelection]
+
+    #Path to random forest files
+    pathToRF = resource_filename('desitarget', "data")
+
+    # Compute random forest probability
+    from desitarget.myRF import myRF
+    prob = np.zeros(nbEntries)
+
+    if (colorsReducedIndex.any()) :
+        rf = myRF(colorsReduced,pathToRF,numberOfTrees=200,version=1)
+        fileName = pathToRF + '/rf_model_dr3.npz'
+        rf.loadForest(fileName)
+        objects_rf = rf.predict_proba()
+        # add random forest probability to preselected objects
+        j=0
+        for i in colorsReducedIndex :
+            prob[i]=objects_rf[j]
+            j += 1
+
+    #define pcut, relaxed cut for faint objects
+    pcut = np.where(r>20.0,0.95 - (r-20.0)*0.08,0.95)
+    pcut_DR6 = np.where(r>20.0,0.85 - (r-20.0)*0.10,0.85)
+
+    qso = primary.copy()
+    qso &= r<rMax
+    qso &= photOK
+
+    if objtype is not None:
+        qso &= _psflike(objtype)
+
+    if (deltaChi2 is not None) :
+        qso &= ((deltaChi2>30.) | (release>=5000) ) 
+
+    if nbEntries==1 : # for call of a single object
+        qso &= prob[0]>pcut
+    else :
+        qso &= (((prob>pcut)&(release<6000)) | ((prob>pcut_DR6)&(release>=6000)))
+
+    return qso
+
+
+def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                       objtype=None, release=None, deltaChi2=None, primary=None):
+    """Target definition of QSO using a random forest for the DECaLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -610,13 +745,13 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # build variables for random forest
     nfeatures=11 # number of variables in random forest
     nbEntries=rflux.size
-    colors, r, DECaLSOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
+    colors, r, photOK = _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux)
 
     #Preselection to speed up the process, store the indexes
     rMax = 22.7  # r<22.7
     #ADM this previous had no np.where but was flagging DeprecationWarnings on
     #ADM indexing a Boolean, so I switched the Boolean to an integer via np.where
-    preSelection = np.where( (r<rMax) & _psflike(objtype) & DECaLSOK )
+    preSelection = np.where( (r<rMax) & _psflike(objtype) & photOK )
     colorsCopy = colors.copy()
     colorsReduced = colorsCopy[preSelection]
     colorsIndex =  np.arange(0,nbEntries,dtype=np.int64)
@@ -646,7 +781,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     qso = primary.copy()
     qso &= r<rMax
-    qso &= DECaLSOK
+    qso &= photOK
 
     if objtype is not None:
         qso &= _psflike(objtype)
@@ -708,7 +843,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
     W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
 
-    DECaLSOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+    photOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
 
     colors  = np.zeros((nbEntries,nfeatures))
     colors[:,0]=g-r
@@ -723,7 +858,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     colors[:,9]=W1-W2
     colors[:,10]=r
 
-    return colors, r, DECaLSOK
+    return colors, r, photOK
 
 def _is_row(table):
     '''Return True/False if this is a row of a table instead of a full table
