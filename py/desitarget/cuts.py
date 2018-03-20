@@ -1015,15 +1015,27 @@ def apply_cuts(objects, qso_selection='randomforest'):
     bgs_faint  = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype)
 
     if qso_selection=='colorcuts' :
-        qso = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                         w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype,
-                         w1snr=w1snr, w2snr=w2snr, release=release)
+        #ADM determine quasar targets in the north and the south separately
+        qso_north = isQSO_cuts_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release)
+        qso_south = isQSO_cuts_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release)
     elif qso_selection == 'randomforest':
-        qso = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, objtype=objtype, release=release)
+        #ADM determine quasar targets in the north and the south separately
+        qso_north = isQSO_randomforest_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                             w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                             objtype=objtype, release=release)
+        qso_south = isQSO_randomforest_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                             w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                             objtype=objtype, release=release)
     else:
         raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
                                                                                  qso_selection_options))
+    #ADM combine the quasar target bits to make a true quasar target
+    qso = (qso_north & photsys_north) | (qso_south & photsys_south)
+
     #ADM Make sure to pass all of the needed columns! At one point we stopped
     #ADM passing objtype, which meant no standards were being returned.
     fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
@@ -1039,10 +1051,11 @@ def apply_cuts(objects, qso_selection='randomforest'):
     # This should really be refactored into a dedicated function.
     desi_target  = lrg * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
-    desi_target |= qso * desi_mask.QSO_SOUTH
+    desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North)
     desi_target |= elg_north * desi_mask.ELG_NORTH
+    desi_target |= qso_north * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south
     desi_target |= lrg * desi_mask.LRG
