@@ -236,7 +236,8 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return lrg, lrg1pass, lrg2pass
 
 
-def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
+                gallmask=None, rallmask=None, zallmask=None):
     """Target Definition of ELG for the BASS/MzLS photometric system. Returning a boolean array.
 
     Args:
@@ -244,6 +245,9 @@ def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        gallmask, rallmask, zallmask: array_like
+            Bitwise mask set if the central pixel from all images 
+            satisfy each condition in g, r, z 
 
     Returns:
         mask : array_like. True if and only the object is an ELG
@@ -251,23 +255,27 @@ def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
 
     """
 
-    Mask:: allmask_g==0&&allmask_r==0&&allmask_z==0
-Magnitude limits:. g<23.7 && r<23.3. (instead of r<23.4)
-To remove stars and low-z galaxies in (g-r,r-z) color spaces: (g-r)<1.40*(r-z)-0.35) (instead of (g-r)<1.15*(r-z)-0.15) 
-g>20 
-
     #----- Emission Line Galaxies
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
-    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
+
+    elg &= (gallmask == 0)
+    elg &= (rallmask == 0)
+    elg &= (zallmask == 0)
+    
+    elg &= gflux < 10**((22.5-20.0)/2.5)                       # g>20
+    elg &= gflux > 10**((22.5-23.7)/2.5)                       # g<23.7
+    elg &= rflux > 10**((22.5-23.3)/2.5)                       # r<23.3
     elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
     elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
 
     # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    #ADM this is the original FDR cut to remove stars and low-z galaxies
+    #elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
     elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
 
     return elg
@@ -800,14 +808,14 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     #ADM rewrite the fluxes to shift anything on the northern
     #ADM system to approximate the southern system
-    w = np.where(_isonnorthphotsys(objects["PHOTSYS"]))
+    wnorth = np.where(_isonnorthphotsys(objects["PHOTSYS"]))
     if len(w[0]) > 0:
-        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][w],
-                                                   objects["FLUX_R"][w],
-                                                   objects["FLUX_Z"][w])
-        objects["FLUX_G"][w] = gshift
-        objects["FLUX_R"][w] = rshift
-        objects["FLUX_Z"][w] = zshift
+        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
+                                                   objects["FLUX_R"][wnorth],
+                                                   objects["FLUX_Z"][wnorth])
+        objects["FLUX_G"][wnorth] = gshift
+        objects["FLUX_R"][wnorth] = rshift
+        objects["FLUX_Z"][wnorth] = zshift
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
@@ -825,6 +833,10 @@ def apply_cuts(objects, qso_selection='randomforest'):
     gfracflux = objects['FRACFLUX_G'].T # note transpose
     rfracflux = objects['FRACFLUX_R'].T # note transpose
     zfracflux = objects['FRACFLUX_Z'].T # note transpose
+
+    gallmask = objects['ALLMASK_G']
+    rallmask = objects['ALLMASK_R']
+    zallmask = objects['ALLMASK_Z']
 
     gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
     rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
