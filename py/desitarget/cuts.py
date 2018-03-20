@@ -633,6 +633,21 @@ def _psflike(psftype):
                 (psftype == 'PSF ') | (psftype == b'PSF ') )
     return psflike
 
+def _isonnorthphotsys(photsys):
+    """ If the object is from the northen photometric system """
+    #ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    #ADM run this test on empty information. In the past we have had bugs where
+    #ADM we forgot to populate variables before passing them
+    if photsys is None:
+        raise ValueError("NoneType submitted to _isonnorthphotsys function")
+
+    psftype = np.asarray(photsys)
+    #ADM in Python3 these string literals become byte-like
+    #ADM so to retain Python2 compatibility we need to check
+    #ADM against both bytes and unicode
+    northern = ( (photsys == 'N') | (photsys == b'N') )
+    return northern
+
 def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
 
     limitInf=1.e-04
@@ -746,6 +761,17 @@ def apply_cuts(objects, qso_selection='randomforest'):
                 col.name = col.name.upper()
 
     obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
+
+    #ADM rewrite the fluxes to shift anything on the northern
+    #ADM system to approximate the southern system
+    w = np.where(_isonnorthphotsys(objects["PHOTSYS"]))
+    if len(w[0]) > 0:
+        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][w],
+                                                   objects["FLUX_R"][w],
+                                                   objects["FLUX_Z"][w])
+        objects["FLUX_G"][w] = gshift
+        objects["FLUX_R"][w] = rshift
+        objects["FLUX_Z"][w] = zshift
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
