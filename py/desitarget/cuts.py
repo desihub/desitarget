@@ -280,6 +280,7 @@ def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
 
     return elg
 
+
 def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of ELG for the DECaLS photometric system. Returning a boolean array.
 
@@ -808,8 +809,11 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     #ADM rewrite the fluxes to shift anything on the northern
     #ADM system to approximate the southern system
-    wnorth = np.where(_isonnorthphotsys(objects["PHOTSYS"]))
-    if len(w[0]) > 0:
+    photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
+    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
+    wnorth = np.where(photsys_north)
+
+    if len(wnorth[0]) > 0:
         gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
                                                    objects["FLUX_R"][wnorth],
                                                    objects["FLUX_Z"][wnorth])
@@ -867,7 +871,10 @@ def apply_cuts(objects, qso_selection='randomforest'):
                                         zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
                                         rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
     
-    elg = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                            gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
+    elg_south = isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
     bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
     bgs_faint  = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype)
@@ -893,12 +900,16 @@ def apply_cuts(objects, qso_selection='randomforest'):
                   gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
 
-    # Construct the targetflag bits; currently our only cuts are DECam based
-    # (i.e. South).  This should really be refactored into a dedicated function.
+    # Construct the targetflag bits for DECaLS (i.e. South)
+    # This should really be refactored into a dedicated function.
     desi_target  = lrg * desi_mask.LRG_SOUTH
-    desi_target |= elg * desi_mask.ELG_SOUTH
+    desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= qso * desi_mask.QSO_SOUTH
 
+    # Construct the targetflag bits for MzLS and BASS (i.e. North)
+    desi_target |= elg_north * desi_mask.ELG_NORTH
+
+    # Construct the targetflag bits combining north and south
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
