@@ -236,8 +236,44 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return lrg, lrg1pass, lrg2pass
 
 
-def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
-    """Target Definition of ELG. Returning a boolean array.
+def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+    """Target Definition of ELG for the BASS/MzLS photometric system. Returning a boolean array.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is an ELG
+            target.
+
+    """
+
+    Mask:: allmask_g==0&&allmask_r==0&&allmask_z==0
+Magnitude limits:. g<23.7 && r<23.3. (instead of r<23.4)
+To remove stars and low-z galaxies in (g-r,r-z) color spaces: (g-r)<1.40*(r-z)-0.35) (instead of (g-r)<1.15*(r-z)-0.15) 
+g>20 
+
+    #----- Emission Line Galaxies
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    elg = primary.copy()
+    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
+    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
+    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
+
+    return elg
+
+def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+    """Target Definition of ELG for the DECaLS photometric system. Returning a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
