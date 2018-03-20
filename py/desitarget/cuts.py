@@ -25,6 +25,31 @@ from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
+def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
+    """Same as :func:`~desitarget.cuts.shift_photo_north_pure` accounting for zero fluxes
+
+    Parameters
+    ----------
+    gflux, rflux, zflux : :class:`array_like` or `float`
+        The flux in nano-maggies of g, r, z bands.
+
+    Returns
+    -------
+    The equivalent fluxes shifted to the southern system.
+
+    Notes
+    -----
+        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+
+    """
+
+    gshift = gflux * 10**(-0.4*0.029) * (gflux/rflux)**(-0.068)
+    rshift = rflux * 10**(+0.4*0.012) * (rflux/zflux)**(-0.029)
+    zshift = zflux * 10**(-0.4*0.000) * (rflux/zflux)**(+0.009)
+
+    return gshift, rshift, zshift
+
+
 def shift_photo_north(gflux=None, rflux=None, zflux=None):
     """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system
 
@@ -42,9 +67,20 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
         - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
 
     """
-    gshift = gflux * 10**(-0.4*0.029) * (gflux/rflux)**(-0.068)
-    rshift = rflux * 10**(+0.4*0.012) * (rflux/zflux)**(-0.029)
-    zshift = zflux * 10**(-0.4*0.000) * (rflux/zflux)**(+0.009)
+    
+    #ADM only use the g-band color shift when r and g are non-zero
+    gshift = gflux * 10**(-0.4*0.029)
+    w = np.where( (gflux != 0) & (rflux != 0) )
+    gshift[w] = (gflux[w] * 10**(-0.4*0.029) * (gflux[w]/rflux[w])**complex(-0.068)).real
+
+    #ADM only use the r-band color shift when r and z are non-zero
+    #ADM and only use the z-band color shift when r and z are non-zero
+    w = np.where( (rflux != 0) & (zflux != 0) )
+    rshift = rflux * 10**(+0.4*0.012)
+    zshift = zflux * 10**(-0.4*0.000)
+
+    rshift[w] = (rflux[w] * 10**(+0.4*0.012) * (rflux[w]/zflux[w])**complex(-0.029)).real
+    zshift[w] = (zflux[w] * 10**(-0.4*0.000) * (rflux[w]/zflux[w])**complex(+0.009)).real
 
     return gshift, rshift, zshift
 
