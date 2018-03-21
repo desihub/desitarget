@@ -203,20 +203,24 @@ def read_tractor(filename, header=False, columns=None):
             data[colname] = np.char.rstrip(data[colname])
 
     #ADM add the PHOTSYS column to unambiguously check whether we're using imaging
-    #ADM from the "North" or "South", mapped from RELEASE
-    initialcols = data.dtype.names
-    dd = data.dtype.descr
-    dd.append(('PHOTSYS','|S1')) 
-    newdt = np.dtype(dd)
-    nrows = len(data)
-    #ADM create and populate a new numpy array with the PHOTSYS field...
-    outdata = np.empty(nrows, dtype=newdt)
-    for col in initialcols:
-        outdata[col] = data[col]
-    #ADM add the PHOTSYS column
-    photsys = release_to_photsys(data["RELEASE"])
-    outdata['PHOTSYS'] = photsys
-    #ADM the commented-out line is more compact but ~15% slower:
+    #ADM from the "North" or "South", mapped from RELEASE, so only do this
+    #ADM if RELEASE has been passed (or if we're using the default columns)
+    if 'RELEASE' in readcolumns:
+        initialcols = data.dtype.names
+        dd = data.dtype.descr
+        dd.append(('PHOTSYS','|S1')) 
+        newdt = np.dtype(dd)
+        nrows = len(data)
+        #ADM create and populate a new numpy array with the PHOTSYS field.
+        outdata = np.empty(nrows, dtype=newdt)
+        for col in initialcols:
+            outdata[col] = data[col]
+        #ADM add the PHOTSYS column
+        photsys = release_to_photsys(data["RELEASE"])
+        outdata['PHOTSYS'] = photsys
+        #ADM the commented-out line is more compact but ~15% slower...
+    else:
+        outdata = data
 #    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)
 
     if header:
