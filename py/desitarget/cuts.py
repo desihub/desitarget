@@ -236,6 +236,33 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return lrg, lrg1pass, lrg2pass
 
 
+def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
+                gallmask=None, rallmask=None, zallmask=None,south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+    
+    Args:   
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        gallmask, rallmask, zallmask: array_like
+            Bitwise mask set if the central pixel from all images
+            satisfy each condition in g, r, z
+        south: boolean, defaults to True
+            Call isELG_north if south=False, otherwise call isELG_south.
+
+    Returns:
+        mask : array_like. True if and only the object is an ELG
+            target.
+    """            
+                               
+    if south==False:
+        return isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                            gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
+    else:
+        return isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+
+
 def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
                 gallmask=None, rallmask=None, zallmask=None):
     """Target Definition of ELG for the BASS/MzLS photometric system. Returning a boolean array.
@@ -529,6 +556,42 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
     return qso
 
+
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
+                   release=None, objtype=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        w1snr: array_like[ntargets]
+            S/N in the W1 band.
+        w2snr: array_like[ntargets]
+            S/N in the W2 band.
+        deltaChi2: array_like[ntargets]
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+        objtype (optional): array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        primary (optional): array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Call isQSO_cuts_north if south=False, otherwise call isQSO_cuts_south.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+    """
+                               
+    if south==False:
+        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
+                                release=release, objtype=objects, primary=primary)
+    else:
+        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
+                                release=release, objtype=objtype, primary=primary)
+
+
 def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
                release=None, objtype=None, primary=None):
     """Cuts based QSO target selection for the BASS/MzLS photometric system.
@@ -627,6 +690,41 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
         qso &= _psflike(objtype)
 
     return qso
+
+
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                    objtype=None, release=None, deltaChi2=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+        deltaChi2: array_like or None
+             If given, difference in chi2 bteween PSF and SIMP morphology
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Call isQSO_randomforest_north if south=False, 
+                otherwise call isQSO_randomforest_south.
+
+    Returns:
+        mask : array_like. True if and only the object is a QSO
+            target.
+
+    """
+                               
+    if south==False:
+        return isQSO_randomforest_north(gflux=gflux, rflux=rflux, zflux=zflux,
+                                w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
+                                release=release, deltaChi2=deltaChi2, primary=primary)
+    else:
+        return isQSO_randomforest_south(gflux=gflux, rflux=rflux, zflux=zflux,
+                                w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
+                                release=release, deltaChi2=deltaChi2, primary=primary)
 
 
 def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
