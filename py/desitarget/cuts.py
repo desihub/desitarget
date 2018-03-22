@@ -709,7 +709,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to True
             Call isQSO_randomforest_north if south=False, 
-                otherwise call isQSO_randomforest_south.
+            otherwise call isQSO_randomforest_south.
 
     Returns:
         mask : array_like. True if and only the object is a QSO
