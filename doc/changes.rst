@@ -10,8 +10,18 @@ desitarget Change Log
    * Pass around a magnitude limit on masks from the sweeps (to better
      avoid only objects that are genuinely detected in the sweeps).
    * Reduce the default margin to produce ~1700 sky positions per sq. deg.
+* Retuning of DR6 target densities [`PR #294`_]. Includes:
+   * Tweaking the QSO random forest probability.
+   * Adding a new ELG selection for the northern (MzLS/BASS) imaging.
+   * Slight flux shifts to reconcile the northern and southern (DECaLS) imaging.
+   * Initial functionality for different North/South selections.
+* Some reformatting of output target files and bits [`PR #294`_]:
+   * Introducing a `NO_TARGET` bit.
+   * Renaming the `BADSKY` bit `BAD_SKY` for consistency with other bits.
+   * Including `FRACDEV` and `FRACDEV_IVAR` as outputs.
    
 .. _`PR #290`: https://github.com/desihub/desitarget/pull/290
+.. _`PR #294`: https://github.com/desihub/desitarget/pull/294
 
 0.19.1 (2018-03-01)
 -------------------
