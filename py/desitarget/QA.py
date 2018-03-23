@@ -1670,7 +1670,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         #ADM set up and make the plot
         plt.clf()
         #ADM restrict the magnitude limits
-        plt.xlim(14, 25)
+        plt.xlim(14, 24)
         #ADM give a little space for labels on the y-axis
         plt.ylim((0,ypeak*1.2))
         plt.xlabel(filtername)
