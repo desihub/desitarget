@@ -206,7 +206,7 @@ def read_tractor(filename, header=False, columns=None):
     #ADM add the PHOTSYS column to unambiguously check whether we're using imaging
     #ADM from the "North" or "South", mapped from RELEASE, so only do this
     #ADM if RELEASE has been passed (or if we're using the default columns)
-    if 'RELEASE' in readcolumns:
+    if 'RELEASE' in data.dtype.names:
         initialcols = data.dtype.names
         dd = data.dtype.descr
         dd.append(('PHOTSYS','|S1')) 
