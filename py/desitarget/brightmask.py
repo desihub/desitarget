@@ -870,7 +870,7 @@ def append_safe_targets(targs,sourcemask,nside=None,drbricks=None):
     safes["DEC"] = dec
 
     #ADM set the bit for SAFE locations in DESITARGET
-    safes["DESI_TARGET"] |= desi_mask.BADSKY
+    safes["DESI_TARGET"] |= desi_mask.BAD_SKY
 
     #ADM add the brick information for the SAFE/BADSKY targets
     b = brick.Bricks(bricksize=0.25)
@@ -1042,7 +1042,7 @@ def mask_targets(targs,inmaskfile=None,nside=None,bands="GRZ",maglim=[10,10,10],
     done["DESI_TARGET"] = dt
 
     #ADM remove any SAFE locations that are in bright masks (because they aren't really safe)
-    w = np.where(  ((done["DESI_TARGET"] & desi_mask.BADSKY) == 0)  | 
+    w = np.where(  ((done["DESI_TARGET"] & desi_mask.BAD_SKY) == 0)  | 
                    ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
     if len(w[0]) > 0:
         done = done[w]
