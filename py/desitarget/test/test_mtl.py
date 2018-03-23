@@ -54,7 +54,7 @@ class TestMTL(unittest.TestCase):
 
         
         #- change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
-        self.targets['DESI_TARGET'][0] = Mx.BADSKY
+        self.targets['DESI_TARGET'][0] = Mx.BAD_SKY
         mtl = make_mtl(self.targets, self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
         self.assertEqual(mtl['PRIORITY'][0], 0)
