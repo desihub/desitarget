@@ -590,7 +590,7 @@ def make_sky_targets(objs,navoid=1.,nskymin=None,maglim=[20,20,20]):
     #ADM create an array of target bits with the SKY information set
     desi_target = np.zeros(nskies,dtype='>i8')
     desi_target[0:ngood] |= desi_mask.SKY
-    desi_target[ngood:nskies] |= desi_mask.BADSKY
+    desi_target[ngood:nskies] |= desi_mask.BAD_SKY
 
     log.info('Looking up brick information...t = {:.1f}s'.format(time()-start))
     #ADM add the brick information for the sky targets
