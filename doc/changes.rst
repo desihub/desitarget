@@ -2,9 +2,16 @@
 desitarget Change Log
 =====================
 
-0.19.2 (unreleased)
+0.20.1 (unreleased)
 -------------------
 
+* No changes yet.
+
+0.20.0 (2018-03-24)
+-------------------
+
+* Added compare_target_qa script [`PR #289`_].
+* Astropy 2.x compatibility [`PR #291`_].
 * Update of sky selection code [`PR #290`_]. Includes:
    * Use the :mod:`desitarget.brightmask` formalism to speed calculations.
    * Pass around a magnitude limit on masks from the sweeps (to better
@@ -20,7 +27,9 @@ desitarget Change Log
    * Renaming the `BADSKY` bit `BAD_SKY` for consistency with other bits.
    * Including `FRACDEV` and `FRACDEV_IVAR` as outputs.
    
+.. _`PR #289`: https://github.com/desihub/desitarget/pull/289
 .. _`PR #290`: https://github.com/desihub/desitarget/pull/290
+.. _`PR #291`: https://github.com/desihub/desitarget/pull/291
 .. _`PR #294`: https://github.com/desihub/desitarget/pull/294
 
 0.19.1 (2018-03-01)
