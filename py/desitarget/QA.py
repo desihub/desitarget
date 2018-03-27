@@ -1659,8 +1659,8 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         nbins = 20
         bins = np.arange(nbins)*0.5+14
         #ADM insert a 0 bin and a 100 bin to catch the edges
-        np.insert(bins,0,0.)
-        np.insert(bins,len(bins),100.)
+        bins = np.insert(bins,0,0.)
+        bins = np.insert(bins,len(bins),100.)
 
         #ADM the density value of the peak redshift histogram bin
         h, b = np.histogram(mag,bins=bins)
