@@ -2,16 +2,37 @@
 desitarget Change Log
 =====================
 
-0.19.2 (unreleased)
+0.20.1 (unreleased)
 -------------------
 
+* Add a bright (g>21) flux cut for ELGs. [`PR #296`_].
+
+.. _`PR #296`: https://github.com/desihub/desitarget/pull/296
+
+0.20.0 (2018-03-24)
+-------------------
+
+* Added compare_target_qa script [`PR #289`_].
+* Astropy 2.x compatibility [`PR #291`_].
 * Update of sky selection code [`PR #290`_]. Includes:
    * Use the :mod:`desitarget.brightmask` formalism to speed calculations.
    * Pass around a magnitude limit on masks from the sweeps (to better
      avoid only objects that are genuinely detected in the sweeps).
    * Reduce the default margin to produce ~1700 sky positions per sq. deg.
+* Retuning of DR6 target densities [`PR #294`_]. Includes:
+   * Tweaking the QSO random forest probability.
+   * Adding a new ELG selection for the northern (MzLS/BASS) imaging.
+   * Slight flux shifts to reconcile the northern and southern (DECaLS) imaging.
+   * Initial functionality for different North/South selections.
+* Some reformatting of output target files and bits [`PR #294`_]:
+   * Introducing a `NO_TARGET` bit.
+   * Renaming the `BADSKY` bit `BAD_SKY` for consistency with other bits.
+   * Including `FRACDEV` and `FRACDEV_IVAR` as outputs.
    
+.. _`PR #289`: https://github.com/desihub/desitarget/pull/289
 .. _`PR #290`: https://github.com/desihub/desitarget/pull/290
+.. _`PR #291`: https://github.com/desihub/desitarget/pull/291
+.. _`PR #294`: https://github.com/desihub/desitarget/pull/294
 
 0.19.1 (2018-03-01)
 -------------------

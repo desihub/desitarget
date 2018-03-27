@@ -118,7 +118,7 @@ class TestBRIGHTMASK(unittest.TestCase):
         #ADM mask the targets, reading in the mask
         targs = brightmask.mask_targets(self.testtargfile,inmaskfile=self.testmaskfile,drbricks=self.drbricks)
         #ADM none of the targets should have been masked
-        self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BADSKY) != 0)))
+        self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)))
 
     def test_safe_locations(self):
         """Test that SAFE/BADSKY locations are equidistant from mask centers
@@ -147,7 +147,7 @@ class TestBRIGHTMASK(unittest.TestCase):
 
         #ADM first check that the SKY bit and BADSKY bits are appropriately set
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
-        badskybitset = ((targs["DESI_TARGET"] & desi_mask.BADSKY) != 0)
+        badskybitset = ((targs["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)
         self.assertTrue(np.all(skybitset == badskybitset))
 
         #ADM now check that the other bits are in the correct locations

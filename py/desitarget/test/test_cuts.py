@@ -155,7 +155,7 @@ class TestCuts(unittest.TestCase):
                 try:
                     notNaN = ~np.isnan(t1[col])
                 except TypeError:  #- can't check string columns for NaN
-                    notNan = np.ones(len(t1), dtype=bool)
+                    notNaN = np.ones(len(t1), dtype=bool)
 
                 self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
 
