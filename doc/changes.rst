@@ -5,7 +5,9 @@ desitarget Change Log
 0.20.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add a bright (g>21) flux cut for ELGs. [`PR #296`_].
+
+.. _`PR #296`: https://github.com/desihub/desitarget/pull/296
 
 0.20.0 (2018-03-24)
 -------------------
