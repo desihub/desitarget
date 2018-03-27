@@ -2180,6 +2180,13 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
         log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
 
+    #ADM calculate the total area (useful for determining overall average densities
+    #ADM from the total number of targets/the total area)
+    uniqpixset = np.array(list(set(pix)))
+    totalpixweight = np.sum(pixweight[uniqpixset])
+    pixarea = hp.nside2pixarea(nside,degrees=True)
+    totarea = pixarea*totalpixweight
+
     #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
     if targdens is None:
         targdens = _load_targdens()
