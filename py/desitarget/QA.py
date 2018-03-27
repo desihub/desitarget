@@ -1656,7 +1656,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         #ADM plot the magnitude histogram
         #ADM set the number of bins for the redshift histogram to run in 
         #ADM 0.5 intervals from 14 to 14 + 0.5*bins
-        nbins = 20
+        nbins = 24
         bins = np.arange(nbins)*0.5+14
         #ADM insert a 0 bin and a 100 bin to catch the edges
         bins = np.insert(bins,0,0.)
@@ -1670,7 +1670,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         #ADM set up and make the plot
         plt.clf()
         #ADM restrict the magnitude limits
-        plt.xlim(14, 24)
+        plt.xlim(14, 25)
         #ADM give a little space for labels on the y-axis
         plt.ylim((0,ypeak*1.2))
         plt.xlabel(filtername)
@@ -2138,7 +2138,6 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
     #ADM set up the default logger from desiutil
     from desiutil.log import get_logger, DEBUG
     log = get_logger(DEBUG)
-    from desimodel import io, footprint
 
     start = time()
     log.info('Start making (mock) targeting QA plots...t = {:.1f}s'.format(time()-start))
