@@ -291,7 +291,7 @@ def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
     elg &= (rallmask == 0)
     elg &= (zallmask == 0)
     
-    elg &= gflux < 10**((22.5-20.0)/2.5)                       # g>20
+    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
     elg &= gflux > 10**((22.5-23.7)/2.5)                       # g<23.7
     elg &= rflux > 10**((22.5-23.3)/2.5)                       # r<23.3
     elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
@@ -326,6 +326,7 @@ def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
+    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
     elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
     elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
     elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
