@@ -1318,13 +1318,24 @@ def apply_cuts(objects, qso_selection='randomforest'):
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg, lrg1pass, lrg2pass = isLRGpass(primary=primary, gflux=gflux, rflux=rflux, 
-                                        zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
-                                        rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
-    
+    lrg_north, lrg1pass_north, lrg2pass_north = 
+                isLRGpass_north(primary=primary, gflux=gflux, rflux=rflux, 
+                                zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+
+    lrg_south, lrg1pass_south, lrg2pass_south = 
+                isLRGpass_south(primary=primary, gflux=gflux, rflux=rflux, 
+                                zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    #ADM combine LRG target bits for an LRG target based on any imaging
+    lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
+    lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
+    lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
+
     elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                             gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
     elg_south = isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    #ADM combine ELG target bits for an ELG target based on any imaging
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
     bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
@@ -1349,7 +1360,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     else:
         raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
                                                                                  qso_selection_options))
-    #ADM combine the quasar target bits to make a true quasar target
+    #ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
     #ADM Make sure to pass all of the needed columns! At one point we stopped
@@ -1365,11 +1376,12 @@ def apply_cuts(objects, qso_selection='randomforest'):
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
-    desi_target  = lrg * desi_mask.LRG_SOUTH
+    desi_target  = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North)
+    desi_target  = lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
@@ -1378,10 +1390,16 @@ def apply_cuts(objects, qso_selection='randomforest'):
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
-    #ADM add the per-pass information
+    #ADM add the per-pass information in the south...
+    desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
+    desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
+    #ADM ...the north...
+    desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
+    desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
+    #ADM ...and combined
     desi_target |= lrg1pass * desi_mask.LRG_1PASS
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
-    
+
     # Standards; still need to set STD_WD
     desi_target |= fstd * desi_mask.STD_FSTAR
     desi_target |= fstd_bright * desi_mask.STD_BRIGHT
