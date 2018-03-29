@@ -2180,13 +2180,6 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
         log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
 
-    #ADM calculate the total area (useful for determining overall average densities
-    #ADM from the total number of targets/the total area)
-    uniqpixset = np.array(list(set(pix)))
-    totalpixweight = np.sum(pixweight[uniqpixset])
-    pixarea = hp.nside2pixarea(nside,degrees=True)
-    totarea = pixarea*totalpixweight
-
     #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
     if targdens is None:
         targdens = _load_targdens()
@@ -2274,13 +2267,14 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     Returns
     -------
-    Nothing
-        But a set of .png plots for target QA are written to qadir
+    :class:`float`
+        The total area of the survey used to make the QA plots.
 
     Notes
     -----
-    The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
-    that overlap the DESI footprint
+        - The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
+          that overlap the DESI footprint
+        - On execution, a set of .png plots for target QA are written to `qadir`
     """
 
     #ADM set up the default logger from desiutil
@@ -2326,6 +2320,13 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
 
+    #ADM calculate the total area (useful for determining overall average densities
+    #ADM from the total number of targets/the total area)
+    uniqpixset = np.array(list(set(pix)))
+    totalpixweight = np.sum(pixweight[uniqpixset])
+    pixarea = hp.nside2pixarea(nside,degrees=True)
+    totarea = pixarea*totalpixweight
+
     #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
     if targdens is None:
         targdens = _load_targdens()
@@ -2363,6 +2364,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
+    return totarea
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True, clip2foot=True):
@@ -2452,21 +2454,16 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     js = _javastring()
 
     #ADM html preamble
-    html = open(htmlfile, 'w')
-    html.write('<html><body>\n')
-    html.write('<h1>DESI Targeting QA pages ({})</h1>\n'.format(DRs))
+    htmlmain = open(htmlfile, 'w')
+    htmlmain.write('<html><body>\n')
+    htmlmain.write('<h1>DESI Targeting QA pages ({})</h1>\n'.format(DRs))
 
     #ADM links to each collection of plots for each object type
-    html.write('<b><i>Jump to a target class:</i></b>\n')
-    html.write('<ul>\n')
+    htmlmain.write('<b><i>Jump to a target class:</i></b>\n')
+    htmlmain.write('<ul>\n')
     for objtype in targdens.keys():
-        html.write('<li><A HREF="{}.html">{}</A>\n'.format(objtype,objtype))
-    html.write('</ul>\n')
-
-    #ADM html postamble
-    html.write('<b><i>Last updated {}</b></i>\n'.format(js))
-    html.write('</html></body>\n')
-    html.close()
+        htmlmain.write('<li><A HREF="{}.html">{}</A>\n'.format(objtype,objtype))
+    htmlmain.write('</ul>\n')
 
     #ADM for each object type, make a separate page
     for objtype in targdens.keys():        
@@ -2557,13 +2554,46 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        make_qa_plots(targs, 
-                      qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                      weight=weight)
+        totarea = make_qa_plots(targs, 
+                                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                                weight=weight)
         if mocks:
             mock_make_qa_plots(targs, truths, 
                                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
                                weight=weight)
+
+        #ADM add a correlation matrix recording the overlaps between different target
+        #ADM classes as a density
+        log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
+        htmlmain.write('<br><b><i>Overlaps in target densities (per sq. deg.)</b></i>\n')
+        htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
+        #ADM remove the 'ALL' class from the tardens dictionary as it overlaps with everything
+        dum = targdens.pop("ALL")
+        #ADM write out a list of the target categories
+        headerlist = list(targdens.keys())
+        headerlist.insert(0," ")
+        header = " ".join(['{:>11s}'.format(i) for i in headerlist])+'\n\n'
+        htmlmain.write(header)
+        #ADM for each pair of target classes, determine how many targets per unit area
+        #ADM have the relevant target bit set for both target classes in the pair
+        for i, objtype1 in enumerate(targdens):
+            overlaps = [objtype1]
+            for j, objtype2 in enumerate(targdens):
+                if j < i:
+                    overlaps.append(" ")
+                else:
+                    dt = targs["DESI_TARGET"]
+                    overlap = np.sum(((dt & desi_mask[objtype1]) != 0) & ((dt & desi_mask[objtype2]) != 0))/totarea
+                    overlaps.append("{:.1f}".format(overlap))
+            htmlmain.write(" ".join(['{:>11s}'.format(i) for i in overlaps])+'\n\n')
+        #ADM close the matrix text output
+        htmlmain.write('</span></PRE>\n\n\n')
+        log.info('Done with correlation matrix...t = {:.1f}s'.format(time()-start))
+
+    #ADM html postamble for main page
+    htmlmain.write('<b><i>Last updated {}</b></i>\n'.format(js))
+    htmlmain.write('</html></body>\n')
+    htmlmain.close()
 
     #ADM make sure all of the relevant directories and plots can be read by a web-browser
     cmd = 'chmod 644 {}/*'.format(qadir)
