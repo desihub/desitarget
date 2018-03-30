@@ -5,7 +5,11 @@ desitarget Change Log
 0.20.2 (unreleased)
 -------------------
 
-* No changes yet
+* Minor QA and selection cuts updates [`PR #297`_]:
+   * QA matrix of target densities selected in multiple classes.
+   * Functions to allow different north/south selections for LRGs.
+
+.. _`PR #297`: https://github.com/desihub/desitarget/pull/297
 
 0.20.1 (2018-03-29)
 -------------------
