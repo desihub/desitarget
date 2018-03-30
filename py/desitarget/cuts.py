@@ -270,8 +270,8 @@ def isLRG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     ggood = (gflux_ivar > 0) # and gallmask == 0
 
     # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
-                               w2flux=w2flux, ggood=ggood, primary=primary)
+    lrg &= isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                              w2flux=w2flux, ggood=ggood, primary=primary)
 
     return lrg
 
@@ -316,8 +316,8 @@ def isLRG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     ggood = (gflux_ivar > 0) # and gallmask == 0
 
     # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
-                               w2flux=w2flux, ggood=ggood, primary=primary)
+    lrg &= isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                              w2flux=w2flux, ggood=ggood, primary=primary)
 
     return lrg
 
@@ -1318,15 +1318,13 @@ def apply_cuts(objects, qso_selection='randomforest'):
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg_north, lrg1pass_north, lrg2pass_north = 
-                isLRGpass_north(primary=primary, gflux=gflux, rflux=rflux, 
-                                zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
-                                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass_north(primary=primary, 
+                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                    rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
 
-    lrg_south, lrg1pass_south, lrg2pass_south = 
-                isLRGpass_south(primary=primary, gflux=gflux, rflux=rflux, 
-                                zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
-                                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass_south(primary=primary, 
+                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                    rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
     #ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
     lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
