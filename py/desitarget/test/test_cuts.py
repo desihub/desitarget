@@ -121,8 +121,8 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(np.all(qso1==qso2))
         #ADM also check that the color selections alone work. This tripped us up once
         #ADM with the mocks part of the code calling a non-existent LRG colors function.
-        qso1 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux,optical=False)
-        qso2 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux,optical=None)
+        qso1 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False)
+        qso2 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
