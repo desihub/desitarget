@@ -88,7 +88,7 @@ class TestCuts(unittest.TestCase):
                     gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
         self.assertTrue(np.all(lrg1==lrg2))
         #ADM also check that the color selections alone work. This tripped us up once
-        #ADM with the mocks part of the code calling a non-existent is colors function.
+        #ADM with the mocks part of the code calling a non-existent LRG colors function.
         lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, 
                                  w1flux=w1flux, w2flux=w2flux)
         lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, 
@@ -118,6 +118,11 @@ class TestCuts(unittest.TestCase):
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                           deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
                           release=release)
+        self.assertTrue(np.all(qso1==qso2))
+        #ADM also check that the color selections alone work. This tripped us up once
+        #ADM with the mocks part of the code calling a non-existent LRG colors function.
+        qso1 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux,optical=False)
+        qso2 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux,optical=None)
         self.assertTrue(np.all(qso1==qso2))
 
         fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
