@@ -85,6 +85,34 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     return gshift, rshift, zshift
 
 
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, ggood=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
+        ggood: array_like
+            Set to True for objects with good g-band photometry.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Call isLRG_colors_north if south=False, otherwise call isLRG_colors_south.
+    
+    Returns:
+        mask : array_like. True if and only the object is an LRG target.
+    """
+
+    if south==False:
+        return isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                  w1flux=w1flux, w2flux=w2flux,
+                                  ggood=ggood, primary=primary)
+    else:
+        return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                  w1flux=w1flux, w2flux=w2flux,
+                                  ggood=ggood, primary=primary)
+
+
 def isLRG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
     """See :func:`~desitarget.cuts.isLRG_north` for details.
