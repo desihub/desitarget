@@ -102,7 +102,7 @@ def sample_mag_shape(target_type, n_targets, random_state=None):
     from desiutil.sklearn import GaussianMixtureModel
 
     #Path to model .fits files
-    pathToModels = resource_filename('desitarget', "mock/data")
+    pathToModels = resource_filename('desitarget', "mock/data/dr2")
 
     #Load the mixture model for the specified target_type
     if target_type == 'LRG':
