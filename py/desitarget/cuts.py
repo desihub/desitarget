@@ -85,6 +85,34 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     return gshift, rshift, zshift
 
 
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, ggood=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
+        ggood: array_like
+            Set to True for objects with good g-band photometry.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Call isLRG_colors_north if south=False, otherwise call isLRG_colors_south.
+    
+    Returns:
+        mask : array_like. True if and only the object is an LRG target.
+    """
+
+    if south==False:
+        return isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                  w1flux=w1flux, w2flux=w2flux,
+                                  ggood=ggood, primary=primary)
+    else:
+        return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                  w1flux=w1flux, w2flux=w2flux,
+                                  ggood=ggood, primary=primary)
+
+
 def isLRG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
     """See :func:`~desitarget.cuts.isLRG_north` for details.
@@ -708,6 +736,7 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, ob
 
     return bgs
 
+
 def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets, returning a boolean array.
 
@@ -733,13 +762,80 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, o
         bgs &= ~_psflike(objtype)
     return bgs
 
-def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if objects have QSO-like colors, i.e. a subset of the QSO cuts.
+
+def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical : Just apply optical color-cuts (default False)
+        optical: boolean, defaults to False
+            Just apply optical color-cuts
+        south: boolean, defaults to True
+            Call isQSO_colors_north if south=False, otherwise call isQSO_colors_south.
+
+    Returns:
+        mask : array_like. True if the object has QSO-like colors.
+    """
+
+    if south==False:
+        return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, 
+                                  optical=optical)
+    else:
+        return isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, 
+                                  optical=optical)
+
+def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
+    """Tests if sources have quasar-like colors for the BASS/MzLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        optical: boolean, defaults to False
+            Just apply optical color-cuts
+
+    Returns:
+        mask : array_like. True if the object has QSO-like colors.
+    """
+    #----- Quasars
+    # Create some composite fluxes.
+    wflux = 0.75* w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
+
+    qso = np.ones(len(gflux), dtype='?')
+    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
+    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
+
+    if not optical:
+        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
+
+    # Harder cut on stellar contamination
+    mainseq = rflux > gflux * 10**(0.20/2.5)
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+    if not optical:
+        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    qso &= ~mainseq
+
+    return qso
+
+
+def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
+    """Tests if sources have quasar-like colors for the DECaLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        optical: boolean, defaults to False
+            Just apply optical color-cuts
 
     Returns:
         mask : array_like. True if the object has QSO-like colors.
@@ -839,8 +935,8 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
             w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
 
     """
-    qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                       w1flux=w1flux, w2flux=w2flux)
+    qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
+                             w1flux=w1flux, w2flux=w2flux)
 
     qso &= w1snr > 4
     qso &= w2snr > 2
@@ -889,8 +985,8 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
             w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
 
     """
-    qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                       w1flux=w1flux, w2flux=w2flux)
+    qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
+                             w1flux=w1flux, w2flux=w2flux)
 
     qso &= w1snr > 4
     qso &= w2snr > 2
