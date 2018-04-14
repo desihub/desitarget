@@ -2307,7 +2307,15 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     weights = np.ones(len(targs))
     if weight:
         #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-        pixweight = io.load_pixweight(nside)
+        wtfile = ("/global/cscratch1/sd/raichoor/desi.dr4.hp256.grzareas.fits")
+        wts = fitsio.read(wtfile)
+        pixarea = hp.nside2pixarea(256,degrees=True)
+        pixweight = np.zeros(len(wts))
+        #ADM shift Anand's scheme from ring to nested scheme
+        pixweight[hp.ring2nest(256,wts['hpind'])] = wts['hparea']
+        #ADM Create the weights as the fraction of the pixel area
+        pixweight /= pixarea
+#        pixweight = io.load_pixweight(nside)
         #ADM determine what HEALPixels each target is in, to set the weights
         fracarea = pixweight[pix]
         #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
@@ -2316,7 +2324,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         fracarea[w] = 1 #ADM to guard against division by zero warnings
         weights = 1./fracarea
         weights[w] = 0
-
         log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                  .format(time()-start))
 
