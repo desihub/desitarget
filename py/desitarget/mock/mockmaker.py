@@ -1985,7 +1985,7 @@ class LRGMaker(SelectTargets):
         zobj = self.meta['Z'].data
         self.tree = KDTree(np.vstack((zobj)).T)
 
-        gmmfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
+        gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
         # Default mock catalog.
@@ -2181,7 +2181,7 @@ class ELGMaker(SelectTargets):
         rz = self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data
         self.tree = KDTree(np.vstack((zobj, gr, rz)).T)
 
-        gmmfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
+        gmmfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
         # Default mock catalog.
@@ -2382,7 +2382,7 @@ class BGSMaker(SelectTargets):
         gr = mabs[:, 1] - mabs[:, 2]
         self.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
 
-        gmmfile = resource_filename('desitarget', 'mock/data/bgs_gmm.fits')
+        gmmfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
         self.GMM = GaussianMixtureModel.load(gmmfile)
 
         # Default mock catalog.

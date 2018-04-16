@@ -2,7 +2,18 @@
 desitarget Change Log
 =====================
 
-0.20.1 (unreleased)
+0.20.2 (unreleased)
+-------------------
+
+* Improve north/south split functions for LRG and QSO color cuts [`PR #302`_].
+* Minor QA and selection cuts updates [`PR #297`_]:
+   * QA matrix of target densities selected in multiple classes.
+   * Functions to allow different north/south selections for LRGs.
+
+.. _`PR #297`: https://github.com/desihub/desitarget/pull/297
+.. _`PR #302`: https://github.com/desihub/desitarget/pull/302
+
+0.20.1 (2018-03-29)
 -------------------
 
 * Add a bright (g>21) flux cut for ELGs. [`PR #296`_].

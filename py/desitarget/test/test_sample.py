@@ -9,7 +9,7 @@ class TestSample(unittest.TestCase):
 
 
     def setUp(self):
-        self.modelpath = resource_filename('desitarget', "mock/data")
+        self.modelpath = resource_filename('desitarget', "mock/data/dr2")
         self.lrg = GaussianMixtureModel.load(self.modelpath + '/lrg_gmm.fits')
         self.elg = GaussianMixtureModel.load(self.modelpath + '/elg_gmm.fits')
         self.qso = GaussianMixtureModel.load(self.modelpath + '/qso_gmm.fits')

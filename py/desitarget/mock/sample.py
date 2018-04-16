@@ -34,10 +34,10 @@ class SampleGMM(object):
         from pkg_resources import resource_filename
         from desiutil.sklearn import GaussianMixtureModel
 
-        bgsfile = resource_filename('desitarget', 'mock/data/bgs_gmm.fits')
-        elgfile = resource_filename('desitarget', 'mock/data/elg_gmm.fits')
-        lrgfile = resource_filename('desitarget', 'mock/data/lrg_gmm.fits')
-        qsofile = resource_filename('desitarget', 'mock/data/qso_gmm.fits')
+        bgsfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
+        elgfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
+        lrgfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
+        qsofile = resource_filename('desitarget', 'mock/data/dr2/qso_gmm.fits')
 
         self.bgsmodel = GaussianMixtureModel.load(bgsfile)
         self.elgmodel = GaussianMixtureModel.load(elgfile)
@@ -70,7 +70,7 @@ class SampleGMM(object):
         samp = np.empty( n_targets, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
         for ii, tt in enumerate(tags):
             samp[tt] = params[:, ii]
-            
+
         return samp
 
 def sample_mag_shape(target_type, n_targets, random_state=None):
@@ -102,7 +102,7 @@ def sample_mag_shape(target_type, n_targets, random_state=None):
     from desiutil.sklearn import GaussianMixtureModel
 
     #Path to model .fits files
-    pathToModels = resource_filename('desitarget', "mock/data")
+    pathToModels = resource_filename('desitarget', "mock/data/dr2")
 
     #Load the mixture model for the specified target_type
     if target_type == 'LRG':

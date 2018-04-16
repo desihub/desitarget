@@ -12,7 +12,7 @@ desi_mask:
     - [LRG_1PASS,   3, "LRG observed in 1st pass", {obsconditions: DARK}]
     - [LRG_2PASS,   4, "LRG observed in 2nd pass", {obsconditions: DARK}]
 
-    #- Not yet used, but placeholders for North vs. South selections
+    #- North vs. South selections
     - [LRG_NORTH,   8, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
     - [ELG_NORTH,   9, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
     - [QSO_NORTH,   10, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
@@ -20,6 +20,13 @@ desi_mask:
     - [LRG_SOUTH,   16, "LRG from DECam data", {obsconditions: DARK}]
     - [ELG_SOUTH,   17, "ELG from DECam data", {obsconditions: DARK|GRAY}]
     - [QSO_SOUTH,   18, "QSO from DECam data", {obsconditions: DARK}]
+
+    #- North vs. South selections for different passes
+    - [LRG_1PASS_NORTH,  24, "LRG observed in 1st pass from Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_2PASS_NORTH,  25, "LRG observed in 2nd pass from Bok/Mosaic", {obsconditions: DARK}]
+
+    - [LRG_1PASS_SOUTH,  28, "LRG observed in 1st pass from DECam", {obsconditions: DARK}]
+    - [LRG_2PASS_SOUTH,  29, "LRG observed in 2nd pass from DECam", {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -186,6 +193,10 @@ priorities:
         LRG_SOUTH: SAME_AS_LRG
         ELG_SOUTH: SAME_AS_ELG
         QSO_SOUTH: SAME_AS_QSO
+        LRG_1PASS_NORTH: SAME_AS_LRG
+        LRG_2PASS_NORTH: SAME_AS_LRG
+        LRG_1PASS_SOUTH: SAME_AS_LRG
+        LRG_2PASS_SOUTH: SAME_AS_LRG
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FSTAR:  -1
