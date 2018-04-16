@@ -6,6 +6,9 @@ import astropy.io.fits as fits
 from astropy.wcs import WCS
 from time import time
 
+#ADM the parallelization script
+from desitarget.internal import sharedmem
+
 #ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()
@@ -44,7 +47,52 @@ def dr_extension(drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/
     return 'fz', 1
 
 
-def randoms_in_a_brick(brickname,density=10000,
+def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
+    """For given brick edges, return random (RA/Dec) positions in the brick
+
+    Parameters
+    ----------
+    ramin : :class:`float`
+        The minimum "edge" of the brick in Right Ascension
+    ramax : :class:`float`
+        The maximum "edge" of the brick in Right Ascension
+    decmin : :class:`float`
+        The minimum "edge" of the brick in Declination
+    decmin : :class:`float`
+        The maximum "edge" of the brick in Declination
+    density : :class:`float`
+        The number of random points to return per sq. deg. As a typical brick is 
+        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        Right Ascensions of random points in brick
+    :class:`~numpy.array`
+        Declinations of random points in brick
+    """
+    #ADM generate random points within the brick at the requested density
+    #ADM guard against potential wraparound bugs (assuming bricks are typical
+    #ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that
+    if ramax - ramin > 350.:
+        ramax -= 360.
+    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
+    spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
+    nrand = int(spharea*density)
+    print('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
+              .format(spharea,time()-start))
+    ras = np.random.uniform(ramin,ramax,nrand)
+    decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nrand)))
+
+    nrand= len(ras)
+
+    log.info('Generated {} randoms in brick with bounds [{:.3f},{:.3f},{:.3f},{:.3f}]...t = {:.1f}s'
+                 .format(nrand,ramin,ramax,decmin,decmax,time()-start))
+
+    return ras, decs
+
+
+def randoms_in_a_brick_from_name(brickname,density=10000,
                        drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """For a given brick name, return random (RA/Dec) positions in the brick
 
@@ -68,8 +116,6 @@ def randoms_in_a_brick(brickname,density=10000,
     Notes
     -----
         - First version copied shamelessly from Anand Raichoor
-        - This version requires a survey bricks file to generate RAs and Decs in
-          a brick (rather than, e.g., using :mod:`desiutil.brick)`
     """
     #GENERATE RANDOMS IN THE PASSED BRICK ============================================= 
     #ADM read in the survey bricks file to determine the brick boundaries
@@ -116,7 +162,7 @@ def nobs_at_positions_in_brick(ras,decs,brickname,
     decs : :class:`~numpy.array`
         Declinations of interest (degrees)
     brickname : :class:`str`
-        Name of brick which contains RA/Dec positions
+        Name of brick which contains RA/Dec positions, e.g., '1351p320'
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release from the Legacy Surveys
 
@@ -172,7 +218,7 @@ def nobs_at_positions_in_brick(ras,decs,brickname,
     return nobsdict['g'], nobsdict['r'], nobsdict['z']
 
 
-def nobs_at_positions(rasarray,decsarray,
+def nobs_at_positions_in_bricks(rasarray,decsarray,bricknames,
                       drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Return the number of observations at any positions in a Data Release of the Legacy Surveys
 
@@ -182,6 +228,8 @@ def nobs_at_positions(rasarray,decsarray,
         Right Ascensions of interest (degrees)
     decsarray : :class:`~numpy.array`
         Declinations of interest (degrees)
+    bricknames : :class:`~numpy.array`
+        Array of brick names corresponding to RA/Dec positions, e.g., ['1351p320', '1809p222']
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release of the Legacy Surveys
 
@@ -201,13 +249,6 @@ def nobs_at_positions(rasarray,decsarray,
     """
     #ADM determine whether the coadd files have extension .gz or .fz based on the DR directory
     extn, extn_nb = dr_extension(drdir)
-
-    #ADM assign brick names to each of the RAs/Decs
-    from desiutil import brick
-    b = brick.Bricks(bricksize=0.25)
-    bricknames = b.brickname(rasarray,decsarray)
-    log.info('loaded brick class and assigned brick names to positions...t = {:.1f}s'
-                 .format(time()-start))
 
     #ADM set up output arrays of the number of observations in g, r, z
     #ADM default to -1 observations, so it's easier to test for bugs
@@ -261,4 +302,157 @@ def nobs_at_positions(rasarray,decsarray,
         nobs_z[wbrick] =  nobsdict['z']
 
     return nobs_g, nobs_r, nobs_z
+
+
+def nobs_positions_in_a_brick_from_edges(ramin,ramax,decmin,decmax,brickname,density=10000
+                               drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+    """Given a brick's edges/name, return RA/Dec/number of observations at random points in the brick
+
+    Parameters
+    ----------
+    ramin : :class:`float`
+        The minimum "edge" of the brick in Right Ascension
+    ramax : :class:`float`
+        The maximum "edge" of the brick in Right Ascension
+    decmin : :class:`float`
+        The minimum "edge" of the brick in Declination
+    decmin : :class:`float`
+        The maximum "edge" of the brick in Declination
+    bricknames : :class:`~numpy.array`
+        Array of brick names corresponding to RA/Dec positions, e.g., ['1351p320', '1809p222']
+    density : :class:`float`
+        The number of random points to return per sq. deg. As a typical brick is 
+        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
+    drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
+       The root directory pointing to a Data Release of the Legacy Surveys
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        Right Ascensions of random points in the passed brick
+    :class:`~numpy.array`
+        Declinations of random points in the passed brick
+    :class:`~numpy.array`
+        The number of observations in the passed Data Release of the Legacy Surveys at 
+            each position in the passed brick in g-band
+    :class:`~numpy.array`
+        The number of observations in the passed Data Release of the Legacy Surveys at 
+            each position in the passed brick in g-band
+    :class:`~numpy.array`
+        The number of observations in the passed Data Release of the Legacy Surveys at 
+            each position in the passed brick in g-band
+    """
+    #ADM generate random points within the brick at the requested density
+    ras, decs = randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=density)
+
+    #ADM retrieve the number of observations for each random point
+    nobs_g, nobs_r, nobs_z = nobs_at_positions_in_brick(ras,decs,brickname,drdir=drdir)
+
+    return ras, decs, nobs_g, nobs_r, nobs_z
+
+
+def pixweight(nside=256,drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+    """Make a map of the fraction of each HEALPixel with > 0 observations in the Legacy Surveys
+
+    Parameters
+    ----------
+    drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
+       The root directory pointing to a Data Release from the Legacy Surveys
+
+    Returns
+    -------
+    :class:`np`
+        An array of the weight for EACH pixel at the passed nside. 
+
+    Notes
+    -----
+        - The returned array contains the fraction of each pixel that overlaps areas that contain
+          one or more observations in the passed Legacy Surveys Data Release (LS DR). 
+        - `WEIGHT=1` means that this LS DR has one or more pointings across the entire pixel.
+        - `WEIGHT=0` means that this pixel has no LS DR observations within it (e.g., perhaps 
+          it is completely outside of the LS DR footprint).
+        - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
+        - The index of the array is the HEALPixel integer.
+    """
+    #ADM initialize DESI logs
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM from the DR directory, determine the name of the DR
+    dr = dr_extension(drdir)
+    
+    #ADM read in the survey bricks file, and create an array of the bricks of interest
+    
+    
+
+    
+    def _finalize_targets(objects, desi_target, bgs_target, mws_target):
+        #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
+        #- on desi_target != 0
+        keep = (desi_target != 0)
+        objects = objects[keep]
+        desi_target = desi_target[keep]
+        bgs_target = bgs_target[keep]
+        mws_target = mws_target[keep]
+
+        #- Add *_target mask columns
+        targets = desitarget.targets.finalize(
+            objects, desi_target, bgs_target, mws_target)
+
+        return io.fix_tractor_dr1_dtype(targets)
+
+    #- functions to run on every brick/sweep file
+    def _select_targets_file(filename):
+        '''Returns targets in filename that pass the cuts'''
+        objects = io.read_tractor(filename)
+        desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
+
+        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
+
+    def _select_sandbox_targets_file(filename):
+        '''Returns targets in filename that pass the sandbox cuts'''
+        from desitarget.sandbox.cuts import apply_sandbox_cuts
+        objects = io.read_tractor(filename)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
+
+        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
+
+    # Counter for number of bricks processed;
+    # a numpy scalar allows updating nbrick in python 2
+    # c.f https://www.python.org/dev/peps/pep-3104/
+    nbrick = np.zeros((), dtype='i8')
+
+    t0 = time()
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+        if nbrick%50 == 0 and nbrick>0:
+            rate = nbrick / (time() - t0)
+            log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
+
+        nbrick[...] += 1    # this is an in-place modification
+        return result
+
+    #- Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            if sandbox:
+                log.info("You're in the sandbox...")
+                targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
+            else:
+                targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+    else:
+        targets = list()
+        if sandbox:
+            log.info("You're in the sandbox...")
+            for x in infiles:
+                targets.append(_update_status(_select_sandbox_targets_file(x)))
+        else:
+            for x in infiles:
+                targets.append(_update_status(_select_targets_file(x)))
+
+    targets = np.concatenate(targets)
+
+    return targets
 
