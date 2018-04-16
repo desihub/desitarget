@@ -5,6 +5,7 @@ import numpy as np
 import astropy.io.fits as fits
 from astropy.wcs import WCS
 from time import time
+import healpy as hp
 
 #ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -60,7 +61,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
         The minimum "edge" of the brick in Declination
     decmax : :class:`float`
         The maximum "edge" of the brick in Declination
-    density : :class:`float`
+    density : :class:`int`
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
 
@@ -100,7 +101,7 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     ----------
     brickname : :class:`str`
         Name of brick in which to generate random points
-    density : :class:`float`
+    density : :class:`int`
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
@@ -151,7 +152,7 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     return ras, decs
 
 
-def nobs_at_positions_in_brick(ras,decs,brickname,
+def nobs_at_positions_in_a_brick(ras,decs,brickname,
                                drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Return the number of observations at positions in one brick of the Legacy Surveys
 
@@ -304,9 +305,9 @@ def nobs_at_positions_in_bricks(rasarray,decsarray,bricknames,
     return nobs_g, nobs_r, nobs_z
 
 
-def nobs_positions_in_a_brick_from_edges(ramin, ramax, decmin, decmax, brickname, density=10000,
-                                    drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/")
-    """Given a brick's edges/name, return RA/Dec/number of observations at random points in the brick
+def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,nside=256,
+                            drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+    """Given a brick's edges/name, count randoms with NOBS > 1 in HEALPixels touching that brick
 
     Parameters
     ----------
@@ -320,32 +321,36 @@ def nobs_positions_in_a_brick_from_edges(ramin, ramax, decmin, decmax, brickname
         The maximum "edge" of the brick in Declination
     brickname : :class:`~numpy.array`
         Brick names that corresponnds to the brick edges, e.g., '1351p320'
-    density : :class:`float`, optional, defaults to 10000
+    density : :class:`int`, optional, defaults to 10000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The resolution (HEALPixel nside number) at which to build the map
     drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
         The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
         "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
 
     Returns
     -------
-    :class:`~numpy.array`
-        Right Ascensions of random points in the passed brick
-    :class:`~numpy.array`
-        Declinations of random points in the passed brick
-    :class:`~numpy.array`
-        The number of observations in the passed Data Release of the Legacy Surveys at 
-            each position in the passed brick in g-band
-    :class:`~numpy.array`
-        The number of observations in the passed Data Release of the Legacy Surveys at 
-            each position in the passed brick in r-band
-    :class:`~numpy.array`
-        The number of observations in the passed Data Release of the Legacy Surveys at 
-            each position in the passed brick in z-band
+    :class:`~numpy.ndarray`
+        a numpy structured array with the following columns:
+            HPXPIXEL: Integer numbers of (only) those HEALPixels that overlap the passed brick
+            HPXCOUNT: Numbers of random points with one or more observations (NOBS > 0) in the 
+                passed Data Release of the Legacy Surveys for each returned HPXPIXEL
+
+    Notes
+    -----
+        - The HEALPixel numbering uses the NESTED scheme
+        - In the event that there are no pixels with one or more observations in the passed
+          brick, and empty structured array will be returned
     """
     #ADM this is only intended to work on one brick, so die if a larger array is passed
-    if len(ramax) > 0:
+    if type(brickname) != str:
         log.fatal("Only one brick can be passed at a time!")
+
+    #ADM generate an empty structured array to return in the event that no pixels with
+    #ADM counts were found
+    hpxinfo = np.zeros(0, dtype=[('HPXPIXEL','>i4'),('HPXCOUNT','>i4')])
 
     #ADM generate random points within the brick at the requested density
     ras, decs = randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=density)
@@ -353,19 +358,33 @@ def nobs_positions_in_a_brick_from_edges(ramin, ramax, decmin, decmax, brickname
     #ADM retrieve the number of observations for each random point
     nobs_g, nobs_r, nobs_z = nobs_at_positions_in_brick(ras,decs,brickname,drdir=drdir)
 
-    return ras, decs, nobs_g, nobs_r, nobs_z
+    #ADM only retain points with one or more observations in all bands
+    w = np.where( (nobs_g > 0) & (nobs_g > 0) & (nobs_z > 0) )
+
+    #ADM if there were some non-zero observations, populate the pixel numbers and counts
+    if len(w[0]) > 0:
+        pixnums = hp.ang2pix(nside,np.radians(90.-decs[w]),np.radians(ras[w]),nest=True)
+        pixnum, pixcnt = np.unique(pixnums,return_counts=True)
+        hpxinfo = np.zeros(len(pixnum), dtype=[('HPXPIXEL','>i4'),('HPXCOUNT','>i4')])
+        hpxinfo['HPXPIXEL'] = pixnum
+        hpxinfo['HPXCOUNT'] = pixcnt
+
+    return hpxinfo
 
 
-def pixweight(nside=256,density=10000,drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+def pixweight(nside=256,density=10000,numproc=16,
+              drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Make a map of the fraction of each HEALPixel with > 0 observations in the Legacy Surveys
 
     Parameters
     ----------
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map
-    density : :class:`float`
+    density : :class:`int`, optional, defaults to 10000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
+    numproc : :class:`int`, optional, defaults to 16
+        The number of processes over which to parallelize
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release from the Legacy Surveys
 
@@ -384,26 +403,28 @@ def pixweight(nside=256,density=10000,drdir="/global/project/projectdirs/cosmo/d
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    #ADM from the DR directory, determine the name of the DR
+    #ADM from the Data Release (DR) directory, determine the name of the DR
     dr = dr_extension(drdir)
     
-    #ADM read in the survey bricks file, which represents the bricks of interest
+    #ADM read in the survey bricks file, which lists the bricks of interest for this DR
     from glob import glob
     sbfile = glob(drdir+'/*bricks-dr*')[0]
     hdu = fits.open(sbfile)
     brickinfo = hdu[1].data
 
-    #ADM as a speed-up, cull any bricks with zero exposures in any band
-    wbricks = np.where( brickinfo['nexp_g']+brickinfo['nexp_r']+brickinfo['nexp_z'] > 0)
-    brickinfo = brickinfo[wbricks]
-    nbricks = len(brickinfo)
+    #ADM as a speed-up, cull any bricks with zero exposures in any bands
+    wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
+                        (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
+    bricknames = brickinfo['brickname'][wbricks][0:9]
+    nbricks = len(bricknames)
     log.info('Processing {} bricks that have one or more observations'.format(nbricks))
 
     #ADM initialize the bricks class, and retrieve the brick information look-up table
     #ADM so it can be used in a common fashion
+    from desiutil import brick
     bricktable = brick.Bricks(bricksize=0.25).to_table()
 
-    #- functions to run on every brick/sweep file
+    #ADM the critical function to run on every brick
     def _get_nobs(brickname):
         '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
         #ADM retrieve the edges for the brick that we're working on
@@ -412,8 +433,8 @@ def pixweight(nside=256,density=10000,drdir="/global/project/projectdirs/cosmo/d
 
         #ADM populate the brick with random points, and retrieve the number of observations
         #ADM at those points
-        return, nobs_positions_in_a_brick_from_edges(ramin, ramax, decmin, decmax, brickname, 
-                                                     density=density, drdir=drdir)
+        return hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
+                                       density=density, drdir=drdir)
 
     nbrick = np.zeros((), dtype='i8')
 
@@ -432,22 +453,11 @@ def pixweight(nside=256,density=10000,drdir="/global/project/projectdirs/cosmo/d
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            if sandbox:
-                log.info("You're in the sandbox...")
-                targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
-            else:
-                targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+            hpxinfo = pool.map(_get_nobs, bricknames, reduce=_update_status)
     else:
-        targets = list()
-        if sandbox:
-            log.info("You're in the sandbox...")
-            for x in infiles:
-                targets.append(_update_status(_select_sandbox_targets_file(x)))
-        else:
-            for x in infiles:
-                targets.append(_update_status(_select_targets_file(x)))
-
-    targets = np.concatenate(targets)
-
-    return targets
+        hpxinfo = list()
+        for brickname in bricknames:
+            hpxinfo.append(_update_status(_get_nobs(brickname)))
+            
+    return hpxinfo
 
