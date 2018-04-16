@@ -58,7 +58,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
         The maximum "edge" of the brick in Right Ascension
     decmin : :class:`float`
         The minimum "edge" of the brick in Declination
-    decmin : :class:`float`
+    decmax : :class:`float`
         The maximum "edge" of the brick in Declination
     density : :class:`float`
         The number of random points to return per sq. deg. As a typical brick is 
@@ -304,8 +304,8 @@ def nobs_at_positions_in_bricks(rasarray,decsarray,bricknames,
     return nobs_g, nobs_r, nobs_z
 
 
-def nobs_positions_in_a_brick_from_edges(ramin,ramax,decmin,decmax,brickname,density=10000
-                               drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+def nobs_positions_in_a_brick_from_edges(ramin, ramax, decmin, decmax, brickname, density=10000,
+                                    drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/")
     """Given a brick's edges/name, return RA/Dec/number of observations at random points in the brick
 
     Parameters
@@ -316,15 +316,16 @@ def nobs_positions_in_a_brick_from_edges(ramin,ramax,decmin,decmax,brickname,den
         The maximum "edge" of the brick in Right Ascension
     decmin : :class:`float`
         The minimum "edge" of the brick in Declination
-    decmin : :class:`float`
+    decmax : :class:`float`
         The maximum "edge" of the brick in Declination
-    bricknames : :class:`~numpy.array`
-        Array of brick names corresponding to RA/Dec positions, e.g., ['1351p320', '1809p222']
-    density : :class:`float`
+    brickname : :class:`~numpy.array`
+        Brick names that corresponnds to the brick edges, e.g., '1351p320'
+    density : :class:`float`, optional, defaults to 10000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
-    drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
-       The root directory pointing to a Data Release of the Legacy Surveys
+    drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
+        The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
+        "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
 
     Returns
     -------
@@ -337,11 +338,15 @@ def nobs_positions_in_a_brick_from_edges(ramin,ramax,decmin,decmax,brickname,den
             each position in the passed brick in g-band
     :class:`~numpy.array`
         The number of observations in the passed Data Release of the Legacy Surveys at 
-            each position in the passed brick in g-band
+            each position in the passed brick in r-band
     :class:`~numpy.array`
         The number of observations in the passed Data Release of the Legacy Surveys at 
-            each position in the passed brick in g-band
+            each position in the passed brick in z-band
     """
+    #ADM this is only intended to work on one brick, so die if a larger array is passed
+    if len(ramax) > 0:
+        log.fatal("Only one brick can be passed at a time!")
+
     #ADM generate random points within the brick at the requested density
     ras, decs = randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=density)
 
@@ -351,11 +356,16 @@ def nobs_positions_in_a_brick_from_edges(ramin,ramax,decmin,decmax,brickname,den
     return ras, decs, nobs_g, nobs_r, nobs_z
 
 
-def pixweight(nside=256,drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+def pixweight(nside=256,density=10000,drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Make a map of the fraction of each HEALPixel with > 0 observations in the Legacy Surveys
 
     Parameters
     ----------
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The resolution (HEALPixel nside number) at which to build the map
+    density : :class:`float`
+        The number of random points to return per sq. deg. As a typical brick is 
+        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release from the Legacy Surveys
 
@@ -374,52 +384,37 @@ def pixweight(nside=256,drdir="/global/project/projectdirs/cosmo/data/legacysurv
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    #ADM initialize DESI logs
-    from desiutil.log import get_logger
-    log = get_logger()
-
     #ADM from the DR directory, determine the name of the DR
     dr = dr_extension(drdir)
     
-    #ADM read in the survey bricks file, and create an array of the bricks of interest
-    
-    
+    #ADM read in the survey bricks file, which represents the bricks of interest
+    from glob import glob
+    sbfile = glob(drdir+'/*bricks-dr*')[0]
+    hdu = fits.open(sbfile)
+    brickinfo = hdu[1].data
 
-    
-    def _finalize_targets(objects, desi_target, bgs_target, mws_target):
-        #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
-        #- on desi_target != 0
-        keep = (desi_target != 0)
-        objects = objects[keep]
-        desi_target = desi_target[keep]
-        bgs_target = bgs_target[keep]
-        mws_target = mws_target[keep]
+    #ADM as a speed-up, cull any bricks with zero exposures in any band
+    wbricks = np.where( brickinfo['nexp_g']+brickinfo['nexp_r']+brickinfo['nexp_z'] > 0)
+    brickinfo = brickinfo[wbricks]
+    nbricks = len(brickinfo)
+    log.info('Processing {} bricks that have one or more observations'.format(nbricks))
 
-        #- Add *_target mask columns
-        targets = desitarget.targets.finalize(
-            objects, desi_target, bgs_target, mws_target)
-
-        return io.fix_tractor_dr1_dtype(targets)
+    #ADM initialize the bricks class, and retrieve the brick information look-up table
+    #ADM so it can be used in a common fashion
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
 
     #- functions to run on every brick/sweep file
-    def _select_targets_file(filename):
-        '''Returns targets in filename that pass the cuts'''
-        objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
+    def _get_nobs(brickname):
+        '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
+        #ADM retrieve the edges for the brick that we're working on
+        wbrick = np.where(bricktable["BRICKNAME"] == brickname)[0]
+        ramin, ramax, decmin, decmax = np.array(bricktable[wbrick]["RA1","RA2","DEC1","DEC2"])[0]
 
-        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
+        #ADM populate the brick with random points, and retrieve the number of observations
+        #ADM at those points
+        return, nobs_positions_in_a_brick_from_edges(ramin, ramax, decmin, decmax, brickname, 
+                                                     density=density, drdir=drdir)
 
-    def _select_sandbox_targets_file(filename):
-        '''Returns targets in filename that pass the sandbox cuts'''
-        from desitarget.sandbox.cuts import apply_sandbox_cuts
-        objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
-
-        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
-
-    # Counter for number of bricks processed;
-    # a numpy scalar allows updating nbrick in python 2
-    # c.f https://www.python.org/dev/peps/pep-3104/
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
@@ -428,7 +423,7 @@ def pixweight(nside=256,drdir="/global/project/projectdirs/cosmo/data/legacysurv
             that occurs on the main parallel process '''
         if nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
+            log.info('{}/{} bricks; {:.1f} files/sec'.format(nbrick, nbricks, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
