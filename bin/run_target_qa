@@ -15,9 +15,10 @@ from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr3.1-dr4.0-all-0.14.0.fits)")
 ap.add_argument("dest", help="Output directory to make QA webpage hierarchy (e.g. /project/projectdirs/desi/www/users/USERNAME/ will appear at http://portal.nersc.gov/project/desi/users/USERNAME)")
-ap.add_argument('-m', "--mocks", action='store_true',help="Input target file is a set of mock targets, so we can make extra, special QA plots")
-ap.add_argument('-n', "--noplots", action='store_true',help="Do not produce any new plots, only the body of the QA webpage")
-ap.add_argument("--nside", default=None, type=int ,help="Specify the healpixel resolution of the sky maps.")
+ap.add_argument('-m', "--mocks", action='store_true', help="Input target file is a set of mock targets, so we can make extra, special QA plots")
+ap.add_argument('-n', "--noplots", action='store_true', help="Do not produce any new plots, only the body of the QA webpage")
+ap.add_argument('--nside', default=None, type=int , help="Specify the healpixel resolution of the sky maps")
+ap.add_argument('-w','--weightmapfile', default=None, help="Location (e.g. ~/project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits) of the imaging HEALPix map file for the Data Release that corresponds to these targets (e.g. as made by desitarget.imagefootprint.pixweight()")
 
 ns = ap.parse_args()
 
@@ -29,7 +30,7 @@ if ns.nside:
 else:
     max_bin_area = 1.0
 
-make_qa_page(ns.src,qadir=ns.dest,mocks=ns.mocks,makeplots=makeplots,max_bin_area=max_bin_area)
+make_qa_page(ns.src,qadir=ns.dest,mocks=ns.mocks,makeplots=makeplots,max_bin_area=max_bin_area,imaging_map_file=ns.weightmapfile)
 log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
 log.info('Mocks option was set to {}'.format(ns.mocks))
 log.info('No plots option was set to {}'.format(ns.noplots))
