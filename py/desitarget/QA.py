@@ -2245,7 +2245,7 @@ def _in_desi_footprint(targs):
     return windesi
 
 
-def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True, imaging_map_file=None):
     """Make DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -2264,6 +2264,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
+    imaging_map_file : :class:`str`, optional, defaults to None
+        If `weight` is set, then this file must contain the location of the imaging HEALPixel
+        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()`
 
     Returns
     -------
@@ -2272,8 +2275,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     Notes
     -----
-        - The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
-          that overlap the DESI footprint
+        - The ``DESIMODEL`` environment variable must be set to find the default expected 
+          target densities
         - On execution, a set of .png plots for target QA are written to `qadir`
     """
 
@@ -2298,24 +2301,16 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         
     #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
     #ADM downstream
-    from desimodel import io, footprint
+    from desimodel import footprint
     pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
     log.info('Calculated HEALPixel for each target...t = {:.1f}s'
              .format(time()-start))
-
     #ADM set up the weight of each HEALPixel, if requested.
     weights = np.ones(len(targs))
     if weight:
-        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-        wtfile = ("/global/cscratch1/sd/raichoor/desi.dr4.hp256.grzareas.fits")
-        wts = fitsio.read(wtfile)
-        pixarea = hp.nside2pixarea(256,degrees=True)
-        pixweight = np.zeros(len(wts))
-        #ADM shift Anand's scheme from ring to nested scheme
-        pixweight[hp.ring2nest(256,wts['hpind'])] = wts['hparea']
-        #ADM Create the weights as the fraction of the pixel area
-        pixweight /= pixarea
-#        pixweight = io.load_pixweight(nside)
+        #ADM load the imaging weights file
+        from desitarget import io as dtio
+        pixweight = dtio.load_pixweight(imaging_map_file)
         #ADM determine what HEALPixels each target is in, to set the weights
         fracarea = pixweight[pix]
         #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)

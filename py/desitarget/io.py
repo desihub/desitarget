@@ -560,6 +560,8 @@ def load_pixweight(inmapfile, nside, pixmap=None):
         log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
     else:
         #ADM read in the pixel weights file                                                                                                  
+        if not os.path.exists(inmapfile):
+            log.critical('Input directory does not exist: {}'.format(inmapfile))
         with fits.open(inmapfile) as hdulist:
             pixmap = hdulist[0].data
 

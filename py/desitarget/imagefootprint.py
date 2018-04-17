@@ -201,7 +201,7 @@ def nobs_at_positions_in_a_brick(ras,decs,brickname,
         nexpfile = (drdir+'/coadd/'+brickname[:3]+'/'+brickname+'/'+
                         'legacysurvey-'+brickname+'-'+'nexp'+'-'+filt+'.fits.'+extn)
         #ADM only process the WCS if there is a file corresponding to this filter
-        if (os.path.exists(nexpfile)):
+        if os.path.exists(nexpfile):
             img = fits.open(nexpfile)
             if (iswcs==False):
                 w = WCS(img[extn_nb].header)
