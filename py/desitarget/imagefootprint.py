@@ -356,7 +356,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
     ras, decs = randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=density)
 
     #ADM retrieve the number of observations for each random point
-    nobs_g, nobs_r, nobs_z = nobs_at_positions_in_brick(ras,decs,brickname,drdir=drdir)
+    nobs_g, nobs_r, nobs_z = nobs_at_positions_in_a_brick(ras,decs,brickname,drdir=drdir)
 
     #ADM only retain points with one or more observations in all bands
     w = np.where( (nobs_g > 0) & (nobs_g > 0) & (nobs_z > 0) )
@@ -417,7 +417,7 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
     #ADM as a speed-up, cull any bricks with zero exposures in any bands
     wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
                         (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
-    bricknames = brickinfo['brickname'][wbricks][0:1000]
+    bricknames = brickinfo['brickname'][wbricks]
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
              .format(nbricks,time()-start))
