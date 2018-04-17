@@ -372,7 +372,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
     return hpxinfo
 
 
-def pixweight(nside=256,density=10000,numproc=16,
+def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
               drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Make a map of the fraction of each HEALPixel with > 0 observations in the Legacy Surveys
 
@@ -385,6 +385,11 @@ def pixweight(nside=256,density=10000,numproc=16,
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     numproc : :class:`int`, optional, defaults to 16
         The number of processes over which to parallelize
+    outfile : :class:`str`, optional, defaults to not writing a file
+        Write the HEALPixel->weight array to the file passed as `outfile`
+    outplot : :class:`str`, optional, defaults to not making a plot
+        Create a plot and write it to a file named `outplot` (this is passed to
+        the `savefig` routine from `matplotlib.pyplot`
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release from the Legacy Surveys
 
@@ -403,9 +408,6 @@ def pixweight(nside=256,density=10000,numproc=16,
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    #ADM from the Data Release (DR) directory, determine the name of the DR
-    dr = dr_extension(drdir)
-    
     #ADM read in the survey bricks file, which lists the bricks of interest for this DR
     from glob import glob
     sbfile = glob(drdir+'/*bricks-dr*')[0]
@@ -415,9 +417,10 @@ def pixweight(nside=256,density=10000,numproc=16,
     #ADM as a speed-up, cull any bricks with zero exposures in any bands
     wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
                         (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
-    bricknames = brickinfo['brickname'][wbricks][0:9]
+    bricknames = brickinfo['brickname'][wbricks][0:1000]
     nbricks = len(bricknames)
-    log.info('Processing {} bricks that have one or more observations'.format(nbricks))
+    log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
+             .format(nbricks,time()-start))
 
     #ADM initialize the bricks class, and retrieve the brick information look-up table
     #ADM so it can be used in a common fashion
@@ -436,6 +439,7 @@ def pixweight(nside=256,density=10000,numproc=16,
         return hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
                                        density=density, drdir=drdir)
 
+    #ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
@@ -458,6 +462,46 @@ def pixweight(nside=256,density=10000,numproc=16,
         hpxinfo = list()
         for brickname in bricknames:
             hpxinfo.append(_update_status(_get_nobs(brickname)))
-            
-    return hpxinfo
+
+    #ADM now to gather the results. First concatenate the parallelized results
+    #ADM into a single structured array of pixel number and counts in the pixel
+    hpxinfo = np.concatenate(hpxinfo)
+    #ADM the parallelization will (could) result in HEALPixels with multiple entries because
+    #ADM pixels can touch multiple bricks, so sum pixels weighted on counts to create a unique
+    #ADM accounting. Note np.bincount will run from pixel = 0 to pixel = minlength
+    npix = hp.nside2npix(nside)
+    pix_cnt = np.bincount(hpxinfo['HPXPIXEL'], weights=hpxinfo['HPXCOUNT'], minlength=npix)
+    
+    #ADM we know the area of HEALPixels at this nside, so we know what the count SHOULD be
+    expected_cnt = hp.nside2pixarea(nside,degrees=True)*density
+    #ADM create a weight map based on the actual counts divided by the expected counts
+    pix_weight = pix_cnt/expected_cnt
+
+    #ADM write out results, if requested
+    if outfile is not None:
+        log.info('Writing pixel map to {}'.format(outfile))
+        #ADM write information indicating HEALPix setup to file header
+        #ADM include desitarget version as a check in case something changes
+        import fitsio
+        from desiutil import depend
+        from . import __version__ as desitarget_version
+        hdr = fitsio.FITSHDR()
+        depend.setdep(hdr, 'desitarget', desitarget_version)
+        hdr['DENSITY'] = density
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+        fitsio.write(outfile, pix_weight, extname='PIXWEIGHTS', header=hdr, clobber=True)
+
+    #ADM if outplot was passed, make a plot of the final mask in Mollweide projection
+    if outplot is not None:
+        log.info('Plotting pixel map and writing to {}'.format(outplot))
+        import matplotlib.pyplot as plt
+        hp.mollview(pix_weight, nest=True)
+        plt.savefig(outplot)
+
+    log.info('Done...t={:.1f}s'.format(time()-start))
+
+    return pix_weight
+
+
 
