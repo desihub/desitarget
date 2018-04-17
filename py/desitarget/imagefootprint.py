@@ -7,6 +7,11 @@ from astropy.wcs import WCS
 from time import time
 import healpy as hp
 
+#ADM fake the matplotlib display so it doesn't die on allocated nodes
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
 #ADM the parallelization script
 from desitarget.internal import sharedmem
 
@@ -495,7 +500,6 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
     #ADM if outplot was passed, make a plot of the final mask in Mollweide projection
     if outplot is not None:
         log.info('Plotting pixel map and writing to {}'.format(outplot))
-        import matplotlib.pyplot as plt
         hp.mollview(pix_weight, nest=True)
         plt.savefig(outplot)
 
