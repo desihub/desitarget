@@ -562,9 +562,8 @@ def load_pixweight(inmapfile, nside, pixmap=None):
         #ADM read in the pixel weights file                                                                                                  
         if not os.path.exists(inmapfile):
             log.critical('Input directory does not exist: {}'.format(inmapfile))
-        with fits.open(inmapfile) as hdulist:
-            pixmap = hdulist[0].data
-
+        pixmap = fitsio.read(inmapfile)
+            
     #ADM determine the file's nside, and flag a warning if the passed nside exceeds it                                                                
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))

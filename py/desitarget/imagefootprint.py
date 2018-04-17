@@ -123,7 +123,6 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     -----
         - First version copied shamelessly from Anand Raichoor
     """
-    #GENERATE RANDOMS IN THE PASSED BRICK ============================================= 
     #ADM read in the survey bricks file to determine the brick boundaries
     hdu = fits.open(drdir+'survey-bricks.fits.gz')
 
@@ -195,7 +194,7 @@ def nobs_at_positions_in_a_brick(ras,decs,brickname,
     iswcs = False
 
     #ADM loop through each of the filters and store the number of observations at the
-    #ADM RA and Dec positions of th passed points
+    #ADM RA and Dec positions of the passed points
     nobsdict = {} 
     for filt in ['g','r','z']:
         nexpfile = (drdir+'/coadd/'+brickname[:3]+'/'+brickname+'/'+
@@ -413,16 +412,22 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    #ADM read in the survey bricks file, which lists the bricks of interest for this DR
+    #ADM get brick names of possible interest from coadd directory structure for this DR
     from glob import glob
-    sbfile = glob(drdir+'/*bricks-dr*')[0]
-    hdu = fits.open(sbfile)
-    brickinfo = hdu[1].data
+    bricknames = [os.path.basename(file) for file in glob(drdir+'coadd/*/*')]
 
-    #ADM as a speed-up, cull any bricks with zero exposures in any bands
-    wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
-                        (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
-    bricknames = brickinfo['brickname'][wbricks]
+    ###ADM this should be the most rigorous approach, but it didn't work circa DR4 due to
+    ###ADM discrepancies between the coadd directory structure and the information in the
+    ###ADM survey bricks file. I'm leaving it here in case it's useful in the future.
+    ####ADM read in the survey bricks file, which lists the bricks of interest for this DR
+    ###sbfile = glob(drdir+'/*bricks-dr*')[0]
+    ###hdu = fits.open(sbfile)
+    ###brickinfo = hdu[1].data
+    ####ADM as a speed-up, cull any bricks with zero exposures in any bands
+    ###wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
+    ###                    (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
+    ###bricknames = brickinfo['brickname'][wbricks]
+
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
              .format(nbricks,time()-start))

@@ -2371,7 +2371,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     return totarea
 
 
-def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=True,
+def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
                  weight=True, imaging_map_file=None):
     """Create a directory containing a webpage structure in which to embed QA plots
 
@@ -2389,9 +2389,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         possible to this value without exceeding it
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
-    clip2foot : :class:`boolean`, optional, defaults to True
+    clip2foot : :class:`boolean`, optional, defaults to False
         use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
-        only those that lie within the DESI footprint
+        only those that lie within the DESI spectroscopic footprint
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using to ameliorate under dense pixels at the footprint 
         edges. This uses the `imaging_map_file` HEALPix file for real targets and the default 

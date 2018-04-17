@@ -13,7 +13,7 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser()
-ap.add_argument("src", help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr3.1-dr4.0-all-0.14.0.fits)")
+ap.add_argument("src", help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr4-0.20.0.fits")
 ap.add_argument("dest", help="Output directory to make QA webpage hierarchy (e.g. /project/projectdirs/desi/www/users/USERNAME/ will appear at http://portal.nersc.gov/project/desi/users/USERNAME)")
 ap.add_argument('-m', "--mocks", action='store_true', help="Input target file is a set of mock targets, so we can make extra, special QA plots")
 ap.add_argument('-n', "--noplots", action='store_true', help="Do not produce any new plots, only the body of the QA webpage")
