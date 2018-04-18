@@ -5,6 +5,11 @@ desitarget Change Log
 0.20.2 (unreleased)
 -------------------
 
+* Better handling of imaging survey areas for QA [`PR #304`_]:
+   * :mod:`desitarget.imagefootprint` to build HEALPix weight maps of imaging.
+   * Executable (bin) interface to make weight maps from the command line.
+   * :mod:`desitarget.io` loader to resample maps to any HEALPix `nside`.
+   * Update :mod:`desitarget.QA` to handle new imaging area weight maps.   
 * Improve north/south split functions for LRG and QSO color cuts [`PR #302`_].
 * Minor QA and selection cuts updates [`PR #297`_]:
    * QA matrix of target densities selected in multiple classes.
@@ -12,6 +17,7 @@ desitarget Change Log
 
 .. _`PR #297`: https://github.com/desihub/desitarget/pull/297
 .. _`PR #302`: https://github.com/desihub/desitarget/pull/302
+.. _`PR #304`: https://github.com/desihub/desitarget/pull/304
 
 0.20.1 (2018-03-29)
 -------------------
