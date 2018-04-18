@@ -363,7 +363,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
     nobs_g, nobs_r, nobs_z = nobs_at_positions_in_a_brick(ras,decs,brickname,drdir=drdir)
 
     #ADM only retain points with one or more observations in all bands
-    w = np.where( (nobs_g > 0) & (nobs_g > 0) & (nobs_z > 0) )
+    w = np.where( (nobs_g > 0) & (nobs_r > 0) & (nobs_z > 0) )
 
     #ADM if there were some non-zero observations, populate the pixel numbers and counts
     if len(w[0]) > 0:
@@ -412,22 +412,20 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    #ADM get brick names of possible interest from coadd directory structure for this DR
-    from glob import glob
-    bricknames = [os.path.basename(file) for file in glob(drdir+'coadd/*/*')]
 
-    ###ADM this should be the most rigorous approach, but it didn't work circa DR4 due to
-    ###ADM discrepancies between the coadd directory structure and the information in the
-    ###ADM survey bricks file. I'm leaving it here in case it's useful in the future.
-    ####ADM read in the survey bricks file, which lists the bricks of interest for this DR
-    ###sbfile = glob(drdir+'/*bricks-dr*')[0]
-    ###hdu = fits.open(sbfile)
-    ###brickinfo = hdu[1].data
+    #ADM read in the survey bricks file, which lists the bricks of interest for this DR
+    from glob import glob
+    sbfile = glob(drdir+'/*bricks-dr*')[0]
+    hdu = fits.open(sbfile)
+    brickinfo = hdu[1].data
+    ###ADM this (~1.7x) speed-up doesn't seem to work because of a discrepancy between the
+    ###ADM information in the survey bricks file and in the coadd directory structure, but
+    ###ADM I'm leaving it here in case its a useful trick to use at some point in the future
     ####ADM as a speed-up, cull any bricks with zero exposures in any bands
     ###wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
     ###                    (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
     ###bricknames = brickinfo['brickname'][wbricks]
-
+    bricknames = brickinfo['brickname']
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
              .format(nbricks,time()-start))
