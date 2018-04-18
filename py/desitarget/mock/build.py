@@ -267,7 +267,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
-                trueflux.append(chunkflux[keep, :])
+                if not no_spectra:
+                    trueflux.append(chunkflux[keep, :])
 
             itercount += 1
             if itercount == maxiter:
@@ -284,7 +285,10 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
     targets = vstack(targets)
     truth = vstack(truth)
-    trueflux = np.concatenate(trueflux)
+    if no_spectra:
+        trueflux = []
+    else:
+        trueflux = np.concatenate(trueflux)
 
     return [targets, truth, trueflux]
 
