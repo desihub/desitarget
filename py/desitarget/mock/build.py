@@ -97,7 +97,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     return log, healpixseeds
     
 def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
-              nside=None, nside_chunk=128):
+              nside=None, nside_chunk=128, MakeMock=None):
     """Read a mock catalog.
     
     Parameters
@@ -148,7 +148,11 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
 
     log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
-    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
+    if MakeMock is None:
+        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
+    else:
+        MakeMock.seed = seed # updated seed
+        
     data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                          healpixels=healpixels, nside=nside,
                          magcut=magcut, nside_lya=nside_lya,
@@ -511,9 +515,18 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     healpixels.
 
     """
+    from desitarget.mock import mockmaker
+
     log, healpixseeds = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
         output_dir=output_dir, healpixels=healpixels)
+
+    # Read (and cache) the MockMaker classes we need.
+    AllMakeMock = []
+    for source_name in sorted(params['sources'].keys()):
+        target_name = params['sources'][source_name].get('target_name')
+        AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
+            seed=seed, nside_chunk=nside_chunk))
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
@@ -523,15 +536,20 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         allskytargets = list()
         allskytruth = list()
 
-        for source_name in sorted(params['sources'].keys()):
+        for ii, source_name in enumerate(sorted(params['sources'].keys())):
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data and ithere are no targets, keep going.
             log.info('Reading source : {}'.format(source_name))
+            print(AllMakeMock[ii].seed)
             data, MakeMock = read_mock(params['sources'][source_name],
                                        log, dust_dir=params['dust_dir'],
                                        seed=healseed, healpixels=healpix,
-                                       nside=nside, nside_chunk=nside_chunk)
+                                       nside=nside, nside_chunk=nside_chunk,
+                                       MakeMock=AllMakeMock[ii])
+            print(MakeMock.seed)
+            import pdb ; pdb.set_trace()
+            
             if not bool(data):
                 continue
 
