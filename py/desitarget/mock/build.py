@@ -527,6 +527,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         target_name = params['sources'][source_name].get('target_name')
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk))
+    print(AllMakeMock[0].seed)
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
@@ -548,7 +549,6 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii])
             print(MakeMock.seed)
-            import pdb ; pdb.set_trace()
             
             if not bool(data):
                 continue

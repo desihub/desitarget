@@ -2182,6 +2182,9 @@ class ELGMaker(SelectTargets):
         each target.  Defaults to `decam2014-z`.
 
     """
+    wave, tree, template_maker = None, None, None
+    GMM, GMM_nospectra = None, None
+    
     def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import ELG
@@ -2191,22 +2194,28 @@ class ELGMaker(SelectTargets):
 
         self.seed = seed
         self.nside_chunk = nside_chunk
-        self.wave = _default_wave()
         self.objtype = 'ELG'
 
-        self.template_maker = ELG(wave=self.wave, normfilter=normfilter)
+        if self.wave is None:
+            ELGMaker.wave = _default_wave()
+        if self.template_maker is None:
+            ELGMaker.template_maker = ELG(wave=self.wave, normfilter=normfilter)
+            
         self.meta = self.template_maker.basemeta
 
-        zobj = self.meta['Z'].data
-        gr = self.meta['DECAM_G'].data - self.meta['DECAM_R'].data
-        rz = self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data
-        self.tree = KDTree(np.vstack((zobj, gr, rz)).T)
+        if self.tree is None:
+            zobj = self.meta['Z'].data
+            gr = self.meta['DECAM_G'].data - self.meta['DECAM_R'].data
+            rz = self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data
+            ELGMaker.tree = KDTree(np.vstack((zobj, gr, rz)).T)
 
-        gmmfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
-        self.GMM = GaussianMixtureModel.load(gmmfile)
+        if self.GMM is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
+            ELGMaker.GMM = GaussianMixtureModel.load(gmmfile)
 
-        gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
-        self.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
+        if self.GMM_nospectra is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
+            ELGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -2292,6 +2301,8 @@ class ELGMaker(SelectTargets):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -3540,7 +3551,7 @@ class SKYMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def make_spectra(self, data=None, indx=None, seed=None, **kwargs):
         """Generate SKY spectra.
 
         Parameters
