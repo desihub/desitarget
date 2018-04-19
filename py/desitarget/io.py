@@ -537,6 +537,44 @@ def whitespace_fits_read(filename, **kwargs):
     return data
 
 
+def load_pixweight(inmapfile, nside, pixmap=None):
+    '''Loads a pixel map from file and resamples to a different HEALPixel resolution (nside)
+
+    Parameters
+    ----------
+    inmapfile : :class:`str`
+        Name of the file containing the pixel weight map
+    nside : :class:`int`
+        After loading, the array will be resampled to this HEALPix nside
+    pixmap: `~numpy.array`, optional, defaults to None
+        Pass a pixel map instead of loading it from file
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        HEALPixel weight map resampled to the requested nside
+    '''
+    import healpy as hp
+
+    if pixmap is not None:
+        log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
+    else:
+        #ADM read in the pixel weights file                                                                                                  
+        if not os.path.exists(inmapfile):
+            log.critical('Input directory does not exist: {}'.format(inmapfile))
+        pixmap = fitsio.read(inmapfile)
+            
+    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it                                                                
+    npix = len(pixmap)
+    truenside = hp.npix2nside(len(pixmap))
+    if truenside < nside:
+        log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
+                  .format(nside,pixfile,truenside))
+
+    #ADM resample the map                                                                                                                             
+    return hp.pixelfunc.ud_grade(pixmap,nside,order_in='NESTED',order_out='NESTED')
+
+
 def gitversion():
     """Returns `git describe --tags --dirty --always`,
     or 'unknown' if not a git repo"""
