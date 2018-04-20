@@ -699,8 +699,8 @@ class ReadGaussianField(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        # Read the ra,dec coordinates, generate mockid, and then restrict to the
-        # input healpixel.
+        # Read the ra,dec coordinates, pixel weight map, generate mockid, and
+        # then restrict to the desired healpixels.
         if self.cached_radec is None:
             ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
             ReadGaussianField.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
@@ -770,6 +770,8 @@ class ReadUniformSky(SelectTargets):
         to each object.  Defaults to 0.25 deg.
 
     """
+    cached_radec = None
+    
     def __init__(self, dust_dir=None, bricksize=0.25):
         super(ReadUniformSky, self).__init__()
 
@@ -826,17 +828,20 @@ class ReadUniformSky(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = load_pixweight(nside, pixmap=self.pixmap)
+        # Read the ra,dec coordinates, pixel weight map, generate mockid, and
+        # then restrict to the desired healpixels.
+        if self.cached_radec is None:
+            ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+            ReadUniformSky.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+        else:
+            cached_mockfile, cached_nside, ra, dec, allpix, pixweight = ReadUniformSky.cached_radec
+            if cached_mockfile != mockfile or cached_nside != nside:
+                ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+                ReadUniformSky.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+            else:
+                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
 
-        # Read the ra,dec coordinates, generate mockid, and then restrict to the
-        # input healpixel.
-        log.info('Reading {}'.format(mockfile))
-        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-
-        mockid = np.arange(len(radec)) # unique ID/row number
-
-        log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+        mockid = np.arange(len(ra)) # unique ID/row number
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
@@ -852,9 +857,8 @@ class ReadUniformSky(SelectTargets):
         mockid = mockid[cut]
         allpix = allpix[cut]
         weight = 1 / fracarea[cut]
-        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
-        dec = radec['DEC'][cut].astype('f8')
-        del radec
+        ra = ra[cut]
+        dec = dec[cut]
 
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
