@@ -688,29 +688,30 @@ class ReadGaussianField(SelectTargets):
 
         # Read the ra,dec coordinates, generate mockid, and then restrict to the
         # input healpixel.
-        def _get_radec(mockfile):
+        def _get_radec(mockfile, nside):
             log.info('Reading {}'.format(mockfile))
             radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
             ra = radec['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
             dec = radec['DEC'].astype('f8')
-            return ra, dec
+
+            log.info('Assigning healpix pixels with nside = {}.'.format(nside))
+            allpix = footprint.radec2pix(nside, ra, dec)
+
+            return ra, dec, allpix
         
         if self.cached_radec is None:
-            ra, dec = _get_radec(mockfile)
-            ReadGaussianField.cached_radec = (mockfile, ra, dec)
+            ra, dec, allpix = _get_radec(mockfile, nside)
+            ReadGaussianField.cached_radec = (mockfile, nside, ra, dec, allpix)
         else:
-            cached_mockfile, ra, dec = ReadGaussianField.cached_radec
-            if cached_mockfile != mockfile:
-                ra, dec = _get_radec(mockfile)
-                ReadGaussianField.cached_radec = (mockfile, ra, dec)
+            cached_mockfile, cached_nside, ra, dec, allpix = ReadGaussianField.cached_radec
+            if cached_mockfile != mockfile or cached_nside != nside:
+                ra, dec, allpix = _get_radec(mockfile)
+                ReadGaussianField.cached_radec = (mockfile, nside, ra, dec, allpix)
             else:
-                log.info('Using cached coordinates from {}'.format(mockfile))
+                log.info('Using cached coordinates and healpixels from {}'.format(mockfile))
 
         mockid = np.arange(len(ra)) # unique ID/row number
         
-        log.info('Assigning healpix pixels with nside = {}.'.format(nside))
-        allpix = footprint.radec2pix(nside, ra, dec)
-
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
