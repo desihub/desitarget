@@ -377,32 +377,34 @@ class SelectTargets(object):
         target = meta['OBJTYPE'][0].upper()
         
         data = self.GMM_nospectra.sample(nsample, random_state=rand)
-        
-        if target.upper() == 'ELG':
-            tags = ('r', 'g - r', 'r - z', 'z - W1', 'W1 - W2', 'oii')
-        elif target.upper() == 'QSO':
-            tags = ('r', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
-        elif target.upper() == 'LRG':
-            tags = ('z', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
 
+        alltags = dict()
+        alltags['ELG'] = ('r', 'g - r', 'r - z', 'z - W1', 'W1 - W2', 'oii')
+        alltags['LRG'] = ('z', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
+        alltags['QSO'] = ('g', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
+        alltags['LYA'] = ('g', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
+
+        tags = alltags[target]
         sample = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
         for ii, tt in enumerate(tags):
             sample[tt] = data[:, ii]
 
-        if target.upper() == 'ELG':
+        if target == 'ELG':
             rmag = sample['r']
             zmag = rmag - sample['r - z']
+            gmag = sample['g - r'] + rmag
             normmag = rmag
-        elif target.upper() == 'QSO':
-            rmag = sample['r']
-            zmag = rmag - sample['r - z']
-            normmag = rmag
-        elif target.upper() == 'LRG':
+        elif target == 'LRG':
             zmag = sample['z']
             rmag = sample['r - z'] + zmag
+            gmag = sample['g - r'] + rmag
             normmag = zmag
+        elif target == 'QSO' or target == 'LYA':
+            gmag = sample['g']
+            rmag = gmag - sample['g - r']
+            zmag = rmag - sample['r - z']
+            normmag = gmag
 
-        gmag = sample['g - r'] + rmag
         W1mag = zmag - sample['z - W1'] 
         W2mag = W1mag - sample['W1 - W2'] 
         
@@ -1664,17 +1666,27 @@ class QSOMaker(SelectTargets):
         each target.  Defaults to `decam2014-g`.
 
     """
+    wave, template_maker, GMM_nospectra = None, None, None
+    
     def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
         from desisim.templates import SIMQSO
+        from desiutil.sklearn import GaussianMixtureModel
 
         super(QSOMaker, self).__init__()
 
         self.seed = seed
-        self.wave = _default_wave()
         self.objtype = 'QSO'
 
-        self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+        if self.wave is None:
+            QSOMaker.wave = _default_wave()
 
+        if self.template_maker is None:
+            QSOMaker.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+
+        if self.GMM_nospectra is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
+            QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
+            
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
@@ -1728,7 +1740,7 @@ class QSOMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate tracer QSO spectra.
 
         Parameters
@@ -1740,6 +1752,8 @@ class QSOMaker(SelectTargets):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -1762,9 +1776,19 @@ class QSOMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
             
-        flux, wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-            lyaforest=False, nocolorcuts=True)
+        if no_spectra:
+            from desisim.io import empty_metatable
+            rand = np.random.RandomState(seed)
+            
+            flux = []
+            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'] = data['Z'][indx]
+            self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
+        else:
+            flux, wave, meta = self.template_maker.make_templates(
+                nmodel=nobj, redshift=data['Z'][indx], seed=seed,
+                lyaforest=False, nocolorcuts=True)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx,
                                                      psf=True, seed=seed,
@@ -1805,16 +1829,26 @@ class LYAMaker(SelectTargets):
         each target.  Defaults to `decam2014-g`.
 
     """
+    wave, template_maker, GMM_nospectra = None, None, None
+
     def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
         from desisim.templates import SIMQSO
+        from desiutil.sklearn import GaussianMixtureModel
 
         super(LYAMaker, self).__init__()
 
         self.seed = seed
-        self.wave = _default_wave()
         self.objtype = 'LYA'
 
-        self.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+        if self.wave is None:
+            LYAMaker.wave = _default_wave()
+            
+        if self.template_maker is None:
+            LYAMaker.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+
+        if self.GMM_nospectra is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lya.fits')
+            LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -1872,7 +1906,7 @@ class LYAMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate QSO spectra with the 3D Lya forest skewers included. 
 
         Parameters
@@ -1884,6 +1918,8 @@ class LYAMaker(SelectTargets):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -1916,83 +1952,93 @@ class LYAMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        # Read skewers.
-        skewer_wave = None
-        skewer_trans = None
-        skewer_meta = None
+        if no_spectra:
+            from desisim.io import empty_metatable
+            rand = np.random.RandomState(seed)
+            
+            flux = []
+            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'] = data['Z'][indx]
+            self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
+        else:
+            # Read skewers.
+            skewer_wave = None
+            skewer_trans = None
+            skewer_meta = None
 
-        # All the files that contain at least one QSO skewer.
-        alllyafile = data['LYAFILES'][indx]
-        uniquelyafiles = sorted(set(alllyafile))
+            # All the files that contain at least one QSO skewer.
+            alllyafile = data['LYAFILES'][indx]
+            uniquelyafiles = sorted(set(alllyafile))
 
-        for lyafile in uniquelyafiles:
-            these = np.where( alllyafile == lyafile )[0]
+            for lyafile in uniquelyafiles:
+                these = np.where( alllyafile == lyafile )[0]
 
-            mockid_in_data = data['MOCKID'][indx][these]
-            mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
-                                         ext=1).astype(float)).astype(int)
-            o2i = dict()
-            for i, o in enumerate(mockid_in_mock):
-                o2i[o] = i
-            indices_in_mock_healpix = np.zeros(mockid_in_data.size).astype(int)
-            for i, o in enumerate(mockid_in_data):
-                if not o in o2i:
-                    log.warning("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile))
-                    raise KeyError
-                
-                indices_in_mock_healpix[i] = o2i[o]
+                mockid_in_data = data['MOCKID'][indx][these]
+                mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
+                                             ext=1).astype(float)).astype(int)
+                o2i = dict()
+                for i, o in enumerate(mockid_in_mock):
+                    o2i[o] = i
+                indices_in_mock_healpix = np.zeros(mockid_in_data.size).astype(int)
+                for i, o in enumerate(mockid_in_data):
+                    if not o in o2i:
+                        log.warning("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile))
+                        raise KeyError
 
-            tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(
-                lyafile, indices=indices_in_mock_healpix) 
+                    indices_in_mock_healpix[i] = o2i[o]
 
-            if skewer_wave is None:
-                skewer_wave = tmp_wave
-                dw = skewer_wave[1] - skewer_wave[0] # this is just to check same wavelength
-                skewer_trans = np.zeros((nobj, skewer_wave.size)) # allocate skewer_array
-                skewer_meta = dict()
-                for k in tmp_meta.dtype.names:
-                    skewer_meta[k] = np.zeros(nobj).astype(tmp_meta[k].dtype)
-            else :
-                # check wavelength is the same for all skewers
-                assert( np.max(np.abs(wave-tmp_wave)) < 0.001*dw )
+                tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(
+                    lyafile, indices=indices_in_mock_healpix) 
 
-            skewer_trans[these] = tmp_trans
-            for k in skewer_meta.keys():
-                skewer_meta[k][these] = tmp_meta[k]
+                if skewer_wave is None:
+                    skewer_wave = tmp_wave
+                    dw = skewer_wave[1] - skewer_wave[0] # this is just to check same wavelength
+                    skewer_trans = np.zeros((nobj, skewer_wave.size)) # allocate skewer_array
+                    skewer_meta = dict()
+                    for k in tmp_meta.dtype.names:
+                        skewer_meta[k] = np.zeros(nobj).astype(tmp_meta[k].dtype)
+                else :
+                    # check wavelength is the same for all skewers
+                    assert( np.max(np.abs(wave-tmp_wave)) < 0.001*dw )
 
-        # Check we matched things correctly.
-        assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx]))<0.000001)
-        assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx]))<0.000001)
-        assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
+                skewer_trans[these] = tmp_trans
+                for k in skewer_meta.keys():
+                    skewer_meta[k][these] = tmp_meta[k]
 
-        # Now generate the QSO spectra simultaneously **at full wavelength
-        # resolution**.  We do this because the Lya forest (and DLAs) will have
-        # changed the colors, so we need to re-synthesize the photometry.
-        qso_flux, qso_wave, meta = self.template_maker.make_templates(
-            nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-            lyaforest=False, nocolorcuts=True, noresample=True)
-        meta['SUBTYPE'] = 'LYA'
+            # Check we matched things correctly.
+            assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx]))<0.000001)
+            assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx]))<0.000001)
+            assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
 
-        # Apply the Lya forest transmission.
-        _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
+            # Now generate the QSO spectra simultaneously **at full wavelength
+            # resolution**.  We do this because the Lya forest (and DLAs) will have
+            # changed the colors, so we need to re-synthesize the photometry.
+            qso_flux, qso_wave, meta = self.template_maker.make_templates(
+                nmodel=nobj, redshift=data['Z'][indx], seed=seed,
+                lyaforest=False, nocolorcuts=True, noresample=True)
+            meta['SUBTYPE'] = 'LYA'
 
-        # Add DLAs (ToDo).
-        # ...
+            # Apply the Lya forest transmission.
+            _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
-        # Update the photometry
-        maggies = self.template_maker.decamwise.get_ab_maggies(
-            1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
-        for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'),
-                               ('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                'wise2010-W1', 'wise2010-W2') ):
-            meta[band] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
+            # Add DLAs (ToDo).
+            # ...
 
-        # Unfortunately, to resample to the desired output wavelength vector we
-        # need to loop.
-        flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-        for ii in range(nobj):
-            flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :],
-                                        extrapolate=True)
+            # Update the photometry
+            maggies = self.template_maker.decamwise.get_ab_maggies(
+                1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
+            for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'),
+                                   ('decam2014-g', 'decam2014-r', 'decam2014-z',
+                                    'wise2010-W1', 'wise2010-W2') ):
+                meta[band] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
+
+            # Unfortunately, to resample to the desired output wavelength vector we
+            # need to loop.
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+            for ii in range(nobj):
+                flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :],
+                                            extrapolate=True)
                                      
         targets, truth = self.populate_targets_truth(data, meta, indx=indx,
                                                      psf=True,seed=seed,
@@ -2678,6 +2724,8 @@ class STARMaker(SelectTargets):
         the faint stars.  Defaults to `sdss2010-r`.
 
     """
+    wave, template_maker, tree, star_maggies = None, None, None, None
+    
     def __init__(self, seed=None, normfilter='decam2014-r',
                  star_normfilter = 'sdss2010-r', **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -2687,33 +2735,38 @@ class STARMaker(SelectTargets):
         super(STARMaker, self).__init__()
 
         self.seed = seed
-        self.wave = _default_wave()
         self.objtype = 'STAR'
 
-        self.template_maker = STAR(wave=self.wave, normfilter=normfilter)
+        if self.wave is None:
+            STARMaker.wave = _default_wave()
+        if self.template_maker is None:
+            STARMaker.template_maker = STAR(wave=self.wave, normfilter=normfilter)
+
         self.meta = self.template_maker.basemeta
+        self.star_normfilter = star_normfilter
 
         # Pre-compute normalized synthetic photometry for the full set of stellar templates.
-        flux, wave = self.template_maker.baseflux, self.template_maker.basewave
+        if self.star_maggies is None:
+            flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
-        self.star_normfilter = star_normfilter
-        sdssr = filters.load_filters(self.star_normfilter)
-        decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                         'wise2010-W1', 'wise2010-W2')
+            sdssr = filters.load_filters(self.star_normfilter)
+            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
+                                             'wise2010-W1', 'wise2010-W2')
         
-        maggies = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
-        normmaggies = sdssr.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+            normmaggies = sdssr.get_ab_maggies(flux, wave, mask_invalid=True)
         
-        for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
-            maggies[filt] /= normmaggies[self.star_normfilter]
-            maggies.rename_column(filt, flux)
+            for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+                maggies[filt] /= normmaggies[self.star_normfilter]
+                maggies.rename_column(filt, flux)
             
-        self.star_maggies = maggies
+            STARMaker.star_maggies = maggies
 
         # Build the KD Tree.
-        self.tree = KDTree(np.vstack((self.meta['TEFF'].data,
-                                      self.meta['LOGG'].data,
-                                      self.meta['FEH'].data)).T)
+        if self.tree is None:
+            STARMaker.tree = KDTree(np.vstack((self.meta['TEFF'].data,
+                                               self.meta['LOGG'].data,
+                                               self.meta['FEH'].data)).T)
         
     def _query(self, matrix):
         """Return the nearest template number based on the KD Tree."""
