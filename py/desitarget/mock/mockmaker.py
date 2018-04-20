@@ -224,7 +224,8 @@ def empty_truth_table(nobj=1):
 
     return truth
 
-def _get_radec(mockfile, nside, pixmap):
+def _get_radec(mockfile, nside, pixmap, mxxl=False):
+
     log.info('Reading {}'.format(mockfile))
     radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
     ra = radec['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
@@ -711,6 +712,7 @@ class ReadGaussianField(SelectTargets):
                 ReadGaussianField.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
                 log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, allpix, pixweight = ReadGaussianField.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
         
@@ -840,6 +842,7 @@ class ReadUniformSky(SelectTargets):
                 ReadUniformSky.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
                 log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, allpix, pixweight = ReadGaussianField.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
 
@@ -892,6 +895,8 @@ class ReadGalaxia(SelectTargets):
         to each object.  Defaults to 0.25 deg.
 
     """
+    cached_pixweight = None
+
     def __init__(self, bricksize=0.25, dust_dir=None):
         super(ReadGalaxia, self).__init__()
 
@@ -956,7 +961,17 @@ class ReadGalaxia(SelectTargets):
             log.warning('Healpixels and nside must be scalar inputs.')
             raise ValueError
 
-        pixweight = load_pixweight(nside, pixmap=self.pixmap)
+        if self.cached_pixweight is None:
+            pixweight = load_pixweight(nside, pixmap=self.pixmap)
+            ReadGalaxia.cached_pixweight = (pixweight, nside)
+        else:
+            pixweight, cached_nside = ReadGalaxia.cached_pixweight
+            if cached_nside != nside:
+                pixweight = load_pixweight(nside, pixmap=self.pixmap)
+                ReadGalaxia.cached_pixweight = (pixweight, nside)
+            else:
+                log.info('Using cached pixel weight map.')
+                pixweight, _ = ReadGalaxia.cached_pixweight
 
         # Get the set of nside_galaxia pixels that belong to the desired
         # healpixels (which have nside).  This will break if healpixels is a
@@ -1256,6 +1271,8 @@ class ReadMXXL(SelectTargets):
         to each object.  Defaults to 0.25 deg.
 
     """
+    cached_radec = None
+
     def __init__(self, dust_dir=None, bricksize=0.25):
         super(ReadMXXL, self).__init__()
 
@@ -1317,31 +1334,49 @@ class ReadMXXL(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = load_pixweight(nside, pixmap=self.pixmap)
-        
         # Read the data, generate mockid, and then restrict to the input
-        # healpixel.  Work around hdf5 <1.10 bug on /project; see
-        # http://www.nersc.gov/users/data-analytics/data-management/i-o-libraries/hdf5-2/h5py/
-        hdf5_flock = os.getenv('HDF5_USE_FILE_LOCKING')
-        os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
-        with h5py.File(mockfile, mode='r') as f:
-            ra  = f['Data/ra'][:].astype('f8') % 360.0 # enforce 0 < ra < 360
-            dec = f['Data/dec'][:].astype('f8')
-            zz = f['Data/z_obs'][:].astype('f4')
-            rmag = f['Data/app_mag'][:].astype('f4')
-            absmag = f['Data/abs_mag'][:].astype('f4')
-            gr = f['Data/g_r'][:].astype('f4')
+        # healpixel.
+        def _read_mockfile(mockfile, nside, pixmap):
+            # Work around hdf5 <1.10 bug on /project; see
+            # http://www.nersc.gov/users/data-analytics/data-management/i-o-libraries/hdf5-2/h5py/
+            hdf5_flock = os.getenv('HDF5_USE_FILE_LOCKING')
+            os.environ['HDF5_USE_FILE_LOCKING'] = 'FALSE'
+            with h5py.File(mockfile, mode='r') as f:
+                ra  = f['Data/ra'][:].astype('f8') % 360.0 # enforce 0 < ra < 360
+                dec = f['Data/dec'][:].astype('f8')
+                zz = f['Data/z_obs'][:].astype('f4')
+                rmag = f['Data/app_mag'][:].astype('f4')
+                absmag = f['Data/abs_mag'][:].astype('f4')
+                gr = f['Data/g_r'][:].astype('f4')
 
-        if hdf5_flock is not None:
-            os.environ['HDF5_USE_FILE_LOCKING'] = hdf5_flock
+            if hdf5_flock is not None:
+                os.environ['HDF5_USE_FILE_LOCKING'] = hdf5_flock
+            else:
+                del os.environ['HDF5_USE_FILE_LOCKING']
+
+            log.info('Assigning healpix pixels with nside = {}'.format(nside))
+            allpix = footprint.radec2pix(nside, ra, dec)
+
+            pixweight = load_pixweight(nside, pixmap=pixmap)
+        
+            return ra, dec, zz, rmag, absmag, gr, allpix, pixweight
+
+        # Read the ra,dec coordinates, pixel weight map, generate mockid, and
+        # then restrict to the desired healpixels.
+        if self.cached_radec is None:
+            ra, dec, zz, rmag, absmag, gr, allpix, pixweight = _read_mockfile(mockfile, nside, self.pixmap)
+            ReadMXXL.cached_radec = (mockfile, nside, ra, dec, zz, rmag, absmag, gr, allpix, pixweight)
         else:
-            del os.environ['HDF5_USE_FILE_LOCKING']
+            cached_mockfile, cached_nside, ra, dec, allpix, pixweight = ReadMXXL.cached_radec
+            if cached_mockfile != mockfile or cached_nside != nside:
+                ra, dec, zz, rmag, absmag, gr, allpix, pixweight = _read_mockfile(mockfile, nside, self.pixmap)
+                ReadMXXL.cached_radec = (mockfile, nside, ra, dec, zz, rmag, absmag, gr, allpix, pixweight)
+            else:
+                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, zz, rmag, absmag, gr, allpix, pixweight = ReadMXXL.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
         
-        log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = footprint.radec2pix(nside, ra, dec)
-
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
@@ -1415,6 +1450,8 @@ class ReadMWS_WD(SelectTargets):
         to each object.  Defaults to 0.25 deg.
 
     """
+    cached_radec = None
+
     def __init__(self, dust_dir=None, bricksize=0.25):
         super(ReadMWS_WD, self).__init__()
 
@@ -1471,17 +1508,21 @@ class ReadMWS_WD(SelectTargets):
             log.warning('Nside must be a scalar input.')
             raise ValueError
 
-        pixweight = load_pixweight(nside, pixmap=self.pixmap)
+        # Read the ra,dec coordinates, pixel weight map, generate mockid, and
+        # then restrict to the desired healpixels.
+        if self.cached_radec is None:
+            ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+            ReadMWS_WD.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+        else:
+            cached_mockfile, cached_nside, ra, dec, allpix, pixweight = ReadMWS_WD.cached_radec
+            if cached_mockfile != mockfile or cached_nside != nside:
+                ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+                ReadMWS_WD.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+            else:
+                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, allpix, pixweight = ReadMWS_WD.cached_radec
 
-        # Read the ra,dec coordinates, generate mockid, and then restrict to the
-        # desired healpixels.
-        log.info('Reading {}'.format(mockfile))
-        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
-
-        mockid = np.arange(len(radec)) # unique ID/row number
-
-        log.info('Assigning healpix pixels with nside = {}'.format(nside))
-        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+        mockid = np.arange(len(ra)) # unique ID/row number
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
@@ -1497,9 +1538,8 @@ class ReadMWS_WD(SelectTargets):
         mockid = mockid[cut]
         allpix = allpix[cut]
         weight = 1 / fracarea[cut]
-        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
-        dec = radec['DEC'][cut].astype('f8')
-        del radec
+        ra = ra[cut]
+        dec = dec[cut]
 
         cols = ['RADIALVELOCITY', 'G_SDSS', 'TEFF', 'LOGG', 'SPECTRALTYPE']
         data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
@@ -1612,6 +1652,7 @@ class ReadMWS_NEARBY(SelectTargets):
                 ReadMWS_NEARBY.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
                 log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, allpix, pixweight = ReadMWS_NEARBY.cached_radec
         
         mockid = np.arange(len(ra)) # unique ID/row number
 
@@ -2753,8 +2794,9 @@ class STARMaker(SelectTargets):
         self.meta = self.template_maker.basemeta
         #self.star_normfilter = star_normfilter
 
-        # Pre-compute normalized synthetic photometry for the full set of stellar templates.
-        if self.star_maggies_g is None:
+        # Pre-compute normalized synthetic photometry for the full set of
+        # stellar templates.
+        if self.star_maggies_g is None or self.star_maggies_r is None:
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
             decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
@@ -2837,7 +2879,7 @@ class STARMaker(SelectTargets):
             meta[key][:] = star_maggies[key][templateid] * normmag
 
         return meta
-
+ 
     def select_standards(self, targets, truth, boss_std=None):
         """Select bright- and dark-time standard stars.  Input tables are modified in
         place.
@@ -3011,7 +3053,7 @@ class MWS_MAINMaker(STARMaker):
 
         return data
     
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate MWS_MAIN stellar spectra.
 
         Parameters
@@ -3023,6 +3065,8 @@ class MWS_MAINMaker(STARMaker):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -3048,23 +3092,27 @@ class MWS_MAINMaker(STARMaker):
             seed = self.seed
         rand = np.random.RandomState(seed)
         
-        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        input_meta['SEED'] = rand.randint(2**31, size=nobj)
-        input_meta['REDSHIFT'] = data['Z'][indx]
-        input_meta['MAG'] = data['MAG'][indx]
-        input_meta['TEFF'] = data['TEFF'][indx]
-        input_meta['LOGG'] = data['LOGG'][indx]
-        input_meta['FEH'] = data['FEH'][indx]
+        if no_spectra:
+            flux = []
+            meta = self.template_photometry(data, indx, rand)
+        else:
+            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta['SEED'] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'] = data['Z'][indx]
+            input_meta['MAG'] = data['MAG'][indx]
+            input_meta['TEFF'] = data['TEFF'][indx]
+            input_meta['LOGG'] = data['LOGG'][indx]
+            input_meta['FEH'] = data['FEH'][indx]
 
-        if self.mockformat == 'galaxia':
-            alldata = np.vstack((data['TEFF'][indx],
-                                 data['LOGG'][indx],
-                                 data['FEH'][indx])).T
-            _, templateid = self._query(alldata)
-            input_meta['TEMPLATEID'] = templateid
+            if self.mockformat == 'galaxia':
+                alldata = np.vstack((data['TEFF'][indx],
+                                     data['LOGG'][indx],
+                                     data['FEH'][indx])).T
+                _, templateid = self._query(alldata)
+                input_meta['TEMPLATEID'] = templateid
 
-        # Note! No colorcuts.
-        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+            # Note! No colorcuts.
+            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
                                                      seed=seed, truespectype='STAR',
@@ -3489,25 +3537,66 @@ class WDMaker(SelectTargets):
         each target.  Defaults to `decam2014-r`.
 
     """
+    wave, da_template_maker, db_template_maker = None, None, None
+    wd_maggies_da, wd_maggies_db, tree_da, tree_db = None, None, None, None
+
     def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
-        from desisim.templates import WD
         from scipy.spatial import cKDTree as KDTree
+        from speclite import filters
+        from desisim.templates import WD
         
         super(WDMaker, self).__init__()
 
         self.seed = seed
-        self.wave = _default_wave()
         self.objtype = 'WD'
 
-        self.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=normfilter)
-        self.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=normfilter)
+        if self.wave is None:
+            WDMaker.wave = _default_wave()
+            
+        if self.da_template_maker is None:
+            WDMaker.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=normfilter)
+            
+        if self.db_template_maker is None:
+            WDMaker.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=normfilter)
         
         self.meta_da = self.da_template_maker.basemeta
         self.meta_db = self.db_template_maker.basemeta
 
-        self.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
-                                         self.meta_da['LOGG'].data)).T)
-        self.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
+        # Pre-compute normalized synthetic photometry for the full set of DA and
+        # DB templates.
+        if self.wd_maggies_da is None or self.wd_maggies_db is None:
+
+            wave = self.da_template_maker.basewave
+            flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
+
+            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
+                                             'wise2010-W1', 'wise2010-W2')
+            maggies_da = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+
+            # Normalize to sdss-g
+            normfilter = filters.load_filters('sdss2010-g')
+
+            def _get_maggies(flux, wave, maggies, normfilter):
+                normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
+
+                for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z',
+                                                          'FLUX_W1', 'FLUX_W2') ):
+
+                    maggies[filt] /= normmaggies[normfilter.names[0]]
+                    maggies.rename_column(filt, flux)
+                    
+                return maggies
+
+            WDMaker.wd_maggies_da = _get_maggies(flux_da, wave, maggies_da.copy(), normfilter)
+            WDMaker.wd_maggies_db = _get_maggies(flux_db, wave, maggies_db.copy(), normfilter)
+
+        # Build the KD Trees
+        if self.tree_da is None:
+            WDMaker.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
+                                             self.meta_da['LOGG'].data)).T)
+        if self.tree_db is None:
+            WDMaker.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
                                          self.meta_db['LOGG'].data)).T)
 
         # Default mock catalog.
@@ -3574,7 +3663,53 @@ class WDMaker(SelectTargets):
 
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def template_photometry(self, data=None, indx=None, rand=None, subtype='DA'):
+        """Get stellar photometry from the templates themselves, by-passing the
+        generation of spectra.
+
+        """
+        from desisim.io import empty_metatable
+
+        if rand is None:
+            rand = np.random.RandomState()
+
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
+        
+        meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        meta['SEED'] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'] = data['Z'][indx]
+        meta['MAG'] = data['MAG'][indx]
+        meta['TEFF'] = data['TEFF'][indx]
+        meta['LOGG'] = data['LOGG'][indx]
+        meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
+
+        if self.mockformat == 'mws_wd':
+            alldata = np.vstack((data['TEFF'][indx],
+                                 data['LOGG'][indx])).T
+            _, templateid = self._query(alldata)
+
+        normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
+        
+        if data['NORMFILTER'] == 'sdss2010-g':
+            if subtype == 'DA':
+                wd_maggies = self.wd_maggies_da
+            elif subtype == 'DB':
+                wd_maggies = self.wd_maggies_da
+            else:
+                log.warning('Unrecognized subtype {}!'.format(subtype))
+                raise ValueError
+        else:
+            log.warning('Unrecognized normalization filter!')
+            raise ValueError
+            
+        for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
+            meta[key][:] = wd_maggies[key][templateid] * normmag
+
+        return meta
+
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate WD spectra, dealing with DA vs DB white dwarfs separately.
         
         Parameters
@@ -3586,6 +3721,8 @@ class WDMaker(SelectTargets):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -3611,37 +3748,51 @@ class WDMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        input_meta['SEED'] = rand.randint(2**31, size=nobj)
-        input_meta['REDSHIFT'] = data['Z'][indx]
-        input_meta['MAG'] = data['MAG'][indx]
-        input_meta['TEFF'] = data['TEFF'][indx]
-        input_meta['LOGG'] = data['LOGG'][indx]
-        input_meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
-        
+        #if no_spectra:
+        #    flux = []
+        #    meta = self.template_photometry(data, indx, rand)
+        #else:
         if self.mockformat == 'mws_wd':
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-            
+            allsubtype = data['TEMPLATESUBTYPE'][indx]
+            if no_spectra:
+                meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                flux = []
+            else:
+                meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+
+                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                input_meta['SEED'] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'] = data['Z'][indx]
+                input_meta['MAG'] = data['MAG'][indx]
+                input_meta['TEFF'] = data['TEFF'][indx]
+                input_meta['LOGG'] = data['LOGG'][indx]
+                input_meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
+
             for subtype in ('DA', 'DB'):
-                these = np.where(input_meta['SUBTYPE'] == subtype)[0]
+                these = np.where(allsubtype == subtype)[0]
                 if len(these) > 0:
                     alldata = np.vstack((data['TEFF'][indx][these],
                                          data['LOGG'][indx][these])).T
                     _, templateid = self._query(alldata, subtype=subtype)
-                    
-                    input_meta['TEMPLATEID'][these] = templateid
-                    
-                    template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
-                    flux1, _, meta1 = template_maker.make_templates(input_meta=input_meta[these])
-                    
-                    meta[these] = meta1
-                    flux[these, :] = flux1
-            
+
+                    if no_spectra:
+                        meta1 = self.template_photometry(data, indx[these],
+                                                         rand, subtype)
+                        meta[these] = meta1
+                    else:
+                        input_meta['TEMPLATEID'][these] = templateid
+
+                        template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
+                        flux1, _, meta1 = template_maker.make_templates(input_meta=input_meta[these])
+
+                        meta[these] = meta1
+                        flux[these, :] = flux1
+
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
                                                      seed=seed, truespectype='WD',
                                                      templatetype='WD',
-                                                     templatesubtype=data['TEMPLATESUBTYPE'][indx])
+                                                     templatesubtype=allsubtype)
 
         return flux, self.wave, meta, targets, truth
 
