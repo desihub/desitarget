@@ -395,6 +395,7 @@ class SelectTargets(object):
         alltags = dict()
         alltags['ELG'] = ('r', 'g - r', 'r - z', 'z - W1', 'W1 - W2', 'oii')
         alltags['LRG'] = ('z', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
+        alltags['BGS'] = ('r', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
         alltags['QSO'] = ('g', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
         alltags['LYA'] = ('g', 'g - r', 'r - z', 'z - W1', 'W1 - W2')
 
@@ -403,7 +404,7 @@ class SelectTargets(object):
         for ii, tt in enumerate(tags):
             sample[tt] = data[:, ii]
 
-        if target == 'ELG':
+        if target == 'ELG' or target == 'BGS':
             rmag = sample['r']
             zmag = rmag - sample['r - z']
             gmag = sample['g - r'] + rmag
@@ -2566,6 +2567,9 @@ class BGSMaker(SelectTargets):
         each target.  Defaults to `decam2014-r`.
 
     """
+    wave, tree, template_maker = None, None, None
+    GMM, GMM_nospectra = None, None
+    
     def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import BGS
@@ -2575,20 +2579,29 @@ class BGSMaker(SelectTargets):
 
         self.seed = seed
         self.nside_chunk = nside_chunk
-        self.wave = _default_wave()
         self.objtype = 'BGS'
 
-        self.template_maker = BGS(wave=self.wave, normfilter=normfilter)
+        if self.wave is None:
+            BGSMaker.wave = _default_wave()
+        if self.template_maker is None:
+            BGSMaker.template_maker = BGS(wave=self.wave, normfilter=normfilter)
+            
         self.meta = self.template_maker.basemeta
 
-        zobj = self.meta['Z'].data
-        mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
-        rmabs = mabs[:, 2]
-        gr = mabs[:, 1] - mabs[:, 2]
-        self.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
+        if self.tree is None:
+            zobj = self.meta['Z'].data
+            mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
+            rmabs = mabs[:, 2]
+            gr = mabs[:, 1] - mabs[:, 2]
+            BGSMaker.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
 
-        gmmfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
-        self.GMM = GaussianMixtureModel.load(gmmfile)
+        if self.GMM is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
+            BGSMaker.GMM = GaussianMixtureModel.load(gmmfile)
+
+        if self.GMM_nospectra is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_bgs.fits')
+            BGSMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -2665,7 +2678,7 @@ class BGSMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None, seed=None):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate BGS spectra.
 
         Parameters
@@ -2677,6 +2690,8 @@ class BGSMaker(SelectTargets):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -2704,23 +2719,30 @@ class BGSMaker(SelectTargets):
 
         gmm = self._GMMsample(nobj, seed=seed)
 
-        input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        input_meta['SEED'] = rand.randint(2**31, size=nobj)
-        input_meta['REDSHIFT'] = data['Z'][indx]
-        input_meta['MAG'] = data['MAG'][indx]
-        input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-                                                 mean=1.9, sigma=0.15, seed=seed,
-                                                 nside=self.nside_chunk)
+        if no_spectra:
+            flux = []
+            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'] = data['Z'][indx]
+            self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
+        else:
+            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta['SEED'] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'] = data['Z'][indx]
+            input_meta['MAG'] = data['MAG'][indx]
+            input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
+                                                     mean=1.9, sigma=0.15, seed=seed,
+                                                     nside=self.nside_chunk)
 
-        if self.mockformat == 'durham_mxxl_hdf5':
-            alldata = np.vstack((data['Z'][indx],
-                                 data['SDSS_absmag_r01'][indx],
-                                 data['SDSS_01gr'][indx])).T
-            _, templateid = self._query(alldata)
-            input_meta['TEMPLATEID'] = templateid
+            if self.mockformat == 'durham_mxxl_hdf5':
+                alldata = np.vstack((data['Z'][indx],
+                                     data['SDSS_absmag_r01'][indx],
+                                     data['SDSS_01gr'][indx])).T
+                _, templateid = self._query(alldata)
+                input_meta['TEMPLATEID'] = templateid
 
-        flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                           nocolorcuts=True, novdisp=False)
+            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+                                                               nocolorcuts=True, novdisp=False)
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
                                                      seed=seed, gmm=gmm,
@@ -3239,7 +3261,7 @@ class FAINTSTARMaker(STARMaker):
 
         return data
     
-    def make_spectra(self, data=None, indx=None, boss_std=None, seed=None):
+    def make_spectra(self, data=None, indx=None, boss_std=None, seed=None, no_spectra=False):
         """Generate FAINTSTAR stellar spectra.
 
         Note: These (numerous!) objects are only used as contaminants, so we use
@@ -3259,6 +3281,8 @@ class FAINTSTARMaker(STARMaker):
             criteria.  Defaults to None.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -3286,8 +3310,6 @@ class FAINTSTARMaker(STARMaker):
 
         objseeds = rand.randint(2**31, size=nobj)
 
-        import pdb ; pdb.set_trace()
-        
         if self.mockformat == 'galaxia':
             alldata = np.vstack((data['TEFF'][indx],
                                  data['LOGG'][indx],
@@ -3300,14 +3322,18 @@ class FAINTSTARMaker(STARMaker):
         
         # Pack the noiseless stellar photometry in the truth table, generate
         # noisy photometry, and then select targets.
-        if data['NORMFILTER'] != self.star_normfilter:
-            log.warning('Mismatching normalization filters!')
+        normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
+
+        if data['NORMFILTER'] == 'sdss2010-r':
+            star_maggies = self.star_maggies_r
+        elif data['NORMFILTER'] == 'sdss2010-g':
+            star_maggies = self.star_maggies_g
+        else:
+            log.warning('Unrecognized normalization filter!')
             raise ValueError
         
-        normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
-        
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
-            _truth[key][:] = self.star_maggies[key][templateid] * normmag
+            _truth[key][:] = star_maggies[key][templateid] * normmag
 
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
             for prefix in ('MW_TRANSMISSION', 'PSFDEPTH'):
@@ -3329,18 +3355,27 @@ class FAINTSTARMaker(STARMaker):
             input_meta['TEFF'] = data['TEFF'][indx][keep]
             input_meta['LOGG'] = data['LOGG'][indx][keep]
             input_meta['FEH'] = data['FEH'][indx][keep]
-            input_meta['TEMPLATEID'] = templateid[keep]
 
-            # Note! No colorcuts.
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+            if no_spectra:
+                flux = []
+                meta = input_meta
+                targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
+                                                             psf=True, seed=seed,
+                                                             truespectype='STAR',
+                                                             templatetype='STAR')
+            else:
+                input_meta['TEMPLATEID'] = templateid[keep]
 
-            # Force consistency in the noisy photometry so we select the same targets. 
-            targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
-                                                         psf=True, seed=seed,
-                                                         truespectype='STAR',
-                                                         templatetype='STAR')
-            for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
-                targets[filt][:] = _targets[filt][keep]
+                # Note! No colorcuts.
+                flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+
+                # Force consistency in the noisy photometry so we select the same targets. 
+                targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
+                                                             psf=True, seed=seed,
+                                                             truespectype='STAR',
+                                                             templatetype='STAR')
+                for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
+                    targets[filt][:] = _targets[filt][keep]
 
             if boss_std is None:
                 self.select_targets(targets, truth)
@@ -3830,13 +3865,17 @@ class SKYMaker(SelectTargets):
         Seed for reproducibility and random number generation.
 
     """
+    wave = None
+    
     def __init__(self, seed=None, **kwargs):
         super(SKYMaker, self).__init__()
 
         self.seed = seed
-        self.wave = _default_wave()
         self.objtype = 'SKY'
 
+        if self.wave is None:
+            SKYMaker.wave = _default_wave()
+        
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'uniformsky', '0.1',
