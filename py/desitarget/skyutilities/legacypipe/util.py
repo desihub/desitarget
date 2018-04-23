@@ -2,7 +2,7 @@
 # which ships with the following License:
 # https://github.com/legacysurvey/legacypipe/blob/master/LICENSE
 # Reuse of code in this module is subject to those license agreements
-# Specific routines that were "borrowed" from:
+# Specific routines from which we "borrowed":
 # https://github.com/legacysurvey/legacypipe/blob/master/py/legacypipe/survey.py
 # https://github.com/legacysurvey/legacypipe/blob/master/py/legacypipe/utils.py
 
