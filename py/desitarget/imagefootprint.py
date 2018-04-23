@@ -1,5 +1,12 @@
-#!/usr/bin/env python
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""
+==========================
+desitarget.imagefootprint
+==========================
 
+Monte Carlo Legacy Surveys imaging at the pixel level to model the imaging footprint
+"""
 import os
 import numpy as np
 import astropy.io.fits as fits
