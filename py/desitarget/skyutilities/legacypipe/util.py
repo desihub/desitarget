@@ -1,4 +1,4 @@
-# This code is from legacypipe: https://github.com/legacysurvey/legacypipe/
+B11;rgb:0000/0000/0000# This code is from legacypipe: https://github.com/legacysurvey/legacypipe/
 # which ships with the following License:
 # https://github.com/legacysurvey/legacypipe/blob/master/LICENSE
 # Reuse of code in this module is subject to those license agreements
@@ -84,7 +84,7 @@ def _ring_unique(wcs, W, H, i, unique, ra1,ra2,dec1,dec2):
         #ADM the one change to the legacypipe "borrowed" code, as in
         #ADM desitarget we use astropy in place of astrometry.net
         #ADM start at pixel 0,0 in the top-left (the numpy standard)
-        rr, dd = wcs.all_pix2world(x, y, 0)
+        rr, dd = wcs.all_pix2world(xx[xslc], yy[yslc], 0)
 #        rr,dd = wcs.pixelxy2radec(xx[xslc]+1, yy[yslc]+1)
         U = (rr >= ra1 ) * (rr < ra2 ) * (dd >= dec1) * (dd < dec2)
         #print('Pixel', i, ':', np.sum(U), 'of', len(U), 'pixels are unique')
