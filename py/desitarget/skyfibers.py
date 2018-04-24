@@ -136,10 +136,20 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     return skyfibers
 
 def sky_fiber_locations(skypix, gridsize=300):
-    '''Worker function for sky_fibers_for_brick--- implements the core
-    trick of iteratively eroding the map of good sky locations to
-    produce a distance-from-blobs map, and then return the max values
-    in that map in each cell of a grid.
+    '''The core worker function for `sky_fibers_for_brick` 
+
+    Parameters
+    ----------
+    skypix : :class:``
+    
+    gridsize : :class:`int`
+    
+
+    Notes
+    -----
+    Implements the core trick of iteratively eroding the map of good sky locations to
+    produce a distance-from-blobs map, and then return the max values in that map in each 
+    cell of a grid.
     '''
     # Select possible locations for sky fibers
     from scipy.ndimage.morphology import binary_dilation, binary_erosion
@@ -198,7 +208,22 @@ def sky_fiber_locations(skypix, gridsize=300):
     return sx, sy, nerosions[sy,sx]
 
 def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
-    from legacypipe.survey import get_rgb
+    '''The core worker function for `sky_fibers_for_brick` 
+
+    Parameters
+    ----------
+    skypix : :class:``
+    
+    gridsize : :class:`int`
+    
+
+    Notes
+    -----
+    Implements the core trick of iteratively eroding the map of good sky locations to
+    produce a distance-from-blobs map, and then return the max values in that map in each 
+    cell of a grid.
+    '''    
+    from desitarget.skyutilities.legacypipe.util import get_rgb
     import pylab as plt
 
     rgbkwargs = dict(mnmx=(-1,100.), arcsinh=1.)
@@ -268,7 +293,7 @@ if __name__ == '__main__':
         parser.print_help()
         sys.exit(-1)
 
-    from legacypipe.survey import LegacySurveyData
+    from desitarget.skyutilities.legacypipe.util import LegacySurveyData
     
     survey = LegacySurveyData(survey_dir=opt.survey_dir)
 
