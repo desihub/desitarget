@@ -107,6 +107,7 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     #ADM find the pixel scale using the square root of the determinant
     #ADM of the CD matrix (and convert from degrees to arcseconds)
     pixscale = np.sqrt(np.abs(np.linalg.det(wcs.wcs.cd)))*3600.
+    apertures = np.array(apertures_arcsec) / pixscale
 
     # Now, do aperture photometry at these points in the coadd images
     for band in bands:
