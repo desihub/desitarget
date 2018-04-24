@@ -531,6 +531,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
+        log.info('Working on healpixel {}'.format(healpix))
+
         alltargets = list()
         alltruth = list()
         alltrueflux = list()
@@ -541,7 +543,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data and ithere are no targets, keep going.
-            log.info('Reading source : {}'.format(source_name))
+            log.info('Working on target class: {}'.format(source_name))
             print(AllMakeMock[ii].seed)
             data, MakeMock = read_mock(params['sources'][source_name],
                                        log, dust_dir=params['dust_dir'],
