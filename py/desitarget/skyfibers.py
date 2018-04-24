@@ -1,3 +1,12 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""
+=====================
+desitarget.skyfibers
+=====================
+
+Module dealing with the assignation of sky fibers at the pixel-level for target selection
+"""
 import os
 import numpy as np
 
@@ -146,7 +155,6 @@ def sky_fiber_locations(skypix, gridsize=300):
 
 def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
     from legacypipe.survey import get_rgb
-    import fitsio
     import pylab as plt
 
     rgbkwargs = dict(mnmx=(-1,100.), arcsinh=1.)
