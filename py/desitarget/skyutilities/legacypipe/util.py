@@ -1,4 +1,4 @@
-B11;rgb:0000/0000/0000# This code is from legacypipe: https://github.com/legacysurvey/legacypipe/
+# This code is from legacypipe: https://github.com/legacysurvey/legacypipe/
 # which ships with the following License:
 # https://github.com/legacysurvey/legacypipe/blob/master/LICENSE
 # Reuse of code in this module is subject to those license agreements
