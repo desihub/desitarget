@@ -18,6 +18,10 @@ import photutils
 from desitarget.skyutilities.astrometry.fits import fits_table
 from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
+from desitarget import io
+from desitarget.targetmask import desi_mask, targetid_mask
+from desitarget.targets import encode_targetid, finalize
+
 #ADM fake the matplotlib display so it doesn't die on allocated nodes
 import matplotlib
 matplotlib.use('Agg')
@@ -33,7 +37,152 @@ log = get_logger()
 #ADM start the clock
 start = time()
 
-def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
+def density_of_sky_fibers(margin=1.5):
+    """Use positioner patrol size to determine sky fiber density for DESI
+
+    Parameters
+    ----------
+    margin : :class:`float`, optional, defaults to 1.5
+        Factor of extra sky positions to generate. So, for margin=10, 10x as
+        many sky positions as the default requirements will be generated
+
+    Returns
+    -------
+    :class:`float`
+        The density of sky fibers to generate in per sq. deg.
+    """
+    #ADM the patrol radius of a DESI positioner (in sq. deg.)
+    patrol_radius = 6.4/60./60.
+
+    #ADM hardcode the number of options per positioner
+    options = 2.
+    nskies = margin*options/patrol_radius
+
+    return nskies
+
+
+def model_density_of_sky_fibers(margin=1.5):
+    """Use desihub products to find required density of sky fibers for DESI
+    
+    Parameters
+    ----------
+    margin : :class:`float`, optional, defaults to 1.5
+        Factor of extra sky positions to generate. So, for margin=10, 10x as
+        many sky positions as the default requirements will be generated
+    
+    Returns 
+    -------
+    :class:`float`
+        The density of sky fibers to generate in per sq. deg.
+    """
+    
+    from desimodel.io import load_fiberpos, load_target_info
+    fracsky = load_target_info()["frac_sky"]
+    nfibers = len(load_fiberpos())
+    nskies = margin*fracsky*nfibers
+
+    return nskies
+
+
+def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflux=1000,
+                               bands=['g','r','z'], apertures_arcsec=[0.75]):
+    """Generate sky targets and record them in the typical format for DESI sky targets
+
+    Parameters
+    ----------
+    survey : :class:`object`
+        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
+    brickname : :class:`str`
+        Name of the brick in which to generate sky locations.
+    nskiespersqdeg : :class:`float`, optional, defaults to reading from desimodel.io
+        The minimum DENSITY of sky fibers to generate
+    badskyfluc : :class:`float`, optional, defaults to 1000
+        The flux level used to classify a sky position as "BAD" in nanomaggies in
+        ANY band. The default corresponds to a magnitude of 15.
+    bands : :class:`list`, optional, defaults to ['g','r','z']
+        List of bands to be used to define good sky locations.
+    apertures_arcsec : :class:`list`, optional, defaults to [0.75]
+        Radii in arcsec of apertures to sink and derive flux at a sky location.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a structured array of good and bad sky positions in the DESI sky target format
+
+    Notes
+    -----
+    The code generates unique OBJIDs based on an integer counter for the numbers of
+    objects (objs) passed. It will therefore fail if the length of objs is longer
+    than the number of bits reserved for OBJID in `desitarget.targetmask`
+    """
+
+    #ADM if needed, determine the minimum density of sky fibers to generate
+    if nskiespersqdeg is None:
+        nskiespersqdeg = density_of_sky_fibers(margin=2)
+
+    #ADM the hard-coded size of a DESI brick expressed as an area
+    #ADM this is actually slightly larger than the largest brick size
+    #ADM which would be 0.25x0.25 at the equator
+    area = 0.25*0.25
+
+    #ADM the number of sky fibers to be generated. Must be a square number
+    nskiesfloat = area*nskiespersqdeg
+    nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
+    log.info('Generating {} sky positions iin brick {}...t = {:.1f}s'
+             .format(nskies,brickname,time()-start))
+
+    #ADM ensure the number of sky positions to be generated doesn't exceed 
+    #ADM the largest possible OBJID (which is unlikely)
+    if nskies > 2**targetid_mask.OBJID.nbits:
+        log.fatal('{} sky locations requested in brick {}, but OBJID cannot exceed {}'
+            .format(nskies,brickname,2**targetid_mask.OBJID.nbits))
+
+    #ADM generate sky fiber information for this brick name
+    skyfibers = sky_fibers_for_brick(survey,brickname,nskies=nskies,bands=bands,
+                                     apertures_arcsec=apertures_arcsec)
+
+    #ADM retrieve the standard DESI target array
+    dt = io.tsdatamodel.dtype
+    skies = np.zeros(nskies, dtype=dt)
+
+    #ADM populate the output recarray with the RA/Dec of the sky locations
+    skies["RA"], skies["DEC"] = skyfibers.ra, skyfibers.dec
+
+    #ADM create an array of target bits with the SKY information set
+    desi_target = np.zeros(nskies,dtype='>i8')
+    desi_target |= desi_mask.SKY
+    #ADM find where the badskyflux limit is exceeded in any band
+    fluxes = np.hstack([skyfibers.apflux_g,skyfibers.apflux_r,skyfibers.apflux_z])
+    wbad = np.unique(np.where(fluxes > badskyflux)[0])
+    #ADM and if the flux is exceeded then this is a bad sky
+    if len(wbad) > 0:
+        desi_target[wbad] = desi_mask.BAD_SKY
+
+    #ADM add the brick information for the sky targets
+    skies["BRICKID"] = skyfibers.brickid
+    skies["BRICKNAME"] = skyfibers.brickname
+
+    #ADM set the data release from the Legacy Surveys DR directory
+    dr = int(survey.survey_dir[-2])*1000
+    skies["RELEASE"] = dr
+
+    #ADM set the objid (just use a sequential number as setting skies
+    #ADM to 1 in the TARGETID will make these unique
+    skies["OBJID"] = np.arange(nskies)
+
+    log.info('Finalizing target bits...t = {:.1f}s'.format(time()-start))
+    #ADM add target bit columns to the output array, note that mws_target
+    #ADM and bgs_target should be zeros for all sky objects
+    dum = np.zeros_like(desi_target)
+    skies = finalize(skies, desi_target, dum, dum, sky=1)
+
+    log.info('Done...t = {:.1f}s'.format(time()-start))
+
+    return skies
+
+
+def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
                          apertures_arcsec=[0.5, 0.75, 1., 1.5, 2., 3.5, 5., 7.]):
     '''Produce DESI sky fiber locations in a brick, derived at the pixel-level
 
@@ -44,9 +193,11 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
         Name of the brick in which to generate sky locations.
+    nskies : :class:`float`, optional, defaults to 144 (12 x 12)
+        The minimum DENSITY of sky fibers to generate
     bands : :class:`list`, optional, defaults to ['g','r','z']
         List of bands to be used to define good sky locations.
-    apertures_arcsec : :class:`list`
+    apertures_arcsec : :class:`list`, optional, defaults to [0.5,0.75,1.,1.5,2.,3.5,5.,7.]
         Radii in arcsec of apertures to sink and derive flux at a sky location.
 
     Returns
@@ -63,12 +214,11 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     Notes 
     -----   
         - Initial version written by Dustin Lang (@dstndstn).
-
     '''
 
     fn = survey.find_file('blobmap', brick=brickname)
     blobs = fitsio.read(fn)
-    print('Blobs:', blobs.min(), blobs.max())
+    log.info('Blobs: {} {}'.format(blobs.min(), blobs.max()))
     header = fitsio.read_header(fn)
     wcs = WCS(header)
 
@@ -93,7 +243,13 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     goodpix[U == 0] = False
     del U
 
-    x,y,blobdist = sky_fiber_locations(goodpix)
+    #ADM the minimum safe grid size is the number of pixels along an
+    #ADM axis divided by the number of sky locations along any axis
+    gridsize = np.min(blobs.shape/np.sqrt(nskies)).astype('int16')
+    log.info('Gridding at {} pixels...t = {:.1f}s'
+             .format(gridsize,time()-start))
+
+    x,y,blobdist = sky_fiber_locations(goodpix, gridsize=gridsize)
 
     skyfibers = fits_table()
     skyfibers.brickid = np.zeros(len(x), np.int32) + brick.brickid
@@ -113,15 +269,20 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     for band in bands:
         imfn = survey.find_file('image',  brick=brickname, band=band)
         ivfn = survey.find_file('invvar', brick=brickname, band=band)
-        if not (os.path.exists(imfn) and os.path.exists(ivfn)):
-            continue
-        coimg = fitsio.read(imfn)
-        coiv = fitsio.read(ivfn)
 
+        #ADM set the apertures for every band regardless of whether
+        #ADM the file exists, so that we get zeros for missing bands
         apflux = np.zeros((len(skyfibers), len(apertures)), np.float32)
         apiv   = np.zeros((len(skyfibers), len(apertures)), np.float32)
         skyfibers.set('apflux_%s' % band, apflux)
         skyfibers.set('apflux_ivar_%s' % band, apiv)
+
+        if not (os.path.exists(imfn) and os.path.exists(ivfn)):
+            continue
+
+        coimg = fitsio.read(imfn)
+        coiv = fitsio.read(ivfn)
+
         with np.errstate(divide='ignore', invalid='ignore'):
             imsigma = 1./np.sqrt(coiv)
             imsigma[coiv == 0] = 0
@@ -131,7 +292,7 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
             p = photutils.aperture_photometry(coimg, aper, error=imsigma)
             apflux[:,irad] = p.field('aperture_sum')
             err = p.field('aperture_sum_err')
-            apiv  [:,irad] = 1. / err**2
+            apiv[:,irad] = 1. / err**2
 
     header = fitsio.FITSHDR()
     for i,ap in enumerate(apertures_arcsec):
@@ -171,7 +332,7 @@ def sky_fiber_locations(skypix, gridsize=300):
     while True:
         skypix = binary_erosion(skypix, structure=element)
         nerosions += skypix
-        print('After erosion,', np.sum(skypix), 'sky pixels')
+        log.info('After erosion: {} sky pixels'.format(np.sum(skypix)))
         if not np.any(skypix.ravel()):
             break
 
@@ -329,4 +490,3 @@ if __name__ == '__main__':
         import matplotlib
         matplotlib.use('Agg')
         sky_fiber_plots(survey, opt.brick, skyfibers, opt.plots)
-
