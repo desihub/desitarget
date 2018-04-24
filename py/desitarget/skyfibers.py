@@ -43,11 +43,11 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
         LegacySurveyData object for a given Data Release of the Legacy Surveys; see
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
-        Name of the brick in which to generate sky locations
+        Name of the brick in which to generate sky locations.
     bands : :class:`list`, optional, defaults to ['g','r','z']
-        List of bands to be used to define good sky locations
+        List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`
-        Radii in arcsec of apertures to sink and derive flux at a sky location
+        Radii in arcsec of apertures to sink and derive flux at a sky location.
 
     Returns
     ------- 
@@ -62,7 +62,7 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
 
     Notes 
     -----   
-        - Initial version written by Dustin Lang (@dstndstn)
+        - Initial version written by Dustin Lang (@dstndstn).
 
     '''
 
@@ -139,6 +139,7 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     skyfibers._header = header
 
     return skyfibers
+    
 
 def sky_fiber_locations(skypix, gridsize=300):
     '''The core worker function for `sky_fibers_for_brick` 
@@ -146,17 +147,18 @@ def sky_fiber_locations(skypix, gridsize=300):
     Parameters
     ----------
     skypix : :class:`~numpy.array`
-        NxN boolean array of pixels
+        NxN boolean array of pixels.
     gridsize : :class:`int`, optional, defaults to 300
         Resolution (in pixels) at which to split the `skypix` array in order to
         find sky locations. For example, if skypix is a 3600x3600 array of pixels, 
-        gridsize=300 will return (3600/300) x (3600/300) = 12x12 = 144 locations
+        gridsize=300 will return (3600/300) x (3600/300) = 12x12 = 144 locations.
 
     Notes
     -----
-    Implements the core trick of iteratively eroding the map of good sky locations to
-    produce a distance-from-blobs map, and then return the max values in that map in each 
-    cell of a grid.
+        - Implements the core trick of iteratively eroding the map of good sky
+          locations to produce a distance-from-blobs map, and then return the max 
+          values in that map in each cell of a grid.
+        - Initial version written by Dustin Lang (@dstndstn).
     '''
     # Select possible locations for sky fibers
     from scipy.ndimage.morphology import binary_dilation, binary_erosion
@@ -214,6 +216,7 @@ def sky_fiber_locations(skypix, gridsize=300):
     sy = np.array(sy)
     return sx, sy, nerosions[sy,sx]
 
+
 def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
     '''The core worker function for `sky_fibers_for_brick` 
 
@@ -223,14 +226,16 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
         LegacySurveyData object for a given Data Release of the Legacy Surveys; see
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
-        Name of the brick from this DR of the Legacy Surveys to plot as an image
+        Name of the brick from this DR of the Legacy Surveys to plot as an image.
     skyfibers : :class:`object`
         `skyfibers` object returned by :func:`sky_fibers_for_brick()`
     basefn : :class:`str`
-        Base name for the output plot files    
+        Base name for the output plot files.
     bands : :class:`list`, optional, defaults to ['g','r','z']
-        List of bands to plot in the image (i.e. default is to plot a 3-color grz composite)
-    
+        List of bands to plot in the image (i.e. default is to plot a 3-color grz composite).
+        This is particularly useful when a Legacy Surveys image-BAND.fits file is not found,
+        in which case that particular band can be redacted from the bands list.
+
     Returns
     -------
     Nothing, but plots are written to:
@@ -240,9 +245,7 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
 
     Notes
     -----
-    Implements the core trick of iteratively eroding the map of good sky locations to
-    produce a distance-from-blobs map, and then return the max values in that map in each 
-    cell of a grid.
+        - Initial version written by Dustin Lang (@dstndstn).
     '''    
     from desitarget.skyutilities.legacypipe.util import get_rgb
     import pylab as plt
