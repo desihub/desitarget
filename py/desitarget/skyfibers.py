@@ -70,7 +70,7 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     blobs = fitsio.read(fn)
     print('Blobs:', blobs.min(), blobs.max())
     header = fitsio.read_header(fn)
-    wcs = Tan(header)
+    wcs = WCS(header)
 
     goodpix = (blobs == -1)
     for band in bands:
@@ -85,7 +85,7 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     # blobs that are completely outside the brick's unique area, thus
     # those locations are not masked.
     brick = survey.get_brick_by_name(brickname)
-    H,W = wcs.shape
+    H, W = blobs.shape
     U = find_unique_pixels(wcs, W, H, None, brick.ra1, brick.ra2,
                            brick.dec1, brick.dec2)
     goodpix[U == 0] = False
@@ -140,10 +140,12 @@ def sky_fiber_locations(skypix, gridsize=300):
 
     Parameters
     ----------
-    skypix : :class:``
-    
-    gridsize : :class:`int`
-    
+    skypix : :class:`~numpy.array`
+        NxN boolean array of pixels
+    gridsize : :class:`int`, optional, defaults to 300
+        Resolution (in pixels) at which to split the `skypix` array in order to
+        find sky locations. For example, if skypix is a 3600x3600 array of pixels, 
+        gridsize=300 will return (3600/300) x (3600/300) = 12x12 = 144 locations
 
     Notes
     -----
@@ -212,10 +214,24 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
 
     Parameters
     ----------
-    skypix : :class:``
+    survey : :class:`object`
+        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
+    brickname : :class:`str`
+        Name of the brick from this DR of the Legacy Surveys to plot as an image
+    skyfibers : :class:`object`
+        `skyfibers` object returned by :func:`sky_fibers_for_brick()`
+    basefn : :class:`str`
+        Base name for the output plot files    
+    bands : :class:`list`, optional, defaults to ['g','r','z']
+        List of bands to plot in the image (i.e. default is to plot a 3-color grz composite)
     
-    gridsize : :class:`int`
-    
+    Returns
+    -------
+    Nothing, but plots are written to:
+        - basefn + '-1.png' : Sky Fiber Positions on the full image
+        - basefn + '-2.png' : Postage stamps around each sky fiber position
+        - basefn + '-3.png' : Aperture flux at each radius for each sky fiber
 
     Notes
     -----
