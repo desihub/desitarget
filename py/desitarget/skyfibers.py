@@ -9,18 +9,62 @@ Module dealing with the assignation of sky fibers at the pixel-level for target 
 """
 import os
 import numpy as np
+import fitsio
+from astropy.wcs import WCS
+from time import time
+import photutils
+
+#ADM some utility code taken from legacypipe and astrometry.net
+from desitarget.skyutilities.astrometry.fits import fits_table
+from desitarget.skyutilities.legacypipe.util import find_unique_pixels
+
+#ADM fake the matplotlib display so it doesn't die on allocated nodes
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+
+#ADM the parallelization script
+from desitarget.internal import sharedmem
+
+#ADM set up the DESI default logger
+from desiutil.log import get_logger
+log = get_logger()
+
+#ADM start the clock
+start = time()
 
 def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
                          apertures_arcsec=[0.5, 0.75, 1., 1.5, 2., 3.5, 5., 7.]):
+    '''Produce DESI sky fiber locations in a brick, derived at the pixel-level
+
+    Parameters
+    ----------
+    survey : :class:`object`
+        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
+    brickname : :class:`str`
+        Name of the brick in which to generate sky locations
+    bands : :class:`list`, optional, defaults to ['g','r','z']
+        List of bands to be used to define good sky locations
+    apertures_arcsec : :class:`list`
+        Radii in arcsec of apertures to sink and derive flux at a sky location
+
+    Returns
+    ------- 
+    :class:`object`
+        A FITS table that includes: 
+        - the brickid 
+        - the brickname
+        - the x and y pixel positions of the fiber location from the blobs file
+        - the distance from the nearest blob of this fiber location
+        - the RA and Dec positions of the fiber location
+        - the aperture flux and ivar at the passed `apertures_arcsec`
+
+    Notes 
+    -----   
+        - Initial version written by Dustin Lang (@dstndstn)
+
     '''
-    Produces a table of possible DESI sky fiber locations for a given
-    "brickname" (eg, "0001p000") read from the given LegacySurveyData object *survey*.
-    '''
-    import fitsio
-    from astrometry.util.fits import fits_table
-    from astrometry.util.util import Tan
-    import photutils
-    from legacypipe.utils import find_unique_pixels
 
     fn = survey.find_file('blobmap', brick=brickname)
     blobs = fitsio.read(fn)
