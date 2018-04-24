@@ -85,6 +85,8 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     # blobs that are completely outside the brick's unique area, thus
     # those locations are not masked.
     brick = survey.get_brick_by_name(brickname)
+    #ADM the width and height of the image in pixels is just the
+    #ADM shape of the input blobs file
     H, W = blobs.shape
     U = find_unique_pixels(wcs, W, H, None, brick.ra1, brick.ra2,
                            brick.dec1, brick.dec2)
@@ -99,10 +101,12 @@ def sky_fibers_for_brick(survey, brickname, bands=['g','r','z'],
     skyfibers.x = x.astype(np.int16)
     skyfibers.y = y.astype(np.int16)
     skyfibers.blobdist = blobdist
-    skyfibers.ra,skyfibers.dec = wcs.pixelxy2radec(x+1, y+1)
+    #ADM start at pixel 0,0 in the top-left (the numpy standard)
+    skyfibers.ra,skyfibers.dec = wcs.all_pix2world(x, y, 0)
 
-    pixscale = wcs.pixel_scale()
-    apertures = np.array(apertures_arcsec) / pixscale
+    #ADM find the pixel scale using the square root of the determinant
+    #ADM of the CD matrix (and convert from degrees to arcseconds)
+    pixscale = np.sqrt(np.abs(np.linalg.det(wcs.wcs.cd)))*3600.
 
     # Now, do aperture photometry at these points in the coadd images
     for band in bands:

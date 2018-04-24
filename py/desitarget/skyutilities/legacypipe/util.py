@@ -81,7 +81,11 @@ def _ring_unique(wcs, W, H, i, unique, ra1,ra2,dec1,dec2):
     for slc in [top, bot, left, right]:
         #print('xx,yy', xx[slc], yy[slc])
         (yslc,xslc) = slc
-        rr,dd = wcs.pixelxy2radec(xx[xslc]+1, yy[yslc]+1)
+        #ADM the one change to the legacypipe "borrowed" code, as in
+        #ADM desitarget we use astropy in place of astrometry.net
+        #ADM start at pixel 0,0 in the top-left (the numpy standard)
+        rr, dd = wcs.all_pix2world(x, y, 0)
+#        rr,dd = wcs.pixelxy2radec(xx[xslc]+1, yy[yslc]+1)
         U = (rr >= ra1 ) * (rr < ra2 ) * (dd >= dec1) * (dd < dec2)
         #print('Pixel', i, ':', np.sum(U), 'of', len(U), 'pixels are unique')
         unique[slc] = U
