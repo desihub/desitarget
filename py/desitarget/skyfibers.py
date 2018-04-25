@@ -91,8 +91,8 @@ def model_density_of_sky_fibers(margin=1.5):
     return nskies
 
 
-def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflux=1000,
-                               bands=['g','r','z'], apertures_arcsec=[0.75]):
+def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r','z'],
+                               apertures_arcsec=[0.75,1.0],badskyflux=[1000.,1000.]):
     """Generate sky targets and record them in the typical format for DESI sky targets
 
     Parameters
@@ -104,13 +104,14 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflu
         Name of the brick in which to generate sky locations.
     nskiespersqdeg : :class:`float`, optional, defaults to reading from desimodel.io
         The minimum DENSITY of sky fibers to generate
-    badskyfluc : :class:`float`, optional, defaults to 1000
-        The flux level used to classify a sky position as "BAD" in nanomaggies in
-        ANY band. The default corresponds to a magnitude of 15.
     bands : :class:`list`, optional, defaults to ['g','r','z']
         List of bands to be used to define good sky locations.
-    apertures_arcsec : :class:`list`, optional, defaults to [0.75]
+    apertures_arcsec : :class:`list`, optional, defaults to [0.75,1.0]
         Radii in arcsec of apertures to sink and derive flux at a sky location.
+    badskyflux : :class:`list` or `~numpy.array`, optional, defaults to [1000.,1000.]
+        The flux level used to classify a sky position as "BAD" in nanomaggies in
+        ANY band for each aperture size. The default corresponds to a magnitude of 15.
+        Must have the same length as `apertures_arcsec`.
 
     Returns
     -------
@@ -123,7 +124,6 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflu
     objects (objs) passed. It will therefore fail if the length of objs is longer
     than the number of bits reserved for OBJID in `desitarget.targetmask`
     """
-
     #ADM if needed, determine the minimum density of sky fibers to generate
     if nskiespersqdeg is None:
         nskiespersqdeg = density_of_sky_fibers(margin=2)
@@ -146,37 +146,57 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflu
             .format(nskies,brickname,2**targetid_mask.OBJID.nbits))
 
     #ADM generate sky fiber information for this brick name
-    skyfibers = sky_fibers_for_brick(survey,brickname,nskies=nskies,bands=bands,
+    skytable = sky_fibers_for_brick(survey,brickname,nskies=nskies,bands=bands,
                                      apertures_arcsec=apertures_arcsec)
 
-    #ADM retrieve the standard DESI target array
+    #ADM retrieve the standard sky targets data model
     dt = skydatamodel.dtype
-    skies = np.zeros(nskies, dtype=dt)
+    #ADM and update it according to how many apertures were requested
+    naps = len(apertures_arcsec)
+    apcolindices = np.where(['APFLUX' in colname for colname in dt.names])[0]
+    desc = dt.descr
+    for i in apcolindices:
+        desc[i] += (naps,)
+            
+    #ADM set up a rec array to hold all of the output information
+    skies = np.zeros(nskies, dtype=desc)
 
     #ADM populate the output recarray with the RA/Dec of the sky locations
-    skies["RA"], skies["DEC"] = skyfibers.ra, skyfibers.dec
+    skies["RA"], skies["DEC"] = skytable.ra, skytable.dec
 
     #ADM create an array of target bits with the SKY information set
     desi_target = np.zeros(nskies,dtype='>i8')
     desi_target |= desi_mask.SKY
     #ADM find where the badskyflux limit is exceeded in any band
-    fluxes = np.hstack([skyfibers.apflux_g,skyfibers.apflux_r,skyfibers.apflux_z])
-    wbad = np.unique(np.where(fluxes > badskyflux)[0])
+    #ADM first convert badskyflux to an array in case it wasn't passed as such
+    badskyflux = np.array(badskyflux)
+    #ADM now check for things that exceed 
+    bad = np.where( np.any( (skytable.apflux_g > badskyflux) | 
+                             (skytable.apflux_r > badskyflux) | 
+                             (skytable.apflux_z > badskyflux) ,axis=1) )[0]
     #ADM and if the flux is exceeded then this is a bad sky
     if len(wbad) > 0:
         desi_target[wbad] = desi_mask.BAD_SKY
 
     #ADM add the aperture flux measurements
-    skies["APFLUX_G"] = np.hstack(skyfibers.apflux_g)
-    skies["APFLUX_IVAR_G"] = np.hstack(skyfibers.apflux_ivar_g)
-    skies["APFLUX_R"] = np.hstack(skyfibers.apflux_r)
-    skies["APFLUX_IVAR_R"] = np.hstack(skyfibers.apflux_ivar_r)
-    skies["APFLUX_Z"] = np.hstack(skyfibers.apflux_z)
-    skies["APFLUX_IVAR_Z"] = np.hstack(skyfibers.apflux_ivar_z)
+    if naps == 1:
+        skies["APFLUX_G"] = np.hstack(skytable.apflux_g)
+        skies["APFLUX_IVAR_G"] = np.hstack(skytable.apflux_ivar_g)
+        skies["APFLUX_R"] = np.hstack(skytable.apflux_r)
+        skies["APFLUX_IVAR_R"] = np.hstack(skytable.apflux_ivar_r)
+        skies["APFLUX_Z"] = np.hstack(skytable.apflux_z)
+        skies["APFLUX_IVAR_Z"] = np.hstack(skytable.apflux_ivar_z)
+    else:
+        skies["APFLUX_G"] = skytable.apflux_g
+        skies["APFLUX_IVAR_G"] = skytable.apflux_ivar_g
+        skies["APFLUX_R"] = skytable.apflux_r
+        skies["APFLUX_IVAR_R"] = skytable.apflux_ivar_r
+        skies["APFLUX_Z"] = skytable.apflux_z
+        skies["APFLUX_IVAR_Z"] = skytable.apflux_ivar_z
 
     #ADM add the brick information for the sky targets
-    skies["BRICKID"] = skyfibers.brickid
-    skies["BRICKNAME"] = skyfibers.brickname
+    skies["BRICKID"] = skytable.brickid
+    skies["BRICKNAME"] = skytable.brickname
 
     #ADM set the data release from the Legacy Surveys DR directory
     dr = int(survey.survey_dir[-2])*1000
