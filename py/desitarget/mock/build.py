@@ -240,9 +240,12 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if targname.lower() == 'faintstar':
         chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
             data, indx=indx, boss_std=boss_std)
-
-        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-        nkeep = len(keep)
+        
+        if len(chunktargets) > 0:
+            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+            nkeep = len(keep)
+        else:
+            nkeep = 0
 
         log.debug('Selected {} / {} {} targets'.format(nkeep, nobj, targname))
 
@@ -287,12 +290,14 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 else:
                     makemore = False
 
-    targets = vstack(targets)
-    truth = vstack(truth)
-    if no_spectra:
-        trueflux = []
-    else:
-        trueflux = np.concatenate(trueflux)
+    if len(targets) > 0:
+        targets = vstack(targets)
+        truth = vstack(truth)
+        
+        if no_spectra:
+            trueflux = []
+        else:
+            trueflux = np.concatenate(trueflux)
 
     return [targets, truth, trueflux]
 
