@@ -18,7 +18,6 @@ import photutils
 from desitarget.skyutilities.astrometry.fits import fits_table
 from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
-from desitarget import io
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 
@@ -36,6 +35,14 @@ log = get_logger()
 
 #ADM start the clock
 start = time()
+
+#ADM this is an empty array of the full TS data model columns and dtypes for the skies
+skydatamodel = np.array([], dtype=[
+    ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
+    ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'), 
+    ('APFLUX_G', '>f4'), ('APFLUX_R', '>f4'), ('APFLUX_Z', '>f4'),
+    ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4'),
+    ])
 
 def density_of_sky_fibers(margin=1.5):
     """Use positioner patrol size to determine sky fiber density for DESI
@@ -143,7 +150,7 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflu
                                      apertures_arcsec=apertures_arcsec)
 
     #ADM retrieve the standard DESI target array
-    dt = io.tsdatamodel.dtype
+    dt = skydatamodel.dtype
     skies = np.zeros(nskies, dtype=dt)
 
     #ADM populate the output recarray with the RA/Dec of the sky locations
@@ -158,6 +165,14 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, badskyflu
     #ADM and if the flux is exceeded then this is a bad sky
     if len(wbad) > 0:
         desi_target[wbad] = desi_mask.BAD_SKY
+
+    #ADM add the aperture flux measurements
+    skies["APFLUX_G"] = np.hstack(skyfibers.apflux_g)
+    skies["APFLUX_IVAR_G"] = np.hstack(skyfibers.apflux_ivar_g)
+    skies["APFLUX_R"] = np.hstack(skyfibers.apflux_r)
+    skies["APFLUX_IVAR_R"] = np.hstack(skyfibers.apflux_ivar_r)
+    skies["APFLUX_Z"] = np.hstack(skyfibers.apflux_z)
+    skies["APFLUX_IVAR_Z"] = np.hstack(skyfibers.apflux_ivar_z)
 
     #ADM add the brick information for the sky targets
     skies["BRICKID"] = skyfibers.brickid
