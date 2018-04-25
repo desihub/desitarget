@@ -91,9 +91,9 @@ def model_density_of_sky_fibers(margin=1.5):
     return nskies
 
 
-def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r','z'],
-                               apertures_arcsec=[0.75,1.0],badskyflux=[1000.,1000.]):
-    """Generate sky targets and record them in the typical format for DESI sky targets
+def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r','z'],
+                           apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.]):
+    """Generate skies for one brick in the typical format for DESI sky targets
 
     Parameters
     ----------
@@ -116,7 +116,7 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, bands=['g
     Returns
     -------
     :class:`~numpy.ndarray`
-        a structured array of good and bad sky positions in the DESI sky target format
+        a structured array of sky positions in the DESI sky target format for a brick
 
     Notes
     -----
@@ -124,6 +124,10 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, bands=['g
     objects (objs) passed. It will therefore fail if the length of objs is longer
     than the number of bits reserved for OBJID in `desitarget.targetmask`
     """
+    #ADM this is only intended to work on one brick, so die if a larger array is passed
+    if not isinstance(brickname,str):
+        log.fatal("Only one brick can be passed at a time!")
+
     #ADM if needed, determine the minimum density of sky fibers to generate
     if nskiespersqdeg is None:
         nskiespersqdeg = density_of_sky_fibers(margin=2)
@@ -136,7 +140,7 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, bands=['g
     #ADM the number of sky fibers to be generated. Must be a square number
     nskiesfloat = area*nskiespersqdeg
     nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
-    log.info('Generating {} sky positions iin brick {}...t = {:.1f}s'
+    log.info('Generating {} sky positions in brick {}...t = {:.1f}s'
              .format(nskies,brickname,time()-start))
 
     #ADM ensure the number of sky positions to be generated doesn't exceed 
@@ -176,9 +180,9 @@ def make_sky_targets_for_brick(survey, brickname, nskiespersqdeg=None, bands=['g
     wbad = np.where( np.any( (skytable.apflux_g > badskyflux) | 
                              (skytable.apflux_r > badskyflux) | 
                              (skytable.apflux_z > badskyflux) |
-                             (skytable.apflux_ivar_g == float('Inf')) |
-                             (skytable.apflux_ivar_r == float('Inf')) |
-                             (skytable.apflux_ivar_z == float('Inf')), axis=1) )
+                             (skytable.apflux_ivar_g == np.inf) |
+                             (skytable.apflux_ivar_r == np.inf) |
+                             (skytable.apflux_ivar_z == np.inf), axis=1) )
     #ADM if these criteria were met, this is a bad sky
     if len(wbad) > 0:
         desi_target[wbad] = desi_mask.BAD_SKY
@@ -258,7 +262,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
 
     fn = survey.find_file('blobmap', brick=brickname)
     blobs = fitsio.read(fn)
-    log.info('Blobs: {} {}'.format(blobs.min(), blobs.max()))
+    log.info('Blob maximum value and minimum value in brick {}: {} {}'
+             .format(brickname,blobs.min(),blobs.max()))
     header = fitsio.read_header(fn)
     wcs = WCS(header)
 
@@ -286,8 +291,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
     #ADM the minimum safe grid size is the number of pixels along an
     #ADM axis divided by the number of sky locations along any axis
     gridsize = np.min(blobs.shape/np.sqrt(nskies)).astype('int16')
-    log.info('Gridding at {} pixels...t = {:.1f}s'
-             .format(gridsize,time()-start))
+    log.info('Gridding at {} pixels in brick {}...t = {:.1f}s'
+             .format(gridsize,brickname,time()-start))
 
     x,y,blobdist = sky_fiber_locations(goodpix, gridsize=gridsize)
 
@@ -315,7 +320,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
         #ADM the file exists, so that we get zeros for missing bands
         apflux = np.zeros((len(skyfibers), naps), np.float32)
         #ADM set any zero flux to have an infinite inverse variance
-        apiv   = np.zeros((len(skyfibers), naps), np.float32) + np.float('Inf')
+        apiv   = np.zeros((len(skyfibers), naps), np.float32) + np.inf
         skyfibers.set('apflux_%s' % band, apflux)
         skyfibers.set('apflux_ivar_%s' % band, apiv)
 
@@ -374,7 +379,7 @@ def sky_fiber_locations(skypix, gridsize=300):
     while True:
         skypix = binary_erosion(skypix, structure=element)
         nerosions += skypix
-        log.info('After erosion: {} sky pixels'.format(np.sum(skypix)))
+#        log.info('After erosion: {} sky pixels'.format(np.sum(skypix)))
         if not np.any(skypix.ravel()):
             break
 
@@ -502,6 +507,89 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
     plt.savefig(basefn + '-3.png')
 
 
+def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
+                 apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.]):
+    """Generate skies in parallel for all bricks in a Legacy Surveys Data Release
+
+    Parameters
+    ----------
+    survey : :class:`object`
+        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
+    numproc : :class:`int`, optional, defaults to 16 
+        The number of processes over which to parallelize
+    nskiespersqdeg : :class:`float`, optional, defaults to reading from desimodel.io
+        The minimum DENSITY of sky fibers to generate
+    bands : :class:`list`, optional, defaults to ['g','r','z']
+        List of bands to be used to define good sky locations.
+    apertures_arcsec : :class:`list`, optional, defaults to [0.75,1.0]
+        Radii in arcsec of apertures to sink and derive flux at a sky location.
+    badskyflux : :class:`list` or `~numpy.array`, optional, defaults to [1000.,1000.]
+        The flux level used to classify a sky position as "BAD" in nanomaggies in
+        ANY band for each aperture size. The default corresponds to a magnitude of 15.
+        Must have the same length as `apertures_arcsec`.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a structured array of sky positions in the DESI sky target format for all
+        bricks in a Legacy Surveys Data Release.
+
+    Notes
+    -----
+        - Some core code in this module was initially written by Dustin Lang (@dstndstn).
+    """
+    #ADM read in the survey bricks file, which lists the bricks of interest for this DR
+    from glob import glob
+    sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
+    brickinfo = fitsio.read(sbfile)
+    #ADM remember that fitsio reads things in as bytes, so convert to unicode 
+    bricknames = brickinfo['brickname'].astype('U')[0:3]
+    nbricks = len(bricknames)
+    log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
+             .format(nbricks,survey.survey_dir,time()-start))
+
+    #ADM the critical function to run on every brick
+    def _get_skies(brickname):
+        '''wrapper on make_skies_for_a_brick() given a brick name'''
+
+        return make_skies_for_a_brick(survey, brickname, 
+                                      nskiespersqdeg=nskiespersqdeg, bands=bands,
+                                      apertures_arcsec=apertures_arcsec,
+                                      badskyflux=badskyflux)
+
+    #ADM this is just in order to count bricks in _update_status
+    nbrick = np.zeros((), dtype='i8')
+
+    t0 = time()
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+        if nbrick%50 == 0 and nbrick>0:
+            rate = nbrick / (time() - t0)
+            log.info('{}/{} bricks; {:.1f} files/sec'.format(nbrick, nbricks, rate))
+
+        nbrick[...] += 1    # this is an in-place modification
+        return result
+
+    #- Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            skies = pool.map(_get_skies, bricknames, reduce=_update_status)
+    else:
+        skies = list()
+        for brickname in bricknames:
+            skies.append(_update_status(_get_skies(brickname)))
+
+    #ADM Concatenate the parallelized results into one rec array of sky information
+    skies = np.concatenate(skies)
+
+    log.info('Done...t={:.1f}s'.format(time()-start))
+
+    return skies
+
+
 if __name__ == '__main__':
     import argparse
     import sys
@@ -532,3 +620,8 @@ if __name__ == '__main__':
         import matplotlib
         matplotlib.use('Agg')
         sky_fiber_plots(survey, opt.brick, skyfibers, opt.plots)
+
+
+
+
+
