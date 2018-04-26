@@ -2,10 +2,6 @@
 
 from __future__ import print_function, division
 
-import os, sys
-import numpy as np
-import fitsio
-
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies
 
