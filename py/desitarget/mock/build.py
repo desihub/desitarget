@@ -252,7 +252,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         if nkeep > 0:
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
-            trueflux.append(chunkflux[keep, :])
+            if not no_spectra:
+                trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required
         # target density.
@@ -293,12 +294,9 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
-        
-        if no_spectra:
-            trueflux = []
-        else:
+        if not no_spectra:
             trueflux = np.concatenate(trueflux)
-
+        
     return [targets, truth, trueflux]
 
 def density_fluctuations(data, log, nside, nside_chunk, seed=None):
@@ -468,13 +466,21 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     # Unpack the results and return; note that sky targets are a special case.
     results = list(zip(*results))
-    targets = vstack(results[0])
-    truth = vstack(results[1])
+    targets = [targ for targ in results[0] if len(targ) > 0]
+    truth = [tru for tru in results[1] if len(tru) > 0]
+    if len(targets) > 0:
+        targets = vstack(targets)
+        truth = vstack(truth)
 
     if sky:
         trueflux = []
     else:
-        trueflux = np.concatenate(results[2])
+        if no_spectra:
+            trueflux = []
+        else:
+            good = [len(targ) > 0 for targ in results[0]]
+            if len(good) > 0:
+                trueflux = np.concatenate(np.array(results[2])[good])
         
     log.info('Done: generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
