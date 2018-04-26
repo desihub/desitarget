@@ -564,7 +564,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
     brickinfo = fitsio.read(sbfile)
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
-    bricknames = brickinfo['brickname'].astype('U')
+    bricknames = brickinfo['brickname'].astype('U')[0:8]
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks,survey.survey_dir,time()-start))

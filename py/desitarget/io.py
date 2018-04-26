@@ -342,6 +342,58 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
+def write_skies(filename, data, 
+                indir=None, apertures_arcsec=None, badskyflux=None):
+    """Write a target catalogue.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Output target selection file name
+    data  : :class:`~numpy.ndarray` 
+        Array of targets to write to file
+    indir : :class:`str`, optional, defaults to None
+        Name of input Legacy Survey Data Release directory, write to header
+        of output file if passed (and if not None).
+    apertures_arcsec : :class:`list` or `float`, optional, defaults to None
+        list of aperture radii in arcsecondsm write each aperture as an
+        individual line in the header, if passed (and if not None).
+    badskyflux : :class:`list` or `float`, optional, defaults to None
+        list of aperture radii in arcsecondsm write each aperture as an
+        individual line in the header, if passed (and if not None).
+    """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #- Create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+
+    if indir is not None:
+        depend.setdep(hdr, 'input-data-release', indir)
+        #ADM note that if 'dr' is not in the indir DR
+        #ADM directory structure, garbage will
+        #ADM be rewritten gracefully in the header
+        drstring = 'dr'+indir.split('dr')[-1][0]
+        depend.setdep(hdr, 'photcat', drstring)
+
+    if apertures_arcsec is not None:
+        for i,ap in enumerate(apertures_arcsec):
+            apname = "AP{}".format(i)
+            apsize = "{:.2f}".format(ap)
+            hdr[apname] = apsize
+
+    if badskyflux is not None:
+        for i,bs in enumerate(badskyflux):
+            bsname = "BADFLUX{}".format(i)
+            bssize = "{:.2f}".format(bs)
+            hdr[bsname] = bssize
+
+    fitsio.write(filename, data, extname='SKIES', header=hdr, clobber=True)
+
+
 def iter_files(root, prefix, ext='fits'):
     """Iterator over files under in `root` directory with given `prefix` and
     extension.
