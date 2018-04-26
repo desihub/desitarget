@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+import fitsio
+
+from desitarget.skyutilities.legacypipe.util import LegacySurveyData
+from desitarget.skyfibers import select_skies
+
+import warnings
+warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Generates possible DESI sky fiber locations in Legacy Survey bricks')
+ap.add_argument("surveydir", 
+                help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC")
+ap.add_argument("dest", 
+                help="Output sky targets file (e.g. /project/projectdirs/desi/target/catalogs/skies-dr4-0.20.0.fits)")
+ap.add_argument("--nskiespersqdeg", 
+                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io)",
+                default=None)
+ap.add_argument("--bands", 
+                help='Bands in this Legacy Survey Data Release to consider when deriving sky location and aperture fluxes (e.g, "g,r")',
+                default="g,r,z")
+ap.add_argument("--apertures", 
+                help='Aperture radii in arcseconds at which to derive flux measurements for each sky location (e.g, "1.0,2.0")',
+                default="0.75,1.0")
+ap.add_argument("--badskyflux",
+                help='Flux level in nanomaggies used for BAD SKY locations in any band for each aperture size (must be the same length as apertures)',
+                default="1000,1000")
+ap.add_argument("--writebricks", action="store_true",
+                help="Write sky information for EACH brick (the per-brick file names are %surveydir/metrics/%(brick).3s/skies-%(brick)s.fits.gz")
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [{}]'.format(nproc),
+                default=nproc)
+
+ns = ap.parse_args()
+
+bands = [ float(band) for band in ns.bands.split(',') ]
+apertures = [ float(aperture) for aperture in ns.apertures.split(',') ]
+badskyflux = [ float(bsflux) for bsflux in ns.badskyflux.split(',') ]
+
+survey = LegacySurveyData(survey_dir=ns.surveydir)
+
+skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqdeg, bands=bands, 
+                     apertures_arcsec=apertures, badskyflux=badskyflux, writebricks=ns.writebricks)
+io.write_skies(ns.dest, skies, indir=ns.src,
+               qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
+
+log.info('{} skies written to {}'.format(len(skies), ns.dest))
+
