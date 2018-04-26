@@ -229,10 +229,10 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     skies = finalize(skies, desi_target, dum, dum, sky=1)
 
     if write:
-        outfile = survey.find_file('skies')
-        import pdb ; pdb.set_trace()
-        skytable.writeto(outfile, header=skyfibers._header)
-        log.info('Writing sky information to {}'.format(outfile)
+        outfile = survey.find_file('skies', brick=brickname)
+        log.info('Writing sky information to {}...t = {:.1f}s'
+                 .format(outfile,time()-start))
+        skytable.writeto(outfile, header=skytable._header)
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
@@ -521,7 +521,8 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
-                 apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.]):
+                 apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.], 
+                 writebricks=False):
     """Generate skies in parallel for all bricks in a Legacy Surveys Data Release
 
     Parameters
@@ -541,6 +542,12 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         The flux level used to classify a sky position as "BAD" in nanomaggies in
         ANY band for each aperture size. The default corresponds to a magnitude of 15.
         Must have the same length as `apertures_arcsec`.
+    writebricks : :class:`boolean`, defaults to False
+        If `True`, write the skyfibers object for EACH brick (in the format of the 
+        output from :func:`sky_fibers_for_brick()`) to file. The file name is derived
+        from the input `survey` object and is in the form:
+            %(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz'
+        which is returned by `survey.find_file('skies')`
 
     Returns
     -------
@@ -569,7 +576,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         return make_skies_for_a_brick(survey, brickname, 
                                       nskiespersqdeg=nskiespersqdeg, bands=bands,
                                       apertures_arcsec=apertures_arcsec,
-                                      badskyflux=badskyflux)
+                                      badskyflux=badskyflux, write=writebricks)
 
     #ADM this is just in order to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
