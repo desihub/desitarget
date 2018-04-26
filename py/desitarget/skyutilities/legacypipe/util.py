@@ -280,6 +280,10 @@ class LegacySurveyData(object):
             return swap(os.path.join(basedir, 'metrics', brickpre,
                                      'blobs-%s.fits.gz' % (brick)))
 
+        elif filetype in ['skies']:
+            return swap(os.path.join(basedir, 'metrics', brickpre,
+                                     'skies-%s.fits.gz' % (brick)))
+
         elif filetype in ['all-models']:
             return swap(os.path.join(basedir, 'metrics', brickpre,
                                      'all-models-%s.fits' % (brick)))

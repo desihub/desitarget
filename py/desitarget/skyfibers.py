@@ -92,7 +92,8 @@ def model_density_of_sky_fibers(margin=1.5):
 
 
 def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r','z'],
-                           apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.]):
+                           apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.],
+                           write=False):
     """Generate skies for one brick in the typical format for DESI sky targets
 
     Parameters
@@ -112,6 +113,12 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
         The flux level used to classify a sky position as "BAD" in nanomaggies in
         ANY band for each aperture size. The default corresponds to a magnitude of 15.
         Must have the same length as `apertures_arcsec`.
+    write : :class:`boolean`, defaults to False
+        If `True`, write the skyfibers object (which is in the format of the output 
+        from :func:`sky_fibers_for_brick()`) to file. The file name is derived from
+        the input `survey` object and is in the form:
+            %(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz'
+        which is returned by `survey.find_file('skies')`
 
     Returns
     -------
@@ -220,6 +227,12 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     #ADM and bgs_target should be zeros for all sky objects
     dum = np.zeros_like(desi_target)
     skies = finalize(skies, desi_target, dum, dum, sky=1)
+
+    if write:
+        outfile = survey.find_file('skies')
+        import pdb ; pdb.set_trace()
+        skytable.writeto(outfile, header=skyfibers._header)
+        log.info('Writing sky information to {}'.format(outfile)
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
