@@ -33,7 +33,7 @@ ap.add_argument("--badskyflux",
                 help='Flux level in nanomaggies used for BAD SKY locations in any band for each aperture size (must be the same length as apertures)',
                 default="1000,1000")
 ap.add_argument("--writebricks", action="store_true",
-                help="Write sky information for EACH brick (the per-brick file names are %surveydir/metrics/%(brick).3s/skies-%(brick)s.fits.gz")
+                help="Write sky information for EACH brick (the per-brick file names look like surveydir/metrics/(brick).3s/skies-(brick)s.fits.gz")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -41,7 +41,7 @@ ap.add_argument("--numproc", type=int,
 ns = ap.parse_args()
 
 #ADM convert passed csv strings to lists
-bands = [ float(band) for band in ns.bands.split(',') ]
+bands = [ band for band in ns.bands.split(',') ]
 apertures = [ float(aperture) for aperture in ns.apertures.split(',') ]
 badskyflux = [ float(bsflux) for bsflux in ns.badskyflux.split(',') ]
 
