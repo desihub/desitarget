@@ -158,6 +158,8 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
                          magcut=magcut, nside_lya=nside_lya,
                          nside_galaxia=nside_galaxia,
                          dust_dir=dust_dir, mock_density=mock_density)
+    if not bool(data):
+        return data, MakeMock
 
     # Add the information we need to incorporate density fluctuations.
     if 'density' in params.keys():
@@ -555,13 +557,11 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
             # Read the data and ithere are no targets, keep going.
             log.info('Working on target class: {}'.format(source_name))
-            print(AllMakeMock[ii].seed)
             data, MakeMock = read_mock(params['sources'][source_name],
                                        log, dust_dir=params['dust_dir'],
                                        seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii])
-            print(MakeMock.seed)
             
             if not bool(data):
                 continue
