@@ -1,0 +1,49 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+
+from desitarget.imagefootprint import pixweight
+
+import warnings
+warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser()
+ap.add_argument("src", 
+                help='Legacy Surveys Data Release root directory (e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr4/ for DR4 at NERSC)')
+ap.add_argument("dest", 
+                help='Output file name to write map of HEALPixel weights in the NESTED scheme (e.g. /project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits)')
+ap.add_argument("--nside", type=int, 
+                help='The resolution (HEALPixel nside number) at which to build the map (defaults to 256)',
+                default="256")
+ap.add_argument("--density", type=int,
+                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 10million)',
+                default="10000000")
+ap.add_argument("--outplot",
+                help='Output file name to which to write a plot of the map',
+                default=None)
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [{}]'.format(nproc),
+                default=nproc)
+
+ns = ap.parse_args()
+
+if not os.path.exists(ns.src):
+    log.critical('Input directory does not exist: {}'.format(ns.src))
+    sys.exit(1)
+
+log.info('running on {} processors'.format(nproc))
+
+_ = pixweight(nside=ns.nside, density=ns.density, numproc=ns.numproc, outfile=ns.dest, outplot=ns.outplot, drdir=ns.src)
+
+log.info('wrote map of HEALPixel weights (in the nested scheme) to {}'.format(ns.dest))
+

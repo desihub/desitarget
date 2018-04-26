@@ -2245,7 +2245,7 @@ def _in_desi_footprint(targs):
     return windesi
 
 
-def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
+def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True, imaging_map_file=None):
     """Make DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -2264,6 +2264,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     weight : :class:`boolean`, optional, defaults to True
         If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
         ameliorate under dense pixels at the footprint edges
+    imaging_map_file : :class:`str`, optional, defaults to no weights
+        If `weight` is set, then this file contains the location of the imaging HEALPixel
+        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()` if this is not
+        sent, then the weights default to 1 everywhere (i.e. no weighting)
 
     Returns
     -------
@@ -2272,8 +2276,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     Notes
     -----
-        - The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
-          that overlap the DESI footprint
+        - The ``DESIMODEL`` environment variable must be set to find the default expected 
+          target densities
         - On execution, a set of .png plots for target QA are written to `qadir`
     """
 
@@ -2298,27 +2302,27 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         
     #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
     #ADM downstream
-    from desimodel import io, footprint
+    from desimodel import footprint
     pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
     log.info('Calculated HEALPixel for each target...t = {:.1f}s'
              .format(time()-start))
-
     #ADM set up the weight of each HEALPixel, if requested.
     weights = np.ones(len(targs))
     if weight:
-        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-        pixweight = io.load_pixweight(nside)
-        #ADM determine what HEALPixels each target is in, to set the weights
-        fracarea = pixweight[pix]
-        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
-        #ADM except for zero pixels, which are all outside of the footprint
-        w = np.where(fracarea == 0)
-        fracarea[w] = 1 #ADM to guard against division by zero warnings
-        weights = 1./fracarea
-        weights[w] = 0
-
-        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
-                 .format(time()-start))
+        #ADM load the imaging weights file
+        if imaging_map_file is not None:
+            from desitarget import io as dtio
+            pixweight = dtio.load_pixweight(imaging_map_file,nside)
+            #ADM determine what HEALPixels each target is in, to set the weights
+            fracarea = pixweight[pix]
+            #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
+            #ADM except for zero pixels, which are all outside of the footprint
+            w = np.where(fracarea == 0)
+            fracarea[w] = 1 #ADM to guard against division by zero warnings
+            weights = 1./fracarea
+            weights[w] = 0
+            log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
+                     .format(time()-start))
 
     #ADM calculate the total area (useful for determining overall average densities
     #ADM from the total number of targets/the total area)
@@ -2367,7 +2371,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     return totarea
 
 
-def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', weight=True, clip2foot=True):
+def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
+                 weight=True, imaging_map_file=None):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -2384,12 +2389,17 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         possible to this value without exceeding it
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
-    weight : :class:`boolean`, optional, defaults to True
-        If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
-        ameliorate under dense pixels at the footprint edges
-    clip2foot : :class:`boolean`, optional, defaults to True
+    clip2foot : :class:`boolean`, optional, defaults to False
         use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
-        only those that lie within the DESI footprint
+        only those that lie within the DESI spectroscopic footprint
+    weight : :class:`boolean`, optional, defaults to True
+        If this is set, weight pixels using to ameliorate under dense pixels at the footprint 
+        edges. This uses the `imaging_map_file` HEALPix file for real targets and the default 
+        ``DESIMODEL`` HEALPix footprint file for mock targets
+    imaging_map_file : :class:`str`, optional, defaults to no weights
+        If `weight` is set, then this file contains the location of the imaging HEALPixel
+        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()`. If this is not sent, 
+        then the weights default to 1 everywhere (i.e. no weighting) for the real targets
 
     Returns
     -------
@@ -2556,7 +2566,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     if makeplots:
         totarea = make_qa_plots(targs, 
                                 qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                                weight=weight)
+                                weight=weight,imaging_map_file= imaging_map_file)
         if mocks:
             mock_make_qa_plots(targs, truths, 
                                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
