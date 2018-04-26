@@ -9,7 +9,6 @@ import fitsio
 from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightmask import mask_targets
-from desitarget.skies import select_skies
 
 import warnings
 warnings.simplefilter('error')
@@ -25,10 +24,6 @@ from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", help="Output target selection file")
-ap.add_argument('-s', "--skies", action='store_true',help="Generate blank sky positions in addition to targets")
-ap.add_argument("--skymaglim",
-                help='Faint (g,r,z) magnitude limits for masks (for building avoidance zones from objects in the sweeps; e.g. "20,20,20")',
-                default="23,22.5,22")
 ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('-m', "--mask", help="If sent then mask the targets, the name of the mask file should be supplied")
 ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms")
@@ -59,18 +54,6 @@ else:
                              qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
-
-    if ns.skies:
-        maglim = [ float(ml) for ml in ns.skymaglim.split(',') ]
-        log.info("sky magnitude limits set to {}".format(maglim))
-        skies = select_skies(infiles,numproc=ns.numproc,maglim=maglim)
-        ntargs = len(targets)
-        nskies = len(skies)
-        nobjs = ntargs + nskies
-        targs = np.empty(nobjs, dtype=targets.dtype)
-        targs[0:ntargs] = targets
-        targs[ntargs:nobjs] = skies
-        targets = targs
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)

@@ -4,6 +4,7 @@ from __future__ import print_function, division
 
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies
+from desitarget.io import write_skies
 
 import warnings
 warnings.simplefilter('error')
@@ -51,8 +52,8 @@ skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqde
                      apertures_arcsec=apertures, badskyflux=badskyflux, writebricks=ns.writebricks)
 
 #ADM this correctly records the apertures and bad sky flux levels in the output file header
-io.write_skies(ns.dest, skies, indir=ns.surveydir, 
-               apertures_arcsec=apertures, badskyflux=badskyflux)
+write_skies(ns.dest, skies, indir=ns.surveydir, 
+            apertures_arcsec=apertures, badskyflux=badskyflux)
 
 log.info('{} skies written to {}'.format(len(skies), ns.dest))
 
