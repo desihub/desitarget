@@ -1069,11 +1069,13 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # ADM default to RELEASE of 6000 if nothing is passed
     if release is None :
         release = np.zeros_like(gflux, dtype='?') + 6000
+    release = np.atleast_1d( release )
 
     # Build variables for random forest
-    nFeatures = 11 # Number of attributes describing each object to classify by the rf
+    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+    r = np.atleast_1d( r )
 
     # Preselection to speed up the process
     rMax = 22.7 # r < 22.7
@@ -1082,6 +1084,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     if objtype is not None :
         preSelection &= _psflike( objtype )
     if deltaChi2 is not None :
+        deltaChi2 = np.atleast_1d( deltaChi2 )
         preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
     
     # "qso" mask initialized to "preSelection" mask
@@ -1143,6 +1146,11 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
                 ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
     
+    # In case of call for a single object passed to the function with scalar arguments
+    # Return "numpy.bool_" instead of "numpy.ndarray"
+    if nbEntries == 1 :
+        qso = qso[0]
+    
     return qso
 
 def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1174,11 +1182,13 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # ADM default to RELEASE of 5000 if nothing is passed
     if release is None :
         release = np.zeros_like(gflux, dtype='?') + 5000
+    release = np.atleast_1d( release )
 
     # Build variables for random forest
-    nFeatures = 11 # Number of attributes describing each object to classify by the rf
+    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+    r = np.atleast_1d( r )
 
     # Preselection to speed up the process
     rMax = 22.7 # r < 22.7
@@ -1187,6 +1197,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     if objtype is not None :
         preSelection &= _psflike( objtype )
     if deltaChi2 is not None :
+        deltaChi2 = np.atleast_1d( deltaChi2 )
         preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
     
     # "qso" mask initialized to "preSelection" mask
@@ -1250,6 +1261,11 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             # Add rf proba test result to "qso" mask
             qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
                 ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
+    
+    # In case of call for a single object passed to the function with scalar arguments
+    # Return "numpy.bool_" instead of "numpy.ndarray"
+    if nbEntries == 1 :
+        qso = qso[0]
     
     return qso
 
