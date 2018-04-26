@@ -40,6 +40,7 @@ ap.add_argument("--numproc", type=int,
 
 ns = ap.parse_args()
 
+#ADM convert passed csv strings to lists
 bands = [ float(band) for band in ns.bands.split(',') ]
 apertures = [ float(aperture) for aperture in ns.apertures.split(',') ]
 badskyflux = [ float(bsflux) for bsflux in ns.badskyflux.split(',') ]
@@ -48,8 +49,9 @@ survey = LegacySurveyData(survey_dir=ns.surveydir)
 
 skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqdeg, bands=bands, 
                      apertures_arcsec=apertures, badskyflux=badskyflux, writebricks=ns.writebricks)
-io.write_skies(ns.dest, skies, indir=ns.src,
-               qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
+
+#ADM this correctly records the apertures and bad sky flux levels in the output file header
+io.write_skies(ns.dest, skies, indir=ns.surveydir, apertures_arcsec=apertures, badskyflux=badskyflux)
 
 log.info('{} skies written to {}'.format(len(skies), ns.dest))
 
