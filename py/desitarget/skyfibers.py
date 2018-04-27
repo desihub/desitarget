@@ -99,7 +99,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     Parameters
     ----------
     survey : :class:`object`
-        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        `LegacySurveyData` object for a given Data Release of the Legacy Surveys; see
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
         Name of the brick in which to generate sky locations.
@@ -246,7 +246,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
     Parameters
     ----------
     survey : :class:`object`
-        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        `LegacySurveyData` object for a given Data Release of the Legacy Surveys; see
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
         Name of the brick in which to generate sky locations.
@@ -439,12 +439,12 @@ def sky_fiber_locations(skypix, gridsize=300):
 
 
 def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
-    '''The core worker function for `sky_fibers_for_brick` 
+    '''Make QA plots for sky locations produced by `sky_fibers_for_brick`
 
     Parameters
     ----------
     survey : :class:`object`
-        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        `LegacySurveyData` object for a given Data Release of the Legacy Surveys; see
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
         Name of the brick from this DR of the Legacy Surveys to plot as an image.
@@ -520,6 +520,95 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g','r','z']):
     plt.savefig(basefn + '-3.png')
 
 
+def plot_good_bad_skies(survey, brickname, skies, 
+                        outplotdir='.', bands=['g','r','z']):
+    '''Plot good/bad sky locations against the background of a Legacy Surveys image
+
+    Parameters
+    ----------
+    survey : :class:`object`
+        `LegacySurveyData` object for a given Data Release of the Legacy Surveys; see
+        :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
+    brickname : :class:`str`
+        Name of the brick from this DR of the Legacy Surveys to plot as an image.
+    skies : :class:`~numpy.ndarray`
+        Array of sky locations and aperture fluxes, as, e.g., returned by 
+        :func:`make_skies_for_a_brick()` or :func:`select_skies()`
+    outplotdir : :class:`str`, optional, defaults to '.'
+        Output directory name to which to save the plot, passed to matplotlib's savefig
+        routine. The actual plot is name outplotdir/skies-brickname-bands.png
+    bands : :class:`list`, optional, defaults to ['g','r','z']
+        List of bands to plot in the image (i.e. default is to plot a 3-color grz composite).
+        This is particularly useful when the code fails because a Legacy Surveys 
+        image-BAND.fits file is not found, in which case that particular band can be 
+        redacted from the bands list.
+
+    Returns
+    -------
+        Nothing, but a plot of the Legacy Surveys image for the Data Release corresponding
+        to the `survey` object and the brick corresponding to `brickname` is written to
+        `outplotname`. The plot contains the Legacy Surveys imaging with good sky locations
+        plotted in green and bad sky locations in red.
+
+    Notes
+    -----
+        - The array `skies` must contain at least the columns 'BRICKNAME', 'RA', 'DEC', 
+          and 'DESI_TARGET', but can contain multiple different values of 'BRICKNAME', 
+          provided that one of them corresponds to the passed `brickname`.
+
+        - If the passed `survey` object doesn't correspond to the Data Release from which
+          the passed `skies` array was derived, then the sky locations could be plotted
+          at slightly incorrect positions. If the `skies` array was read from file, this
+          can be checked by making survey that "DEPVER02" in the file header corresponds
+          to the directory `survey.survey_dir`.
+    '''    
+    from desitarget.skyutilities.legacypipe.util import get_rgb
+    import pylab as plt
+
+    #ADM remember that fitsio reads things in as bytes, so convert to unicode 
+    bricknames = skies['BRICKNAME'].astype('U')
+
+    wbrick = np.where(bricknames == brickname)[0]
+    if len(wbrick) == 0:
+        log.fatal("No information for brick {} in passed skies array".format(brickname))
+    else:
+        log.info("Plotting sky locations on brick {}".format(brickname))
+
+    #ADM derive the x and y pixel information for the sky fiber locations
+    #ADM from the WCS of the survey blobs image
+    fn = survey.find_file('blobmap', brick=brickname)
+    header = fitsio.read_header(fn)
+    wcs = WCS(header)
+    xxx, yyy = wcs.all_world2pix(skies["RA"], skies["DEC"], 0)
+
+    #ADM derive which of the sky fibers are BAD_SKY. The others are good.
+    wbad = np.where( (skies["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)
+
+    rgbkwargs = dict(mnmx=(-1,100.), arcsinh=1.)
+
+    #ADM find the images from the survey object and plot them
+    imgs = []
+    for band in bands:
+        fn = survey.find_file('image',  brick=brickname, band=band)
+        imgs.append(fitsio.read(fn))
+    rgb = get_rgb(imgs, bands, **rgbkwargs)
+
+    ima = dict(interpolation='nearest', origin='lower')
+    plt.clf()
+    plt.imshow(rgb, **ima)
+    #ADM plot the good skies in green and the bad in red
+    plt.plot(xxx, yyy, 'o', mfc='none', mec='g', mew=2, ms=10)
+    plt.plot(xxx[wbad], yyy[wbad], 'o', mfc='none', mec='r', mew=2, ms=10)
+
+    #ADM determine the plot title and name, and write it out
+    bandstr = "".join(bands)
+    plt.title('Skies for brick {} (BAD_SKY in red); bands = {}'
+              .format(brickname,bandstr))
+    outplotname = '{}/skies-{}-{}.png'.format(outplotdir,brickname,bandstr)
+    log.info("Writing plot to {}".format(outplotname))
+    plt.savefig(outplotname)
+
+
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
                  apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.], 
                  writebricks=False):
@@ -528,7 +617,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     Parameters
     ----------
     survey : :class:`object`
-        LegacySurveyData object for a given Data Release of the Legacy Surveys; see
+        `LegacySurveyData` object for a given Data Release of the Legacy Surveys; see
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     numproc : :class:`int`, optional, defaults to 16 
         The number of processes over which to parallelize
@@ -564,7 +653,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
     brickinfo = fitsio.read(sbfile)
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
-    bricknames = brickinfo['brickname'].astype('U')[0:8]
+    bricknames = brickinfo['brickname'].astype('U')
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks,survey.survey_dir,time()-start))
