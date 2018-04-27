@@ -2308,6 +2308,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
              .format(time()-start))
     #ADM set up the weight of each HEALPixel, if requested.
     weights = np.ones(len(targs))
+    #ADM a count of the uniq pixels that are covered, useful for area calculations
+    uniqpixset = np.array(list(set(pix)))
+    #ADM the total pixel weight assuming none of the areas are fractional
+    #ADM or need rewighted (i.e. each pixels weight is 1.)
+    totalpixweight = len(uniqpixset)
+
     if weight:
         #ADM load the imaging weights file
         if imaging_map_file is not None:
@@ -2321,13 +2327,15 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             fracarea[w] = 1 #ADM to guard against division by zero warnings
             weights = 1./fracarea
             weights[w] = 0
+
+            #ADM if we have weights, then redetermine the total pix weight
+            totalpixweight = np.sum(pixweight[uniqpixset])
+
             log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
                      .format(time()-start))
 
     #ADM calculate the total area (useful for determining overall average densities
     #ADM from the total number of targets/the total area)
-    uniqpixset = np.array(list(set(pix)))
-    totalpixweight = np.sum(pixweight[uniqpixset])
     pixarea = hp.nside2pixarea(nside,degrees=True)
     totarea = pixarea*totalpixweight
 
