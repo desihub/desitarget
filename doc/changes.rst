@@ -5,6 +5,8 @@ desitarget Change Log
 0.20.2 (unreleased)
 -------------------
 
+* Restore the no-spectra option of select_mock_targets, for use with quicksurvey
+  [`PR #307`_]. 
 * Better handling of imaging survey areas for QA [`PR #304`_]:
    * :mod:`desitarget.imagefootprint` to build HEALPix weight maps of imaging.
    * Executable (bin) interface to make weight maps from the command line.
@@ -18,6 +20,7 @@ desitarget Change Log
 .. _`PR #297`: https://github.com/desihub/desitarget/pull/297
 .. _`PR #302`: https://github.com/desihub/desitarget/pull/302
 .. _`PR #304`: https://github.com/desihub/desitarget/pull/304
+.. _`PR #307`: https://github.com/desihub/desitarget/pull/307
 
 0.20.1 (2018-03-29)
 -------------------

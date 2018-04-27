@@ -20,6 +20,7 @@ parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str
 parser.add_argument('--npix', help='Number of healpix per process', type=int, default=1)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
+parser.add_argument('--no-spectra', action='store_true', help='Do not generate spectra.')
 parser.add_argument('--no-check-env', action='store_true', help="Don't check NERSC environment variables")
 parser.add_argument('--sort-pixels', action='store_true', help="Sort pixels by galactic latitude")
 
@@ -163,7 +164,7 @@ if len(rankpix) > 0:
                 log.info('  healpixels {}'.format(rankpix[i:i+n]))
                 targets_truth(params, output_dir=args.output_dir, seed=rankseeds[i],
                               nside=args.nside, nproc=args.nproc, verbose=args.verbose,
-                              healpixels=rankpix[i:i+n])
+                              healpixels=rankpix[i:i+n], no_spectra=args.no_spectra)
 
             runtime = (time.time()-t0) / 60
             log.info('Pixels {} took {:.1f} minutes'.format(rankpix[i:i+n], runtime))
