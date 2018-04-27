@@ -44,6 +44,7 @@ skydatamodel = np.array([], dtype=[
     ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4'),
     ])
 
+
 def density_of_sky_fibers(margin=1.5):
     """Use positioner patrol size to determine sky fiber density for DESI
 
@@ -333,7 +334,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
         #ADM the file exists, so that we get zeros for missing bands
         apflux = np.zeros((len(skyfibers), naps), np.float32)
         #ADM set any zero flux to have an infinite inverse variance
-        apiv   = np.zeros((len(skyfibers), naps), np.float32) + np.inf
+        apiv = np.zeros((len(skyfibers), naps), np.float32) + np.inf
         skyfibers.set('apflux_%s' % band, apflux)
         skyfibers.set('apflux_ivar_%s' % band, apiv)
 
@@ -352,7 +353,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
             p = photutils.aperture_photometry(coimg, aper, error=imsigma)
             apflux[:,irad] = p.field('aperture_sum')
             err = p.field('aperture_sum_err')
-            apiv[:,irad] = 1. / err**2
+            #ADM where the error is 0, that actually means infinite error
+            #ADM so, in reality, set the ivar to 0 for those cases and
+            #ADM retain the true ivars where the error is non-zero
+            apiv[:,irad] = np.divide(1.,err**2,where=err!=0)
 
     header = fitsio.FITSHDR()
     for i,ap in enumerate(apertures_arcsec):
@@ -653,7 +657,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
     brickinfo = fitsio.read(sbfile)
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
-    bricknames = brickinfo['brickname'].astype('U')
+    bricknames = brickinfo['brickname'].astype('U')[0:320]
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks,survey.survey_dir,time()-start))
