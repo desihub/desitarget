@@ -216,7 +216,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     skies["BRICKNAME"] = skytable.brickname
 
     #ADM set the data release from the Legacy Surveys DR directory
-    dr = int(survey.survey_dir[-2])*1000
+    dr = int(survey.survey_dir.split('dr')[-1][0])*1000
     skies["RELEASE"] = dr
 
     #ADM set the objid (just use a sequential number as setting skies
@@ -660,7 +660,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
     brickinfo = fitsio.read(sbfile)
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
-    bricknames = brickinfo['brickname'].astype('U')
+    bricknames = brickinfo['brickname'].astype('U')[0:320]
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks,survey.survey_dir,time()-start))
