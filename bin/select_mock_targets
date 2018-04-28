@@ -56,13 +56,16 @@ if args.tiles and args.healpixels:
     log.error('use --tiles or --healpixels but not both')
     sys.exit(1)
     
-if args.tiles is not None:
-    if args.tiles.endswith('.ecsv'):
+if args.healpixels is None:
+    if args.tiles is not None:
+        if args.tiles.endswith('.ecsv'):
             tiles = Table.read(args.tiles, format='ascii.ecsv')
+        else:
+            tiles = Table.read(args.tiles)
+        log.info('{} tiles'.format(len(tiles)))
     else:
-        tiles = Table.read(args.tiles)
-
-    log.info('{} tiles'.format(len(tiles)))
+        tiles = None
+        log.info('Running on the full DESI footprint')
     healpixels = desimodel.footprint.tiles2pix(args.nside, tiles)
 else:
     healpixels = np.array(args.healpixels)

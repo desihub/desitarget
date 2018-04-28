@@ -74,17 +74,20 @@ if 'NERSC_HOST' in os.environ and not args.no_check_env:
 
 #- Calculate which pixels cover these tiles and broadcast to all ranks
 if rank == 0:
-    if args.tiles is not None:
-        if args.tiles.endswith('.ecsv'):
-            tiles = Table.read(args.tiles, format='ascii.ecsv')
+    if args.healpixels is None:
+        if args.tiles is not None:
+            if args.tiles.endswith('.ecsv'):
+                tiles = Table.read(args.tiles, format='ascii.ecsv')
+            else:
+                tiles = Table.read(args.tiles)
+            log.info('{} tiles'.format(len(tiles)))
         else:
-            tiles = Table.read(args.tiles)
-
-        log.info('{} tiles'.format(len(tiles)))
+            tiles = None
+            log.info('Running on the full DESI footprint')
         pixels = desimodel.footprint.tiles2pix(args.nside, tiles)
     else:
         pixels = np.array(args.healpixels)
-
+            
     keep = list()
     for i, pixnum in enumerate(pixels):
         truthspecfile = mockio.findfile('truth', args.nside, pixnum,
