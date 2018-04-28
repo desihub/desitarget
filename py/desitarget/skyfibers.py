@@ -182,15 +182,15 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     #ADM find where the badskyflux limit is exceeded in any band
     #ADM first convert badskyflux to an array in case it wasn't passed as such
     badskyflux = np.array(badskyflux)
-    #ADM now check for things that exceed the passed badskyflux limits in any band.
-    #ADM Also check for things that have infinite flux errors in any bands (these 
+    #ADM Now check for things that exceed the passed badskyflux limits in any band,
+    #ADM and for things that have infinite errors (zero ivars) in any bands (these 
     #ADM were typically outside of the imaging footprint, were in CCD gaps, etc.)
     wbad = np.where( np.any( (skytable.apflux_g > badskyflux) | 
                              (skytable.apflux_r > badskyflux) | 
                              (skytable.apflux_z > badskyflux) |
-                             (skytable.apflux_ivar_g == np.inf) |
-                             (skytable.apflux_ivar_r == np.inf) |
-                             (skytable.apflux_ivar_z == np.inf), axis=1) )
+                             (skytable.apflux_ivar_g == 0) |
+                             (skytable.apflux_ivar_r == 0) |
+                             (skytable.apflux_ivar_z == 0), axis=1) )
     #ADM if these criteria were met, this is a bad sky
     if len(wbad) > 0:
         desi_target[wbad] = desi_mask.BAD_SKY
@@ -333,8 +333,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
         #ADM set the apertures for every band regardless of whether
         #ADM the file exists, so that we get zeros for missing bands
         apflux = np.zeros((len(skyfibers), naps), np.float32)
-        #ADM set any zero flux to have an infinite inverse variance
-        apiv = np.zeros((len(skyfibers), naps), np.float32) + np.inf
+        #ADM set any zero flux to have an infinite error (zero ivar)
+        apiv = np.zeros((len(skyfibers), naps), np.float32)
         skyfibers.set('apflux_%s' % band, apflux)
         skyfibers.set('apflux_ivar_%s' % band, apiv)
 
@@ -356,7 +356,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
             #ADM where the error is 0, that actually means infinite error
             #ADM so, in reality, set the ivar to 0 for those cases and
             #ADM retain the true ivars where the error is non-zero
-            apiv[:,irad] = np.divide(1.,err**2,where=err!=0)
+            wzero = np.where(err==0)
+            wnonzero = np.where(err>0)
+            apiv[:,irad][wnonzero] = 1./err[wnonzero]**2
+            apiv[:,irad][wzero] = 0.
 
     header = fitsio.FITSHDR()
     for i,ap in enumerate(apertures_arcsec):
