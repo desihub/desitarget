@@ -1,4 +1,4 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+B11;rgb:0000/0000/0000# Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 =====================
@@ -619,7 +619,7 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
                  apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.], 
-                 nside=2, pixlist=None, writebricks=False):
+                 nside=2, pixlist=None, writebricks=False, bundlebricks=None):
     """Generate skies in parallel for all bricks in a Legacy Surveys Data Release
 
     Parameters
@@ -651,7 +651,15 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         output from :func:`sky_fibers_for_brick()`) to file. The file name is derived
         from the input `survey` object and is in the form:
             %(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz'
-        which is returned by `survey.find_file('skies')`
+        which is returned by `survey.find_file('skies')`.
+    bundlebricks : :class:`int`, defaults to None
+        If not None, then instead of selecting the skies, print, to screen, the list of 
+        commands that will approximately balance the brick distribution at bundlebricks
+        bricks per command. So, for instance, if bundlebricks is 20000 (which as of
+        the time of writing works well to fit on the interactive nodes on Cori), then
+        commands would be returned with the correct pixlist values to pass to the code
+        to pack at about 20000 bricks per node.
+
 
     Returns
     -------

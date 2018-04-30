@@ -33,6 +33,11 @@ ap.add_argument("--apertures",
 ap.add_argument("--badskyflux",
                 help='Flux level in nanomaggies used for BAD SKY locations in any band for each aperture size (must be the same length as apertures)',
                 default="1000,1000")
+ap.add_argument('--nside', type=int,
+                help='Process sky locations in bricks that have centers in HEALPixels at this resolution (defaults to 2)',
+                default=2)
+ap.add_argument('--healpixels', help='HEALPixels (corresponding to nside) to process (e.g. "5,7,11"). If not passed, run all bricks in the Data Release',
+                default=None)
 ap.add_argument("--writebricks", action="store_true",
                 help="Write sky information for EACH brick (the per-brick file names look like surveydir/metrics/(brick).3s/skies-(brick)s.fits.gz")
 ap.add_argument("--numproc", type=int,
@@ -46,10 +51,15 @@ bands = [ band for band in ns.bands.split(',') ]
 apertures = [ float(aperture) for aperture in ns.apertures.split(',') ]
 badskyflux = [ float(bsflux) for bsflux in ns.badskyflux.split(',') ]
 
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
+
 survey = LegacySurveyData(survey_dir=ns.surveydir)
 
-skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqdeg, bands=bands, 
-                     apertures_arcsec=apertures, badskyflux=badskyflux, writebricks=ns.writebricks)
+skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqdeg, 
+                     bands=bands, apertures_arcsec=apertures, badskyflux=badskyflux, 
+                     nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks)
 
 #ADM this correctly records the apertures and bad sky flux levels in the output file header
 write_skies(ns.dest, skies, indir=ns.surveydir, 
