@@ -1,4 +1,4 @@
-B11;rgb:0000/0000/0000# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 =====================
@@ -617,6 +617,112 @@ def plot_good_bad_skies(survey, brickname, skies,
     plt.savefig(outplotname)
 
 
+def bundle_bricks(pixnum, maxpernode, nside):
+    """Determine the optimal packing for bricks collected by HEALpixel integer
+    
+    Parameters
+    ----------
+    pixnum : :class:`np.array`
+        List of integers, e.g., HEALPixel numbers occupied by a set of bricks
+        (e.g. array([16, 16, 16...12 , 13, 19]) ).
+    maxpernode : :class:`int`
+        The maximum number of pixels to bundle together (e.g., if you were
+        trying to pass maxpernode bricks, delineated by the HEALPixels they
+        occupy, parallelized across a set of nodes).
+    nside : :class:`int`
+        The HEALPixel nside number that was used to generate `pixnum`.
+
+    Returns
+    -------
+    Nothing, but prints commands to screen that would facilitate running a
+    set of bricks by HEALPixel integer with the total number of bricks not
+    to exceed maxpernode. Also prints how many bricks would be on each node.
+
+    Notes
+    -----
+    h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
+    """
+    #ADM the number of pixels (numpix) in each pixel (pix)
+    numpix, pix = np.histogram(pixnum,np.max(pixnum))
+
+    #ADM convert the pixel numbers back to integers
+    pix = pix.astype(int)
+    
+    #ADM the indices needed to reverse-sort the array on number of pixels
+    reverse_order = np.flipud(np.argsort(numpix))
+    numpix = numpix[reverse_order]
+    pix = pix[reverse_order]
+
+    #ADM iteratively populate lists of the numbers of pixels
+    #ADM and the corrsponding pixel numbers
+    bins = []
+
+    for index, num in enumerate(numpix):
+        # Try to fit this sized number into a bin
+        for bin in bins:
+            if np.sum(np.array(bin)[:,0]) + num <= maxpernode:
+                #print 'Adding', item, 'to', bin
+                bin.append([num,pix[index]])
+                break
+        else:
+            # item didn't fit into any bin, start a new bin
+            bin = []
+            bin.append([num,pix[index]])
+            bins.append(bin)
+
+    #ADM print to screen in the form of a slurm bash script, and
+    #ADM other useful information
+
+    print("#######################################################")
+    print('Example shell script for slurm:')
+    print('')
+    print('#!/bin/bash -l')
+    print('#SBATCH -q regular')
+    print('#SBATCH -N {}'.format(len(bins)))
+    print('#SBATCH -t 04:00:00')
+    print('#SBATCH -L SCRATCH,project')
+    print('#SBATCH -C haswell')
+    print('')
+
+    for bin in bins:
+        num = np.array(bin)[:,0]
+        pix = np.array(bin)[:,1]
+        wpix = np.where(num > 0)[0]
+        if len(wpix) > 0:
+            goodpix = pix[wpix]
+            goodpix.sort()
+            strgoodpix = ",".join([str(pix) for pix in goodpix])
+            print(("srun -N 1 select_skies /global/project/projectdirs/cosmo/data/legacysurvey/dr6 "
+                   "$CSCRATCH/dr6-skies-hp-{}.fits --numproc 64 --nside {} --healpixels {} &")
+                  .format(strgoodpix,nside,strgoodpix))
+    print("wait")
+
+    print("")
+    print("#######################################################")
+    print("Numbers of bricks in each set of healpixels:")
+    print("")
+    for bin in bins:
+        num = np.array(bin)[:,0]
+        pix = np.array(bin)[:,1]
+        wpix = np.where(num > 0)[0]
+        if len(wpix) > 0:
+            goodpix, goodnum = pix[wpix], num[wpix]
+            sorter = goodpix.argsort()
+            goodpix, goodnum = goodpix[sorter], goodnum[sorter]
+            outnote = ['{}: {}'.format(pix,num) for pix,num in zip(goodpix,goodnum)]
+            #ADM add the total across all of the pixels
+            outnote.append('Total: {}'.format(np.sum(goodnum)))
+            print(outnote) 
+
+    print("#######################################################")
+    print("Possible salloc command if you want to run on the interactive queue:")
+    print("")
+    print("salloc -N {} -C haswell -t 04:00:00 --qos interactive -L SCRATCH,project"
+          .format(len(bins)))
+
+    return
+
+
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
                  apertures_arcsec=[0.75,1.0], badskyflux=[1000.,1000.], 
                  nside=2, pixlist=None, writebricks=False, bundlebricks=None):
@@ -640,7 +746,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         ANY band for each aperture size. The default corresponds to a magnitude of 15.
         Must have the same length as `apertures_arcsec`.
     nside : :class:`int`, optional, defaults to nside=2 (859.4 sq. deg.)
-        The HEALPix pixel nside number to be used with the `pixlist` input.
+        The HEALPixel nside number to be used with the `pixlist` input.
     pixlist : :class:`list` or `int`, optional, defaults to None
         Bricks will only be processed if the CENTER of the brick lies within the bounds of
         pixels that are in this list of integers, at the supplied HEALPixel `nside`.
@@ -658,8 +764,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         bricks per command. So, for instance, if bundlebricks is 20000 (which as of
         the time of writing works well to fit on the interactive nodes on Cori), then
         commands would be returned with the correct pixlist values to pass to the code
-        to pack at about 20000 bricks per node.
-
+        to pack at about 20000 bricks per node across all of the bricks in `survey`.
 
     Returns
     -------
@@ -670,6 +775,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     Notes
     -----
         - Some core code in this module was initially written by Dustin Lang (@dstndstn).
+        - Returns nothing if bundlebricks is passed (and is not None).
     """
     #ADM read in the survey bricks file, which lists the bricks of interest for this DR
     from glob import glob
@@ -678,13 +784,23 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
     bricknames = brickinfo['brickname'].astype('U')
 
+    #ADM if the pixlist or bundlebricks option was sent, we'll need the pixel
+    #ADM information for each brick
+    if pixlist is not None or bundlebricks is not None:
+        theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
+        pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+
+    #ADM if the bundlebricks option was sent, call the packing code
+    if bundlebricks is not None:
+        log.info("At nside={}, these commands will parallelize at about {} bricks")
+        bundle_bricks(pixnum, bundlebricks, nside)
+        return
+
     #ADM restrict to only bricks in a set of HEALPixels, if requested
     if pixlist is not None:
         #ADM if an integer was passed, turn it into a list
         if isinstance(pixlist,int):
             pixlist = [pixlist]
-        theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
-        pixnum = hp.ang2pix(nside, theta, phi, nest=True)
         wbricks = np.where([ pix in pixlist for pix in pixnum ])[0]
         bricknames = bricknames[wbricks]
         if len(wbricks) == 0:
@@ -695,6 +811,10 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks,survey.survey_dir,time()-start))
+
+    #ADM a little more information if we're slurming across nodes
+    if os.getenv('SLURMD_NODENAME') is not None:
+        print('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     #ADM the critical function to run on every brick
     def _get_skies(brickname):
