@@ -632,9 +632,9 @@ def bundle_bricks(pixnum, maxpernode, nside,
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
         The HEALPixel nside number that was used to generate `pixnum`.
-    surveydir :class:`str`, optional, defaults to the DR6 directory at NERSC
+    surveydir : :class:`str`, optional, defaults to the DR6 directory at NERSC
         The root directory pointing to a Data Release from the Legacy Surveys,
-        (e.g. "/global/project/projectdirs/cosmo/data/legacysurvey/dr6")
+        (e.g. "/global/project/projectdirs/cosmo/data/legacysurvey/dr6").
 
     Returns
     -------
