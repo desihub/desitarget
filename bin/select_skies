@@ -36,10 +36,14 @@ ap.add_argument("--badskyflux",
 ap.add_argument('--nside', type=int,
                 help='Process sky locations in bricks that have centers in HEALPixels at this resolution (defaults to 2)',
                 default=2)
-ap.add_argument('--healpixels', help='HEALPixels (corresponding to nside) to process (e.g. "5,7,11"). If not passed, run all bricks in the Data Release',
+ap.add_argument('--healpixels', 
+                help='HEALPixels (corresponding to nside) to process (e.g. "5,7,11"). If not passed, run all bricks in the Data Release',
                 default=None)
 ap.add_argument("--writebricks", action="store_true",
                 help="Write sky information for EACH brick (the per-brick file names look like surveydir/metrics/(brick).3s/skies-(brick)s.fits.gz")
+ap.add_argument("--bundlebricks", type=int,
+                help="(overrides other options except surveydir) Generate a slurm script for parallelization, with at most this many bricks per HEALPixel (e.g. 14000)",
+                default=None)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -59,11 +63,14 @@ survey = LegacySurveyData(survey_dir=ns.surveydir)
 
 skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqdeg, 
                      bands=bands, apertures_arcsec=apertures, badskyflux=badskyflux, 
-                     nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks)
+                     nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks,
+                     bundlebricks=ns.bundlebricks)
 
-#ADM this correctly records the apertures and bad sky flux levels in the output file header
-write_skies(ns.dest, skies, indir=ns.surveydir, 
-            apertures_arcsec=apertures, badskyflux=badskyflux)
+#ADM if skies is None then the bundlebricks informational option was sent
+if skies is not None:
+    #ADM this correctly records the apertures and bad sky flux levels in the output file header
+    write_skies(ns.dest, skies, indir=ns.surveydir, 
+                apertures_arcsec=apertures, badskyflux=badskyflux)
 
-log.info('{} skies written to {}'.format(len(skies), ns.dest))
+    log.info('{} skies written to {}'.format(len(skies), ns.dest))
 

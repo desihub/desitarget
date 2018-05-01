@@ -224,7 +224,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     #ADM to 1 in the TARGETID will make these unique
     skies["OBJID"] = np.arange(nskies)
 
-    log.info('Finalizing target bits...t = {:.1f}s'.format(time()-start))
+    #log.info('Finalizing target bits...t = {:.1f}s'.format(time()-start))
     #ADM add target bit columns to the output array, note that mws_target
     #ADM and bgs_target should be zeros for all sky objects
     dum = np.zeros_like(desi_target)
@@ -236,7 +236,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
                  .format(outfile,time()-start))
         skytable.writeto(outfile, header=skytable._header)
 
-    log.info('Done...t = {:.1f}s'.format(time()-start))
+    #log.info('Done...t = {:.1f}s'.format(time()-start))
 
     return skies
 
@@ -277,8 +277,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
 
     fn = survey.find_file('blobmap', brick=brickname)
     blobs = fitsio.read(fn)
-    log.info('Blob maximum value and minimum value in brick {}: {} {}'
-             .format(brickname,blobs.min(),blobs.max()))
+    #log.info('Blob maximum value and minimum value in brick {}: {} {}'
+    #         .format(brickname,blobs.min(),blobs.max()))
     header = fitsio.read_header(fn)
     wcs = WCS(header)
 
@@ -306,8 +306,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
     #ADM the minimum safe grid size is the number of pixels along an
     #ADM axis divided by the number of sky locations along any axis
     gridsize = np.min(blobs.shape/np.sqrt(nskies)).astype('int16')
-    log.info('Gridding at {} pixels in brick {}...t = {:.1f}s'
-             .format(gridsize,brickname,time()-start))
+    #log.info('Gridding at {} pixels in brick {}...t = {:.1f}s'
+    #         .format(gridsize,brickname,time()-start))
 
     x,y,blobdist = sky_fiber_locations(goodpix, gridsize=gridsize)
 
@@ -672,14 +672,46 @@ def bundle_bricks(pixnum, maxpernode, nside):
 
     #ADM print to screen in the form of a slurm bash script, and
     #ADM other useful information
+    
+    print("#######################################################")
+    print("Numbers of bricks in each set of healpixels:")
+    print("")
+    maxeta = 0
+    for bin in bins:
+        num = np.array(bin)[:,0]
+        pix = np.array(bin)[:,1]
+        wpix = np.where(num > 0)[0]
+        if len(wpix) > 0:
+            goodpix, goodnum = pix[wpix], num[wpix]
+            sorter = goodpix.argsort()
+            goodpix, goodnum = goodpix[sorter], goodnum[sorter]
+            outnote = ['{}: {}'.format(pix,num) for pix,num in zip(goodpix,goodnum)]
+            #ADM add the total across all of the pixels
+            outnote.append('Total: {}'.format(np.sum(goodnum)))
+            #ADM a crude estimate of how long the script will take to run
+            eta = np.sum(goodnum)*2.8/20000
+            outnote.append('Estimated time to run in hours (for 64 processors per node): {:.1f}h'
+                           .format(eta))
+            #ADM track the maximum estimated time for shell scripts, etc.
+            if eta.astype(int) + 1 > maxeta:
+                maxeta = eta.astype(int) + 1 
+            print(outnote) 
 
+    print("")
+    print("#######################################################")
+    print("Possible salloc command if you want to run on the interactive queue:")
+    print("")
+    print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
+          .format(len(bins),maxeta))
+
+    print("")
     print("#######################################################")
     print('Example shell script for slurm:')
     print('')
     print('#!/bin/bash -l')
     print('#SBATCH -q regular')
     print('#SBATCH -N {}'.format(len(bins)))
-    print('#SBATCH -t 04:00:00')
+    print('#SBATCH -t 0{}:00:00'.format(maxeta))
     print('#SBATCH -L SCRATCH,project')
     print('#SBATCH -C haswell')
     print('')
@@ -696,29 +728,7 @@ def bundle_bricks(pixnum, maxpernode, nside):
                    "$CSCRATCH/dr6-skies-hp-{}.fits --numproc 64 --nside {} --healpixels {} &")
                   .format(strgoodpix,nside,strgoodpix))
     print("wait")
-
     print("")
-    print("#######################################################")
-    print("Numbers of bricks in each set of healpixels:")
-    print("")
-    for bin in bins:
-        num = np.array(bin)[:,0]
-        pix = np.array(bin)[:,1]
-        wpix = np.where(num > 0)[0]
-        if len(wpix) > 0:
-            goodpix, goodnum = pix[wpix], num[wpix]
-            sorter = goodpix.argsort()
-            goodpix, goodnum = goodpix[sorter], goodnum[sorter]
-            outnote = ['{}: {}'.format(pix,num) for pix,num in zip(goodpix,goodnum)]
-            #ADM add the total across all of the pixels
-            outnote.append('Total: {}'.format(np.sum(goodnum)))
-            print(outnote) 
-
-    print("#######################################################")
-    print("Possible salloc command if you want to run on the interactive queue:")
-    print("")
-    print("salloc -N {} -C haswell -t 04:00:00 --qos interactive -L SCRATCH,project"
-          .format(len(bins)))
 
     return
 
@@ -759,12 +769,12 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
             %(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz'
         which is returned by `survey.find_file('skies')`.
     bundlebricks : :class:`int`, defaults to None
-        If not None, then instead of selecting the skies, print, to screen, the list of 
-        commands that will approximately balance the brick distribution at bundlebricks
-        bricks per command. So, for instance, if bundlebricks is 20000 (which as of
-        the time of writing works well to fit on the interactive nodes on Cori), then
+        If not None, then instead of selecting the skies, print, to screen, the slurm
+        script that will approximately balance the brick distribution at `bundlebricks`
+        bricks per node. So, for instance, if bundlebricks is 14000 (which as of
+        the latest git push works well to fit on the interactive nodes on Cori), then
         commands would be returned with the correct pixlist values to pass to the code
-        to pack at about 20000 bricks per node across all of the bricks in `survey`.
+        to pack at about 14000 bricks per node across all of the bricks in `survey`.
 
     Returns
     -------
@@ -792,7 +802,8 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
 
     #ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
-        log.info("At nside={}, these commands will parallelize at about {} bricks")
+        log.info("At nside={}, these commands will parallelize at about {} bricks"
+                 .format(nside,bundlebricks))
         bundle_bricks(pixnum, bundlebricks, nside)
         return
 
