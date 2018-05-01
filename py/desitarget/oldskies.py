@@ -1,9 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-==================
+===================
 desitarget.oldskies
-==================
+===================
 
 Module dealing with the assignation of sky fibers for target selection
 """
