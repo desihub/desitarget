@@ -617,7 +617,8 @@ def plot_good_bad_skies(survey, brickname, skies,
     plt.savefig(outplotname)
 
 
-def bundle_bricks(pixnum, maxpernode, nside):
+def bundle_bricks(pixnum, maxpernode, nside, 
+                  surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
     """Determine the optimal packing for bricks collected by HEALpixel integer
     
     Parameters
@@ -631,6 +632,9 @@ def bundle_bricks(pixnum, maxpernode, nside):
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
         The HEALPixel nside number that was used to generate `pixnum`.
+    surveydir :class:`str`, optional, defaults to the DR6 directory at NERSC
+        The root directory pointing to a Data Release from the Legacy Surveys,
+        (e.g. "/global/project/projectdirs/cosmo/data/legacysurvey/dr6")
 
     Returns
     -------
@@ -689,8 +693,8 @@ def bundle_bricks(pixnum, maxpernode, nside):
             #ADM add the total across all of the pixels
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             #ADM a crude estimate of how long the script will take to run
-            eta = np.sum(goodnum)*2.8/20000
-            outnote.append('Estimated time to run in hours (for 64 processors per node): {:.1f}h'
+            eta = np.sum(goodnum)*2.25/14000
+            outnote.append('Estimated time to run in hours (for 64 processors per node): {:.2f}h'
                            .format(eta))
             #ADM track the maximum estimated time for shell scripts, etc.
             if eta.astype(int) + 1 > maxeta:
@@ -716,6 +720,10 @@ def bundle_bricks(pixnum, maxpernode, nside):
     print('#SBATCH -C haswell')
     print('')
 
+
+    #ADM extract the Data Release number from the survey directory
+    dr = surveydir.split('dr')[-1][0]
+
     for bin in bins:
         num = np.array(bin)[:,0]
         pix = np.array(bin)[:,1]
@@ -724,9 +732,9 @@ def bundle_bricks(pixnum, maxpernode, nside):
             goodpix = pix[wpix]
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            print(("srun -N 1 select_skies /global/project/projectdirs/cosmo/data/legacysurvey/dr6 "
-                   "$CSCRATCH/dr6-skies-hp-{}.fits --numproc 64 --nside {} --healpixels {} &")
-                  .format(strgoodpix,nside,strgoodpix))
+            print(("srun -N 1 select_skies {} $CSCRATCH/dr{}-skies-hp-{}.fits" 
+                   " --numproc 64 --nside {} --healpixels {} &")
+                  .format(surveydir,dr,strgoodpix,nside,strgoodpix))
     print("wait")
     print("")
 
@@ -804,7 +812,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     if bundlebricks is not None:
         log.info("At nside={}, these commands will parallelize at about {} bricks"
                  .format(nside,bundlebricks))
-        bundle_bricks(pixnum, bundlebricks, nside)
+        bundle_bricks(pixnum, bundlebricks, nside, surveydir=survey.survey_dir)
         return
 
     #ADM restrict to only bricks in a set of HEALPixels, if requested
