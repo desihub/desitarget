@@ -6,8 +6,9 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-from desitarget import skies, io, targets
-from desitarget.skies import psfsize
+from desitarget import oldskies as skies
+from desitarget import io, targets
+from desitarget.oldskies import psfsize
 from desitarget.cuts import _psflike
 
 from desiutil import brick
