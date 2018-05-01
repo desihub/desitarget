@@ -5,6 +5,20 @@ desitarget Change Log
 0.20.2 (unreleased)
 -------------------
 
+* Introduction of pixel-level creation of sky locations [`PR #313`_]:
+   * Significant update of :mod:`desitarget.skyfibers`
+   * :mod:`desitarget.skyutilities.astrometry` to remove `astrometry.net` dependency.
+   * :mod:`desitarget.skyutilities.legacypipe` to remove `legacypipe` dependency.
+   * Grids sky locations by applying a binary erosion to imaging blob maps.
+   * Sinks apertures at the resulting sky locations to derive flux estimates.
+   * Sets the `BAD_SKY` bit using high flux levels in those apertures.
+   * :func:`desitarget.skyfibers.bundle_bricks` to write a slurm script.
+   * Parallelizes via HEALPixels to run in a few hours on interactive nodes.
+   * Adds the `select_skies` binary to run from the command line.
+   * Includes `gather_skies` binary to collect results from parallelization.
+   * Adds functionality to plot good/bad skies against Legacy Survey images.
+* Restore the no-spectra option of select_mock_targets, for use with quicksurvey
+  [`PR #307`_]. 
 * Better handling of imaging survey areas for QA [`PR #304`_]:
    * :mod:`desitarget.imagefootprint` to build HEALPix weight maps of imaging.
    * Executable (bin) interface to make weight maps from the command line.
@@ -18,6 +32,8 @@ desitarget Change Log
 .. _`PR #297`: https://github.com/desihub/desitarget/pull/297
 .. _`PR #302`: https://github.com/desihub/desitarget/pull/302
 .. _`PR #304`: https://github.com/desihub/desitarget/pull/304
+.. _`PR #307`: https://github.com/desihub/desitarget/pull/307
+.. _`PR #313`: https://github.com/desihub/desitarget/pull/313
 
 0.20.1 (2018-03-29)
 -------------------
