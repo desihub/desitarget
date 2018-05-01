@@ -3,8 +3,10 @@
 from __future__ import print_function, division
 
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
-from desitarget.skyfibers import select_skies
+from desitarget.skyfibers import select_skies, density_of_sky_fibers
 from desitarget.io import write_skies
+
+import numpy as np
 
 import warnings
 warnings.simplefilter('error')
@@ -59,9 +61,19 @@ pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
 
+#ADM if needed, determine the minimum density of sky fibers to generate
+nskiespersqdeg = ns.nskiespersqdeg
+if nskiespersqdeg is None:
+    nskiespersqdeg = density_of_sky_fibers(margin=2)
+#ADM and log how many sky positions per brick we expect to be generated
+area = 0.25*0.25
+nskiesfloat = area*nskiespersqdeg
+nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
+log.info('Generating {} sky positions in each brick'.format(nskies))
+
 survey = LegacySurveyData(survey_dir=ns.surveydir)
 
-skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=ns.nskiespersqdeg, 
+skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg, 
                      bands=bands, apertures_arcsec=apertures, badskyflux=badskyflux, 
                      nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks,
                      bundlebricks=ns.bundlebricks)

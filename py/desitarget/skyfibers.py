@@ -149,8 +149,8 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     #ADM the number of sky fibers to be generated. Must be a square number
     nskiesfloat = area*nskiespersqdeg
     nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
-    log.info('Generating {} sky positions in brick {}...t = {:.1f}s'
-             .format(nskies,brickname,time()-start))
+    #log.info('Generating {} sky positions in brick {}...t = {:.1f}s'
+    #         .format(nskies,brickname,time()-start))
 
     #ADM ensure the number of sky positions to be generated doesn't exceed 
     #ADM the largest possible OBJID (which is unlikely)
