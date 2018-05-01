@@ -71,7 +71,7 @@ desitarget API
 .. automodule:: desitarget.sandbox.cuts
     :members:
 
-.. automodule:: desitarget.skies
+.. automodule:: desitarget.oldskies
     :members:
 
 .. automodule:: desitarget.skyfibers
