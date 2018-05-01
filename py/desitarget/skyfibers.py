@@ -724,6 +724,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
     #ADM extract the Data Release number from the survey directory
     dr = surveydir.split('dr')[-1][0]
 
+    outfiles = []
     for bin in bins:
         num = np.array(bin)[:,0]
         pix = np.array(bin)[:,1]
@@ -732,12 +733,15 @@ def bundle_bricks(pixnum, maxpernode, nside,
             goodpix = pix[wpix]
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            print(("srun -N 1 select_skies {} $CSCRATCH/dr{}-skies-hp-{}.fits" 
-                   " --numproc 64 --nside {} --healpixels {} &")
-                  .format(surveydir,dr,strgoodpix,nside,strgoodpix))
+            outfile = "$CSCRATCH/dr{}-skies-hp-{}.fits".format(dr,strgoodpix)
+            outfiles.append(outfile)
+            print("srun -N 1 select_skies {} {} --numproc 64 --nside {} --healpixels {} &"
+                  .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")
-
+    print("gather_skies '{}' $CSCRATCH/dr{}-skies.fits".format(";".join(outfiles),dr))
+    print("")
+    
     return
 
 
