@@ -119,7 +119,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
         If `True`, write the skyfibers object (which is in the format of the output 
         from :func:`sky_fibers_for_brick()`) to file. The file name is derived from
         the input `survey` object and is in the form:
-            %(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz'
+        `%(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz`
         which is returned by `survey.find_file('skies')`
 
     Returns
@@ -778,7 +778,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         If `True`, write the skyfibers object for EACH brick (in the format of the 
         output from :func:`sky_fibers_for_brick()`) to file. The file name is derived
         from the input `survey` object and is in the form:
-            %(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz'
+        `%(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz`
         which is returned by `survey.find_file('skies')`.
     bundlebricks : :class:`int`, defaults to None
         If not None, then instead of selecting the skies, print, to screen, the slurm

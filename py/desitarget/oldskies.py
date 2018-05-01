@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 ==================
-desitarget.skies
+desitarget.oldskies
 ==================
 
 Module dealing with the assignation of sky fibers for target selection
