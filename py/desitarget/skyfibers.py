@@ -851,7 +851,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if nbrick%50 == 0 and nbrick>0:
+        if nbrick%500 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
             log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
 
