@@ -11,7 +11,7 @@ desitarget Change Log
    * :mod:`desitarget.skyutilities.legacypipe` to remove `legacypipe` dependency.
    * Grids sky locations by applying a binary erosion to imaging blob maps.
    * Sinks apertures at the resulting sky locations to derive flux estimates.
-   * Sets the `BAD_SKY` bit using high flux levels in those apertures.
+   * Sets the ``BAD_SKY`` bit using high flux levels in those apertures.
    * :func:`desitarget.skyfibers.bundle_bricks` to write a slurm script.
    * Parallelizes via HEALPixels to run in a few hours on interactive nodes.
    * Adds the `select_skies` binary to run from the command line.
@@ -58,9 +58,9 @@ desitarget Change Log
    * Slight flux shifts to reconcile the northern and southern (DECaLS) imaging.
    * Initial functionality for different North/South selections.
 * Some reformatting of output target files and bits [`PR #294`_]:
-   * Introducing a `NO_TARGET` bit.
-   * Renaming the `BADSKY` bit `BAD_SKY` for consistency with other bits.
-   * Including `FRACDEV` and `FRACDEV_IVAR` as outputs.
+   * Introducing a ``NO_TARGET`` bit.
+   * Renaming the ``BADSKY`` bit ``BAD_SKY`` for consistency with other bits.
+   * Including ``FRACDEV`` and ``FRACDEV_IVAR`` as outputs.
    
 .. _`PR #289`: https://github.com/desihub/desitarget/pull/289
 .. _`PR #290`: https://github.com/desihub/desitarget/pull/290
