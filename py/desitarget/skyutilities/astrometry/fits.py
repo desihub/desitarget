@@ -1,12 +1,7 @@
-# This code is from astrometry.net: https://github.com/dstndstn/astrometry.net
-# which ships with the following License:
-# https://github.com/dstndstn/astrometry.net/blob/master/LICENSE
-# Reuse of code in this module is subject to those prior license agreements
-# Specific routines from which we "borrowed":
-# https://github.com/dstndstn/astrometry.net/blob/master/util/fits.py
-
-# Other code is licensed under a 3-clause BSD style license - see LICENSE.rst
-# -*- coding: utf-8 -*-
+# This code is from astrometry.net: 
+# https://github.com/dstndstn/astrometry.net 
+# as of version 0.74 (git hash a65e168d). 
+# This file (util/fits.py) is licensed under the BSD-3 license.
 """
 =======================================
 desitarget.skyutilities.astrometry.fits
