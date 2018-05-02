@@ -1,13 +1,9 @@
-# This code is from legacypipe: https://github.com/legacysurvey/legacypipe/
-# which ships with the following License:
-# https://github.com/legacysurvey/legacypipe/blob/master/LICENSE
-# Reuse of code in this module is subject to those license agreements
-# Specific routines from which we "borrowed":
-# https://github.com/legacysurvey/legacypipe/blob/master/py/legacypipe/survey.py
-# https://github.com/legacysurvey/legacypipe/blob/master/py/legacypipe/utils.py
-
-# Other code is licensed under a 3-clause BSD style license - see LICENSE.rst
-# -*- coding: utf-8 -*-
+# Much of this code is from legacypipe: 
+# https://github.com/legacysurvey/legacypipe
+# as of version dr6.rc1.1 (git hash 536e466). 
+# The files from which this code was derived 
+# (legacypipe/survey.py) and (legacypipe/utils.py)
+# were licensed under the GNU General Public License v2.0.
 """
 =======================================
 desitarget.skyutilities.legacypipe.util
