@@ -1,9 +1,9 @@
-# Much of this code is from legacypipe: 
+# Much of this code is from version dr6.rc1.2 of legacypipe: 
 # https://github.com/legacysurvey/legacypipe
-# as of version dr6.rc1.1 (git hash 536e466). 
 # The files from which this code was derived 
 # (legacypipe/survey.py) and (legacypipe/utils.py)
-# were licensed under the GNU General Public License v2.0.
+# are licensed under the BSD-3 license as of
+# version dr6.rc1.2 of legacypipe (git hash e8a188a).
 """
 =======================================
 desitarget.skyutilities.legacypipe.util
