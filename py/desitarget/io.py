@@ -613,7 +613,8 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     else:
         #ADM read in the pixel weights file                                                                                                  
         if not os.path.exists(inmapfile):
-            log.critical('Input directory does not exist: {}'.format(inmapfile))
+            log.fatal('Input directory does not exist: {}'.format(inmapfile))
+            raise ValueError
         pixmap = fitsio.read(inmapfile)
             
     #ADM determine the file's nside, and flag a warning if the passed nside exceeds it                                                                

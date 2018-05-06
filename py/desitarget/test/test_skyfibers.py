@@ -60,7 +60,7 @@ class TestSKYFIBERS(unittest.TestCase):
         """
         Test the production of a few sky locations from a survey object
         """
-        #ADM generate the FITS format for the skies
+        #ADM generate the skies as a structured array
         skies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec)
@@ -90,11 +90,21 @@ class TestSKYFIBERS(unittest.TestCase):
         """
         Test sky locations pro
         """
-        #ADM generate the FITS format for the skies
+        #ADM generate the skies in all bands
         skies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec,
                                         bands = ["g","r","z"])
+        #ADM generate the skies just in r-band
+        rskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec,
+                                        bands = ["r"])
+        #ADM generate the skies just in g-band and z-band
+        gzskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec,
+                                        bands = ["g,z"])
 
 
 

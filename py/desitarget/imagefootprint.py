@@ -358,6 +358,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
     #ADM this is only intended to work on one brick, so die if a larger array is passed
     if not isinstance(brickname,str):
         log.fatal("Only one brick can be passed at a time!")
+        raise ValueError
 
     #ADM generate an empty structured array to return in the event that no pixels with
     #ADM counts were found

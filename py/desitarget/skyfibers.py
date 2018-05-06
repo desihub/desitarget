@@ -136,6 +136,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     #ADM this is only intended to work on one brick, so die if a larger array is passed
     if not isinstance(brickname,str):
         log.fatal("Only one brick can be passed at a time!")
+        raise ValueError
 
     #ADM if needed, determine the minimum density of sky fibers to generate
     if nskiespersqdeg is None:
@@ -156,6 +157,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     if nskies > 2**targetid_mask.OBJID.nbits:
         log.fatal('{} sky locations requested in brick {}, but OBJID cannot exceed {}'
             .format(nskies,brickname,2**targetid_mask.OBJID.nbits))
+        raise ValueError
 
     #ADM generate sky fiber information for this brick name
     skytable = sky_fibers_for_brick(survey,brickname,nskies=nskies,bands=bands,
@@ -204,19 +206,25 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
 
     #ADM add the aperture flux measurements
     if naps == 1:
-        skies["APFLUX_G"] = np.hstack(skytable.apflux_g)
-        skies["APFLUX_IVAR_G"] = np.hstack(skytable.apflux_ivar_g)
-        skies["APFLUX_R"] = np.hstack(skytable.apflux_r)
-        skies["APFLUX_IVAR_R"] = np.hstack(skytable.apflux_ivar_r)
-        skies["APFLUX_Z"] = np.hstack(skytable.apflux_z)
-        skies["APFLUX_IVAR_Z"] = np.hstack(skytable.apflux_ivar_z)
+        if hasattr(skytable,'apflux_g'):
+            skies["APFLUX_G"] = np.hstack(skytable.apflux_g)
+            skies["APFLUX_IVAR_G"] = np.hstack(skytable.apflux_ivar_g)
+        if hasattr(skytable,'apflux_r'):
+            skies["APFLUX_R"] = np.hstack(skytable.apflux_r)
+            skies["APFLUX_IVAR_R"] = np.hstack(skytable.apflux_ivar_r)
+        if hasattr(skytable,'apflux_z'):
+            skies["APFLUX_Z"] = np.hstack(skytable.apflux_z)
+            skies["APFLUX_IVAR_Z"] = np.hstack(skytable.apflux_ivar_z)
     else:
-        skies["APFLUX_G"] = skytable.apflux_g
-        skies["APFLUX_IVAR_G"] = skytable.apflux_ivar_g
-        skies["APFLUX_R"] = skytable.apflux_r
-        skies["APFLUX_IVAR_R"] = skytable.apflux_ivar_r
-        skies["APFLUX_Z"] = skytable.apflux_z
-        skies["APFLUX_IVAR_Z"] = skytable.apflux_ivar_z
+        if hasattr(skytable,'apflux_g'):
+            skies["APFLUX_G"] = skytable.apflux_g
+            skies["APFLUX_IVAR_G"] = skytable.apflux_ivar_g
+        if hasattr(skytable,'apflux_r'):
+            skies["APFLUX_R"] = skytable.apflux_r
+            skies["APFLUX_IVAR_R"] = skytable.apflux_ivar_r
+        if hasattr(skytable,'apflux_z'):
+            skies["APFLUX_Z"] = skytable.apflux_z
+            skies["APFLUX_IVAR_Z"] = skytable.apflux_ivar_z
 
     #ADM add the brick information for the sky targets
     skies["BRICKID"] = skytable.brickid
@@ -289,6 +297,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
     wcs = WCS(header)
 
     goodpix = (blobs == -1)
+    #ADM while looping through bands, check there's an image in
+    #ADM at least one band, otherwise the blob map has no meaning
+    #ADM for these bands, and aperture photometry is not possible
+    onegoodband = False
     for band in bands:
         fn = survey.find_file('nexp', brick=brickname, band=band)
         if not os.path.exists(fn):
@@ -296,6 +308,11 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
             continue
         nexp = fitsio.read(fn)
         goodpix[nexp == 0] = False
+        onegoodband = True
+    #ADM if there were no images in the passed bands, fail
+    if not onegoodband:
+        log.fatal('No images for passed bands: {}'.format(bands))
+        raise ValueError
 
     # Cut to unique brick area... required since the blob map drops
     # blobs that are completely outside the brick's unique area, thus
@@ -585,6 +602,7 @@ def plot_good_bad_skies(survey, brickname, skies,
     wbrick = np.where(bricknames == brickname)[0]
     if len(wbrick) == 0:
         log.fatal("No information for brick {} in passed skies array".format(brickname))
+        raise ValueError
     else:
         log.info("Plotting sky locations on brick {}".format(brickname))
 

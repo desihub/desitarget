@@ -659,7 +659,7 @@ def select_skies(infiles, numproc=4, maglim=[20,20,20]):
     for filename in infiles:
         if not os.path.exists(filename):
             log.fatal('File {} not found!'.format(filename))
-
+            raise ValueError
 
     #ADM function to run file-by-file for each sweeps file
     def _select_skies_file(filename):
