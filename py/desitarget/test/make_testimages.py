@@ -21,11 +21,7 @@ codir = 'coadd'
 blobdir = 'metrics'
 brick = '0959p805'
 prebrick= brick[:3]
-band = 'z'
-
-if band != 'z' or brick != '0959p805':
-    msg = "brick 0959p805, band z chosen as their (DR6) files are small!"
-    raise ValueError(msg)
+bands = ['g','z']
 
 #ADM tear everything down, first
 os.system('rm -rf {}'.format(dr))
@@ -38,6 +34,7 @@ rootdir += '/{}'.format(prebrick)
 os.system('mkdir {}'.format(rootdir))
 os.system( 'cp {}/{}/blobs*{}* {}'.format(sd,rootdir,brick,rootdir) )
 
+
 rootdir = dr
 rootdir += '/{}'.format(codir)
 os.system('mkdir {}'.format(rootdir))
@@ -45,9 +42,14 @@ rootdir += '/{}'.format(prebrick)
 os.system('mkdir {}'.format(rootdir))
 rootdir += '/{}'.format(brick)
 os.system('mkdir {}'.format(rootdir))
-os.system( 'cp {}/{}/*{}-image-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
-os.system( 'cp {}/{}/*{}-invvar-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
-os.system( 'cp {}/{}/*{}-nexp-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
+
+for band in bands:
+    if (band != 'g' or band != 'z') and brick != '0959p805':
+        msg = "brick 0959p805, bands g,z chosen as their (DR6) files are small!"
+        raise ValueError(msg)
+    os.system( 'cp {}/{}/*{}-image-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
+    os.system( 'cp {}/{}/*{}-invvar-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
+    os.system( 'cp {}/{}/*{}-nexp-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
 
 #ADM make a simplified survey bricks file for this data release
 brickfile = '{}/survey-bricks-{}.fits.gz'.format(dr,dr)

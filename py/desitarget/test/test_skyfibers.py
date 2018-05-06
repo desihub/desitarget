@@ -26,6 +26,12 @@ class TestSKYFIBERS(unittest.TestCase):
         #ADM just test with one brick
         self.brickname = bricknames[0]
 
+        if self.brickname != '0959p805':
+            print("brick name is {} not '0959p805'".format(brickname))
+            print("'0959p805' was chosen to as it has good g-band")
+            print("images and is relatively small")
+            raise ValueError
+
         #ADM generate a handfule (~4) sky locations
         brickarea = 0.25*0.25
         self.nskies = 4.
@@ -88,24 +94,62 @@ class TestSKYFIBERS(unittest.TestCase):
 
     def test_make_skies_for_a_brick_per_band(self):
         """
-        Test sky locations pro
+        Test aperture fluxes at sky locations are correct for different bands
         """
         #ADM generate the skies in all bands
         skies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec,
                                         bands = ["g","r","z"])
-        #ADM generate the skies just in r-band
-        rskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+        #ADM generate skies just in g-band (which should be THE ONLY GOOD band)!
+        #ADM which is why I set up these tests with brick 0959p805
+        gskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec,
-                                        bands = ["r"])
-        #ADM generate the skies just in g-band and z-band
-        gzskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        bands = ["g"])
+        #ADM generate the skies just in r-band and z-band
+        rzskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec,
-                                        bands = ["g,z"])
+                                        bands = ["r","z"])
 
+        #ADM the r and z bands for brick 0959p805 are bad, so should be the
+        #ADM same no matter which bands we extract (they should be all zero)
+        np.assertTrue(np.all(rzskies["APFLUX_R"] == skies["APFLUX_R"]))
+        np.assertTrue(np.all(rzskies["APFLUX_Z"] == skies["APFLUX_Z"]))
+        #ADM but the g band is good, so shouldn't be the same if we extract
+        #ADM it in concert with the other bands
+        np.assertFalse(np.all(gskies["APFLUX_G"] == skies["APFLUX_G"]))
+
+
+    def test_target_bits(self):
+        """
+        Test that good fluxes have t
+        """
+        #ADM generate the skies in all bands
+        skies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec,
+                                        bands = ["g","r","z"])
+        #ADM generate skies just in g-band (which should be THE ONLY GOOD band)!
+        #ADM which is why I set up these tests with brick 0959p805
+        gskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec,
+                                        bands = ["g"])
+        #ADM generate the skies just in r-band and z-band
+        rzskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec,
+                                        bands = ["r","z"])
+
+        #ADM the r and z bands for brick 0959p805 are bad, so should be the
+        #ADM same no matter which bands we extract (they should be all zero)
+        np.assertTrue(np.all(rzskies["APFLUX_R"] == skies["APFLUX_R"]))
+        np.assertTrue(np.all(rzskies["APFLUX_Z"] == skies["APFLUX_Z"]))
+        #ADM but the g band is good, so shouldn't be the same if we extract
+        #ADM it in concert with the other bands
+        np.assertFalse(np.all(gskies["APFLUX_G"] == skies["APFLUX_G"]))
 
 
 
