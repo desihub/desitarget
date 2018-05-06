@@ -15,8 +15,9 @@ from desiutil import brick
 
 from desitarget.geomask import ellipse_matrix, is_in_ellipse_matrix
 
-class TestSKIES(unittest.TestCase):
+class TestOLDSKIES(unittest.TestCase):
 
+    @classmethod
     def setUp(self):
         #ADM at this nskymin you always seem to get at least 1 bad position
         self.nskymin = 5000000

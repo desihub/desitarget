@@ -49,12 +49,21 @@ os.system( 'cp {}/{}/*{}-image-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
 os.system( 'cp {}/{}/*{}-invvar-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
 os.system( 'cp {}/{}/*{}-nexp-{}* {}'.format(sd,rootdir,brick,band,rootdir) )
 
-#ADM make a simplified survey bricks file
+#ADM make a simplified survey bricks file for this data release
 brickfile = '{}/survey-bricks-{}.fits.gz'.format(dr,dr)
 sbfile = '{}/{}'.format(sd,brickfile)
 brickinfo = fitsio.read(sbfile)
 #ADM remember that fitsio reads things in as bytes, so convert to unicode
 bricknames = brickinfo['brickname'].astype('U')
+wbrick = np.where(bricknames == brick)[0]
+fitsio.write(brickfile,brickinfo[wbrick])
+
+#ADM make a simplified survey bricks file for the whole sky
+brickfile = '{}/survey-bricks.fits.gz'.format(dr)
+sbfile = '{}/{}'.format(sd,brickfile)
+brickinfo = fitsio.read(sbfile)
+#ADM remember that fitsio reads things in as bytes, so convert to unicode
+bricknames = brickinfo['BRICKNAME'].astype('U')
 wbrick = np.where(bricknames == brick)[0]
 fitsio.write(brickfile,brickinfo[wbrick])
 
