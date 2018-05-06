@@ -21,7 +21,7 @@ class TestSKYFIBERS(unittest.TestCase):
         self.survey = LegacySurveyData(self.sd)
 
         #ADM determine which bricks we can access in the test directory
-        brickdirs = glob("{}/coadd/*/*".format(survey.survey_dir))
+        brickdirs = glob("{}/coadd/*/*".format(self.survey.survey_dir))
         bricknames = [ basename(brickdir) for brickdir in brickdirs ]
         #ADM just test with one brick
         self.brickname = bricknames[0]
@@ -90,7 +90,9 @@ class TestSKYFIBERS(unittest.TestCase):
                                             apertures_arcsec=self.ap_arcsec)
 
         #ADM check some of the outputs are the same for the table and FITS
-        self.assertTrue(np.all(skies["APFLUX_G"] == skytable.apflux_g))
+        self.assertTrue(
+            np.all(skies["APFLUX_G"] == skytable.apflux_g)
+        )
         self.assertTrue(
             np.all(skies["APFLUX_IVAR_Z"] == skytable.apflux_ivar_z)
         )
@@ -100,46 +102,58 @@ class TestSKYFIBERS(unittest.TestCase):
         """
         Test aperture fluxes at sky locations are correct for different bands
         """
-        #ADM generate the skies in all bands
+        #ADM generate the skies as a structured array
         skies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
-                                        apertures_arcsec=self.ap_arcsec,
-                                        bands = ["g","r","z"])
-        #ADM generate skies just in g-band (which should be THE ONLY GOOD band)!
-        #ADM which is why I set up these tests with brick 0959p805
-        gskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
-                                        nskiespersqdeg=self.nskiespersqdeg,
-                                        apertures_arcsec=self.ap_arcsec,
-                                        bands = ["g"])
-        #ADM generate the skies just in r-band and z-band
+                                        apertures_arcsec=self.ap_arcsec)
+
+        #ADM generate the skies just in r-band and z-band...
         rzskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec,
                                         bands = ["r","z"])
 
+        #ADM ...and just in g-band (which should be THE ONLY GOOD band)!
+        #ADM which is why I set up these tests with brick 0959p805
+        gskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec,
+                                        bands=["g"])
+
         #ADM the r and z bands for brick 0959p805 are bad, so should be the
         #ADM same no matter which bands we extract (they should be all zero)
-        self.assertTrue(np.all(rzskies["APFLUX_R"] == skies["APFLUX_R"]))
-        self.assertTrue(np.all(rzskies["APFLUX_Z"] == skies["APFLUX_Z"]))
+        self.assertTrue(
+            np.all(rzskies["APFLUX_R"] == skies["APFLUX_R"])
+        )
+        self.assertTrue(
+            np.all(rzskies["APFLUX_Z"] == skies["APFLUX_Z"])
+        )
+
         #ADM but the g band is good, so shouldn't be the same if we extract
-        #ADM it in concert with the other bands
-        self.assertFalse(np.all(gskies["APFLUX_G"] == skies["APFLUX_G"]))
+        #ADM it in concert with the other (r,z) bands
+        self.assertFalse(
+            np.all(gskies["APFLUX_G"] == skies["APFLUX_G"])
+        )
 
 
     def test_target_bits(self):
         """
         Test that apertures with bad extracted fluxes have the BAD_SKY bit set
         """
-        #ADM generate skies just in g-band (which should be THE ONLY GOOD band)!
+        #ADM force anything with fluxes higher than 0 to be bad
+        bsflux = [0,0]
+
+        #ADM get sky locations in g-band (which should be THE ONLY GOOD band)!
         #ADM which is why I set up these tests with brick 0959p805
         gskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
                                         nskiespersqdeg=self.nskiespersqdeg,
                                         apertures_arcsec=self.ap_arcsec,
-                                        bands=["g"], badskyflux=[0,0])
-        #ADM these only work because the IVARs are good for brick 0959p805
-        #ADM in DR6 of the Legacy Surveys
-        wgood = np.where(np.all(gskies['APFLUX_G'] < badskyflux,axis=1))
-        wbad = np.where(np.any(gskies['APFLUX_G'] >= badskyflux,axis=1))
+                                        bands=["g"], badskyflux=bsflux)
+
+        #ADM note that these only work because the IVARs are good for 
+        #ADM brick 0959p805 in DR6 of the Legacy Surveys
+        wgood = np.where(np.all(gskies['APFLUX_G'] < bsflux,axis=1))
+        wbad = np.where(np.any(gskies['APFLUX_G'] >= bsflux,axis=1))
 
         #ADM check apertures with good/bad flux have good/bad sky bits set
         self.assertTrue(
@@ -149,6 +163,32 @@ class TestSKYFIBERS(unittest.TestCase):
             np.all(gskies[wbad]["DESI_TARGET"] == desi_mask.BAD_SKY)
         )
          
+    
+    def test_bundle_bricks(self):
+        """
+        Test the bundle_bricks scripting code simply executes without bugs
+        """
+        dum = skyfibers.bundle_bricks(1,1,1,surveydir=self.survey.survey_dir)
+        self.assertTrue(dum is None)
+
+
+    def test_select_skies(self):
+        """
+        Test the wrapper function for batch selection of skies
+        """
+        #ADM generate the skies as a structured array
+        skies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname, 
+                                        nskiespersqdeg=self.nskiespersqdeg,
+                                        apertures_arcsec=self.ap_arcsec)
+
+        #ADM generate skies using the wrapper function
+        ss = skyfibers.select_skies(self.survey, numproc=1, 
+                                    nskiespersqdeg=self.nskiespersqdeg, 
+                                    apertures_arcsec=self.ap_arcsec)
+
+        #ADM check the wrapper generates a single brick correctly
+        self.assertTrue(np.all(ss == skies))
+
 
 if __name__ == '__main__':
     unittest.main()
