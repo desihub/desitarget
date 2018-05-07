@@ -7,7 +7,7 @@ desitarget.skyfibers
 
 Module dealing with the assignation of sky fibers at the pixel-level for target selection
 """
-import os
+import os, sys
 import numpy as np
 import fitsio
 from astropy.wcs import WCS
@@ -134,7 +134,12 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     than the number of bits reserved for OBJID in `desitarget.targetmask`
     """
     #ADM this is only intended to work on one brick, so die if a larger array is passed
-    if not isinstance(brickname,str):
+    #ADM needs a hack on string type as Python 2 only considered bytes to be type str
+    stringy = str
+    if sys.version_info[0] == 2:
+        #ADM is this is Python 2, redefine the string type
+        stringy = basestring
+    if not isinstance(brickname,stringy):
         log.fatal("Only one brick can be passed at a time!")
         raise ValueError
 
