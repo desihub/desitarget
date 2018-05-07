@@ -147,21 +147,26 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     #ADM which would be 0.25x0.25 at the equator
     area = 0.25*0.25
 
-    #ADM the (integer) number of sky fibers to be generated
-    nskies = int(area*nskiespersqdeg)
+    #ADM the number of sky fibers to be generated. Must be a square number
+    nskiesfloat = area*nskiespersqdeg
+    nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
     #log.info('Generating {} sky positions in brick {}...t = {:.1f}s'
     #         .format(nskies,brickname,time()-start))
 
-    #ADM ensure the number of sky positions to be generated doesn't exceed 
+    #ADM generate sky fiber information for this brick name
+    skytable = sky_fibers_for_brick(survey,brickname,nskies=nskies,bands=bands,
+                                     apertures_arcsec=apertures_arcsec)
+
+    #ADM it's possible that a gridding could generate an unexpected
+    #ADM number of sky fibers, so reset nskies based on the output
+    nskies = len(skytable)
+
+    #ADM ensure the number of sky positions that were generated doesn't exceed 
     #ADM the largest possible OBJID (which is unlikely)
     if nskies > 2**targetid_mask.OBJID.nbits:
         log.fatal('{} sky locations requested in brick {}, but OBJID cannot exceed {}'
             .format(nskies,brickname,2**targetid_mask.OBJID.nbits))
         raise ValueError
-
-    #ADM generate sky fiber information for this brick name
-    skytable = sky_fibers_for_brick(survey,brickname,nskies=nskies,bands=bands,
-                                     apertures_arcsec=apertures_arcsec)
 
     #ADM retrieve the standard sky targets data model
     dt = skydatamodel.dtype

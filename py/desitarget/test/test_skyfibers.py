@@ -32,10 +32,12 @@ class TestSKYFIBERS(unittest.TestCase):
             print("images and is relatively small")
             raise ValueError
 
-        #ADM generate a handfule (~4) sky locations
+        #ADM generate a handful (~4) sky locations
         brickarea = 0.25*0.25
-        self.nskies = 4.
-        self.nskiespersqdeg = int(self.nskies/brickarea)
+        self.nskies = 4
+        #ADM as the code ensures a minimum number of skies is
+        #ADM generated, we need to pass 3.9999 not 4
+        self.nskiespersqdeg = int((self.nskies-1e-6)/brickarea)
 
         #ADM extract flux in 1 and 2" apertures
         self.ap_arcsec = [1.,2.]
