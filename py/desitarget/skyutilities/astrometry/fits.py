@@ -9,6 +9,8 @@ desitarget.skyutilities.astrometry.fits
 
 Module so desitarget sky fiber code doesn't need explicit astrometry.net dependencies
 """
+#ADM Needed for backwards-compatibility with Python 2 print
+from __future__ import (print_function)
 import numpy as np
 import os
 
