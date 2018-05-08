@@ -650,6 +650,7 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
 
     if nobj > 0:
         targets['BRICKID'][:] = healpix
+        targets['HPXPIXEL'][:] = healpix
         targets['BRICK_OBJID'][:] = objid[:nobj]
         targets['TARGETID'][:] = targetid[:nobj]
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
@@ -657,6 +658,7 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
 
     if nsky > 0:
         skytargets['BRICKID'][:] = healpix
+        skytargets['HPXPIXEL'][:] = healpix
         skytargets['BRICK_OBJID'][:] = objid[nobj:]
         skytargets['TARGETID'][:] = targetid[nobj:]
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]

@@ -843,7 +843,7 @@ class ReadUniformSky(SelectTargets):
                 ReadUniformSky.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
                 log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
-                _, _, ra, dec, allpix, pixweight = ReadGaussianField.cached_radec
+                _, _, ra, dec, allpix, pixweight = ReadUniformSky.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
 
