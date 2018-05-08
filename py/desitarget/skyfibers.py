@@ -830,12 +830,13 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         - Some core code in this module was initially written by Dustin Lang (@dstndstn).
         - Returns nothing if bundlebricks is passed (and is not None).
     """
-    #ADM for debugging, remove later
-    import astropy
-    print(astropy.version)
-    print(astropy.version.version)
-    print(photutils.version)
-    print(photutils.version.version)
+    #ADM these comments were for debugging photutils/astropy dependencies
+    #ADM and they can be removed at any time
+#    import astropy
+#    print(astropy.version)
+#    print(astropy.version.version)
+#    print(photutils.version)
+#    print(photutils.version.version)
 
     #ADM read in the survey bricks file, which lists the bricks of interest for this DR
     from glob import glob
