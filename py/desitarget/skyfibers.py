@@ -14,6 +14,9 @@ from astropy.wcs import WCS
 from time import time
 import photutils
 import healpy as hp
+from scipy.ndimage.morphology import binary_dilation, binary_erosion
+from scipy.ndimage.measurements import label, find_objects, center_of_mass
+from scipy.ndimage.filters import gaussian_filter
 
 #ADM some utility code taken from legacypipe and astrometry.net
 from desitarget.skyutilities.astrometry.fits import fits_table
@@ -341,7 +344,6 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g','r','z'],
     gridsize = np.min(blobs.shape/np.sqrt(nskies)).astype('int16')
     #log.info('Gridding at {} pixels in brick {}...t = {:.1f}s'
     #         .format(gridsize,brickname,time()-start))
-
     x,y,blobdist = sky_fiber_locations(goodpix, gridsize=gridsize)
 
     skyfibers = fits_table()
@@ -422,11 +424,6 @@ def sky_fiber_locations(skypix, gridsize=300):
           values in that map in each cell of a grid.
         - Initial version written by Dustin Lang (@dstndstn).
     '''
-    # Select possible locations for sky fibers
-    from scipy.ndimage.morphology import binary_dilation, binary_erosion
-    from scipy.ndimage.measurements import label, find_objects, center_of_mass
-    from scipy.ndimage.filters import gaussian_filter
-
     nerosions = np.zeros(skypix.shape, np.int16)
     nerosions += skypix
     element = np.ones((3,3), bool)
@@ -455,8 +452,8 @@ def sky_fiber_locations(skypix, gridsize=300):
     # Split the image into 300 x 300-pixel cells, choose the highest peak in each one
     # (note, this is ignoring the brick-to-brick margin in laying down the grid)
     sx,sy = [],[]
-    xx = np.round(np.linspace(0, W, 1+np.ceil(W / gridsize))).astype(int)
-    yy = np.round(np.linspace(0, H, 1+np.ceil(H / gridsize))).astype(int)
+    xx = np.round(np.linspace(0, W, 1+np.ceil(W / gridsize).astype(int))).astype(int)
+    yy = np.round(np.linspace(0, H, 1+np.ceil(H / gridsize).astype(int))).astype(int)
     for ylo,yhi in zip(yy, yy[1:]):
         for xlo,xhi in zip(xx, xx[1:]):
             # Find max pixel in box
@@ -833,6 +830,13 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
         - Some core code in this module was initially written by Dustin Lang (@dstndstn).
         - Returns nothing if bundlebricks is passed (and is not None).
     """
+    #ADM for debugging, remove later
+    import astropy
+    print(astropy.version)
+    print(astropy.version.version)
+    print(photutils.version)
+    print(photutils.version.version)
+
     #ADM read in the survey bricks file, which lists the bricks of interest for this DR
     from glob import glob
     sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
