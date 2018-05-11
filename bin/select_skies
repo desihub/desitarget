@@ -13,6 +13,7 @@ warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -81,8 +82,9 @@ skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg,
 #ADM if skies is None then the bundlebricks informational option was sent
 if skies is not None:
     #ADM this correctly records the apertures and bad sky flux levels in the output file header
+    #ADM as well as adding HEALPixel information
     write_skies(ns.dest, skies, indir=ns.surveydir, 
-                apertures_arcsec=apertures, badskyflux=badskyflux)
+                apertures_arcsec=apertures, badskyflux=badskyflux, nside=nside)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))
 
