@@ -351,7 +351,7 @@ def write_skies(filename, data,
     filename : :class:`str`
         Output target selection file name
     data  : :class:`~numpy.ndarray` 
-        Array of targets to write to file
+        Array of skies to write to file
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
@@ -365,6 +365,10 @@ def write_skies(filename, data,
     #ADM set up the default logger
     from desiutil.log import get_logger
     log = get_logger()
+
+    #ADM force OBSCONDITIONS to be 65535 
+    #ADM (see https://github.com/desihub/desitarget/pull/313)
+    data["OBSCONDITIONS"] = 2**16-1
 
     #- Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
