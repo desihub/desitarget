@@ -2,9 +2,11 @@
 desitarget Change Log
 =====================
 
-0.20.2 (unreleased)
+0.21.0 (unreleased)
 -------------------
 
+* Mock targets bug fixes [`PR #318`_]. 
+* Add missing GMM files to installations [`PR #316`_]. 
 * Introduction of pixel-level creation of sky locations [`PR #313`_]:
    * Significant update of :mod:`desitarget.skyfibers`
    * :mod:`desitarget.skyutilities.astrometry` to remove `astrometry.net` dependency.
@@ -17,6 +19,9 @@ desitarget Change Log
    * Adds the `select_skies` binary to run from the command line.
    * Includes `gather_skies` binary to collect results from parallelization.
    * Adds functionality to plot good/bad skies against Legacy Survey images.
+* select_mock_targets full footprint updates [`PR #312`_]. 
+* QA fix for testing without healpix weight map [`PR #311`_]. 
+* New QSO random forest [`PR #309`_]. 
 * Restore the no-spectra option of select_mock_targets, for use with quicksurvey
   [`PR #307`_]. 
 * Better handling of imaging survey areas for QA [`PR #304`_]:
@@ -33,7 +38,12 @@ desitarget Change Log
 .. _`PR #302`: https://github.com/desihub/desitarget/pull/302
 .. _`PR #304`: https://github.com/desihub/desitarget/pull/304
 .. _`PR #307`: https://github.com/desihub/desitarget/pull/307
+.. _`PR #309`: https://github.com/desihub/desitarget/pull/309
+.. _`PR #311`: https://github.com/desihub/desitarget/pull/311
+.. _`PR #312`: https://github.com/desihub/desitarget/pull/312
 .. _`PR #313`: https://github.com/desihub/desitarget/pull/313
+.. _`PR #316`: https://github.com/desihub/desitarget/pull/316
+.. _`PR #318`: https://github.com/desihub/desitarget/pull/318
 
 0.20.1 (2018-03-29)
 -------------------

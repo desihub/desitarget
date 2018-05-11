@@ -56,13 +56,16 @@ if args.tiles and args.healpixels:
     log.error('use --tiles or --healpixels but not both')
     sys.exit(1)
     
-if args.tiles is not None:
-    if args.tiles.endswith('.ecsv'):
+if args.healpixels is None:
+    if args.tiles is not None:
+        if args.tiles.endswith('.ecsv'):
             tiles = Table.read(args.tiles, format='ascii.ecsv')
+        else:
+            tiles = Table.read(args.tiles)
+        log.info('{} tiles'.format(len(tiles)))
     else:
-        tiles = Table.read(args.tiles)
-
-    log.info('{} tiles'.format(len(tiles)))
+        tiles = None
+        log.info('Running on the full DESI footprint')
     healpixels = desimodel.footprint.tiles2pix(args.nside, tiles)
 else:
     healpixels = np.array(args.healpixels)
@@ -100,15 +103,8 @@ with open(args.config, 'r') as pfile:
     params = yaml.load(pfile)
 
 log.info('Calling targets_truth at {}'.format(time.asctime()))
-if args.no_spectra:
-    from desitarget.mock.build import targets_truth_no_spectra
-    targets_truth_no_spectra(params, output_dir=args.output_dir, seed=args.seed,
-                  verbose=args.verbose, nproc=args.nproc, nside=args.nside,
-                  healpixels=healpixels)
-else:
-    targets_truth(params, output_dir=args.output_dir, seed=args.seed, nside=args.nside,
-                  verbose=args.verbose, nproc=args.nproc, healpixels=healpixels)
-
-    
+targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
+              output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
+              no_spectra=args.no_spectra)
 log.info('All done at {}'.format(time.asctime()))
 

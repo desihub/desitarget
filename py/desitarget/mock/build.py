@@ -97,7 +97,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     return log, healpixseeds
     
 def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
-              nside=None, nside_chunk=128):
+              nside=None, nside_chunk=128, MakeMock=None):
     """Read a mock catalog.
     
     Parameters
@@ -148,12 +148,18 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
 
     log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
-    MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
+    if MakeMock is None:
+        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
+    else:
+        MakeMock.seed = seed # updated seed
+        
     data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                          healpixels=healpixels, nside=nside,
                          magcut=magcut, nside_lya=nside_lya,
                          nside_galaxia=nside_galaxia,
                          dust_dir=dust_dir, mock_density=mock_density)
+    if not bool(data):
+        return data, MakeMock
 
     # Add the information we need to incorporate density fluctuations.
     if 'density' in params.keys():
@@ -183,7 +189,8 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
-def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
+def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
+                         maxiter=1, no_spectra=False):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Parameters
@@ -202,6 +209,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
        Desired number of targets to generate.
     maxiter : :class:`int`
        Maximum number of iterations to generate targets.
+    no_spectra : :class:`bool`, optional
+        Do not generate spectra, e.g., for use with quicksurvey.
 
     Returns
     -------
@@ -211,8 +220,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
         Corresponding truth table.
     trueflux : :class:`numpy.ndarray`
         Array [npixel, ntarget] of observed-frame spectra.  Only computed
-        and returned for non-sky targets.
-    
+        and returned for non-sky targets and if no_spectra=False.
+
     """
     nobj = len(np.atleast_1d(indx))
     targname = data['TARGET_NAME']
@@ -233,16 +242,20 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
     if targname.lower() == 'faintstar':
         chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
             data, indx=indx, boss_std=boss_std)
-
-        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-        nkeep = len(keep)
+        
+        if len(chunktargets) > 0:
+            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+            nkeep = len(keep)
+        else:
+            nkeep = 0
 
         log.debug('Selected {} / {} {} targets'.format(nkeep, nobj, targname))
 
         if nkeep > 0:
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
-            trueflux.append(chunkflux[keep, :])
+            if not no_spectra:
+                trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required
         # target density.
@@ -251,7 +264,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
         makemore, itercount, ntot = True, 0, 0
         while makemore:
             chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
-                data, indx=indx, seed=iterseeds[itercount])
+                data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
 
             MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
 
@@ -264,7 +277,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
-                trueflux.append(chunkflux[keep, :])
+                if not no_spectra:
+                    trueflux.append(chunkflux[keep, :])
 
             itercount += 1
             if itercount == maxiter:
@@ -279,10 +293,12 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget, maxiter=1):
                 else:
                     makemore = False
 
-    targets = vstack(targets)
-    truth = vstack(truth)
-    trueflux = np.concatenate(trueflux)
-
+    if len(targets) > 0:
+        targets = vstack(targets)
+        truth = vstack(truth)
+        if not no_spectra:
+            trueflux = np.concatenate(trueflux)
+        
     return [targets, truth, trueflux]
 
 def density_fluctuations(data, log, nside, nside_chunk, seed=None):
@@ -370,7 +386,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
-                nproc=1, sky=False):
+                nproc=1, sky=False, no_spectra=False):
     """Generate spectra (in parallel) for a set of targets.
 
     Parameters
@@ -391,6 +407,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         Number of parallel processes to use.  Defaults to 1.
     sky : :class:`bool`
         Processing sky targets (which are a special case).  Defaults to False.
+    no_spectra : :class:`bool`, optional
+        Do not generate spectra, e.g., for use with quicksurvey.
 
     Returns
     -------
@@ -424,7 +442,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     specargs = list()
     for indx, ntarg, chunkseed in zip( indxperchunk, ntargperchunk, chunkseeds ):
         if len(indx) > 0:
-            specargs.append( (data, indx, MakeMock, chunkseed, log, ntarg, maxiter) )
+            specargs.append( (data, indx, MakeMock, chunkseed, log,
+                              ntarg, maxiter, no_spectra) )
 
     nn = np.zeros((), dtype='i8')
     t0 = time()
@@ -449,24 +468,33 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     # Unpack the results and return; note that sky targets are a special case.
     results = list(zip(*results))
-    targets = vstack(results[0])
-    truth = vstack(results[1])
+    targets = [targ for targ in results[0] if len(targ) > 0]
+    truth = [tru for tru in results[1] if len(tru) > 0]
+    if len(targets) > 0:
+        targets = vstack(targets)
+        truth = vstack(truth)
 
     if sky:
         trueflux = []
     else:
-        trueflux = np.concatenate(results[2])
+        if no_spectra:
+            trueflux = []
+        else:
+            good = [len(targ) > 0 for targ in results[0]]
+            if len(good) > 0:
+                trueflux = np.concatenate(np.array(results[2])[good])
         
     log.info('Done: generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
     log.info('Total time for {}s = {:.3f} minutes ({:.3f} cpu minutes/deg2).'.format(
-        data['TARGET_NAME'], ttime / 60, (ttime*nproc) / 60 / area ))
+        data['TARGET_NAME'], ttime / 60, (ttime*nproc) / area ))
 
     return targets, truth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
-                  seed=None, nproc=1, nside_chunk=128, verbose=False):
+                  seed=None, nproc=1, nside_chunk=128, verbose=False,
+                  no_spectra=False):
     """Generate truth and targets catalogs, and noiseless spectra.
 
     Parameters
@@ -490,6 +518,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         (NB: nside_chunk must be <= nside).  Defaults to 128.
     verbose : :class:`bool`, optional
         Be verbose. Defaults to False.
+    no_spectra : :class:`bool`, optional
+        Do not generate spectra, e.g., for use with quicksurvey.
 
     Returns
     -------
@@ -498,35 +528,49 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     healpixels.
 
     """
+    from desitarget.mock import mockmaker
+
     log, healpixseeds = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
         output_dir=output_dir, healpixels=healpixels)
 
+    # Read (and cache) the MockMaker classes we need.
+    AllMakeMock = []
+    for source_name in sorted(params['sources'].keys()):
+        target_name = params['sources'][source_name].get('target_name')
+        AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
+            seed=seed, nside_chunk=nside_chunk))
+    print(AllMakeMock[0].seed)
+
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
+        log.info('Working on healpixel {}'.format(healpix))
+
         alltargets = list()
         alltruth = list()
         alltrueflux = list()
         allskytargets = list()
         allskytruth = list()
 
-        for source_name in sorted(params['sources'].keys()):
+        for ii, source_name in enumerate(sorted(params['sources'].keys())):
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data and ithere are no targets, keep going.
-            log.info('Reading source : {}'.format(source_name))
+            log.info('Working on target class: {}'.format(source_name))
             data, MakeMock = read_mock(params['sources'][source_name],
                                        log, dust_dir=params['dust_dir'],
                                        seed=healseed, healpixels=healpix,
-                                       nside=nside, nside_chunk=nside_chunk)
+                                       nside=nside, nside_chunk=nside_chunk,
+                                       MakeMock=AllMakeMock[ii])
+            
             if not bool(data):
                 continue
 
-            # Generate spectra using parallelization.
+            # Generate targets in parallel; SKY targets are special. 
             sky = source_name.upper() == 'SKY'
             targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
                                                    nside_chunk=nside_chunk, seed=healseed,
-                                                   nproc=nproc, sky=sky)
+                                                   nproc=nproc, sky=sky, no_spectra=no_spectra)
             
             if sky:
                 allskytargets.append(targets)
@@ -606,6 +650,7 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
 
     if nobj > 0:
         targets['BRICKID'][:] = healpix
+        targets['HPXPIXEL'][:] = healpix
         targets['BRICK_OBJID'][:] = objid[:nobj]
         targets['TARGETID'][:] = targetid[:nobj]
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
@@ -613,6 +658,7 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
 
     if nsky > 0:
         skytargets['BRICKID'][:] = healpix
+        skytargets['HPXPIXEL'][:] = healpix
         skytargets['BRICK_OBJID'][:] = objid[nobj:]
         skytargets['TARGETID'][:] = targetid[nobj:]
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
