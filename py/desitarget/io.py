@@ -299,7 +299,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     data     : numpy structured array of targets to save
     nside: :class:`int`
         If passed, add a column to the targets array popluated
-        with HEALPix pixels at resolution nside
+        with HEALPixels at resolution `nside`
     """
     # FIXME: assert data and tsbits schema
 
@@ -342,8 +342,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
-def write_skies(filename, data, 
-                indir=None, apertures_arcsec=None, badskyflux=None):
+def write_skies(filename, data, indir=None, apertures_arcsec=None, 
+                badskyflux=None, nside=None):
     """Write a target catalogue.
 
     Parameters
@@ -361,6 +361,9 @@ def write_skies(filename, data,
     badskyflux : :class:`list` or `float`, optional, defaults to None
         list of aperture radii in arcsecondsm write each aperture as an
         individual line in the header, if passed (and if not None).
+    nside: :class:`int`
+        If passed, add a column to the skies array popluated with HEALPixels 
+        at resolution `nside`
     """
     #ADM set up the default logger
     from desiutil.log import get_logger
@@ -394,6 +397,14 @@ def write_skies(filename, data,
             bsname = "BADFLUX{}".format(i)
             bssize = "{:.2f}".format(bs)
             hdr[bsname] = bssize
+
+    #ADM add HEALPix column, if requested by input
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
 
     fitsio.write(filename, data, extname='SKIES', header=hdr, clobber=True)
 
