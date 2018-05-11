@@ -1,5 +1,12 @@
-#!/usr/bin/env python
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""
+==========================
+desitarget.imagefootprint
+==========================
 
+Monte Carlo Legacy Surveys imaging at the pixel level to model the imaging footprint
+"""
 import os
 import numpy as np
 import astropy.io.fits as fits
@@ -349,8 +356,9 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
           brick, and empty structured array will be returned
     """
     #ADM this is only intended to work on one brick, so die if a larger array is passed
-    if type(brickname) != str:
+    if not isinstance(brickname,str):
         log.fatal("Only one brick can be passed at a time!")
+        raise ValueError
 
     #ADM generate an empty structured array to return in the event that no pixels with
     #ADM counts were found

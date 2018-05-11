@@ -5,8 +5,20 @@ desitarget Change Log
 0.21.0 (unreleased)
 -------------------
 
-* mock targets bug fixes [`PR #318`_]. 
+* Mock targets bug fixes [`PR #318`_]. 
 * Add missing GMM files to installations [`PR #316`_]. 
+* Introduction of pixel-level creation of sky locations [`PR #313`_]:
+   * Significant update of :mod:`desitarget.skyfibers`
+   * :mod:`desitarget.skyutilities.astrometry` to remove `astrometry.net` dependency.
+   * :mod:`desitarget.skyutilities.legacypipe` to remove `legacypipe` dependency.
+   * Grids sky locations by applying a binary erosion to imaging blob maps.
+   * Sinks apertures at the resulting sky locations to derive flux estimates.
+   * Sets the ``BAD_SKY`` bit using high flux levels in those apertures.
+   * :func:`desitarget.skyfibers.bundle_bricks` to write a slurm script.
+   * Parallelizes via HEALPixels to run in a few hours on interactive nodes.
+   * Adds the `select_skies` binary to run from the command line.
+   * Includes `gather_skies` binary to collect results from parallelization.
+   * Adds functionality to plot good/bad skies against Legacy Survey images.
 * select_mock_targets full footprint updates [`PR #312`_]. 
 * QA fix for testing without healpix weight map [`PR #311`_]. 
 * New QSO random forest [`PR #309`_]. 
@@ -29,6 +41,7 @@ desitarget Change Log
 .. _`PR #309`: https://github.com/desihub/desitarget/pull/309
 .. _`PR #311`: https://github.com/desihub/desitarget/pull/311
 .. _`PR #312`: https://github.com/desihub/desitarget/pull/312
+.. _`PR #313`: https://github.com/desihub/desitarget/pull/313
 .. _`PR #316`: https://github.com/desihub/desitarget/pull/316
 .. _`PR #318`: https://github.com/desihub/desitarget/pull/318
 
@@ -55,9 +68,9 @@ desitarget Change Log
    * Slight flux shifts to reconcile the northern and southern (DECaLS) imaging.
    * Initial functionality for different North/South selections.
 * Some reformatting of output target files and bits [`PR #294`_]:
-   * Introducing a `NO_TARGET` bit.
-   * Renaming the `BADSKY` bit `BAD_SKY` for consistency with other bits.
-   * Including `FRACDEV` and `FRACDEV_IVAR` as outputs.
+   * Introducing a ``NO_TARGET`` bit.
+   * Renaming the ``BADSKY`` bit ``BAD_SKY`` for consistency with other bits.
+   * Including ``FRACDEV`` and ``FRACDEV_IVAR`` as outputs.
    
 .. _`PR #289`: https://github.com/desihub/desitarget/pull/289
 .. _`PR #290`: https://github.com/desihub/desitarget/pull/290

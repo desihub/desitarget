@@ -299,7 +299,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     data     : numpy structured array of targets to save
     nside: :class:`int`
         If passed, add a column to the targets array popluated
-        with HEALPix pixels at resolution nside
+        with HEALPixels at resolution `nside`
     """
     # FIXME: assert data and tsbits schema
 
@@ -340,6 +340,73 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         hdr['HPXNEST'] = True
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
+
+
+def write_skies(filename, data, indir=None, apertures_arcsec=None, 
+                badskyflux=None, nside=None):
+    """Write a target catalogue.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Output target selection file name
+    data  : :class:`~numpy.ndarray` 
+        Array of skies to write to file
+    indir : :class:`str`, optional, defaults to None
+        Name of input Legacy Survey Data Release directory, write to header
+        of output file if passed (and if not None).
+    apertures_arcsec : :class:`list` or `float`, optional, defaults to None
+        list of aperture radii in arcsecondsm write each aperture as an
+        individual line in the header, if passed (and if not None).
+    badskyflux : :class:`list` or `float`, optional, defaults to None
+        list of aperture radii in arcsecondsm write each aperture as an
+        individual line in the header, if passed (and if not None).
+    nside: :class:`int`
+        If passed, add a column to the skies array popluated with HEALPixels 
+        at resolution `nside`
+    """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM force OBSCONDITIONS to be 65535 
+    #ADM (see https://github.com/desihub/desitarget/pull/313)
+    data["OBSCONDITIONS"] = 2**16-1
+
+    #- Create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+
+    if indir is not None:
+        depend.setdep(hdr, 'input-data-release', indir)
+        #ADM note that if 'dr' is not in the indir DR
+        #ADM directory structure, garbage will
+        #ADM be rewritten gracefully in the header
+        drstring = 'dr'+indir.split('dr')[-1][0]
+        depend.setdep(hdr, 'photcat', drstring)
+
+    if apertures_arcsec is not None:
+        for i,ap in enumerate(apertures_arcsec):
+            apname = "AP{}".format(i)
+            apsize = "{:.2f}".format(ap)
+            hdr[apname] = apsize
+
+    if badskyflux is not None:
+        for i,bs in enumerate(badskyflux):
+            bsname = "BADFLUX{}".format(i)
+            bssize = "{:.2f}".format(bs)
+            hdr[bsname] = bssize
+
+    #ADM add HEALPix column, if requested by input
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+
+    fitsio.write(filename, data, extname='SKIES', header=hdr, clobber=True)
 
 
 def iter_files(root, prefix, ext='fits'):
@@ -561,7 +628,8 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     else:
         #ADM read in the pixel weights file                                                                                                  
         if not os.path.exists(inmapfile):
-            log.critical('Input directory does not exist: {}'.format(inmapfile))
+            log.fatal('Input directory does not exist: {}'.format(inmapfile))
+            raise ValueError
         pixmap = fitsio.read(inmapfile)
             
     #ADM determine the file's nside, and flag a warning if the passed nside exceeds it                                                                
