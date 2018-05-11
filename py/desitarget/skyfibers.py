@@ -46,6 +46,7 @@ skydatamodel = np.array([], dtype=[
     ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'), 
     ('APFLUX_G', '>f4'), ('APFLUX_R', '>f4'), ('APFLUX_Z', '>f4'),
     ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4'),
+    ('OBSCONDITIONS', '>i4'), ('SUBPRIORITY', '>f8')
     ])
 
 
