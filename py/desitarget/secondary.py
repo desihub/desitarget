@@ -13,6 +13,8 @@ import fitsio
 from time import time
 import healpy as hp
 from desitarget.io import check_fitsio_version
+from astropy.coordinates import SkyCoord
+from astropy import units as u
 
 #ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -28,7 +30,7 @@ gaiadatamodel = np.array([], dtype=[
                             ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4')
                                    ])
 
-def read_gaia_files(filename, header=False):
+def read_gaia_file(filename, header=False):
     """Read in a Gaia "chunks" file in the appropriate format for desitarget
 
     Parameters
@@ -42,12 +44,12 @@ def read_gaia_files(filename, header=False):
     Returns
     -------
     :class:`list`
-        Gaia data translated to targeting format (upper-case etc.)
+        Gaia data translated to targeting format (upper-case etc.) with the
+        columns corresponding to `desitarget.secondary.gaiadatamodel`
 
     Notes
     -----
         - A better location for this might be in `desitarget.io`?
-
     """
     #ADM check we aren't going to have an epic fail on the the version of fitsio
     check_fitsio_version()
@@ -120,23 +122,52 @@ def find_gaia_files(objs, neighbors=True,
     return gaiafiles
 
 
-def match_gaia_to_primary(objs, 
+def match_gaia_to_primary(objs, matchrad=1.,
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Find the full paths to all relevant gaia "chunks" files for objects
+    """Match a set of objects to Gaia "chunks" files and return the Gaia information
 
     Parameters
     ----------
     objs : :class:`numpy.ndarray`
         Must contain at least "RA" and "DEC".
+    matchrad : :class:`float`, optional, defaults to 1 arcsec
+        The matching radius in arcseconds.
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
-    :class:`list`
-        A list of all Gaia files that need to be read in to account for objects
-        at the passed locations.
-    """
-    #ADM something
+    :class:`numpy.ndarray`
+        The matching Gaia information for each object, where the returned format and
+        columns correspond to `desitarget.secondary.gaiadatamodel
 
-    return gaiafiles
+    Notes
+    -----
+        - For objects that do NOT have a match in the Gaia files, the "SOURCE_ID"
+          column is set to -1, and all other columns are zero
+    """
+    #ADM set up a zerod array of Gaia information for the passed objects
+    nobjs = len(objs)
+    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+
+    #ADM objects without matches should have SOURCE_ID of -1
+    gaiainfo['SOURCE_ID'] = -1
+
+    #ADM convert the coordinates of the input objects to a SkyCoord object
+    cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
+
+    #ADM determine which Gaia files need to be considered
+    gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
+
+    #ADM loop through the Gaia files and match to the passed objects
+    for file in gaiafiles:
+        gaia = read_gaia_files(file)
+        cgaia = SkyCoord(gaia["RA"]*u.degree, gaia["DEC"]*u.degree)
+        idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs,matchrad*u.arcsec)
+
+        #ADM assign the Gaia info to the array that corresponds to the passed objects
+        gaiainfo[idobjs] = gaia[idgaia]
+
+    return gaiainfo
 
 
