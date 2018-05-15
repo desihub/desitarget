@@ -25,6 +25,10 @@ from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
+from desitarget.gaiamatch import match_gaia_to_primary
+
+start = time()
+
 def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
     """Same as :func:`~desitarget.cuts.shift_photo_north_pure` accounting for zero fluxes
 
@@ -1760,7 +1764,19 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
+
         #ADM add Gaia information, if requested
+        if gaiamatch:
+            log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
+                     .format(filename,time()-start))
+            gaiainfo = match_gaia_to_primary(objects)
+            log.info('Done with Gaia match for file {}...t = {:.1f}s'
+                     .format(filename,time()-start))
+            #ADM add the Gaia column information to the primary array
+            #ADM remember the columns are prepended "GAIA_" in the primary
+           for col in gaiainfo.dtype.names:
+               objects["GAIA_"+col] = gaiainfo[col]
+
         desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
@@ -1769,6 +1785,18 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
+
+        if gaiamatch:
+            log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
+                     .format(filename,time()-start))
+            gaiainfo = match_gaia_to_primary(objects)
+            log.info('Done with Gaia match for file {}...t = {:.1f}s'
+                     .format(filename,time()-start))
+            #ADM add the Gaia column information to the primary array
+            #ADM remember the columns are prepended "GAIA_" in the primary
+           for col in gaiainfo.dtype.names:
+               objects["GAIA_"+col] = gaiainfo[col]
+
         desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
