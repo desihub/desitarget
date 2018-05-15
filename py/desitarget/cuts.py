@@ -106,7 +106,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     Returns:
         mask : array_like. True if and only the object is an LRG target.
     """
-
     if south==False:
         return isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
                                   w1flux=w1flux, w2flux=w2flux,
@@ -251,7 +250,6 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : array_like. True if and only the object is an LRG
             target.
     """
-                               
     if south==False:
         return isLRG_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                            rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
@@ -376,7 +374,6 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : array_like. True if and only the object is an LRG
             target.
     """
-                               
     if south==False:
         return isLRGpass_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                            rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
@@ -503,8 +500,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     Returns:
         mask : array_like. True if and only the object is an ELG
             target.
-    """            
-                               
+    """
     if south==False:
         return isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                             gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
@@ -681,6 +677,7 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     return fstd
 
+
 def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
 
@@ -713,8 +710,35 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     return mwsstar
 
-def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
-    """Target Definition of BGS faint targets, returning a boolean array.
+
+def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                objtype=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to ``True``
+            Call isBGS_faint_north if south=False, otherwise call isBGS_faint_south.
+
+    Returns:
+        mask : array_like. True if and only the object is a BGS target.
+    """
+    if south==False:
+        return isBGS_faint_north(gflux, rflux, zflux, w1flux, w2flux, 
+                                 objtype=objtype, primary=primary)
+    else:
+        return isBGS_faint_south(gflux, rflux, zflux, w1flux, w2flux, 
+                                 objtype=objtype, primary=primary)
+
+
+def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                objtype=None, primary=None):
+    """Target Definition of BGS faint targets for the BASS/MzLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -725,9 +749,7 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, ob
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS
-            target.
-
+        mask : array_like. True if and only the object is a BGS target.
     """
     #------ Bright Galaxy Survey
     if primary is None:
@@ -741,8 +763,9 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, ob
     return bgs
 
 
-def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, objtype=None, primary=None):
-    """Target Definition of BGS bright targets, returning a boolean array.
+def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                objtype=None, primary=None):
+    """Target Definition of BGS faint targets for the DECaLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -753,9 +776,84 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, o
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS
-            target.
+        mask : array_like. True if and only the object is a BGS target.
+    """
+    #------ Bright Galaxy Survey
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
+    bgs &= rflux > 10**((22.5-20.0)/2.5)
+    bgs &= rflux <= 10**((22.5-19.5)/2.5)
+    if objtype is not None:
+        bgs &= ~_psflike(objtype)
 
+    return bgs
+
+
+def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                 objtype=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue
+        south: boolean, defaults to ``True``
+            Call isBGS_bright_north if south=False, otherwise call isBGS_bright_south.
+
+    Returns:
+        mask : array_like. True if and only if the object is a BGS target.
+    """
+    if south==False:
+        return isBGS_bright_north(gflux, rflux, zflux, w1flux, w2flux, 
+                                  objtype=objtype, primary=primary)
+    else:
+        return isBGS_bright_south(gflux, rflux, zflux, w1flux, w2flux, 
+                                  objtype=objtype, primary=primary)
+
+
+def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                       objtype=None, primary=None):
+    """Target Definition of BGS bright targets for the BASS/MzLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a BGS target.
+    """
+    #------ Bright Galaxy Survey
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
+    bgs &= rflux > 10**((22.5-19.5)/2.5)
+    if objtype is not None:
+        bgs &= ~_psflike(objtype)
+    return bgs
+
+
+def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                       objtype=None, primary=None):
+    """Target Definition of BGS bright targets for the DECaLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only the object is a BGS target.
     """
     #------ Bright Galaxy Survey
     if primary is None:
@@ -781,13 +879,13 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True)
     Returns:
         mask : array_like. True if the object has QSO-like colors.
     """
-
     if south==False:
         return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, 
                                   optical=optical)
     else:
         return isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, 
                                   optical=optical)
+
 
 def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     """Tests if sources have quasar-like colors for the BASS/MzLS photometric system.
@@ -901,7 +999,6 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
         mask : array_like. True if and only the object is a QSO
             target.
     """
-                               
     if south==False:
         return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
                                 release=release, objtype=objects, primary=primary)
@@ -1497,8 +1594,13 @@ def apply_cuts(objects, qso_selection='randomforest'):
     #ADM combine ELG target bits for an ELG target based on any imaging
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
-    bgs_bright = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_faint  = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype)
+    #ADM set the BGS bits
+    bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
+    bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
 
     if qso_selection=='colorcuts' :
         #ADM determine quasar targets in the north and the south separately
@@ -1540,7 +1642,7 @@ def apply_cuts(objects, qso_selection='randomforest'):
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North)
-    desi_target  = lrg_north * desi_mask.LRG_NORTH
+    desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
@@ -1563,11 +1665,17 @@ def apply_cuts(objects, qso_selection='randomforest'):
     desi_target |= fstd * desi_mask.STD_FSTAR
     desi_target |= fstd_bright * desi_mask.STD_BRIGHT
 
-    # BGS, bright and faint
-    bgs_target = bgs_bright * bgs_mask.BGS_BRIGHT
-    bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT_SOUTH
+    # BGS bright and faint, south
+    bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
+    bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
+
+    # BGS bright and faint, north
+    bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
+    bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
+
+    # BGS combined, bright and faint
+    bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
-    bgs_target |= bgs_faint * bgs_mask.BGS_FAINT_SOUTH
 
     # Nothing for MWS yet; will be GAIA-based.
     if isinstance(bgs_target, numbers.Integral):
