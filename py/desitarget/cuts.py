@@ -1694,31 +1694,40 @@ qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   sandbox=False, FoMthresh=None, Method=None):
+                   matchgaia=True, sandbox=False, FoMthresh=None, Method=None):
     """Process input files in parallel to select targets
 
-    Args:
-        infiles: list of input filenames (tractor or sweep files),
-            OR a single filename
-        numproc (optional): number of parallel processes to use
-        qso_selection (optional): algorithm to use for QSO selection; valid options
-            are 'colorcuts' and 'randomforest'
-        sandbox (optional): if True, use the sample selection cuts in
-            :mod:`desitarget.sandbox.cuts`.
-        FoMthresh (optional): if a value is passed then run apply_XD_globalerror for ELGs in
-            the sandbox. This will write out an "FoM.fits" file for every ELG target
-            in the sandbox directory.
-        Method (optional): Method used in sandbox    
+    Parameters
+    ----------
+    infiles : :class:`list` or `str` 
+        A list of input filenames (tractor or sweep files) OR a single filename
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use
+    qso_selection : :class`str`, optional, defaults to `randomforest`
+        The algorithm to use for QSO selection; valid options are 
+        'colorcuts' and 'randomforest'
+    matchgaia : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
+        to facilitate the MWS selection
+    sandbox : :class:`boolean`, optional, defaults to ``False``
+        If ``True``, use the sample selection cuts in :mod:`desitarget.sandbox.cuts`
+    FoMthresh :class:`float`, optional, defaults to `None`
+        If a value is passed then run `apply_XD_globalerror` for ELGs in
+        the sandbox. This will write out an "FoM.fits" file for every ELG target
+        in the sandbox directory
+    Method :class:`str`, optional, defaults to `None`
+        Method used in the sandbox    
 
-    Returns:
-        targets numpy structured array
-            the subset of input targets which pass the cuts, including extra
-            columns for DESI_TARGET, BGS_TARGET, and MWS_TARGET target
-            selection bitmasks.
+    Returns
+    -------   
+    :class:`~numpy.ndarray`
+        The subset of input targets which pass the cuts, including extra
+        columns for `DESI_TARGET`, `BGS_TARGET`, and `MWS_TARGET` target
+        selection bitmasks
 
-    Notes:
-        if numproc==1, use serial code instead of parallel
-
+    Notes
+    -----
+        - if numproc==1, use serial code instead of parallel
     """
     from desiutil.log import get_logger
     log = get_logger()
@@ -1751,6 +1760,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
+        #ADM add Gaia information, if requested
         desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
