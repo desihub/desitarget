@@ -1818,7 +1818,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects, qso_selection='randomforest'):
+def apply_cuts(objects, qso_selection='randomforest', gaiamatch=True):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -1828,6 +1828,9 @@ def apply_cuts(objects, qso_selection='randomforest'):
     Options:
         qso_selection : algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
+        gaiamatch : defaults to ``True``
+            if ``True``, match to Gaia DR2 chunks files and populate 
+            Gaia columns to facilitate the MWS selection
 
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -1844,13 +1847,26 @@ def apply_cuts(objects, qso_selection='randomforest'):
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
 
+    #ADM add Gaia information, if requested
+    if gaiamatch:
+        log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
+                 .format(filename,time()-start))
+        gaiainfo = match_gaia_to_primary(objects)
+        log.info('Done with Gaia match for file {}...t = {:.1f}s'
+                 .format(filename,time()-start))
+        #ADM add the Gaia column information to the primary array
+        #ADM remember the columns are prepended "GAIA_" in the primary
+        for col in gaiainfo.dtype.names:
+            objects["GAIA_"+col] = gaiainfo[col]
+
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    obs_rflux = objects['FLUX_R'] # observed r-band flux (used for F standards, below)
+    #ADM the observed r-band flux (used for F standards and MWS, below)
+    obs_rflux = objects['FLUX_R'] 
 
     #ADM rewrite the fluxes to shift anything on the northern
     #ADM system to approximate the southern system
@@ -2142,7 +2158,7 @@ qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   matchgaia=True, sandbox=False, FoMthresh=None, Method=None):
+                   gaiamatch=True, sandbox=False, FoMthresh=None, Method=None):
     """Process input files in parallel to select targets
 
     Parameters
@@ -2154,7 +2170,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     qso_selection : :class`str`, optional, defaults to `randomforest`
         The algorithm to use for QSO selection; valid options are 
         'colorcuts' and 'randomforest'
-    matchgaia : :class:`boolean`, optional, defaults to ``True``
+    gaiamatch : :class:`boolean`, optional, defaults to ``True``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
         to facilitate the MWS selection
     sandbox : :class:`boolean`, optional, defaults to ``False``
@@ -2205,44 +2221,19 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         return io.fix_tractor_dr1_dtype(targets)
 
     #- functions to run on every brick/sweep file
-    def _select_targets_file(filename):
+    def _select_targets_file(filename, gaiamatch=True):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-
-        #ADM add Gaia information, if requested
-        if gaiamatch:
-            log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
-                     .format(filename,time()-start))
-            gaiainfo = match_gaia_to_primary(objects)
-            log.info('Done with Gaia match for file {}...t = {:.1f}s'
-                     .format(filename,time()-start))
-            #ADM add the Gaia column information to the primary array
-            #ADM remember the columns are prepended "GAIA_" in the primary
-            for col in gaiainfo.dtype.names:
-                objects["GAIA_"+col] = gaiainfo[col]
-
-        desi_target, bgs_target, mws_target = apply_cuts(objects, qso_selection)
-
+        desi_target, bgs_target, mws_target = 
+                          apply_cuts(objects,qso_selection,gaiamatch)
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
-    def _select_sandbox_targets_file(filename):
+    def _select_sandbox_targets_file(filename, gaiamatch=True):
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
-
-        if gaiamatch:
-            log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
-                     .format(filename,time()-start))
-            gaiainfo = match_gaia_to_primary(objects)
-            log.info('Done with Gaia match for file {}...t = {:.1f}s'
-                     .format(filename,time()-start))
-            #ADM add the Gaia column information to the primary array
-            #ADM remember the columns are prepended "GAIA_" in the primary
-            for col in gaiainfo.dtype.names:
-                objects["GAIA_"+col] = gaiainfo[col]
-
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
-
+        desi_target, bgs_target, mws_target = 
+                          apply_sandbox_cuts(objects,FoMthresh,Method)
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
     # Counter for number of bricks processed;
