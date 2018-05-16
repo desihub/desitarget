@@ -679,9 +679,9 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-               objtype=None, primary=None, gaiamatch=None, primaray=None,
+               objtype=None, gaiamatch=None, primary=None,
                pmra=None, pmdec=None, parallax=None, 
-               robsflux=None, gaiarmag=None):
+               robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for MAIN Milky Way Survey targets.
 
     Args:
@@ -700,8 +700,8 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
         robsflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
-        gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based r-band MAGNITUDE 
+        gaiagmag, gaiabmag, gaiarmag: array_like or None
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
             (same units as the Gaia data model).
 
     Returns:
@@ -717,7 +717,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             True if the object is a MWS-MAIN-RED-FAINT target.
     """
     if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
+        primary = np.ones_like(gaiamatch, dtype='?')
     mws = primary.copy()
 
     #ADM apply the selection for all MWS-MAIN targets
@@ -761,9 +761,9 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-               objtype=None, primary=None, gaiamatch=None, primaray=None,
-               pmra=None, pmdec=None, parallax=None, 
-               robsflux=None, gaiarmag=None):
+                 objtype=None, gaiamatch=None, primary=None,
+                 pmra=None, pmdec=None, parallax=None, 
+                 robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
 
     Args:
@@ -782,57 +782,27 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
         robsflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
-        gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based r-band MAGNITUDE 
+        gaiagmag, gaiabmag, gaiarmag: array_like or None
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
             (same units as the Gaia data model).
 
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-NEARBY target.
     """
-    #----- Old stars, g-r > 0
     if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gaiamatch, dtype='?')
     mws = primary.copy()
 
-    #ADM apply the selection for all MWS-MAIN targets
-    #ADM main targets match to a Gaia source
+    #ADM apply the selection for all MWS-NEARBY targets
+    #ADM must be a Legacy Surveys object that matches a Gaia source
     mws &= gaiamatch
-    #ADM main targets are point-like
-    mws &= ~_psflike(objtype)
-    #ADM main targets are 16 <= r < 19 
-    mws &= rflux > 10**((22.5-19.0)/2.5)
-    mws &= rflux <= 10**((22.5-16.0)/2.5)
-    #ADM main targets are robs < 20
-    mws &= robsflux > 10**((22.5-20.0)/2.5)
-    
-    #ADM make a copy of the main bits for a red/blue split
-    red = mws.copy()
-    blue = mws.copy()
+    #ADM Gaia G mag of less than 20
+    mws &= gaiagmag < 20.
+    #ADM parallax cut corresponding to 100pc
+    mws &= parallax > 10.
 
-    #ADM MWS-BLUE is g-r < 0.7
-    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
-
-    #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
-    red &= parallax < 1
-    red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-
-    #ADM make a copy of the red bits for the bright/faint split
-    rbright = red.copy()
-    rfaint = red.copy()
-
-    #ADM calculated the overall proper motion magnitude
-    pm = np.sqrt(pmra**2 + pmdec**2)
-
-    #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
-    rbright &= rflux > 10**((22.5-18.0)/2.5)
-    rbright &= pm < 7.
-
-    #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-    rbright &= rflux <= 10**((22.5-18.0)/2.5)
-    rbright &= pm < 5.
-
-    return mws, red, blue, rbright, rfaint
+    return mws
 
 
 def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
