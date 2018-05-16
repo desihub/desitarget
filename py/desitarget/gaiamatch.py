@@ -365,4 +365,3 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
             gaiainfo = gaia[idgaia]
         
     return gaiainfo
-
