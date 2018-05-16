@@ -678,92 +678,10 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
     return fstd
 
 
-def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-               objtype=None, gaiamatch=None, primary=None,
-               pmra=None, pmdec=None, parallax=None, 
-               robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for MAIN Milky Way Survey targets.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like or None
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
-        gaiamatch, boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        robsflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
-
-    Returns:
-        mask0 : array_like. 
-            True if and only if the object is a MWS-MAIN target.
-        mask1 : array_like. 
-            True if the object is a MWS-MAIN-RED target.
-        mask2 : array_like. 
-            True if the object is a MWS-MAIN-BLUE target.
-        mask3 : array_like. 
-            True if the object is a MWS-MAIN-RED-BRIGHT target.
-        mask4 : array_like. 
-            True if the object is a MWS-MAIN-RED-FAINT target.
-    """
-    if primary is None:
-        primary = np.ones_like(gaiamatch, dtype='?')
-    mws = primary.copy()
-
-    #ADM apply the selection for all MWS-MAIN targets
-    #ADM main targets match to a Gaia source
-    mws &= gaiamatch
-    #ADM main targets are point-like
-    mws &= ~_psflike(objtype)
-    #ADM main targets are 16 <= r < 19 
-    mws &= rflux > 10**((22.5-19.0)/2.5)
-    mws &= rflux <= 10**((22.5-16.0)/2.5)
-    #ADM main targets are robs < 20
-    mws &= robsflux > 10**((22.5-20.0)/2.5)
-    
-    #ADM make a copy of the main bits for a red/blue split
-    red = mws.copy()
-    blue = mws.copy()
-
-    #ADM MWS-BLUE is g-r < 0.7
-    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
-
-    #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
-    red &= parallax < 1
-    red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-
-    #ADM make a copy of the red bits for the bright/faint split
-    rbright = red.copy()
-    rfaint = red.copy()
-
-    #ADM calculated the overall proper motion magnitude
-    pm = np.sqrt(pmra**2 + pmdec**2)
-
-    #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
-    rbright &= rflux > 10**((22.5-18.0)/2.5)
-    rbright &= pm < 7.
-
-    #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-    rbright &= rflux <= 10**((22.5-18.0)/2.5)
-    rbright &= pm < 5.
-
-    return mws, red, blue, rbright, rfaint
-
-
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaiamatch=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
-                     robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for MAIN MWS targets for the BASS/MzLS photometric system.
 
     Args:
@@ -780,7 +698,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model, e.g.:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        robsflux: array_like or None
+        obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
@@ -811,7 +729,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
     #ADM main targets are robs < 20
-    mws &= robsflux > 10**((22.5-20.0)/2.5)
+    mws &= obs_rflux > 10**((22.5-20.0)/2.5)
     
     #ADM make a copy of the main bits for a red/blue split
     red = mws.copy()
@@ -845,7 +763,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaiamatch=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
-                     robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for MAIN MWS targets for the DECaLS photometric system.
 
     Args:
@@ -862,7 +780,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model, e.g.:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        robsflux: array_like or None
+        obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
@@ -893,7 +811,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
     #ADM main targets are robs < 20
-    mws &= robsflux > 10**((22.5-20.0)/2.5)
+    mws &= obs_rflux > 10**((22.5-20.0)/2.5)
     
     #ADM make a copy of the main bits for a red/blue split
     red = mws.copy()
@@ -927,7 +845,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                  objtype=None, gaiamatch=None, primary=None,
                  pmra=None, pmdec=None, parallax=None, 
-                 robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+                 obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
 
     Args:
@@ -944,7 +862,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model, e.g.:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        robsflux: array_like or None
+        obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
@@ -972,7 +890,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
              objtype=None, gaiamatch=None, primary=None,
              pmra=None, pmdec=None, parallax=None, 
-             robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+             obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
     Args:
@@ -989,7 +907,7 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model, e.g.:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        robsflux: array_like or None
+        obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
@@ -1818,6 +1736,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
+
 def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     """Perform target selection on objects, returning target mask arrays
 
@@ -1865,10 +1784,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    #ADM the observed r-band flux (used for F standards and MWS, below)
-    obs_rflux = objects['FLUX_R'] 
-
-    #ADM rewrite the fluxes to shift anything on the northern
+    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
     #ADM system to approximate the southern system
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
     photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
@@ -1881,6 +1797,9 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
         objects["FLUX_G"][wnorth] = gshift
         objects["FLUX_R"][wnorth] = rshift
         objects["FLUX_Z"][wnorth] = zshift
+
+    #ADM the observed r-band flux (used for F standards and MWS, below)
+    obs_rflux = objects['FLUX_R'] 
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
@@ -1919,6 +1838,15 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     if len(w[0]) > 0:
         deltaChi2[w] = -1e6
 
+    #ADM the Gaia columns
+    gaimatch = objects["GAIA_SOURCE_ID"] != -1
+    pmra = objects['GAIA_PMRA']
+    pmdec = objects['GAIA_PMDEC']
+    parallax = objects['GAIA_PARALLAX']
+    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
+    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
+    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
+
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
         primary = objects['BRICK_PRIMARY']
@@ -1945,14 +1873,6 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     elg_south = isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
     #ADM combine ELG target bits for an ELG target based on any imaging
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
-
-    #ADM set the BGS bits
-    bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
-    bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
 
     if qso_selection=='colorcuts' :
         #ADM determine quasar targets in the north and the south separately
@@ -1986,6 +1906,32 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
                   gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                   gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
+
+    #ADM set the BGS bits
+    bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
+    bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
+
+    #ADM set the MWS bits
+    mws_main_n, mws_main_red_n, mws_main_blue_n, mws_main_red_bright_n, mws_main_red_bright_n =
+        isMWS_main_north(primary=primary, rflux=rflux, objtype=objtype, gaiamatch=gaiamatch, 
+                         pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
+    mws_main_s, mws_main_red_s, mws_main_blue_s, mws_main_red_bright_s, mws_main_red_bright_s =
+        isMWS_main_south(primary=primary, rflux=rflux, objtype=objtype, gaiamatch=gaiamatch, 
+                         pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
+    mws_nearby = isMWS_nearby(gaiamatch=gaiamatch, gaiagmag=gaiagmag, parallax=parallax)
+    mws_wd = isMWS_WD(gaiamatch=gaiamatch, parallax=parallax, 
+                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+    bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
+    bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
+    bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
