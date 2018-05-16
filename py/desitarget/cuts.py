@@ -1818,7 +1818,7 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects, qso_selection='randomforest', gaiamatch=True):
+def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -1828,7 +1828,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=True):
     Options:
         qso_selection : algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
-        gaiamatch : defaults to ``True``
+        match_to_gaia : defaults to ``True``
             if ``True``, match to Gaia DR2 chunks files and populate 
             Gaia columns to facilitate the MWS selection
 
@@ -1848,7 +1848,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=True):
         objects = io.read_tractor(objects)
 
     #ADM add Gaia information, if requested
-    if gaiamatch:
+    if match_to_gaia:
         log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
                  .format(filename,time()-start))
         gaiainfo = match_gaia_to_primary(objects)
@@ -2158,7 +2158,7 @@ qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   gaiamatch=True, sandbox=False, FoMthresh=None, Method=None):
+                   match_to_gaia=True, sandbox=False, FoMthresh=None, Method=None):
     """Process input files in parallel to select targets
 
     Parameters
@@ -2170,7 +2170,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     qso_selection : :class`str`, optional, defaults to `randomforest`
         The algorithm to use for QSO selection; valid options are 
         'colorcuts' and 'randomforest'
-    gaiamatch : :class:`boolean`, optional, defaults to ``True``
+    match_to_gaia : :class:`boolean`, optional, defaults to ``True``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
         to facilitate the MWS selection
     sandbox : :class:`boolean`, optional, defaults to ``False``
@@ -2221,14 +2221,14 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         return io.fix_tractor_dr1_dtype(targets)
 
     #- functions to run on every brick/sweep file
-    def _select_targets_file(filename, gaiamatch=True):
+    def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = 
-                          apply_cuts(objects,qso_selection,gaiamatch)
+                          apply_cuts(objects,qso_selection,match_to_gaia)
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
-    def _select_sandbox_targets_file(filename, gaiamatch=True):
+    def _select_sandbox_targets_file(filename):
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
