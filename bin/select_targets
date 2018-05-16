@@ -21,21 +21,29 @@ from desiutil.log import get_logger
 log = get_logger()
 
 from argparse import ArgumentParser
-ap = ArgumentParser()
-ap.add_argument("src", help="Tractor/sweeps file or root directory with tractor/sweeps files")
-ap.add_argument("dest", help="Output target selection file")
-ap.add_argument('-c', "--check", action='store_true',help="Process tractor/sweeps files to check for corruption, without running full target selection")
-ap.add_argument('-m', "--mask", help="If sent then mask the targets, the name of the mask file should be supplied")
-ap.add_argument("--sandbox", action='store_true',help="Apply the sandbox target selection algorithms")
-ap.add_argument("--FoMthresh", type=float,help='XD Figure of Merit Threshold for an ELG (sandbox)')
+ap = ArgumentParser(description='Generates DESI target bits from Legacy Surveys sweeps or tractor files')
+ap.add_argument("src", 
+                help="Tractor/sweeps file or root directory with tractor/sweeps files")
+ap.add_argument("dest", 
+                help="Output target selection file")
+ap.add_argument('-c', "--check", action='store_true',
+                help="Process tractor/sweeps files to check for corruption, without running full target selection")
+ap.add_argument('-m', "--mask", 
+                help="If sent then mask the targets, the name of the mask file should be supplied")
+ap.add_argument("--sandbox", action='store_true',
+                help="Apply the sandbox target selection algorithms")
+ap.add_argument("--FoMthresh", type=float,
+                help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
 ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
                 help="Method used in sandbox target for ELG")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
+ap.add_argument("--nogaia", action='store_false',
+                help="Do NOT match to Gaia DR2 chunks files in order to populate Gaia columns for MWS selection")
 ap.add_argument("--numproc", type=int,
-    help='number of concurrent processes to use [{}]'.format(nproc),
-    default=nproc)
+                help='number of concurrent processes to use [{}]'.format(nproc),
+                default=nproc)
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -45,13 +53,16 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
+print(ns.nogaia)
+
 if ns.check:
     log.info('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc)
     log.info('{} potentially corrupt files'.format(nbadfiles))
 else:
     targets = select_targets(infiles, numproc=ns.numproc,
-                             qso_selection=ns.qsoselection, sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
+                             qso_selection=ns.qsoselection, match_to_gaia=ns.nogaia,
+                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
