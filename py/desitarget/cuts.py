@@ -1916,22 +1916,23 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
 
     #ADM set the MWS bits
-    mws_main_n, mws_main_red_n, mws_main_blue_n, mws_main_red_bright_n, mws_main_red_bright_n =
+    mws_main_n, mws_main_red_n, mws_main_blue_n, mws_main_red_bright_n, mws_main_red_faint_n =
         isMWS_main_north(primary=primary, rflux=rflux, objtype=objtype, gaiamatch=gaiamatch, 
                          pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
-    mws_main_s, mws_main_red_s, mws_main_blue_s, mws_main_red_bright_s, mws_main_red_bright_s =
+    mws_main_s, mws_main_red_s, mws_main_blue_s, mws_main_red_bright_s, mws_main_red_faint_s =
         isMWS_main_south(primary=primary, rflux=rflux, objtype=objtype, gaiamatch=gaiamatch, 
                          pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
     mws_nearby = isMWS_nearby(gaiamatch=gaiamatch, gaiagmag=gaiagmag, parallax=parallax)
     mws_wd = isMWS_WD(gaiamatch=gaiamatch, parallax=parallax, 
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
-
-    bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
-    bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
+    #ADM combine the north/south MWS bits
+    mws_main = (mws_main_n & photsys_north) | (mws_main_s & photsys_south)
+    mws_main_blue = (mws_main_blue_n & photsys_north) | (mws_main_blue_s & photsys_south)
+    mws_main_red = (mws_main_red_n & photsys_north) | (mws_main_red_s & photsys_south)
+    mws_main_red_bright = (mws_main_red_bright_n & photsys_north) | 
+                                 (mws_main_red_bright_s & photsys_south)
+    mws_main_red_faint = (mws_main_red_faint_n & photsys_north) | 
+                                 (mws_main_red_faint_s & photsys_south)
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
@@ -1975,11 +1976,30 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
 
-    # Nothing for MWS yet; will be GAIA-based.
-    if isinstance(bgs_target, numbers.Integral):
-        mws_target = 0
-    else:
-        mws_target = np.zeros_like(bgs_target)
+    #ADM MWS main, nearby, and WD
+    mws_target  = mws_main * mws_mask.MWS_MAIN
+    mws_target |= mws_wd * mws_mask.MWS_WD
+    mws_target |= mws_nearby * mws_mask.MWS_NEARBY
+
+    #ADM MWS main north/south split
+    mws_target |= mws_main_north * mws_mask.MWS_MAIN_NORTH
+    mws_target |= mws_main_south * mws_mask.MWS_MAIN_SOUTH
+
+    #ADM MWS main blue/red split
+    mws_target |= mws_main_blue * mws_mask.MWS_MAIN_BLUE
+    mws_target |= mws_main_blue_north * mws_mask.MWS_MAIN_BLUE_NORTH
+    mws_target |= mws_main_blue_south * mws_mask.MWS_MAIN_BLUE_SOUTH
+    mws_target |= mws_main_red * mws_mask.MWS_MAIN_RED
+    mws_target |= mws_main_red_north * mws_mask.MWS_MAIN_RED_NORTH
+    mws_target |= mws_main_red_south * mws_mask.MWS_MAIN_RED_SOUTH
+
+    #ADM MWS main red bright/faint split
+    mws_target |= mws_main_red_faint * mws_mask.MWS_MAIN_RED_FAINT
+    mws_target |= mws_main_red_faint_north * mws_mask.MWS_MAIN_RED_FAINT_NORTH
+    mws_target |= mws_main_red_faint_south * mws_mask.MWS_MAIN_RED_FAINT_SOUTH
+    mws_target |= mws_main_red_bright * mws_mask.MWS_MAIN_RED_BRIGHT
+    mws_target |= mws_main_red_bright_north * mws_mask.MWS_MAIN_RED_BRIGHT_NORTH
+    mws_target |= mws_main_red_bright_south * mws_mask.MWS_MAIN_RED_BRIGHT_SOUTH
 
     # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
