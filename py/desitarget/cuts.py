@@ -805,6 +805,51 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return mws
 
 
+def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+             objtype=None, gaiamatch=None, primary=None,
+             pmra=None, pmdec=None, parallax=None, 
+             robsflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+    """Set bits for WHITE DWARF Milky Way Survey targets.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like or None
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            The TYPE column of the catalogue to restrict to point sources.
+        gaiamatch, boolean array_like or None
+            True if there is a match between this object in the Legacy
+            Surveys and in Gaia.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        pmra, pmdec, parallax: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax
+            (same units as the Gaia data model, e.g.:
+            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
+        robsflux: array_like or None
+            `rflux` but WITHOUT any Galactic extinction correction
+        gaiagmag, gaiabmag, gaiarmag: array_like or None
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
+            (same units as the Gaia data model).
+
+    Returns:
+        mask : array_like. 
+            True if and only if the object is a MWS-WD target.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiamatch, dtype='?')
+    mws = primary.copy()
+
+    #ADM apply the selection for all MWS-WD targets
+    #ADM must be a Legacy Surveys object that matches a Gaia source
+    mws &= gaiamatch
+    #ADM Gaia G mag of less than 20
+    mws &= gaiagmag < 20.
+    #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
+    mws &= gaiagmag - 5.*np.log10(1./parallax) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
+
+    return mws
+
+
 def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
 
