@@ -1,4 +1,4 @@
-"""
+B11;rgb:0000/0000/0000"""
 desitarget.cuts
 ===============
 
@@ -744,7 +744,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
     #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
-    red &= parallax < 1
+    red &= parallax < 1.
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
 
     #ADM make a copy of the red bits for the bright/faint split
@@ -826,7 +826,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
     #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
-    red &= parallax < 1
+    red &= parallax < 1.
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
 
     #ADM make a copy of the red bits for the bright/faint split
@@ -1845,6 +1845,9 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
 
     #ADM the Gaia columns
     gaia = objects["GAIA_SOURCE_ID"] != -1
+    #ADM note that parallax, pmra and pmdec can be NaN but we only
+    #ADM use them for direct logical comparisons (<, > etc.) and 
+    #ADM python correctly evaluates such comparisons as False
     pmra = objects['GAIA_PMRA']
     pmdec = objects['GAIA_PMDEC']
     parallax = objects['GAIA_PARALLAX']
@@ -1922,10 +1925,10 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
 
     #ADM set the MWS bits
     mws_n, mws_red_n, mws_blue_n, mws_red_bright_n, mws_red_faint_n = isMWS_main_north(
-        primary=primary, rflux=rflux, objtype=objtype, gaia=gaia, 
+        primary=primary, gflux=gflux, rflux=rflux, objtype=objtype, gaia=gaia, 
         pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
     mws_s, mws_red_s, mws_blue_s, mws_red_bright_s, mws_red_faint_s = isMWS_main_south(
-        primary=primary, rflux=rflux, objtype=objtype, gaia=gaia, 
+        primary=primary, gflux=gflux, rflux=rflux, objtype=objtype, gaia=gaia, 
         pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
     mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
     mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, 
