@@ -104,7 +104,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
             Call isLRG_colors_north if south=False, otherwise call isLRG_colors_south.
     
     Returns:
-        mask : array_like. True if and only the object is an LRG target.
+        mask : array_like. True if and only if the object is an LRG target.
     """
     if south==False:
         return isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
@@ -247,7 +247,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Call isLRG_north if south=False, otherwise call isLRG_south.
     
     Returns:
-        mask : array_like. True if and only the object is an LRG
+        mask : array_like. True if and only if the object is an LRG
             target.
     """
     if south==False:
@@ -277,7 +277,7 @@ def isLRG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is an LRG
+        mask : array_like. True if and only if the object is an LRG
             target.
 
     Notes:
@@ -323,7 +323,7 @@ def isLRG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is an LRG
+        mask : array_like. True if and only if the object is an LRG
             target.
 
     Notes:
@@ -371,7 +371,7 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Call isLRG_north if south=False, otherwise call isLRG_south.
     
     Returns:
-        mask : array_like. True if and only the object is an LRG
+        mask : array_like. True if and only if the object is an LRG
             target.
     """
     if south==False:
@@ -402,7 +402,7 @@ def isLRGpass_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
 
     Returns:
         mask0 : array_like. 
-            True if and only the object is an LRG target.
+            True if and only if the object is an LRG target.
         mask1 : array_like. 
             True if the object is a ONE pass (bright) LRG target.
         mask2 : array_like. 
@@ -451,7 +451,7 @@ def isLRGpass_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
 
     Returns:
         mask0 : array_like. 
-            True if and only the object is an LRG target.
+            True if and only if the object is an LRG target.
         mask1 : array_like. 
             True if the object is a ONE pass (bright) LRG target.
         mask2 : array_like. 
@@ -498,7 +498,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
             Call isELG_north if south=False, otherwise call isELG_south.
 
     Returns:
-        mask : array_like. True if and only the object is an ELG
+        mask : array_like. True if and only if the object is an ELG
             target.
     """
     if south==False:
@@ -522,7 +522,7 @@ def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
             satisfy each condition in g, r, z 
 
     Returns:
-        mask : array_like. True if and only the object is an ELG
+        mask : array_like. True if and only if the object is an ELG
             target.
 
     """
@@ -563,7 +563,7 @@ def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is an ELG
+        mask : array_like. True if and only if the object is an ELG
             target.
 
     """
@@ -706,7 +706,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Returns:
         mask0 : array_like. 
-            True if and only the object is a MWS-MAIN target.
+            True if and only if the object is a MWS-MAIN target.
         mask1 : array_like. 
             True if the object is a MWS-MAIN-RED target.
         mask2 : array_like. 
@@ -715,6 +715,80 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             True if the object is a MWS-MAIN-RED-BRIGHT target.
         mask4 : array_like. 
             True if the object is a MWS-MAIN-RED-FAINT target.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    mws = primary.copy()
+
+    #ADM apply the selection for all MWS-MAIN targets
+    #ADM main targets match to a Gaia source
+    mws &= gaiamatch
+    #ADM main targets are point-like
+    mws &= ~_psflike(objtype)
+    #ADM main targets are 16 <= r < 19 
+    mws &= rflux > 10**((22.5-19.0)/2.5)
+    mws &= rflux <= 10**((22.5-16.0)/2.5)
+    #ADM main targets are robs < 20
+    mws &= robsflux > 10**((22.5-20.0)/2.5)
+    
+    #ADM make a copy of the main bits for a red/blue split
+    red = mws.copy()
+    blue = mws.copy()
+
+    #ADM MWS-BLUE is g-r < 0.7
+    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
+
+    #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
+    red &= parallax < 1
+    red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
+
+    #ADM make a copy of the red bits for the bright/faint split
+    rbright = red.copy()
+    rfaint = red.copy()
+
+    #ADM calculated the overall proper motion magnitude
+    pm = np.sqrt(pmra**2 + pmdec**2)
+
+    #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
+    rbright &= rflux > 10**((22.5-18.0)/2.5)
+    rbright &= pm < 7.
+
+    #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
+    rbright &= rflux <= 10**((22.5-18.0)/2.5)
+    rbright &= pm < 5.
+
+    return mws, red, blue, rbright, rfaint
+
+
+def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+               objtype=None, primary=None, gaiamatch=None, primaray=None,
+               pmra=None, pmdec=None, parallax=None, 
+               robsflux=None, gaiarmag=None):
+    """Set bits for NEARBY Milky Way Survey targets.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like or None
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        objtype: array_like or None
+            The TYPE column of the catalogue to restrict to point sources.
+        gaiamatch, boolean array_like or None
+            True if there is a match between this object in the Legacy
+            Surveys and in Gaia.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        pmra, pmdec, parallax: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax
+            (same units as the Gaia data model, e.g.:
+            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
+        robsflux: array_like or None
+            `rflux` but WITHOUT any Galactic extinction correction
+        gaiarmag: array_like or None
+            (Extinction-corrected) Gaia-based r-band MAGNITUDE 
+            (same units as the Gaia data model).
+
+    Returns:
+        mask : array_like. 
+            True if and only if the object is a MWS-NEARBY target.
     """
     #----- Old stars, g-r > 0
     if primary is None:
@@ -737,7 +811,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     blue = mws.copy()
 
     #ADM MWS-BLUE is g-r < 0.7
-    red &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
+    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
     #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
     red &= parallax < 1
@@ -809,7 +883,7 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Call isBGS_faint_north if south=False, otherwise call isBGS_faint_south.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS target.
+        mask : array_like. True if and only if the object is a BGS target.
     """
     if south==False:
         return isBGS_faint_north(gflux, rflux, zflux, w1flux, w2flux, 
@@ -832,7 +906,7 @@ def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS target.
+        mask : array_like. True if and only if the object is a BGS target.
     """
     #------ Bright Galaxy Survey
     if primary is None:
@@ -859,7 +933,7 @@ def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS target.
+        mask : array_like. True if and only if the object is a BGS target.
     """
     #------ Bright Galaxy Survey
     if primary is None:
@@ -911,7 +985,7 @@ def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS target.
+        mask : array_like. True if and only if the object is a BGS target.
     """
     #------ Bright Galaxy Survey
     if primary is None:
@@ -936,7 +1010,7 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a BGS target.
+        mask : array_like. True if and only if the object is a BGS target.
     """
     #------ Bright Galaxy Survey
     if primary is None:
@@ -1079,7 +1153,7 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
             Call isQSO_cuts_north if south=False, otherwise call isQSO_cuts_south.
 
     Returns:
-        mask : array_like. True if and only the object is a QSO
+        mask : array_like. True if and only if the object is a QSO
             target.
     """
     if south==False:
@@ -1111,7 +1185,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a QSO
+        mask : array_like. True if and only if the object is a QSO
             target.
 
     Notes:
@@ -1161,7 +1235,7 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : array_like. True if and only the object is a QSO
+        mask : array_like. True if and only if the object is a QSO
             target.
 
     Notes:
@@ -1210,7 +1284,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             otherwise call isQSO_randomforest_south.
 
     Returns:
-        mask : array_like. True if and only the object is a QSO
+        mask : array_like. True if and only if the object is a QSO
             target.
 
     """
@@ -1243,7 +1317,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
 
     Returns:
         mask: array_like
-            True if and only the object is a QSO target.
+            True if and only if the object is a QSO target.
     """
     # BRICK_PRIMARY
     if primary is None :
@@ -1356,7 +1430,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
 
     Returns:
         mask: array_like
-            True if and only the object is a QSO target.
+            True if and only if the object is a QSO target.
     """
     # BRICK_PRIMARY
     if primary is None :
