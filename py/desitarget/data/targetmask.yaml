@@ -59,7 +59,7 @@ bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
 
-    #- Not yet used, but placeholders for North vs. South selections
+    #- BGS North vs. South selections
     - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
     - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
@@ -76,7 +76,7 @@ mws_mask:
     # First layer defines main samples -- these are expected to have distinct
     # input catalogues. 
    
-    # Bits 0-3 (7 ids)
+    #- Bits 0-3 (7 ids)
     - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
@@ -92,13 +92,25 @@ mws_mask:
     # considered filler but with parallax factored into the subpriority and
     # targeted for reobservation if possible.
     
-    # 4: Sub-classes of MWS_MAIN
-    - [MWS_MAIN_BLUE,       4, "Milky Way Survey magnitude limited blue sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED,        5, "Milky Way Survey magnitude limited red sample",          {obsconditions: BRIGHT|GRAY|DARK}]
+    #- 4: MWS_MAIN north/south splits
+    - [MWS_MAIN_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
 
-    # 8: Sub-classes of MWS_MAIN_RED
-    - [MWS_MAIN_RED_FAINT,  8, "Milky Way Survey fainter red mag-limited sample",        {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_BRIGHT, 9, "Milky Way Survey brighter red mag-limited sample",       {obsconditions: BRIGHT|GRAY|DARK}]
+    #- 8: Sub-classes of MWS_MAIN
+    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample from Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample from DECam",          {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample from Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample from DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
+
+    #- 16: Sub-classes of MWS_MAIN_RED
+    - [MWS_MAIN_RED_FAINT,         16, "Milky Way Survey fainter red mag-limited sample",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_FAINT_NORTH,   17, "MWS fainter red mag-limited sample from Bok/Mosaic",   {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_FAINT_SOUTH,   18, "MWS fainter red mag-limited sample from DECam",        {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_BRIGHT,        19, "Milky Way Survey fainter red mag-limited sample",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_BRIGHT_NORTH,  20, "MWS brighter red mag-limited sample from Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_BRIGHT_SOUTH,  21, "MWS brighter red mag-limited sample from DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
 
 
 #- Observing conditions
