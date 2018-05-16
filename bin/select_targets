@@ -53,8 +53,6 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-print(ns.nogaia)
-
 if ns.check:
     log.info('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc)

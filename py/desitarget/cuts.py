@@ -27,6 +27,11 @@ from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 from desitarget.gaiamatch import match_gaia_to_primary
 
+#ADM set up the DESI default logger
+from desiutil.log import get_logger
+log = get_logger()
+
+#ADM start the clock
 start = time()
 
 def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
@@ -679,7 +684,7 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                     objtype=None, gaiamatch=None, primary=None,
+                     objtype=None, gaia=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
                      obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for MAIN MWS targets for the BASS/MzLS photometric system.
@@ -689,7 +694,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaiamatch, boolean array_like or None
+        gaia, boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -717,12 +722,12 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             True if the object is a MWS-MAIN-RED-FAINT target.
     """
     if primary is None:
-        primary = np.ones_like(gaiamatch, dtype='?')
+        primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
-    mws &= gaiamatch
+    mws &= gaia
     #ADM main targets are point-like
     mws &= ~_psflike(objtype)
     #ADM main targets are 16 <= r < 19 
@@ -761,7 +766,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
 
 def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                     objtype=None, gaiamatch=None, primary=None,
+                     objtype=None, gaia=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
                      obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for MAIN MWS targets for the DECaLS photometric system.
@@ -771,7 +776,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaiamatch, boolean array_like or None
+        gaia, boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -799,12 +804,12 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             True if the object is a MWS-MAIN-RED-FAINT target.
     """
     if primary is None:
-        primary = np.ones_like(gaiamatch, dtype='?')
+        primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
-    mws &= gaiamatch
+    mws &= gaia
     #ADM main targets are point-like
     mws &= ~_psflike(objtype)
     #ADM main targets are 16 <= r < 19 
@@ -843,7 +848,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                 objtype=None, gaiamatch=None, primary=None,
+                 objtype=None, gaia=None, primary=None,
                  pmra=None, pmdec=None, parallax=None, 
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
@@ -853,7 +858,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaiamatch, boolean array_like or None
+        gaia, boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -873,12 +878,12 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             True if and only if the object is a MWS-NEARBY target.
     """
     if primary is None:
-        primary = np.ones_like(gaiamatch, dtype='?')
+        primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
     #ADM apply the selection for all MWS-NEARBY targets
     #ADM must be a Legacy Surveys object that matches a Gaia source
-    mws &= gaiamatch
+    mws &= gaia
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
     #ADM parallax cut corresponding to 100pc
@@ -888,7 +893,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-             objtype=None, gaiamatch=None, primary=None,
+             objtype=None, gaia=None, primary=None,
              pmra=None, pmdec=None, parallax=None, 
              obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for WHITE DWARF Milky Way Survey targets.
@@ -898,7 +903,7 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaiamatch, boolean array_like or None
+        gaia, boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -918,12 +923,12 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             True if and only if the object is a MWS-WD target.
     """
     if primary is None:
-        primary = np.ones_like(gaiamatch, dtype='?')
+        primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
     #ADM apply the selection for all MWS-WD targets
     #ADM must be a Legacy Surveys object that matches a Gaia source
-    mws &= gaiamatch
+    mws &= gaia
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
     #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
@@ -1768,11 +1773,11 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
 
     #ADM add Gaia information, if requested
     if match_to_gaia:
-        log.info('Matching Gaia to Primary objects for file {}...t = {:.1f}s'
-                 .format(filename,time()-start))
+        log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
+                 .format(len(objects),time()-start))
         gaiainfo = match_gaia_to_primary(objects)
-        log.info('Done with Gaia match for file {}...t = {:.1f}s'
-                 .format(filename,time()-start))
+        log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
+                 .format(len(objects),time()-start))
         #ADM add the Gaia column information to the primary array
         #ADM remember the columns are prepended "GAIA_" in the primary
         for col in gaiainfo.dtype.names:
@@ -1839,7 +1844,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
         deltaChi2[w] = -1e6
 
     #ADM the Gaia columns
-    gaimatch = objects["GAIA_SOURCE_ID"] != -1
+    gaia = objects["GAIA_SOURCE_ID"] != -1
     pmra = objects['GAIA_PMRA']
     pmdec = objects['GAIA_PMDEC']
     parallax = objects['GAIA_PARALLAX']
@@ -1917,13 +1922,13 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
 
     #ADM set the MWS bits
     mws_n, mws_red_n, mws_blue_n, mws_red_bright_n, mws_red_faint_n = isMWS_main_north(
-        primary=primary, rflux=rflux, objtype=objtype, gaiamatch=gaiamatch, 
+        primary=primary, rflux=rflux, objtype=objtype, gaia=gaia, 
         pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
     mws_s, mws_red_s, mws_blue_s, mws_red_bright_s, mws_red_faint_s = isMWS_main_south(
-        primary=primary, rflux=rflux, objtype=objtype, gaiamatch=gaiamatch, 
+        primary=primary, rflux=rflux, objtype=objtype, gaia=gaia, 
         pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
-    mws_nearby = isMWS_nearby(gaiamatch=gaiamatch, gaiagmag=gaiagmag, parallax=parallax)
-    mws_wd = isMWS_WD(gaiamatch=gaiamatch, parallax=parallax, 
+    mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
+    mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, 
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
     #ADM combine the north/south MWS bits
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
@@ -2189,16 +2194,16 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = 
-                          apply_cuts(objects,qso_selection,match_to_gaia)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,match_to_gaia)
+
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
     def _select_sandbox_targets_file(filename):
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = 
-                          apply_sandbox_cuts(objects,FoMthresh,Method)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
+
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
     # Counter for number of bricks processed;

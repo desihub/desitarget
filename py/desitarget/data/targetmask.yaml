@@ -213,11 +213,11 @@ priorities:
         MWS_MAIN:                     {UNOBS: 1500,DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-	MWS_MAIN_NORTH:		      SAME_AS_MWS_MAIN
-	MWS_MAIN_SOUTH:		      SAME_AS_MWS_MAIN
+        MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
+        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
         MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
         MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_BLUE
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_BLUE	
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_RED
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_RED
