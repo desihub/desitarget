@@ -1864,16 +1864,18 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
         objects["FLUX_Z"][wnorth] = zshift
 
     #ADM the observed r-band flux (used for F standards and MWS, below)
-    obs_rflux = objects['FLUX_R'] 
+    #ADM make copies of values that we may reassign due to NaNs
+    obs_rflux = objects['FLUX_R'].copy()
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
 
-    gflux = flux['GFLUX']
-    rflux = flux['RFLUX']
-    zflux = flux['ZFLUX']
-    w1flux = flux['W1FLUX']
-    w2flux = flux['W2FLUX']
+    #ADM make copies of values that we may reassign due to NaNs
+    gflux = flux['GFLUX'].copy()
+    rflux = flux['RFLUX'].copy()
+    zflux = flux['ZFLUX'].copy()
+    w1flux = flux['W1FLUX'].copy()
+    w2flux = flux['W2FLUX'].copy()
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
@@ -1903,14 +1905,15 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     if len(w[0]) > 0:
         deltaChi2[w] = -1e6
 
-    #ADM the Gaia columns
+    #ADM the Gaia columns...remember to make copies of quantities that
+    #ADM we may reassign if they are NaN for some reason
     gaia = objects["GAIA_SOURCE_ID"] != -1
-    pmra = objects['GAIA_PMRA']
-    pmdec = objects['GAIA_PMDEC']
-    parallax = objects['GAIA_PARALLAX']
-    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
-    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
-    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
+    pmra = objects['GAIA_PMRA'].copy()
+    pmdec = objects['GAIA_PMDEC'].copy()
+    parallax = objects['GAIA_PARALLAX'].copy()
+    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG'].copy()
+    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG'].copy()
+    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG'].copy()
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
