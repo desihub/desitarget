@@ -731,8 +731,8 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
-        rflux[w], gflux[w], obs_rflux[w] = 1., 1., 1.
-        parallax[w], pmra[w], pmdec[w] = 1., 1., 1.
+        rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
+        parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(mws),len(w),time()-start))
@@ -829,8 +829,8 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
-        rflux[w], gflux[w], obs_rflux[w] = 1., 1., 1.
-        parallax[w], pmra[w], pmdec[w] = 1., 1., 1.
+        rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
+        parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(mws),len(w),time()-start))
@@ -918,7 +918,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     nans = np.isnan(gaiagmag) | np.isnan(parallax)
     w = np.where(nans)[0]
     if len(w) > 0:
-        parallax[w], gaiagmag[w] = 1., 1.
+        parallax[w], gaiagmag[w] = 0., 0.
         mws &= ~nans
         log.info('NaNs in file with {} entries...t = {:.1f}s'
                  .format(len(w),time()-start))
@@ -973,7 +973,7 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     nans = np.isnan(gaiagmag) | np.isnan(gaiarmag) | np.isnan(parallax)
     w = np.where(nans)[0]
     if len(w) > 0:
-        parallax[w], gaiagmag[w], gaiarmag[w] = 1., 1., 1.
+        parallax[w], gaiagmag[w], gaiarmag[w] = 0., 0., 0.
         mws &= ~nans
         log.info('NaNs in file with {} entries...t = {:.1f}s'
                  .format(len(w),time()-start))
