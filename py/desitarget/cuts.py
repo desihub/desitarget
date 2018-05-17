@@ -741,7 +741,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     #ADM main targets match to a Gaia source
     mws &= gaia
     #ADM main targets are point-like
-    mws &= ~_psflike(objtype)
+    mws &= _psflike(objtype)
     #ADM main targets are 16 <= r < 19 
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
@@ -988,11 +988,11 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
     #ADM We've set parallax=zero for some objects with gaia=False hence the
     #ADM "where" in the divide and log10 (gaia=False objects can't be selected anyway)
-    dist = np.divide(1.,parallax,where=parallax > 0)
+    dist = np.divide(1.,parallax,where=parallax > 1e-16)
     #ADM Getting some strange Runtime warnings on a few values
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        mws &= gaiagmag - 5.*np.log10(dist,where=dist > 0) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
+        mws &= gaiagmag - 5.*np.log10(dist,where=dist > 1e-16) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
 
     return mws
 
@@ -1994,8 +1994,8 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
-    mws_red_bright = (mws__red_bright_n & photsys_north) | (mws_red_bright_s & photsys_south)
-    mws_red_faint = (mws__red_faint_n & photsys_north) | (mws_red_faint_s & photsys_south)
+    mws_red_bright = (mws_red_bright_n & photsys_north) | (mws_red_bright_s & photsys_south)
+    mws_red_faint = (mws_red_faint_n & photsys_north) | (mws_red_faint_s & photsys_south)
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
