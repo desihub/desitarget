@@ -731,11 +731,11 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
-        rflux[w], gflux[w], obs_rflux[w] = 0, 0, 0
-        parallax[w], pmra[w], pmdec[w] = 0, 0, 0
+        rflux[w], gflux[w], obs_rflux[w] = 1., 1., 1.
+        parallax[w], pmra[w], pmdec[w] = 1., 1., 1.
         mws &= ~nans
-        log.info('NaNs in file with {} entries...t = {:.1f}s'
-                 .format(len(w),time()-start))
+        log.info('{}/{} NaNs in file...t = {:.1f}s'
+                 .format(len(mws),len(w),time()-start))
 
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
@@ -764,7 +764,11 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     rfaint = red.copy()
 
     #ADM calculate the overall proper motion magnitude
-    pm = np.sqrt(pmra**2 + pmdec**2)
+    #ADM inexplicably I'm getting a Runtimewarning here for
+    #ADM negative numbers in the sqrt, so I'm catching it
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2 + pmdec**2)
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
     rbright &= rflux > 10**((22.5-18.0)/2.5)
@@ -825,11 +829,11 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
-        rflux[w], gflux[w], obs_rflux[w] = 0, 0, 0
-        parallax[w], pmra[w], pmdec[w] = 0, 0, 0
+        rflux[w], gflux[w], obs_rflux[w] = 1., 1., 1.
+        parallax[w], pmra[w], pmdec[w] = 1., 1., 1.
         mws &= ~nans
-        log.info('NaNs in file with {} entries...t = {:.1f}s'
-                 .format(len(w),time()-start))
+        log.info('{}/{} NaNs in file...t = {:.1f}s'
+                 .format(len(mws),len(w),time()-start))
 
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
@@ -858,7 +862,11 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     rfaint = red.copy()
 
     #ADM calculate the overall proper motion magnitude
-    pm = np.sqrt(pmra**2 + pmdec**2)
+    #ADM inexplicably I'm getting a Runtimewarning here for
+    #ADM negative numbers in the sqrt, so I'm catching it
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2 + pmdec**2)
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
     rbright &= rflux > 10**((22.5-18.0)/2.5)
@@ -910,7 +918,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     nans = np.isnan(gaiagmag) | np.isnan(parallax)
     w = np.where(nans)[0]
     if len(w) > 0:
-        parallax[w], gaiagmag[w] = 0, 0
+        parallax[w], gaiagmag[w] = 1., 1.
         mws &= ~nans
         log.info('NaNs in file with {} entries...t = {:.1f}s'
                  .format(len(w),time()-start))
@@ -965,7 +973,7 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     nans = np.isnan(gaiagmag) | np.isnan(gaiarmag) | np.isnan(parallax)
     w = np.where(nans)[0]
     if len(w) > 0:
-        parallax[w], gaiagmag[w], gaiarmag[w] = 0, 0, 0
+        parallax[w], gaiagmag[w], gaiarmag[w] = 1., 1., 1.
         mws &= ~nans
         log.info('NaNs in file with {} entries...t = {:.1f}s'
                  .format(len(w),time()-start))
@@ -976,6 +984,9 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
     #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
+    #ADM As we use zero as a default for parallax, add a small amount to it
+    #ADM (these won't be targeted as they will have a "gaia" of False)
+    parallax += 1e-30
     mws &= gaiagmag - 5.*np.log10(1./parallax) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
 
     return mws
