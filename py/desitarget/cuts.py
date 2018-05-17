@@ -775,8 +775,8 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     rbright &= pm < 7.
 
     #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-    rbright &= rflux <= 10**((22.5-18.0)/2.5)
-    rbright &= pm < 5.
+    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
+    rfaint &= pm < 5.
 
     return mws, red, blue, rbright, rfaint
 
@@ -873,8 +873,8 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     rbright &= pm < 7.
 
     #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-    rbright &= rflux <= 10**((22.5-18.0)/2.5)
-    rbright &= pm < 5.
+    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
+    rfaint &= pm < 5.
 
     return mws, red, blue, rbright, rfaint
 
