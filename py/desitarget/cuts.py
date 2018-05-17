@@ -725,6 +725,18 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
+    #ADM do not target any objects for which entries are NaN
+    #ADM and turn off the NaNs for those entries
+    nans = (np.isnan(rflux) | np.isnan(gflux) 
+            | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
+    w = np.where(nans)[0]
+    if len(w) > 0:
+        rflux[w], gflux[w], obs_rflux[w] = 0, 0, 0
+        parallax[w], pmra[w], pmdec[w] = 0, 0, 0
+        mws &= ~nans
+        log.info('NaNs in file with {} entries...t = {:.1f}s'
+                 .format(len(w),time()-start))
+
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
     mws &= gaia
@@ -751,7 +763,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     rbright = red.copy()
     rfaint = red.copy()
 
-    #ADM calculated the overall proper motion magnitude
+    #ADM calculate the overall proper motion magnitude
     pm = np.sqrt(pmra**2 + pmdec**2)
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
@@ -807,6 +819,18 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
+    #ADM do not target any objects for which entries are NaN
+    #ADM and turn off the NaNs for those entries
+    nans = (np.isnan(rflux) | np.isnan(gflux) 
+            | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
+    w = np.where(nans)[0]
+    if len(w) > 0:
+        rflux[w], gflux[w], obs_rflux[w] = 0, 0, 0
+        parallax[w], pmra[w], pmdec[w] = 0, 0, 0
+        mws &= ~nans
+        log.info('NaNs in file with {} entries...t = {:.1f}s'
+                 .format(len(w),time()-start))
+
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
     mws &= gaia
@@ -833,7 +857,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     rbright = red.copy()
     rfaint = red.copy()
 
-    #ADM calculated the overall proper motion magnitude
+    #ADM calculate the overall proper motion magnitude
     pm = np.sqrt(pmra**2 + pmdec**2)
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
@@ -881,6 +905,16 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
+    #ADM do not target any objects for which entries are NaN
+    #ADM and turn off the NaNs for those entries
+    nans = np.isnan(gaiagmag) | np.isnan(parallax)
+    w = np.where(nans)[0]
+    if len(w) > 0:
+        parallax[w], gaiagmag[w] = 0, 0
+        mws &= ~nans
+        log.info('NaNs in file with {} entries...t = {:.1f}s'
+                 .format(len(w),time()-start))
+
     #ADM apply the selection for all MWS-NEARBY targets
     #ADM must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
@@ -925,6 +959,16 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
+
+    #ADM do not target any objects for which entries are NaN
+    #ADM and turn off the NaNs for those entries
+    nans = np.isnan(gaiagmag) | np.isnan(gaiarmag) | np.isnan(parallax)
+    w = np.where(nans)[0]
+    if len(w) > 0:
+        parallax[w], gaiagmag[w], gaiarmag[w] = 0, 0, 0
+        mws &= ~nans
+        log.info('NaNs in file with {} entries...t = {:.1f}s'
+                 .format(len(w),time()-start))
 
     #ADM apply the selection for all MWS-WD targets
     #ADM must be a Legacy Surveys object that matches a Gaia source
@@ -1845,9 +1889,6 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
 
     #ADM the Gaia columns
     gaia = objects["GAIA_SOURCE_ID"] != -1
-    #ADM note that parallax, pmra and pmdec can be NaN but we only
-    #ADM use them for direct logical comparisons (<, > etc.) and 
-    #ADM python correctly evaluates such comparisons as False
     pmra = objects['GAIA_PMRA']
     pmdec = objects['GAIA_PMDEC']
     parallax = objects['GAIA_PARALLAX']
