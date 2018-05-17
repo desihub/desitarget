@@ -735,7 +735,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(mws),len(w),time()-start))
+                 .format(len(w),len(mws),time()-start))
 
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
@@ -765,10 +765,10 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     #ADM calculate the overall proper motion magnitude
     #ADM inexplicably I'm getting a Runtimewarning here for
-    #ADM negative numbers in the sqrt, so I'm catching it
+    #ADM a few values in the sqrt, so I'm catching it
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2 + pmdec**2)
+        pm = np.sqrt(pmra**2. + pmdec**2.)
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
     rbright &= rflux > 10**((22.5-18.0)/2.5)
@@ -833,7 +833,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(mws),len(w),time()-start))
+                 .format(len(w),len(mws),time()-start))
 
     #ADM apply the selection for all MWS-MAIN targets
     #ADM main targets match to a Gaia source
@@ -863,10 +863,10 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     #ADM calculate the overall proper motion magnitude
     #ADM inexplicably I'm getting a Runtimewarning here for
-    #ADM negative numbers in the sqrt, so I'm catching it
+    #ADM a few values in the sqrt, so I'm catching it
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2 + pmdec**2)
+        pm = np.sqrt(pmra**2. + pmdec**2.)
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
     rbright &= rflux > 10**((22.5-18.0)/2.5)
@@ -920,8 +920,8 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if len(w) > 0:
         parallax[w], gaiagmag[w] = 0., 0.
         mws &= ~nans
-        log.info('NaNs in file with {} entries...t = {:.1f}s'
-                 .format(len(w),time()-start))
+        log.info('{}/{} NaNs in file...t = {:.1f}s'
+                 .format(len(w),len(mws),time()-start))
 
     #ADM apply the selection for all MWS-NEARBY targets
     #ADM must be a Legacy Surveys object that matches a Gaia source
@@ -970,13 +970,15 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     #ADM do not target any objects for which entries are NaN
     #ADM and turn off the NaNs for those entries
-    nans = np.isnan(gaiagmag) | np.isnan(gaiarmag) | np.isnan(parallax)
+    nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) | 
+                   np.isnan(parallax))
     w = np.where(nans)[0]
     if len(w) > 0:
-        parallax[w], gaiagmag[w], gaiarmag[w] = 0., 0., 0.
+        parallax[w] = 0.
+        gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
         mws &= ~nans
-        log.info('NaNs in file with {} entries...t = {:.1f}s'
-                 .format(len(w),time()-start))
+        log.info('{}/{} NaNs in file...t = {:.1f}s'
+                 .format(len(w),len(mws),time()-start))
 
     #ADM apply the selection for all MWS-WD targets
     #ADM must be a Legacy Surveys object that matches a Gaia source
@@ -984,10 +986,13 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
     #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
-    #ADM As we use zero as a default for parallax, add a small amount to it
-    #ADM (these won't be targeted as they will have a "gaia" of False)
-    parallax += 1e-30
-    mws &= gaiagmag - 5.*np.log10(1./parallax) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
+    #ADM We've set parallax=zero for some objects with gaia=False hence the
+    #ADM "where" in the divide and log10 (gaia=False objects can't be selected anyway)
+    dist = np.divide(1.,parallax,where=parallax > 0)
+    #ADM Getting some strange Runtime warnings on a few values
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        mws &= gaiagmag - 5.*np.log10(dist,where=dist > 0) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
 
     return mws
 
