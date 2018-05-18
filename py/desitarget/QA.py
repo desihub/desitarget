@@ -2357,9 +2357,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                   'STD_FSTAR': 200, 'STD_BRIGHT': 50,
                   'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                   'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_ANY': 5000,
-                  'MWS_ANY': 2000, 'MWS_MAIN': 2000, 'MWS_WD': 1000, 'MWS_NEARBY': 50,
-                  'MWS_MAIN_RED': 1000, 'MWS_MAIN_BLUE': 1000, 
-                  'MWS_MAIN_RED_FAINT': 1000, 'MWS_MAIN_RED_BRIGHT': 1000}
+                  'MWS_ANY': 2000, 'MWS_MAIN': 10000, 'MWS_WD': 10000, 'MWS_NEARBY': 50,
+                  'MWS_MAIN_RED': 10000, 'MWS_MAIN_BLUE': 10000, 
+                  'MWS_MAIN_RED_FAINT': 200, 'MWS_MAIN_RED_BRIGHT': 200}
 
     for objtype in targdens:
         if 'ALL' in objtype:
