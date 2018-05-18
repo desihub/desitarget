@@ -938,6 +938,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws &= gaiagmag < 20.
     #ADM parallax cut corresponding to 100pc
     mws &= parallax > 10.
+    #ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
 
@@ -978,7 +979,6 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     #ADM do not target any objects for which entries are NaN
     #ADM and turn off the NaNs for those entries
-    #ADM not clear what we should do with negative parallaxes, which
     nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) | 
                    np.isnan(parallax))
     w = np.where(nans)[0]
