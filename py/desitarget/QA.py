@@ -28,7 +28,7 @@ from . import __version__ as desitarget_version
 from desiutil import brick
 from desiutil.log import get_logger, DEBUG
 from desiutil.plots import init_sky, plot_sky_binned
-from desitarget.targetmask import desi_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 import warnings, itertools
 import matplotlib
@@ -1347,16 +1347,24 @@ def _load_targdens():
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FSTAR'] = 0
     targdens['STD_BRIGHT'] = 0
-    targdens['MWS_ANY'] = 0
+    targdens['MWS_ANY'] = targdict['ntarget_mws']
     #ADM set "ALL" to be the sum over all the target classes
     targdens['ALL'] = sum(list(targdens.values()))
 
-    ##ADM for quick debugging
-    #targdens = {}
-    #targdens['LRG'] = targdict['ntarget_lrg']
-    #targdens['ELG'] = targdict['ntarget_elg']
-    #targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
-    #targdens['MWS_ANY'] = 0
+    #ADM add in some sub-classes, not that ALL has been calculated
+    targdens['LRG_1PASS'] = 0.
+    targdens['LRG_2PASS'] = 0.
+    
+    targdens['BGS_FAINT'] = targdict['ntarget_bgs_faint'] 
+    targdens['BGS_BRIGHT'] = targdict['ntarget_bgs_bright'] 
+
+    targdens['MWS_MAIN'] = 0.
+    targdens['MWS_MAIN_RED'] = 0.
+    targdens['MWS_MAIN_BLUE'] = 0.
+    targdens['MWS_MAIN_RED_FAINT'] = 0.
+    targdens['MWS_MAIN_RED_BRIGHT'] = 0.
+    targdens['MWS_WD'] = 0.
+    targdens['MWS_NEARBY'] = 0.
 
     return targdens
 
@@ -2346,14 +2354,23 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
     upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
-                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500,
-                  'MWS_ANY': 1500}
+                  'STD_FSTAR': 200, 'STD_BRIGHT': 50,
+                  'LRG_1PASS': 1200, 'LRG_2PASS': 1200,
+                  'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_ANY': 4500,
+                  'MWS_ANY': 1500, 'MWS_MAIN': 1000, 'MWS_WD': 300, 'MWS_NEARBY': 300,
+                  'MWS_MAIN_RED': 1000, 'MWS_MAIN_BLUE': 1000, 
+                  'MWS_MAIN_RED_FAINT': 300, 'MWS_MAIN_RED_BRIGHT': 300}
 
     for objtype in targdens:
         if 'ALL' in objtype:
             w = np.arange(len(targs))
         else:
-            w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
+            if  ('BGS' in objtype) & ~('ANY' in objtype):
+                w = np.where(targs["BGS_TARGET"] & bgs_mask[objtype])[0]
+            elif ('MWS' in objtype) & ~('ANY' in objtype):
+                w = np.where(targs["MWS_TARGET"] & mws_mask[objtype])[0]
+            else:
+                w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
 
         if len(w) > 0:
             #ADM make RA/Dec skymaps
