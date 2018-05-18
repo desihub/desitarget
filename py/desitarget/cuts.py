@@ -727,10 +727,13 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     #ADM do not target any objects for which entries are NaN
     #ADM and turn off the NaNs for those entries
-    nans = (np.isnan(rflux) | np.isnan(gflux) 
-            | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
+    nans = (np.isnan(rflux) | np.isnan(gflux) |
+               np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
+        #ADM make copies as we are reassigning values
+        rflux, gflux, obs_rflux = rflux.copy(), gflux.copy(), obs_rflux.copy()
+        parallax, pmra, pmdec = parallax.copy(), pmra.copy(), pmdec.copy()
         rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
         parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
@@ -825,10 +828,13 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
     #ADM do not target any objects for which entries are NaN
     #ADM and turn off the NaNs for those entries
-    nans = (np.isnan(rflux) | np.isnan(gflux) 
-            | np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
+    nans = (np.isnan(rflux) | np.isnan(gflux) |
+               np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
+        #ADM make copies as we are reassigning values
+        rflux, gflux, obs_rflux = rflux.copy(), gflux.copy(), obs_rflux.copy()
+        parallax, pmra, pmdec = parallax.copy(), pmra.copy(), pmdec.copy()
         rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
         parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
@@ -918,6 +924,8 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     nans = np.isnan(gaiagmag) | np.isnan(parallax)
     w = np.where(nans)[0]
     if len(w) > 0:
+        #ADM make copies as we are reassigning values
+        parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
         parallax[w], gaiagmag[w] = 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
@@ -970,10 +978,13 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     #ADM do not target any objects for which entries are NaN
     #ADM and turn off the NaNs for those entries
+    #ADM not clear what we should do with negative parallaxes, which
     nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) | 
                    np.isnan(parallax))
     w = np.where(nans)[0]
     if len(w) > 0:
+        parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
+        gaiabmag, gaiarmag = gaiabmag.copy(), gaiarmag.copy()
         parallax[w] = 0.
         gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
         mws &= ~nans
@@ -993,6 +1004,8 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         mws &= gaiagmag - 5.*np.log10(dist,where=dist > 1e-16) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
+    #ADM NOTE TO THE MWS GROUP: If Parallaxes are negative (i.e. presumably "very distant
+    #ADM but not measurably so") THEY WILL BE TARGETED BY THIS LOGIC. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
 
@@ -1865,17 +1878,17 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
 
     #ADM the observed r-band flux (used for F standards and MWS, below)
     #ADM make copies of values that we may reassign due to NaNs
-    obs_rflux = objects['FLUX_R'].copy()
+    obs_rflux = objects['FLUX_R']
 
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
 
     #ADM make copies of values that we may reassign due to NaNs
-    gflux = flux['GFLUX'].copy()
-    rflux = flux['RFLUX'].copy()
-    zflux = flux['ZFLUX'].copy()
-    w1flux = flux['W1FLUX'].copy()
-    w2flux = flux['W2FLUX'].copy()
+    gflux = flux['GFLUX']
+    rflux = flux['RFLUX']
+    zflux = flux['ZFLUX']
+    w1flux = flux['W1FLUX']
+    w2flux = flux['W2FLUX']
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
@@ -1908,12 +1921,12 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     #ADM the Gaia columns...remember to make copies of quantities that
     #ADM we may reassign if they are NaN for some reason
     gaia = objects["GAIA_SOURCE_ID"] != -1
-    pmra = objects['GAIA_PMRA'].copy()
-    pmdec = objects['GAIA_PMDEC'].copy()
-    parallax = objects['GAIA_PARALLAX'].copy()
-    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG'].copy()
-    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG'].copy()
-    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG'].copy()
+    pmra = objects['GAIA_PMRA']
+    pmdec = objects['GAIA_PMDEC']
+    parallax = objects['GAIA_PARALLAX']
+    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
+    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
+    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
