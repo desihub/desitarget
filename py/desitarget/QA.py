@@ -2602,10 +2602,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
         htmlmain.write('<br><b><i>Overlaps in target densities (per sq. deg.)</b></i>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
-        #ADM remove the 'ALL' class from the tardens dictionary as it overlaps with everything
-        dum = targdens.pop("ALL")
+        #ADM only retain classes that are actually in the DESI target bit list
+        targdens = set(desi_mask.names()).intersection(set(targdens))        
         #ADM write out a list of the target categories
-        headerlist = list(targdens.keys())
+        headerlist = list(targdens)
         headerlist.insert(0," ")
         header = " ".join(['{:>11s}'.format(i) for i in headerlist])+'\n\n'
         htmlmain.write(header)
