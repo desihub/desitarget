@@ -398,17 +398,17 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
     #ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
     import warnings
     
-    #ADM set up a zerod array of Gaia information for the passed object
-    nobjs = len(np.atleast_1d(objs))
+    #ADM convert the coordinates of the input objects to a SkyCoord object
+    cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
+    nobjs = cobjs.size
     if nobjs > 1:
         log.error("Only matches one row but {} rows were sent".format(nobjs))
+
+    #ADM set up a zerod array of Gaia information for the passed object
     gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
     #ADM an object without matches should have SOURCE_ID of -1
     gaiainfo['SOURCE_ID'] = -1
-
-    #ADM convert the coordinates of the input object to a SkyCoord object
-    cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
 
     #ADM determine which Gaia files need to be considered
     gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
