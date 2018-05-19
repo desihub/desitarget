@@ -20,8 +20,10 @@ tractordir = '/project/projectdirs/cosmo/data/legacysurvey/dr3.1/tractor/330'
 #tractordir = '/data/legacysurvey/dr3.1/tractor/330/'
 for brick in ['3301m002', '3301m007', '3303p000']:
     filepath = '{}/tractor-{}.fits'.format(tractordir, brick)
-    desi_target = apply_cuts(filepath)[0]
-    yes = np.where(desi_target != 0)[0]
+    desi_target, bgs_target, mws_target = apply_cuts(filepath)
+    #ADM as nobody is testing the MWS in the sandbox, yet, we need to
+    #ADM ensure we ignore MWS targets for testing the main algorithms
+    yes = np.where( (desi_target != 0) & (mws_target == 0) )[0]
     no = np.where(desi_target == 0)[0]
     keep = np.concatenate([yes[0:3], no[0:3]])
 #    data, hdr = fits.getdata(filepath, header=True)
@@ -38,8 +40,10 @@ sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1'
 #sweepdir = '/data/legacysurvey/dr2p/sweep/'
 for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
-    desi_target = apply_cuts(filepath)[0]
-    yes = np.where(desi_target != 0)[0]
+    desi_target, bgs_target, mws_target = apply_cuts(filepath)
+    yes = np.where( (desi_target != 0) & (mws_target == 0) )[0]
+    #ADM as nobody is testing the MWS in the sandbox, yet, we need to
+    #ADM ensure we ignore MWS targets for testing the main algorithms
     no = np.where(desi_target == 0)[0]
     keep = np.concatenate([yes[0:3], no[0:3]])
 #    data, hdr = fits.getdata(filepath, header=True)
