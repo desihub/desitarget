@@ -15,6 +15,25 @@ import desimodel.focalplane
 import desitarget.io
 import desimodel.io
 from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.targets import encode_targetid
+
+#ADM set up default DESI logger
+from desiutil.log import get_logger
+log = get_logger()
+
+from time import time
+start = time()
+
+#ADM the current data model for GFA files with the files
+#ADM from Gaia prepended by GAIA ("GAIA" is removed before
+#ADM being passed downstream
+gfadatamodel = np.array([], dtype=[
+            ('GAIA_SOURCE_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
+            ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'),
+            ('GAIA_PMRA', '>f4'), ('GAIA_PMDEC', '>f4'), ('TARGETID', '>i8'),
+            ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4')
+                                   ] )
+
 
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     """Trims the input data to a rectangular windonw in RA,DEC.
@@ -189,7 +208,7 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, gfa_data, extname='GFA')
 
 
-def gaia_gfa_from_sweep(objects, 
+def gaia_gfas_from_sweep(objects, maglim=18, 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Create a set of GFAs from Gaia-matching for one sweep file or sweep objects
 
@@ -198,21 +217,84 @@ def gaia_gfa_from_sweep(objects,
     objects: :class:`numpy.ndarray` or `str`
         Numpy structured array with UPPERCASE columns needed for target selection, OR 
         a string tractor/sweep filename.
+    maglim : :class:`float`, optional, defaults to 18
+        Magnitude limit for GFAs in Gaia G-band.
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
     :class:`numpy.ndarray`
-        The corresponding Gaia objects, with sweeps information added where available
+        GFA objects from Gaia for the tractor/sweep region, formatted according to 
+        `desitarget.gfa.gfadatamodel`
     """
     #ADM read in objects if a filename was passed instead of the actual data
     if isinstance(objects, str):
-        objects = io.read_tractor(objects)
-
+        objects = desitarget.io.read_tractor(objects)
     nobjs = len(objects)
 
     #ADM match the sweeps objects to Gaia retaining Gaia objects that do not
     #ADM have a match in the sweeps
+    log.info('Starting Gaia match for {} objects...t = {:.1f}s'
+             .format(nobjs,time()-start))
     gaiainfo = match_gaia_to_primary(objects,gaiadir=gaiadir,retaingaia=True)
+    log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
+    #ADM add the Gaia column information to the primary array
+    #ADM remember the columns are prepended "GAIA_" in the primary
+    for col in gaiainfo.dtype.names:
+        objects["GAIA_"+col] = gaiainfo[col][:nobjs]
     
+    #ADM an additional array to hold the Gaia objects that have no sweeps match
+    supg = np.zeros(len(gaiainfo) - nobjs, dtype=objects.dtype)
+    #ADM make sure all of these additional columns have "ridiculous" numbers
+    supg[...] = -1
+    #ADM populate these additional objects
+    for col in gaiainfo.dtype.names:
+        supg["GAIA_"+col] = gaiainfo[col][nobjs:]
+
+    #ADM combine the primary and supplemental arrays
+    objects = np.hstack([objects,supg])
+
+    #ADM only retain objects with Gaia matches
+    #ADM it's fine to propagate an empty array if there are no matches
+    w = np.where(objects["GAIA_SOURCE_ID"] != -1)[0]
+    objects = objects[w]
+
+    #ADM it's possible that a Gaia object matches two sweeps objects, so
+    #ADM only record unique Gaia IDs
+    _, ind = np.unique(objects["GAIA_SOURCE_ID"], return_index=True)
+    log.info('Removed {} duplicated Gaia objects...t = {:.1f}s'
+             .format(len(objects)-len(ind),time()-start))
+    objects = objects[ind]
+     
+    #ADM determine a TARGETID for any objects on a brick (this should
+    #ADM end up as -1 for anything that is Gaia-only as all of
+    #ADM objid, brickid and release should be -1
+    targetid = encode_targetid(objid=objects['OBJID'],
+                               brickid=objects['BRICKID'],
+                               release=objects['RELEASE'])
+
+    #ADM format everything according to the data model
+    gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
+    #ADM make sure all columns initially have "ridiculous" numbers                                                                                       
+    gfas[...] = -1
+    #ADM remove the TARGETID col as we'll populate it later
+    cols = list(gfadatamodel.dtype.names)
+    cols.remove("TARGETID")
+    for col in cols:
+        gfas[col] = objects[col]
+    #ADM populate the TARGETID column
+    gfas["TARGETID"] = targetid
+
+    #ADM cut the GFAs by a hard limit on magnitude
+    w = np.where(gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim)[0]
+    gfas = gfas[w]
+    
+    #ADM a final clean-up to remove columns that are Nan
+    for col in ["GAIA_PMRA","GAIA_PMDEC"]:
+        w = np.where(~np.isnan(gfas[col]))[0]
+        gfas = gfas[w]
+    log.info('Removed {} Gaia objects with NaN columns...t = {:.1f}s'
+             .format(len(objects)-len(gfas),time()-start))
+
+    return gfas
