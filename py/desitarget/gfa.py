@@ -5,15 +5,16 @@ desitarget.gfa
 Guide/Focus/Aligment targets
 """
 
-import desimodel.focalplane
 import fitsio
 import numpy as np
 import os.path
-import desitarget.io
-import desimodel.io
 import glob
 import os
 
+import desimodel.focalplane
+import desitarget.io
+import desimodel.io
+from desitarget.gaiamatch import match_gaia_to_primary
 
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     """Trims the input data to a rectangular windonw in RA,DEC.
@@ -209,4 +210,9 @@ def gaia_gfa_from_sweep(objects,
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
 
+    nobjs = len(objects)
+
+    #ADM match the sweeps objects to Gaia retaining Gaia objects that do not
+    #ADM have a match in the sweeps
+    gaiainfo = match_gaia_to_primary(objects,gaiadir=gaiadir,retaingaia=True)
     
