@@ -15,7 +15,6 @@ import glob
 import os
 
 
-
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     """Trims the input data to a rectangular windonw in RA,DEC.
 
@@ -44,6 +43,7 @@ def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     jj = jj | ((360.0 - delta_RA) < window_ra)
     jj = jj & (np.fabs(delta_dec) < window_dec)
     return jj
+
 
 def write_gfa_targets(sweep_dir="./", desi_tiles=None, output_path="./", log=None):
     """Computes and writes to disk GFA targets for every tile
@@ -186,3 +186,27 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, fiber_data, extname='FIBERASSIGN', clobber=True)
             fitsio.write(tileout, potential_data, extname='POTENTIAL')
             fitsio.write(tileout, gfa_data, extname='GFA')
+
+
+def gaia_gfa_from_sweep(objects, 
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+    """Create a set of GFAs from Gaia-matching for one sweep file or sweep objects
+
+    Parameters
+    ----------
+    objects: :class:`numpy.ndarray` or `str`
+        Numpy structured array with UPPERCASE columns needed for target selection, OR 
+        a string tractor/sweep filename.
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        The corresponding Gaia objects, with sweeps information added where available
+    """
+    #ADM read in objects if a filename was passed instead of the actual data
+    if isinstance(objects, str):
+        objects = io.read_tractor(objects)
+
+    
