@@ -36,7 +36,6 @@ gfadatamodel = np.array([], dtype=[
             ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4')
                                    ] )
 
-
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     """Trims the input data to a rectangular windonw in RA,DEC.
 
@@ -210,7 +209,7 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, gfa_data, extname='GFA')
 
 
-def gaia_gfas_from_sweep(objects, maglim=18, 
+def gaia_gfas_from_sweep(objects, maglim=18., 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Create a set of GFAs from Gaia-matching for one sweep file or sweep objects
 
@@ -234,13 +233,15 @@ def gaia_gfas_from_sweep(objects, maglim=18,
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
-    #ADM As a speed up, only consider sweeps objects brighter than 0.5 mags
+    #ADM As a speed up, only consider sweeps objects brighter than 1 mags
     #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
     #ADM approximates SDSS r-band. This isn't a critical cut as we don't use 
     #ADM the sweeps to populate flux information for ALL Gaia objects anyway.
     #ADM A maglim + 0.5 mag cut here removes ~0.9% of Gaia-sweeps matches
     #ADM compared to no mag cut. A maglim + 1 cut removes ~0.6% of matches.
-    w = np.where(objects["FLUX_R"] > 10**((22.5-(maglim+0.5))/2.5))[0]
+    w = np.where( (objects["FLUX_G"] > 10**((22.5-(maglim+1))/2.5)) |
+                  (objects["FLUX_R"] > 10**((22.5-(maglim+1))/2.5)) |
+                  (objects["FLUX_Z"] > 10**((22.5-(maglim+1))/2.5)) )
     objects = objects[w]
 
     nobjs = len(objects)
