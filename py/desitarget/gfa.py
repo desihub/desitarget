@@ -12,8 +12,10 @@ import glob
 import os
 
 import desimodel.focalplane
-import desitarget.io
 import desimodel.io
+
+import desitarget.io
+from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.targets import encode_targetid
 
@@ -231,6 +233,15 @@ def gaia_gfas_from_sweep(objects, maglim=18,
     #ADM read in objects if a filename was passed instead of the actual data
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
+
+    #ADM as a speed up, only consider sweeps objects that are brighter than
+    #ADM 0.5 magnitudes fainter than the passed Gaia magnitude limit.
+    #ADM note that Gaia G-band approximates SDSS r-band. This isn't
+    #ADM a critical cut as we only use the sweeps information to 
+    #ADM populate flux information for some, not all, Gaia matches.
+    w = np.where(objects["FLUX_R"] > 10**((22.5-(maglim+0.5))/2.5))[0]
+    objects = objects[w]
+
     nobjs = len(objects)
 
     #ADM match the sweeps objects to Gaia retaining Gaia objects that do not
@@ -336,18 +347,10 @@ def select_gfas(infiles, maglim=18, numproc=4,
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
-    def _finalize_gfas(gfas):
-        '''remove prepended "GAIA_" from any column names in an array of GFAs'''
-        dmnames = list(gfas.dtype.names)
-        dmnamesnogaia = tuple([ name.replace('GAIA_', '') for name in dmnames ])
-        gfas.dtype.names = dmnamesnogaia
-        return gfas
-
     #ADM the critical function to run on every file
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
-        gfas = gaia_gfas_from_sweep(fn, maglim=maglim, gaiadir=gaiadir)
-        return _finalize_gfas(gfas)
+        return gaia_gfas_from_sweep(fn, maglim=maglim, gaiadir=gaiadir)
 
     #ADM this is just to count bricks in _update_status                                                                                               
     nbrick = np.zeros((), dtype='i8')
@@ -374,6 +377,12 @@ def select_gfas(infiles, maglim=18, numproc=4,
             gfas.append(_update_status(_get_gfas(file)))
 
     gfas = np.concatenate(gfas)
+
+    #ADM finally, remove the prepended "GAIA_" from any column names as this
+    #ADM is expected for the downstream data model for GFAs
+    dmnames = list(gfas.dtype.names)
+    dmnamesnogaia = tuple([ name.replace('GAIA_', '') for name in dmnames ])
+    gfas.dtype.names = dmnamesnogaia
 
     return gfas
 
