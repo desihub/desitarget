@@ -234,7 +234,7 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     """
     #ADM read in objects if a filename was passed instead of the actual data
     if isinstance(objects, str):
-        objects = desitarget.io.read_sweep(objects)
+        objects = desitarget.io.read_tractor(objects)
 
     #ADM As a speed up, only consider sweeps objects brighter than 1 mags
     #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
@@ -251,11 +251,11 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
 
     #ADM match the sweeps objects to Gaia retaining Gaia objects that do not
     #ADM have a match in the sweeps
-    log.info('Starting Gaia match for {} objects...t = {:.1f}s'
-             .format(nobjs,time()-start))
+#    log.info('Starting Gaia match for {} objects...t = {:.1f}s'
+#             .format(nobjs,time()-start))
     gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir,
                                      retaingaia=True, gaiabounds=gaiabounds)
-    log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
+#    log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
     #ADM add the Gaia column information to the primary array
     #ADM remember the columns are prepended "GAIA_" in the primary
     for col in gaiainfo.dtype.names:
@@ -280,8 +280,8 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     #ADM it's possible that a Gaia object matches two sweeps objects, so
     #ADM only record unique Gaia IDs
     _, ind = np.unique(objects["GAIA_SOURCE_ID"], return_index=True)
-    log.info('Removed {} duplicated Gaia objects...t = {:.1f}s'
-             .format(len(objects)-len(ind),time()-start))
+#    log.info('Removed {} duplicated Gaia objects...t = {:.1f}s'
+#             .format(len(objects)-len(ind),time()-start))
     objects = objects[ind]
      
     #ADM determine a TARGETID for any objects on a brick (this should
@@ -311,8 +311,8 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     for col in ["GAIA_PMRA","GAIA_PMDEC"]:
         w = np.where(~np.isnan(gfas[col]))[0]
         gfas = gfas[w]
-    log.info('Removed {} Gaia objects with NaN columns...t = {:.1f}s'
-             .format(len(objects)-len(gfas),time()-start))
+#    log.info('Removed {} Gaia objects with NaN columns...t = {:.1f}s'
+#             .format(len(objects)-len(gfas),time()-start))
 
     return gfas
 
@@ -384,6 +384,8 @@ def select_gfas(infiles, maglim=18, numproc=4,
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
+    nfiles = len(infiles)
+
     #ADM the critical function to run on every file
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
@@ -393,17 +395,17 @@ def select_gfas(infiles, maglim=18, numproc=4,
         return gaia_gfas_from_sweep(fn, maglim=maglim, 
                                     gaiadir=gaiadir, gaiabounds=bounds)
 
-    #ADM this is just to count bricks in _update_status 
-    nbrick = np.zeros((), dtype='i8')
+    #ADM this is just to count sweeps files in _update_status 
+    nfile = np.zeros((), dtype='i8')
 
     t0 = time()
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if nbrick%50 == 0 and nbrick>0:
-            rate = nbrick / (time() - t0)
-            log.info('{}/{} bricks; {:.1f} files/sec'.format(nbrick, nbricks, rate))
-        nbrick[...] += 1    # this is an in-place modification
+        if nfile%50 == 0 and nfile>0:
+            rate = nfile / (time() - t0)
+            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+        nfile[...] += 1    # this is an in-place modification
         return result
 
     #- Parallel process input files

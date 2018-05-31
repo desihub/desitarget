@@ -92,7 +92,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
     nrand = int(spharea*density)
-    print('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
+    log.info('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
               .format(spharea,time()-start))
     ras = np.random.uniform(ramin,ramax,nrand)
     decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nrand)))
@@ -150,7 +150,7 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
     nrand = int(spharea*density)
-    print('Full area covered by brick {} is {:.5f} sq. deg....t = {:.1f}s'
+    log.info('Full area covered by brick {} is {:.5f} sq. deg....t = {:.1f}s'
               .format(brickname,spharea,time()-start))
     ras = np.random.uniform(ramin,ramax,nrand)
     decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nrand)))

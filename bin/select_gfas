@@ -4,6 +4,8 @@ import numpy as np
 import argparse
 from desitarget.gfa import select_gfas
 from desitarget import io
+from time import time
+time0 = time()
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -36,11 +38,11 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-log.info('running on {} processors'.format(ns.numproc))
+log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiadir=ns.gaiadir)
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside)
 
-log.info('{} GFAs written to {}'.format(len(gfas), ns.dest))
+log.info('{} GFAs written to {}...t={:.1f}mins'.format(len(gfas), ns.dest, (time()-time0)/60.))
 
