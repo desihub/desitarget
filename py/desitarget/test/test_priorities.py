@@ -105,7 +105,7 @@ class TestPriorities(unittest.TestCase):
         for mask in [desi_mask, bgs_mask, mws_mask]:
             for name in mask.names():
                 if name == 'SKY' or name == 'NO_TARGET' or name.startswith('STD') \
-                    or name in ['BGS_ANY', 'MWS_ANY', 'ANCILLARY_ANY',
+                    or name in ['BGS_ANY', 'MWS_ANY', 'SECONDARY_ANY',
                                 'IN_BRIGHT_OBJECT', 'NEAR_BRIGHT_OBJECT',
                                 'BRIGHT_OBJECT']:
                     self.assertEqual(mask[name].priorities, {}, 'mask.{} has priorities?'.format(name))
