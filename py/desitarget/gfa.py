@@ -226,7 +226,7 @@ def gaia_gfas_from_sweep(objects, maglim=18,
     -------
     :class:`numpy.ndarray`
         GFA objects from Gaia for the tractor/sweep region, formatted according to 
-        `desitarget.gfa.gfadatamodel`
+        `desitarget.gfa.gfadatamodel`.
     """
     #ADM read in objects if a filename was passed instead of the actual data
     if isinstance(objects, str):
@@ -298,3 +298,83 @@ def gaia_gfas_from_sweep(objects, maglim=18,
              .format(len(objects)-len(gfas),time()-start))
 
     return gfas
+
+
+def select_gfas(infiles, maglim=18, numproc=4,
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+    """Create a set of GFA locations using Gaia
+
+    Parameters
+    ----------
+    infiles : :class:`list` or `str`
+        A list of input filenames (tractor or sweep files) OR a single filename
+    maglim : :class:`float`, optional, defaults to 18
+        Magnitude limit for GFAs in Gaia G-band.
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        GFA objects from Gaia across all of the passed input files, formatted 
+        according to `desitarget.gfa.gfadatamodel` but with "GAIA_" removed
+        from column names.
+    
+    Notes                                                                                                                                             
+    -----                                                                                                                                             
+        - if numproc==1, use the serial code instead of the parallel code.
+    """
+
+    #ADM convert a single file, if passed to a list of files
+    if isinstance(infiles,str):
+        infiles = [infiles,]
+
+    #ADM check that files exist before proceeding
+    for filename in infiles:
+        if not os.path.exists(filename):
+            raise ValueError("{} doesn't exist".format(filename))
+
+    def _finalize_gfas(gfas):
+        '''remove prepended "GAIA_" from any column names in an array of GFAs'''
+        dmnames = list(gfas.dtype.names)
+        dmnamesnogaia = tuple([ name.replace('GAIA_', '') for name in dmnames ])
+        gfas.dtype.names = dmnamesnogaia
+        return gfas
+
+    #ADM the critical function to run on every file
+    def _get_gfas(fn):
+        '''wrapper on gaia_gfas_from_sweep() given a file name'''
+        gfas = gaia_gfas_from_sweep(fn, maglim=maglim, gaiadir=gaiadir)
+        return _finalize_gfas(gfas)
+
+    #ADM this is just to count bricks in _update_status                                                                                               
+    nbrick = np.zeros((), dtype='i8')
+
+    t0 = time()
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,                                                                                    
+            that occurs on the main parallel process '''
+        if nbrick%50 == 0 and nbrick>0:
+            rate = nbrick / (time() - t0)
+            log.info('{}/{} bricks; {:.1f} files/sec'.format(nbrick, nbricks, rate))
+
+        nbrick[...] += 1    # this is an in-place modification                                                                                        
+        return result
+
+    #- Parallel process input files                                                                                                                   
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            gfas = pool.map(_get_gfas, infiles, reduce=_update_status)
+    else:
+        gfas = list()
+        for file in infiles:
+            gfas.append(_update_status(_get_gfas(file)))
+
+    gfas = np.concatenate(gfas)
+
+    return gfas
+
+
