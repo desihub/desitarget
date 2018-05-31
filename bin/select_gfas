@@ -21,9 +21,9 @@ ap.add_argument("dest",
 ap.add_argument('-g', '--gaiadir',
                 help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
-ap.add_argument('-m', '--maglim', 
+ap.add_argument('-m', '--maglim', type=float, 
                 help='Magnitude limit on GFA trgets in Gaia G-band defaults to [18]',
-                default='18')
+                default=18)
 ap.add_argument('-n', "--numproc", type=int,
                 help='number of concurrent processes to use defaults to [{}]'.format(nproc),
                 default=nproc)
@@ -40,4 +40,7 @@ log.info('running on {} processors'.format(ns.numproc))
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiadir=ns.gaiadir)
 
+io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside)
+
 log.info('{} GFAs written to {}'.format(len(gfas), ns.dest))
+
