@@ -234,11 +234,12 @@ def gaia_gfas_from_sweep(objects, maglim=18,
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
-    #ADM as a speed up, only consider sweeps objects that are brighter than
-    #ADM 0.5 magnitudes fainter than the passed Gaia magnitude limit.
-    #ADM note that Gaia G-band approximates SDSS r-band. This isn't
-    #ADM a critical cut as we only use the sweeps information to 
-    #ADM populate flux information for some, not all, Gaia matches.
+    #ADM As a speed up, only consider sweeps objects brighter than 0.5 mags
+    #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
+    #ADM approximates SDSS r-band. This isn't a critical cut as we don't use 
+    #ADM the sweeps to populate flux information for ALL Gaia objects anyway.
+    #ADM A maglim + 0.5 mag cut here removes ~0.9% of Gaia-sweeps matches
+    #ADM compared to no mag cut. A maglim + 1 cut removes ~0.6% of matches.
     w = np.where(objects["FLUX_R"] > 10**((22.5-(maglim+0.5))/2.5))[0]
     objects = objects[w]
 
