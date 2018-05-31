@@ -41,7 +41,7 @@ if not os.path.exists(ns.src):
     log.critical('Input directory does not exist: {}'.format(ns.src))
     sys.exit(1)
 
-log.info('running on {} processors'.format(nproc))
+log.info('running on {} processors'.format(ns.numproc))
 
 _ = pixweight(nside=ns.nside, density=ns.density, numproc=ns.numproc, outfile=ns.dest, outplot=ns.outplot, drdir=ns.src)
 
