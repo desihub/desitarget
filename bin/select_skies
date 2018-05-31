@@ -8,8 +8,8 @@ from desitarget.io import write_skies
 
 import numpy as np
 
-import warnings
-warnings.simplefilter('error')
+#import warnings
+#warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2

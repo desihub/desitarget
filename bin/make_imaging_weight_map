@@ -7,8 +7,8 @@ import numpy as np
 
 from desitarget.imagefootprint import pixweight
 
-import warnings
-warnings.simplefilter('error')
+#import warnings
+#warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2

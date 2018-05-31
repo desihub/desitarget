@@ -8,8 +8,8 @@ import fitsio
 
 from desitarget.QA import HPX_info
 
-import warnings
-warnings.simplefilter('error')
+#import warnings
+#warnings.simplefilter('error')
 
 from argparse import ArgumentParser
 ap = ArgumentParser()
