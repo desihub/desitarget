@@ -333,16 +333,16 @@ def decode_sweep_name(sweepname):
         For the above example this would be [350., 360., -5., 5.]
     """
     #ADM extract just the file part of the name
-    sweepname = os.path.basename(fn)
+    sweepname = os.path.basename(sweepname)
     
     #ADM the RA/Dec edges
     ramin, ramax = float(sweepname[6:9]), float(sweepname[14:17])
     decmin, decmax = float(sweepname[10:13]), float(sweepname[18:21])
 
     #ADM flip the signs on the DECs, if needed
-    if sweepname[9] = 'm':
+    if sweepname[9] == 'm':
         decmin *= -1
-    if sweepname[17] = 'm':
+    if sweepname[17] == 'm':
         decmax *= -1
     
     return [ramin,ramax,decmin,decmax]
@@ -388,9 +388,10 @@ def select_gfas(infiles, maglim=18, numproc=4,
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
         #ADM we need to pass the boundaries of the sweeps file, too
-        
+        bounds = decode_sweep_name(fn)
 
-        return gaia_gfas_from_sweep(fn, maglim=maglim, gaiadir=gaiadir)
+        return gaia_gfas_from_sweep(fn, maglim=maglim, 
+                                    gaiadir=gaiadir, gaiabounds=bounds)
 
     #ADM this is just to count bricks in _update_status 
     nbrick = np.zeros((), dtype='i8')

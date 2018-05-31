@@ -127,6 +127,78 @@ def find_gaia_files(objs, neighbors=True,
     return gaiafiles
 
 
+def find_gaia_files_box(gaiabounds, neighbors=True,
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+    """Find full paths to all relevant gaia "chunks" files for an object array
+
+    Parameters
+    ----------
+    gaiabounds : :class:`list`
+        A region of the sky bounded by RA/Dec. Pass as a 4-entry list to 
+        represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Return all of the pixels that touch the pixels in the box in
+        order to guard against edge effects
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+
+    Returns
+    -------
+    :class:`list`
+        A list of all Gaia files that need to be read in to account for objects
+        in the passed box.
+
+    Notes
+    -----
+        - Uses the `healpy` routines that rely on `fact`, so the usual
+          warnings about returning different pixel sets at different values
+          of `fact` apply. See:
+          https://healpy.readthedocs.io/en/latest/generated/healpy.query_polygon.html
+    
+    """
+    #ADM the resolution at which the chunks files are stored
+    nside = 32
+
+    #ADM retrive the RA/Dec bounds from the passed list
+    ramin, ramax, decmin, decmax = gaiabounds
+
+    #ADM convert RA/Dec to co-latitude and longitude in radians
+    rapairs = np.array([ramin,ramin,ramax,ramax])
+    decpairs = np.array([decmin,decmax,decmax,decmin])
+    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
+
+    #ADM convert the colatitudes to Cartesian vectors remembering to
+    #ADM transpose to pass the array to query_polygon in the correct order
+    vecs = hp.dir2vec(thetapairs,phipairs).T
+
+    #ADM determine the pixels that touch the box; note that the Legacy
+    #ADM Surveys do NOT use the NESTED scheme for storing Gaia files
+    pixnum = hp.query_polygon(nside,vecs,inclusive=True,fact=4)
+
+    #ADM if neighbors was sent, then retrieve all pixels that touch each
+    #ADM pixel covered by the provided locations, to prevent edge effects...
+    if neighbors:
+        #ADM first convert back to theta/phi to retrieve neighbors
+        theta, phi = hp.pix2ang(nside,pixnum)
+        pixnum = np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi))
+
+    #ADM retrieve only the UNIQUE pixel numbers. It's possible that only
+    #ADM one pixel was produced, so guard against pixnum being non-iterable
+    if not isinstance(pixnum,np.integer):
+        pixnum = list(set(pixnum))
+    else:
+        pixnum = [pixnum]
+
+    #ADM there are pixels with no neighbors, which returns -1. Remove these:
+    if -1 in pixnum:
+        pixnum.remove(-1)
+
+    #ADM format in the gaia chunked format used by the Legacy Surveys
+    gaiafiles = ['{}/chunk-{:05d}.fits'.format(gaiadir,pn) for pn in pixnum]
+
+    return gaiafiles
+
+
 def match_gaia_to_primary(objs, matchrad=1., 
                     retaingaia=False, gaiabounds=[0.,360.,-90.,90.], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
@@ -196,7 +268,10 @@ def match_gaia_to_primary(objs, matchrad=1.,
     gaiainfo['SOURCE_ID'] = -1
 
     #ADM determine which Gaia files need to be considered
-    gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
+    if retaingaia:
+        gaiafiles = find_gaia_files_box(gaiabounds, gaiadir=gaiadir)
+    else:
+        gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
 
     #ADM loop through the Gaia files and match to the passed objects
     for file in gaiafiles:
