@@ -209,7 +209,7 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, gfa_data, extname='GFA')
 
 
-def gaia_gfas_from_sweep(objects, maglim=18., 
+def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Create a set of GFAs from Gaia-matching for one sweep file or sweep objects
 
@@ -217,21 +217,24 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     ----------
     objects: :class:`numpy.ndarray` or `str`
         Numpy structured array with UPPERCASE columns needed for target selection, OR 
-        a string tractor/sweep filename.
+        a string corresponding to a sweep filename.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
+    gaiabounds : :class:`list`, optional, defaults to the whole sky
+        The area over which to retrieve Gaia objects that don't match a sweeps object. 
+        Pass a 4-entry list to form a box bounded by [RAmin, RAmax, DECmin, DECmax].
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
     :class:`numpy.ndarray`
-        GFA objects from Gaia for the tractor/sweep region, formatted according to 
-        `desitarget.gfa.gfadatamodel`.
+        GFA objects from Gaia for the region bounded by `gaiabounds`, formatted 
+        according to `desitarget.gfa.gfadatamodel`.
     """
     #ADM read in objects if a filename was passed instead of the actual data
     if isinstance(objects, str):
-        objects = desitarget.io.read_tractor(objects)
+        objects = desitarget.io.read_sweep(objects)
 
     #ADM As a speed up, only consider sweeps objects brighter than 1 mags
     #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
@@ -250,7 +253,8 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     #ADM have a match in the sweeps
     log.info('Starting Gaia match for {} objects...t = {:.1f}s'
              .format(nobjs,time()-start))
-    gaiainfo = match_gaia_to_primary(objects,gaiadir=gaiadir,retaingaia=True)
+    gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir,
+                                     retaingaia=True, gaiabounds=gaiabounds)
     log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
     #ADM add the Gaia column information to the primary array
     #ADM remember the columns are prepended "GAIA_" in the primary
@@ -313,6 +317,37 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     return gfas
 
 
+def decode_sweep_name(sweepname):
+    """Retrieve RA/Dec edges from a full directory path to a sweep file
+    
+    Parameters
+    ----------
+    sweepname : :class:`str`
+        Full path to a sweep file, e.g., /a/b/c/sweep-350m005-360p005.fits
+
+    Returns
+    -------
+    :class:`list`
+        A 4-entry list of the edges of the region covered by the sweeps file
+        in the form [RAmin, RAmax, DECmin, DECmax]
+        For the above example this would be [350., 360., -5., 5.]
+    """
+    #ADM extract just the file part of the name
+    sweepname = os.path.basename(fn)
+    
+    #ADM the RA/Dec edges
+    ramin, ramax = float(sweepname[6:9]), float(sweepname[14:17])
+    decmin, decmax = float(sweepname[10:13]), float(sweepname[18:21])
+
+    #ADM flip the signs on the DECs, if needed
+    if sweepname[9] = 'm':
+        decmin *= -1
+    if sweepname[17] = 'm':
+        decmax *= -1
+    
+    return [ramin,ramax,decmin,decmax]
+
+
 def select_gfas(infiles, maglim=18, numproc=4,
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Create a set of GFA locations using Gaia
@@ -320,7 +355,7 @@ def select_gfas(infiles, maglim=18, numproc=4,
     Parameters
     ----------
     infiles : :class:`list` or `str`
-        A list of input filenames (tractor or sweep files) OR a single filename
+        A list of input filenames (sweep files) OR a single filename
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
@@ -335,8 +370,8 @@ def select_gfas(infiles, maglim=18, numproc=4,
         according to `desitarget.gfa.gfadatamodel` but with "GAIA_" removed
         from column names.
     
-    Notes                                                                                                                                             
-    -----                                                                                                                                             
+    Notes
+    -----
         - if numproc==1, use the serial code instead of the parallel code.
     """
 
@@ -352,23 +387,25 @@ def select_gfas(infiles, maglim=18, numproc=4,
     #ADM the critical function to run on every file
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
+        #ADM we need to pass the boundaries of the sweeps file, too
+        
+
         return gaia_gfas_from_sweep(fn, maglim=maglim, gaiadir=gaiadir)
 
-    #ADM this is just to count bricks in _update_status                                                                                               
+    #ADM this is just to count bricks in _update_status 
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
     def _update_status(result):
-        ''' wrapper function for the critical reduction operation,                                                                                    
+        ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
         if nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
             log.info('{}/{} bricks; {:.1f} files/sec'.format(nbrick, nbricks, rate))
-
-        nbrick[...] += 1    # this is an in-place modification                                                                                        
+        nbrick[...] += 1    # this is an in-place modification
         return result
 
-    #- Parallel process input files                                                                                                                   
+    #- Parallel process input files
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:

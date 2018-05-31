@@ -127,7 +127,8 @@ def find_gaia_files(objs, neighbors=True,
     return gaiafiles
 
 
-def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
+def match_gaia_to_primary(objs, matchrad=1., 
+                    retaingaia=False, gaiabounds=[0.,360.,-90.,90.], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Match a set of objects to Gaia "chunks" files and return the Gaia information
 
@@ -143,6 +144,10 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
         or not.) THIS ASSUMES THAT THE PASSED OBJECTS ARE FROM A SWEEPS file 
         and that the integer values nearest the maximum and minimum passed RAs 
         and Decs fairly represent the areal "edges" of that file.
+    gaiabounds : :class:`list`, optional, defaults to the whole sky
+        Used in conjunction with `retaingaia` to determine over what area to
+        retrieve Gaia objects that don't match a sweeps object. Pass a 4-entry
+        list to represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
@@ -158,13 +163,8 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
         - For objects that do NOT have a match in the Gaia files, the "SOURCE_ID"
           column is set to -1, and all other columns are zero.
         - If `retaingaia` is True then objects after the first len(objs) objects are 
-          Gaia objects that do not have a sweeps match but that are in bricks populated
-          by the passed objects.
-        - If `retaingaia` is True, then this function assumes that the integers nearest
-          the maximum and minimum passed RAs and Decs correspond to the edges of the
-          area for which to return all Gaia objects.
-        - If `retaingaia` is True, this function will then fail if the integers nearest
-          the max/min passed RA/DEC are more than `matchrad` from the assumed edges.
+          Gaia objects that do not have a sweeps match but that are in the area
+          bounded by `gaiabounds`
     """
     #ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
     # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
@@ -173,17 +173,9 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     #ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
     import warnings
 
-    #ADM if retaingaia is passed, check that objects are close to integer
-    #ADM edges of a sweeps-like box. Fail otherwise.
+    #ADM if retaingaia is True, retain all Gaia objects in a sweeps-like box
     if retaingaia:
-        ramin, ramax = round(np.min(objs["RA"]),0), round(np.max(objs["RA"]),0)
-        decmin, decmax = round(np.min(objs["DEC"]),0), round(np.max(objs["DEC"]),0)
-        #ADM allow a matchrad (converted to degrees) gap from the edge of the passed 
-        #ADM sweep boundary before assuming the retaingaia option was not understood
-        tol = matchrad/3600.
-        if (np.min(objs["RA"]) - ramin > tol or ramax - np.max(objs["RA"]) > tol or
-            np.min(objs["DEC"]) - decmin > tol or decmax - np.max(objs["DEC"]) > tol):
-            log.critical("retaingaia set but passed objects don't seem sweeps-like?")
+         ramin, ramax, decmin, decmax = gaiabounds
 
     #ADM convert the coordinates of the input objects to a SkyCoord object
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
