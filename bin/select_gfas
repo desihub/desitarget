@@ -10,6 +10,7 @@ log = get_logger()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
 ap = ArgumentParser(description='Generates a file of GFA (Guide/Focus/Alignment) targets via matching to Gaia')
 
@@ -39,3 +40,5 @@ if len(infiles) == 0:
 log.info('running on {} processors'.format(ns.numproc))
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiadir=ns.gaiadir)
+
+log.info('{} GFAs written to {}'.format(len(gfas), ns.dest))

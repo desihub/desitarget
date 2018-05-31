@@ -2,7 +2,7 @@
 desitarget.gfa
 ==============
 
-Guide/Focus/Aligment targets
+Guide/Focus/Alignment targets
 """
 
 import fitsio
