@@ -12,22 +12,21 @@ import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
+from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates a file of GFA (Guide/Focus/Alignment) targets via matching to Gaia')
-
 ap.add_argument("surveydir", 
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC)")
 ap.add_argument("dest", 
-                help="Output GFA targets file (e.g. /project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits)")
+                help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument('-g', '--gaiadir',
-                help="Base directory for chunked Gaia files (defaults to 'project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom' for NERSC)",
+                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
 ap.add_argument('-m', '--maglim', 
-                help='Magnitude limit on GFA trgets in Gaia G-band (defaults to 18)',
+                help='Magnitude limit on GFA trgets in Gaia G-band defaults to [18]',
                 default='18')
 ap.add_argument('-n', "--numproc", type=int,
-                help='number of concurrent processes to use [{}]'.format(nproc),
+                help='number of concurrent processes to use defaults to [{}]'.format(nproc),
                 default=nproc)
-
 ns = ap.parse_args()
 
 infiles = io.list_sweepfiles(ns.surveydir)
