@@ -159,7 +159,7 @@ def add_gaia_columns(indata):
 
     #ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
-    outdata = np.empty(nrows, dtype=dt)
+    outdata = np.zeros(nrows, dtype=dt)
 
     #ADM ...and populate them with the passed columns of data
     for col in indata.dtype.names:
