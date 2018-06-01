@@ -29,10 +29,14 @@ for brick in ['3301m002', '3301m007', '3303p000']:
 #    data, hdr = fits.getdata(filepath, header=True)
 #    fits.writeto('t/'+basename(filepath), data[keep], header=hdr)
     data, hdr = read_tractor(filepath, header=True)
-    #ADM the FRACDEV columns can contain some NaNs, which break testing
+    #ADM the FRACDEV and FRACDEV_IVAR columns can 
+    #ADM contain some NaNs, which break testing
     wnan = np.where(data["FRACDEV"] != data["FRACDEV"])
     if len(wnan[0]) > 0:
         data["FRACDEV"][wnan] = 0.
+    wnan = np.where(data["FRACDEV_IVAR"] != data["FRACDEV_IVAR"])
+    if len(wnan[0]) > 0:
+        data["FRACDEV_IVAR"][wnan] = 0.
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made Tractor file for brick {}...t={:.2f}s'.format(brick,time()-start))
 
