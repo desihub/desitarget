@@ -5,6 +5,13 @@ desitarget Change Log
 0.21.0 (unreleased)
 -------------------
 
+* Change GFA selection to be Gaia-based [`PR #322`_]:
+   * Update the `select_gfas` binary to draw from Gaia DR2.
+   * Parallelize across sweeps files to add fluxes from the Legacy Surveys.
+   * Gather all Gaia objects to some magnitude limit in the sweeps areas.
+* Add :mod:`desitarget.gaimatch` for matching to Gaia [`PR #322`_]:
+   * Can perform object-to-object matching between Gaia and the sweeps.
+   * Can, in addition, retain all Gaia objects in an RA/Dec box.
 * Mock targets bug fixes [`PR #318`_]. 
 * Add missing GMM files to installations [`PR #316`_]. 
 * Introduction of pixel-level creation of sky locations [`PR #313`_]:
@@ -44,6 +51,7 @@ desitarget Change Log
 .. _`PR #313`: https://github.com/desihub/desitarget/pull/313
 .. _`PR #316`: https://github.com/desihub/desitarget/pull/316
 .. _`PR #318`: https://github.com/desihub/desitarget/pull/318
+.. _`PR #322`: https://github.com/desihub/desitarget/pull/322
 
 0.20.1 (2018-03-29)
 -------------------

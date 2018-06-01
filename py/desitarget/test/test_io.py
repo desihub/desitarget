@@ -58,8 +58,12 @@ class TestIO(unittest.TestCase):
         self.assertEqual(newobjects['TYPE'].dtype, np.dtype('S4'))
 
     def test_tractor_columns(self):
-        #ADM BRICK_PRIMARY and PHOTSYS get added on input
-        tscolumns = list(io.tsdatamodel.dtype.names) + ['BRICK_PRIMARY','PHOTSYS',]
+        #ADM Gaia columns that get added on input
+        from desitarget.gaiamatch import gaiadatamodel
+        #ADM BRICK_PRIMARY, SUBPRIORITY and PHOTSYS get added on input
+        tscolumns = list(io.tsdatamodel.dtype.names)                      \
+                        + ['BRICK_PRIMARY','PHOTSYS','SUBPRIORITY']       \
+                        + [ "GAIA_"+ i for i in gaiadatamodel.dtype.names ]
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))

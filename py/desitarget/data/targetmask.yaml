@@ -51,7 +51,7 @@ desi_mask:
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
-    - [ANCILLARY_ANY,       62, "Any ancillary bit is set",
+    - [SECONDARY_ANY,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     
 #- Bright Galaxy Survey
@@ -211,7 +211,7 @@ priorities:
         NEAR_BRIGHT_OBJECT: -1
         BGS_ANY: -1
         MWS_ANY: -1
-        ANCILLARY_ANY: -1
+        SECONDARY_ANY: -1
 
     #- Bright Galaxy Survey: priorities 2000-2999
     #- reobserving successes has lower priority than MWS

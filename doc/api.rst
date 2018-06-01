@@ -14,6 +14,9 @@ desitarget API
 .. automodule:: desitarget.cuts
     :members:
 
+.. automodule:: desitarget.gaiamatch
+    :members:
+
 .. automodule:: desitarget.geomask
     :members:
 

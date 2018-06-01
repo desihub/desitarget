@@ -132,6 +132,117 @@ def convert_from_old_data_model(fx,columns=None):
     return outdata
 
 
+def add_gaia_columns(indata):
+    """Add columns needed for MWS targeting to a sweeps-style array
+
+    Parameters
+    ----------
+    indata : :class:`numpy.ndarray`
+        Numpy structured array to which to add Gaia-relevant columns
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Input array with the Gaia columns added
+
+    Notes
+    -----
+        - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
+          but with "GAIA" prepended to the dtype names
+    """
+    #ADM import the Gaia data model from gaiamatch
+    from desitarget.gaiamatch import gaiadatamodel
+    #ADM prepedn GAIA to the Gaia data model names
+    gaiadt = [ ("GAIA_"+i[0],i[1]) for i in gaiadatamodel.dtype.descr ]
+    #ADM create the combined data model
+    dt = indata.dtype.descr + gaiadt
+
+    #ADM create a new numpy array with the fields from the new data model...
+    nrows = len(indata)
+    outdata = np.zeros(nrows, dtype=dt)
+
+    #ADM ...and populate them with the passed columns of data
+    for col in indata.dtype.names:
+        outdata[col] = indata[col]
+
+    #ADM set GAIA_SOURCE_ID to -1 to indicate nothing has a Gaia match (yet)
+    outdata['GAIA_SOURCE_ID'] = -1
+    
+    return outdata
+
+
+def add_subpriority(indata):
+    """Add the SUBPRIORITY column to a sweeps-style array
+
+    Parameters
+    ----------
+    indata : :class:`numpy.ndarray`
+        Numpy structured array to which to add SUBPRIORITY column
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Input array with SUBPRIORITY added (and set)
+    """
+    #ADM add SUBPRIORITY to the data model
+    spdt = [('SUBPRIORITY', '>f4')]
+    dt = indata.dtype.descr + spdt
+
+    #ADM create a new numpy array with the fields from the new data model...
+    nrows = len(indata)
+    outdata = np.empty(nrows, dtype=dt)
+
+    #ADM ...and populate them with the passed columns of data
+    for col in indata.dtype.names:
+        outdata[col] = indata[col]
+
+    #ADM populate the subpriority array randomly from 0->1
+    outdata["SUBPRIORITY"] = np.random.random(nrows)
+
+    return outdata
+
+
+def add_photsys(indata):
+    """Add the PHOTSYS column to a sweeps-style array
+
+    Parameters
+    ----------
+    indata : :class:`numpy.ndarray`
+        Numpy structured array to which to add PHOTSYS column
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Input array with PHOTSYS added (and set using RELEASE)
+
+    Notes
+    -----
+        - The PHOTSYS column is only added if the RELEASE column
+          is available in the passed `indata`
+    """
+    #ADM only add the PHOTSYS column if RELEASE exists
+    if 'RELEASE' in indata.dtype.names:
+        #ADM add PHOTSYS to the data model
+        pdt = [('PHOTSYS','|S1')]
+        dt = indata.dtype.descr + pdt
+
+        #ADM create a new numpy array with the fields from the new data model...
+        nrows = len(indata)
+        outdata = np.empty(nrows, dtype=dt)
+
+        #ADM ...and populate them with the passed columns of data
+        for col in indata.dtype.names:
+            outdata[col] = indata[col]
+
+        #ADM add the PHOTSYS column
+        photsys = release_to_photsys(indata["RELEASE"])
+        outdata['PHOTSYS'] = photsys
+    else:
+        outdata = indata
+
+    return outdata
+
+
 def read_tractor(filename, header=False, columns=None):
     """Read a tractor catalogue file.
 
@@ -173,6 +284,18 @@ def read_tractor(filename, header=False, columns=None):
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
 
+    #ADM if SUBPRIORITY was passed by the MWS group, add it to the columns to read
+    if (columns is None) and \
+       (('SUBPRIORITY' in fxcolnames) or ('subpriority' in fxcolnames)):
+        readcolumns.append('SUBPRIORITY')
+
+    #ADM if Gaia information was passed, add it to the columns to read
+    if (columns is None) and \
+       (('GAIA_SOURCE_ID' in fxcolnames) or ('gaia_source_id' in fxcolnames)):
+        from desitarget.gaiamatch import gaiadatamodel
+        gaiacols = [ "GAIA_"+i for i in gaiadatamodel.dtype.names ]
+        readcolumns += gaiacols
+
     if (columns is None) and \
        (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         #ADM Rewrite the data completely to correspond to the DR4+ data model.
@@ -184,10 +307,12 @@ def read_tractor(filename, header=False, columns=None):
     #ADM need to add the SUBPRIORITY column if it wasn't passed by the MWS group
     if (columns is None) and \
        (('SUBPRIORITY' not in fxcolnames) and ('subpriority' not in fxcolnames)):
-        subpriority = np.zeros(len(data), dtype='>f4')
-        #ADM populate the subpriority array randomly from 0->1, retaining the dtype
-        subpriority[...] = np.random.random(len(data))
-        data = rfn.append_fields(data, 'SUBPRIORITY', subpriority, usemask=False)
+        data = add_subpriority(data)
+
+    #ADM add Gaia columns if not passed
+    if (columns is None) and \
+       (('GAIA_SOURCE_ID' not in fxcolnames) and ('gaia_source_id' not in fxcolnames)):
+        data = add_gaia_columns(data)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
     if len(data) == 0:
@@ -204,32 +329,15 @@ def read_tractor(filename, header=False, columns=None):
             data[colname] = np.char.rstrip(data[colname])
 
     #ADM add the PHOTSYS column to unambiguously check whether we're using imaging
-    #ADM from the "North" or "South", mapped from RELEASE, so only do this
-    #ADM if RELEASE has been passed (or if we're using the default columns)
-    if 'RELEASE' in data.dtype.names:
-        initialcols = data.dtype.names
-        dd = data.dtype.descr
-        dd.append(('PHOTSYS','|S1')) 
-        newdt = np.dtype(dd)
-        nrows = len(data)
-        #ADM create and populate a new numpy array with the PHOTSYS field.
-        outdata = np.empty(nrows, dtype=newdt)
-        for col in initialcols:
-            outdata[col] = data[col]
-        #ADM add the PHOTSYS column
-        photsys = release_to_photsys(data["RELEASE"])
-        outdata['PHOTSYS'] = photsys
-        #ADM the commented-out line is more compact but ~15% slower...
-    else:
-        outdata = data
-#    data = rfn.append_fields(data, 'PHOTSYS', photsys, usemask=False)
+    #ADM from the "North" or "South"
+    data = add_photsys(data)
 
     if header:
         fx.close()
-        return outdata, hdr
+        return data, hdr
     else:
         fx.close()
-        return outdata
+        return data
 
 
 def fix_tractor_dr1_dtype(objects):
@@ -407,6 +515,50 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         hdr['HPXNEST'] = True
 
     fitsio.write(filename, data, extname='SKIES', header=hdr, clobber=True)
+
+
+def write_gfas(filename, data, indir=None, nside=None):
+    """Write a catalogue of Guide/Focus/Alignment targets.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Output file name
+    data  : :class:`~numpy.ndarray` 
+        Array of GFAs to write to file
+    indir : :class:`str`, optional, defaults to None
+        Name of input Legacy Survey Data Release directory, write to header
+        of output file if passed (and if not None).
+    nside: :class:`int`
+        If passed, add a column to the GFAs array popluated with HEALPixels 
+        at resolution `nside`
+    """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+
+    if indir is not None:
+        depend.setdep(hdr, 'input-data-release', indir)
+        #ADM note that if 'dr' is not in the indir DR
+        #ADM directory structure, garbage will
+        #ADM be rewritten gracefully in the header
+        drstring = 'dr'+indir.split('dr')[-1][0]
+        depend.setdep(hdr, 'photcat', drstring)
+
+    #ADM add HEALPix column, if requested by input
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+
+    fitsio.write(filename, data, extname='GFAS', header=hdr, clobber=True)
 
 
 def iter_files(root, prefix, ext='fits'):
@@ -622,6 +774,8 @@ def load_pixweight(inmapfile, nside, pixmap=None):
         HEALPixel weight map resampled to the requested nside
     '''
     import healpy as hp
+    from desiutil.log import get_logger
+    log = get_logger()
 
     if pixmap is not None:
         log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))

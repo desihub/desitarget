@@ -8,8 +8,8 @@ import numpy as np
 from desitarget import io
 from desitarget.brightmask import make_bright_source_mask
 
-import warnings
-warnings.simplefilter('error')
+#import warnings
+#warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
