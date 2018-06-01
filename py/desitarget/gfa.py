@@ -355,11 +355,11 @@ def select_gfas(infiles, maglim=18, numproc=4,
     Parameters
     ----------
     infiles : :class:`list` or `str`
-        A list of input filenames (sweep files) OR a single filename
+        A list of input filenames (sweep files) OR a single filename.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
-        The number of parallel processes to use
+        The number of parallel processes to use.
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
@@ -367,7 +367,7 @@ def select_gfas(infiles, maglim=18, numproc=4,
     -------
     :class:`numpy.ndarray`
         GFA objects from Gaia across all of the passed input files, formatted 
-        according to `desitarget.gfa.gfadatamodel` but with "GAIA_" removed
+        according to `desitarget.gfa.gfadatamodel` but with ``GAIA_`` removed
         from column names.
     
     Notes
