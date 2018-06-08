@@ -56,8 +56,18 @@ for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made sweeps file for range {}...t={:.2f}s'.format(radec,time()-start))
 
-gaiafiles = []
 #ADM adding Gaia files to which to match 
+for brick in ['3301m002', '3301m007', '3303p000']:
+    filepath = '{}/tractor-{}.fits'.format(tractordir, brick)
+    data = fitsio.read('t/'+basename(filepath))
+    #ADM use find_gaia_files to determine which Gaia files potentially
+    #ADM match the sweeps objects of interest
+    for gaiafile in find_gaia_files(data):
+        #ADM for each of the relevant Gaia files, read the first 5 rows
+        gaiadata = fitsio.read(gaiafile, rows=range(5))
+        #ADM and write them to a special Gaia directory
+        fitsio.write('tgaia/'+basename(gaiafile), gaiadata, clobber=True)
+
 for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
     data = fitsio.read('t/'+basename(filepath))
