@@ -1815,7 +1815,8 @@ def unextinct_fluxes(objects):
         return result
 
 
-def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
+def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
+               gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -1828,6 +1829,8 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
         match_to_gaia : defaults to ``True``
             if ``True``, match to Gaia DR2 chunks files and populate 
             Gaia columns to facilitate the MWS selection
+        gaiadir : defaults to the the Gaia DR2 path at NERSC
+           Root directory of a Gaia Data Release as used by the Legacy Surveys. 
 
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -1848,7 +1851,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True):
     if match_to_gaia:
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
-        gaiainfo = match_gaia_to_primary(objects)
+        gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
         #ADM add the Gaia column information to the primary array
@@ -2204,7 +2207,8 @@ qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   match_to_gaia=True, sandbox=False, FoMthresh=None, Method=None):
+            match_to_gaia=True, sandbox=False, FoMthresh=None, Method=None, 
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Process input files in parallel to select targets
 
     Parameters
@@ -2227,6 +2231,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         in the sandbox directory
     Method : :class:`str`, optional, defaults to `None`
         Method used in the sandbox    
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------   
@@ -2270,7 +2276,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,match_to_gaia)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,match_to_gaia,gaiadir)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 

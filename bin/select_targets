@@ -39,6 +39,9 @@ ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomfo
 ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
                 help="Method used in sandbox target for ELG")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
+ap.add_argument("--gaiadir", 
+                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
+                default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
 ap.add_argument("--nogaia", action='store_false',
                 help="Do NOT match to Gaia DR2 chunks files in order to populate Gaia columns for MWS selection")
 ap.add_argument("--numproc", type=int,
@@ -62,7 +65,8 @@ if ns.check:
 else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, match_to_gaia=ns.nogaia,
-                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method)
+                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
+                             gaiadir=ns.gaiadir)
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
