@@ -2221,11 +2221,11 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         to facilitate the MWS selection
     sandbox : :class:`boolean`, optional, defaults to ``False``
         If ``True``, use the sample selection cuts in :mod:`desitarget.sandbox.cuts`
-    FoMthresh :class:`float`, optional, defaults to `None`
+    FoMthresh : :class:`float`, optional, defaults to `None`
         If a value is passed then run `apply_XD_globalerror` for ELGs in
         the sandbox. This will write out an "FoM.fits" file for every ELG target
         in the sandbox directory
-    Method :class:`str`, optional, defaults to `None`
+    Method : :class:`str`, optional, defaults to `None`
         Method used in the sandbox    
 
     Returns
