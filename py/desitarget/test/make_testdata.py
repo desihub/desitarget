@@ -13,7 +13,7 @@ from desitarget.cuts import apply_cuts
 from desitarget.io import read_tractor
 import fitsio
 from time import time
-
+from desitarget.gaiamatch import find_gaia_files
 
 start = time()
 tractordir = '/project/projectdirs/cosmo/data/legacysurvey/dr3.1/tractor/330'
@@ -55,7 +55,20 @@ for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     data, hdr = read_tractor(filepath, header=True)
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made sweeps file for range {}...t={:.2f}s'.format(radec,time()-start))
-    
+
+gaiafiles = []
+#ADM adding Gaia files to which to match 
+for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
+    filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
+    data = fitsio.read('t/'+basename(filepath))
+    #ADM use find_gaia_files to determine which Gaia files potentially
+    #ADM match the sweeps objects of interest
+    for gaiafile in find_gaia_files(data):
+        #ADM for each of the relevant Gaia files, read the first 5 rows
+        gaiadata = fitsio.read(gaiafile, rows=range(5))
+        #ADM and write them to a special Gaia directory
+        fitsio.write('tgaia/'+basename(gaiafile), gaiadata, clobber=True)
+
 #ADM adding a file to make a mask for bright stars
 #ADM this should go in its own directory /t2 (others are in t1)
 filepath = '{}/sweep-{}.fits'.format(sweepdir, '190m005-200p000')

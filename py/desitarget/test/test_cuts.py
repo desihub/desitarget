@@ -17,6 +17,7 @@ class TestCuts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.datadir = resource_filename('desitarget.test', 't')
+        cls.gaiadir = resource_filename('desitarget.test', 'tgaia')
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
 
@@ -33,12 +34,12 @@ class TestCuts(unittest.TestCase):
 
     def test_cuts_basic(self):
         #- Cuts work with either data or filenames
-        desi, bgs, mws = cuts.apply_cuts(self.tractorfiles[0])
-        desi, bgs, mws = cuts.apply_cuts(self.sweepfiles[0])
+        desi, bgs, mws = cuts.apply_cuts(self.tractorfiles[0],gaiadir=self.gaiadir)
+        desi, bgs, mws = cuts.apply_cuts(self.sweepfiles[0],gaiadir=self.gaiadir)
         data = io.read_tractor(self.tractorfiles[0])
-        desi, bgs, mws = cuts.apply_cuts(data)
+        desi, bgs, mws = cuts.apply_cuts(data,gaiadir=self.gaiadir)
         data = io.read_tractor(self.sweepfiles[0])
-        desi, bgs, mws = cuts.apply_cuts(data)
+        desi, bgs, mws = cuts.apply_cuts(data,gaiadir=self.gaiadir)
 
         # bgs_any1 = (desi & desi_mask.BGS_ANY)
         # bgs_any2 = (bgs != 0)
@@ -49,9 +50,9 @@ class TestCuts(unittest.TestCase):
         #- BRICK_PRIMARY was removed from the sweeps in dr3 (@moustakas) 
         targets = Table.read(self.sweepfiles[0])
         if 'BRICK_PRIMARY' in targets.colnames:
-            desi1, bgs1, mws1 = cuts.apply_cuts(targets)
+            desi1, bgs1, mws1 = cuts.apply_cuts(targets,gaiadir=self.gaiadir)
             targets.remove_column('BRICK_PRIMARY')
-            desi2, bgs2, mws2 = cuts.apply_cuts(targets)
+            desi2, bgs2, mws2 = cuts.apply_cuts(targets,gaiadir=self.gaiadir)
             self.assertTrue(np.all(desi1==desi2))
             self.assertTrue(np.all(bgs1==bgs2))
             self.assertTrue(np.all(mws1==mws2))
@@ -134,12 +135,12 @@ class TestCuts(unittest.TestCase):
         self.assertFalse(cuts._is_row(targets))
         self.assertTrue(cuts._is_row(targets[0]))
 
-        desi, bgs, mws = cuts.apply_cuts(targets)
+        desi, bgs, mws = cuts.apply_cuts(targets,gaiadir=self.gaiadir)
         self.assertEqual(len(desi), len(targets))
         self.assertEqual(len(bgs), len(targets))
         self.assertEqual(len(mws), len(targets))
 
-        desi, bgs, mws = cuts.apply_cuts(targets[0])
+        desi, bgs, mws = cuts.apply_cuts(targets[0],gaiadir=self.gaiadir)
         self.assertTrue(isinstance(desi, numbers.Integral), 'DESI_TARGET mask not an int')
         self.assertTrue(isinstance(bgs, numbers.Integral), 'BGS_TARGET mask not an int')
         self.assertTrue(isinstance(mws, numbers.Integral), 'MWS_TARGET mask not an int')
@@ -159,9 +160,9 @@ class TestCuts(unittest.TestCase):
     #- select targets should work with either data or filenames
     def test_select_targets(self):
         for filelist in [self.tractorfiles, self.sweepfiles]:
-            targets = cuts.select_targets(filelist, numproc=1)
-            t1 = cuts.select_targets(filelist[0:1], numproc=1)
-            t2 = cuts.select_targets(filelist[0], numproc=1)
+            targets = cuts.select_targets(filelist, numproc=1, gaiadir=self.gaiadir)
+            t1 = cuts.select_targets(filelist[0:1], numproc=1, gaiadir=self.gaiadir)
+            t2 = cuts.select_targets(filelist[0], numproc=1, gaiadir=self.gaiadir)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
@@ -197,19 +198,23 @@ class TestCuts(unittest.TestCase):
     def test_qso_selection_options(self):
         targetfile = self.tractorfiles[0]
         for qso_selection in cuts.qso_selection_options:
-            results = cuts.select_targets(targetfile, qso_selection=qso_selection)
+            results = cuts.select_targets(targetfile, qso_selection=qso_selection, 
+                                          gaiadir=self.gaiadir)
             
         with self.assertRaises(ValueError):
-            results = cuts.select_targets(targetfile, numproc=1, qso_selection='blatfoo')
+            results = cuts.select_targets(targetfile, numproc=1, qso_selection='blatfoo', 
+                                          gaiadir=self.gaiadir)
 
     def test_missing_files(self):
         with self.assertRaises(ValueError):
-            targets = cuts.select_targets(['blat.foo1234',], numproc=1)
+            targets = cuts.select_targets(['blat.foo1234',], numproc=1, 
+                                          gaiadir=self.gaiadir)
 
     def test_parallel_select(self):
         for nproc in [1,2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
-                targets = cuts.select_targets(filelist, numproc=nproc)
+                targets = cuts.select_targets(filelist, numproc=nproc, 
+                                              gaiadir=self.gaiadir)
                 self.assertTrue('DESI_TARGET' in targets.dtype.names)
                 self.assertTrue('BGS_TARGET' in targets.dtype.names)
                 self.assertTrue('MWS_TARGET' in targets.dtype.names)
