@@ -104,15 +104,6 @@ mws_mask:
     - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample from Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample from DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
 
-    #- 16: Sub-classes of MWS_MAIN_RED
-    - [MWS_MAIN_RED_FAINT,         16, "Milky Way Survey fainter red mag-limited sample",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_FAINT_NORTH,   17, "MWS fainter red mag-limited sample from Bok/Mosaic",   {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_FAINT_SOUTH,   18, "MWS fainter red mag-limited sample from DECam",        {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_BRIGHT,        19, "Milky Way Survey fainter red mag-limited sample",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_BRIGHT_NORTH,  20, "MWS brighter red mag-limited sample from Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_BRIGHT_SOUTH,  21, "MWS brighter red mag-limited sample from DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
-
-
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
 #- in which they are allowed to be observed.
@@ -221,13 +212,6 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_FAINT:           SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_FAINT_NORTH:     SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_FAINT_SOUTH:     SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_BRIGHT:          SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_BRIGHT_NORTH:    SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_BRIGHT_SOUTH:    SAME_AS_MWS_MAIN
-
 
 
 
