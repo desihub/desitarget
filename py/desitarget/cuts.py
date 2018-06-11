@@ -1954,8 +1954,6 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
-    mws_red_bright = (mws_red_bright_n & photsys_north) | (mws_red_bright_s & photsys_south)
-    mws_red_faint = (mws_red_faint_n & photsys_north) | (mws_red_faint_s & photsys_south)
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
@@ -2015,14 +2013,6 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     mws_target |= mws_red * mws_mask.MWS_MAIN_RED
     mws_target |= mws_red_n * mws_mask.MWS_MAIN_RED_NORTH
     mws_target |= mws_red_s * mws_mask.MWS_MAIN_RED_SOUTH
-
-    #ADM MWS main red bright/faint split
-    mws_target |= mws_red_faint * mws_mask.MWS_MAIN_RED_FAINT
-    mws_target |= mws_red_faint_n * mws_mask.MWS_MAIN_RED_FAINT_NORTH
-    mws_target |= mws_red_faint_s * mws_mask.MWS_MAIN_RED_FAINT_SOUTH
-    mws_target |= mws_red_bright * mws_mask.MWS_MAIN_RED_BRIGHT
-    mws_target |= mws_red_bright_n * mws_mask.MWS_MAIN_RED_BRIGHT_NORTH
-    mws_target |= mws_red_bright_s * mws_mask.MWS_MAIN_RED_BRIGHT_SOUTH
 
     # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
