@@ -716,72 +716,13 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             True if the object is a MWS-MAIN-RED target.
         mask2 : array_like. 
             True if the object is a MWS-MAIN-BLUE target.
-        mask3 : array_like. 
-            True if the object is a MWS-MAIN-RED-BRIGHT target.
-        mask4 : array_like. 
-            True if the object is a MWS-MAIN-RED-FAINT target.
     """
-    if primary is None:
-        primary = np.ones_like(gaia, dtype='?')
-    mws = primary.copy()
-
-    #ADM do not target any objects for which entries are NaN
-    #ADM and turn off the NaNs for those entries
-    nans = (np.isnan(rflux) | np.isnan(gflux) |
-               np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
-    w = np.where(nans)[0]
-    if len(w) > 0:
-        #ADM make copies as we are reassigning values
-        rflux, gflux, obs_rflux = rflux.copy(), gflux.copy(), obs_rflux.copy()
-        parallax, pmra, pmdec = parallax.copy(), pmra.copy(), pmdec.copy()
-        rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
-        parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
-        mws &= ~nans
-        log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(w),len(mws),time()-start))
-
-    #ADM apply the selection for all MWS-MAIN targets
-    #ADM main targets match to a Gaia source
-    mws &= gaia
-    #ADM main targets are point-like
-    mws &= _psflike(objtype)
-    #ADM main targets are 16 <= r < 19 
-    mws &= rflux > 10**((22.5-19.0)/2.5)
-    mws &= rflux <= 10**((22.5-16.0)/2.5)
-    #ADM main targets are robs < 20
-    mws &= obs_rflux > 10**((22.5-20.0)/2.5)
-    
-    #ADM make a copy of the main bits for a red/blue split
-    red = mws.copy()
-    blue = mws.copy()
-
-    #ADM MWS-BLUE is g-r < 0.7
-    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
-
-    #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
-    red &= parallax < 1.
-    red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-
-    #ADM make a copy of the red bits for the bright/faint split
-    rbright = red.copy()
-    rfaint = red.copy()
-
-    #ADM calculate the overall proper motion magnitude
-    #ADM inexplicably I'm getting a Runtimewarning here for
-    #ADM a few values in the sqrt, so I'm catching it
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2. + pmdec**2.)
-
-    #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
-    rbright &= rflux > 10**((22.5-18.0)/2.5)
-    rbright &= pm < 7.
-
-    #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
-    rfaint &= pm < 5.
-
-    return mws, red, blue, rbright, rfaint
+    #ADM currently no difference between N/S for MWS, so easiest
+    #ADM just to use one function
+    return isMWS_main_south(gflux=gflux,rflux=rflux,zflux=zflux,w1flux=w1flux,w2flux=w2flux,
+                            objtype=objtype,gaia=gaia,primary=primary,
+                            pmra=pmra,pmdec=pmdec,parallax=parallax,obs_rflux=obs_rflux, 
+                            gaiagmag=gaiagmag,gaiabmag=gaiabmag,gaiarmag=gaiarmag)
 
 
 def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
@@ -817,10 +758,6 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             True if the object is a MWS-MAIN-RED target.
         mask2 : array_like. 
             True if the object is a MWS-MAIN-BLUE target.
-        mask3 : array_like. 
-            True if the object is a MWS-MAIN-RED-BRIGHT target.
-        mask4 : array_like. 
-            True if the object is a MWS-MAIN-RED-FAINT target.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -845,12 +782,19 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     #ADM main targets match to a Gaia source
     mws &= gaia
     #ADM main targets are point-like
-    mws &= ~_psflike(objtype)
+    mws &= _psflike(objtype)
     #ADM main targets are 16 <= r < 19 
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
     #ADM main targets are robs < 20
     mws &= obs_rflux > 10**((22.5-20.0)/2.5)
+
+    #ADM calculate the overall proper motion magnitude
+    #ADM inexplicably I'm getting a Runtimewarning here for
+    #ADM a few values in the sqrt, so I'm catching it
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2. + pmdec**2.)
     
     #ADM make a copy of the main bits for a red/blue split
     red = mws.copy()
@@ -859,30 +803,27 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     #ADM MWS-BLUE is g-r < 0.7
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
-    #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas
+    #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas...
     red &= parallax < 1.
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
+    #ADM ...and proper motion < 7.
+    red &= pm < 7.
 
+    #ADM no further splitting was deemed necessary as of 5 June 2018
+    # (version 99 of https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection)
     #ADM make a copy of the red bits for the bright/faint split
-    rbright = red.copy()
-    rfaint = red.copy()
-
-    #ADM calculate the overall proper motion magnitude
-    #ADM inexplicably I'm getting a Runtimewarning here for
-    #ADM a few values in the sqrt, so I'm catching it
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2. + pmdec**2.)
+#    rbright = red.copy()
+#    rfaint = red.copy()
 
     #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
-    rbright &= rflux > 10**((22.5-18.0)/2.5)
-    rbright &= pm < 7.
+#    rbright &= rflux > 10**((22.5-18.0)/2.5)
+#    rbright &= pm < 7.
 
     #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
-    rfaint &= pm < 5.
+#    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
+#    rfaint &= pm < 5.
 
-    return mws, red, blue, rbright, rfaint
+    return mws, red, blue
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
@@ -2000,12 +1941,12 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
 
     #ADM set the MWS bits
-    mws_n, mws_red_n, mws_blue_n, mws_red_bright_n, mws_red_faint_n = isMWS_main_north(
-        primary=primary, gflux=gflux, rflux=rflux, objtype=objtype, gaia=gaia, 
-        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
-    mws_s, mws_red_s, mws_blue_s, mws_red_bright_s, mws_red_faint_s = isMWS_main_south(
-        primary=primary, gflux=gflux, rflux=rflux, objtype=objtype, gaia=gaia, 
-        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux)
+    mws_n, mws_red_n, mws_blue_n = isMWS_main_north(primary=primary, gaia=gaia,  
+                                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                                pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
+    mws_s, mws_red_s, mws_blue_s = isMWS_main_south(primary=primary, gaia=gaia,  
+                                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                                pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
     mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
     mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, 
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
