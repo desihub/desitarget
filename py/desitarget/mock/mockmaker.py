@@ -2319,7 +2319,7 @@ class LRGMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z'):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z', **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2535,7 +2535,7 @@ class ELGMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2753,7 +2753,7 @@ class BGSMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
@@ -3207,10 +3207,15 @@ class MWS_MAINMaker(STARMaker):
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-r`.
+    calib_only : :class:`bool`, optional
+        Use MWS_MAIN stars as calibration (standard star) targets, only.
+        Defaults to False.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-r', calib_only=False, **kwargs):
         super(MWS_MAINMaker, self).__init__()
+
+        self.calib_only = calib_only
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -3305,7 +3310,7 @@ class MWS_MAINMaker(STARMaker):
             seed = self.seed
         rand = np.random.RandomState(seed)
         
-        if no_spectra:
+        if no_spectra or self.calib_only:
             flux = []
             meta = self.template_photometry(data, indx, rand)
         else:
@@ -3761,6 +3766,8 @@ class WDMaker(SelectTargets):
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-r`.
+    calib_only : :class:`bool`, optional
+        Use WDs as calibration (standard star) targets, only.  Defaults to False. 
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
@@ -3768,7 +3775,7 @@ class WDMaker(SelectTargets):
 
     def __init__(self, seed=None, normfilter='decam2014-g', calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
-        from speclite import filters
+        from speclite import filters 
         from desisim.templates import WD
         
         super(WDMaker, self).__init__()

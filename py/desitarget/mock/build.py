@@ -204,7 +204,7 @@ def _get_spectra_onepixel(specargs):
     return get_spectra_onepixel(*specargs)
 
 def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
-                         maxiter=1, no_spectra=False):
+                         maxiter=1, no_spectra=False, calib_only=False):
     """Wrapper function to generate spectra for all targets on a single healpixel.
 
     Parameters
@@ -224,7 +224,9 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     maxiter : :class:`int`
        Maximum number of iterations to generate targets.
     no_spectra : :class:`bool`, optional
-        Do not generate spectra, e.g., for use with quicksurvey.
+        Do not generate spectra, e.g., for use with quicksurvey.  Defaults to False.
+    calib_only : :class:`bool`, optional
+        Use targets as calibration (standard star) targets, only. Defaults to False.
 
     Returns
     -------
@@ -268,7 +270,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         if nkeep > 0:
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
-            if not no_spectra or not MakeMock.calib_only:
+            if not no_spectra and not calib_only:
                 trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required
@@ -291,7 +293,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
-                if not no_spectra and not MakeMock.calib_only:
+                if not no_spectra and not calib_only:
                     trueflux.append(chunkflux[keep, :])
 
             itercount += 1
@@ -310,7 +312,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
-        if not no_spectra and not MakeMock.calib_only:
+        if not no_spectra and not calib_only:
             trueflux = np.concatenate(trueflux)
         
     return [targets, truth, trueflux]
@@ -400,7 +402,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
-                nproc=1, sky=False, no_spectra=False):
+                nproc=1, sky=False, no_spectra=False, calib_only=False):
     """Generate spectra (in parallel) for a set of targets.
 
     Parameters
@@ -422,7 +424,9 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     sky : :class:`bool`
         Processing sky targets (which are a special case).  Defaults to False.
     no_spectra : :class:`bool`, optional
-        Do not generate spectra, e.g., for use with quicksurvey.
+        Do not generate spectra, e.g., for use with quicksurvey.  Defaults to False.
+    calib_only : :class:`bool`, optional
+        Use targets as calibration (standard star) targets, only. Defaults to False.
 
     Returns
     -------
@@ -457,7 +461,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     for indx, ntarg, chunkseed in zip( indxperchunk, ntargperchunk, chunkseeds ):
         if len(indx) > 0:
             specargs.append( (data, indx, MakeMock, chunkseed, log,
-                              ntarg, maxiter, no_spectra) )
+                              ntarg, maxiter, no_spectra, calib_only) )
 
     nn = np.zeros((), dtype='i8')
     t0 = time()
@@ -491,7 +495,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     if sky:
         trueflux = []
     else:
-        if no_spectra or MakeMock.calib_only:
+        if no_spectra or calib_only:
             trueflux = []
         else:
             good = [len(targ) > 0 for targ in results[0]]
@@ -584,7 +588,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             sky = source_name.upper() == 'SKY'
             targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
                                                    nside_chunk=nside_chunk, seed=healseed,
-                                                   nproc=nproc, sky=sky, no_spectra=no_spectra)
+                                                   nproc=nproc, sky=sky, no_spectra=no_spectra,
+                                                   calib_only=params.get('calib_only', False))
             
             if sky:
                 allskytargets.append(targets)
@@ -601,7 +606,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         # Pack it all together and then add some final columns.
         if len(alltargets) > 0:
-            targets = vstack(alltargets)
+            targets = vstack(alltargets) 
             truth = vstack(alltruth)
             trueflux = np.concatenate(alltrueflux)
         else:
