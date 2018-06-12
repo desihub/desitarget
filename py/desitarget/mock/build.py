@@ -81,6 +81,18 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     rand = np.random.RandomState(seed)
     healpixseeds = rand.randint(2**31, size=npix)
 
+    # Parse DUST_DIR.
+    if 'dust_dir' in params.keys():
+        dust_dir = params['dust_dir']    
+        try:
+            dust_dir = dust_dir.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for DUST_DIR: {}'.format(e))
+            raise ValueError
+    else:
+        log.warning('DUST_DIR parameter not found in configuration file.')
+        raise ValueError
+
     # Create the output directories
     if os.path.exists(output_dir):
         if os.listdir(output_dir):
@@ -94,7 +106,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
         len(healpixels), nside, areaperpix, npix * areaperpix))
 
-    return log, healpixseeds
+    return log, healpixseeds, dust_dir
     
 def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
               nside=None, nside_chunk=128, MakeMock=None):
@@ -530,7 +542,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     """
     from desitarget.mock import mockmaker
 
-    log, healpixseeds = initialize_targets_truth(
+    log, healpixseeds, dust_dir = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
         output_dir=output_dir, healpixels=healpixels)
 
@@ -558,7 +570,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             # Read the data and ithere are no targets, keep going.
             log.info('Working on target class: {}'.format(source_name))
             data, MakeMock = read_mock(params['sources'][source_name],
-                                       log, dust_dir=params['dust_dir'],
+                                       log, dust_dir=dust_dir,
                                        seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii])
