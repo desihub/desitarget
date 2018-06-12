@@ -152,7 +152,8 @@ def add_gaia_columns(indata):
     """
     #ADM import the Gaia data model from gaiamatch
     from desitarget.gaiamatch import gaiadatamodel
-    #ADM prepedn GAIA to the Gaia data model names
+
+    #ADM prepend GAIA to the Gaia data model names
     gaiadt = [ ("GAIA_"+i[0],i[1]) for i in gaiadatamodel.dtype.descr ]
     #ADM create the combined data model
     dt = indata.dtype.descr + gaiadt

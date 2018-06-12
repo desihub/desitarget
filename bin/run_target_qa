@@ -18,7 +18,7 @@ ap.add_argument("dest", help="Output directory to make QA webpage hierarchy (e.g
 ap.add_argument('-m', "--mocks", action='store_true', help="Input target file is a set of mock targets, so we can make extra, special QA plots")
 ap.add_argument('-n', "--noplots", action='store_true', help="Do not produce any new plots, only the body of the QA webpage")
 ap.add_argument('--nside', default=None, type=int , help="Specify the healpixel resolution of the sky maps")
-ap.add_argument('-w','--weightmapfile', default=None, help="Location (e.g. ~/project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits) of the imaging HEALPix map file for the Data Release that corresponds to these targets (e.g. as made by desitarget.imagefootprint.pixweight()")
+ap.add_argument('-w','--weightmapfile', default=None, help="Location (e.g. /project/projectdirs/desi/target/catalogs/dr6/pixweight-dr4-0.20.0.fits) of the imaging HEALPix map file for the Data Release that corresponds to these targets (e.g. as made by desitarget.imagefootprint.pixweight()")
 
 ns = ap.parse_args()
 
