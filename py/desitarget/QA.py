@@ -1481,7 +1481,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to ``"radec"`` for (RA/Dec)
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
 
     Returns
     -------
@@ -1536,7 +1536,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
     catispix : :class:`boolean`, optional, defaults to ``False``
         If this is ``True``, then ``cat`` corresponds to the HEALpixel numbers already
         precomputed using ``pixels = footprint.radec2pix(nside, cat["RA"], cat["DEC"])``
@@ -1627,7 +1627,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"mag"`` for
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
 
     Returns
     -------
@@ -1785,7 +1785,7 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"mock-fractype"`` for
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
 
     Returns
     -------
@@ -1869,9 +1869,9 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output N(z) plot file name
+        String to be added to the front of the output N(z) plot file name
     fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output z vs. mag plot file name
+        String to be added to the front of the output z vs. mag plot file name
 
     Returns
     -------
@@ -1938,7 +1938,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
         hb = plt.hexbin(cat["TRUEZ"], cat["MAG"], mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
                         bins='log', extent=(*zlim, *maglim), gridsize=60)
         cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        cb.set_label(r'$\log_{10}$ (Number of Targets)')
         
     #ADM...otherwise make a scatter plot
     else:
@@ -1980,7 +1980,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
     nodustcorr : :class:`boolean`, optional, defaults to False
         Do not correct for dust extinction.
 
