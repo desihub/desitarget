@@ -1332,9 +1332,20 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
-def _load_targdens():
+def _load_targdens(bitnames=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
+
+    Parameters
+    ----------
+    bitnames : :class:`list`
+        A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
+        for those specific bits
+
+    Returns
+    -------
+    :class:`dictionary` 
+        A dictionary where the keys are the bit names and the values are the densities           
     """
 
     from desimodel import io
@@ -1364,7 +1375,11 @@ def _load_targdens():
     targdens['MWS_WD'] = 0.
     targdens['MWS_NEARBY'] = 0.
 
-    return targdens
+    if bitnames is None:
+        return targdens
+    else:
+        #ADM this is a dictionary comprehension
+        return {key: value for key, value in targdens.items() if key in bitnames}
 
 
 def _javastring():
@@ -2406,7 +2421,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
-                 weight=True, imaging_map_file=None):
+                 weight=True, imaging_map_file=None, bitnames=None):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -2434,6 +2449,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         If `weight` is set, then this file contains the location of the imaging HEALPixel
         map (e.g. made by :func:`desitarget.imagefootprint.pixweight()`. If this is not sent, 
         then the weights default to 1 everywhere (i.e. no weighting) for the real targets
+    bitnames : :class:`list`
+        A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
+        for those specific bits. A useful speed-up when testing
 
     Returns
     -------
@@ -2491,7 +2509,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM Set up the names of the target classes and their goal densities using
     #ADM the goal target densities for DESI (read from the DESIMODEL defaults)
-    targdens = _load_targdens()
+    targdens = _load_targdens(bitnames=bitnames)
     
     #ADM set up the html file and write preamble to it
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
