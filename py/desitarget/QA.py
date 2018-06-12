@@ -1606,8 +1606,24 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
                     label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype,targdens[objtype]))
     plt.legend(loc='upper left', frameon=False)
 
+    #ADM add some metric conditions which are considered a failure for this
+    #ADM target class... 
+
+    #ADM determine the cumulative version of the histogram of densities
+    cum = np.cumsum(h)/np.sum(h)
+    #ADM extract which bins correspond to the "68%" of central values
+    w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
+    minbin, maxbin = b[w][0], b[w][-1]
+    #ADM this is a good plot if the peak value is within the ~68% of central values
+    good = (peak > minbin) & (peak < maxbin)
+    
+    #ADM write out the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    if good:
+        plt.savefig(pngfile,bbox_inches='tight')
+    #ADM write out a plot with a yellow warning box
+    else:
+        plt.savefig(pngfile,bbox_inches='tight',facecolor='yellow')
 
     plt.close()
 
