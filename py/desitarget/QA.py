@@ -2380,6 +2380,11 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
                 #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
+            #ADM make Gaia-based plots, if we have Gaia columns
+            if "PARALLAX" in targs.dtype.names:
+                qagaia(targs[w], objtype, qadir=qadir, fileprefix="gaia")
+                log.info('Made Gaia-based plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
 
@@ -2534,6 +2539,18 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</tr>\n')
         html.write('</table>\n')
 
+        #ADM parallax and proper motion plots
+        html.write('<h2>Gaia based plots</h2>\n')
+        html.write('<table COLS=2 WIDTH="100%">\n')
+        html.write('<tr>\n')
+        #ADM add the plots...
+        html.write('<td align=center><A HREF="gaia-pm-{}.png"><img SRC="gaia-pm-{}.png" width=75% height=auto></A></td>\n'
+                   .format(objtype,objtype))
+        html.write('<td align=center><A HREF="gaia-parallax-{}.png"><img SRC="gaia-parallax-{}.png" width=71% height=auto></A></td>\n'
+                   .format(objtype,objtype))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+
         #ADM add special plots if we have mock data
         if mocks:
             html.write('<hr>\n')
@@ -2621,4 +2638,3 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     ok = os.system(cmd)
     cmd = 'chmod 775 {}'.format(qadir)
     ok = os.system(cmd)
-
