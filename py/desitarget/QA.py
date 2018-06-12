@@ -1692,6 +1692,87 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
     return
 
 
+def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
+    """Make Gaia-based DESI targeting QA plots given a passed set of targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least "RA", "GAIA_PARALLAX", 
+        "GAIA_PMRA" and "GAIA_PMDEC" 
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to ``"gaia"``
+        String to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of proper motions and distances from parallax are written to 
+        ``qadir``. The files are called:
+            ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``
+            ``{qadir}/{fileprefix}-{pm}-{objtype}.png``
+    """
+
+    #ADM change the parallaxes (which are in mas) to distances in parsecs
+    #ADM clip at very small parallaxes to avoid divide-by-zero
+    r = 1000./np.clip(cat["GAIA_PARALLAX"],1e-16,1e16)
+    #ADM set the angle element of the plot to RA
+    theta = np.radians(cat["RA"])
+
+    #ADM set up the plot in polar projection
+    ax = plt.subplot(111, projection='polar')
+    ax.scatter(theta, r, s=2, alpha=0.6)
+
+    #ADM only plot out to 110 pc
+    ax.set_rmax(125)
+    #ADM add a grid of distances
+    rticknum = np.arange(1,6)*25
+    rticknames = ["{}".format(num) for num in rticknum]
+    #ADM include the parsec unit for the outermost distance label
+    rticknames[-1] +='pc'
+    #ADM the most flexible set of rtick controllers is in the ytick attribute
+    ax.set_yticks(rticknum)
+    ax.set_yticklabels(rticknames)
+    ax.grid(True)
+
+    #ADM save the plot
+    ax.set_title("Distances at each RA based on Gaia parallaxes", va='bottom')
+    pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'parallax',objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    #ADM plot the proper motions in RA/Dec against each other
+    plt.clf()
+    plt.xlabel(r'$PM_{RA}\,(mas\,yr^{-1})$')
+    plt.ylabel(r'$PM_{DEC}\,(mas\,yr^{-1})$')
+
+    ralim = (-25, 25)
+    declim = (-25, 25)
+    nobjs = len(cat)
+
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        hb = plt.hexbin(cat["GAIA_PMRA"], cat["GAIA_PMDEC"],
+                        mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*ralim, *declim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Sources)')
+
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.scatter(cat["GAIA_PMRA"], cat["GAIA_PMDEC"], alpha=0.6)
+
+    #ADM save the plot
+    pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'pm',objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    return
+
+
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
 
@@ -2540,3 +2621,4 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     ok = os.system(cmd)
     cmd = 'chmod 775 {}'.format(qadir)
     ok = os.system(cmd)
+
