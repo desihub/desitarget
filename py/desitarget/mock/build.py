@@ -152,6 +152,7 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     magcut = params.get('magcut')
     nside_lya = params.get('nside_lya')
     nside_galaxia = params.get('nside_galaxia')
+    calib_only = params.get('calib_only', False)
 
     if 'density' in params.keys():
         mock_density = True
@@ -161,7 +162,8 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
 
     if MakeMock is None:
-        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk)
+        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk,
+                                                                     calib_only=calib_only)
     else:
         MakeMock.seed = seed # updated seed
         
@@ -266,7 +268,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         if nkeep > 0:
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
-            if not no_spectra:
+            if not no_spectra or not MakeMock.calib_only:
                 trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required
@@ -289,7 +291,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
-                if not no_spectra:
+                if not no_spectra and not MakeMock.calib_only:
                     trueflux.append(chunkflux[keep, :])
 
             itercount += 1
@@ -308,7 +310,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
-        if not no_spectra:
+        if not no_spectra and not MakeMock.calib_only:
             trueflux = np.concatenate(trueflux)
         
     return [targets, truth, trueflux]
@@ -489,7 +491,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     if sky:
         trueflux = []
     else:
-        if no_spectra:
+        if no_spectra or MakeMock.calib_only:
             trueflux = []
         else:
             good = [len(targ) > 0 for targ in results[0]]
@@ -550,9 +552,9 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     AllMakeMock = []
     for source_name in sorted(params['sources'].keys()):
         target_name = params['sources'][source_name].get('target_name')
+        calib_only = params['sources'][source_name].get('calib_only', False)
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
-            seed=seed, nside_chunk=nside_chunk))
-    print(AllMakeMock[0].seed)
+            seed=seed, nside_chunk=nside_chunk, calib_only=calib_only))
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):

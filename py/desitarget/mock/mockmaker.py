@@ -3766,7 +3766,7 @@ class WDMaker(SelectTargets):
     wave, da_template_maker, db_template_maker = None, None, None
     wd_maggies_da, wd_maggies_db, tree_da, tree_db = None, None, None, None
 
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-g', calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters
         from desisim.templates import WD
@@ -3775,6 +3775,7 @@ class WDMaker(SelectTargets):
 
         self.seed = seed
         self.objtype = 'WD'
+        self.calib_only = calib_only
 
         if self.wave is None:
             WDMaker.wave = _default_wave()
@@ -3980,7 +3981,7 @@ class WDMaker(SelectTargets):
         #else:
         if self.mockformat == 'mws_wd':
             allsubtype = data['TEMPLATESUBTYPE'][indx]
-            if no_spectra:
+            if no_spectra or self.calib_only:
                 meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
                 flux = []
             else:
@@ -4002,7 +4003,7 @@ class WDMaker(SelectTargets):
                                          data['LOGG'][indx][these])).T
                     _, templateid = self._query(alldata, subtype=subtype)
 
-                    if no_spectra:
+                    if no_spectra or self.calib_only:
                         meta1 = self.template_photometry(data, indx[these],
                                                          rand, subtype)
                         meta[these] = meta1
@@ -4040,8 +4041,9 @@ class WDMaker(SelectTargets):
         #mws_wd = np.ones(len(targets)) # select everything!
         mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
 
-        targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
-        targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
+        if not self.calib_only:
+            targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+            targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
 
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
