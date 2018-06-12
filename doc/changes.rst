@@ -6,6 +6,10 @@ desitarget Change Log
 -------------------
 
 * Allow environment variables in select_mock_targets config file [`PR #325`_].  
+* First version of Milky Way Survey selection [`PR #324`_]:
+   * Catalog-matches to Gaia using :mod:`desitarget.gaimatch`.
+   * Sets MWS_MAIN, MWS_WD and MWS_NEARBY bits.
+   * Makes individual QA pages for MWS (and other) bits.
 * Change GFA selection to be Gaia-based [`PR #322`_]:
    * Update the `select_gfas` binary to draw from Gaia DR2.
    * Parallelize across sweeps files to add fluxes from the Legacy Surveys.
@@ -54,6 +58,7 @@ desitarget Change Log
 .. _`PR #318`: https://github.com/desihub/desitarget/pull/318
 .. _`PR #322`: https://github.com/desihub/desitarget/pull/322
 .. _`PR #325`: https://github.com/desihub/desitarget/pull/325
+.. _`PR #324`: https://github.com/desihub/desitarget/pull/324
 
 0.20.1 (2018-03-29)
 -------------------
