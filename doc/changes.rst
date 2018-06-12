@@ -5,6 +5,7 @@ desitarget Change Log
 0.21.0 (unreleased)
 -------------------
 
+* Allow environment variables in select_mock_targets config file [`PR #325`_].  
 * Change GFA selection to be Gaia-based [`PR #322`_]:
    * Update the `select_gfas` binary to draw from Gaia DR2.
    * Parallelize across sweeps files to add fluxes from the Legacy Surveys.
@@ -52,6 +53,7 @@ desitarget Change Log
 .. _`PR #316`: https://github.com/desihub/desitarget/pull/316
 .. _`PR #318`: https://github.com/desihub/desitarget/pull/318
 .. _`PR #322`: https://github.com/desihub/desitarget/pull/322
+.. _`PR #325`: https://github.com/desihub/desitarget/pull/325
 
 0.20.1 (2018-03-29)
 -------------------

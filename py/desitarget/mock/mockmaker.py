@@ -570,6 +570,12 @@ class SelectTargets(object):
             log.warning('Mockfile input is required.')
             raise ValueError
 
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         areaperpix = hp.nside2pixarea(nside, degrees=True)
 
         radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
@@ -685,7 +691,13 @@ class ReadGaussianField(SelectTargets):
         if mockfile is None:
             log.warning('Mockfile input is required.')
             raise ValueError
-            
+
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
@@ -815,7 +827,13 @@ class ReadUniformSky(SelectTargets):
         if mockfile is None:
             log.warning('Mockfile input is required.')
             raise ValueError
-            
+
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
@@ -947,6 +965,12 @@ class ReadGalaxia(SelectTargets):
             log.warning('Mockfile input is required.')
             raise ValueError
 
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         if nside_galaxia is None:
             log.warning('Nside_galaxia input is required.')
             raise ValueError
@@ -1172,6 +1196,12 @@ class ReadLyaCoLoRe(SelectTargets):
             log.warning('Mockfile input is required.')
             raise ValueError
         
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         if nside_lya is None:
             log.warning('Nside_lya input is required.')
             raise ValueError
@@ -1318,6 +1348,12 @@ class ReadMXXL(SelectTargets):
         
         if mockfile is None:
             log.warning('Mockfile input is required.')
+            raise ValueError
+        
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
             raise ValueError
         
         if not os.path.isfile(mockfile):
@@ -1494,6 +1530,12 @@ class ReadMWS_WD(SelectTargets):
             log.warning('Mockfile input is required.')
             raise ValueError
         
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
@@ -1626,6 +1668,12 @@ class ReadMWS_NEARBY(SelectTargets):
             log.warning('Mockfile input is required.')
             raise ValueError
 
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
         if not os.path.isfile(mockfile):
             log.warning('Mock file {} not found!'.format(mockfile))
             raise IOError
