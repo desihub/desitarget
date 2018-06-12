@@ -1475,6 +1475,141 @@ class ReadMXXL(SelectTargets):
 
         return out
 
+class ReadGAMA(SelectTargets):
+    """Read a GAMA catalog of BGS targets.  This reader will only generally be used
+    for the Survey Validation Data Challenge.
+
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
+    cached_radec = None
+    
+    def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadGAMA, self).__init__()
+        
+        self.dust_dir = dust_dir
+        self.bricksize = bricksize
+
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='', magcut=None, only_coords=False):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data file is not found.
+        ValueError
+            If mockfile or healpixels are not defined, or if nside is not a
+            scalar.
+
+        """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
+        if not os.path.isfile(mockfile):
+            log.warning('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        # Require healpixels, or could pass the set of tiles and use
+        # footprint.tiles2pix() to convert to healpixels given nside.
+        if healpixels is None:
+            log.warning('Healpixels input is required.') 
+            raise ValueError
+        
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
+            raise ValueError
+
+        # Read the ra,dec coordinates, pixel weight map, generate mockid, and
+        # then restrict to the desired healpixels.
+        if self.cached_radec is None:
+            ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+            ReadGAMA.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+        else:
+            cached_mockfile, cached_nside, ra, dec, allpix, pixweight = ReadGAMA.cached_radec
+            if cached_mockfile != mockfile or cached_nside != nside:
+                ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+                ReadGAMA.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+            else:
+                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, allpix, pixweight = ReadGAMA.cached_radec
+
+        mockid = np.arange(len(ra)) # unique ID/row number
+        
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
+        mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
+        ra = ra[cut]
+        dec = dec[cut]
+
+        # Assign bricknames.
+        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+
+        # Add photometry, absolute magnitudes, and redshifts.
+        data = fitsio.read(mockfile, columns=['FLUX_G', 'FLUX_R', 'FLUX_Z', 'Z'], upper=True, ext=1, rows=cut)
+        zz = data['Z'].astype('f4')
+        rmag = 22.5 - 2.5 * np.log10(data['FLUX_R']).astype('f4')
+            
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gama-bgs',
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz,
+               'NORMFILTER': 'decam2014-r', 'MAG': rmag}
+
+        # Add MW transmission and the imaging depth.
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
+            imaging_depth(out)
+
+        return out
+
 class ReadMWS_WD(SelectTargets):
     """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD). 
 
@@ -2692,6 +2827,8 @@ class BGSMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'durham_mxxl_hdf5':
             MockReader = ReadMXXL(dust_dir=dust_dir)
+        elif self.mockformat == 'gama-bgs':
+            MockReader = ReadGAMA(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2788,9 +2925,15 @@ class BGSMaker(SelectTargets):
                                      data['SDSS_01gr'][indx])).T
                 _, templateid = self._query(alldata)
                 input_meta['TEMPLATEID'] = templateid
+            elif self.mockformat == 'gama-bgs':
+                print('Temporary hack -- reset VDISP and VERBOSE!!!')
+                input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'].data, nobj)
+            else:
+                pass
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                               nocolorcuts=True, novdisp=False)
+            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta, verbose=True,
+                                                               nocolorcuts=True, novdisp=True) # novdisp=False)
+            
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
                                                      seed=seed, gmm=gmm,
