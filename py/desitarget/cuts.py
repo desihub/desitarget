@@ -1796,9 +1796,8 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
         #ADM add the Gaia column information to the primary array
-        #ADM remember the columns are prepended "GAIA_" in the primary
         for col in gaiainfo.dtype.names:
-            objects["GAIA_"+col] = gaiainfo[col]
+            objects[col] = gaiainfo[col][:nobjs]
 
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
@@ -1827,7 +1826,6 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     #- undo Milky Way extinction
     flux = unextinct_fluxes(objects)
 
-    #ADM make copies of values that we may reassign due to NaNs
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
@@ -1862,12 +1860,11 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     if len(w[0]) > 0:
         deltaChi2[w] = -1e6
 
-    #ADM the Gaia columns...remember to make copies of quantities that
-    #ADM we may reassign if they are NaN for some reason
-    gaia = objects["GAIA_SOURCE_ID"] != -1
-    pmra = objects['GAIA_PMRA']
-    pmdec = objects['GAIA_PMDEC']
-    parallax = objects['GAIA_PARALLAX']
+    #ADM the Gaia columns
+    gaia = objects["REF_ID"] != -1
+    pmra = objects['PMRA']
+    pmdec = objects['PMDEC']
+    parallax = objects['PARALLAX']
     gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
