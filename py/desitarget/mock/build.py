@@ -239,7 +239,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         and returned for non-sky targets and if no_spectra=False.
 
     """
-    nobj = len(np.atleast_1d(indx))
+    #nobj = len(np.atleast_1d(indx))
     targname = data['TARGET_NAME']
 
     rand = np.random.RandomState(seed)
@@ -254,6 +254,17 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if 'BOSS_STD' in data.keys():
         boss_std = data['BOSS_STD'][indx]
 
+        if calib_only:
+            calib = np.where(boss_std)[0]
+            ntarget = len(calib)
+            if ntarget == 0:
+                log.debug('No (flux) calibration star(s) on this healpixel.')
+                return [targets, truth, trueflux]
+            else:
+                log.debug('Generating spectra for {} candidate (flux) calibration stars.'.format(ntarget))
+                indx = indx[calib]
+                boss_std = boss_std[calib]
+
     # Faintstar targets are a special case.
     if targname.lower() == 'faintstar':
         chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
@@ -265,12 +276,12 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         else:
             nkeep = 0
 
-        log.debug('Selected {} / {} {} targets'.format(nkeep, nobj, targname))
+        log.debug('Selected {} / {} {} targets'.format(nkeep, ntarget, targname))
 
         if nkeep > 0:
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
-            if not no_spectra and not calib_only:
+            if not no_spectra:
                 trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required
@@ -288,19 +299,19 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             nkeep = len(keep)
             if nkeep > 0:
                 log.debug('Generated {} / {} {} targets on iteration {} / {}.'.format(
-                    nkeep, nobj, targname, itercount, maxiter))
+                    nkeep, ntarget, targname, itercount, maxiter))
                 ntot += nkeep
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
-                if not no_spectra and not calib_only:
+                if not no_spectra:
                     trueflux.append(chunkflux[keep, :])
 
             itercount += 1
             if itercount == maxiter:
                 if maxiter > 1:
-                    log.warning('Generated only {} / {} {} targets after {} iterations.'.format(
-                        ntot, nobj, targname, maxiter))
+                    log.warning('Generated {} / {} {} targets after {} iterations.'.format(
+                        ntot, ntarget, targname, maxiter))
                 makemore = False
             else:
                 need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
@@ -312,7 +323,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
-        if not no_spectra and not calib_only:
+        if not no_spectra:
             trueflux = np.concatenate(trueflux)
         
     return [targets, truth, trueflux]
@@ -450,7 +461,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     nchunk = len(indxperchunk)
     nalltarget = np.sum(ntargperchunk)
-    log.info('Goal: generate spectra for {} {} targets ({:.2f} / deg2).'.format(
+    log.info('Goal: Generate spectra for {} {} targets ({:.2f} / deg2).'.format(
         nalltarget, data['TARGET_NAME'], nalltarget / area))
 
     rand = np.random.RandomState(seed)
@@ -486,23 +497,37 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     # Unpack the results and return; note that sky targets are a special case.
     results = list(zip(*results))
-    targets = [targ for targ in results[0] if len(targ) > 0]
-    truth = [tru for tru in results[1] if len(tru) > 0]
+
+    #targets = [targ for targ in results[0] if len(targ) > 0]
+    #truth = [tru for tru in results[1] if len(tru) > 0]
+    
+    targets, truth, good = [], [], []
+    for ii, (targ, tru) in enumerate( zip(results[0], results[1]) ):
+        if len(targ) != len(tru):
+            log.warning('Mismatching argets and truth tables!')
+            raise ValueError
+        if len(targ) > 0:
+            good.append(ii)
+            targets.append(targ)
+            truth.append(tru)
+               
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
+        good = np.array(good)
 
     if sky:
         trueflux = []
     else:
-        if no_spectra or calib_only:
+        if no_spectra:
             trueflux = []
         else:
-            good = [len(targ) > 0 for targ in results[0]]
             if len(good) > 0:
                 trueflux = np.concatenate(np.array(results[2])[good])
-        
-    log.info('Done: generated spectra for {} {} targets ({:.2f} / deg2).'.format(
+            else:
+                trueflux = []
+                
+    log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
     log.info('Total time for {}s = {:.3f} minutes ({:.3f} cpu minutes/deg2).'.format(
