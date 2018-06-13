@@ -23,12 +23,26 @@ log = get_logger()
 #ADM start the clock
 start = time()
 
-#ADM the current data model for Gaia files
-gaiadatamodel = np.array([], dtype=[
+#ADM the current data model for Gaia columns for READING from Gaia files
+ingaiadatamodel = np.array([], dtype=[
             ('SOURCE_ID', '>i8'), ('RA', '>f8'), ('DEC', '>f8'),
-            ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_MAG', '>f4'),
-            ('PHOT_RP_MEAN_MAG', '>f4'), ('ASTROMETRIC_EXCESS_NOISE', '>f4'),
-            ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4')
+            ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('PARALLAX', '>f4'), 
+            ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+            ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'),
+                                   ])
+
+#ADM the current data model for Gaia columns for WRITING to target files
+ingaiadatamodel = np.array([], dtype=[
+            ('REF_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
+            ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('PARALLAX', '>f4'), 
+            ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
+            ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
                                    ])
 
 def read_gaia_file(filename, header=False):
