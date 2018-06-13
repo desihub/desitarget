@@ -35,7 +35,7 @@ ingaiadatamodel = np.array([], dtype=[
                                    ])
 
 #ADM the current data model for Gaia columns for WRITING to target files
-outgaiadatamodel = np.array([], dtype=[
+gaiadatamodel = np.array([], dtype=[
             ('REF_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
             ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
@@ -60,7 +60,7 @@ def read_gaia_file(filename, header=False):
     -------
     :class:`list`
         Gaia data translated to targeting format (upper-case etc.) with the
-        columns corresponding to `desitarget.secondary.outgaiadatamodel`
+        columns corresponding to `desitarget.secondary.gaiadatamodel`
 
     Notes
     -----
@@ -79,7 +79,7 @@ def read_gaia_file(filename, header=False):
     #ADM read 'em in
     outdata = fx[1].read(columns=readcolumns)
     #ADM change the data model to what we want for each column
-    outdata.dtype = outgaiadatamodel.dtype
+    outdata.dtype = gaiadatamodel.dtype
 
     #ADM return data read in from the gaia file, with the header if requested
     if header:
@@ -243,7 +243,7 @@ def match_gaia_to_primary(objs, matchrad=1.,
     -------
     :class:`numpy.ndarray`
         The matching Gaia information for each object, where the returned format and
-        columns correspond to `desitarget.secondary.outgaiadatamodel`
+        columns correspond to `desitarget.secondary.gaiadatamodel`
 
     Notes
     -----
@@ -274,11 +274,11 @@ def match_gaia_to_primary(objs, matchrad=1.,
         return match_gaia_to_primary_single(objs,matchrad=matchrad,gaiadir=gaiadir)
 
     #ADM set up a zerod array of Gaia information for the passed objects
-    gaiainfo = np.zeros(nobjs, dtype=outgaiadatamodel.dtype)
+    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
     #ADM a supplemental (zero-length) array to hold Gaia objects that don't 
     #ADM match a sweeps object, in case retaingaia was set
-    suppgaiainfo = np.zeros(0, dtype=outgaiadatamodel.dtype)
+    suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
 
     #ADM objects without matches should have REF_ID of -1
     gaiainfo['REF_ID'] = -1
@@ -338,7 +338,7 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
     -------
     :class:`numpy.ndarray`
         The matching Gaia information for the object, where the returned format and
-        columns correspond to `desitarget.secondary.outgaiadatamodel`
+        columns correspond to `desitarget.secondary.gaiadatamodel`
 
     Notes
     -----
@@ -359,7 +359,7 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
         log.error("Only matches one row but {} rows were sent".format(nobjs))
 
     #ADM set up a zerod array of Gaia information for the passed object
-    gaiainfo = np.zeros(nobjs, dtype=outgaiadatamodel.dtype)
+    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
     #ADM an object without matches should have REF_ID of -1
     gaiainfo['REF_ID'] = -1
