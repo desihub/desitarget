@@ -236,15 +236,12 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
-    #ADM As a speed up, only consider sweeps objects brighter than 1 mags
+    #ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
-    #ADM approximates SDSS r-band. This isn't a critical cut as we don't use 
-    #ADM the sweeps to populate flux information for ALL Gaia objects anyway.
-    #ADM A maglim + 0.5 mag cut here removes ~0.9% of Gaia-sweeps matches
-    #ADM compared to no mag cut. A maglim + 1 cut removes ~0.6% of matches.
-    w = np.where( (objects["FLUX_G"] > 10**((22.5-(maglim+1))/2.5)) |
-                  (objects["FLUX_R"] > 10**((22.5-(maglim+1))/2.5)) |
-                  (objects["FLUX_Z"] > 10**((22.5-(maglim+1))/2.5)) )
+    #ADM approximates SDSS r-band. 
+    w = np.where( (objects["FLUX_G"] > 10**((22.5-(maglim+3))/2.5)) |
+                  (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
+                  (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)) )[0]
     objects = objects[w]
 
     nobjs = len(objects)
@@ -266,7 +263,7 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     supg[...] = -1
     #ADM populate these additional objects
     for col in gaiainfo.dtype.names:
-        supg["GAIA_"+col] = gaiainfo[col][nobjs:]
+        supg[col] = gaiainfo[col][nobjs:]
 
     #ADM combine the primary and supplemental arrays
     objects = np.hstack([objects,supg])
