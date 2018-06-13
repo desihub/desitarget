@@ -586,18 +586,20 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
             # Generate targets in parallel; SKY targets are special. 
             sky = source_name.upper() == 'SKY'
+            calib_only = params['sources'][source_name].get('calib_only', False)
             targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
                                                    nside_chunk=nside_chunk, seed=healseed,
                                                    nproc=nproc, sky=sky, no_spectra=no_spectra,
-                                                   calib_only=params.get('calib_only', False))
+                                                   calib_only=calib_only)
             
             if sky:
                 allskytargets.append(targets)
                 allskytruth.append(truth)
             else:
-                alltargets.append(targets)
-                alltruth.append(truth)
-                alltrueflux.append(trueflux)
+                if len(targets) > 0:
+                    alltargets.append(targets)
+                    alltruth.append(truth)
+                    alltrueflux.append(trueflux)
 
             # Contaminants here?
 

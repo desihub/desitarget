@@ -3339,9 +3339,8 @@ class MWS_MAINMaker(STARMaker):
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, boss_std=None):
-        """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
-        contaminants for extragalactic targets.  Input tables are modified in
-        place.
+        """Select various MWS stars, standard stars, and (bright) contaminants for
+        extragalactic targets.  Input tables are modified in place.
 
         Note: The selection here eventually will be done with Gaia (I think).
 
@@ -3363,31 +3362,21 @@ class MWS_MAINMaker(STARMaker):
             main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
             return main
 
-        def _isMWS_MAIN_VERY_FAINT(rflux):
-            """A function like this should be in desitarget.cuts. Select 19<r<20 filler stars."""
-            faint = rflux > 10**( (22.5 - 20.0) / 2.5 )
-            faint &= rflux <= 10**( (22.5 - 19.0) / 2.5 )
-            return faint
-        
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
 
-        # Select MWS_MAIN targets.
-        mws_main = _isMWS_MAIN(rflux=rflux)
-        #mws_main = np.ones(len(targets)) # select everything!
+        if not self.calib_only:
+            # Select MWS_MAIN targets.
+            mws_main = _isMWS_MAIN(rflux=rflux)
         
-        targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-        targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
+            targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
+            targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         
-        mws_main_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
-        targets['MWS_TARGET'] |= (mws_main_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
-        targets['DESI_TARGET'] |= (mws_main_very_faint != 0) * self.desi_mask.MWS_ANY
+            # Select bright stellar contaminants for the extragalactic targets.
+            self.select_contaminants(targets, truth)
 
         # Select standard stars.
         self.select_standards(targets, truth, boss_std=boss_std)
         
-        # Select bright stellar contaminants for the extragalactic targets.
-        self.select_contaminants(targets, truth)
-
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
 
