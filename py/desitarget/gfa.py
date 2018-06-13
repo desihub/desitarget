@@ -264,9 +264,17 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     supg = np.zeros(len(gaiainfo) - nobjs, dtype=objects.dtype)
     #ADM make sure all of these additional columns have "ridiculous" numbers
     supg[...] = -1
+    #ADM but default the IVARs that would appear in the sweeps (g/r/z) to 0
+    for col in ["FLUX_IVAR_G", "FLUX_IVAR_R", "FLUX_IVAR_Z"]:
+        supg[col] = 0.
+    #ADM and then TYPE to PSF
+    supg["TYPE"] = 'PSF'
     #ADM populate these additional objects
     for col in gaiainfo.dtype.names:
         supg[col] = gaiainfo[col][nobjs:]
+    #ADM store the Gaia RA/DEC as the default for objects with no sweeps match
+    for col in ["RA","DEC"]:
+        supg[col] = supg["GAIA_"+col]
 
     #ADM combine the primary and supplemental arrays
     objects = np.hstack([objects,supg])
@@ -293,27 +301,25 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     #ADM format everything according to the data model
     gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
     #ADM make sure all columns initially have "ridiculous" numbers                                                                                       
-    gfas[...] = -1
-
+    gfas[...] = -99.
     #ADM remove the TARGETID and BRICK_OBJID columns and populate them later
     #ADM as they require special treatment
     cols = list(gfadatamodel.dtype.names)
     for col in ["TARGETID","BRICK_OBJID"]:
         cols.remove(col)
-
     for col in cols:
         gfas[col] = objects[col]
     #ADM populate the TARGETID column
     gfas["TARGETID"] = targetid
     #ADM populate the BRICK_OBJID column
-    gfas["BRICKOBJID
+    gfas["BRICK_OBJID"] = objects["OBJID"]
 
     #ADM cut the GFAs by a hard limit on magnitude
     w = np.where(gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim)[0]
     gfas = gfas[w]
     
     #ADM a final clean-up to remove columns that are Nan
-    for col in ["GAIA_PMRA","GAIA_PMDEC"]:
+    for col in ["PMRA","PMDEC"]:
         w = np.where(~np.isnan(gfas[col]))[0]
         gfas = gfas[w]
 #    log.info('Removed {} Gaia objects with NaN columns...t = {:.1f}s'
