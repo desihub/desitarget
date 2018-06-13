@@ -81,6 +81,12 @@ def read_gaia_file(filename, header=False):
     #ADM change the data model to what we want for each column
     outdata.dtype = gaiadatamodel.dtype
 
+    #ADM the proper motion ERRORS need to be converted to IVARs
+    #ADM remember to leave 0 entries as 0
+    for col in ['PMRA_IVAR', 'PMDEC_IVAR']:
+        w = np.where(outdata[col] != 0)[0]
+        outdata[col][w] = 1./(outdata[col][w]**2.)
+
     #ADM return data read in from the gaia file, with the header if requested
     if header:
         fx.close()

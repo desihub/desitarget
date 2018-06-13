@@ -257,9 +257,8 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
                                      retaingaia=True, gaiabounds=gaiabounds)
 #    log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
     #ADM add the Gaia column information to the primary array
-    #ADM remember the columns are prepended "GAIA_" in the primary
     for col in gaiainfo.dtype.names:
-        objects["GAIA_"+col] = gaiainfo[col][:nobjs]
+        objects[col] = gaiainfo[col][:nobjs]
     
     #ADM an additional array to hold the Gaia objects that have no sweeps match
     supg = np.zeros(len(gaiainfo) - nobjs, dtype=objects.dtype)
