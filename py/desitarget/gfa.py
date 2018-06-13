@@ -27,14 +27,19 @@ from time import time
 start = time()
 
 #ADM the current data model for GFA files with the files
-#ADM from Gaia prepended by GAIA ("GAIA" is removed before
-#ADM being passed downstream
+#ADM from Gaia prepended by "GAIA" (this "GAIA" is removed 
+#ADM before being passed downstream
 gfadatamodel = np.array([], dtype=[
-            ('GAIA_SOURCE_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
-            ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'),
-            ('GAIA_PMRA', '>f4'), ('GAIA_PMDEC', '>f4'), ('TARGETID', '>i8'),
-            ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4')
-                                   ] )
+    ('TARGETID', 'i8'),  ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),  
+    ('RA', 'f8'), ('DEC', 'f8'), ('TYPE', 'S4'),
+    ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
+    ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),    
+    ('GAIA_REF_ID', 'i8'), ('GAIA_PMRA', 'f4'), ('GAIA_PMDEC', 'f4'),
+    ('GAIA_PMRA_IVAR', 'f4'), ('GAIA_PMDEC_IVAR', 'f4')
+    ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4')
+    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
+])
+
 
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     """Trims the input data to a rectangular windonw in RA,DEC.
@@ -270,12 +275,12 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
 
     #ADM only retain objects with Gaia matches
     #ADM it's fine to propagate an empty array if there are no matches
-    w = np.where(objects["GAIA_SOURCE_ID"] != -1)[0]
+    w = np.where(objects["REF_ID"] != -1)[0]
     objects = objects[w]
 
     #ADM it's possible that a Gaia object matches two sweeps objects, so
     #ADM only record unique Gaia IDs
-    _, ind = np.unique(objects["GAIA_SOURCE_ID"], return_index=True)
+    _, ind = np.unique(objects["REF_ID"], return_index=True)
 #    log.info('Removed {} duplicated Gaia objects...t = {:.1f}s'
 #             .format(len(objects)-len(ind),time()-start))
     objects = objects[ind]
