@@ -35,8 +35,8 @@ gfadatamodel = np.array([], dtype=[
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),    
     ('GAIA_REF_ID', 'i8'), ('GAIA_PMRA', 'f4'), ('GAIA_PMDEC', 'f4'),
-    ('GAIA_PMRA_IVAR', 'f4'), ('GAIA_PMDEC_IVAR', 'f4')
-    ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4')
+    ('GAIA_PMRA_IVAR', 'f4'), ('GAIA_PMDEC_IVAR', 'f4'),
+    ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'), 
     ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
 ])
 
