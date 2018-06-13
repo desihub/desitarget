@@ -515,7 +515,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    fitsio.write(filename, data, extname='SKIES', header=hdr, clobber=True)
+    fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
 
 def write_gfas(filename, data, indir=None, nside=None):
@@ -559,7 +559,7 @@ def write_gfas(filename, data, indir=None, nside=None):
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    fitsio.write(filename, data, extname='GFAS', header=hdr, clobber=True)
+    fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
 def iter_files(root, prefix, ext='fits'):
