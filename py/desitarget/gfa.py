@@ -431,12 +431,6 @@ def select_gfas(infiles, maglim=18, numproc=4,
 
     gfas = np.concatenate(gfas)
 
-    #ADM finally, remove the prepended "GAIA_" from any column names as this
-    #ADM is expected for the downstream data model for GFAs
-    dmnames = list(gfas.dtype.names)
-    dmnamesnogaia = tuple([ name.replace('GAIA_', '') for name in dmnames ])
-    gfas.dtype.names = dmnamesnogaia
-
     return gfas
 
 
