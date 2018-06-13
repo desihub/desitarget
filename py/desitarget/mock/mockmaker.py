@@ -3310,7 +3310,7 @@ class MWS_MAINMaker(STARMaker):
             seed = self.seed
         rand = np.random.RandomState(seed)
         
-        if no_spectra or self.calib_only:
+        if no_spectra:
             flux = []
             meta = self.template_photometry(data, indx, rand)
         else:
@@ -3364,10 +3364,10 @@ class MWS_MAINMaker(STARMaker):
 
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
 
+        # Select MWS_MAIN targets.
+        mws_main = _isMWS_MAIN(rflux=rflux)
+
         if not self.calib_only:
-            # Select MWS_MAIN targets.
-            mws_main = _isMWS_MAIN(rflux=rflux)
-        
             targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
             targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         
@@ -3376,7 +3376,7 @@ class MWS_MAINMaker(STARMaker):
 
         # Select standard stars.
         self.select_standards(targets, truth, boss_std=boss_std)
-        
+
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
 
@@ -3977,7 +3977,7 @@ class WDMaker(SelectTargets):
         #else:
         if self.mockformat == 'mws_wd':
             allsubtype = data['TEMPLATESUBTYPE'][indx]
-            if no_spectra or self.calib_only:
+            if no_spectra:
                 meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
                 flux = []
             else:
@@ -3999,7 +3999,7 @@ class WDMaker(SelectTargets):
                                          data['LOGG'][indx][these])).T
                     _, templateid = self._query(alldata, subtype=subtype)
 
-                    if no_spectra or self.calib_only:
+                    if no_spectra:
                         meta1 = self.template_photometry(data, indx[these],
                                                          rand, subtype)
                         meta[these] = meta1
