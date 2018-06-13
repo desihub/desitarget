@@ -26,16 +26,14 @@ log = get_logger()
 from time import time
 start = time()
 
-#ADM the current data model for GFA files with the files
-#ADM from Gaia prepended by "GAIA" (this "GAIA" is removed 
-#ADM before being passed downstream
+#ADM the current data model for columns in the GFA files
 gfadatamodel = np.array([], dtype=[
     ('TARGETID', 'i8'),  ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),  
     ('RA', 'f8'), ('DEC', 'f8'), ('TYPE', 'S4'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),    
-    ('GAIA_REF_ID', 'i8'), ('GAIA_PMRA', 'f4'), ('GAIA_PMDEC', 'f4'),
-    ('GAIA_PMRA_IVAR', 'f4'), ('GAIA_PMDEC_IVAR', 'f4'),
+    ('REF_ID', 'i8'), 
+    ('PMRA', 'f4'), ('PMDEC', 'f4'), ('PMRA_IVAR', 'f4'), ('PMDEC_IVAR', 'f4'),
     ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'), 
     ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
 ])
@@ -296,13 +294,19 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
     #ADM make sure all columns initially have "ridiculous" numbers                                                                                       
     gfas[...] = -1
-    #ADM remove the TARGETID col as we'll populate it later
+
+    #ADM remove the TARGETID and BRICK_OBJID columns and populate them later
+    #ADM as they require special treatment
     cols = list(gfadatamodel.dtype.names)
-    cols.remove("TARGETID")
+    for col in ["TARGETID","BRICK_OBJID"]:
+        cols.remove(col)
+
     for col in cols:
         gfas[col] = objects[col]
     #ADM populate the TARGETID column
     gfas["TARGETID"] = targetid
+    #ADM populate the BRICK_OBJID column
+    gfas["BRICKOBJID
 
     #ADM cut the GFAs by a hard limit on magnitude
     w = np.where(gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim)[0]
