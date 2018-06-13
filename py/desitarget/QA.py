@@ -1622,7 +1622,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     plt.legend(loc='upper left', frameon=False)
 
     #ADM add some metric conditions which are considered a failure for this
-    #ADM target class... 
+    #ADM target class...
 
     #ADM determine the cumulative version of the histogram of densities
     cum = np.cumsum(h)/np.sum(h)
@@ -1630,7 +1630,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
     minbin, maxbin = b[w][0], b[w][-1]
     #ADM this is a good plot if the peak value is within the ~68% of central values
-    good = (peak > minbin) & (peak < maxbin)
+    good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
     
     #ADM write out the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))

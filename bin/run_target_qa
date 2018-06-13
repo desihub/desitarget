@@ -14,7 +14,7 @@ log = get_logger()
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", 
-                help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr4-0.20.0.fits")
+                help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr6-0.20.0.fits")
 ap.add_argument("dest", 
                 help="Output directory to make QA webpage hierarchy (e.g. /project/projectdirs/desi/www/users/USERNAME/ will appear at http://portal.nersc.gov/project/desi/users/USERNAME)")
 ap.add_argument('-m', "--mocks", action='store_true', 
@@ -24,7 +24,7 @@ ap.add_argument('-n', "--noplots", action='store_true',
 ap.add_argument('--nside', default=None, type=int , 
                 help="Specify the healpixel resolution of the sky maps")
 ap.add_argument('-w','--weightmapfile', default=None, 
-                help="Location (e.g. /project/projectdirs/desi/target/catalogs/dr6/pixweight-dr4-0.20.0.fits) of the imaging HEALPix map file for the Data Release that corresponds to these targets (e.g. as made by desitarget.imagefootprint.pixweight()")
+                help="Location (e.g. /project/projectdirs/desi/target/catalogs/dr6/pixweight-dr6-0.20.2.fits) of the imaging HEALPix map file for the Data Release that corresponds to these targets (e.g. as made by desitarget.imagefootprint.pixweight()")
 ap.add_argument('-b','--bitnames', default=None, 
                 help="Names of specific bits for which to make the QA pages. (e.g. QSO,LRG,ALL)")
 
