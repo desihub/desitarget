@@ -5,7 +5,7 @@ desitarget Change Log
 0.21.0 (unreleased)
 -------------------
 
-* Add ``RA_IVAR`` and ``DEC_IVAR`` to the GFA Data Model [`PR #328`_].
+* Add ``RA_IVAR`` and ``DEC_IVAR`` to the GFA Data Model [`PR #329`_].
 * Update the Gaia Data Model [`PR #327`_]:
    * Output columns formatted as expected downstream for GFA assignment.
    * Align Gaia Data Model in matching and I/O with the Legacy Surveys.
@@ -64,7 +64,7 @@ desitarget Change Log
 .. _`PR #324`: https://github.com/desihub/desitarget/pull/324
 .. _`PR #325`: https://github.com/desihub/desitarget/pull/325
 .. _`PR #327`: https://github.com/desihub/desitarget/pull/327
-.. _`PR #328`: https://github.com/desihub/desitarget/pull/328
+.. _`PR #328`: https://github.com/desihub/desitarget/pull/329
 
 
 0.20.1 (2018-03-29)
