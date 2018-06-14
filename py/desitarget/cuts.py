@@ -1797,7 +1797,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
                  .format(len(objects),time()-start))
         #ADM add the Gaia column information to the primary array
         for col in gaiainfo.dtype.names:
-            objects[col] = gaiainfo[col][:nobjs]
+            objects[col] = gaiainfo[col]
 
     #- ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):

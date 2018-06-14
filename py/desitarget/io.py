@@ -290,9 +290,9 @@ def read_tractor(filename, header=False, columns=None):
 
     #ADM if Gaia information was passed, add it to the columns to read
     if (columns is None) and \
-       (('GAIA_SOURCE_ID' in fxcolnames) or ('gaia_source_id' in fxcolnames)):
+       (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
         from desitarget.gaiamatch import gaiadatamodel
-        gaiacols = [ "GAIA_"+i for i in gaiadatamodel.dtype.names ]
+        gaiacols = gaiadatamodel.dtype.names
         readcolumns += gaiacols
 
     if (columns is None) and \
