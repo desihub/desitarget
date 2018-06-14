@@ -5,6 +5,9 @@ desitarget Change Log
 0.21.0 (unreleased)
 -------------------
 
+* Update the Gaia Data Model [`PR #327`_]:
+   * Output columns formatted as expected downstream for GFA assignment.
+   * Align Gaia Data Model in matching and I/O with the Legacy Surveys.
 * Allow environment variables in select_mock_targets config file [`PR #325`_].  
 * First version of Milky Way Survey selection [`PR #324`_]:
    * Catalog-matches to Gaia using :mod:`desitarget.gaimatch`.
@@ -57,8 +60,10 @@ desitarget Change Log
 .. _`PR #316`: https://github.com/desihub/desitarget/pull/316
 .. _`PR #318`: https://github.com/desihub/desitarget/pull/318
 .. _`PR #322`: https://github.com/desihub/desitarget/pull/322
-.. _`PR #325`: https://github.com/desihub/desitarget/pull/325
 .. _`PR #324`: https://github.com/desihub/desitarget/pull/324
+.. _`PR #325`: https://github.com/desihub/desitarget/pull/325
+.. _`PR #327`: https://github.com/desihub/desitarget/pull/327
+
 
 0.20.1 (2018-03-29)
 -------------------

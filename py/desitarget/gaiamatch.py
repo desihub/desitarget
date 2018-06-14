@@ -23,12 +23,26 @@ log = get_logger()
 #ADM start the clock
 start = time()
 
-#ADM the current data model for Gaia files
-gaiadatamodel = np.array([], dtype=[
+#ADM the current data model for Gaia columns for READING from Gaia files
+ingaiadatamodel = np.array([], dtype=[
             ('SOURCE_ID', '>i8'), ('RA', '>f8'), ('DEC', '>f8'),
-            ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_MAG', '>f4'),
-            ('PHOT_RP_MEAN_MAG', '>f4'), ('ASTROMETRIC_EXCESS_NOISE', '>f4'),
-            ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4')
+            ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('PARALLAX', '>f4'), 
+            ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+            ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'),
+                                   ])
+
+#ADM the current data model for Gaia columns for WRITING to target files
+gaiadatamodel = np.array([], dtype=[
+            ('REF_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
+            ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('PARALLAX', '>f4'), 
+            ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
+            ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
                                    ])
 
 def read_gaia_file(filename, header=False):
@@ -61,9 +75,17 @@ def read_gaia_file(filename, header=False):
     hdr = fx[1].read_header()
 
     #ADM the default list of columns
-    readcolumns = list(gaiadatamodel.dtype.names)
+    readcolumns = list(ingaiadatamodel.dtype.names)
     #ADM read 'em in
     outdata = fx[1].read(columns=readcolumns)
+    #ADM change the data model to what we want for each column
+    outdata.dtype = gaiadatamodel.dtype
+
+    #ADM the proper motion ERRORS need to be converted to IVARs
+    #ADM remember to leave 0 entries as 0
+    for col in ['PMRA_IVAR', 'PMDEC_IVAR']:
+        w = np.where(outdata[col] != 0)[0]
+        outdata[col][w] = 1./(outdata[col][w]**2.)
 
     #ADM return data read in from the gaia file, with the header if requested
     if header:
@@ -232,7 +254,7 @@ def match_gaia_to_primary(objs, matchrad=1.,
     Notes
     -----
         - The first len(objs) objects correspond row-by-row to the passed objects.
-        - For objects that do NOT have a match in the Gaia files, the "SOURCE_ID"
+        - For objects that do NOT have a match in the Gaia files, the "REF_ID"
           column is set to -1, and all other columns are zero.
         - If `retaingaia` is True then objects after the first len(objs) objects are 
           Gaia objects that do not have a sweeps match but that are in the area
@@ -264,8 +286,8 @@ def match_gaia_to_primary(objs, matchrad=1.,
     #ADM match a sweeps object, in case retaingaia was set
     suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
 
-    #ADM objects without matches should have SOURCE_ID of -1
-    gaiainfo['SOURCE_ID'] = -1
+    #ADM objects without matches should have REF_ID of -1
+    gaiainfo['REF_ID'] = -1
 
     #ADM determine which Gaia files need to be considered
     if retaingaia:
@@ -276,7 +298,7 @@ def match_gaia_to_primary(objs, matchrad=1.,
     #ADM loop through the Gaia files and match to the passed objects
     for file in gaiafiles:
         gaia = read_gaia_file(file)
-        cgaia = SkyCoord(gaia["RA"]*u.degree, gaia["DEC"]*u.degree)
+        cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             #ADM ****here's where the warning occurs...
@@ -293,8 +315,8 @@ def match_gaia_to_primary(objs, matchrad=1.,
             #ADM which Gaia objects with these IDs are within the bounds
             if len(noidgaia) > 0:
                 suppg = gaia[noidgaia]
-                winbounds = np.where((suppg["RA"] >= ramin) & (suppg["RA"] < ramax) 
-                        & (suppg["DEC"] >= decmin) & (suppg["DEC"] < decmax) )[0]
+                winbounds = np.where((suppg["GAIA_RA"] >= ramin) & (suppg["GAIA_RA"] < ramax) 
+                        & (suppg["GAIA_DEC"] >= decmin) & (suppg["GAIA_DEC"] < decmax) )[0]
                 #ADM Append those Gaia objects to the suppgaiainfo array
                 if len(winbounds) > 0:
                     suppgaiainfo = np.hstack([suppgaiainfo,suppg[winbounds]])
@@ -326,7 +348,7 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
 
     Notes
     -----
-        - If the object does NOT have a match in the Gaia files, the "SOURCE_ID"
+        - If the object does NOT have a match in the Gaia files, the "REF_ID"
           column is set to -1, and all other columns are zero
     """
     #ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
@@ -345,8 +367,8 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
     #ADM set up a zerod array of Gaia information for the passed object
     gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
-    #ADM an object without matches should have SOURCE_ID of -1
-    gaiainfo['SOURCE_ID'] = -1
+    #ADM an object without matches should have REF_ID of -1
+    gaiainfo['REF_ID'] = -1
 
     #ADM determine which Gaia files need to be considered
     gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
@@ -354,7 +376,7 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
     #ADM loop through the Gaia files and match to the passed object
     for file in gaiafiles:
         gaia = read_gaia_file(file)
-        cgaia = SkyCoord(gaia["RA"]*u.degree, gaia["DEC"]*u.degree)
+        cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             #ADM ****here's where the warning occurs...
