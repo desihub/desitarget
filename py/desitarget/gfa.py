@@ -29,7 +29,7 @@ start = time()
 #ADM the current data model for columns in the GFA files
 gfadatamodel = np.array([], dtype=[
     ('TARGETID', 'i8'),  ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),  
-    ('RA', 'f8'), ('DEC', 'f8'), ('RA_IVAR', 'f8'), ('DEC_IVAR', 'f8'), 
+    ('RA', 'f8'), ('DEC', 'f8'), ('RA_IVAR', 'f4'), ('DEC_IVAR', 'f4'),
     ('TYPE', 'S4'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),    
