@@ -92,15 +92,15 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
     nrand = int(spharea*density)
-    log.info('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
-              .format(spharea,time()-start))
+#    log.info('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
+#              .format(spharea,time()-start))
     ras = np.random.uniform(ramin,ramax,nrand)
     decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nrand)))
 
     nrand= len(ras)
 
-    log.info('Generated {} randoms in brick with bounds [{:.3f},{:.3f},{:.3f},{:.3f}]...t = {:.1f}s'
-                 .format(nrand,ramin,ramax,decmin,decmax,time()-start))
+#    log.info('Generated {} randoms in brick with bounds [{:.3f},{:.3f},{:.3f},{:.3f}]...t = {:.1f}s'
+#                 .format(nrand,ramin,ramax,decmin,decmax,time()-start))
 
     return ras, decs
 
@@ -137,8 +137,8 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     wbrick = np.where(brickinfo['brickname']==brickname)[0]
     if len(wbrick)==0:
         log.error('Brick {} does not exist'.format(brickname))
-    else:
-        log.info('Working on brick {}...t = {:.1f}s'.format(brickname,time()-start))
+#    else:
+#        log.info('Working on brick {}...t = {:.1f}s'.format(brickname,time()-start))
 
     brick = brickinfo[wbrick][0]
     ramin, ramax, decmin, decmax = brick['ra1'], brick['ra2'], brick['dec1'], brick['dec2']
@@ -150,15 +150,15 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
     nrand = int(spharea*density)
-    log.info('Full area covered by brick {} is {:.5f} sq. deg....t = {:.1f}s'
-              .format(brickname,spharea,time()-start))
+#    log.info('Full area covered by brick {} is {:.5f} sq. deg....t = {:.1f}s'
+#              .format(brickname,spharea,time()-start))
     ras = np.random.uniform(ramin,ramax,nrand)
     decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax,1-sindecmin,nrand)))
 
     nrand= len(ras)
 
-    log.info('Generated {} randoms in brick {} with bounds [{:.3f},{:.3f},{:.3f},{:.3f}]...t = {:.1f}s'
-                 .format(nrand,brickname,ramin,ramax,decmin,decmax,time()-start))
+#    log.info('Generated {} randoms in brick {} with bounds [{:.3f},{:.3f},{:.3f},{:.3f}]...t = {:.1f}s'
+#                 .format(nrand,brickname,ramin,ramax,decmin,decmax,time()-start))
 
     return ras, decs
 
@@ -221,17 +221,17 @@ def quantities_at_positions_in_a_brick(ras,decs,brickname,
                 #ADM determine the quantity of interest at each passed location
                 #ADM and store in a dictionary with the filter and quantity name.
                 qdict[qout+'_'+filt] = img[extn_nb].data[y.astype("int"),x.astype("int")]
-                log.info('Determined {} using WCS for {}...t = {:.1f}s'
-                             .format(qout+'_'+filt,fn,time()-start))
+#                log.info('Determined {} using WCS for {}...t = {:.1f}s'
+#                             .format(qout+'_'+filt,fn,time()-start))
             else:
-                log.info('no {} file at {}...t = {:.1f}s'
-                         .format(qin+'_'+filt,fn,time()-start))
+#                log.info('no {} file at {}...t = {:.1f}s'
+#                         .format(qin+'_'+filt,fn,time()-start))
                 #ADM if the file doesn't exist, set the relevant quantities to zero
                 #ADM for all of the passed
                 qdict[qout+'_'+filt] = np.zeros(npts,dtype=qform)
 
-    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
-                  .format(brickname,time()-start))
+#    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
+#                  .format(brickname,time()-start))
 
     return qdict
 
@@ -373,8 +373,58 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,
     return qinfo
 
 
-def get_randoms(density=10000, numproc=16
-                drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+def pixweight(randoms, nside=256, outplot=None):
+    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
+
+    Parameters
+    ----------
+    randoms : :class:`~numpy.ndarray`
+        A random catalog as made by, e.g., :func:`select_randoms()` or 
+        :func:`quantities_at_positions_in_a_brick()` 
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The resolution (HEALPixel nside number) at which to build the map
+    outplot : :class:`str`, optional, defaults to not making a plot
+        Create a plot and write it to a file named `outplot` (this is passed to
+        the `savefig` routine from `matplotlib.pyplot`
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of the weight for EACH pixel in the sky at the passed nside.
+
+    Notes
+    -----
+        - The returned array contains the fraction of each pixel that overlaps areas that contain
+          one or more observations in the passed Legacy Surveys Data Release (LS DR). 
+        - `WEIGHT=1` means that this LS DR has one or more pointings across the entire pixel.
+        - `WEIGHT=0` means that this pixel has no LS DR observations within it (e.g., perhaps 
+          it is completely outside of the LS DR footprint).
+        - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
+        - The index of the array is the HEALPixel integer.
+    """
+
+    #ADM only retain points with one or more observations in all bands
+    w = np.where( (nobs_g > 0) & (nobs_r > 0) & (nobs_z > 0) )
+
+    npix = hp.nside2npix(nside)
+    pix_cnt = np.bincount(hpxinfo['HPXPIXEL'], weights=hpxinfo['HPXCOUNT'], minlength=npix)
+    
+    #ADM we know the area of HEALPixels at this nside, so we know what the count SHOULD be
+    expected_cnt = hp.nside2pixarea(nside,degrees=True)*density
+    #ADM create a weight map based on the actual counts divided by the expected counts
+    pix_weight = pix_cnt/expected_cnt
+
+    #ADM if outplot was passed, make a plot of the weights in Mollweide projection
+    if outplot is not None:
+        log.info('Plotting pixel map and writing to {}'.format(outplot))
+        hp.mollview(pix_weight, nest=True)
+        plt.savefig(outplot)
+
+    return pix_weight
+
+
+def select_randoms(density=10000, numproc=16,
+                   drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
@@ -403,16 +453,6 @@ def get_randoms(density=10000, numproc=16
             GALDEPTH_G: Galaxy depth at this location in the g-band
             GALDEPTH_R: Galaxy depth at this location in the r-band
             GALDEPTH_Z: Galaxy depth at this location in the z-band
-
-    Notes
-    -----
-        - The returned array contains the fraction of each pixel that overlaps areas that contain
-          one or more observations in the passed Legacy Surveys Data Release (LS DR). 
-        - `WEIGHT=1` means that this LS DR has one or more pointings across the entire pixel.
-        - `WEIGHT=0` means that this pixel has no LS DR observations within it (e.g., perhaps 
-          it is completely outside of the LS DR footprint).
-        - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
-        - The index of the array is the HEALPixel integer.
     """
 
     #ADM read in the survey bricks file, which lists the bricks of interest for this DR
@@ -420,14 +460,7 @@ def get_randoms(density=10000, numproc=16
     sbfile = glob(drdir+'/*bricks-dr*')[0]
     hdu = fits.open(sbfile)
     brickinfo = hdu[1].data
-    ###ADM this (~1.7x) speed-up doesn't seem to work because of a discrepancy between the
-    ###ADM information in the survey bricks file and in the coadd directory structure, but
-    ###ADM I'm leaving it here in case its a useful trick to use at some point in the future
-    ####ADM as a speed-up, cull any bricks with zero exposures in any bands
-    ###wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
-    ###                    (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
-    ###bricknames = brickinfo['brickname'][wbricks]
-    bricknames = brickinfo['brickname'][0:9]
+    bricknames = brickinfo['brickname'][0:999]
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
              .format(nbricks,time()-start))
@@ -446,8 +479,8 @@ def get_randoms(density=10000, numproc=16
 
         #ADM populate the brick with random points, and retrieve the quantities
         #ADM of interest at those points
-        return quantities_at_positions_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
-                                                  density=density, drdir=drdir)
+        return get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
+                                         density=density, drdir=drdir)
 
     #ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
@@ -476,38 +509,3 @@ def get_randoms(density=10000, numproc=16
     qinfo = np.concatenate(qinfo)
 
     return qinfo
-
-    #ADM now
-
-    npix = hp.nside2npix(nside)
-    pix_cnt = np.bincount(hpxinfo['HPXPIXEL'], weights=hpxinfo['HPXCOUNT'], minlength=npix)
-    
-    #ADM we know the area of HEALPixels at this nside, so we know what the count SHOULD be
-    expected_cnt = hp.nside2pixarea(nside,degrees=True)*density
-    #ADM create a weight map based on the actual counts divided by the expected counts
-    pix_weight = pix_cnt/expected_cnt
-
-    #ADM write out results, if requested
-    if outfile is not None:
-        log.info('Writing pixel map to {}'.format(outfile))
-        #ADM write information indicating HEALPix setup to file header
-        #ADM include desitarget version as a check in case something changes
-        import fitsio
-        from desiutil import depend
-        from . import __version__ as desitarget_version
-        hdr = fitsio.FITSHDR()
-        depend.setdep(hdr, 'desitarget', desitarget_version)
-        hdr['DENSITY'] = density
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
-        fitsio.write(outfile, pix_weight, extname='PIXWEIGHTS', header=hdr, clobber=True)
-
-    #ADM if outplot was passed, make a plot of the final mask in Mollweide projection
-    if outplot is not None:
-        log.info('Plotting pixel map and writing to {}'.format(outplot))
-        hp.mollview(pix_weight, nest=True)
-        plt.savefig(outplot)
-
-    log.info('Done...t={:.1f}s'.format(time()-start))
-
-    return qinfo, pix_weight

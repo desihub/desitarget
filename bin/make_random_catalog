@@ -47,13 +47,6 @@ _ = pixweight(nside=ns.nside, density=ns.density, numproc=ns.numproc, outfile=ns
 
 log.info('wrote map of HEALPixel weights (in the nested scheme) to {}'.format(ns.dest))
 
-    npix = hp.nside2npix(nside)
-    pix_cnt = np.bincount(hpxinfo['HPXPIXEL'], weights=hpxinfo['HPXCOUNT'], minlength=npix)
-    
-    #ADM we know the area of HEALPixels at this nside, so we know what the count SHOULD be
-    expected_cnt = hp.nside2pixarea(nside,degrees=True)*density
-    #ADM create a weight map based on the actual counts divided by the expected counts
-    pix_weight = pix_cnt/expected_cnt
 
     #ADM write out results, if requested
     if outfile is not None:
@@ -70,13 +63,6 @@ log.info('wrote map of HEALPixel weights (in the nested scheme) to {}'.format(ns
         hdr['HPXNEST'] = True
         fitsio.write(outfile, pix_weight, extname='PIXWEIGHTS', header=hdr, clobber=True)
 
-    #ADM if outplot was passed, make a plot of the final mask in Mollweide projection
-    if outplot is not None:
-        log.info('Plotting pixel map and writing to {}'.format(outplot))
-        hp.mollview(pix_weight, nest=True)
-        plt.savefig(outplot)
-
     log.info('Done...t={:.1f}s'.format(time()-start))
 
-    return qinfo, pix_weight
 
