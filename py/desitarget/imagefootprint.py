@@ -373,31 +373,36 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,
     return qinfo
 
 
-def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
-              drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
-    """Make a map of the fraction of each HEALPixel with > 0 observations in the Legacy Surveys
+def get_randoms(density=10000, numproc=16
+                drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
     ----------
-    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
-        The resolution (HEALPixel nside number) at which to build the map
     density : :class:`int`, optional, defaults to 10000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     numproc : :class:`int`, optional, defaults to 16
         The number of processes over which to parallelize
-    outfile : :class:`str`, optional, defaults to not writing a file
-        Write the HEALPixel->weight array to the file passed as `outfile`
-    outplot : :class:`str`, optional, defaults to not making a plot
-        Create a plot and write it to a file named `outplot` (this is passed to
-        the `savefig` routine from `matplotlib.pyplot`
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release from the Legacy Surveys
 
     Returns
     -------
-    :class:`np`
-        An array of the weight for EACH pixel at the passed nside. 
+    :class:`~numpy.ndarray`
+        a numpy structured array with the following columns:
+            RA: Right Ascension of a random point
+            DEC: Declination of a random point
+            BRICKNAME: Passed brick name
+            NOBS_G: Number of observations at this location in the g-band
+            NOBS_R: Number of observations at this location in the r-band
+            NOBS_Z: Number of observations at this location in the z-band
+            PSFDEPTH_G: PSF depth at this location in the g-band
+            PSFDEPTH_R: PSF depth at this location in the r-band
+            PSFDEPTH_Z: PSF depth at this location in the z-band
+            GALDEPTH_G: Galaxy depth at this location in the g-band
+            GALDEPTH_R: Galaxy depth at this location in the r-band
+            GALDEPTH_Z: Galaxy depth at this location in the z-band
 
     Notes
     -----
@@ -422,7 +427,7 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
     ###wbricks = np.where( (brickinfo['nexp_g'] > 0) & 
     ###                    (brickinfo['nexp_r'] > 0) & (brickinfo['nexp_z'] > 0) )
     ###bricknames = brickinfo['brickname'][wbricks]
-    bricknames = brickinfo['brickname']
+    bricknames = brickinfo['brickname'][0:9]
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
              .format(nbricks,time()-start))
@@ -433,16 +438,16 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
     bricktable = brick.Bricks(bricksize=0.25).to_table()
 
     #ADM the critical function to run on every brick
-    def _get_nobs(brickname):
+    def _get_quantities(brickname):
         '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
         #ADM retrieve the edges for the brick that we're working on
         wbrick = np.where(bricktable["BRICKNAME"] == brickname)[0]
         ramin, ramax, decmin, decmax = np.array(bricktable[wbrick]["RA1","RA2","DEC1","DEC2"])[0]
 
-        #ADM populate the brick with random points, and retrieve the number of observations
-        #ADM at those points
-        return hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
-                                       density=density, drdir=drdir)
+        #ADM populate the brick with random points, and retrieve the quantities
+        #ADM of interest at those points
+        return quantities_at_positions_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
+                                                  density=density, drdir=drdir)
 
     #ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
@@ -462,18 +467,18 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            hpxinfo = pool.map(_get_nobs, bricknames, reduce=_update_status)
+            qinfo = pool.map(_get_quantities, bricknames, reduce=_update_status)
     else:
-        hpxinfo = list()
+        qinfo = list()
         for brickname in bricknames:
-            hpxinfo.append(_update_status(_get_nobs(brickname)))
+            qinfo.append(_update_status(_get_quantities(brickname)))
 
-    #ADM now to gather the results. First concatenate the parallelized results
-    #ADM into a single structured array of pixel number and counts in the pixel
-    hpxinfo = np.concatenate(hpxinfo)
-    #ADM the parallelization will (could) result in HEALPixels with multiple entries because
-    #ADM pixels can touch multiple bricks, so sum pixels weighted on counts to create a unique
-    #ADM accounting. Note np.bincount will run from pixel = 0 to pixel = minlength
+    qinfo = np.concatenate(qinfo)
+
+    return qinfo
+
+    #ADM now
+
     npix = hp.nside2npix(nside)
     pix_cnt = np.bincount(hpxinfo['HPXPIXEL'], weights=hpxinfo['HPXCOUNT'], minlength=npix)
     
@@ -505,4 +510,4 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
-    return pix_weight
+    return qinfo, pix_weight
