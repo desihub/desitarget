@@ -163,29 +163,26 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     return ras, decs
 
 
-def nobs_at_positions_in_a_brick(ras,decs,brickname,
+def quantities_at_positions_in_a_brick(ras,decs,brickname,
                                drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
-    """Return the number of observations at positions in one brick of the Legacy Surveys
+    """Return NOBS, GALDEPTH, PSFDEPTH (per-band) at positions in one brick of the Legacy Surveys
 
     Parameters
     ----------
     ras : :class:`~numpy.array`
-        Right Ascensions of interest (degrees)
+        Right Ascensions of interest (degrees).
     decs : :class:`~numpy.array`
-        Declinations of interest (degrees)
+        Declinations of interest (degrees).
     brickname : :class:`str`
-        Name of brick which contains RA/Dec positions, e.g., '1351p320'
+        Name of brick which contains RA/Dec positions, e.g., '1351p320'.
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
-       The root directory pointing to a Data Release from the Legacy Surveys
+       The root directory pointing to a Data Release from the Legacy Surveys.
 
     Returns
     -------
-    :class:`~numpy.array`
-        The number of observations in the Legacy Surveys at each position in g-band
-    :class:`~numpy.array`
-        The number of observations in the Legacy Surveys at each position in r-band
-    :class:`~numpy.array`
-        The number of observations in the Legacy Surveys at each position in z-band
+    :class:`dictionary`
+       The number of observations (NOBS_X), PSF depth (PSFDEPTH_X) and Galaxy depth (GALDEPTH_X) 
+       at each passed position in the Legacy Surveys in each band X.
 
     Notes
     -----
@@ -196,124 +193,47 @@ def nobs_at_positions_in_a_brick(ras,decs,brickname,
     #ADM determine whether the coadd files have extension .gz or .fz based on the DR directory
     extn, extn_nb = dr_extension(drdir)
 
+    #ADM the output dictionary
+    qdict = {}
+
     # as a speed up, we assume all images in different filters for the brick have the same WCS
     # -> if we have read it once (iswcs=True), we use this info
     iswcs = False
 
     #ADM loop through each of the filters and store the number of observations at the
     #ADM RA and Dec positions of the passed points
-    nobsdict = {} 
     for filt in ['g','r','z']:
-        nexpfile = (drdir+'/coadd/'+brickname[:3]+'/'+brickname+'/'+
-                        'legacysurvey-'+brickname+'-'+'nexp'+'-'+filt+'.fits.'+extn)
-        #ADM only process the WCS if there is a file corresponding to this filter
-        if os.path.exists(nexpfile):
-            img = fits.open(nexpfile)
-            if (iswcs==False):
-                w = WCS(img[extn_nb].header)
-                x, y = w.all_world2pix(ras, decs, 0)
-                iswcs = True
-            #ADM determine the number of observations (NOBS) at each of the passed
-            #ADM locations and store in arrays called nobs_g, nobs_r, nobs_z etc.
-            nobsdict[filt] = img[extn_nb].data[y.astype("int"),x.astype("int")]
-            log.info('Determined NOBS using WCS for {}...t = {:.1f}s'
-                         .format(nexpfile,time()-start))
-        else:
-            log.info('no NEXP file at {}...t = {:.1f}s'.format(nexpfile,time()-start))
-            #ADM if the file doesn't exist, set NOBS = 0 for all of the passed
-            #ADM locations and store in arrays called nobs_g, nobs_r, nobs_z etc.
-            nobsdict[filt] = np.zeros(npts,dtype="uint8")
-
-    log.info('Recorded number of observations for each point in brick {}...t = {:.1f}s'
-                 .format(brickname,time()-start))
-
-    return nobsdict['g'], nobsdict['r'], nobsdict['z']
-
-
-def nobs_at_positions_in_bricks(rasarray,decsarray,bricknames,
-                      drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
-    """Return the number of observations at any positions in a Data Release of the Legacy Surveys
-
-    Parameters
-    ----------
-    rasarray : :class:`~numpy.array`
-        Right Ascensions of interest (degrees)
-    decsarray : :class:`~numpy.array`
-        Declinations of interest (degrees)
-    bricknames : :class:`~numpy.array`
-        Array of brick names corresponding to RA/Dec positions, e.g., ['1351p320', '1809p222']
-    drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
-       The root directory pointing to a Data Release of the Legacy Surveys
-
-    Returns
-    -------
-    :class:`~numpy.array`
-        The number of observations in the Legacy Surveys at each position in g-band
-    :class:`~numpy.array`
-        The number of observations in the Legacy Surveys at each position in r-band
-    :class:`~numpy.array`
-        The number of observations in the Legacy Surveys at each position in z-band
-
-    Notes
-    -----
-        - See also :func:`nobs_at_positions_in_brick`, which achieves the smae thing for
-          a single brick and presupposes that all of the RAs/Decs are in that one brick
-    """
-    #ADM determine whether the coadd files have extension .gz or .fz based on the DR directory
-    extn, extn_nb = dr_extension(drdir)
-
-    #ADM set up output arrays of the number of observations in g, r, z
-    #ADM default to -1 observations, so it's easier to test for bugs
-    nras = len(rasarray)
-    nobs_g = np.zeros(nras,dtype='int8')-1
-    nobs_r = np.zeros(nras,dtype='int8')-1
-    nobs_z = np.zeros(nras,dtype='int8')-1
-
-    #ADM loop through the bricks, based on name and assign numbers of observations
-    #ADM where we have them (otherwise, default to NOBS = 0 for a missing band)
-    for brickname in set(bricknames):
-        wbrick = np.where(bricknames == brickname)
-        ras = rasarray[wbrick]
-        decs = decsarray[wbrick]
-        npts = len(ras)
-
-        # as a speed up, we assume all images in different filters for the brick have the same WCS
-        # -> if we have read it once (iswcs=True), we use this info
-        iswcs = False
-
-        #ADM loop through each of the filters and store the number of observations at the
-        #ADM RA and Dec positions of the passed points
-        nobsdict = {} 
-        for filt in ['g','r','z']:
-            nexpfile = (drdir+'/coadd/'+brickname[:3]+'/'+brickname+'/'+
-                            'legacysurvey-'+brickname+'-'+'nexp'+'-'+filt+'.fits.'+extn)
+        #ADM the input file labels, and output column names and output formats
+        #ADM for each of the quantities of interest
+        qnames = zip(['nexp','depth','galdepth'],
+                     ['nobs','psfdepth','galdepth'],
+                     ['i2','f4','f4'])
+        for qin, qout, qform in qnames:
+            fn = (drdir+'/coadd/'+brickname[:3]+'/'+brickname+'/'+
+                  'legacysurvey-'+brickname+'-'+qin+'-'+filt+'.fits.'+extn)
             #ADM only process the WCS if there is a file corresponding to this filter
-            if (os.path.exists(nexpfile)):
-                img = fits.open(nexpfile)
+            if os.path.exists(fn):
+                img = fits.open(fn)
                 if (iswcs==False):
                     w = WCS(img[extn_nb].header)
                     x, y = w.all_world2pix(ras, decs, 0)
                     iswcs = True
-                    #ADM determine the number of observations (NOBS) at each of the
-                    #ADM passed locations and store in arrays called nobs_g, nobs_r, nobs_z etc.
-                nobsdict[filt] = img[extn_nb].data[y.astype("int"),x.astype("int")]
-                log.info('Determined NOBS using WCS for {}...t = {:.1f}s'
-                         .format(nexpfile,time()-start))
+                #ADM determine the quantity of interest at each passed location
+                #ADM and store in a dictionary with the filter and quantity name.
+                qdict[qout+'_'+filt] = img[extn_nb].data[y.astype("int"),x.astype("int")]
+                log.info('Determined {} using WCS for {}...t = {:.1f}s'
+                             .format(qout+'_'+filt,fn,time()-start))
             else:
-                #ADM if the file doesn't exist, set NOBS = 0 for passed points that are in
-                #ADM this brick and filter
-                log.info('no NEXP file at {}...t = {:.1f}s'.format(nexpfile,time()-start))
-                nobsdict[filt] = np.zeros(npts,dtype="uint8")
+                log.info('no {} file at {}...t = {:.1f}s'
+                         .format(qin+'_'+filt,fn,time()-start))
+                #ADM if the file doesn't exist, set the relevant quantities to zero
+                #ADM for all of the passed
+                qdict[qout+'_'+filt] = np.zeros(npts,dtype=qform)
 
-        log.info('Recorded number of observations for each point in brick {}...t = {:.1f}s'
-                 .format(brickname,time()-start))
+    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
+                  .format(brickname,time()-start))
 
-        #ADM populate the output final arrays based on which points are in this brick
-        nobs_g[wbrick] =  nobsdict['g']
-        nobs_r[wbrick] =  nobsdict['r']
-        nobs_z[wbrick] =  nobsdict['z']
-
-    return nobs_g, nobs_r, nobs_z
+    return qdict
 
 
 def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,nside=256,
@@ -382,6 +302,75 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
         hpxinfo['HPXCOUNT'] = pixcnt
 
     return hpxinfo
+
+
+def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,
+                            drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a brick of the Legacy Surveys
+
+    Parameters
+    ----------
+    ramin : :class:`float`
+        The minimum "edge" of the brick in Right Ascension
+    ramax : :class:`float`
+        The maximum "edge" of the brick in Right Ascension
+    decmin : :class:`float`
+        The minimum "edge" of the brick in Declination
+    decmax : :class:`float`
+        The maximum "edge" of the brick in Declination
+    brickname : :class:`~numpy.array`
+        Brick names that corresponnds to the brick edges, e.g., '1351p320'
+    density : :class:`int`, optional, defaults to 10000
+        The number of random points to return per sq. deg. As a typical brick is 
+        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
+    drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
+        The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
+        "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a numpy structured array with the following columns:
+            RA: Right Ascension of a random point
+            DEC: Declination of a random point
+            BRICKNAME: Passed brick name
+            NOBS_G: Number of observations at this location in the g-band
+            NOBS_R: Number of observations at this location in the r-band
+            NOBS_Z: Number of observations at this location in the z-band
+            PSFDEPTH_G: PSF depth at this location in the g-band
+            PSFDEPTH_R: PSF depth at this location in the r-band
+            PSFDEPTH_Z: PSF depth at this location in the z-band
+            GALDEPTH_G: Galaxy depth at this location in the g-band
+            GALDEPTH_R: Galaxy depth at this location in the r-band
+            GALDEPTH_Z: Galaxy depth at this location in the z-band
+    """
+    #ADM this is only intended to work on one brick, so die if a larger array is passed
+    if not isinstance(brickname,str):
+        log.fatal("Only one brick can be passed at a time!")
+        raise ValueError
+
+    #ADM generate random points within the brick at the requested density
+    ras, decs = randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=density)
+
+    #ADM retrieve the dictionary of quantities for each random point
+    qdict = quantities_at_positions_in_a_brick(ras,decs,brickname,drdir=drdir)
+
+    #ADM convert the dictionary to a structured array
+    qinfo = np.zeros(len(ras), 
+                     dtype=[('RA','f8'),('DEC','f8'),('BRICKNAME','S8'),
+                            ('NOBS_G','i2'),('NOBS_R','i2'),('NOBS_Z','i2'),
+                            ('PSFDEPTH_G','f4'),('PSFDEPTH_R','f4'),('PSFDEPTH_Z','f4'),
+                            ('GALDEPTH_G','f4'),('GALDEPTH_R','f4'),('GALDEPTH_Z','f4')
+                           ])
+    #ADM store each quantity of interest in the structured array
+    #ADM remembering that the dictionary keys are in lower case text
+    cols = qdict.keys()
+    for col in cols:
+        qinfo[col.upper()] = qdict[col]
+    #ADM add the RAs/Decs and brick name
+    qinfo["RA"], qinfo["DEC"], qinfo["BRICKNAME"] = ras, decs, brickname
+
+    return qinfo
 
 
 def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
@@ -517,6 +506,3 @@ def pixweight(nside=256, density=10000, numproc=16, outfile=None, outplot=None,
     log.info('Done...t={:.1f}s'.format(time()-start))
 
     return pix_weight
-
-
-
