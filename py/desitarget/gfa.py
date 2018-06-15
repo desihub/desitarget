@@ -29,7 +29,8 @@ start = time()
 #ADM the current data model for columns in the GFA files
 gfadatamodel = np.array([], dtype=[
     ('TARGETID', 'i8'),  ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),  
-    ('RA', 'f8'), ('DEC', 'f8'), ('TYPE', 'S4'),
+    ('RA', 'f8'), ('DEC', 'f8'), ('RA_IVAR', 'f4'), ('DEC_IVAR', 'f4'),
+    ('TYPE', 'S4'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),    
     ('REF_ID', 'i8'), 
@@ -378,8 +379,7 @@ def select_gfas(infiles, maglim=18, numproc=4,
     -------
     :class:`numpy.ndarray`
         GFA objects from Gaia across all of the passed input files, formatted 
-        according to `desitarget.gfa.gfadatamodel` but with ``GAIA_`` removed
-        from column names.
+        according to `desitarget.gfa.gfadatamodel`.
     
     Notes
     -----
