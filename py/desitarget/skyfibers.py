@@ -771,7 +771,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
                   .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")
-    print("gather_skies '{}' $CSCRATCH/dr{}-skies.fits".format(";".join(outfiles),dr))
+    print("gather_targets '{}' $CSCRATCH/dr{}-skies.fits skies".format(";".join(outfiles),dr))
     print("")
     
     return
@@ -846,7 +846,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
     bricknames = brickinfo['brickname'].astype('U')
 
-    #ADM if the pixlist or bundlebricks option was sent, we'll need the pixel
+    #ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPpixel
     #ADM information for each brick
     if pixlist is not None or bundlebricks is not None:
         theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])

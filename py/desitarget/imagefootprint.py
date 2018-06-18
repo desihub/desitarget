@@ -542,7 +542,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
                   .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")
-    print("gather_randoms '{}' $CSCRATCH/dr{}-randoms.fits".format(";".join(outfiles),dr))
+    print("gather_targets '{}' $CSCRATCH/dr{}-randoms.fits randoms".format(";".join(outfiles),dr))
     print("")
 
     return
