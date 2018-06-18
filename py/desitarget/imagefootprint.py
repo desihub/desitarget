@@ -491,7 +491,7 @@ def select_randoms(density=10000, numproc=16,
             that occurs on the main parallel process '''
         if nbrick%50 == 0 and nbrick>0:
             rate = nbrick / (time() - t0)
-            log.info('{}/{} bricks; {:.1f} files/sec'.format(nbrick, nbricks, rate))
+            log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
