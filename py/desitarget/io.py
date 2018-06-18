@@ -559,6 +559,49 @@ def write_gfas(filename, data, indir=None, nside=None):
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
+def write_randoms(filename, data, indir=None, nside=None):
+    """Write a catalogue of randoms and associated pixel-level information.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Output file name
+    data  : :class:`~numpy.ndarray` 
+        Array of randoms to write to file
+    indir : :class:`str`, optional, defaults to None
+        Name of input Legacy Survey Data Release directory, write to header
+        of output file if passed (and if not None).
+    nside: :class:`int`
+        If passed, add a column to the randoms array popluated with HEALPixels 
+        at resolution `nside`
+    """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+
+    if indir is not None:
+        depend.setdep(hdr, 'input-data-release', indir)
+        #ADM note that if 'dr' is not in the indir DR
+        #ADM directory structure, garbage will
+        #ADM be rewritten gracefully in the header
+        drstring = 'dr'+indir.split('dr')[-1][0]
+        depend.setdep(hdr, 'photcat', drstring)
+
+    #ADM add HEALPix column, if requested by input
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+
+    fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
+
 
 def iter_files(root, prefix, ext='fits'):
     """Iterator over files under in `root` directory with given `prefix` and
