@@ -378,14 +378,14 @@ def pixweight(randoms, nside=256, outplot=None):
 
     Parameters
     ----------
-    randoms : :class:`~numpy.ndarray`
+    randoms : :class:`~numpy.ndarray` or `str`
         A random catalog as made by, e.g., :func:`select_randoms()` or 
-        :func:`quantities_at_positions_in_a_brick()` 
+        :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
-        The resolution (HEALPixel nside number) at which to build the map
+        The resolution (HEALPixel nside number) at which to build the map.
     outplot : :class:`str`, optional, defaults to not making a plot
         Create a plot and write it to a file named `outplot` (this is passed to
-        the `savefig` routine from `matplotlib.pyplot`
+        the `savefig` routine from `matplotlib.pyplot`.
 
     Returns
     -------
@@ -402,12 +402,27 @@ def pixweight(randoms, nside=256, outplot=None):
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
+    #ADM if a file name was passed for the random catalog, read it in
+    if isinstance(randoms, str):
+        randoms = fitsio.read(randoms)
+
+    #ADM extract the columns of interest
+    ras, decs = randoms["RA"], randoms["DEC"]
+    nobs_g, nobs_r, nobs_z = randoms["NOBS_G"], randoms["NOBS_R"], randoms["NOBS_Z"]    
 
     #ADM only retain points with one or more observations in all bands
     w = np.where( (nobs_g > 0) & (nobs_r > 0) & (nobs_z > 0) )
 
+    #ADM the counts in each HEALPixel in the survey
+    if len(w[0]) > 0:
+        pixnum = hp.ang2pix(nside,np.radians(90.-decs[w]),np.radians(ras[w]),nest=True)
+        pixnum, pixcnt = np.unique(pixnums,return_counts=True)
+    else:
+        log.error("Empty array passed")
+
+    #ADM generate the counts for the whole sky to retain zeros where there is no survey coverage
     npix = hp.nside2npix(nside)
-    pix_cnt = np.bincount(hpxinfo['HPXPIXEL'], weights=hpxinfo['HPXCOUNT'], minlength=npix)
+    pix_cnt = np.bincount(pixnum, weights=pixcnt, minlength=npix)
     
     #ADM we know the area of HEALPixels at this nside, so we know what the count SHOULD be
     expected_cnt = hp.nside2pixarea(nside,degrees=True)*density

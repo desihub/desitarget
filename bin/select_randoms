@@ -18,22 +18,24 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser()
-ap.add_argument("src", 
+ap.add_argument("surveydir", 
                 help='Legacy Surveys Data Release root directory (e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr4/ for DR4 at NERSC)')
 ap.add_argument("dest", 
                 help='Output file name to write map of HEALPixel weights in the NESTED scheme (e.g. /project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits)')
-ap.add_argument("--nside", type=int, 
-                help='The resolution (HEALPixel nside number) at which to build the map (defaults to 256)',
-                default="256")
 ap.add_argument("--density", type=int,
-                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 10million)',
-                default="10000000")
-ap.add_argument("--outplot",
-                help='Output file name to which to write a plot of the map',
-                default=None)
+                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 10000)',
+                default="10000")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
+ap.add_argument('--nside', type=int,
+                help='Process random points in bricks that have centers in HEALPixels at this resolution (defaults to 4)',
+                default=4)
+ap.add_argument('--healpixels',
+                help='HEALPixels (corresponding to nside) to process (e.g. "6,21,57"). If not passed, run all bricks in the Data Release',
+                default=None)
+ap.add_argument("--bundlebricks", type=int,
+                help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 10000)",
 
 ns = ap.parse_args()
 
@@ -43,14 +45,14 @@ if not os.path.exists(ns.src):
 
 log.info('running on {} processors'.format(ns.numproc))
 
-_ = pixweight(nside=ns.nside, density=ns.density, numproc=ns.numproc, outfile=ns.dest, outplot=ns.outplot, drdir=ns.src)
+randoms = select_randoms(density=ns.density, numproc=ns.numproc, nside=ns.nside, drdir=ns.src)
 
 log.info('wrote map of HEALPixel weights (in the nested scheme) to {}'.format(ns.dest))
 
 
     #ADM write out results, if requested
-    if outfile is not None:
-        log.info('Writing pixel map to {}'.format(outfile))
+if outfile is not None:
+                log.info('Writing pixel map to {}'.format(outfile))
         #ADM write information indicating HEALPix setup to file header
         #ADM include desitarget version as a check in case something changes
         import fitsio
