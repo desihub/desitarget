@@ -679,7 +679,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
     #ADM the number of pixels (numpix) in each pixel (pix)
-    numpix, pix = np.histogram(pixnum,np.max(pixnum))
+    pix, numpix = np.unique(pixnum,return_counts=True)
 
     #ADM convert the pixel numbers back to integers
     pix = pix.astype(int)
@@ -854,8 +854,6 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
 
     #ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
-        log.info("At nside={}, these commands will parallelize at about {} bricks"
-                 .format(nside,bundlebricks))
         bundle_bricks(pixnum, bundlebricks, nside, surveydir=survey.survey_dir)
         return
 

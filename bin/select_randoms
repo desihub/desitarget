@@ -4,8 +4,10 @@ from __future__ import print_function, division
 
 import os, sys
 import numpy as np
+from time import time
+start = time()
 
-from desitarget.randoms import pixweight
+from desitarget.randoms import pixweight, select_randoms
 
 #import warnings
 #warnings.simplefilter('error')
@@ -23,8 +25,8 @@ ap.add_argument("surveydir",
 ap.add_argument("dest", 
                 help='Output file name to write map of HEALPixel weights in the NESTED scheme (e.g. /project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits)')
 ap.add_argument("--density", type=int,
-                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 10000)',
-                default="10000")
+                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 1 million)',
+                default="1000000")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -40,13 +42,21 @@ ap.add_argument("--bundlebricks", type=int,
 
 ns = ap.parse_args()
 
-if not os.path.exists(ns.src):
-    log.critical('Input directory does not exist: {}'.format(ns.src))
+#ADM parse the list of HEALPixels in which to run
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
+
+if not os.path.exists(ns.surveydir):
+    log.critical('Input directory does not exist: {}'.format(ns.surveydir))
     sys.exit(1)
 
-log.info('running on {} processors'.format(ns.numproc))
+if ns.bundlebricks is None:
+    log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
 
-randoms = select_randoms(density=ns.density, numproc=ns.numproc, nside=ns.nside, drdir=ns.src)
+randoms = select_randoms(density=ns.density, numproc=ns.numproc, 
+                         nside=ns.nside, pixlist=pixlist, bundlebricks=ns.bundlebricks, drdir=ns.surveydir)
 
-log.info('wrote map of HEALPixel weights (in the nested scheme) to {}'.format(ns.dest))
+if ns.bundlebricks is None:
+    log.info('wrote map of HEALPixel weights (in the nested scheme) to {}...t = {:.1f}s'.format(ns.dest,time()-start))
 

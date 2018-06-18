@@ -60,7 +60,7 @@ def dr_extension(drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/
     return 'fz', 1
 
 
-def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
+def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=1000000):
     """For given brick edges, return random (RA/Dec) positions in the brick
 
     Parameters
@@ -73,7 +73,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
         The minimum "edge" of the brick in Declination
     decmax : :class:`float`
         The maximum "edge" of the brick in Declination
-    density : :class:`int`
+    density : :class:`int`, optional, defaults to 1 million
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
 
@@ -105,7 +105,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=10000):
     return ras, decs
 
 
-def randoms_in_a_brick_from_name(brickname,density=10000,
+def randoms_in_a_brick_from_name(brickname,density=1000000,
                        drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """For a given brick name, return random (RA/Dec) positions in the brick
 
@@ -113,7 +113,7 @@ def randoms_in_a_brick_from_name(brickname,density=10000,
     ----------
     brickname : :class:`str`
         Name of brick in which to generate random points
-    density : :class:`int`
+    density : :class:`int`, optional, defaults to 1 million
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
@@ -236,7 +236,7 @@ def quantities_at_positions_in_a_brick(ras,decs,brickname,
     return qdict
 
 
-def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,nside=256,
+def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=1000000,nside=256,
                             drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Given a brick's edges/name, count randoms with NOBS > 1 in HEALPixels touching that brick
 
@@ -252,7 +252,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
         The maximum "edge" of the brick in Declination
     brickname : :class:`~numpy.array`
         Brick names that corresponnds to the brick edges, e.g., '1351p320'
-    density : :class:`int`, optional, defaults to 10000
+    density : :class:`int`, optional, defaults to 1 million
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
@@ -304,7 +304,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,ns
     return hpxinfo
 
 
-def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,
+def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=1000000,
                             drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a brick of the Legacy Surveys
 
@@ -320,7 +320,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=10000,
         The maximum "edge" of the brick in Declination
     brickname : :class:`~numpy.array`
         Brick names that corresponnds to the brick edges, e.g., '1351p320'
-    density : :class:`int`, optional, defaults to 10000
+    density : :class:`int`, optional, defaults to 1 million
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
@@ -440,7 +440,7 @@ def pixweight(randoms, nside=256, outplot=None):
 def bundle_bricks(pixnum, maxpernode, nside,
                   surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
     """Determine the optimal packing for bricks collected by HEALpixel integer
-                                                                                                                                                      
+
     Parameters
     ----------
     pixnum : :class:`np.array`
@@ -455,22 +455,21 @@ def bundle_bricks(pixnum, maxpernode, nside,
     surveydir : :class:`str`, optional, defaults to the DR6 directory at NERSC
         The root directory pointing to a Data Release from the Legacy Surveys,
         (e.g. "/global/project/projectdirs/cosmo/data/legacysurvey/dr6").
-                                                                                                                                                      
+
     Returns
     -------
     Nothing, but prints commands to screen that would facilitate running a
     set of bricks by HEALPixel integer with the total number of bricks not
     to exceed maxpernode. Also prints how many bricks would be on each node.
-                                                                                                                                                      
-    Notes                                                                                                                                             
-    -----                                                                                                                                             
+
+    Notes
+    -----
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
-    #ADM the number of pixels (numpix) in each pixel (pix)
-    numpix, pix = np.histogram(pixnum,np.max(pixnum))
+    import pdb ; pdb.set_trace()
 
-    #ADM convert the pixel numbers back to integers
-    pix = pix.astype(int)
+    #ADM the number of pixels (numpix) in each pixel (pix)
+    pix, numpix = np.unique(pixnum,return_counts=True)
 
     #ADM the indices needed to reverse-sort the array on number of pixels
     reverse_order = np.flipud(np.argsort(numpix))
@@ -513,7 +512,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             #ADM a crude estimate of how long the script will take to run
             eta = np.sum(goodnum)*5/60000
-            outnote.append('Estimated time to run in hours (for 32 processors per node and density=10000): {:.2f}h'
+            outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
                            .format(eta))
             #ADM track the maximum estimated time for shell scripts, etc.
             if eta.astype(int) + 1 > maxeta:
@@ -563,13 +562,13 @@ def bundle_bricks(pixnum, maxpernode, nside,
     return
 
 
-def select_randoms(density=10000, numproc=32, nside=4, pixlist=None, bundlebricks=None,
+def select_randoms(density=1000000, numproc=32, nside=4, pixlist=None, bundlebricks=None,
                    drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
     ----------
-    density : :class:`int`, optional, defaults to 10000
+    density : :class:`int`, optional, defaults to 1 million
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     numproc : :class:`int`, optional, defaults to 32
@@ -625,8 +624,6 @@ def select_randoms(density=10000, numproc=32, nside=4, pixlist=None, bundlebrick
 
     #ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
-        log.info("At nside={}, these commands will parallelize at about {} bricks"
-                 .format(nside,bundlebricks))
         bundle_bricks(pixnum, bundlebricks, nside, surveydir=drdir)
         return
 
@@ -643,7 +640,7 @@ def select_randoms(density=10000, numproc=32, nside=4, pixlist=None, bundlebrick
                  .format(nside,pixlist))
 
     nbricks = len(bricknames)
-    log.info('Processing {} bricks that have one or more observations...t = {:.1f}s'
+    log.info('Processing {} bricks at density {} per sq. deg...t = {:.1f}s'
              .format(nbricks,time()-start))
 
     #ADM initialize the bricks class, and retrieve the brick information look-up table
