@@ -615,7 +615,7 @@ def select_randoms(density=10000, numproc=32, nside=4, pixlist=None, bundlebrick
     sbfile = glob(drdir+'/*bricks-dr*')[0]
     hdu = fits.open(sbfile)
     brickinfo = hdu[1].data
-    bricknames = brickinfo['brickname'][0:999]
+    bricknames = brickinfo['brickname']
 
     #ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     #ADM information for each brick

@@ -37,6 +37,6 @@ for fn in fns:
 
 targets = np.concatenate(targets)
 
-log.info('Writing {} skies to {}'.format(len(targets), ns.outfile))
+log.info('Writing {} {} to {}'.format(len(targets), ns.targtype, ns.outfile))
 
-fitsio.write(ns.outfile, skies, extname=targtype.upper(), header=hdr, clobber=True)
+fitsio.write(ns.outfile, targets, extname=ns.targtype.upper(), header=hdr, clobber=True)
