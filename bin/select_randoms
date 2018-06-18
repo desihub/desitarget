@@ -49,22 +49,3 @@ randoms = select_randoms(density=ns.density, numproc=ns.numproc, nside=ns.nside,
 
 log.info('wrote map of HEALPixel weights (in the nested scheme) to {}'.format(ns.dest))
 
-
-    #ADM write out results, if requested
-if outfile is not None:
-                log.info('Writing pixel map to {}'.format(outfile))
-        #ADM write information indicating HEALPix setup to file header
-        #ADM include desitarget version as a check in case something changes
-        import fitsio
-        from desiutil import depend
-        from . import __version__ as desitarget_version
-        hdr = fitsio.FITSHDR()
-        depend.setdep(hdr, 'desitarget', desitarget_version)
-        hdr['DENSITY'] = density
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
-        fitsio.write(outfile, pix_weight, extname='PIXWEIGHTS', header=hdr, clobber=True)
-
-    log.info('Done...t={:.1f}s'.format(time()-start))
-
-
