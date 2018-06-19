@@ -29,8 +29,8 @@ ap.add_argument("surveydir",
 ap.add_argument("dest", 
                 help='Output file name to write map of HEALPixel weights in the NESTED scheme (e.g. /project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits)')
 ap.add_argument("--density", type=int,
-                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 1 million)',
-                default="1000000")
+                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 100,000)',
+                default="100000")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)

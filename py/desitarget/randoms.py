@@ -60,7 +60,7 @@ def dr_extension(drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/
     return 'fz', 1
 
 
-def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=1000000):
+def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=100000):
     """For given brick edges, return random (RA/Dec) positions in the brick
 
     Parameters
@@ -73,7 +73,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=1000000):
         The minimum "edge" of the brick in Declination
     decmax : :class:`float`
         The maximum "edge" of the brick in Declination
-    density : :class:`int`, optional, defaults to 1 million
+    density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
 
@@ -105,7 +105,7 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=1000000):
     return ras, decs
 
 
-def randoms_in_a_brick_from_name(brickname,density=1000000,
+def randoms_in_a_brick_from_name(brickname,density=100000,
                        drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """For a given brick name, return random (RA/Dec) positions in the brick
 
@@ -113,7 +113,7 @@ def randoms_in_a_brick_from_name(brickname,density=1000000,
     ----------
     brickname : :class:`str`
         Name of brick in which to generate random points
-    density : :class:`int`, optional, defaults to 1 million
+    density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
@@ -236,7 +236,7 @@ def quantities_at_positions_in_a_brick(ras,decs,brickname,
     return qdict
 
 
-def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=1000000,nside=256,
+def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,nside=256,
                             drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """Given a brick's edges/name, count randoms with NOBS > 1 in HEALPixels touching that brick
 
@@ -252,7 +252,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=1000000,
         The maximum "edge" of the brick in Declination
     brickname : :class:`~numpy.array`
         Brick names that corresponnds to the brick edges, e.g., '1351p320'
-    density : :class:`int`, optional, defaults to 1 million
+    density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
@@ -304,7 +304,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=1000000,
     return hpxinfo
 
 
-def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=1000000,
+def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,
                             drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a brick of the Legacy Surveys
 
@@ -320,7 +320,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
         The maximum "edge" of the brick in Declination
     brickname : :class:`~numpy.array`
         Brick names that corresponnds to the brick edges, e.g., '1351p320'
-    density : :class:`int`, optional, defaults to 1 million
+    density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
@@ -560,13 +560,13 @@ def bundle_bricks(pixnum, maxpernode, nside,
     return
 
 
-def select_randoms(density=1000000, numproc=32, nside=4, pixlist=None, bundlebricks=None,
+def select_randoms(density=100000, numproc=32, nside=4, pixlist=None, bundlebricks=None,
                    drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
     ----------
-    density : :class:`int`, optional, defaults to 1 million
+    density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     numproc : :class:`int`, optional, defaults to 32
