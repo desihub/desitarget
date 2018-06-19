@@ -375,13 +375,14 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
 
 
 def pixweight(randoms, density, nside=256, outplot=None):
-    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
+    """Fraction of area covered 
 
     Parameters
     ----------
     randoms : :class:`~numpy.ndarray` or `str`
         A random catalog as made by, e.g., :func:`select_randoms()` or 
-        :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
+        :func:`quantities_at_positions_in_a_brick()`, or a file that contains such a catalog.
+        Must contain the columns RA, DEC, NOBS_G, NOBS_R, NOBS_Z.
     density : :class:`int`
         The number of random points per sq. deg. At which the random catalog was
         generated (see also :func:`select_randoms()`).
@@ -399,7 +400,7 @@ def pixweight(randoms, density, nside=256, outplot=None):
     Notes
     -----
         - The returned array contains the fraction of each pixel that overlaps areas that contain
-          one or more observations in the passed Legacy Surveys Data Release (LS DR). 
+          one or more observations in the passed random catalog.
         - `WEIGHT=1` means that this LS DR has one or more pointings across the entire pixel.
         - `WEIGHT=0` means that this pixel has no LS DR observations within it (e.g., perhaps 
           it is completely outside of the LS DR footprint).
@@ -440,6 +441,45 @@ def pixweight(randoms, density, nside=256, outplot=None):
         plt.savefig(outplot)
 
     return pix_weight
+
+
+def pixmap(randoms, density, nside=256):
+    """A HEALPixel map of useful quantities for analyzing a Legacy Surveys Data Release
+
+    Parameters
+    ----------
+    randoms : :class:`~numpy.ndarray` or `str`
+        A random catalog as made by, e.g., :func:`select_randoms()` or 
+        :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
+    density : :class:`int`
+        The number of random points per sq. deg. At which the random catalog was
+        generated (see also :func:`select_randoms()`).
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The resolution (HEALPixel nside number) at which to build the map.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of useful information that includes
+            - HPXPIXEL: HEALPixel integers at the passed `nside`
+            - FRACAREA: The fraction of the pixel with at least one observation in any
+                        band according to `randoms`. Made with :func:`pixweight()`
+    """
+    #ADM if a file name was passed for the random catalog, read it in
+    if isinstance(randoms, str):
+        randoms = fitsio.read(randoms)
+
+    #ADM determine the areal coverage at of the randoms at this nside
+    pw = pixweight(randoms, density, nside=nside)
+    npix = len(pw)
+
+    #ADM set up the output array
+    hpxinfo = np.zeros(npix, dtype=[('HPXPIXEL','>i4'),('FRACAREA','>f4')])
+    hpxinfo['HPXPIXEL'] = np.arange(npix)
+    hpxinfo['FRACAREA'] = pw
+
+    return hpxinfo
+
 
 def bundle_bricks(pixnum, maxpernode, nside,
                   surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
@@ -553,13 +593,13 @@ def bundle_bricks(pixnum, maxpernode, nside,
             goodpix = pix[wpix]
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            outfile = "$CSCRATCH/dr{}-randoms-hp-{}.fits".format(dr,strgoodpix)
+            outfile = "$CSCRATCH/randoms-dr{}-hp-{}.fits".format(dr,strgoodpix)
             outfiles.append(outfile)
             print("srun -N 1 select_randoms {} {} --numproc 32 --nside {} --healpixels {} &"
                   .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")
-    print("gather_targets '{}' $CSCRATCH/dr{}-randoms.fits randoms".format(";".join(outfiles),dr))
+    print("gather_targets '{}' $CSCRATCH/randoms-dr{}.fits randoms".format(";".join(outfiles),dr))
     print("")
 
     return

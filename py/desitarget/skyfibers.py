@@ -765,13 +765,13 @@ def bundle_bricks(pixnum, maxpernode, nside,
             goodpix = pix[wpix]
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            outfile = "$CSCRATCH/dr{}-skies-hp-{}.fits".format(dr,strgoodpix)
+            outfile = "$CSCRATCH/skies-dr{}-hp-{}.fits".format(dr,strgoodpix)
             outfiles.append(outfile)
             print("srun -N 1 select_skies {} {} --numproc 64 --nside {} --healpixels {} &"
                   .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")
-    print("gather_targets '{}' $CSCRATCH/dr{}-skies.fits skies".format(";".join(outfiles),dr))
+    print("gather_targets '{}' $CSCRATCH/skies-dr{}.fits skies".format(";".join(outfiles),dr))
     print("")
     
     return
