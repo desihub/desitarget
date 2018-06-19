@@ -669,12 +669,12 @@ def select_randoms(density=1000000, numproc=32, nside=4, pixlist=None, bundlebri
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        rate = nbrick / (time() - t0)
         if nbrick%50 == 0 and nbrick>0:
+            rate = nbrick / (time() - t0)
             log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
-        #ADM if we're going to exceed 4 hours, warn the user
-        if nbricks*rate > 4*3600.:
-            log.error("May take > 4 hours to run. Try running with bundlebricks instead.")
+            #ADM if we're going to exceed 4 hours, warn the user
+            if nbricks/rate > 4*3600.:
+                log.error("May take > 4 hours to run. Try running with bundlebricks instead.")
 
         nbrick[...] += 1    # this is an in-place modification
         return result
