@@ -559,7 +559,7 @@ def write_gfas(filename, data, indir=None, nside=None):
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
-def write_randoms(filename, data, indir=None, nside=None):
+def write_randoms(filename, data, indir=None, nside=None, density=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -573,7 +573,10 @@ def write_randoms(filename, data, indir=None, nside=None):
         of output file if passed (and if not None).
     nside: :class:`int`
         If passed, add a column to the randoms array popluated with HEALPixels 
-        at resolution `nside`
+        at resolution `nside`.
+    density: :class:`int`
+        Number of points per sq. deg. at which the catalog was generated,
+        write to header of the output file if not None.
     """
     #ADM set up the default logger
     from desiutil.log import get_logger
@@ -599,6 +602,10 @@ def write_randoms(filename, data, indir=None, nside=None):
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
+
+    #ADM add density of points if requested by input
+    if density is not None:
+        hdr['DENSITY'] = density
 
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
 

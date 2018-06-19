@@ -13,6 +13,7 @@ import astropy.io.fits as fits
 from astropy.wcs import WCS
 from time import time
 import healpy as hp
+import fitsio
 
 #ADM fake the matplotlib display so it doesn't die on allocated nodes
 import matplotlib
@@ -373,7 +374,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
     return qinfo
 
 
-def pixweight(randoms, nside=256, outplot=None):
+def pixweight(randoms, density, nside=256, outplot=None):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
@@ -381,6 +382,9 @@ def pixweight(randoms, nside=256, outplot=None):
     randoms : :class:`~numpy.ndarray` or `str`
         A random catalog as made by, e.g., :func:`select_randoms()` or 
         :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
+    density : :class:`int`
+        The number of random points per sq. deg. At which the random catalog was
+        generated (see also :func:`select_randoms()`).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map.
     outplot : :class:`str`, optional, defaults to not making a plot
@@ -415,7 +419,7 @@ def pixweight(randoms, nside=256, outplot=None):
 
     #ADM the counts in each HEALPixel in the survey
     if len(w[0]) > 0:
-        pixnum = hp.ang2pix(nside,np.radians(90.-decs[w]),np.radians(ras[w]),nest=True)
+        pixnums = hp.ang2pix(nside,np.radians(90.-decs[w]),np.radians(ras[w]),nest=True)
         pixnum, pixcnt = np.unique(pixnums,return_counts=True)
     else:
         log.error("Empty array passed")
@@ -509,7 +513,8 @@ def bundle_bricks(pixnum, maxpernode, nside,
             #ADM add the total across all of the pixels
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             #ADM a crude estimate of how long the script will take to run
-            eta = np.sum(goodnum)/2.6/3600 #(float number is bricks/sec)
+            #ADM the float number is bricks/sec with some margin for writing to disk
+            eta = np.sum(goodnum)/2.3/3600 
             outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
                            .format(eta))
             #ADM track the maximum estimated time for shell scripts, etc.

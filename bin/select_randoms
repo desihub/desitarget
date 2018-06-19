@@ -23,7 +23,7 @@ from desiutil.log import get_logger
 log = get_logger()
 
 from argparse import ArgumentParser
-ap = ArgumentParser()
+ap = ArgumentParser(description='Generate pixel-level random points and associated information from a Data Release of the Legacy Surveys')
 ap.add_argument("surveydir", 
                 help='Legacy Surveys Data Release root directory (e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr4/ for DR4 at NERSC)')
 ap.add_argument("dest", 
@@ -62,6 +62,6 @@ randoms = select_randoms(density=ns.density, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist, bundlebricks=ns.bundlebricks, drdir=ns.surveydir)
 
 if ns.bundlebricks is None:
-    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside)
+    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)
     log.info('wrote map of HEALPixel weights (in the nested scheme) to {}...t = {:.1f}s'.format(ns.dest,time()-start))
 
