@@ -7,6 +7,7 @@ import numpy as np
 from time import time
 start = time()
 
+from desitarget import io
 from desitarget.randoms import pixweight, select_randoms
 
 #import warnings
@@ -14,6 +15,9 @@ from desitarget.randoms import pixweight, select_randoms
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+#ADM default HEALPix Nside used throughout desitarget
+#ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
+nside = 64
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -31,7 +35,7 @@ ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
 ap.add_argument('--nside', type=int,
-                help='Process random points in bricks that have centers in HEALPixels at this resolution (defaults to 4)',
+                help='Process random points in parallel in bricks that have centers within HEALPixels at this resolution (defaults to 4)',
                 default=4)
 ap.add_argument('--healpixels',
                 help='HEALPixels (corresponding to nside) to process (e.g. "6,21,57"). If not passed, run all bricks in the Data Release',
@@ -58,5 +62,6 @@ randoms = select_randoms(density=ns.density, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist, bundlebricks=ns.bundlebricks, drdir=ns.surveydir)
 
 if ns.bundlebricks is None:
+    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside)
     log.info('wrote map of HEALPixel weights (in the nested scheme) to {}...t = {:.1f}s'.format(ns.dest,time()-start))
 

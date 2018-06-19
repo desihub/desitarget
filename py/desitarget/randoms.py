@@ -466,8 +466,6 @@ def bundle_bricks(pixnum, maxpernode, nside,
     -----
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
-    import pdb ; pdb.set_trace()
-
     #ADM the number of pixels (numpix) in each pixel (pix)
     pix, numpix = np.unique(pixnum,return_counts=True)
 
@@ -511,7 +509,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
             #ADM add the total across all of the pixels
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             #ADM a crude estimate of how long the script will take to run
-            eta = np.sum(goodnum)*5/60000
+            eta = np.sum(goodnum)/2.6/3600 #(float number is bricks/sec)
             outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
                            .format(eta))
             #ADM track the maximum estimated time for shell scripts, etc.
@@ -640,8 +638,12 @@ def select_randoms(density=1000000, numproc=32, nside=4, pixlist=None, bundlebri
                  .format(nside,pixlist))
 
     nbricks = len(bricknames)
-    log.info('Processing {} bricks at density {} per sq. deg...t = {:.1f}s'
-             .format(nbricks,time()-start))
+    log.info('Processing {} bricks from DR at {} at density {:.1e} per sq. deg...t = {:.1f}s'
+             .format(nbricks,drdir,density,time()-start))
+
+    #ADM a little more information if we're slurming across nodes
+    if os.getenv('SLURMD_NODENAME') is not None:
+        print('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     #ADM initialize the bricks class, and retrieve the brick information look-up table
     #ADM so it can be used in a common fashion
@@ -667,9 +669,12 @@ def select_randoms(density=1000000, numproc=32, nside=4, pixlist=None, bundlebri
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
+        rate = nbrick / (time() - t0)
         if nbrick%50 == 0 and nbrick>0:
-            rate = nbrick / (time() - t0)
             log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
+        #ADM if we're going to exceed 4 hours, warn the user
+        if nbricks*rate > 4*3600.:
+            log.error("May take > 4 hours to run. Try running with bundlebricks instead.")
 
         nbrick[...] += 1    # this is an in-place modification
         return result

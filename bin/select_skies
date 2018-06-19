@@ -13,7 +13,9 @@ import numpy as np
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-nside = 64 #ADM default HEALPix Nside used throughout desitarget
+#ADM default HEALPix Nside used throughout desitarget
+#ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
+nside = 64 
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -37,7 +39,7 @@ ap.add_argument("--badskyflux",
                 help='Flux level in nanomaggies used for BAD SKY locations in any band for each aperture size (must be the same length as apertures)',
                 default="1000,1000")
 ap.add_argument('--nside', type=int,
-                help='Process sky locations in bricks that have centers in HEALPixels at this resolution (defaults to 2)',
+                help='Process sky locations in parallel in bricks that have centers within HEALPixels at this resolution (defaults to 2)',
                 default=2)
 ap.add_argument('--healpixels', 
                 help='HEALPixels (corresponding to nside) to process (e.g. "5,7,11"). If not passed, run all bricks in the Data Release',
