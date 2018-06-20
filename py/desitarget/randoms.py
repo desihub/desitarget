@@ -549,11 +549,17 @@ def pixmap(randoms, rand_density, nside=256,
     -------
     :class:`~numpy.ndarray`
         An array of useful information that includes
-            - HPXPIXEL: HEALPixel integers at the passed `nside`
+            - HPXPIXEL: HEALPixel integers at the passed `nside`.
             - FRACAREA: The fraction of the pixel with at least one observation in any
-                        band according to `randoms`. Made with :func:`pixweight()`
+                        band according to `randoms`. Made with :func:`pixweight()`.
             - STARDENS: The stellar density in a pixel from Gaia. Made with
-                        :func:`stellar_density()`
+                        :func:`stellar_density()`.
+            - EBV: The E(B-V) in the pixel from the SFD dust map, derived from the
+                   median of EBV values in the passed random catalog.
+            - PSFDEPTH_G, R, Z: The PSF depth in g, r, z-band in the pixel, derived from
+                   the median of PSFDEPTH values in the passed random catalog.
+            - GALDEPTH_G, R, Z: The galaxy depth in g, r, z-band in the pixel, derived from
+                   the median of GALDEPTH values in the passed random catalog.
     """
     #ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
@@ -567,7 +573,13 @@ def pixmap(randoms, rand_density, nside=256,
 
     #ADM set up the output array
     hpxinfo = np.zeros(npix, dtype=[('HPXPIXEL','>i4'),('FRACAREA','>f4'),
-                                    ('STARDENS','>f4')])
+                                    ('STARDENS','>f4'),('EBV','>f4'),
+                                    ('PSFDEPTH_G','>f4'),('GALDEPTH_G','>f4'),
+                                    ('PSFDEPTH_R','>f4'),('GALDEPTH_R','>f4'),
+                                    ('PSFDEPTH_Z','>f4'),('GALDEPTH_Z','>f4')
+                                ])
+    #ADM set initial values to -1 so that they can easily be clipped
+    hpxinfo[...] = -1
 
     #ADM add the areal coverage and pixel information to the outpu
     hpxinfo['HPXPIXEL'] = np.arange(npix)
@@ -584,6 +596,28 @@ def pixmap(randoms, rand_density, nside=256,
             log.critical('Stellar density map in {} was not calculated at NSIDE={}'
                          .format(gaialoc,nside))
     hpxinfo["STARDENS"] = sd
+
+    #ADM add the median values of all of the other systematics 
+    log.info('Calculating medians of systematics from random catalog...t = {:.1f}s'
+             .format(time()-start))
+    pixorder = np.argsort(pixnums)
+    ras, decs = randoms["RA"], randoms["DEC"]
+    pixnums = hp.ang2pix(nside,np.radians(90.-decs),np.radians(ras),nest=True)
+
+    #ADM some sorting to order the values to extract the medians
+    pixels, pixcnts = np.unique(pixnums,return_counts=True)
+    pixcnts = np.insert(pixcnts,0,0)
+    pixcnts = np.cumsum(pixcnts)
+
+    #ADM work through the ordered pixels to populate the median for
+    #ADM each quantity of interest
+    cols = ['EBV', 'PSFDEPTH_G', 'GALDEPTH_G', 'PSFDEPTH_R', 'GALDEPTH_R',
+            'PSFDEPTH_Z', 'GALDEPTH_Z']
+    for i in range(len(pixcnts)-1):
+        inds = pixorder[pixcnts[i]:pixcnts[i+1]]
+        pix = pixnums[inds][0]
+        for col in cols:
+            hpxinfo[col][pix] = np.median(randoms[col][inds])
 
     log.info('Done...t = {:.1f}s'.format(time()-start))    
 
