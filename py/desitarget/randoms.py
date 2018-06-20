@@ -375,7 +375,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
 
 
 def pixweight(randoms, density, nside=256, outplot=None):
-    """Fraction of area covered 
+    """Fraction of area covered in HEALPixels by a random catalog
 
     Parameters
     ----------
@@ -443,7 +443,55 @@ def pixweight(randoms, density, nside=256, outplot=None):
     return pix_weight
 
 
-def pixmap(randoms, density, nside=256):
+def stellar_density(nside=256,
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+    """Make a HEALPixel map of stellar density based on Gaia
+
+    Parameters
+    ----------
+    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
+        The resolution (HEALPixel nside number) at which to build the map.
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+    """
+    #ADM the number of pixels and the pixel area at the passed nside
+    npix = hp.nside2npix(nside)
+    pixarea = hp.nside2pixarea(nside,degrees=True)
+
+    #ADM an output array to populate containing all possible HEALPixels at the passed nside
+    pixout = np.zeros(npix,dtype='int64')
+
+    #ADM find all of the Gaia files
+    from glob import glob
+    filenames = glob(gaiadir+'/*fits')
+    
+    #ADM read in each file, restricting to the criteria for point sources
+    #ADM and storing in a HEALPixel map at resolution nside
+    for filename in filenames:
+        #ADM save memory and speed up by only reading in a subset of columns
+        gobjs = fitsio.read(filename,
+                            columns=['ra','dec','phot_g_mean_mag','astrometric_excess_noise'])
+
+        #ADM restrict to subset of sources using point source definition
+        ra, dec = gobjs["ra"], gobjs["dec"]
+        gmag, excess = gobjs["phot_g_mean_mag"], gobjs["astrometric_excess_noise"]
+        point = (excess==0.) | (np.log10(excess) < 0.3*gmag-5.3)
+        grange = (gmag >= 12) & (gmag < 17)
+        w = np.where( point & grange )
+
+        #ADM calculate the HEALPixels for the point sources
+        theta, phi = np.radians(90-dec[w]), np.radians(ra[w])
+        pixnums = hp.ang2pix(nside, theta, phi, nest=True)
+
+        #ADM return the counts in each pixelnumber...
+        pixnum, pixcnt = np.unique(pixnums,return_counts=True)
+        #ADM...and populate the output array with the counts
+        pixout[pixnum] += pixcnt
+        
+
+
+
+def pixmap(randoms, rand_density, nside=256):
     """A HEALPixel map of useful quantities for analyzing a Legacy Surveys Data Release
 
     Parameters
@@ -451,7 +499,7 @@ def pixmap(randoms, density, nside=256):
     randoms : :class:`~numpy.ndarray` or `str`
         A random catalog as made by, e.g., :func:`select_randoms()` or 
         :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
-    density : :class:`int`
+    rand_density : :class:`int`
         The number of random points per sq. deg. At which the random catalog was
         generated (see also :func:`select_randoms()`).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
@@ -470,7 +518,7 @@ def pixmap(randoms, density, nside=256):
         randoms = fitsio.read(randoms)
 
     #ADM determine the areal coverage at of the randoms at this nside
-    pw = pixweight(randoms, density, nside=nside)
+    pw = pixweight(randoms, rand_density, nside=nside)
     npix = len(pw)
 
     #ADM set up the output array
