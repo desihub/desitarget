@@ -258,7 +258,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,n
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map
-    drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
+    drdir : :class:`str`, optional, defaults to the DR4 root directory at NERSC
         The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
         "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
 
@@ -305,6 +305,28 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,n
     return hpxinfo
 
 
+def get_dust(ras,decs, 
+             dust_dir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
+    """Get SFD E(B-V) values at a set of RA/Dec locations
+
+    Parameters
+    ----------
+    ra : :class:`numpy.array`
+        Right Ascension in degrees
+    dec : :class:`numpy.array`
+        Declination in degrees
+    dust_dir : :class:`str`, optional, defaults to the NERSC dust map location
+        The root directory pointing to SFD dust maps
+
+    Returns
+    -------
+    :class:`numpy.array`
+        E(B-V) values from the SFD dust maps at the passed locations
+    """
+    from desitarget.mock import sfdmap
+    return sfdmap.ebv(ras, decs, mapdir=dust_dir)
+    
+
 def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,
                             drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a brick of the Legacy Surveys
@@ -324,7 +346,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
     density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
-    drdir : :class:`str`, optional, defaults to the the DR4 root directory at NERSC
+    drdir : :class:`str`, optional, defaults to the DR4 root directory at NERSC
         The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
         "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
 
