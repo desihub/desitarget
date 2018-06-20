@@ -390,7 +390,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
                      dtype=[('RA','f8'),('DEC','f8'),('BRICKNAME','S8'),
                             ('NOBS_G','i2'),('NOBS_R','i2'),('NOBS_Z','i2'),
                             ('PSFDEPTH_G','f4'),('PSFDEPTH_R','f4'),('PSFDEPTH_Z','f4'),
-                            ('GALDEPTH_G','f4'),('GALDEPTH_R','f4'),('GALDEPTH_Z','f4')
+                            ('GALDEPTH_G','f4'),('GALDEPTH_R','f4'),('GALDEPTH_Z','f4'),
                             ('EBV','f4')
                            ])
     #ADM store each quantity of interest in the structured array

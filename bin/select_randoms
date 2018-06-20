@@ -43,7 +43,7 @@ ap.add_argument('--healpixels',
 ap.add_argument("--bundlebricks", type=int,
                 help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 10000)",
                 default=None)
-ap.add_argument("--dustdir", type=int,
+ap.add_argument("--dustdir",
                 help="Directory of SFD dust maps (defaults to /project/projectdirs/desi/software/edison/dust/v0_1/maps)",
                 default='/project/projectdirs/desi/software/edison/dust/v0_1/maps')
 
