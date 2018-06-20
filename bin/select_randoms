@@ -43,6 +43,9 @@ ap.add_argument('--healpixels',
 ap.add_argument("--bundlebricks", type=int,
                 help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 10000)",
                 default=None)
+ap.add_argument("--dustdir", type=int,
+                help="Directory of SFD dust maps (defaults to /project/projectdirs/desi/software/edison/dust/v0_1/maps)",
+                default='/project/projectdirs/desi/software/edison/dust/v0_1/maps')
 
 ns = ap.parse_args()
 
@@ -59,7 +62,8 @@ if ns.bundlebricks is None:
     log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
 
 randoms = select_randoms(density=ns.density, numproc=ns.numproc, 
-                         nside=ns.nside, pixlist=pixlist, bundlebricks=ns.bundlebricks, drdir=ns.surveydir)
+                         nside=ns.nside, pixlist=pixlist, bundlebricks=ns.bundlebricks, 
+                         drdir=ns.surveydir, dustdir=ns.dustdir)
 
 if ns.bundlebricks is None:
     io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)

@@ -306,7 +306,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,n
 
 
 def get_dust(ras,decs, 
-             dust_dir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
+             dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
     """Get SFD E(B-V) values at a set of RA/Dec locations
 
     Parameters
@@ -315,7 +315,7 @@ def get_dust(ras,decs,
         Right Ascension in degrees
     dec : :class:`numpy.array`
         Declination in degrees
-    dust_dir : :class:`str`, optional, defaults to the NERSC dust map location
+    dustdir : :class:`str`, optional, defaults to the NERSC dust map location
         The root directory pointing to SFD dust maps
 
     Returns
@@ -324,11 +324,12 @@ def get_dust(ras,decs,
         E(B-V) values from the SFD dust maps at the passed locations
     """
     from desitarget.mock import sfdmap
-    return sfdmap.ebv(ras, decs, mapdir=dust_dir)
-    
+    return sfdmap.ebv(ras, decs, mapdir=dustdir)
+
 
 def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,
-                            drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+                        drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/",
+                        dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a brick of the Legacy Surveys
 
     Parameters
@@ -349,6 +350,8 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
     drdir : :class:`str`, optional, defaults to the DR4 root directory at NERSC
         The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
         "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
+    dustdir : :class:`str`, optional, defaults to the NERSC dust map location
+        The root directory pointing to SFD dust maps
 
     Returns
     -------
@@ -366,6 +369,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
             GALDEPTH_G: Galaxy depth at this location in the g-band
             GALDEPTH_R: Galaxy depth at this location in the r-band
             GALDEPTH_Z: Galaxy depth at this location in the z-band
+            EBV: E(B-V) at this location from the SFD dust maps
     """
     #ADM this is only intended to work on one brick, so die if a larger array is passed
     if not isinstance(brickname,str):
@@ -378,20 +382,28 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
     #ADM retrieve the dictionary of quantities for each random point
     qdict = quantities_at_positions_in_a_brick(ras,decs,brickname,drdir=drdir)
 
+    #ADM retrieve the E(B-V) values for each random point
+    ebv = get_dust(ras,decs,dustdir=dustdir)
+
     #ADM convert the dictionary to a structured array
     qinfo = np.zeros(len(ras), 
                      dtype=[('RA','f8'),('DEC','f8'),('BRICKNAME','S8'),
                             ('NOBS_G','i2'),('NOBS_R','i2'),('NOBS_Z','i2'),
                             ('PSFDEPTH_G','f4'),('PSFDEPTH_R','f4'),('PSFDEPTH_Z','f4'),
                             ('GALDEPTH_G','f4'),('GALDEPTH_R','f4'),('GALDEPTH_Z','f4')
+                            ('EBV','f4')
                            ])
     #ADM store each quantity of interest in the structured array
     #ADM remembering that the dictionary keys are in lower case text
     cols = qdict.keys()
     for col in cols:
         qinfo[col.upper()] = qdict[col]
+
     #ADM add the RAs/Decs and brick name
     qinfo["RA"], qinfo["DEC"], qinfo["BRICKNAME"] = ras, decs, brickname
+
+    #ADM add the dust values
+    qinfo["EBV"] = ebv
 
     return qinfo
 
@@ -703,7 +715,8 @@ def bundle_bricks(pixnum, maxpernode, nside,
 
 
 def select_randoms(density=100000, numproc=32, nside=4, pixlist=None, bundlebricks=None,
-                   drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+                   drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/",
+                   dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
@@ -729,7 +742,9 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None, bundlebric
         to pass to the code to pack at about 14000 bricks per node across all of the bricks
         in `survey`.
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
-       The root directory pointing to a Data Release from the Legacy Surveys
+       The root directory pointing to a Data Release from the Legacy Surveys.
+    dustdir : :class:`str`, optional, defaults to the NERSC dust map location
+        The root directory pointing to SFD dust maps.
 
     Returns
     -------
@@ -802,7 +817,7 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None, bundlebric
         #ADM populate the brick with random points, and retrieve the quantities
         #ADM of interest at those points
         return get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, 
-                                         density=density, drdir=drdir)
+                                         density=density, drdir=drdir, dustdir=dustdir)
 
     #ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
