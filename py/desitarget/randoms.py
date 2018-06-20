@@ -600,11 +600,11 @@ def pixmap(randoms, rand_density, nside=256,
     #ADM add the median values of all of the other systematics 
     log.info('Calculating medians of systematics from random catalog...t = {:.1f}s'
              .format(time()-start))
-    pixorder = np.argsort(pixnums)
     ras, decs = randoms["RA"], randoms["DEC"]
     pixnums = hp.ang2pix(nside,np.radians(90.-decs),np.radians(ras),nest=True)
 
     #ADM some sorting to order the values to extract the medians
+    pixorder = np.argsort(pixnums)
     pixels, pixcnts = np.unique(pixnums,return_counts=True)
     pixcnts = np.insert(pixcnts,0,0)
     pixcnts = np.cumsum(pixcnts)
