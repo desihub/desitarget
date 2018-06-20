@@ -459,7 +459,7 @@ def stellar_density(nside=256,
     pixarea = hp.nside2pixarea(nside,degrees=True)
 
     #ADM an output array to populate containing all possible HEALPixels at the passed nside
-    pixout = np.zeros(npix,dtype='int64')
+    pixout = np.zeros(npix,dtype='int32')
 
     #ADM find all of the Gaia files
     from glob import glob
@@ -487,11 +487,13 @@ def stellar_density(nside=256,
         pixnum, pixcnt = np.unique(pixnums,return_counts=True)
         #ADM...and populate the output array with the counts
         pixout[pixnum] += pixcnt
+
+    #ADM return the density
+    return pixout/pixarea
         
 
-
-
-def pixmap(randoms, rand_density, nside=256):
+def pixmap(randoms, rand_density, nside=256,
+           gaialoc='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """A HEALPixel map of useful quantities for analyzing a Legacy Surveys Data Release
 
     Parameters
@@ -504,6 +506,10 @@ def pixmap(randoms, rand_density, nside=256):
         generated (see also :func:`select_randoms()`).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map.
+    gaialoc : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        If this is a directory, it is assumed to be the root directory of a Gaia Data 
+        Release as used by the Legacy Surveys. If it is a FILE it is assumed to be a FITST 
+        file that already contains the column "STARDENS", which is simply read in.
 
     Returns
     -------
@@ -512,19 +518,40 @@ def pixmap(randoms, rand_density, nside=256):
             - HPXPIXEL: HEALPixel integers at the passed `nside`
             - FRACAREA: The fraction of the pixel with at least one observation in any
                         band according to `randoms`. Made with :func:`pixweight()`
+            - STARDENS: The stellar density in a pixel from Gaia. Made with
+                        :func:`stellar_density()`
     """
     #ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
+        log.info('Reading in random catalog...t = {:.1f}s'.format(time()-start))
         randoms = fitsio.read(randoms)
 
     #ADM determine the areal coverage at of the randoms at this nside
+    log.info('Determining footprint...t = {:.1f}s'.format(time()-start))    
     pw = pixweight(randoms, rand_density, nside=nside)
     npix = len(pw)
 
     #ADM set up the output array
-    hpxinfo = np.zeros(npix, dtype=[('HPXPIXEL','>i4'),('FRACAREA','>f4')])
+    hpxinfo = np.zeros(npix, dtype=[('HPXPIXEL','>i4'),('FRACAREA','>f4'),
+                                    ('STARDENS','>f4')])
+
+    #ADM add the areal coverage and pixel information to the outpu
     hpxinfo['HPXPIXEL'] = np.arange(npix)
     hpxinfo['FRACAREA'] = pw
+
+    #ADM build the stellar density, or if gaialoc was passed as a file, just read it in
+    if os.path.isdir(gaialoc):
+        log.info('Calculating stellar density using Gaia files at {}...t = {:.1f}s'
+                 .format(gaialoc,time()-start))    
+        sd = stellar_density(nside=nside,gaiadir=gaialoc)
+    else:
+        sd = fitsio.read(gaialoc,columns=["STARDENS"])
+        if len(sd) != len(hpxinfo):
+            log.critical('Stellar density map in {} was not calculated at NSIDE={}'
+                         .format(gaialoc,nside))
+    hpxinfo["STARDENS"] = sd
+
+    log.info('Done...t = {:.1f}s'.format(time()-start))    
 
     return hpxinfo
 
