@@ -642,6 +642,7 @@ def pixmap(randoms, targets, rand_density, nside=256,
     npix = len(pw)
 
     #ADM get the target densities
+    log.info('Calculating target densities...t = {:.1f}s'.format(time()-start))    
     targdens = get_targ_dens(targets,nside=nside)
 
     #ADM set up the output array
