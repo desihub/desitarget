@@ -1597,7 +1597,7 @@ class ReadGAMA(SelectTargets):
         rmag = 22.5 - 2.5 * np.log10(data['FLUX_R']).astype('f4')
             
         # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gama-bgs',
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'bgs-gama',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz,
@@ -2827,7 +2827,7 @@ class BGSMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'durham_mxxl_hdf5':
             MockReader = ReadMXXL(dust_dir=dust_dir)
-        elif self.mockformat == 'gama-bgs':
+        elif self.mockformat == 'bgs-gama':
             MockReader = ReadGAMA(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -2925,7 +2925,7 @@ class BGSMaker(SelectTargets):
                                      data['SDSS_01gr'][indx])).T
                 _, templateid = self._query(alldata)
                 input_meta['TEMPLATEID'] = templateid
-            elif self.mockformat == 'gama-bgs':
+            elif self.mockformat == 'bgs-gama':
                 print('Temporary hack -- reset VDISP and VERBOSE!!!')
                 input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'].data, nobj)
             else:
