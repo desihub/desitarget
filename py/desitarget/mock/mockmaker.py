@@ -1592,15 +1592,21 @@ class ReadGAMA(SelectTargets):
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
         # Add photometry, absolute magnitudes, and redshifts.
-        data = fitsio.read(mockfile, columns=['FLUX_G', 'FLUX_R', 'FLUX_Z', 'Z'], upper=True, ext=1, rows=cut)
+        columns = ['FLUX_G', 'FLUX_R', 'FLUX_Z', 'Z', 'UGRIZ_ABSMAG_01']
+        data = fitsio.read(mockfile, columns=columns, upper=True, ext=1, rows=cut)
         zz = data['Z'].astype('f4')
         rmag = 22.5 - 2.5 * np.log10(data['FLUX_R']).astype('f4')
-            
-        # Pack into a basic dictionary.
+
+        # Pack into a basic dictionary.  Could include shapes and other spectral
+        # properties here.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'bgs-gama',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz,
+               'RA': ra, 'DEC': dec, 'Z': zz, 'RMABS_01': data['UGRIZ_ABSMAG_01'][:, 2],
+               'UG_01': data['UGRIZ_ABSMAG_01'][:, 0]-data['UGRIZ_ABSMAG_01'][:, 1],
+               'GR_01': data['UGRIZ_ABSMAG_01'][:, 1]-data['UGRIZ_ABSMAG_01'][:, 2],
+               'RI_01': data['UGRIZ_ABSMAG_01'][:, 2]-data['UGRIZ_ABSMAG_01'][:, 3],
+               'IZ_01': data['UGRIZ_ABSMAG_01'][:, 3]-data['UGRIZ_ABSMAG_01'][:, 4],
                'NORMFILTER': 'decam2014-r', 'MAG': rmag}
 
         # Add MW transmission and the imaging depth.
@@ -2926,13 +2932,17 @@ class BGSMaker(SelectTargets):
                 _, templateid = self._query(alldata)
                 input_meta['TEMPLATEID'] = templateid
             elif self.mockformat == 'bgs-gama':
-                print('Temporary hack -- reset VDISP and VERBOSE!!!')
-                input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'].data, nobj)
+                # Could conceivably use other colors here--
+                alldata = np.vstack((data['Z'][indx],
+                                     data['RMABS_01'][indx],
+                                     data['GR_01'][indx])).T
+                _, templateid = self._query(alldata)
+                input_meta['TEMPLATEID'] = templateid
             else:
                 pass
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta, verbose=True,
-                                                               nocolorcuts=True, novdisp=True) # novdisp=False)
+            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta, 
+                                                               nocolorcuts=True, novdisp=False)
             
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
