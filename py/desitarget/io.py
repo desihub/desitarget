@@ -153,10 +153,8 @@ def add_gaia_columns(indata):
     #ADM import the Gaia data model from gaiamatch
     from desitarget.gaiamatch import gaiadatamodel
 
-    #ADM prepend GAIA to the Gaia data model names
-    gaiadt = [ ("GAIA_"+i[0],i[1]) for i in gaiadatamodel.dtype.descr ]
     #ADM create the combined data model
-    dt = indata.dtype.descr + gaiadt
+    dt = indata.dtype.descr + gaiadatamodel.dtype.descr
 
     #ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
@@ -166,8 +164,8 @@ def add_gaia_columns(indata):
     for col in indata.dtype.names:
         outdata[col] = indata[col]
 
-    #ADM set GAIA_SOURCE_ID to -1 to indicate nothing has a Gaia match (yet)
-    outdata['GAIA_SOURCE_ID'] = -1
+    #ADM set REF_ID to -1 to indicate nothing has a Gaia match (yet)
+    outdata['REF_ID'] = -1
     
     return outdata
 
@@ -292,9 +290,9 @@ def read_tractor(filename, header=False, columns=None):
 
     #ADM if Gaia information was passed, add it to the columns to read
     if (columns is None) and \
-       (('GAIA_SOURCE_ID' in fxcolnames) or ('gaia_source_id' in fxcolnames)):
+       (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
         from desitarget.gaiamatch import gaiadatamodel
-        gaiacols = [ "GAIA_"+i for i in gaiadatamodel.dtype.names ]
+        gaiacols = gaiadatamodel.dtype.names
         readcolumns += gaiacols
 
     if (columns is None) and \
@@ -312,7 +310,7 @@ def read_tractor(filename, header=False, columns=None):
 
     #ADM add Gaia columns if not passed
     if (columns is None) and \
-       (('GAIA_SOURCE_ID' not in fxcolnames) and ('gaia_source_id' not in fxcolnames)):
+       (('REF_ID' not in fxcolnames) and ('g_id' not in fxcolnames)):
         data = add_gaia_columns(data)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
@@ -515,7 +513,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    fitsio.write(filename, data, extname='SKIES', header=hdr, clobber=True)
+    fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
 
 def write_gfas(filename, data, indir=None, nside=None):
@@ -559,7 +557,7 @@ def write_gfas(filename, data, indir=None, nside=None):
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    fitsio.write(filename, data, extname='GFAS', header=hdr, clobber=True)
+    fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
 def iter_files(root, prefix, ext='fits'):

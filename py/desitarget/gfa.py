@@ -26,15 +26,19 @@ log = get_logger()
 from time import time
 start = time()
 
-#ADM the current data model for GFA files with the files
-#ADM from Gaia prepended by GAIA ("GAIA" is removed before
-#ADM being passed downstream
+#ADM the current data model for columns in the GFA files
 gfadatamodel = np.array([], dtype=[
-            ('GAIA_SOURCE_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
-            ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'),
-            ('GAIA_PMRA', '>f4'), ('GAIA_PMDEC', '>f4'), ('TARGETID', '>i8'),
-            ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4')
-                                   ] )
+    ('TARGETID', 'i8'),  ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),  
+    ('RA', 'f8'), ('DEC', 'f8'), ('RA_IVAR', 'f4'), ('DEC_IVAR', 'f4'),
+    ('TYPE', 'S4'),
+    ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
+    ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),    
+    ('REF_ID', 'i8'), 
+    ('PMRA', 'f4'), ('PMDEC', 'f4'), ('PMRA_IVAR', 'f4'), ('PMDEC_IVAR', 'f4'),
+    ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'), 
+    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
+])
+
 
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
     """Trims the input data to a rectangular windonw in RA,DEC.
@@ -236,15 +240,12 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
-    #ADM As a speed up, only consider sweeps objects brighter than 1 mags
+    #ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
-    #ADM approximates SDSS r-band. This isn't a critical cut as we don't use 
-    #ADM the sweeps to populate flux information for ALL Gaia objects anyway.
-    #ADM A maglim + 0.5 mag cut here removes ~0.9% of Gaia-sweeps matches
-    #ADM compared to no mag cut. A maglim + 1 cut removes ~0.6% of matches.
-    w = np.where( (objects["FLUX_G"] > 10**((22.5-(maglim+1))/2.5)) |
-                  (objects["FLUX_R"] > 10**((22.5-(maglim+1))/2.5)) |
-                  (objects["FLUX_Z"] > 10**((22.5-(maglim+1))/2.5)) )
+    #ADM approximates SDSS r-band. 
+    w = np.where( (objects["FLUX_G"] > 10**((22.5-(maglim+3))/2.5)) |
+                  (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
+                  (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)) )[0]
     objects = objects[w]
 
     nobjs = len(objects)
@@ -257,29 +258,36 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
                                      retaingaia=True, gaiabounds=gaiabounds)
 #    log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
     #ADM add the Gaia column information to the primary array
-    #ADM remember the columns are prepended "GAIA_" in the primary
     for col in gaiainfo.dtype.names:
-        objects["GAIA_"+col] = gaiainfo[col][:nobjs]
+        objects[col] = gaiainfo[col][:nobjs]
     
     #ADM an additional array to hold the Gaia objects that have no sweeps match
     supg = np.zeros(len(gaiainfo) - nobjs, dtype=objects.dtype)
     #ADM make sure all of these additional columns have "ridiculous" numbers
     supg[...] = -1
+    #ADM but default the IVARs that would appear in the sweeps (g/r/z) to 0
+    for col in ["FLUX_IVAR_G", "FLUX_IVAR_R", "FLUX_IVAR_Z"]:
+        supg[col] = 0.
+    #ADM and then TYPE to PSF
+    supg["TYPE"] = 'PSF'
     #ADM populate these additional objects
     for col in gaiainfo.dtype.names:
-        supg["GAIA_"+col] = gaiainfo[col][nobjs:]
+        supg[col] = gaiainfo[col][nobjs:]
+    #ADM store the Gaia RA/DEC as the default for objects with no sweeps match
+    for col in ["RA","DEC"]:
+        supg[col] = supg["GAIA_"+col]
 
     #ADM combine the primary and supplemental arrays
     objects = np.hstack([objects,supg])
 
     #ADM only retain objects with Gaia matches
     #ADM it's fine to propagate an empty array if there are no matches
-    w = np.where(objects["GAIA_SOURCE_ID"] != -1)[0]
+    w = np.where(objects["REF_ID"] != -1)[0]
     objects = objects[w]
 
     #ADM it's possible that a Gaia object matches two sweeps objects, so
     #ADM only record unique Gaia IDs
-    _, ind = np.unique(objects["GAIA_SOURCE_ID"], return_index=True)
+    _, ind = np.unique(objects["REF_ID"], return_index=True)
 #    log.info('Removed {} duplicated Gaia objects...t = {:.1f}s'
 #             .format(len(objects)-len(ind),time()-start))
     objects = objects[ind]
@@ -294,21 +302,25 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     #ADM format everything according to the data model
     gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
     #ADM make sure all columns initially have "ridiculous" numbers                                                                                       
-    gfas[...] = -1
-    #ADM remove the TARGETID col as we'll populate it later
+    gfas[...] = -99.
+    #ADM remove the TARGETID and BRICK_OBJID columns and populate them later
+    #ADM as they require special treatment
     cols = list(gfadatamodel.dtype.names)
-    cols.remove("TARGETID")
+    for col in ["TARGETID","BRICK_OBJID"]:
+        cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
     #ADM populate the TARGETID column
     gfas["TARGETID"] = targetid
+    #ADM populate the BRICK_OBJID column
+    gfas["BRICK_OBJID"] = objects["OBJID"]
 
     #ADM cut the GFAs by a hard limit on magnitude
     w = np.where(gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim)[0]
     gfas = gfas[w]
     
     #ADM a final clean-up to remove columns that are Nan
-    for col in ["GAIA_PMRA","GAIA_PMDEC"]:
+    for col in ["PMRA","PMDEC"]:
         w = np.where(~np.isnan(gfas[col]))[0]
         gfas = gfas[w]
 #    log.info('Removed {} Gaia objects with NaN columns...t = {:.1f}s'
@@ -367,8 +379,7 @@ def select_gfas(infiles, maglim=18, numproc=4,
     -------
     :class:`numpy.ndarray`
         GFA objects from Gaia across all of the passed input files, formatted 
-        according to `desitarget.gfa.gfadatamodel` but with ``GAIA_`` removed
-        from column names.
+        according to `desitarget.gfa.gfadatamodel`.
     
     Notes
     -----
@@ -419,12 +430,6 @@ def select_gfas(infiles, maglim=18, numproc=4,
             gfas.append(_update_status(_get_gfas(file)))
 
     gfas = np.concatenate(gfas)
-
-    #ADM finally, remove the prepended "GAIA_" from any column names as this
-    #ADM is expected for the downstream data model for GFAs
-    dmnames = list(gfas.dtype.names)
-    dmnamesnogaia = tuple([ name.replace('GAIA_', '') for name in dmnames ])
-    gfas.dtype.names = dmnamesnogaia
 
     return gfas
 

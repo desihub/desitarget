@@ -61,9 +61,9 @@ class TestIO(unittest.TestCase):
         #ADM Gaia columns that get added on input
         from desitarget.gaiamatch import gaiadatamodel
         #ADM BRICK_PRIMARY, SUBPRIORITY and PHOTSYS get added on input
-        tscolumns = list(io.tsdatamodel.dtype.names)                      \
-                        + ['BRICK_PRIMARY','PHOTSYS','SUBPRIORITY']       \
-                        + [ "GAIA_"+ i for i in gaiadatamodel.dtype.names ]
+        tscolumns = list(io.tsdatamodel.dtype.names)                 \
+                    + ['BRICK_PRIMARY','PHOTSYS','SUBPRIORITY']      \
+                    + list(gaiadatamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
