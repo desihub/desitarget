@@ -5,6 +5,8 @@ desitarget Change Log
 0.21.0 (unreleased)
 -------------------
 
+* Add support for GAMA/BGS mocks and new calib_only option in
+  `mock.targets_truth` [`PR #331`_].
 * Add ``RA_IVAR`` and ``DEC_IVAR`` to the GFA Data Model [`PR #329`_].
 * Update the Gaia Data Model [`PR #327`_]:
    * Output columns formatted as expected downstream for GFA assignment.
@@ -65,6 +67,7 @@ desitarget Change Log
 .. _`PR #325`: https://github.com/desihub/desitarget/pull/325
 .. _`PR #327`: https://github.com/desihub/desitarget/pull/327
 .. _`PR #329`: https://github.com/desihub/desitarget/pull/329
+.. _`PR #331`: https://github.com/desihub/desitarget/pull/331
 
 
 0.20.1 (2018-03-29)

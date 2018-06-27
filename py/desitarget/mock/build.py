@@ -239,7 +239,6 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         and returned for non-sky targets and if no_spectra=False.
 
     """
-    #nobj = len(np.atleast_1d(indx))
     targname = data['TARGET_NAME']
 
     rand = np.random.RandomState(seed)
