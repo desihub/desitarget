@@ -1475,6 +1475,147 @@ class ReadMXXL(SelectTargets):
 
         return out
 
+class ReadGAMA(SelectTargets):
+    """Read a GAMA catalog of BGS targets.  This reader will only generally be used
+    for the Survey Validation Data Challenge.
+
+    Parameters
+    ----------
+    dust_dir : :class:`str`
+        Full path to the dust maps.
+    bricksize : :class:`int`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        to each object.  Defaults to 0.25 deg.
+
+    """
+    cached_radec = None
+    
+    def __init__(self, dust_dir=None, bricksize=0.25):
+        super(ReadGAMA, self).__init__()
+        
+        self.dust_dir = dust_dir
+        self.bricksize = bricksize
+
+    def readmock(self, mockfile=None, healpixels=None, nside=None,
+                 target_name='', magcut=None, only_coords=False):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the mock data file is not found.
+        ValueError
+            If mockfile or healpixels are not defined, or if nside is not a
+            scalar.
+
+        """
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
+        if not os.path.isfile(mockfile):
+            log.warning('Mock file {} not found!'.format(mockfile))
+            raise IOError
+
+        # Require healpixels, or could pass the set of tiles and use
+        # footprint.tiles2pix() to convert to healpixels given nside.
+        if healpixels is None:
+            log.warning('Healpixels input is required.') 
+            raise ValueError
+        
+        if nside is None:
+            log.warning('Nside must be a scalar input.')
+            raise ValueError
+
+        # Read the ra,dec coordinates, pixel weight map, generate mockid, and
+        # then restrict to the desired healpixels.
+        if self.cached_radec is None:
+            ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+            ReadGAMA.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+        else:
+            cached_mockfile, cached_nside, ra, dec, allpix, pixweight = ReadGAMA.cached_radec
+            if cached_mockfile != mockfile or cached_nside != nside:
+                ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
+                ReadGAMA.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
+            else:
+                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                _, _, ra, dec, allpix, pixweight = ReadGAMA.cached_radec
+
+        mockid = np.arange(len(ra)) # unique ID/row number
+        
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
+        mockid = mockid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
+        ra = ra[cut]
+        dec = dec[cut]
+
+        # Assign bricknames.
+        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+
+        # Add photometry, absolute magnitudes, and redshifts.
+        columns = ['FLUX_G', 'FLUX_R', 'FLUX_Z', 'Z', 'UGRIZ_ABSMAG_01']
+        data = fitsio.read(mockfile, columns=columns, upper=True, ext=1, rows=cut)
+        zz = data['Z'].astype('f4')
+        rmag = 22.5 - 2.5 * np.log10(data['FLUX_R']).astype('f4')
+
+        # Pack into a basic dictionary.  Could include shapes and other spectral
+        # properties here.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'bgs-gama',
+               'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'RA': ra, 'DEC': dec, 'Z': zz, 'RMABS_01': data['UGRIZ_ABSMAG_01'][:, 2],
+               'UG_01': data['UGRIZ_ABSMAG_01'][:, 0]-data['UGRIZ_ABSMAG_01'][:, 1],
+               'GR_01': data['UGRIZ_ABSMAG_01'][:, 1]-data['UGRIZ_ABSMAG_01'][:, 2],
+               'RI_01': data['UGRIZ_ABSMAG_01'][:, 2]-data['UGRIZ_ABSMAG_01'][:, 3],
+               'IZ_01': data['UGRIZ_ABSMAG_01'][:, 3]-data['UGRIZ_ABSMAG_01'][:, 4],
+               'NORMFILTER': 'decam2014-r', 'MAG': rmag}
+
+        # Add MW transmission and the imaging depth.
+        if self.dust_dir:
+            mw_transmission(out, dust_dir=self.dust_dir)
+            imaging_depth(out)
+
+        return out
+
 class ReadMWS_WD(SelectTargets):
     """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD). 
 
@@ -2184,7 +2325,7 @@ class LRGMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z'):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z', **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2400,7 +2541,7 @@ class ELGMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2618,7 +2759,7 @@ class BGSMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r'):
+    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
@@ -2692,6 +2833,8 @@ class BGSMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'durham_mxxl_hdf5':
             MockReader = ReadMXXL(dust_dir=dust_dir)
+        elif self.mockformat == 'bgs-gama':
+            MockReader = ReadGAMA(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2788,9 +2931,19 @@ class BGSMaker(SelectTargets):
                                      data['SDSS_01gr'][indx])).T
                 _, templateid = self._query(alldata)
                 input_meta['TEMPLATEID'] = templateid
+            elif self.mockformat == 'bgs-gama':
+                # Could conceivably use other colors here--
+                alldata = np.vstack((data['Z'][indx],
+                                     data['RMABS_01'][indx],
+                                     data['GR_01'][indx])).T
+                _, templateid = self._query(alldata)
+                input_meta['TEMPLATEID'] = templateid
+            else:
+                pass
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
+            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta, 
                                                                nocolorcuts=True, novdisp=False)
+            
 
         targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
                                                      seed=seed, gmm=gmm,
@@ -3064,10 +3217,15 @@ class MWS_MAINMaker(STARMaker):
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-r`.
+    calib_only : :class:`bool`, optional
+        Use MWS_MAIN stars as calibration (standard star) targets, only.
+        Defaults to False.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-r', calib_only=False, **kwargs):
         super(MWS_MAINMaker, self).__init__()
+
+        self.calib_only = calib_only
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
@@ -3191,9 +3349,8 @@ class MWS_MAINMaker(STARMaker):
         return flux, self.wave, meta, targets, truth
 
     def select_targets(self, targets, truth, boss_std=None):
-        """Select MWS_MAIN, MWS_MAIN_VERY_FAINT, standard stars, and (bright)
-        contaminants for extragalactic targets.  Input tables are modified in
-        place.
+        """Select various MWS stars, standard stars, and (bright) contaminants for
+        extragalactic targets.  Input tables are modified in place.
 
         Note: The selection here eventually will be done with Gaia (I think).
 
@@ -3215,30 +3372,20 @@ class MWS_MAINMaker(STARMaker):
             main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
             return main
 
-        def _isMWS_MAIN_VERY_FAINT(rflux):
-            """A function like this should be in desitarget.cuts. Select 19<r<20 filler stars."""
-            faint = rflux > 10**( (22.5 - 20.0) / 2.5 )
-            faint &= rflux <= 10**( (22.5 - 19.0) / 2.5 )
-            return faint
-        
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
 
         # Select MWS_MAIN targets.
         mws_main = _isMWS_MAIN(rflux=rflux)
-        #mws_main = np.ones(len(targets)) # select everything!
+
+        if not self.calib_only:
+            targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
+            targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         
-        targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-        targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
-        
-        mws_main_very_faint = _isMWS_MAIN_VERY_FAINT(rflux=rflux)
-        targets['MWS_TARGET'] |= (mws_main_very_faint != 0) * self.mws_mask.mask('MWS_MAIN_VERY_FAINT')
-        targets['DESI_TARGET'] |= (mws_main_very_faint != 0) * self.desi_mask.MWS_ANY
+            # Select bright stellar contaminants for the extragalactic targets.
+            self.select_contaminants(targets, truth)
 
         # Select standard stars.
         self.select_standards(targets, truth, boss_std=boss_std)
-        
-        # Select bright stellar contaminants for the extragalactic targets.
-        self.select_contaminants(targets, truth)
 
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
@@ -3618,20 +3765,23 @@ class WDMaker(SelectTargets):
     normfilter : :class:`str`, optional
         Normalization filter for defining normalization (apparent) magnitude of
         each target.  Defaults to `decam2014-r`.
+    calib_only : :class:`bool`, optional
+        Use WDs as calibration (standard star) targets, only.  Defaults to False. 
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
     wd_maggies_da, wd_maggies_db, tree_da, tree_db = None, None, None, None
 
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+    def __init__(self, seed=None, normfilter='decam2014-g', calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
-        from speclite import filters
+        from speclite import filters 
         from desisim.templates import WD
         
         super(WDMaker, self).__init__()
 
         self.seed = seed
         self.objtype = 'WD'
+        self.calib_only = calib_only
 
         if self.wave is None:
             WDMaker.wave = _default_wave()
@@ -3897,8 +4047,9 @@ class WDMaker(SelectTargets):
         #mws_wd = np.ones(len(targets)) # select everything!
         mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
 
-        targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
-        targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
+        if not self.calib_only:
+            targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+            targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
 
         # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
