@@ -2138,7 +2138,6 @@ def _in_desi_footprint(targs):
 
     return windesi
 
-
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
                   imaging_map_file=None, truths=None):
     """Make DESI targeting QA plots given a passed set of targets
