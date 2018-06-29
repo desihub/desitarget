@@ -2107,124 +2107,6 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     plt.close()
 
 
-def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0, weight=True):
-    """Make DESI targeting QA plots given a passed set of MOCK targets
-
-    Parameters
-    ----------
-    targs : :class:`~numpy.array` or `str`
-        An array of (mock) targets in the DESI data model format. If a string is passed then the
-        targets are read from the file with the passed name (supply the full directory path)
-    truths : :class:`~numpy.array` or `str`
-        The truth objects from which the targs were derived in the DESI data model format. 
-        If a string is passed then read from that file (supply the full directory path)
-    qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
-    targdens : :class:`dictionary`, optional, set automatically by the code if not passed
-        A dictionary of DESI target classes and the goal density for that class. Used to
-        label the goal density on histogram plots
-    max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in the passed coordinates is chosen automatically to be as close as
-        possible to this value without exceeding it
-    weight : :class:`boolean`, optional, defaults to True
-        If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
-        ameliorate under dense pixels at the footprint edges
-
-    Returns
-    -------
-    Nothing
-        But a set of .png plots for target QA are written to qadir
-
-    Notes
-    -----
-    The ``DESIMODEL`` environment variable must be set to find the file of HEALPixels 
-    that overlap the DESI footprint
-    """
-
-    #ADM set up the default logger from desiutil
-    from desiutil.log import get_logger, DEBUG
-    log = get_logger(DEBUG)
-
-    start = time()
-    log.info('Start making (mock) targeting QA plots...t = {:.1f}s'.format(time()-start))
-
-    #ADM if filenames were passed, read in the targets from those files
-    if isinstance(targs, str):
-        targs = fitsio.read(targs)
-        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-    if isinstance(truths, str):
-        targs = fitsio.read(truths)
-        log.info('Read in truth...t = {:.1f}s'.format(time()-start))
-        
-    #ADM determine the nside for the passed max_bin_area
-    for n in range(1, 25):
-        nside = 2 ** n
-        bin_area = hp.nside2pixarea(nside, degrees=True)
-        if bin_area <= max_bin_area:
-            break
-
-    #ADM calculate HEALPixel numbers once, here, to avoid repeat calculations
-    #ADM downstream
-    from desimodel import io, footprint
-    pix = footprint.radec2pix(nside, targs["RA"], targs["DEC"])
-    log.info('Calculated HEALPixel for targets and truths...t = {:.1f}s'
-             .format(time()-start))
-
-    #ADM set up the weight of each HEALPixel, if requested.
-    weights = np.ones(len(targs))
-    if weight:
-        #ADM retrieve the map of what HEALPixels are actually in the DESI footprint
-        pixweight = io.load_pixweight(nside)
-        #ADM determine what HEALPixels each target is in, to set the weights
-        fracarea = pixweight[pix]
-        #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
-        #ADM except for zero pixels, which are all outside of the footprint
-        w = np.where(fracarea == 0)
-        fracarea[w] = 1 #ADM to guard against division by zero warnings
-        weights = 1./fracarea
-        weights[w] = 0
-        log.info('Assigned weights to pixels based on DESI footprint...t = {:.1f}s'
-                 .format(time()-start))
-
-    #ADM Current goal target densities for DESI (read from the DESIMODEL defaults)
-    if targdens is None:
-        targdens = _load_targdens()
-
-    #ADM clip the target densities at an upper density to improve plot edges
-    #ADM by rejecting highly dense outliers
-    upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
-                  'STD_FSTAR': 200, 'STD_BRIGHT': 50, 'BGS_ANY': 4500}
-
-    for objtype in targdens:
-        if 'ALL' in objtype:
-            wobjtype = np.arange(len(targs))
-        else:
-            if  ('BGS' in objtype) & ~('ANY' in objtype):
-                w = np.where(targs["BGS_TARGET"] & bgs_mask[objtype])[0]
-            elif ('MWS' in objtype) & ~('ANY' in objtype):
-                w = np.where(targs["MWS_TARGET"] & mws_mask[objtype])[0]
-            else:
-                w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
-            wobjtype = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
-
-        if len(wobjtype) > 0:
-            #ADM make color-color plots
-            qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir,
-                    fileprefix="mock-color", nodustcorr=True)
-            log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
-
-            #ADM make N(z) plots
-            mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz",
-                      fileprefixzmag="mock-zvmag")
-            log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
-            
-            ##ADM plot what fraction of each selected object is actually a contaminant
-            #mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
-            #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
-
-    log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
-
-
 def _in_desi_footprint(targs):
     """Convenience function for using is_point_in_desi to find which targets are in the footprint
     Parameters
@@ -2308,7 +2190,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-    if truths:
+    if truths is not None:
         if isinstance(truths, str):
             truths = fitsio.read(truths)
             log.info('Read in truth...t = {:.1f}s'.format(time()-start))
@@ -2403,19 +2285,19 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
-            if truths:
+            if truths is not None:
                 #ADM make noiseless color-color plots
-                qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir,
+                qacolor(truths[w], objtype, targs[w], qadir=qadir,
                         fileprefix="mock-color", nodustcorr=True)
                 log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
                 #ADM make N(z) plots
-                mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz",
+                mock_qanz(truths[w], objtype, qadir=qadir, fileprefixz="mock-nz",
                           fileprefixzmag="mock-zvmag")
                 log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
 
                 ##ADM plot what fraction of each selected object is actually a contaminant
-                #mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
+                #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
                 #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
@@ -2485,7 +2367,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             mocks = False
     else:
         truths = None
-        
+
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
         targs = fitsio.read(targs)
