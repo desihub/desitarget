@@ -2199,6 +2199,12 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
         if 'ALL' in objtype:
             wobjtype = np.arange(len(targs))
         else:
+            if  ('BGS' in objtype) & ~('ANY' in objtype):
+                w = np.where(targs["BGS_TARGET"] & bgs_mask[objtype])[0]
+            elif ('MWS' in objtype) & ~('ANY' in objtype):
+                w = np.where(targs["MWS_TARGET"] & mws_mask[objtype])[0]
+            else:
+                w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
             wobjtype = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
 
         if len(wobjtype) > 0:
@@ -2215,7 +2221,7 @@ def mock_make_qa_plots(targs, truths, qadir='.', targdens=None, max_bin_area=1.0
             ##ADM plot what fraction of each selected object is actually a contaminant
             #mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
             #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
-                
+
     log.info('Made (mock) QA plots...t = {:.1f}s'.format(time()-start))
 
 
@@ -2251,7 +2257,8 @@ def _in_desi_footprint(targs):
     return windesi
 
 
-def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True, imaging_map_file=None):
+def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
+                  imaging_map_file=None, truths=None):
     """Make DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -2274,6 +2281,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         If `weight` is set, then this file contains the location of the imaging HEALPixel
         map (e.g. made by :func:`desitarget.imagefootprint.pixweight()` if this is not
         sent, then the weights default to 1 everywhere (i.e. no weighting)
+    truths : :class:`~numpy.array` or `str`
+        The truth objects from which the targs were derived in the DESI data model format. 
+        If a string is passed then read from that file (supply the full directory path)
 
     Returns
     -------
@@ -2298,6 +2308,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     if isinstance(targs, str):
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+    if truths:
+        if isinstance(truths, str):
+            truths = fitsio.read(truths)
+            log.info('Read in truth...t = {:.1f}s'.format(time()-start))
 
     #ADM determine the nside for the passed max_bin_area
     for n in range(1, 25):
@@ -2389,6 +2403,21 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
+            if truths:
+                #ADM make noiseless color-color plots
+                qacolor(truths[wobjtype], objtype, targs[wobjtype], qadir=qadir,
+                        fileprefix="mock-color", nodustcorr=True)
+                log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+                #ADM make N(z) plots
+                mock_qanz(truths[wobjtype], objtype, qadir=qadir, fileprefixz="mock-nz",
+                          fileprefixzmag="mock-zvmag")
+                log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+
+                ##ADM plot what fraction of each selected object is actually a contaminant
+                #mock_qafractype(truths[wobjtype], objtype, qadir=qadir, fileprefix="mock-fractype")
+                #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
 
@@ -2454,6 +2483,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             log.warning('To make mock-related plots, targs must be a directory+file-location string...')
             log.warning('...will proceed by only producing the non-mock plots...')
             mocks = False
+    else:
+        truths = None
         
     #ADM if a filename was passed, read in the targets from that file
     if isinstance(targs, str):
@@ -2586,13 +2617,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM make the QA plots, if requested:
     if makeplots:
-        totarea = make_qa_plots(targs, 
+        totarea = make_qa_plots(targs, truths=truths, 
                                 qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
                                 weight=weight,imaging_map_file= imaging_map_file)
-        if mocks:
-            mock_make_qa_plots(targs, truths, 
-                               qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                               weight=weight)
 
         #ADM add a correlation matrix recording the overlaps between different target
         #ADM classes as a density
