@@ -307,7 +307,7 @@ def hp_with_nobs_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,n
     return hpxinfo
 
 
-def get_dust(ras,decs, 
+def get_dust(ras,decs,scaling=1, 
              dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
     """Get SFD E(B-V) values at a set of RA/Dec locations
 
@@ -317,6 +317,9 @@ def get_dust(ras,decs,
         Right Ascension in degrees
     dec : :class:`numpy.array`
         Declination in degrees
+    scaling : :class:`float`
+        Pass 1 for the SFD98 dust maps. A scaling of 0.86, corresponds
+        to the recalibration from Schlafly & Finkbeiner (2011).  
     dustdir : :class:`str`, optional, defaults to the NERSC dust map location
         The root directory pointing to SFD dust maps
 
@@ -326,7 +329,7 @@ def get_dust(ras,decs,
         E(B-V) values from the SFD dust maps at the passed locations
     """
     from desitarget.mock import sfdmap
-    return sfdmap.ebv(ras, decs, mapdir=dustdir)
+    return sfdmap.ebv(ras, decs, mapdir=dustdir, scaling=scaling)
 
 
 def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,
