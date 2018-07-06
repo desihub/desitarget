@@ -835,15 +835,75 @@ def load_pixweight(inmapfile, nside, pixmap=None):
             raise ValueError
         pixmap = fitsio.read(inmapfile)
             
-    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it                                                                
+    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
                   .format(nside,pixfile,truenside))
 
-    #ADM resample the map                                                                                                                             
+    #ADM resample the map
     return hp.pixelfunc.ud_grade(pixmap,nside,order_in='NESTED',order_out='NESTED')
+
+
+def load_pixweight_recarray(inmapfile, nside, pixmap=None):
+    '''Like load_pixweight but for a structured array map with multiple columns
+
+    Parameters
+    ----------
+    inmapfile : :class:`str`
+        Name of the file containing the pixel weight map
+    nside : :class:`int`
+        After loading, the array will be resampled to this HEALPix nside
+    pixmap: `~numpy.array`, optional, defaults to None
+        Pass a pixel map instead of loading it from file
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        HEALPixel weight map with all columns resampled to the requested nside
+
+    Notes
+    -----
+        - Assumes that tha passed map is in the NESTED scheme, and outputs to
+          the NESTED scheme
+        - All columns are resampled as the mean of the relevant pixels, except
+          if a column `HPXPIXEL` is passed. That column is reassigned the appropriate
+          pixel number at the new nside
+    '''
+    import healpy as hp
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    if pixmap is not None:
+        log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
+    else:
+        #ADM read in the pixel weights file                                                                                                  
+        if not os.path.exists(inmapfile):
+            log.fatal('Input directory does not exist: {}'.format(inmapfile))
+            raise ValueError
+        pixmap = fitsio.read(inmapfile)
+            
+    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it
+    npix = len(pixmap)
+    truenside = hp.npix2nside(len(pixmap))
+    if truenside < nside:
+        log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
+                  .format(nside,pixfile,truenside))
+
+    #ADM set up an output array
+    nrows = hp.nside2npix(nside)
+    outdata = np.zeros(nrows, dtype=pixmap.dtype)
+
+    #ADM resample the map for each column
+    for col in pixmap.dtype.names:
+        outdata[col] = hp.pixelfunc.ud_grade(pixmap[col],nside,order_in='NESTED',order_out='NESTED')
+
+    #ADM if one column was the HEALPixel number, recalculate for the new resolution
+    if 'HPXPIXEL' in pixmap.dtype.names:
+        outdata["HPXPIXEL"] = np.arange(nrows)
+
+    return outdata
 
 
 def gitversion():

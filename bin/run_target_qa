@@ -30,7 +30,9 @@ ap.add_argument('-b','--bitnames', default=None,
 
 ns = ap.parse_args()
 
-bitnames = [ bn for bn in ns.bitnames.split(',') ]
+bitnames = ns.bitnames
+if bitnames is not None:
+    bitnames = [ bn for bn in ns.bitnames.split(',') ]
 
 makeplots = not(ns.noplots)
 

@@ -1729,8 +1729,8 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least "RA", "GAIA_PARALLAX", 
-        "GAIA_PMRA" and "GAIA_PMDEC" 
+        An array of targets that contains at least "RA", "PARALLAX", 
+        "PMRA" and "PMDEC" 
     objtype : :class:`str`
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
     qadir : :class:`str`, optional, defaults to the current directory
@@ -1749,7 +1749,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
 
     #ADM change the parallaxes (which are in mas) to distances in parsecs
     #ADM clip at very small parallaxes to avoid divide-by-zero
-    r = 1000./np.clip(cat["GAIA_PARALLAX"],1e-16,1e16)
+    r = 1000./np.clip(cat["PARALLAX"],1e-16,1e16)
     #ADM set the angle element of the plot to RA
     theta = np.radians(cat["RA"])
 
@@ -1786,7 +1786,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
 
     #ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        hb = plt.hexbin(cat["GAIA_PMRA"], cat["GAIA_PMDEC"],
+        hb = plt.hexbin(cat["PMRA"], cat["PMDEC"],
                         mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
                         bins='log', extent=(*ralim, *declim), gridsize=60)
         cb = plt.colorbar(hb)
@@ -1794,7 +1794,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
 
     #ADM...otherwise make a scatter plot
     else:
-        plt.scatter(cat["GAIA_PMRA"], cat["GAIA_PMDEC"], alpha=0.6)
+        plt.scatter(cat["PMRA"], cat["PMDEC"], alpha=0.6)
 
     #ADM save the plot
     pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'pm',objtype))
@@ -2272,7 +2272,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         ameliorate under dense pixels at the footprint edges
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()` if this is not
+        map (e.g. made by :func:` desitarget.randoms.pixmap()` if this is not
         sent, then the weights default to 1 everywhere (i.e. no weighting)
     truths : :class:`~numpy.array` or `str`
         The truth objects from which the targs were derived in the DESI data model format. 
@@ -2331,7 +2331,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         #ADM load the imaging weights file
         if imaging_map_file is not None:
             from desitarget import io as dtio
-            pixweight = dtio.load_pixweight(imaging_map_file,nside)
+            pixweight = dtio.load_pixweight_recarray(imaging_map_file,nside)["FRACAREA"]
             #ADM determine what HEALPixels each target is in, to set the weights
             fracarea = pixweight[pix]
             #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
@@ -2411,7 +2411,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
                 #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
-            #ADM make Gaia-based plots, if we have Gaia columns
+            #ADM make Gaia-based plots if we have Gaia columns
             if "PARALLAX" in targs.dtype.names:
                 qagaia(targs[w], objtype, qadir=qadir, fileprefix="gaia")
                 log.info('Made Gaia-based plots for {}...t = {:.1f}s'.format(objtype,time()-start))
@@ -2447,7 +2447,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         ``DESIMODEL`` HEALPix footprint file for mock targets
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()`. If this is not sent, 
+        map (e.g. made by :func:`desitarget.randoms.pixmap()`. If this is not sent, 
         then the weights default to 1 everywhere (i.e. no weighting) for the real targets
     bitnames : :class:`list`
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
@@ -2573,17 +2573,18 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</tr>\n')
         html.write('</table>\n')
 
-        #ADM parallax and proper motion plots
-        html.write('<h2>Gaia based plots</h2>\n')
-        html.write('<table COLS=2 WIDTH="100%">\n')
-        html.write('<tr>\n')
-        #ADM add the plots...
-        html.write('<td align=center><A HREF="gaia-pm-{}.png"><img SRC="gaia-pm-{}.png" width=75% height=auto></A></td>\n'
-                   .format(objtype,objtype))
-        html.write('<td align=center><A HREF="gaia-parallax-{}.png"><img SRC="gaia-parallax-{}.png" width=71% height=auto></A></td>\n'
-                   .format(objtype,objtype))
-        html.write('</tr>\n')
-        html.write('</table>\n')
+        #ADM parallax and proper motion plots, if we have that information
+        if "PARALLAX" in targs.dtype.names:
+            html.write('<h2>Gaia based plots</h2>\n')
+            html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            html.write('<td align=center><A HREF="gaia-pm-{}.png"><img SRC="gaia-pm-{}.png" width=75% height=auto></A></td>\n'
+                       .format(objtype,objtype))
+            html.write('<td align=center><A HREF="gaia-parallax-{}.png"><img SRC="gaia-parallax-{}.png" width=71% height=auto></A></td>\n'
+                       .format(objtype,objtype))
+            html.write('</tr>\n')
+            html.write('</table>\n')
 
         #ADM add special plots if we have mock data
         if mocks:

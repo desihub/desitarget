@@ -318,7 +318,7 @@ def get_dust(ras,decs,scaling=1,
     dec : :class:`numpy.array`
         Declination in degrees
     scaling : :class:`float`
-        Pass 1 for the SFD98 dust maps. A scaling of 0.86, corresponds
+        Pass 1 for the SFD98 dust maps. A scaling of 0.86 corresponds
         to the recalibration from Schlafly & Finkbeiner (2011).  
     dustdir : :class:`str`, optional, defaults to the NERSC dust map location
         The root directory pointing to SFD dust maps
