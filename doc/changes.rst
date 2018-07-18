@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.21.0 (unreleased)
+0.21.0 (2018-07-18)
 -------------------
 
 * Fix bug when generating targeting QA for mock catalogs [`PR #332`_].
