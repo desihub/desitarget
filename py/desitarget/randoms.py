@@ -443,7 +443,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
     return qinfo
 
 
-def pixweight(randoms, density, nside=256, outplot=None):
+def pixweight(randoms, density, nobsgrz=[0,0,0], nside=256, outplot=None, outarea=True):
     """Fraction of area covered in HEALPixels by a random catalog
 
     Parameters
@@ -455,11 +455,19 @@ def pixweight(randoms, density, nside=256, outplot=None):
     density : :class:`int`
         The number of random points per sq. deg. At which the random catalog was
         generated (see also :func:`select_randoms()`).
+    nobsgrz : :class:`list`, optional, defaults to [0,0,0]
+        The number of observations in each of g, r, z that have to be EXCEEDED to include a
+        random point in the count. The default is to include areas that have at least one
+        observation in each band ([0,0,0]). `nobsgrz = [0,-1,-1]` would count areas with at
+        least one (more than zero) observations in g-band but any number of observations (more
+        than -1) in r-band and z-band.
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel NESTED nside number) at which to build the map.
     outplot : :class:`str`, optional, defaults to not making a plot
         Create a plot and write it to a file named `outplot` (this is passed to
         the `savefig` routine from `matplotlib.pyplot`.
+    outarea : :class:`boolean`, optional, defaults to True
+        Print the total area of the survey for these values of `nobsgrz` to screen.
 
     Returns
     -------
@@ -485,14 +493,14 @@ def pixweight(randoms, density, nside=256, outplot=None):
     nobs_g, nobs_r, nobs_z = randoms["NOBS_G"], randoms["NOBS_R"], randoms["NOBS_Z"]    
 
     #ADM only retain points with one or more observations in all bands
-    w = np.where( (nobs_g > 0) & (nobs_r > 0) & (nobs_z > 0) )
+    w = np.where( (nobs_g > nobsgrz[0]) & (nobs_r > nobsgrz[1]) & (nobs_z > nobsgrz[2]) )
 
     #ADM the counts in each HEALPixel in the survey
     if len(w[0]) > 0:
         pixnums = hp.ang2pix(nside,np.radians(90.-decs[w]),np.radians(ras[w]),nest=True)
         pixnum, pixcnt = np.unique(pixnums,return_counts=True)
     else:
-        log.error("Empty array passed")
+        log.error("No area for which nobs exceed passed values of nobsgrz, or empty randoms array")
 
     #ADM generate the counts for the whole sky to retain zeros where there is no survey coverage
     npix = hp.nside2npix(nside)
@@ -508,6 +516,12 @@ def pixweight(randoms, density, nside=256, outplot=None):
         log.info('Plotting pixel map and writing to {}'.format(outplot))
         hp.mollview(pix_weight, nest=True)
         plt.savefig(outplot)
+
+    #ADM if requested, print the total area of the survey to screen
+    if outarea:
+        area = np.sum(pix_weight*hp.nside2pixarea(nside,degrees=True))
+        log.info('Area of survey with NOBS exceeding {} in [g,r,z] = {} sq. deg.'
+                 .format(nobsgrz,area))
 
     return pix_weight
 
@@ -732,7 +746,7 @@ def pixmap(randoms, targets, rand_density, nside=256,
     return hpxinfo
 
 
-def bundle_bricks(pixnum, maxpernode, nside,
+def bundle_bricks(pixnum, maxpernode, nside, brickspersec=10.,
                   surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
     """Determine the optimal packing for bricks collected by HEALpixel integer
 
