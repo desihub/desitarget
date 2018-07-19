@@ -392,6 +392,8 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
             GALDEPTH_G: Galaxy depth at this location in the g-band
             GALDEPTH_R: Galaxy depth at this location in the r-band
             GALDEPTH_Z: Galaxy depth at this location in the z-band
+            MASKBITS: Extra mask bits info as stored in the header of e.g.,
+              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
             EBV: E(B-V) at this location from the SFD dust maps
     """
     #ADM this is only intended to work on one brick, so die if a larger array is passed
@@ -414,7 +416,7 @@ def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000
                             ('NOBS_G','i2'),('NOBS_R','i2'),('NOBS_Z','i2'),
                             ('PSFDEPTH_G','f4'),('PSFDEPTH_R','f4'),('PSFDEPTH_Z','f4'),
                             ('GALDEPTH_G','f4'),('GALDEPTH_R','f4'),('GALDEPTH_Z','f4'),
-                            ('EBV','f4')
+                            ('MASKBITS','i2'),('EBV','f4')
                            ])
     #ADM store each quantity of interest in the structured array
     #ADM remembering that the dictionary keys are in lower case text
