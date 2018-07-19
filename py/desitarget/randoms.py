@@ -894,6 +894,9 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None, bundlebric
             GALDEPTH_G: Galaxy depth at this location in the g-band
             GALDEPTH_R: Galaxy depth at this location in the r-band
             GALDEPTH_Z: Galaxy depth at this location in the z-band
+            MASKBITS: Extra mask bits info as stored in the header of e.g.,
+              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
+            EBV: E(B-V) at this location from the SFD dust maps
     """
     #ADM read in the survey bricks file, which lists the bricks of interest for this DR
     from glob import glob
