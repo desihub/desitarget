@@ -598,14 +598,19 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         #ADM from a mask bits file in this DR
         from glob import iglob
         files = iglob(indir+'/coadd/*/*/*maskbits*')
-        fn = next(files)
-        mbhdr = fitsio.read_header(fn)
-        #ADM extract the keys that include the string 'BITNM'
-        bncols = [ key for key in mbhdr.keys() if 'BITNM' in key ]
-        for col in bncols:
-            hdr[col] = {'name':col, 
-                        'value':mbhdr[col], 
-                        'comment': mbhdr.get_comment(col)}
+        #ADM we built an iterator over mask bits files for speed
+        #ADM if there are no such files to iterate over, just pass
+        try:
+            fn = next(files)
+            mbhdr = fitsio.read_header(fn)
+            #ADM extract the keys that include the string 'BITNM'
+            bncols = [ key for key in mbhdr.keys() if 'BITNM' in key ]
+            for col in bncols:
+                hdr[col] = {'name':col, 
+                            'value':mbhdr[col], 
+                            'comment': mbhdr.get_comment(col)}
+        except StopIteration:
+            pass
 
     #ADM add HEALPix column, if requested by input
     if nside is not None:
