@@ -63,7 +63,8 @@ def dr_extension(drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/
     return 'fz', 1
 
 
-def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=100000):
+def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,
+                                  density=100000,poisson=True):
     """For given brick edges, return random (RA/Dec) positions in the brick
 
     Parameters
@@ -79,6 +80,10 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=100000):
     density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is 
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
+    poisson : :class:`boolean`, optional, defaults to True
+        Modify the number of random points in the brick so that instead of simply 
+        being the brick area x the density, it is a number drawn from a Poisson
+        distribution with the expectation being the brick area x the density
 
     Returns
     -------
@@ -94,7 +99,12 @@ def randoms_in_a_brick_from_edges(ramin,ramax,decmin,decmax,density=100000):
         ramax -= 360.
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
-    nrand = int(spharea*density)
+
+    if poisson:
+        nrand = int(np.random.poisson(spharea*density))
+
+    else:
+        nrand = int(spharea*density)
 #    log.info('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
 #              .format(spharea,time()-start))
     ras = np.random.uniform(ramin,ramax,nrand)

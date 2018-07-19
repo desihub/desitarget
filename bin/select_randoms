@@ -67,5 +67,5 @@ randoms = select_randoms(density=ns.density, numproc=ns.numproc,
 
 if ns.bundlebricks is None:
     io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)
-    log.info('wrote map of HEALPixel weights (in the nested scheme) to {}...t = {:.1f}s'.format(ns.dest,time()-start))
+    log.info('wrote file of randoms to {}...t = {:.1f}s'.format(ns.dest,time()-start))
 
