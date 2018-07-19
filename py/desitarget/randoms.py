@@ -185,7 +185,8 @@ def quantities_at_positions_in_a_brick(ras,decs,brickname,
     -------
     :class:`dictionary`
        The number of observations (NOBS_X), PSF depth (PSFDEPTH_X) and Galaxy depth (GALDEPTH_X) 
-       at each passed position in the Legacy Surveys in each band X.
+       at each passed position in the Legacy Surveys in each band X. In addition, the MASKBITS
+       information at each passed position for this brick.
 
     Notes
     -----
@@ -232,6 +233,23 @@ def quantities_at_positions_in_a_brick(ras,decs,brickname,
                 #ADM if the file doesn't exist, set the relevant quantities to zero
                 #ADM for all of the passed
                 qdict[qout+'_'+filt] = np.zeros(npts,dtype=qform)
+
+    #ADM add the mask bits information
+    fn = (drdir+'/coadd/'+brickname[:3]+'/'+brickname+'/'+
+          'legacysurvey-'+brickname+'-maskbits.fits.gz')    
+    #ADM only process the WCS if there is a file corresponding to this filter
+    if os.path.exists(fn):
+        img = fits.open(fn)
+        #ADM use the WCS calculated for the per-filter quantities above, if it exists
+        if (iswcs==False):
+            w = WCS(img[extn_nb].header)
+            x, y = w.all_world2pix(ras, decs, 0)
+            iswcs = True
+        #ADM add the maskbits to the dictionary
+        qdict['maskbits'] = img[extn_nb].data[y.astype("int"),x.astype("int")]
+    else:
+        #ADM if there is no maskbits file, populate with zeros
+                qdict['maskbits'] = np.zeros(npts,dtype='i2')
 
 #    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
 #                  .format(brickname,time()-start))
@@ -335,7 +353,7 @@ def get_dust(ras,decs,scaling=1,
 def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,
                         drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/",
                         dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
-    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a brick of the Legacy Surveys
+    """NOBS, DEPTHS etc. (per-band) for random points in a brick of the Legacy Surveys
 
     Parameters
     ----------
