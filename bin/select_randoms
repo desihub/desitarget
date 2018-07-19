@@ -27,7 +27,7 @@ ap = ArgumentParser(description='Generate pixel-level random points and associat
 ap.add_argument("surveydir", 
                 help='Legacy Surveys Data Release root directory (e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr4/ for DR4 at NERSC)')
 ap.add_argument("dest", 
-                help='Output file name to write map of HEALPixel weights in the NESTED scheme (e.g. /project/projectdirs/desi/target/catalogs/pixweight-dr4-0.20.0.fits)')
+                help='Output file name to write random points (e.g. /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits)')
 ap.add_argument("--density", type=int,
                 help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 100,000)',
                 default="100000")
