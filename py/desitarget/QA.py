@@ -1357,6 +1357,43 @@ def _load_systematics():
     return sysdict
 
 
+def _prepare_systematics(data,colname):
+    """Functionally convert systematics to more user-friendly numbers
+    
+    Parameters
+    ----------
+    data :class:`~numpy.array` 
+        An array of the systematic
+    colname : :class:`str`
+        The column name of the passed systematic, e.g. ``STARDENS``
+
+    Returns
+    -------
+    :class:`~numpy.array` 
+        The systematics converted by the appropriate function
+    """
+
+    #ADM depth columns need converted to a magnitude-like number
+    if "DEPTH" in colname:
+        #ADM zero and negative values should be a very low number (0)
+        wgood = np.where(data > 0)[0]
+        outdata = np.zeros(len(data))
+        if len(wgood) > 0:
+            outdata[wgood] = 22.5-2.5*np.log10(5./np.sqrt(data[wgood]))
+    #ADM the STARDENS columns needs to be expressed as a log
+    elif "STARDENS" in colname:
+        #ADM zero and negative values should be a very negative number (-99)
+        wgood = np.where(data > 0)[0]
+        outdata = np.zeros(len(data))-99.
+        if len(wgood) > 0:
+            outdata[wgood] = np.log10(data[wgood])
+    else:
+        #ADM other columns don't need converted
+        outdata = data
+
+    return outdata
+
+
 def _load_targdens(bitnames=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
