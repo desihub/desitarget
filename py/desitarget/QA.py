@@ -2530,7 +2530,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
-                 weight=True, imaging_map_file=None, bitnames=None):
+                 weight=True, imaging_map_file=None, bitnames=None, systematics=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -2557,10 +2557,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
         map (e.g. made by :func:`desitarget.randoms.pixmap()`. If this is not sent, 
-        then the weights default to 1 everywhere (i.e. no weighting) for the real targets
+        then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
+        If this is not set, then systematics plots cannot be made
     bitnames : :class:`list`
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
         for those specific bits. A useful speed-up when testing
+    systematics : :class:`boolean`, optional, defaults to True
+        If sent, then add plots of systematics to the front page
 
     Returns
     -------
@@ -2771,6 +2774,41 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         #ADM close the matrix text output
         htmlmain.write('</span></PRE>\n\n\n')
         log.info('Done with correlation matrix...t = {:.1f}s'.format(time()-start))
+
+    #ADM if requested, add systematics plots to the front page
+    if systematics:
+        #ADM fail if the pixel systematics weights file was not passed
+        if imaging_map_file is None:
+            log.error("imaging_map_file was not passed so systematics cannot be tracked")
+        pixmap = fitsio.read(imaging_map_file)
+
+        sysdic = desitarget.QA._load_systematics()
+        sysnames = list(sysdic.keys())
+
+        #ADM html text to embed the systematics plots
+        html.write('<h2>Systematics plots</h2>\n')
+        html.write('<table COLS=2 WIDTH="100%">\n')
+        html.write('<tr>\n')
+        #ADM add the plots...
+        while(len(sysnames) > 1):
+            for sys in sysnames[:2]:
+                html.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
+                           .format(sys,sys))
+            html.write('</tr>\n')
+        #ADM we popped two systematics at a time, there could be a remaining one
+        if len(sysnames)==1:
+            html.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
+                       .format(sysnames[0]))
+            html.write('</tr>\n')
+        html.write('</table>\n')
+        #ADM add the plots
+        if makeplots:
+            sysnames = list(sysdic.keys())
+            for sysname in sysnames:
+                #ADM convert the data and the systematics ranges to more human-readable quantities
+                up, down = _prepare_systematics(np.array(sysdic[sysname]),sysname)
+                sysdata = _prepare_systematics(pixmap[sysname],sysname)
+                qasystematics(sysdata,sysname,,qadir=qadir,downclip=down,upclip=up)
 
     #ADM html postamble for main page
     htmlmain.write('<b><i>Last updated {}</b></i>\n'.format(js))
