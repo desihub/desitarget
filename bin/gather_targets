@@ -3,6 +3,7 @@
 from __future__ import print_function, division
 
 import fitsio
+from fitsio import FITS
 import numpy as np
 
 from time import time
@@ -32,17 +33,24 @@ fns = [ fn for fn in ns.infiles.split(';') ]
 fx = fitsio.FITS(fns[0])
 hdr = fx[1].read_header()
 
-#ADM concatenate the files
+log.info('Begin writing {} to {}...t = {:.1f}s'
+         .format(ns.targtype, ns.outfile, time()-start))
+
+#ADM open the file for writing
+fits = FITS(ns.outfile,'rw')
+
+#ADM write the first file with the header
+data = fitsio.read(fns[0])
+log.info('Working on file {}...t = {:.1f}s'.format(fns[0], time()-start))
+fits.write(data, extname=ns.targtype.upper(), header=hdr, clobber=True)
+
+#ADM add the other files
 targets = []
-for fn in fns:
-    log.info('Working on file {}'.format(fn))
-    targets.append(fitsio.read(fn))
+for fn in fns[1:]:
+    log.info('Working on file {}...t = {:.1f}s'.format(fn, time()-start))
+    data = fitsio.read(fn)
+    fits[-1].append(data)
 
-targets = np.concatenate(targets)
-
-log.info('Begin writing {} {} to {}...t = {:.1f}s'
-         .format(len(targets), ns.targtype, ns.outfile, time()-start))
-
-fitsio.write(ns.outfile, targets, extname=ns.targtype.upper(), header=hdr, clobber=True)
+fits.close()
 
 log.info('Finished writing...t = {:.1f}s'.format(time()-start))

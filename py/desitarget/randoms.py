@@ -456,8 +456,8 @@ def pixweight(randoms, density, nobsgrz=[0,0,0], nside=256, outplot=None, outare
         The number of random points per sq. deg. At which the random catalog was
         generated (see also :func:`select_randoms()`).
     nobsgrz : :class:`list`, optional, defaults to [0,0,0]
-        The number of observations in each of g, r, z that have to be EXCEEDED to include a
-        random point in the count. The default is to include areas that have at least one
+        The number of observations in each of g AND r AND z that have to be EXCEEDED to include
+        a random point in the count. The default is to include areas that have at least one
         observation in each band ([0,0,0]). `nobsgrz = [0,-1,-1]` would count areas with at
         least one (more than zero) observations in g-band but any number of observations (more
         than -1) in r-band and z-band.
@@ -520,8 +520,10 @@ def pixweight(randoms, density, nobsgrz=[0,0,0], nside=256, outplot=None, outare
     #ADM if requested, print the total area of the survey to screen
     if outarea:
         area = np.sum(pix_weight*hp.nside2pixarea(nside,degrees=True))
-        log.info('Area of survey with NOBS exceeding {} in [g,r,z] = {} sq. deg.'
+        log.info('Area of survey with NOBS exceeding {} in [g,r,z] = {:.2f} sq. deg.'
                  .format(nobsgrz,area))
+
+    log.info('Done...t = {:.1f}s'.format(time()-start))
 
     return pix_weight
 
@@ -808,8 +810,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=9.,
     print("#######################################################")
     print("Numbers of bricks in each set of healpixels:")
     print("")
-    #ADM margin of 15 minutes for writing to disk
-    margin = 15./60
+    #ADM margin of 30 minutes for writing to disk
+    margin = 30./60
     maxeta = 0
     for bin in bins:
         num = np.array(bin)[:,0]
