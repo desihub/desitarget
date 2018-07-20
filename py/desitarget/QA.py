@@ -27,7 +27,7 @@ from . import __version__ as desitarget_version
 
 from desiutil import brick
 from desiutil.log import get_logger, DEBUG
-from desiutil.plots import init_sky, plot_sky_binned
+from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 import warnings, itertools
@@ -1332,6 +1332,31 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
+def _load_systematics():
+    """Loads information for making systematics plots
+
+    Returns
+    -------
+    :class:`dictionary` 
+        A dictionary where the keys are the names of the systematics
+        and the values are arrays of where to clip these systematics in plots
+    """
+
+    sysdict = {}
+
+    sysdict['FRACAREA']=[0.,1.]
+    sysdict['STARDENS']=[150.,4000.]
+    sysdict['EBV']=[0.001,0.2]
+    sysdict['PSFDEPTH_G']=[63.,6300.]
+    sysdict['PSFDEPTH_R']=[25.,2500.]
+    sysdict['PSFDEPTH_Z']=[4.,400.]
+    sysdict['GALDEPTH_G']=[63.,6300.]
+    sysdict['GALDEPTH_R']=[25.,2500.]
+    sysdict['GALDEPTH_Z']=[4.,400.]
+
+    return sysdict
+
+
 def _load_targdens(bitnames=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
@@ -1517,6 +1542,53 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
                         label=label, basemap=basemap)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
+    fig.savefig(pngfile,bbox_inches='tight')
+
+    plt.close()
+
+    return
+
+
+def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
+                  fileprefix="systematics"):
+    """Visualize systematics with a sky map
+
+    Parameters
+    ----------
+    pixmap : :class:`~numpy.array`
+        An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`.
+        Assumed to be in the NESTED scheme and ORDERED BY INCREASING HEALPixel.
+    colname : :class:`str`
+        The name of the passed systematic, e.g. ``star density``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    downclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the low end
+    upclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the high end
+    fileprefix : :class:`str`, optional, defaults to ``"histo"``
+        String to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But a .png histogram of target densities is written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{colname}.png``
+    """
+
+    label = '{}'.format(colname)
+    fig, ax = plt.subplots(1)
+    ax = np.atleast_1d(ax)
+
+    #ADM prepare the data to be plotted by matplotlib routines
+    pixmap = prepare_data(pixmap, clip_lo=downclip, clip_hi=upclip)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+        plot_healpix_map(pixmap, nest=True, label=label, basemap=basemap)
+
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,colname))
     fig.savefig(pngfile,bbox_inches='tight')
 
     plt.close()

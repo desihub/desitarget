@@ -748,7 +748,7 @@ def pixmap(randoms, targets, rand_density, nside=256,
     return hpxinfo
 
 
-def bundle_bricks(pixnum, maxpernode, nside, brickspersec=9.,
+def bundle_bricks(pixnum, maxpernode, nside, brickspersec=2.5,
                   surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
     """Determine the optimal packing for bricks collected by HEALpixel integer
 
@@ -763,7 +763,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=9.,
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
         The HEALPixel nside number that was used to generate `pixnum` (NESTED scheme).
-    brickspersec : :class:`float`, optional, defaults to 9.
+    brickspersec : :class:`float`, optional, defaults to 2.5
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes)
     surveydir : :class:`str`, optional, defaults to the DR6 directory at NERSC
@@ -832,7 +832,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=9.,
                            .format(eta))
             #ADM track the maximum estimated time for shell scripts, etc.
             if (eta+margin).astype(int) + 1 > maxeta:
-                maxeta = eta.astype(int) + 1
+                maxeta = (eta+margin).astype(int) + 1
             print(outnote)
     
     print("")
@@ -883,7 +883,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=9.,
 
 
 def select_randoms(density=100000, numproc=32, nside=4, pixlist=None, 
-                   bundlebricks=None, brickspersec=9.,
+                   bundlebricks=None, brickspersec=2.5,
                    drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/",
                    dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
@@ -910,7 +910,7 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None,
         in about an hour), then commands would be returned with the correct pixlist values
         to pass to the code to pack at about 14000 bricks per node across all of the bricks
         in `survey`.
-    brickspersec : :class:`float`, optional, defaults to 9.
+    brickspersec : :class:`float`, optional, defaults to 2.5
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
         to estimate time to completion when parallelizing across pixels.
