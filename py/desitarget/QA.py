@@ -1344,15 +1344,15 @@ def _load_systematics():
 
     sysdict = {}
 
-    sysdict['FRACAREA']=[0.,1.]
-    sysdict['STARDENS']=[150.,4000.]
-    sysdict['EBV']=[0.001,0.2]
-    sysdict['PSFDEPTH_G']=[63.,6300.]
-    sysdict['PSFDEPTH_R']=[25.,2500.]
-    sysdict['PSFDEPTH_Z']=[4.,400.]
-    sysdict['GALDEPTH_G']=[63.,6300.]
-    sysdict['GALDEPTH_R']=[25.,2500.]
-    sysdict['GALDEPTH_Z']=[4.,400.]
+    sysdict['FRACAREA']=[0.01,1.,'Areal Coverage']
+    sysdict['STARDENS']=[150.,4000.,'log10(Stellar Density) per sq. deg.']
+    sysdict['EBV']=[0.001,0.2,'E(B-V)']
+    sysdict['PSFDEPTH_G']=[63.,6300.,'PSF Depth in g-band']
+    sysdict['PSFDEPTH_R']=[25.,2500.,'PSF Depth in r-band']
+    sysdict['PSFDEPTH_Z']=[4.,400.,'PSF Depth in z-band']
+    sysdict['GALDEPTH_G']=[63.,6300.,'Galaxy Depth in g-band']
+    sysdict['GALDEPTH_R']=[25.,2500.,'Galaxy Depth in r-band']
+    sysdict['GALDEPTH_Z']=[4.,400.,'Galaxy Depth in z-band']
 
     return sysdict
 
@@ -1587,7 +1587,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
 
 
 def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
-                  fileprefix="systematics"):
+                  fileprefix="systematics", plottitle=""):
     """Visualize systematics with a sky map
 
     Parameters
@@ -1596,7 +1596,7 @@ def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
         An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`.
         Assumed to be in the NESTED scheme and ORDERED BY INCREASING HEALPixel.
     colname : :class:`str`
-        The name of the passed systematic, e.g. ``star density``
+        The name of the passed systematic, e.g. ``STARDENS``
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     downclip : :class:`float`, optional, defaults to None
@@ -1605,6 +1605,8 @@ def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
         A cutoff at which to clip the systematics at the high end
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
         String to be added to the front of the output file name
+    plottitle : :class:`str`, optional, defaults to empty string
+        An informative title for the plot
 
     Returns
     -------
@@ -1613,9 +1615,15 @@ def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
         ``{qadir}/{fileprefix}-{colname}.png``
     """
 
-    label = '{}'.format(colname)
+    label = '{}'.format(plottitle)
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
+
+    #ADM if downclip was passed as a number, turn it to a string with
+    #ADM an exclamation mark to mask the plot background completely 
+    if downclip is not None:
+        if type(downclip) != str:
+            downclip = '!' + str(downclip)
 
     #ADM prepare the data to be plotted by matplotlib routines
     pixmap = prepare_data(pixmap, clip_lo=downclip, clip_hi=upclip)
@@ -1623,7 +1631,7 @@ def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
-        plot_healpix_map(pixmap, nest=True, label=label, basemap=basemap)
+        plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, basemap=basemap)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,colname))
     fig.savefig(pngfile,bbox_inches='tight')
@@ -2635,10 +2643,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     htmlmain.write('<h1>DESI Targeting QA pages ({})</h1>\n'.format(DRs))
 
     #ADM links to each collection of plots for each object type
-    htmlmain.write('<b><i>Jump to a target class:</i></b>\n')
+    htmlmain.write('<b><h2>Jump to a target class:</h2></b>\n')
     htmlmain.write('<ul>\n')
     for objtype in targdens.keys():
-        htmlmain.write('<li><A HREF="{}.html">{}</A>\n'.format(objtype,objtype))
+        htmlmain.write('<li><A HREF="{}.html"><b>{}</b></A>\n'.format(objtype,objtype))
     htmlmain.write('</ul>\n')
 
     #ADM for each object type, make a separate page
@@ -2750,7 +2758,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         #ADM add a correlation matrix recording the overlaps between different target
         #ADM classes as a density
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
-        htmlmain.write('<br><b><i>Overlaps in target densities (per sq. deg.)</b></i>\n')
+        htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
         #ADM only retain classes that are actually in the DESI target bit list
         targdens = set(desi_mask.names()).intersection(set(targdens))        
@@ -2782,33 +2790,38 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             log.error("imaging_map_file was not passed so systematics cannot be tracked")
         pixmap = fitsio.read(imaging_map_file)
 
-        sysdic = desitarget.QA._load_systematics()
+        sysdic = _load_systematics()
         sysnames = list(sysdic.keys())
 
         #ADM html text to embed the systematics plots
-        html.write('<h2>Systematics plots</h2>\n')
-        html.write('<table COLS=2 WIDTH="100%">\n')
-        html.write('<tr>\n')
+        htmlmain.write('<h2>Systematics plots</h2>\n')
+        htmlmain.write('<table COLS=2 WIDTH="100%">\n')
+        htmlmain.write('<tr>\n')
         #ADM add the plots...
         while(len(sysnames) > 1):
             for sys in sysnames[:2]:
-                html.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
-                           .format(sys,sys))
-            html.write('</tr>\n')
+                htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sys,sys))
+                #ADM pop off the 2 columns of systematics that have already been written
+            sysnames = sysnames[2:]
+            htmlmain.write('</tr>\n')
         #ADM we popped two systematics at a time, there could be a remaining one
         if len(sysnames)==1:
-            html.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
-                       .format(sysnames[0]))
-            html.write('</tr>\n')
-        html.write('</table>\n')
+            htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
+                           .format(sysnames[0],sysnames[0]))
+            htmlmain.write('</tr>\n')
+        htmlmain.write('</table>\n')
         #ADM add the plots
         if makeplots:
             sysnames = list(sysdic.keys())
             for sysname in sysnames:
                 #ADM convert the data and the systematics ranges to more human-readable quantities
-                up, down = _prepare_systematics(np.array(sysdic[sysname]),sysname)
+                d, u , plotlabel = sysdic[sysname]
+                down, up = _prepare_systematics(np.array([d,u]),sysname)
                 sysdata = _prepare_systematics(pixmap[sysname],sysname)
-                qasystematics(sysdata,sysname,,qadir=qadir,downclip=down,upclip=up)
+                qasystematics(sysdata,sysname,
+                              qadir=qadir,downclip=down,upclip=up,plottitle=plotlabel)
+        log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
     #ADM html postamble for main page
     htmlmain.write('<b><i>Last updated {}</b></i>\n'.format(js))
