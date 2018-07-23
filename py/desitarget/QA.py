@@ -1643,7 +1643,7 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
 def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.', 
                               downclip=None, upclip=None, nbins=10, 
                               fileprefix="sysdens", xlabel=None):
-    """Visualize systematics with a sky map
+    """Make a target density vs. systematic scatter plot
 
     Parameters
     ----------
@@ -1670,7 +1670,7 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
     -------
     Nothing
         But a .png histogram of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{syscolname}-{targcolname}.png
+        ``{qadir}/{fileprefix}-{syscolname}-{targcolname}.png``
         
     Notes
     -----
@@ -1961,10 +1961,11 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
     Returns
     -------
     Nothing
-        But .png plots of proper motions and distances from parallax are written to 
-        ``qadir``. The files are called:
-            ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``
-            ``{qadir}/{fileprefix}-{pm}-{objtype}.png``
+        But .png plots of Gaia information are written to ``qadir``. Two plots are made:
+           The file containing distances from parallax is called:
+                 ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``
+           The file containing proper motion information is called:
+                 ``{qadir}/{fileprefix}-{pm}-{objtype}.png``
     """
 
     #ADM change the parallaxes (which are in mas) to distances in parsecs
