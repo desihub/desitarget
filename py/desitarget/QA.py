@@ -1586,7 +1586,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
     return
 
 
-def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
+def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None,
                   fileprefix="systematics", plottitle=""):
     """Visualize systematics with a sky map
 
@@ -1635,6 +1635,92 @@ def qasystematics(pixmap, colname, qadir='.', downclip=None, upclip=None,
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,colname))
     fig.savefig(pngfile,bbox_inches='tight')
+
+    plt.close()
+
+    return
+
+
+def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.', 
+                              downclip=None, upclip=None, nbins=10, 
+                              fileprefix="sysdens"):
+    """Visualize systematics with a sky map
+
+    Parameters
+    ----------
+    pixmap : :class:`~numpy.array`
+        An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`
+    syscolname : :class:`str`
+        The name of the passed systematic, e.g. ``STARDENS``
+    targcolname : :class:`str`
+        The name of the passed column of target densities, e.g. ``QSO``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    downclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the low end
+    upclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the high end
+    nbins : :class:`int`, optional, defaults to 10
+        The number of bins to produce in the scatter plot
+    fileprefix : :class:`str`, optional, defaults to ``"histo"``
+        String to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But a .png histogram of target densities is written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{syscolname}-{targcolname}.png
+        
+    Notes
+    -----
+    The passed ``pixmap`` must contain a column ``FRACAREA`` which is used to filter out any
+    pixel with less than 70% areal coverage
+    """
+
+    #ADM remove anything that is in areas with low coverage, or doesn't meet
+    #ADM the clipping criteria
+    if downclip is None:
+        downclip = -1e30
+    if upclip is None:
+        upclip = 1e30
+    w = np.where(   (pixmap['FRACAREA'] > 0.7) & 
+                    (pixmap[syscolname] >= downclip) & (pixmap[syscolname] < upclip) )[0]
+    if len(w) > 0:
+        pixmapgood = pixmap[w]
+    else:
+        log.error("Pixel map has no areas with >70% coverage for passed up/downclip")
+
+    #ADM set up the x-axis as the systematic of interest
+    xx = pixmapgood[syscolname]
+    #ADM let np.histogram choose a sensible binning
+    _, bins = np.histogram(xx, nbins)
+    #ADM the bin centers rather than the edges
+    binmid = np.mean(np.vstack([bins,np.roll(bins,1)]),axis=0)[1:]
+
+    #ADM set up the y-axis as the deviation of the target density from median density
+    yy = pixmapgood[targcolname]/np.median(pixmapgood[targcolname])
+
+    #ADM determine which bin each systematics value is in
+    wbin  = np.digitize(xx,bins)
+    #ADM np.digitize closes the end bin whereas np.histogram
+    #ADM leaves it open, so shift the end bin value back by one
+    wbin[np.argmax(wbin)] -= 1
+
+    #ADM apply thr digitization to the target density values
+    #ADM note that the first digitized bin is 1 not zero
+    meds = [np.median(yy[wbin==bin]) for bin in range(1,nbins+1)]
+
+    #ADM make the plot
+    plt.scatter(xx,yy,marker='x',color='b',s=20, alpha=0.7)
+    plt.plot(binmid,meds,'k--',lw=2)
+
+    #ADM set the titles
+    plt.xlabel(syscolname)
+    plt.ylabel("Relative {} density".format(targcolname))
+
+    pngfile = os.path.join(qadir, '{}-{}-{}.png'
+                           .format(fileprefix,syscolname,targcolname))
+    plt.savefig(pngfile,bbox_inches='tight')
 
     plt.close()
 
@@ -2819,7 +2905,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                 d, u , plotlabel = sysdic[sysname]
                 down, up = _prepare_systematics(np.array([d,u]),sysname)
                 sysdata = _prepare_systematics(pixmap[sysname],sysname)
-                qasystematics(sysdata,sysname,
+                #ADM make the systematics sky plots
+                qasystematics_skyplot(sysdata,sysname,
                               qadir=qadir,downclip=down,upclip=up,plottitle=plotlabel)
         log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
