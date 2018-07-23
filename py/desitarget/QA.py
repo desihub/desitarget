@@ -482,7 +482,6 @@ def model_map(brickfilename,plot=False):
                 if re.search("FLUC",fcol):
                     if plot:
                         log.info("doing",col,fcol)
-                    #import pdb ; pdb.set_trace()
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
@@ -1344,9 +1343,9 @@ def _load_systematics():
 
     sysdict = {}
 
-    sysdict['FRACAREA']=[0.01,1.,'Areal Coverage']
+    sysdict['FRACAREA']=[0.01,1.,'Fraction of pixel area covered']
     sysdict['STARDENS']=[150.,4000.,'log10(Stellar Density) per sq. deg.']
-    sysdict['EBV']=[0.001,0.2,'E(B-V)']
+    sysdict['EBV']=[0.001,0.1,'E(B-V)']
     sysdict['PSFDEPTH_G']=[63.,6300.,'PSF Depth in g-band']
     sysdict['PSFDEPTH_R']=[25.,2500.,'PSF Depth in r-band']
     sysdict['PSFDEPTH_Z']=[4.,400.,'PSF Depth in z-band']
@@ -1643,7 +1642,7 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
 
 def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.', 
                               downclip=None, upclip=None, nbins=10, 
-                              fileprefix="sysdens"):
+                              fileprefix="sysdens", xlabel=None):
     """Visualize systematics with a sky map
 
     Parameters
@@ -1664,6 +1663,8 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
         The number of bins to produce in the scatter plot
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
         String to be added to the front of the output file name
+    xlabel : :class:`str`, optional, if None defaults to ``syscolname``
+        An informative title for the x-axis of the plot
 
     Returns
     -------
@@ -1674,8 +1675,20 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
     Notes
     -----
     The passed ``pixmap`` must contain a column ``FRACAREA`` which is used to filter out any
-    pixel with less than 70% areal coverage
+    pixel with less than 90% areal coverage
     """
+    #ADM set up the logger
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger()
+
+    #ADM exit if we have a target density column that isn't populated
+    if np.all(pixmap[targcolname]==0):
+        log.info("Target densities not populated for {}".format(targcolname))
+        return
+
+    #ADM if no xlabel was passed, default to syscolname
+    if xlabel is None:
+        xlabel = syscolname
 
     #ADM remove anything that is in areas with low coverage, or doesn't meet
     #ADM the clipping criteria
@@ -1683,12 +1696,15 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
         downclip = -1e30
     if upclip is None:
         upclip = 1e30
-    w = np.where(   (pixmap['FRACAREA'] > 0.7) & 
+    w = np.where(   (pixmap['FRACAREA'] > 0.9) & 
                     (pixmap[syscolname] >= downclip) & (pixmap[syscolname] < upclip) )[0]
     if len(w) > 0:
         pixmapgood = pixmap[w]
     else:
-        log.error("Pixel map has no areas with >70% coverage for passed up/downclip")
+        log.error("Pixel map has no areas with >90% coverage for passed up/downclip")
+        log.info("Proceeding without clipping systematics for {}".format(syscolname))
+        w = np.where(pixmap['FRACAREA'] > 0.9)
+        pixmapgood = pixmap[w]
 
     #ADM set up the x-axis as the systematic of interest
     xx = pixmapgood[syscolname]
@@ -1711,11 +1727,12 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
     meds = [np.median(yy[wbin==bin]) for bin in range(1,nbins+1)]
 
     #ADM make the plot
-    plt.scatter(xx,yy,marker='x',color='b',s=20, alpha=0.7)
+    plt.scatter(xx,yy,marker='.',color='b', alpha=0.8, s=0.8)
     plt.plot(binmid,meds,'k--',lw=2)
 
-    #ADM set the titles
-    plt.xlabel(syscolname)
+    #ADM set the titles and y range
+    plt.ylim([0.5,1.5])
+    plt.xlabel(xlabel)
     plt.ylabel("Relative {} density".format(targcolname))
 
     pngfile = os.path.join(qadir, '{}-{}-{}.png'
@@ -2698,6 +2715,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
 
+    #ADM determine the working nside for the passed max_bin_area
+    for n in range(1, 25):
+        nside = 2 ** n
+        bin_area = hp.nside2pixarea(nside, degrees=True)
+        if bin_area <= max_bin_area:
+            break
+
     #ADM if requested, restrict the targets (and mock files) to the DESI footprint
     if clip2foot:
         w = _in_desi_footprint(targs)
@@ -2874,11 +2898,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         #ADM fail if the pixel systematics weights file was not passed
         if imaging_map_file is None:
             log.error("imaging_map_file was not passed so systematics cannot be tracked")
-        pixmap = fitsio.read(imaging_map_file)
-
+        from desitarget import io as dtio
+        pixmap = dtio.load_pixweight_recarray(imaging_map_file,nside)
         sysdic = _load_systematics()
         sysnames = list(sysdic.keys())
-
         #ADM html text to embed the systematics plots
         htmlmain.write('<h2>Systematics plots</h2>\n')
         htmlmain.write('<table COLS=2 WIDTH="100%">\n')
@@ -2904,10 +2927,20 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                 #ADM convert the data and the systematics ranges to more human-readable quantities
                 d, u , plotlabel = sysdic[sysname]
                 down, up = _prepare_systematics(np.array([d,u]),sysname)
-                sysdata = _prepare_systematics(pixmap[sysname],sysname)
+                pixmap[sysname] = _prepare_systematics(pixmap[sysname],sysname)
                 #ADM make the systematics sky plots
-                qasystematics_skyplot(sysdata,sysname,
+                qasystematics_skyplot(pixmap[sysname],sysname,
                               qadir=qadir,downclip=down,upclip=up,plottitle=plotlabel)
+                #ADM make the systematics vs. target density scatter plots
+                #ADM for each target type
+                for objtype in targdens.keys():
+                    #ADM hack to have different FRACAREA quantities for the sky maps and
+                    #ADM the scatter plots
+                    if sysname=="FRACAREA":
+                        down = 0.9
+                    qasystematics_scatterplot(pixmap,sysname,objtype,qadir=qadir,
+                                    downclip=down,upclip=up,nbins=10,xlabel=plotlabel)
+
         log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
     #ADM html postamble for main page
