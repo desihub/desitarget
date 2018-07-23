@@ -2854,6 +2854,34 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             #html.write('</tr>\n')
             #html.write('</table>\n')
 
+        #ADM add target density vs. systematics plots, if systematics plots were requested
+        if systematics:
+            sysdic = _load_systematics()
+            sysnames = list(sysdic.keys())
+            #ADM html text to embed the systematics plots
+            html.write('<h2>Target Density variation vs. Systematics plots</h2>\n')
+            html.write('<table COLS=3 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            while(len(sysnames) > 2):
+                for sys in sysnames[:3]:
+                    html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sys,objtype,sys,objtype))
+                #ADM pop off the 3 columns of systematics that have already been written
+                sysnames = sysnames[3:]
+                html.write('</tr>\n')
+            #ADM we popped three systematics at a time, there could be a remaining one or two
+            if len(sysnames) == 2:
+                for sys in sysnames:
+                    html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sys,objtype,sys,objtype))
+                html.write('</tr>\n')
+            if len(sysnames) == 1:
+                html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sysnames[0],objtype,sysnames[0],objtype))
+                html.write('</tr>\n')
+            html.write('</table>\n')
+
         #ADM html postamble
         html.write('<b><i>Last updated {}</b></i>\n'.format(js))
         html.write('</html></body>\n')
@@ -2871,17 +2899,17 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
         #ADM only retain classes that are actually in the DESI target bit list
-        targdens = set(desi_mask.names()).intersection(set(targdens))        
+        settargdens = set(desi_mask.names()).intersection(set(targdens))        
         #ADM write out a list of the target categories
-        headerlist = list(targdens)
+        headerlist = list(settargdens)
         headerlist.insert(0," ")
         header = " ".join(['{:>11s}'.format(i) for i in headerlist])+'\n\n'
         htmlmain.write(header)
         #ADM for each pair of target classes, determine how many targets per unit area
         #ADM have the relevant target bit set for both target classes in the pair
-        for i, objtype1 in enumerate(targdens):
+        for i, objtype1 in enumerate(settargdens):
             overlaps = [objtype1]
-            for j, objtype2 in enumerate(targdens):
+            for j, objtype2 in enumerate(settargdens):
                 if j < i:
                     overlaps.append(" ")
                 else:
@@ -2893,7 +2921,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         htmlmain.write('</span></PRE>\n\n\n')
         log.info('Done with correlation matrix...t = {:.1f}s'.format(time()-start))
 
-    #ADM if requested, add systematics plots to the front page
+    #ADM if requested, add systematics plots
     if systematics:
         #ADM fail if the pixel systematics weights file was not passed
         if imaging_map_file is None:
