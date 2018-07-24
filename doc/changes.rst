@@ -5,7 +5,15 @@ desitarget Change Log
 0.21.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Update the schema for target selection QA [`PR #334`_]:
+   * Sample imaging pixels from the Legacy Surveys to make random catalogs.
+   * Add E(B-V) from SFD maps and stellar densities from Gaia to the randoms.
+   * Sample randoms to make HEALpixel maps of systematics and target densities.
+   * Sample randoms in HEALPixels to precisely estimate imaging footprint areas.
+   * Make several new systematics plots.
+   * Make new plots of parallax and proper motion information from Gaia.
+
+.. _`PR #334`: https://github.com/desihub/desitarget/pull/334
 
 0.21.0 (2018-07-18)
 -------------------

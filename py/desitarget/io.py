@@ -559,6 +559,73 @@ def write_gfas(filename, data, indir=None, nside=None):
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
+def write_randoms(filename, data, indir=None, nside=None, density=None):
+    """Write a catalogue of randoms and associated pixel-level information.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Output file name
+    data  : :class:`~numpy.ndarray` 
+        Array of randoms to write to file
+    indir : :class:`str`, optional, defaults to None
+        Name of input Legacy Survey Data Release directory, write to header
+        of output file if passed (and if not None).
+    nside: :class:`int`
+        If passed, add a column to the randoms array popluated with HEALPixels 
+        at resolution `nside`.
+    density: :class:`int`
+        Number of points per sq. deg. at which the catalog was generated,
+        write to header of the output file if not None.
+    """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+
+    if indir is not None:
+        depend.setdep(hdr, 'input-data-release', indir)
+        #ADM note that if 'dr' is not in the indir DR
+        #ADM directory structure, garbage will
+        #ADM be rewritten gracefully in the header
+        drstring = 'dr'+indir.split('dr')[-1][0]
+        depend.setdep(hdr, 'photcat', drstring)
+        #ADM also write the mask bits header information
+        #ADM from a mask bits file in this DR
+        from glob import iglob
+        files = iglob(indir+'/coadd/*/*/*maskbits*')
+        #ADM we built an iterator over mask bits files for speed
+        #ADM if there are no such files to iterate over, just pass
+        try:
+            fn = next(files)
+            mbhdr = fitsio.read_header(fn)
+            #ADM extract the keys that include the string 'BITNM'
+            bncols = [ key for key in mbhdr.keys() if 'BITNM' in key ]
+            for col in bncols:
+                hdr[col] = {'name':col, 
+                            'value':mbhdr[col], 
+                            'comment': mbhdr.get_comment(col)}
+        except StopIteration:
+            pass
+
+    #ADM add HEALPix column, if requested by input
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+
+    #ADM add density of points if requested by input
+    if density is not None:
+        hdr['DENSITY'] = density
+
+    fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
+
 
 def iter_files(root, prefix, ext='fits'):
     """Iterator over files under in `root` directory with given `prefix` and
@@ -785,15 +852,75 @@ def load_pixweight(inmapfile, nside, pixmap=None):
             raise ValueError
         pixmap = fitsio.read(inmapfile)
             
-    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it                                                                
+    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
                   .format(nside,pixfile,truenside))
 
-    #ADM resample the map                                                                                                                             
+    #ADM resample the map
     return hp.pixelfunc.ud_grade(pixmap,nside,order_in='NESTED',order_out='NESTED')
+
+
+def load_pixweight_recarray(inmapfile, nside, pixmap=None):
+    '''Like load_pixweight but for a structured array map with multiple columns
+
+    Parameters
+    ----------
+    inmapfile : :class:`str`
+        Name of the file containing the pixel weight map
+    nside : :class:`int`
+        After loading, the array will be resampled to this HEALPix nside
+    pixmap: `~numpy.array`, optional, defaults to None
+        Pass a pixel map instead of loading it from file
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        HEALPixel weight map with all columns resampled to the requested nside
+
+    Notes
+    -----
+        - Assumes that tha passed map is in the NESTED scheme, and outputs to
+          the NESTED scheme
+        - All columns are resampled as the mean of the relevant pixels, except
+          if a column `HPXPIXEL` is passed. That column is reassigned the appropriate
+          pixel number at the new nside
+    '''
+    import healpy as hp
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    if pixmap is not None:
+        log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
+    else:
+        #ADM read in the pixel weights file                                                                                                  
+        if not os.path.exists(inmapfile):
+            log.fatal('Input directory does not exist: {}'.format(inmapfile))
+            raise ValueError
+        pixmap = fitsio.read(inmapfile)
+            
+    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it
+    npix = len(pixmap)
+    truenside = hp.npix2nside(len(pixmap))
+    if truenside < nside:
+        log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
+                  .format(nside,pixfile,truenside))
+
+    #ADM set up an output array
+    nrows = hp.nside2npix(nside)
+    outdata = np.zeros(nrows, dtype=pixmap.dtype)
+
+    #ADM resample the map for each column
+    for col in pixmap.dtype.names:
+        outdata[col] = hp.pixelfunc.ud_grade(pixmap[col],nside,order_in='NESTED',order_out='NESTED')
+
+    #ADM if one column was the HEALPixel number, recalculate for the new resolution
+    if 'HPXPIXEL' in pixmap.dtype.names:
+        outdata["HPXPIXEL"] = np.arange(nrows)
+
+    return outdata
 
 
 def gitversion():

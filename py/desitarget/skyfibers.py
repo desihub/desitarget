@@ -679,7 +679,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
     #ADM the number of pixels (numpix) in each pixel (pix)
-    numpix, pix = np.histogram(pixnum,np.max(pixnum))
+    pix, numpix = np.unique(pixnum,return_counts=True)
 
     #ADM convert the pixel numbers back to integers
     pix = pix.astype(int)
@@ -765,13 +765,13 @@ def bundle_bricks(pixnum, maxpernode, nside,
             goodpix = pix[wpix]
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            outfile = "$CSCRATCH/dr{}-skies-hp-{}.fits".format(dr,strgoodpix)
+            outfile = "$CSCRATCH/skies-dr{}-hp-{}.fits".format(dr,strgoodpix)
             outfiles.append(outfile)
             print("srun -N 1 select_skies {} {} --numproc 64 --nside {} --healpixels {} &"
                   .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")
-    print("gather_skies '{}' $CSCRATCH/dr{}-skies.fits".format(";".join(outfiles),dr))
+    print("gather_targets '{}' $CSCRATCH/skies-dr{}.fits skies".format(";".join(outfiles),dr))
     print("")
     
     return
@@ -846,7 +846,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
     #ADM remember that fitsio reads things in as bytes, so convert to unicode 
     bricknames = brickinfo['brickname'].astype('U')
 
-    #ADM if the pixlist or bundlebricks option was sent, we'll need the pixel
+    #ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPpixel
     #ADM information for each brick
     if pixlist is not None or bundlebricks is not None:
         theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
@@ -854,8 +854,6 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
 
     #ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
-        log.info("At nside={}, these commands will parallelize at about {} bricks"
-                 .format(nside,bundlebricks))
         bundle_bricks(pixnum, bundlebricks, nside, surveydir=survey.survey_dir)
         return
 

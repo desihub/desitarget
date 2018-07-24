@@ -69,7 +69,7 @@ def read_gaia_file(filename, header=False):
     #ADM check we aren't going to have an epic fail on the the version of fitsio
     check_fitsio_version()
 
-    #ADM prepare to read in the gaia data by reading in columns
+    #ADM prepare to read in the Gaia data by reading in columns
     fx = fitsio.FITS(filename, upper=True)
     fxcolnames = fx[1].get_colnames()
     hdr = fx[1].read_header()
@@ -87,7 +87,7 @@ def read_gaia_file(filename, header=False):
         w = np.where(outdata[col] != 0)[0]
         outdata[col][w] = 1./(outdata[col][w]**2.)
 
-    #ADM return data read in from the gaia file, with the header if requested
+    #ADM return data read in from the Gaia file, with the header if requested
     if header:
         fx.close()
         return outdata, hdr
@@ -98,7 +98,7 @@ def read_gaia_file(filename, header=False):
 
 def find_gaia_files(objs, neighbors=True,
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Find full paths to all relevant gaia "chunks" files for an object array
+    """Find full paths to all relevant Gaia "chunks" files for an object array
 
     Parameters
     ----------
@@ -143,7 +143,7 @@ def find_gaia_files(objs, neighbors=True,
     if -1 in pixnum:
         pixnum.remove(-1)
 
-    #ADM format in the gaia chunked format used by the Legacy Surveys
+    #ADM reformat in the Gaia chunked format used by the Legacy Surveys
     gaiafiles = ['{}/chunk-{:05d}.fits'.format(gaiadir,pn) for pn in pixnum]
 
     return gaiafiles

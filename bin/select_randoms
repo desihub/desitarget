@@ -1,0 +1,75 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+from time import time
+start = time()
+
+from desitarget import io
+from desitarget.randoms import pixweight, select_randoms
+
+#import warnings
+#warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+#ADM default HEALPix Nside used throughout desitarget
+#ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
+nside = 64
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Generate pixel-level random points and associated information from a Data Release of the Legacy Surveys')
+ap.add_argument("surveydir", 
+                help='Legacy Surveys Data Release root directory (e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr4/ for DR4 at NERSC)')
+ap.add_argument("dest", 
+                help='Output file name to write random points (e.g. /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits)')
+ap.add_argument("--density", type=int,
+                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 100,000)',
+                default="100000")
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [{}]'.format(nproc),
+                default=nproc)
+ap.add_argument('--nside', type=int,
+                help='Process random points in parallel in bricks that have centers within HEALPixels at this resolution (defaults to 4)',
+                default=4)
+ap.add_argument('--healpixels',
+                help='HEALPixels (corresponding to nside) to process (e.g. "6,21,57"). If not passed, run all bricks in the Data Release',
+                default=None)
+ap.add_argument("--bundlebricks", type=int,
+                help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 10000)",
+                default=None)
+ap.add_argument("--brickspersec", type=float,
+                help="estimate of bricks completed per second by the (parallelized) code. Used with `bundlebricks` to guess run times (defaults to 2.5)",
+                default=2.5)
+ap.add_argument("--dustdir",
+                help="Directory of SFD dust maps (defaults to /project/projectdirs/desi/software/edison/dust/v0_1/maps)",
+                default='/project/projectdirs/desi/software/edison/dust/v0_1/maps')
+
+ns = ap.parse_args()
+
+#ADM parse the list of HEALPixels in which to run
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
+
+if not os.path.exists(ns.surveydir):
+    log.critical('Input directory does not exist: {}'.format(ns.surveydir))
+    sys.exit(1)
+
+if ns.bundlebricks is None:
+    log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
+
+randoms = select_randoms(density=ns.density, numproc=ns.numproc, 
+                         nside=ns.nside, pixlist=pixlist, 
+                         bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
+                         drdir=ns.surveydir, dustdir=ns.dustdir)
+
+if ns.bundlebricks is None:
+    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)
+    log.info('wrote file of randoms to {}...t = {:.1f}s'.format(ns.dest,time()-start))
+

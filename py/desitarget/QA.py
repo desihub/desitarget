@@ -27,7 +27,7 @@ from . import __version__ as desitarget_version
 
 from desiutil import brick
 from desiutil.log import get_logger, DEBUG
-from desiutil.plots import init_sky, plot_sky_binned
+from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 import warnings, itertools
@@ -482,7 +482,6 @@ def model_map(brickfilename,plot=False):
                 if re.search("FLUC",fcol):
                     if plot:
                         log.info("doing",col,fcol)
-                    #import pdb ; pdb.set_trace()
                     quadparams = fit_quad(flucmap[col],flucmap[fcol],plot=plot)
                     #ADD this to the dictionary
                     coldict = dict({fcol:quadparams},**coldict)
@@ -1332,9 +1331,82 @@ def brick_info(targetfilename,rootdirname='/global/project/projectdirs/cosmo/dat
     return outstruc
 
 
-def _load_targdens():
+def _load_systematics():
+    """Loads information for making systematics plots
+
+    Returns
+    -------
+    :class:`dictionary` 
+        A dictionary where the keys are the names of the systematics
+        and the values are arrays of where to clip these systematics in plots
+    """
+
+    sysdict = {}
+
+    sysdict['FRACAREA']=[0.01,1.,'Fraction of pixel area covered']
+    sysdict['STARDENS']=[150.,4000.,'log10(Stellar Density) per sq. deg.']
+    sysdict['EBV']=[0.001,0.1,'E(B-V)']
+    sysdict['PSFDEPTH_G']=[63.,6300.,'PSF Depth in g-band']
+    sysdict['PSFDEPTH_R']=[25.,2500.,'PSF Depth in r-band']
+    sysdict['PSFDEPTH_Z']=[4.,400.,'PSF Depth in z-band']
+    sysdict['GALDEPTH_G']=[63.,6300.,'Galaxy Depth in g-band']
+    sysdict['GALDEPTH_R']=[25.,2500.,'Galaxy Depth in r-band']
+    sysdict['GALDEPTH_Z']=[4.,400.,'Galaxy Depth in z-band']
+
+    return sysdict
+
+
+def _prepare_systematics(data,colname):
+    """Functionally convert systematics to more user-friendly numbers
+    
+    Parameters
+    ----------
+    data :class:`~numpy.array` 
+        An array of the systematic
+    colname : :class:`str`
+        The column name of the passed systematic, e.g. ``STARDENS``
+
+    Returns
+    -------
+    :class:`~numpy.array` 
+        The systematics converted by the appropriate function
+    """
+
+    #ADM depth columns need converted to a magnitude-like number
+    if "DEPTH" in colname:
+        #ADM zero and negative values should be a very low number (0)
+        wgood = np.where(data > 0)[0]
+        outdata = np.zeros(len(data))
+        if len(wgood) > 0:
+            outdata[wgood] = 22.5-2.5*np.log10(5./np.sqrt(data[wgood]))
+    #ADM the STARDENS columns needs to be expressed as a log
+    elif "STARDENS" in colname:
+        #ADM zero and negative values should be a very negative number (-99)
+        wgood = np.where(data > 0)[0]
+        outdata = np.zeros(len(data))-99.
+        if len(wgood) > 0:
+            outdata[wgood] = np.log10(data[wgood])
+    else:
+        #ADM other columns don't need converted
+        outdata = data
+
+    return outdata
+
+
+def _load_targdens(bitnames=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
+
+    Parameters
+    ----------
+    bitnames : :class:`list`
+        A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
+        for those specific bits
+
+    Returns
+    -------
+    :class:`dictionary` 
+        A dictionary where the keys are the bit names and the values are the densities           
     """
 
     from desimodel import io
@@ -1364,7 +1436,11 @@ def _load_targdens():
     targdens['MWS_WD'] = 0.
     targdens['MWS_NEARBY'] = 0.
 
-    return targdens
+    if bitnames is None:
+        return targdens
+    else:
+        #ADM this is a dictionary comprehension
+        return {key: value for key, value in targdens.items() if key in bitnames}
 
 
 def _javastring():
@@ -1481,7 +1557,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to ``"radec"`` for (RA/Dec)
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
 
     Returns
     -------
@@ -1503,6 +1579,165 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
     fig.savefig(pngfile,bbox_inches='tight')
+
+    plt.close()
+
+    return
+
+
+def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None,
+                  fileprefix="systematics", plottitle=""):
+    """Visualize systematics with a sky map
+
+    Parameters
+    ----------
+    pixmap : :class:`~numpy.array`
+        An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`.
+        Assumed to be in the NESTED scheme and ORDERED BY INCREASING HEALPixel.
+    colname : :class:`str`
+        The name of the passed systematic, e.g. ``STARDENS``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    downclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the low end
+    upclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the high end
+    fileprefix : :class:`str`, optional, defaults to ``"histo"``
+        String to be added to the front of the output file name
+    plottitle : :class:`str`, optional, defaults to empty string
+        An informative title for the plot
+
+    Returns
+    -------
+    Nothing
+        But a .png histogram of target densities is written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{colname}.png``
+    """
+
+    label = '{}'.format(plottitle)
+    fig, ax = plt.subplots(1)
+    ax = np.atleast_1d(ax)
+
+    #ADM if downclip was passed as a number, turn it to a string with
+    #ADM an exclamation mark to mask the plot background completely 
+    if downclip is not None:
+        if type(downclip) != str:
+            downclip = '!' + str(downclip)
+
+    #ADM prepare the data to be plotted by matplotlib routines
+    pixmap = prepare_data(pixmap, clip_lo=downclip, clip_hi=upclip)
+
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+        plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, basemap=basemap)
+
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,colname))
+    fig.savefig(pngfile,bbox_inches='tight')
+
+    plt.close()
+
+    return
+
+
+def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.', 
+                              downclip=None, upclip=None, nbins=10, 
+                              fileprefix="sysdens", xlabel=None):
+    """Make a target density vs. systematic scatter plot
+
+    Parameters
+    ----------
+    pixmap : :class:`~numpy.array`
+        An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`
+    syscolname : :class:`str`
+        The name of the passed systematic, e.g. ``STARDENS``
+    targcolname : :class:`str`
+        The name of the passed column of target densities, e.g. ``QSO``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    downclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the low end
+    upclip : :class:`float`, optional, defaults to None
+        A cutoff at which to clip the systematics at the high end
+    nbins : :class:`int`, optional, defaults to 10
+        The number of bins to produce in the scatter plot
+    fileprefix : :class:`str`, optional, defaults to ``"histo"``
+        String to be added to the front of the output file name
+    xlabel : :class:`str`, optional, if None defaults to ``syscolname``
+        An informative title for the x-axis of the plot
+
+    Returns
+    -------
+    Nothing
+        But a .png histogram of target densities is written to ``qadir``. The file is called:
+        ``{qadir}/{fileprefix}-{syscolname}-{targcolname}.png``
+        
+    Notes
+    -----
+    The passed ``pixmap`` must contain a column ``FRACAREA`` which is used to filter out any
+    pixel with less than 90% areal coverage
+    """
+    #ADM set up the logger
+    from desiutil.log import get_logger, DEBUG
+    log = get_logger()
+
+    #ADM exit if we have a target density column that isn't populated
+    if np.all(pixmap[targcolname]==0):
+        log.info("Target densities not populated for {}".format(targcolname))
+        return
+
+    #ADM if no xlabel was passed, default to syscolname
+    if xlabel is None:
+        xlabel = syscolname
+
+    #ADM remove anything that is in areas with low coverage, or doesn't meet
+    #ADM the clipping criteria
+    if downclip is None:
+        downclip = -1e30
+    if upclip is None:
+        upclip = 1e30
+    w = np.where(   (pixmap['FRACAREA'] > 0.9) & 
+                    (pixmap[syscolname] >= downclip) & (pixmap[syscolname] < upclip) )[0]
+    if len(w) > 0:
+        pixmapgood = pixmap[w]
+    else:
+        log.error("Pixel map has no areas with >90% coverage for passed up/downclip")
+        log.info("Proceeding without clipping systematics for {}".format(syscolname))
+        w = np.where(pixmap['FRACAREA'] > 0.9)
+        pixmapgood = pixmap[w]
+
+    #ADM set up the x-axis as the systematic of interest
+    xx = pixmapgood[syscolname]
+    #ADM let np.histogram choose a sensible binning
+    _, bins = np.histogram(xx, nbins)
+    #ADM the bin centers rather than the edges
+    binmid = np.mean(np.vstack([bins,np.roll(bins,1)]),axis=0)[1:]
+
+    #ADM set up the y-axis as the deviation of the target density from median density
+    yy = pixmapgood[targcolname]/np.median(pixmapgood[targcolname])
+
+    #ADM determine which bin each systematics value is in
+    wbin  = np.digitize(xx,bins)
+    #ADM np.digitize closes the end bin whereas np.histogram
+    #ADM leaves it open, so shift the end bin value back by one
+    wbin[np.argmax(wbin)] -= 1
+
+    #ADM apply thr digitization to the target density values
+    #ADM note that the first digitized bin is 1 not zero
+    meds = [np.median(yy[wbin==bin]) for bin in range(1,nbins+1)]
+
+    #ADM make the plot
+    plt.scatter(xx,yy,marker='.',color='b', alpha=0.8, s=0.8)
+    plt.plot(binmid,meds,'k--',lw=2)
+
+    #ADM set the titles and y range
+    plt.ylim([0.5,1.5])
+    plt.xlabel(xlabel)
+    plt.ylabel("Relative {} density".format(targcolname))
+
+    pngfile = os.path.join(qadir, '{}-{}-{}.png'
+                           .format(fileprefix,syscolname,targcolname))
+    plt.savefig(pngfile,bbox_inches='tight')
 
     plt.close()
 
@@ -1536,7 +1771,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         The bin size in the passed coordinates is chosen automatically to be as close as
         possible to this value without exceeding it
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
     catispix : :class:`boolean`, optional, defaults to ``False``
         If this is ``True``, then ``cat`` corresponds to the HEALpixel numbers already
         precomputed using ``pixels = footprint.radec2pix(nside, cat["RA"], cat["DEC"])``
@@ -1606,8 +1841,24 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
                     label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype,targdens[objtype]))
     plt.legend(loc='upper left', frameon=False)
 
+    #ADM add some metric conditions which are considered a failure for this
+    #ADM target class...
+
+    #ADM determine the cumulative version of the histogram of densities
+    cum = np.cumsum(h)/np.sum(h)
+    #ADM extract which bins correspond to the "68%" of central values
+    w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
+    minbin, maxbin = b[w][0], b[w][-1]
+    #ADM this is a good plot if the peak value is within the ~68% of central values
+    good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
+    
+    #ADM write out the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    if good:
+        plt.savefig(pngfile,bbox_inches='tight')
+    #ADM write out a plot with a yellow warning box
+    else:
+        plt.savefig(pngfile,bbox_inches='tight',facecolor='yellow')
 
     plt.close()
 
@@ -1627,7 +1878,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"mag"`` for
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
 
     Returns
     -------
@@ -1692,6 +1943,88 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
     return
 
 
+def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
+    """Make Gaia-based DESI targeting QA plots given a passed set of targets
+
+    Parameters
+    ----------
+    cat : :class:`~numpy.array`
+        An array of targets that contains at least "RA", "PARALLAX", 
+        "PMRA" and "PMDEC" 
+    objtype : :class:`str`
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+    qadir : :class:`str`, optional, defaults to the current directory
+        The output directory to which to write produced plots
+    fileprefix : :class:`str`, optional, defaults to ``"gaia"``
+        String to be added to the front of the output file name
+
+    Returns
+    -------
+    Nothing
+        But .png plots of Gaia information are written to ``qadir``. Two plots are made:
+           The file containing distances from parallax is called:
+                 ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``
+           The file containing proper motion information is called:
+                 ``{qadir}/{fileprefix}-{pm}-{objtype}.png``
+    """
+
+    #ADM change the parallaxes (which are in mas) to distances in parsecs
+    #ADM clip at very small parallaxes to avoid divide-by-zero
+    r = 1000./np.clip(cat["PARALLAX"],1e-16,1e16)
+    #ADM set the angle element of the plot to RA
+    theta = np.radians(cat["RA"])
+
+    #ADM set up the plot in polar projection
+    ax = plt.subplot(111, projection='polar')
+    ax.scatter(theta, r, s=2, alpha=0.6)
+
+    #ADM only plot out to 110 pc
+    ax.set_rmax(125)
+    #ADM add a grid of distances
+    rticknum = np.arange(1,6)*25
+    rticknames = ["{}".format(num) for num in rticknum]
+    #ADM include the parsec unit for the outermost distance label
+    rticknames[-1] +='pc'
+    #ADM the most flexible set of rtick controllers is in the ytick attribute
+    ax.set_yticks(rticknum)
+    ax.set_yticklabels(rticknames)
+    ax.grid(True)
+
+    #ADM save the plot
+    ax.set_title("Distances at each RA based on Gaia parallaxes", va='bottom')
+    pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'parallax',objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    #ADM plot the proper motions in RA/Dec against each other
+    plt.clf()
+    plt.xlabel(r'$PM_{RA}\,(mas\,yr^{-1})$')
+    plt.ylabel(r'$PM_{DEC}\,(mas\,yr^{-1})$')
+
+    ralim = (-25, 25)
+    declim = (-25, 25)
+    nobjs = len(cat)
+
+    #ADM make a contour plot if we have lots of points...
+    if nobjs > 1000:
+        hb = plt.hexbin(cat["PMRA"], cat["PMDEC"],
+                        mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=(*ralim, *declim), gridsize=60)
+        cb = plt.colorbar(hb)
+        cb.set_label(r'$\log_{10}$ (Number of Sources)')
+
+    #ADM...otherwise make a scatter plot
+    else:
+        plt.scatter(cat["PMRA"], cat["PMDEC"], alpha=0.6)
+
+    #ADM save the plot
+    pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'pm',objtype))
+    plt.savefig(pngfile,bbox_inches='tight')
+    plt.close()
+
+    return
+
+
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
 
@@ -1704,7 +2037,7 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"mock-fractype"`` for
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
 
     Returns
     -------
@@ -1788,9 +2121,9 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output N(z) plot file name
+        String to be added to the front of the output N(z) plot file name
     fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output z vs. mag plot file name
+        String to be added to the front of the output z vs. mag plot file name
 
     Returns
     -------
@@ -1857,7 +2190,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
         hb = plt.hexbin(cat["TRUEZ"], cat["MAG"], mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
                         bins='log', extent=(*zlim, *maglim), gridsize=60)
         cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        cb.set_label(r'$\log_{10}$ (Number of Targets)')
         
     #ADM...otherwise make a scatter plot
     else:
@@ -1899,7 +2232,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
     fileprefix : :class:`str`, optional, defaults to ``"color"`` for
-        string to be added to the front of the output file name
+        String to be added to the front of the output file name
     nodustcorr : :class:`boolean`, optional, defaults to False
         Do not correct for dust extinction.
 
@@ -2160,7 +2493,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         ameliorate under dense pixels at the footprint edges
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()` if this is not
+        map (e.g. made by :func:` desitarget.randoms.pixmap()` if this is not
         sent, then the weights default to 1 everywhere (i.e. no weighting)
     truths : :class:`~numpy.array` or `str`
         The truth objects from which the targs were derived in the DESI data model format. 
@@ -2219,7 +2552,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         #ADM load the imaging weights file
         if imaging_map_file is not None:
             from desitarget import io as dtio
-            pixweight = dtio.load_pixweight(imaging_map_file,nside)
+            pixweight = dtio.load_pixweight_recarray(imaging_map_file,nside)["FRACAREA"]
             #ADM determine what HEALPixels each target is in, to set the weights
             fracarea = pixweight[pix]
             #ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
@@ -2299,12 +2632,17 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
                 #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
                 
+            #ADM make Gaia-based plots if we have Gaia columns
+            if "PARALLAX" in targs.dtype.names:
+                qagaia(targs[w], objtype, qadir=qadir, fileprefix="gaia")
+                log.info('Made Gaia-based plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
-                 weight=True, imaging_map_file=None):
+                 weight=True, imaging_map_file=None, bitnames=None, systematics=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -2330,8 +2668,14 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         ``DESIMODEL`` HEALPix footprint file for mock targets
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.imagefootprint.pixweight()`. If this is not sent, 
-        then the weights default to 1 everywhere (i.e. no weighting) for the real targets
+        map (e.g. made by :func:`desitarget.randoms.pixmap()`. If this is not sent, 
+        then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
+        If this is not set, then systematics plots cannot be made
+    bitnames : :class:`list`
+        A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
+        for those specific bits. A useful speed-up when testing
+    systematics : :class:`boolean`, optional, defaults to True
+        If sent, then add plots of systematics to the front page
 
     Returns
     -------
@@ -2372,6 +2716,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
 
+    #ADM determine the working nside for the passed max_bin_area
+    for n in range(1, 25):
+        nside = 2 ** n
+        bin_area = hp.nside2pixarea(nside, degrees=True)
+        if bin_area <= max_bin_area:
+            break
+
     #ADM if requested, restrict the targets (and mock files) to the DESI footprint
     if clip2foot:
         w = _in_desi_footprint(targs)
@@ -2389,7 +2740,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM Set up the names of the target classes and their goal densities using
     #ADM the goal target densities for DESI (read from the DESIMODEL defaults)
-    targdens = _load_targdens()
+    targdens = _load_targdens(bitnames=bitnames)
     
     #ADM set up the html file and write preamble to it
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
@@ -2403,10 +2754,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     htmlmain.write('<h1>DESI Targeting QA pages ({})</h1>\n'.format(DRs))
 
     #ADM links to each collection of plots for each object type
-    htmlmain.write('<b><i>Jump to a target class:</i></b>\n')
+    htmlmain.write('<b><h2>Jump to a target class:</h2></b>\n')
     htmlmain.write('<ul>\n')
     for objtype in targdens.keys():
-        htmlmain.write('<li><A HREF="{}.html">{}</A>\n'.format(objtype,objtype))
+        htmlmain.write('<li><A HREF="{}.html"><b>{}</b></A>\n'.format(objtype,objtype))
     htmlmain.write('</ul>\n')
 
     #ADM for each object type, make a separate page
@@ -2453,6 +2804,19 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</tr>\n')
         html.write('</table>\n')
 
+        #ADM parallax and proper motion plots, if we have that information
+        if "PARALLAX" in targs.dtype.names:
+            html.write('<h2>Gaia based plots</h2>\n')
+            html.write('<table COLS=2 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            html.write('<td align=center><A HREF="gaia-pm-{}.png"><img SRC="gaia-pm-{}.png" width=75% height=auto></A></td>\n'
+                       .format(objtype,objtype))
+            html.write('<td align=center><A HREF="gaia-parallax-{}.png"><img SRC="gaia-parallax-{}.png" width=71% height=auto></A></td>\n'
+                       .format(objtype,objtype))
+            html.write('</tr>\n')
+            html.write('</table>\n')
+
         #ADM add special plots if we have mock data
         if mocks:
             html.write('<hr>\n')
@@ -2491,6 +2855,34 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             #html.write('</tr>\n')
             #html.write('</table>\n')
 
+        #ADM add target density vs. systematics plots, if systematics plots were requested
+        if systematics:
+            sysdic = _load_systematics()
+            sysnames = list(sysdic.keys())
+            #ADM html text to embed the systematics plots
+            html.write('<h2>Target Density variation vs. Systematics plots</h2>\n')
+            html.write('<table COLS=3 WIDTH="100%">\n')
+            html.write('<tr>\n')
+            #ADM add the plots...
+            while(len(sysnames) > 2):
+                for sys in sysnames[:3]:
+                    html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sys,objtype,sys,objtype))
+                #ADM pop off the 3 columns of systematics that have already been written
+                sysnames = sysnames[3:]
+                html.write('</tr>\n')
+            #ADM we popped three systematics at a time, there could be a remaining one or two
+            if len(sysnames) == 2:
+                for sys in sysnames:
+                    html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sys,objtype,sys,objtype))
+                html.write('</tr>\n')
+            if len(sysnames) == 1:
+                html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sysnames[0],objtype,sysnames[0],objtype))
+                html.write('</tr>\n')
+            html.write('</table>\n')
+
         #ADM html postamble
         html.write('<b><i>Last updated {}</b></i>\n'.format(js))
         html.write('</html></body>\n')
@@ -2505,20 +2897,20 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         #ADM add a correlation matrix recording the overlaps between different target
         #ADM classes as a density
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
-        htmlmain.write('<br><b><i>Overlaps in target densities (per sq. deg.)</b></i>\n')
+        htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
         #ADM only retain classes that are actually in the DESI target bit list
-        targdens = set(desi_mask.names()).intersection(set(targdens))        
+        settargdens = set(desi_mask.names()).intersection(set(targdens))        
         #ADM write out a list of the target categories
-        headerlist = list(targdens)
+        headerlist = list(settargdens)
         headerlist.insert(0," ")
         header = " ".join(['{:>11s}'.format(i) for i in headerlist])+'\n\n'
         htmlmain.write(header)
         #ADM for each pair of target classes, determine how many targets per unit area
         #ADM have the relevant target bit set for both target classes in the pair
-        for i, objtype1 in enumerate(targdens):
+        for i, objtype1 in enumerate(settargdens):
             overlaps = [objtype1]
-            for j, objtype2 in enumerate(targdens):
+            for j, objtype2 in enumerate(settargdens):
                 if j < i:
                     overlaps.append(" ")
                 else:
@@ -2529,6 +2921,56 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         #ADM close the matrix text output
         htmlmain.write('</span></PRE>\n\n\n')
         log.info('Done with correlation matrix...t = {:.1f}s'.format(time()-start))
+
+    #ADM if requested, add systematics plots
+    if systematics:
+        #ADM fail if the pixel systematics weights file was not passed
+        if imaging_map_file is None:
+            log.error("imaging_map_file was not passed so systematics cannot be tracked")
+        from desitarget import io as dtio
+        pixmap = dtio.load_pixweight_recarray(imaging_map_file,nside)
+        sysdic = _load_systematics()
+        sysnames = list(sysdic.keys())
+        #ADM html text to embed the systematics plots
+        htmlmain.write('<h2>Systematics plots</h2>\n')
+        htmlmain.write('<table COLS=2 WIDTH="100%">\n')
+        htmlmain.write('<tr>\n')
+        #ADM add the plots...
+        while(len(sysnames) > 1):
+            for sys in sysnames[:2]:
+                htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
+                               .format(sys,sys))
+                #ADM pop off the 2 columns of systematics that have already been written
+            sysnames = sysnames[2:]
+            htmlmain.write('</tr>\n')
+        #ADM we popped two systematics at a time, there could be a remaining one
+        if len(sysnames)==1:
+            htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
+                           .format(sysnames[0],sysnames[0]))
+            htmlmain.write('</tr>\n')
+        htmlmain.write('</table>\n')
+        #ADM add the plots
+        if makeplots:
+            sysnames = list(sysdic.keys())
+            for sysname in sysnames:
+                #ADM convert the data and the systematics ranges to more human-readable quantities
+                d, u , plotlabel = sysdic[sysname]
+                down, up = _prepare_systematics(np.array([d,u]),sysname)
+                pixmap[sysname] = _prepare_systematics(pixmap[sysname],sysname)
+                #ADM make the systematics sky plots
+                qasystematics_skyplot(pixmap[sysname],sysname,
+                              qadir=qadir,downclip=down,upclip=up,plottitle=plotlabel)
+                #ADM make the systematics vs. target density scatter plots
+                #ADM for each target type
+                for objtype in targdens.keys():
+                    #ADM hack to have different FRACAREA quantities for the sky maps and
+                    #ADM the scatter plots
+                    if sysname=="FRACAREA":
+                        down = 0.9
+                    qasystematics_scatterplot(pixmap,sysname,objtype,qadir=qadir,
+                                    downclip=down,upclip=up,nbins=10,xlabel=plotlabel)
+
+        log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
     #ADM html postamble for main page
     htmlmain.write('<b><i>Last updated {}</b></i>\n'.format(js))
