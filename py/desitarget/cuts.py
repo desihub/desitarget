@@ -1525,7 +1525,6 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     if nbEntries == 1 :
         qso = qso[0]
 
-    print(qso)
     return qso
 
 
@@ -1795,8 +1794,9 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
 
-    #ADM add Gaia information, if requested
-    if match_to_gaia:
+    #ADM add Gaia information, if requested, and if we're going to actually
+    #ADM process the target classes that need Gaia columns
+    if match_to_gaia and "MWS" in tcnames:
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
