@@ -1414,6 +1414,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
                                 w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
                                 release=release, deltaChi2=deltaChi2, primary=primary)
 
+
 def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                        objtype=None, release=None, deltaChi2=None, primary=None):
     """
@@ -1438,7 +1439,6 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # BRICK_PRIMARY
     if primary is None :
         primary = np.ones_like(gflux, dtype=bool)
-
     # RELEASE
     # ADM default to RELEASE of 6000 if nothing is passed
     if release is None :
@@ -1524,8 +1524,10 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # Return "numpy.bool_" instead of "numpy.ndarray"
     if nbEntries == 1 :
         qso = qso[0]
-    
+
+    print(qso)
     return qso
+
 
 def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                        objtype=None, release=None, deltaChi2=None, primary=None):
@@ -1768,15 +1770,15 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     Options:
         qso_selection : algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
-    tcnames : :class:`list`, defaults to running all target classes
-        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
-        for those specific target classes. A useful speed-up when testing.
-        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-    match_to_gaia : defaults to ``True``
-        if ``True``, match to Gaia DR2 chunks files and populate 
-        Gaia columns to facilitate the MWS selection
-    gaiadir : defaults to the the Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys. 
+        match_to_gaia : defaults to ``True``
+            if ``True``, match to Gaia DR2 chunks files and populate 
+            Gaia columns to facilitate the MWS selection
+        tcnames : :class:`list`, defaults to running all target classes
+            A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+            for those specific target classes. A useful speed-up when testing.
+            Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+        gaiadir : defaults to the the Gaia DR2 path at NERSC
+             Root directory of a Gaia Data Release as used by the Legacy Surveys. 
 
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -2202,12 +2204,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         If a value is passed then run `apply_XD_globalerror` for ELGs in
         the sandbox. This will write out an "FoM.fits" file for every ELG target
         in the sandbox directory
+    Method : :class:`str`, optional, defaults to `None`
+        Method used in the sandbox    
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
         for those specific target classes. A useful speed-up when testing
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-    Method : :class:`str`, optional, defaults to `None`
-        Method used in the sandbox    
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
@@ -2253,7 +2255,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,match_to_gaia,gaiadir)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,
+                                                         match_to_gaia,tcnames,gaiadir)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
