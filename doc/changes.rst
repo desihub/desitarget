@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.21.1 (unreleased)
+0.21.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.21.1 (2018-07-26)
 -------------------
 
 * Update the schema for target selection QA [`PR #334`_]:
