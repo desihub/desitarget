@@ -1757,6 +1757,7 @@ def unextinct_fluxes(objects):
 
 
 def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
+               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
                gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Perform target selection on objects, returning target mask arrays
 
@@ -1767,11 +1768,15 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     Options:
         qso_selection : algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
-        match_to_gaia : defaults to ``True``
-            if ``True``, match to Gaia DR2 chunks files and populate 
-            Gaia columns to facilitate the MWS selection
-        gaiadir : defaults to the the Gaia DR2 path at NERSC
-           Root directory of a Gaia Data Release as used by the Legacy Surveys. 
+    tcnames : :class:`list`, defaults to running all target classes
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+        for those specific target classes. A useful speed-up when testing.
+        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+    match_to_gaia : defaults to ``True``
+        if ``True``, match to Gaia DR2 chunks files and populate 
+        Gaia columns to facilitate the MWS selection
+    gaiadir : defaults to the the Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys. 
 
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -1878,79 +1883,118 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
         else:
             primary = np.ones_like(objects, dtype=bool)
 
-    lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass_north(primary=primary, 
+    if "LRG" in tcnames:
+        lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass_north(primary=primary, 
                     gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
                     rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
 
-    lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass_south(primary=primary, 
+        lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass_south(primary=primary, 
                     gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
                     rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+    else:
+        #ADM if not running the LRG selection, set everything to arrays of False
+        lrg_north, lrg1pass_north, lrg2pass_north = ~primary, ~primary, ~primary
+        lrg_south, lrg1pass_south, lrg2pass_south = ~primary, ~primary, ~primary
+
     #ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
     lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
+        
 
-    elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+    if "ELG" in tcnames:
+        elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                             gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
-    elg_south = isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+        elg_south = isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    else:
+        #ADM if not running the ELG selection, set everything to arrays of False
+        elg_north, elg_south = ~primary, ~primary
+
     #ADM combine ELG target bits for an ELG target based on any imaging
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
-    if qso_selection=='colorcuts' :
-        #ADM determine quasar targets in the north and the south separately
-        qso_north = isQSO_cuts_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+
+    if "QSO" in tcnames:
+        if qso_selection=='colorcuts' :
+            #ADM determine quasar targets in the north and the south separately
+            qso_north = isQSO_cuts_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                      w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
                                      objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release)
-        qso_south = isQSO_cuts_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            qso_south = isQSO_cuts_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                      w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
                                      objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release)
-    elif qso_selection == 'randomforest':
-        #ADM determine quasar targets in the north and the south separately
-        qso_north = isQSO_randomforest_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                             w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                             objtype=objtype, release=release)
-        qso_south = isQSO_randomforest_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                             w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                             objtype=objtype, release=release)
+        elif qso_selection == 'randomforest':
+            #ADM determine quasar targets in the north and the south separately
+            qso_north = isQSO_randomforest_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                    objtype=objtype, release=release)
+            qso_south = isQSO_randomforest_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                    objtype=objtype, release=release)
+        else:
+            raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
+                qso_selection,qso_selection_options))
     else:
-        raise ValueError('Unknown qso_selection {}; valid options are {}'.format(qso_selection,
-                                                                                 qso_selection_options))
+        #ADM if not running the ELG selection, set everything to arrays of False
+        qso_north, qso_south = ~primary, ~primary
+
     #ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
-    #ADM Make sure to pass all of the needed columns! At one point we stopped
-    #ADM passing objtype, which meant no standards were being returned.
-    fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+
+    if "STD" in tcnames:
+        #ADM Make sure to pass all of the needed columns! At one point we stopped
+        #ADM passing objtype, which meant no standards were being returned.
+        fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                   gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype)
-    fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                   gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
+    else:
+        #ADM if not running the standards selection, set everything to arrays of False
+        fstd, fstd_bright = ~primary, ~primary
 
-    #ADM set the BGS bits
-    bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
+
+    if "BGS" in tcnames:
+        #ADM set the BGS bits
+        bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
+        bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
+        bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
+        bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
+    else:
+        #ADM if not running the BGS selection, set everything to arrays of False
+        bgs_bright_north, bgs_bright_south = ~primary, ~primary
+        bgs_faint_north, bgs_faint_south = ~primary, ~primary
+
+    #ADM combine BGS targeting bits for a BGS selected in any imaging
     bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
-    bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
-    bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
 
-    #ADM set the MWS bits
-    mws_n, mws_red_n, mws_blue_n = isMWS_main_north(primary=primary, gaia=gaia,  
+    if "MWS" in tcnames:
+        #ADM set the MWS bits
+        mws_n, mws_red_n, mws_blue_n = isMWS_main_north(primary=primary, gaia=gaia,  
                                 gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                                 pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
-    mws_s, mws_red_s, mws_blue_s = isMWS_main_south(primary=primary, gaia=gaia,  
+        mws_s, mws_red_s, mws_blue_s = isMWS_main_south(primary=primary, gaia=gaia,  
                                 gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                                 pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
-    mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
-    mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, 
+        mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
+        mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, 
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+    else:
+        #ADM if not running the MWS selection, set everything to arrays of False
+        mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
+        mws_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
+        mws_nearby, mws_wd = ~primary, ~primary
+    
     #ADM combine the north/south MWS bits
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
+
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
@@ -2136,6 +2180,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
             match_to_gaia=True, sandbox=False, FoMthresh=None, Method=None, 
+            tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Process input files in parallel to select targets
 
@@ -2157,6 +2202,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         If a value is passed then run `apply_XD_globalerror` for ELGs in
         the sandbox. This will write out an "FoM.fits" file for every ELG target
         in the sandbox directory
+    tcnames : :class:`list`, defaults to running all target classes
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+        for those specific target classes. A useful speed-up when testing
+        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     Method : :class:`str`, optional, defaults to `None`
         Method used in the sandbox    
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC

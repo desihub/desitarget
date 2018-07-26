@@ -47,6 +47,8 @@ ap.add_argument("--nogaia", action='store_false',
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
+ap.add_argument('-t','--tcnames', default=None, 
+                help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -58,6 +60,11 @@ if len(infiles) == 0:
 
 log.info("running on {} processors".format(ns.numproc))
 
+#ADM if specific bit names were passed, use them, otherwise run all target classes
+tcnames = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+if ns.tcnames is not None:
+    tcnames = [ bn for bn in ns.tcnames.split(',') ]
+
 if ns.check:
     log.info('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc)
@@ -66,7 +73,7 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, match_to_gaia=ns.nogaia,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             gaiadir=ns.gaiadir)
+                             gaiadir=ns.gaiadir, tcnames=tcnames)
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
