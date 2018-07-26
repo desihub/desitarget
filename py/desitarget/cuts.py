@@ -1796,7 +1796,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
 
     #ADM add Gaia information, if requested, and if we're going to actually
     #ADM process the target classes that need Gaia columns
-    if match_to_gaia and "MWS" in tcnames:
+    if match_to_gaia and ("MWS" in tcnames or "STD" in tcnames):
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
