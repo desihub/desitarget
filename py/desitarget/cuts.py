@@ -1819,15 +1819,18 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     #ADM system to approximate the southern system
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
     photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
-    wnorth = np.where(photsys_north)
 
-    if len(wnorth[0]) > 0:
-        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
-                                                   objects["FLUX_R"][wnorth],
-                                                   objects["FLUX_Z"][wnorth])
-        objects["FLUX_G"][wnorth] = gshift
-        objects["FLUX_R"][wnorth] = rshift
-        objects["FLUX_Z"][wnorth] = zshift
+    #ADM turn off shifting the northern photometry to match the southern
+    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
+    #ADM in Tucson was not to do this.
+#    wnorth = np.where(photsys_north)
+#    if len(wnorth[0]) > 0:
+#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
+#                                                   objects["FLUX_R"][wnorth],
+#                                                   objects["FLUX_Z"][wnorth])
+#        objects["FLUX_G"][wnorth] = gshift
+#        objects["FLUX_R"][wnorth] = rshift
+#        objects["FLUX_Z"][wnorth] = zshift
 
     #ADM the observed r-band flux (used for F standards and MWS, below)
     #ADM make copies of values that we may reassign due to NaNs
