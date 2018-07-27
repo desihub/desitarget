@@ -148,10 +148,14 @@ def add_gaia_columns(indata):
     Notes
     -----
         - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
-          but with "GAIA" prepended to the dtype names
+          but with "GAIA_RA" and "GAIA_DEC" removed
     """
     #ADM import the Gaia data model from gaiamatch
-    from desitarget.gaiamatch import gaiadatamodel
+    from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+
+    #ADM remove the Gaia coordinates from the Gaia data model as they aren't
+    #ADM in the imaging surveys data model
+    gaiadatamodel = pop_gaia_coords(gaiadatamodel)
 
     #ADM create the combined data model
     dt = indata.dtype.descr + gaiadatamodel.dtype.descr
@@ -292,6 +296,8 @@ def read_tractor(filename, header=False, columns=None):
     if (columns is None) and \
        (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
         from desitarget.gaiamatch import gaiadatamodel
+        #ADM remove the Gaia coordinates as they aren't in the imaging data model
+        gaiadatamodel = pop_gaia_coords(gaiadatamodel)
         gaiacols = gaiadatamodel.dtype.names
         readcolumns += gaiacols
 
@@ -310,7 +316,7 @@ def read_tractor(filename, header=False, columns=None):
 
     #ADM add Gaia columns if not passed
     if (columns is None) and \
-       (('REF_ID' not in fxcolnames) and ('g_id' not in fxcolnames)):
+       (('REF_ID' not in fxcolnames) and ('ref_id' not in fxcolnames)):
         data = add_gaia_columns(data)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
