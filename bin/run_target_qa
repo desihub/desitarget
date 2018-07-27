@@ -32,6 +32,11 @@ ap.add_argument('--nosystematics', action='store_true',
 
 ns = ap.parse_args()
 
+#ADM fail if systematics were requested but no systematics map was passed
+if ns.weightmapfile is None and ns.nosystematics is False:
+    log.error("The weightmap file was not passed so systematics cannot be tracked. Try again sending --nosystematics.")
+    raise IOError
+
 bitnames = ns.bitnames
 if bitnames is not None:
     bitnames = [ bn for bn in ns.bitnames.split(',') ]
@@ -51,4 +56,5 @@ make_qa_page(ns.src, qadir=ns.dest,
 log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
 log.info('Mocks option was set to {}'.format(ns.mocks))
 log.info('No plots option was set to {}'.format(ns.noplots))
+log.info('No systematics option was set to {}'.format(ns.nosystematics))
 

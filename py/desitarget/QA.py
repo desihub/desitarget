@@ -2857,6 +2857,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         #ADM add target density vs. systematics plots, if systematics plots were requested
         if systematics:
+            #ADM fail if the pixel systematics weights file was not passed
+            if imaging_map_file is None:
+                log.error("imaging_map_file was not passed so systematics cannot be tracked. Try again passing systematics=False.")
+                raise IOError
             sysdic = _load_systematics()
             sysnames = list(sysdic.keys())
             #ADM html text to embed the systematics plots
@@ -2924,9 +2928,6 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM if requested, add systematics plots
     if systematics:
-        #ADM fail if the pixel systematics weights file was not passed
-        if imaging_map_file is None:
-            log.error("imaging_map_file was not passed so systematics cannot be tracked")
         from desitarget import io as dtio
         pixmap = dtio.load_pixweight_recarray(imaging_map_file,nside)
         sysdic = _load_systematics()
