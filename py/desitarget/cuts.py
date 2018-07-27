@@ -25,7 +25,7 @@ from desitarget.internal import sharedmem
 import desitarget.targets
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
-from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
 
 #ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -1802,6 +1802,9 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
+        #ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
+        #ADM in the imaging surveys data model
+        gaiainfo = pop_gaia_coords(gaiainfo)
         #ADM add the Gaia column information to the primary array
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
