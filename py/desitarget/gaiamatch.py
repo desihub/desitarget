@@ -45,6 +45,37 @@ gaiadatamodel = np.array([], dtype=[
             ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
                                    ])
 
+def pop_gaia_coords(inarr):
+    """Convenience function to pop GAIA_RA and GAIA_DEC columns off an array
+
+    Parameters
+    ----------
+    inarr : :class:`numpy.ndarray`
+        Structured array with various column names.
+    
+    Returns
+    :class:`numpy.ndarray`
+        Input array with columns called "GAIA_RA" and/or "GAIA_DEC" removed.
+    """
+    #ADM list of the column names of the passed array
+    names = list(inarr.dtype.names)
+    
+    #ADM pop off any instances of GAIA_RA, GAIA_DEC be forgiving if they
+    #ADM aren't in the array
+    try:
+        names.remove("GAIA_RA")
+    except:
+        pass
+
+    try:
+        names.remove("GAIA_DEC")
+    except:
+        pass
+
+    #ADM return the array without GAIA_RA, GAIA_DEC
+    return inarr[names]
+
+
 def read_gaia_file(filename, header=False):
     """Read in a Gaia "chunks" file in the appropriate format for desitarget
 
@@ -327,7 +358,7 @@ def match_gaia_to_primary(objs, matchrad=1.,
     return gaiainfo
 
 
-def match_gaia_to_primary_single(objs, matchrad=1.,
+def match_gaia_to_primary_single(objs, matchrad=1., 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Match ONE object to Gaia "chunks" files and return the Gaia information
 
