@@ -295,7 +295,7 @@ def read_tractor(filename, header=False, columns=None):
     #ADM if Gaia information was passed, add it to the columns to read
     if (columns is None) and \
        (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
-        from desitarget.gaiamatch import gaiadatamodel
+        from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
         #ADM remove the Gaia coordinates as they aren't in the imaging data model
         gaiadatamodel = pop_gaia_coords(gaiadatamodel)
         gaiacols = gaiadatamodel.dtype.names
