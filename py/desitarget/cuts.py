@@ -17,8 +17,11 @@ import numbers
 import sys
 
 import numpy as np
-from astropy.table import Table, Row
 from pkg_resources import resource_filename
+
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.internal import sharedmem
@@ -33,6 +36,26 @@ log = get_logger()
 
 #ADM start the clock
 start = time()
+
+def _gal_coords(ra,dec):
+    """Shift RA, Dec to Galactic coordinates
+
+    Parameters
+    ----------
+    ra, dec : :class:`array_like` or `float`
+        RA, Dec coordinates (degrees)
+
+    Returns
+    -------
+    The Galactic longitude and latitude (l, b)
+
+    """
+
+    c = SkyCoord(ra*u.deg, dec*u.deg)
+    gc = c.transform_to('galactic')
+
+    return gc.l.value, gc.b.value    
+
 
 def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
     """Same as :func:`~desitarget.cuts.shift_photo_north_pure` accounting for zero fluxes
@@ -694,7 +717,7 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaia, boolean array_like or None
+        gaia: boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -736,7 +759,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaia, boolean array_like or None
+        gaia: boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -837,7 +860,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
-        gaia, boolean array_like or None
+        gaia: boolean array_like or None
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         primary: array_like or None
@@ -884,26 +907,29 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return mws
 
 
-def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-             objtype=None, gaia=None, primary=None,
-             pmra=None, pmdec=None, parallax=None, 
-             obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+def isMWS_WD(primary=None, gaia=None, galb=None, astrometric_excess_noise=None, 
+             pmra=None, pmdec=None, parallax=None, parallax_over_error=None,
+             phot_bp_rp_excess_factor=None, astrometric_sigma_5d_max=None,
+             gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
     Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like or None
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
-        gaia, boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
+        gaia: boolean array_like or None
+            True if there is a match between this object in the Legacy
+            Surveys and in Gaia.
+        galb: array_like or None
+            Galactic latitude (degrees)
+        astrometric_excess_noise: array_like or None
+            Excess noise of the source in Gaia (as in the Gaia Data Model)
+        pmra, pmdec, parallax, parallax_over_error: array_like or None
+            Gaia-based proper motion in RA and Dec, and parallax and error
+            (same units as the Gaia data model)
+        phot_bp_rp_excess_factor: array_like or None
+            Gaia_based BP/RP excess factor (as in the Gaia Data model)    
+        astrometric_sigma5d_max: array_like or None
+            Longest semi-major axis of 5-d error ellipsoid (as in Gaia Data model)
         obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
         gaiagmag, gaiabmag, gaiarmag: array_like or None
@@ -913,6 +939,11 @@ def isMWS_WD(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-WD target.
+
+    Notes:
+        Gaia data model is at:
+        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1832,11 +1863,13 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
-    #ADM system to approximate the southern system
+    #ADM flag whether we're using northen (BASS/MZLS) or
+    #ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
     photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
 
+    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
+    #ADM system to approximate the southern system
     #ADM turn off shifting the northern photometry to match the southern
     #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
     #ADM in Tucson was not to do this.
@@ -1891,13 +1924,18 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
         deltaChi2[w] = -1e6
 
     #ADM the Gaia columns
-    gaia = objects["REF_ID"] != -1
+    gaia = objects['REF_ID'] != -1
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
     gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
+    gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
+    gaiabprpfactor = objects['GAIA
+
+    #ADM Mily Way Selection requires Galactic b
+    _, galb = _gal_coords(objects["RA"],objects["DEC"])
 
     #- DR1 has targets off the edge of the brick; trim to just this brick
     try:
@@ -2007,7 +2045,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
                                 gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                                 pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
         mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
-        mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, 
+        mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, galb=galb,
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
     else:
         #ADM if not running the MWS selection, set everything to arrays of False
