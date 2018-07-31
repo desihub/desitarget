@@ -2118,7 +2118,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
     # Standards; still need to set STD_WD
-    desi_target |= fstd * desi_mask.STD_FSTAR
+    desi_target |= fstd * desi_mask.STD
     desi_target |= fstd_bright * desi_mask.STD_BRIGHT
 
     # BGS bright and faint, south
