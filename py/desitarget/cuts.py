@@ -907,9 +907,9 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return mws
 
 
-def isMWS_WD(primary=None, gaia=None, galb=None, astrometric_excess_noise=None, 
-             pmra=None, pmdec=None, parallax=None, parallax_over_error=None,
-             phot_bp_rp_excess_factor=None, astrometric_sigma_5d_max=None,
+def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None, 
+             pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
+             photbprpexcessfactor=None, astrometricsigma5dmax=None,
              gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
@@ -921,17 +921,15 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometric_excess_noise=None,
             Surveys and in Gaia.
         galb: array_like or None
             Galactic latitude (degrees)
-        astrometric_excess_noise: array_like or None
+        astrometricexcessnoise: array_like or None
             Excess noise of the source in Gaia (as in the Gaia Data Model)
         pmra, pmdec, parallax, parallax_over_error: array_like or None
             Gaia-based proper motion in RA and Dec, and parallax and error
             (same units as the Gaia data model)
-        phot_bp_rp_excess_factor: array_like or None
+        photbprpexcessfactor: array_like or None
             Gaia_based BP/RP excess factor (as in the Gaia Data model)    
-        astrometric_sigma5d_max: array_like or None
+        astrometricsigma5dmax: array_like or None
             Longest semi-major axis of 5-d error ellipsoid (as in Gaia Data model)
-        obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
             (same units as the Gaia data model).
@@ -941,8 +939,10 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometric_excess_noise=None,
             True if and only if the object is a MWS-WD target.
 
     Notes:
-        Gaia data model is at:
+        - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+        - Current version is version 117 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
 
     """
     if primary is None:
@@ -968,6 +968,8 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometric_excess_noise=None,
     mws &= gaia
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
+    #ADM Galactic b of more than 
+
     #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
     #ADM We've set parallax=zero for some objects with gaia=False hence the
     #ADM "where" in the divide and log10 (gaia=False objects can't be selected anyway)
@@ -1928,11 +1930,21 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
+    parallaxivar = objects['PARALLAX_IVAR']
+    #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
+    parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
     gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
-    gaiabprpfactor = objects['GAIA
+
+    #ADM test if these exist, as they aren't in the Tractor files as of DR7
+    gaiabprpfactor = None
+    if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in objects.dtype.names:
+        gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
+    gaiasigma5dmax = None
+    if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in objects.dtype.names:
+        gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
 
     #ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"],objects["DEC"])
@@ -2045,8 +2057,11 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
                                 gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                                 pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
         mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
-        mws_wd = isMWS_WD(gaia=gaia, parallax=parallax, galb=galb,
-                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+        mws_wd = isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
+             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
+             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
+                          gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
     else:
         #ADM if not running the MWS selection, set everything to arrays of False
         mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
