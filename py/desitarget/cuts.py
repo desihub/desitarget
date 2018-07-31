@@ -613,8 +613,8 @@ def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
     return elg
 
 
-def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
-    """Select FSTD targets just based on color cuts. Returns a boolean array.
+def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+    """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -623,26 +623,101 @@ def isFSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
             If given, the BRICK_PRIMARY column of the catalogue.
 
     Returns:
-        mask : boolean array, True if the object has colors like an FSTD
+        mask : boolean array, True if the object has colors like a STD star target
+
+    Notes:
+        - Current version (07/31/18) is version 117 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
+
     """
 
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
-    fstd = primary.copy()
+    std = primary.copy()
 
     # Clip to avoid warnings from negative numbers.
-    gflux = gflux.clip(0)
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
+    #ADM we're pretty bright for the STDs, so this should be safe
+    gflux = gflux.clip(1e-16)
+    rflux = rflux.clip(1e-16)
+    zflux = zflux.clip(1e-16)
 
-    # colors near BD+17
+    #ADM optical colors for halo TO or bluer
+    grcolor = 2.5 * np.log10(rflux / gflux)
+    rzcolor = 2.5 * np.log10(zflux / rflux)
+    std &= rzcolor < 0.2
+    std &= grcolor > 0.
+    std &= grcolor < 0.35
+
+    return std
+
+
+def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None, 
+               pmra=None, pmdec=None, parallax=None,
+               dupsource=None, paramssolved=None,
+               gaiagmag=None, gaiabmag=None, gaiarmag=None):
+
+    """Gaia quality cuts used to define STD star targets
+
+    Args:
+        primary: array_like or None
+          If given, the BRICK_PRIMARY column of the catalogue.
+        gaia: boolean array_like or None
+            True if there is a match between this object in the Legacy
+            Surveys and in Gaia.
+        astrometricexcessnoise: array_like or None
+            Excess noise of the source in Gaia (as in the Gaia Data Model).
+        pmra, pmdec, parallax: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax
+            (same units as the Gaia data model).
+        dupsource: array_like or None
+            Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+        paramssolved: array_like or None
+            How many parameters were solved for in Gaia (as in the Gaia Data model).
+        gaiagmag, gaiabmag, gaiarmag: array_like or None
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
+            (same units as the Gaia data model).
+
+    Returns:
+        mask : boolean array, True if the object passes Gaia quality cuts.
+
+        Notes:
+        - Current version (07/31/18) is version 117 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
+        - Gaia data model is at:
+        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+    """
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    std = primary.copy()
+
+    #ADM Bp and Rp are both measured
+    std &=  ~np.isnan(gaiabmag - gaiarmag)
+    
+    #ADM no obvious issues with the astrometry solution
+    std &= astrometricexcessnoise < 1
+    std &= astrometric_params_solved == 31
+
+    #ADM finite proper motions
+    std &= np.isfinite(pmra)
+    std &= np.isfinite(pmdec)
+
+    #ADM a parallax smaller than 1 mas
+    std &= parallax < 1.
+
+    #ADM calculate the overall proper motion magnitude
+    #ADM inexplicably I'm getting a Runtimewarning here for
+    #ADM a few values in the sqrt, so I'm catching it
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        grcolor = 2.5 * np.log10(rflux / gflux)
-        rzcolor = 2.5 * np.log10(zflux / rflux)
-        fstd &= (grcolor - 0.26)**2 + (rzcolor - 0.13)**2 < 0.06**2
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2. + pmdec**2.)
 
-    return fstd
+    #ADM a proper motion larger than 2 mas/yr
+    std &= pm > 2.
+
+    #ADM a unique Gaia source
+    std &= (dupsource == 0)
+
+    return std
 
 
 def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, 
@@ -920,16 +995,16 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
             True if there is a match between this object in the Legacy
             Surveys and in Gaia.
         galb: array_like or None
-            Galactic latitude (degrees)
+            Galactic latitude (degrees).
         astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia (as in the Gaia Data Model)
+            Excess noise of the source in Gaia (as in the Gaia Data Model).
         pmra, pmdec, parallax, parallax_over_error: array_like or None
             Gaia-based proper motion in RA and Dec, and parallax and error
-            (same units as the Gaia data model)
+            (same units as the Gaia data model).
         photbprpexcessfactor: array_like or None
-            Gaia_based BP/RP excess factor (as in the Gaia Data model)    
+            Gaia_based BP/RP excess factor (as in the Gaia Data model).
         astrometricsigma5dmax: array_like or None
-            Longest semi-major axis of 5-d error ellipsoid (as in Gaia Data model)
+            Longest semi-major axis of 5-d error ellipsoid (as in Gaia Data model).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
             (same units as the Gaia data model).
@@ -941,7 +1016,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     Notes:
         - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-        - Current version is version 117 on the wiki:
+        - Current version (07/31/18) is version 117 on the wiki:
     https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
 
     """
@@ -1954,6 +2029,14 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
+    gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
+
+    #ADM if the RA proper motion is not NaN, then 31 parameters were solved for
+    #ADM in Gaia astrometry. Use this to set gaiaparamssolved (value is 3 for NaNs)
+    gaiaparamssolved = np.zeros_like(gaia)+31
+    w = np.where(np.isnan(pmra))[0]
+    if len(w) > 0:
+        gaiaparamssolved[w] = 3
 
     #ADM test if these exist, as they aren't in the Tractor files as of DR7
     gaiabprpfactor = None
