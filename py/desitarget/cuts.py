@@ -1435,119 +1435,11 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     Returns:
         mask: array_like
             True if and only if the object is a QSO target.
-    """
-    # BRICK_PRIMARY
-    if primary is None :
-        primary = np.ones_like(gflux, dtype=bool)
-    # RELEASE
-    # ADM default to RELEASE of 6000 if nothing is passed
-    if release is None :
-        release = np.zeros_like(gflux, dtype='?') + 6000
-    release = np.atleast_1d( release )
-
-    # Build variables for random forest
-    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
-    nbEntries = rflux.size
-    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
-    r = np.atleast_1d( r )
-
-    # Preselection to speed up the process
-    rMax = 22.7 # r < 22.7
-    rMin = 17.5 # r > 17.5
-    preSelection = ( r < rMax ) & ( r > rMin ) & photOK & primary
-    if objtype is not None :
-        preSelection &= _psflike( objtype )
-    if deltaChi2 is not None :
-        deltaChi2 = np.atleast_1d( deltaChi2 )
-        preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
     
-    # "qso" mask initialized to "preSelection" mask
-    qso = np.copy( preSelection )
-    
-    if np.any( preSelection ) :
-        
-        from desitarget.myRF import myRF
-        
-        # Data reduction to preselected objects
-        colorsReduced = colors[ preSelection ]
-        releaseReduced = release[ preSelection ]
-        r_Reduced = r[ preSelection ]
-        colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
-        colorsReducedIndex =  colorsIndex[ preSelection ]
-    
-        # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
-        # rf filenames
-        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
-        
-        tmpReleaseOK = releaseReduced < 6000
-        if np.any( tmpReleaseOK ) :
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR3 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=200 , version=1 )
-            # rf loading
-            rf_DR3.loadForest( rf_DR3_fileName )
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR3.predict_proba()
-            # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            pcut = np.where( tmp_r_Reduced > 20.0 ,
-                             0.95 - ( tmp_r_Reduced - 20.0 ) * 0.08 , 0.95 )
-            # Add rf proba test result to "qso" mask            
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = tmp_rf_proba >= pcut
-        
-        tmpReleaseOK = releaseReduced >= 6000
-        if np.any( tmpReleaseOK ) :
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=500 , version=2 )
-            rf_DR5_HighZ = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                                 numberOfTrees=500 , version=2 )
-            # rf loading
-            rf_DR5.loadForest( rf_DR5_fileName )
-            rf_DR5_HighZ.loadForest( rf_DR5_HighZ_fileName )
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR5.predict_proba()
-            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
-            # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            pcut = np.where( tmp_r_Reduced > 21.1 ,
-                             0.82 - ( tmp_r_Reduced - 21.1 ) * 0.20 , 0.82 )
-            pcut_HighZ = 0.42
-            # Add rf proba test result to "qso" mask
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
-                ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
-    
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "numpy.ndarray"
-    if nbEntries == 1 :
-        qso = qso[0]
+    Notes:
+        as of 07/31/18, based on 
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117
 
-    return qso
-
-
-def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, primary=None):
-    """
-    Target definition of QSO using a random forest for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/).
-        deltaChi2: array_like or None
-             If given, difference in chi2 between PSF and SIMP morphology.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask: array_like
-            True if and only if the object is a QSO target.
     """
     # BRICK_PRIMARY
     if primary is None :
@@ -1644,6 +1536,129 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     
     return qso
 
+
+def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                       objtype=None, release=None, deltaChi2=None, primary=None):
+    """
+    Target definition of QSO using a random forest for the DECaLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/).
+        deltaChi2: array_like or None
+             If given, difference in chi2 between PSF and SIMP morphology.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask: array_like
+            True if and only if the object is a QSO target.
+
+    Notes:
+        as of 07/31/18, based on 
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117
+
+    """
+    # BRICK_PRIMARY
+    if primary is None :
+        primary = np.ones_like(gflux, dtype=bool)
+
+    # RELEASE
+    # ADM default to RELEASE of 5000 if nothing is passed
+    if release is None :
+        release = np.zeros_like(gflux, dtype='?') + 5000
+    release = np.atleast_1d( release )
+
+    # Build variables for random forest
+    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
+    nbEntries = rflux.size
+    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+    r = np.atleast_1d( r )
+
+    # Preselection to speed up the process
+    rMax = 22.7 # r < 22.7
+    rMin = 17.5 # r > 17.5
+    preSelection = ( r < rMax ) & ( r > rMin ) & photOK & primary
+    if objtype is not None :
+        preSelection &= _psflike( objtype )
+    if deltaChi2 is not None :
+        deltaChi2 = np.atleast_1d( deltaChi2 )
+        preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
+    
+    # "qso" mask initialized to "preSelection" mask
+    qso = np.copy( preSelection )
+    
+    if np.any( preSelection ) :
+        
+        from desitarget.myRF import myRF
+        
+        # Data reduction to preselected objects
+        colorsReduced = colors[ preSelection ]
+        releaseReduced = release[ preSelection ]
+        r_Reduced = r[ preSelection ]
+        colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
+        colorsReducedIndex =  colorsIndex[ preSelection ]
+    
+        # Path to random forest files
+        pathToRF = resource_filename('desitarget', 'data')
+        # rf filenames
+        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
+        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
+        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
+        
+        tmpReleaseOK = releaseReduced < 5000
+        if np.any( tmpReleaseOK ) :
+            # rf initialization - colors data duplicated within "myRF"
+            rf_DR3 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
+                           numberOfTrees=200 , version=1 )
+            # rf loading
+            rf_DR3.loadForest( rf_DR3_fileName )
+            # Compute rf probabilities
+            tmp_rf_proba = rf_DR3.predict_proba()
+            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
+            # Compute optimized proba cut
+            pcut = np.where( tmp_r_Reduced > 20.0 ,
+                             0.95 - ( tmp_r_Reduced - 20.0 ) * 0.08 , 0.95 )
+            # Add rf proba test result to "qso" mask            
+            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = tmp_rf_proba >= pcut
+        
+        tmpReleaseOK = releaseReduced >= 5000
+        if np.any( tmpReleaseOK ) :
+            # rf initialization - colors data duplicated within "myRF"
+            rf_DR5 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
+                           numberOfTrees=500 , version=2 )
+            rf_DR5_HighZ = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
+                                 numberOfTrees=500 , version=2 )
+            # rf loading
+            rf_DR5.loadForest( rf_DR5_fileName )
+            rf_DR5_HighZ.loadForest( rf_DR5_HighZ_fileName )
+            # Compute rf probabilities
+            tmp_rf_proba = rf_DR5.predict_proba()
+            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
+            # Compute optimized proba cut
+            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
+            pcut = np.where( tmp_r_Reduced > 20.8 ,
+                             0.88 - ( tmp_r_Reduced - 20.8 ) * 0.025 , 0.88 )
+            pcut[ tmp_r_Reduced > 21.5 ] = 0.8625 - 0.05 * ( tmp_r_Reduced[ tmp_r_Reduced > 21.5 ] - 21.5 )
+            pcut[ tmp_r_Reduced > 22.3 ] = 0.8225 - 0.53 * ( tmp_r_Reduced[ tmp_r_Reduced > 22.3 ] - 22.3 )
+            pcut_HighZ = np.where( tmp_r_Reduced > 20.5 ,
+                                   0.55 - ( tmp_r_Reduced - 20.5 ) * 0.025 , 0.55 )
+            # Add rf proba test result to "qso" mask
+            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
+                ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
+    
+    # In case of call for a single object passed to the function with scalar arguments
+    # Return "numpy.bool_" instead of "numpy.ndarray"
+    if nbEntries == 1 :
+        qso = qso[0]
+    
+    return qso
+
+
 def _psflike(psftype):
     """ If the object is PSF """
     #ADM explicitly checking for NoneType. I can't see why we'd ever want to
@@ -1661,6 +1676,7 @@ def _psflike(psftype):
                 (psftype == 'PSF ') | (psftype == b'PSF ') )
     return psflike
 
+
 def _isonnorthphotsys(photsys):
     """ If the object is from the northen photometric system """
     #ADM explicitly checking for NoneType. I can't see why we'd ever want to
@@ -1675,6 +1691,7 @@ def _isonnorthphotsys(photsys):
     #ADM against both bytes and unicode
     northern = ( (photsys == 'N') | (photsys == b'N') )
     return northern
+
 
 def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
 
@@ -1691,7 +1708,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
     W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
 
-    photOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) # & (W2>0.)
+    photOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
 
     colors  = np.zeros((nbEntries,nfeatures))
     colors[:,0]=g-r
