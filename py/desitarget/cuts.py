@@ -1,4 +1,4 @@
-"""
+B0;269;0c"""
 desitarget.cuts
 ===============
 
@@ -968,18 +968,35 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws &= gaia
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
-    #ADM Galactic b of more than 
+    #ADM Galactic b at least 20o from the plane
+    mws &= np.abs(galb) > 20.
 
-    #ADM Color/absolute magnitude cut of G - 5log10(1/pi)+5 > 2.8(Bp-Rp) + 8    
-    #ADM We've set parallax=zero for some objects with gaia=False hence the
-    #ADM "where" in the divide and log10 (gaia=False objects can't be selected anyway)
-    dist = np.divide(1.,parallax,where=parallax > 1e-16)
-    #ADM Getting some strange Runtime warnings on a few values
+    #ADM Color/absolute magnitude cuts of (defining the WD cooling sequence):
+    #ADM Gabs > 5.93 + 5.047(Bp-Rp) 
+    #ADM Gabs > 6(Bp-Rp)3 - 21.77(Bp-Rp)2 + 27.91(Bp-Rp) + 0.897 
+    #ADM Bp-Rp < 1.7 
+    br = gaiabmag - gaiarmag
+    mws &= gaiagmag > 5.93 + 5.047*br
+    mws &= gaiagmag > 6*br*br*br - 21.77*br*br + 27.91*br + 0.897
+    mws &= br < 1.7
+
+    #ADM Finite proper motion to reject quasars
+    #ADM Inexplicably I'm getting a Runtimewarning here for
+    #ADM a few values in the sqrt, so I'm catching it
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
-        mws &= gaiagmag - 5.*np.log10(dist,where=dist > 1e-16) + 5. > 2.8*(gaiabmag-gaiarmag) + 8.
-    #ADM NOTE TO THE MWS GROUP: If Parallaxes are negative (i.e. presumably "very distant
-    #ADM but not measurably so") THEY WILL BE TARGETED BY THIS LOGIC. IS THAT THE REQUIRED BEHAVIOR?
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2. + pmdec**2.)
+    mws &= pm > 2.
+
+    #ADM As of DR7, photbprpexcessfactor and astrometricsigma5dmax are not in the 
+    #ADM imaging catalogs. Until they are, ignore these cuts
+    if photbprpexcessfactor is not None and astrometricsigma5dmax is Not None:
+        #ADM remove problem objects, which often have bad astrometry
+        poor = photbprpexcessfactor < 1.7 + 0.06*br*br
+        #ADM but recover white dwarfs that have only relatively poor astrometry
+        better = astrometricsigma5dmax < 1.5
+        better |= (astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)
+        mws &= poor & ~better
 
     return mws
 
