@@ -1043,16 +1043,23 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws &= gaia
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
+
     #ADM Galactic b at least 20o from the plane
     mws &= np.abs(galb) > 20.
 
+    #ADM a well-measured parallax
+    mws &= parallax_over_error > 1.
+
     #ADM Color/absolute magnitude cuts of (defining the WD cooling sequence):
+    #ADM Gabs > 5
     #ADM Gabs > 5.93 + 5.047(Bp-Rp) 
     #ADM Gabs > 6(Bp-Rp)3 - 21.77(Bp-Rp)2 + 27.91(Bp-Rp) + 0.897 
     #ADM Bp-Rp < 1.7 
+    Gabs = gaiagmag+5.*np.log10(parallax.clip(1e-16))-10.
     br = gaiabmag - gaiarmag
-    mws &= gaiagmag > 5.93 + 5.047*br
-    mws &= gaiagmag > 6*br*br*br - 21.77*br*br + 27.91*br + 0.897
+    mws &= Gabs > 5.
+    mws &= Gabs > 5.93 + 5.047*br
+    mws &= Gabs > 6*br*br*br - 21.77*br*br + 27.91*br + 0.897
     mws &= br < 1.7
 
     #ADM Finite proper motion to reject quasars
@@ -1065,13 +1072,15 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
     #ADM As of DR7, photbprpexcessfactor and astrometricsigma5dmax are not in the 
     #ADM imaging catalogs. Until they are, ignore these cuts
-    if photbprpexcessfactor is not None and astrometricsigma5dmax is Not None:
+    if photbprpexcessfactor is not None:
         #ADM remove problem objects, which often have bad astrometry
-        poor = photbprpexcessfactor < 1.7 + 0.06*br*br
-        #ADM but recover white dwarfs that have only relatively poor astrometry
-        better = astrometricsigma5dmax < 1.5
-        better |= (astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)
-        mws &= poor & ~better
+        mws &= photbprpexcessfactor < 1.7 + 0.06*br*br
+
+    if astrometricsigma5dmax is Not None:
+        #ADM Reject white dwarfs that have really poor astrometry while
+        #ADM retaining white dwarfs that only have relatively poor astrometry
+        mws &= (astrometricsigma5dmax < 1.5) | 
+                     ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.))
 
     return mws
 
