@@ -659,7 +659,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     
     #ADM no obvious issues with the astrometry solution
     std &= astrometricexcessnoise < 1
-    std &= astrometric_params_solved == 31
+    std &= paramssolved == 31
 
     #ADM finite proper motions
     std &= np.isfinite(pmra)
@@ -2046,7 +2046,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
-    import pdb ; pdb.set_trace()
     parallaxivar = objects['PARALLAX_IVAR']
     #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
@@ -2062,6 +2061,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     w = np.where(np.isnan(pmra))[0]
     if len(w) > 0:
         gaiaparamssolved[w] = 3
+
+    import pdb ; pdb.set_trace()
 
     #ADM test if these exist, as they aren't in the Tractor files as of DR7
     gaiabprpfactor = None
@@ -2405,7 +2406,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         'colorcuts' and 'randomforest'
     gaiamatch : :class:`boolean`, optional, defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
-        to facilitate the MWS selection
+        to facilitate the MWS and STD selections
     sandbox : :class:`boolean`, optional, defaults to ``False``
         If ``True``, use the sample selection cuts in :mod:`desitarget.sandbox.cuts`
     FoMthresh : :class:`float`, optional, defaults to `None`
