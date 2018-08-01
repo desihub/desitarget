@@ -155,7 +155,7 @@ def isLRG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
     """
     #ADM currently no difference between N/S for LRG colors, so easiest
     #ADM just to use one function
-    return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, ggood=ggood
+    return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, ggood=ggood,
                               w1flux=w1flux, w2flux=w2flux, primary=primary)
 
 
@@ -193,7 +193,7 @@ def isLRG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
         # ADM updated Zhou/Newman cut:
         # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
         # 0.7r + W < 1.7z + 0.6 &&
-        #ADM this side of the cut was removed on (01/08/2018) to
+        #ADM this side of the cut was removed on (08/01/2018) to
         #ADM help test masking of WISE stars as an alternative
         # 0.7r + W > 1.7z - 1.0
         lrg &= ( (w1flux*rflux**complex(0.7)).real > 
@@ -1081,11 +1081,11 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         #ADM remove problem objects, which often have bad astrometry
         mws &= photbprpexcessfactor < 1.7 + 0.06*br*br
 
-    if astrometricsigma5dmax is Not None:
+    if astrometricsigma5dmax is not None:
         #ADM Reject white dwarfs that have really poor astrometry while
         #ADM retaining white dwarfs that only have relatively poor astrometry
-        mws &= (astrometricsigma5dmax < 1.5) | 
-                     ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.))
+        mws &= ( (astrometricsigma5dmax < 1.5) | 
+                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)) )
 
     return mws
 
