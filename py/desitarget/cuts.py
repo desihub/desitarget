@@ -2062,8 +2062,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if len(w) > 0:
         gaiaparamssolved[w] = 3
 
-    import pdb ; pdb.set_trace()
-
     #ADM test if these exist, as they aren't in the Tractor files as of DR7
     gaiabprpfactor = None
     if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in objects.dtype.names:
