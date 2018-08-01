@@ -1,4 +1,4 @@
-B0;269;0c"""
+"""
 desitarget.cuts
 ===============
 
@@ -148,62 +148,25 @@ def isLRG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
     """See :func:`~desitarget.cuts.isLRG_north` for details.
     This function applies just the flux and color cuts for the BASS/MzLS photometric system.
+
+    Notes:
+    - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
     """
-
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    if ggood is None:
-        ggood = np.ones_like(gflux, dtype='?')
-
-    # Basic flux and color cuts
-    lrg = primary.copy()
-    lrg &= (zflux > 10**(0.4*(22.5-20.4))) # z<20.4
-    lrg &= (zflux < 10**(0.4*(22.5-18))) # z>18
-    lrg &= (zflux < 10**(0.4*2.5)*rflux) # r-z<2.5
-    lrg &= (zflux > 10**(0.4*0.8)*rflux) # r-z>0.8
-
-    # The code below can overflow, since the fluxes are float32 arrays
-    # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
-    # this will overflow, and crash the code.
-    with np.errstate(over='ignore'):
-        # This is the star-galaxy separation cut:
-        # ADM original Eisenstein/Dawson cut
-        # Wlrg = (z-W)-(r-z)/3 + 0.3 >0 , which is equiv to r+3*W < 4*z+0.9
-        # lrg &= (rflux*w1flux**3 > (zflux**4)*10**(-0.4*0.9))
-        # ADM updated Zhou/Newman cut:
-        # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
-        # 0.7r + W < 1.7z + 0.6 &&
-        # 0.7r + W > 1.7z - 1.0
-        lrg &= ( (w1flux*rflux**complex(0.7)).real > 
-                 ((zflux**complex(1.7))*10**(-0.4*0.6)).real  )
-        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
-                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
-        #ADM note the trick of making the exponents complex and taking the real
-        #ADM part to allow negative fluxes to be raised to a fractional power
-
-        # Now for the work-horse sliding flux-color cut:
-        # ADM original Eisenstein/Dawson cut:
-        # mlrg2 = z-2*(r-z-1.2) < 19.6 -> 3*z < 19.6-2.4-2*r
-        # ADM updated Zhou/Newman cut:
-        # mlrg2 = z-2*(r-z-1.2) < 19.45 -> 3*z < 19.45-2.4-2*r
-        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.45))*rflux**2)
-        # Another guard against bright & red outliers
-        # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
-        lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
-
-        # Finally, a cut to exclude the z<0.4 objects while retaining the elbow at
-        # z=0.4-0.5.  r-z>1.2 || (good_data_in_g and g-r>1.7).  Note that we do not
-        # require gflux>0.
-        lrg &= np.logical_or((zflux > 10**(0.4*1.2)*rflux), (ggood & (rflux>10**(0.4*1.7)*gflux)))
-
-    return lrg
+    #ADM currently no difference between N/S for LRG colors, so easiest
+    #ADM just to use one function
+    return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, ggood=ggood
+                              w1flux=w1flux, w2flux=w2flux, primary=primary)
 
 
 def isLRG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
                         w2flux=None, ggood=None, primary=None):
     """See :func:`~desitarget.cuts.isLRG_south` for details.
     This function applies just the flux and color cuts for the DECaLS photometric system.
+
+    Notes:
+    - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
     """
 
     if primary is None:
@@ -230,11 +193,13 @@ def isLRG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
         # ADM updated Zhou/Newman cut:
         # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
         # 0.7r + W < 1.7z + 0.6 &&
+        #ADM this side of the cut was removed on (01/08/2018) to
+        #ADM help test masking of WISE stars as an alternative
         # 0.7r + W > 1.7z - 1.0
         lrg &= ( (w1flux*rflux**complex(0.7)).real > 
                  ((zflux**complex(1.7))*10**(-0.4*0.6)).real  )
-        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
-                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
+#        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
+#                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
         #ADM note the trick of making the exponents complex and taking the real
         #ADM part to allow negative fluxes to be raised to a fractional power
 
