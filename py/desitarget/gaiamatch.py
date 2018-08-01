@@ -29,7 +29,8 @@ ingaiadatamodel = np.array([], dtype=[
             ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('PARALLAX', '>f4'), 
+            ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DUPLICATED_SOURCE', '?'),
+            ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
             ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
             ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'),
                                    ])
@@ -40,7 +41,8 @@ gaiadatamodel = np.array([], dtype=[
             ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('PARALLAX', '>f4'), 
+            ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('GAIA_DUPLICATED_SOURCE', '?'),
+            ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
             ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
             ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
                                    ])
@@ -114,7 +116,7 @@ def read_gaia_file(filename, header=False):
 
     #ADM the proper motion ERRORS need to be converted to IVARs
     #ADM remember to leave 0 entries as 0
-    for col in ['PMRA_IVAR', 'PMDEC_IVAR']:
+    for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
         w = np.where(outdata[col] != 0)[0]
         outdata[col][w] = 1./(outdata[col][w]**2.)
 
