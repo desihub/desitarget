@@ -2180,13 +2180,21 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
         #ADM Make sure to pass all of the needed columns! At one point we stopped
         #ADM passing objtype, which meant no standards were being returned.
         std = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                  obs_rflux=obs_rflux, objtype=objtype)
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
         std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                  gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                  gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                  obs_rflux=obs_rflux, objtype=objtype, bright=True)
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
     else:
         #ADM if not running the standards selection, set everything to arrays of False
         std, std_bright = ~primary, ~primary
@@ -2210,13 +2218,12 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     if "MWS" in tcnames:
         #ADM set the MWS bits
         mws_n, mws_red_n, mws_blue_n = isMWS_main_north(primary=primary, gaia=gaia,  
-                                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
-                                pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
+                            gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                            pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
         mws_s, mws_red_s, mws_blue_s = isMWS_main_south(primary=primary, gaia=gaia,  
-                                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
-                                pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
+                            gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                            pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
         mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
-
         mws_wd = isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
              pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
              photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
