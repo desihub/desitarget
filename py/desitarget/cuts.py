@@ -419,7 +419,7 @@ def isLRGpass_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
     lrg1pass &= zflux > 10**((22.5-20.0)/2.5)
     lrg1pass &= zflux <= 10**((22.5-18.0)/2.5)
 
-    #ADM two-pass LRGs are 20 (the BGS limit) <= z < 20
+    #ADM two-pass LRGs are 20 <= z < 20.4
     lrg2pass &= zflux > 10**((22.5-20.4)/2.5)
     lrg2pass &= zflux <= 10**((22.5-20.0)/2.5)
 
@@ -468,7 +468,7 @@ def isLRGpass_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
     lrg1pass &= zflux > 10**((22.5-20.0)/2.5)
     lrg1pass &= zflux <= 10**((22.5-18.0)/2.5)
 
-    #ADM two-pass LRGs are 20 (the BGS limit) <= z < 20
+    #ADM two-pass LRGs are 20 <= z < 20.4
     lrg2pass &= zflux > 10**((22.5-20.4)/2.5)
     lrg2pass &= zflux <= 10**((22.5-20.0)/2.5)
 

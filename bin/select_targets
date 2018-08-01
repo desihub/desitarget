@@ -10,6 +10,9 @@ from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightmask import mask_targets
 
+from time import time
+start = time()
+
 #import warnings
 #warnings.simplefilter('error')
 
@@ -80,5 +83,5 @@ else:
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
 
-    log.info('{} targets written to {}'.format(len(targets), ns.dest))
+    log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
 
