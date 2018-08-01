@@ -1913,7 +1913,7 @@ def unextinct_fluxes(objects):
         return result
 
 
-def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
+def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
                gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Perform target selection on objects, returning target mask arrays
@@ -1925,7 +1925,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     Options:
         qso_selection : algorithm to use for QSO selection; valid options
             are 'colorcuts' and 'randomforest'
-        match_to_gaia : defaults to ``True``
+        gaiamatch : defaults to ``False``
             if ``True``, match to Gaia DR2 chunks files and populate 
             Gaia columns to facilitate the MWS selection
         tcnames : :class:`list`, defaults to running all target classes
@@ -1952,7 +1952,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
 
     #ADM add Gaia information, if requested, and if we're going to actually
     #ADM process the target classes that need Gaia columns
-    if match_to_gaia and ("MWS" in tcnames or "STD" in tcnames):
+    if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
@@ -2046,6 +2046,7 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
+    import pdb ; pdb.set_trace()
     parallaxivar = objects['PARALLAX_IVAR']
     #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
@@ -2388,7 +2389,7 @@ qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-            match_to_gaia=True, sandbox=False, FoMthresh=None, Method=None, 
+            gaiamatch=False, sandbox=False, FoMthresh=None, Method=None, 
             tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Process input files in parallel to select targets
@@ -2402,7 +2403,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     qso_selection : :class`str`, optional, defaults to `randomforest`
         The algorithm to use for QSO selection; valid options are 
         'colorcuts' and 'randomforest'
-    match_to_gaia : :class:`boolean`, optional, defaults to ``True``
+    gaiamatch : :class:`boolean`, optional, defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
         to facilitate the MWS selection
     sandbox : :class:`boolean`, optional, defaults to ``False``
@@ -2463,7 +2464,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,
-                                                         match_to_gaia,tcnames,gaiadir)
+                                                         gaiamatch,tcnames,gaiadir)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 

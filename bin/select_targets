@@ -42,8 +42,8 @@ ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
 ap.add_argument("--gaiadir", 
                 help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
-ap.add_argument("--nogaia", action='store_false',
-                help="Do NOT match to Gaia DR2 chunks files in order to populate Gaia columns for MWS selection")
+ap.add_argument("--gaiamatch", action='store_true',
+                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -71,7 +71,7 @@ if ns.check:
     log.info('{} potentially corrupt files'.format(nbadfiles))
 else:
     targets = select_targets(infiles, numproc=ns.numproc,
-                             qso_selection=ns.qsoselection, match_to_gaia=ns.nogaia,
+                             qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
                              gaiadir=ns.gaiadir, tcnames=tcnames)
     if ns.mask:
