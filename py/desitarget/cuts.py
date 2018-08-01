@@ -714,8 +714,13 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     #ADM a proper motion larger than 2 mas/yr
     std &= pm > 2.
 
+    #ADM fail if dupsource is not Boolean, as was the case for the 7.0 sweeps    
+    if not isinstance(dupsource[0],(bool,np.bool_)):
+        log.error('GAIA_DUPLICATED_SOURCE (dupsource) should be boolean!')
+        raise IOError
+
     #ADM a unique Gaia source
-    std &= (dupsource == 0)
+    std &= ~dupsource
 
     return std
 
