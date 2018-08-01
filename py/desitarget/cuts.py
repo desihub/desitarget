@@ -627,7 +627,7 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
 
     Notes:
         - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
 
     """
 
@@ -655,7 +655,6 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
                pmra=None, pmdec=None, parallax=None,
                dupsource=None, paramssolved=None,
                gaiagmag=None, gaiabmag=None, gaiarmag=None):
-
     """Gaia quality cuts used to define STD star targets
 
     Args:
@@ -682,7 +681,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
         Notes:
         - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
         - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
     """
@@ -726,62 +725,98 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
 
 def isSTD(gflux=None, rflux=None, zflux=None, primary=None, 
-           gfracflux=None, rfracflux=None, zfracflux=None,
-           gsnr=None, rsnr=None, zsnr=None,
-           objtype=None, obs_rflux=None, bright=False):
+          gfracflux=None, rfracflux=None, zfracflux=None,
+          gfracmasked=None, rfracmasked=None, zfracmasked=None,
+          gnobs=None, rnobs=None, znobs=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
+          gaia=None, astrometricexcessnoise=None, paramssolved=None,
+          pmra=None, pmdec=None, parallax=None, dupsource=None, 
+          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
     """Select STD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isSTD_colors() for additional info.
 
     Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-          The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        gfracflux, rfracflux, zfracflux: array_like
-          Profile-weight fraction of the flux from other sources divided by the 
-          total flux in g, r and z bands.
-        gsnr, rsnr, zsnr: array_like
-          The signal-to-noise ratio in g, r, and z bands.
+        gflux, rflux, zflux: array_like
+            The flux in nano-maggies of g, r, z bands.
         primary: array_like or None
-          If given, the BRICK_PRIMARY column of the catalogue.
+            If given, the BRICK_PRIMARY column of the catalogue.
+        gfracflux, rfracflux, zfracflux: array_like
+            Profile-weighted fraction of the flux from other sources divided 
+            by the total flux in g, r and z bands.
+        gfracmasked, rfracmasked, zfracmasked: array_like
+            Fraction of masked pixels in the g, r and z bands.
+        gnobs, rnobs, znobs: array_like
+            The number of observations (in the central pixel) in g, r and z.
+        gfluxivar, rfluxivar, zfluxivar: array_like
+            The flux inverse variances in g, r, and z bands.
+        objtype: array_like or None
+            The TYPE column of the catalogue to restrict to point sources.
+        gaia: boolean array_like or None
+            True if there is a match between this object in the Legacy
+            Surveys and in Gaia.
+        astrometricexcessnoise: array_like or None
+            Excess noise of the source in Gaia (as in the Gaia Data Model).
+        paramssolved: array_like or None
+            How many parameters were solved for in Gaia (as in the Gaia Data model).
+        pmra, pmdec, parallax: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax
+            (same units as the Gaia data model).
+        dupsource: array_like or None
+            Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+        gaiagmag, gaiabmag, gaiarmag: array_like or None
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
+            (same units as the Gaia data model).
         bright: apply magnitude cuts for "bright" conditions; otherwise, choose
-          "normal" brightness standards.
+          "normal" brightness standards. Cut is performed on `gaiagmag`.
 
     Returns:
         mask : boolean array, True if the object has colors like a STD star
+
+    Notes:
+        - Gaia data model is at:
+        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+        - Current version (08/01/18) is version 121 on the wiki:
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     std = primary.copy()
 
-    # Apply the magnitude and color cuts.
+    #ADM apply the Legacy Surveys (optical) magnitude and color cuts.
     std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-    # Apply type=PSF, fracflux, and S/N cuts.
+    #ADM apply the Gaia quality cuts.
+    std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=astrometricexcessnoise, 
+                      pmra=pmra, pmdec=pmdec, parallax=parallax,
+                      dupsource=dupsource, paramssolved=paramssolved,
+                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+    #ADM apply type=PSF cut
     std &= _psflike(objtype)
 
-    #ADM probably a more elegant way to do this, coded it like this for
-    #ADM data model transition from 2-D to 1-D arrays
+    #ADM apply fracflux, S/N cuts and number of observations cuts.
     fracflux = [gfracflux, rfracflux, zfracflux]
-    snr = [gsnr, rsnr, zsnr]
-
+    fluxivar = [gfluxivar, rfluxivar, zfluxivar]
+    nobs = [gnobs, rnobs, znobs]
+    fracmasked = [gfracmasked, rfracmasked, zfracmasked]
     with warnings.catch_warnings():
         warnings.simplefilter('ignore') # fracflux can be Inf/NaN
-        for j in (0, 1, 2):  # g, r, z
-            std &= fracflux[j] < 0.04
-            std &= snr[j] > 10
+        for bandint in (0, 1, 2):  # g, r, z
+            std &= fracflux[bandint] < 0.01
+            std &= fluxivar[bandint] > 0
+            std &= nobs[bandint] > 0
+            std &= fracmasked[bandint] > 0
 
-    # Observed flux; no Milky Way extinction
-    if obs_rflux is None:
-        obs_rflux = rflux
-
+    #ADM brightness cuts in Gaia G-band
     if bright:
-        rbright = 14.0
-        rfaint = 17.0
+        gbright = 15.
+        gfaint = 18.
     else:
-        rbright = 16.0
-        rfaint = 19.0
+        gbright = 16.
+        gfaint = 19.
 
-    std &= obs_rflux < 10**((22.5 - rbright)/2.5)
-    std &= obs_rflux > 10**((22.5 - rfaint)/2.5)
+    std &= gaiagmag >= gbright
+    std &= gaiagmag < gfaint
 
     return std
 
@@ -1022,7 +1057,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
         - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
 
     """
     if primary is None:
@@ -2006,10 +2041,20 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     release = objects['RELEASE']
 
     gfluxivar = objects['FLUX_IVAR_G']
+    rfluxivar = objects['FLUX_IVAR_R']
+    zfluxivar = objects['FLUX_IVAR_Z']
 
-    gfracflux = objects['FRACFLUX_G'].T # note transpose
-    rfracflux = objects['FRACFLUX_R'].T # note transpose
-    zfracflux = objects['FRACFLUX_Z'].T # note transpose
+    gnobs = objects['NOBS_G']
+    rnobs = objects['NOBS_R']
+    znobs = objects['NOBS_Z']
+
+    gfracflux = objects['FRACFLUX_G']
+    rfracflux = objects['FRACFLUX_R']
+    zfracflux = objects['FRACFLUX_Z']
+
+    gfracmasked = objects['FRACMASKED_G']
+    rfracmasked = objects['FRACMASKED_R']
+    zfracmasked = objects['FRACMASKED_Z']
 
     gallmask = objects['ALLMASK_G']
     rallmask = objects['ALLMASK_R']
