@@ -1003,7 +1003,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
             Galactic latitude (degrees).
         astrometricexcessnoise: array_like or None
             Excess noise of the source in Gaia (as in the Gaia Data Model).
-        pmra, pmdec, parallax, parallax_over_error: array_like or None
+        pmra, pmdec, parallax, parallaxovererror: array_like or None
             Gaia-based proper motion in RA and Dec, and parallax and error
             (same units as the Gaia data model).
         photbprpexcessfactor: array_like or None
@@ -1053,7 +1053,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws &= np.abs(galb) > 20.
 
     #ADM gentle cut on parallax significance
-    mws &= parallax_over_error > 1.
+    mws &= parallaxovererror > 1.
 
     #ADM Color/absolute magnitude cuts of (defining the WD cooling sequence):
     #ADM Gabs > 5
@@ -2041,7 +2041,11 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if len(w[0]) > 0:
         deltaChi2[w] = -1e6
 
-    #ADM the Gaia columns
+    #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
+    if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
+        log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
+
+    #ADM add the Gaia columns
     gaia = objects['REF_ID'] != -1
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
