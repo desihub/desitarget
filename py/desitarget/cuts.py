@@ -626,8 +626,8 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
         mask : boolean array, True if the object has colors like a STD star target
 
     Notes:
-        - Current version (07/31/18) is version 117 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
+        - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
 
     """
 
@@ -681,8 +681,8 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
         mask : boolean array, True if the object passes Gaia quality cuts.
 
         Notes:
-        - Current version (07/31/18) is version 117 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
+        - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
         - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
     """
@@ -725,12 +725,12 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     return std
 
 
-def isFSTD(gflux=None, rflux=None, zflux=None, primary=None, 
+def isSTD(gflux=None, rflux=None, zflux=None, primary=None, 
            gfracflux=None, rfracflux=None, zfracflux=None,
            gsnr=None, rsnr=None, zsnr=None,
            objtype=None, obs_rflux=None, bright=False):
-    """Select FSTD targets using color cuts and photometric quality cuts (PSF-like
-    and fracflux).  See isFSTD_colors() for additional info.
+    """Select STD targets using color cuts and photometric quality cuts (PSF-like
+    and fracflux).  See isSTD_colors() for additional info.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -746,17 +746,17 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
           "normal" brightness standards.
 
     Returns:
-        mask : boolean array, True if the object has colors like an FSTD
+        mask : boolean array, True if the object has colors like a STD star
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
-    fstd = primary.copy()
+    std = primary.copy()
 
     # Apply the magnitude and color cuts.
-    fstd &= isFSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     # Apply type=PSF, fracflux, and S/N cuts.
-    fstd &= _psflike(objtype)
+    std &= _psflike(objtype)
 
     #ADM probably a more elegant way to do this, coded it like this for
     #ADM data model transition from 2-D to 1-D arrays
@@ -766,8 +766,8 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
     with warnings.catch_warnings():
         warnings.simplefilter('ignore') # fracflux can be Inf/NaN
         for j in (0, 1, 2):  # g, r, z
-            fstd &= fracflux[j] < 0.04
-            fstd &= snr[j] > 10
+            std &= fracflux[j] < 0.04
+            std &= snr[j] > 10
 
     # Observed flux; no Milky Way extinction
     if obs_rflux is None:
@@ -780,10 +780,10 @@ def isFSTD(gflux=None, rflux=None, zflux=None, primary=None,
         rbright = 16.0
         rfaint = 19.0
 
-    fstd &= obs_rflux < 10**((22.5 - rbright)/2.5)
-    fstd &= obs_rflux > 10**((22.5 - rfaint)/2.5)
+    std &= obs_rflux < 10**((22.5 - rbright)/2.5)
+    std &= obs_rflux > 10**((22.5 - rfaint)/2.5)
 
-    return fstd
+    return std
 
 
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
@@ -1021,8 +1021,8 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     Notes:
         - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-        - Current version (07/31/18) is version 117 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117#WhiteDwarfsMWS-WD
+        - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
 
     """
     if primary is None:
@@ -1052,7 +1052,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     #ADM Galactic b at least 20o from the plane
     mws &= np.abs(galb) > 20.
 
-    #ADM a well-measured parallax
+    #ADM gentle cut on parallax significance
     mws &= parallax_over_error > 1.
 
     #ADM Color/absolute magnitude cuts of (defining the WD cooling sequence):
@@ -1576,8 +1576,8 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             True if and only if the object is a QSO target.
     
     Notes:
-        as of 07/31/18, based on 
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117
+        as of 08/01/18, based on 
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121
 
     """
     # BRICK_PRIMARY
@@ -1698,8 +1698,8 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             True if and only if the object is a QSO target.
 
     Notes:
-        as of 07/31/18, based on 
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=117
+        as of 08/01/18, based on 
+        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121
 
     """
     # BRICK_PRIMARY
@@ -1802,7 +1802,7 @@ def _psflike(psftype):
     """ If the object is PSF """
     #ADM explicitly checking for NoneType. I can't see why we'd ever want to
     #ADM run this test on empty information. In the past we have had bugs where
-    #ADM we forgot to pass objtype=objtype in, e.g., isFSTD
+    #ADM we forgot to pass objtype=objtype in, e.g., isSTD
     if psftype is None:
         raise ValueError("NoneType submitted to _psfflike function")
 
@@ -2134,17 +2134,17 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     if "STD" in tcnames:
         #ADM Make sure to pass all of the needed columns! At one point we stopped
         #ADM passing objtype, which meant no standards were being returned.
-        fstd = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        std = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                   gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype)
-        fstd_bright = isFSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                   gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                   gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                   obs_rflux=obs_rflux, objtype=objtype, bright=True)
     else:
         #ADM if not running the standards selection, set everything to arrays of False
-        fstd, fstd_bright = ~primary, ~primary
+        std, std_bright = ~primary, ~primary
 
 
     if "BGS" in tcnames:
@@ -2215,8 +2215,8 @@ def apply_cuts(objects, qso_selection='randomforest', match_to_gaia=True,
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
     # Standards; still need to set STD_WD
-    desi_target |= fstd * desi_mask.STD
-    desi_target |= fstd_bright * desi_mask.STD_BRIGHT
+    desi_target |= std * desi_mask.STD
+    desi_target |= std_bright * desi_mask.STD_BRIGHT
 
     # BGS bright and faint, south
     bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
