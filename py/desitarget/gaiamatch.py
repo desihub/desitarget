@@ -56,6 +56,7 @@ def pop_gaia_coords(inarr):
         Structured array with various column names.
     
     Returns
+    -------
     :class:`numpy.ndarray`
         Input array with columns called "GAIA_RA" and/or "GAIA_DEC" removed.
     """

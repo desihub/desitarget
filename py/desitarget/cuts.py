@@ -592,7 +592,7 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
 
     Notes:
         - Current version (08/01/18) is version 121 on the wiki:
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
 
     """
 
@@ -740,9 +740,9 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     Notes:
         - Gaia data model is at:
-        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
         - Current version (08/01/18) is version 121 on the wiki:
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -1021,9 +1021,9 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
     Notes:
         - Gaia data model is at:
-        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
         - Current version (08/01/18) is version 121 on the wiki:
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
+            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
 
     """
     if primary is None:
