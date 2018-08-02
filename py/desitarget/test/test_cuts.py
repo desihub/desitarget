@@ -131,8 +131,8 @@ class TestCuts(unittest.TestCase):
         qso2 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=None)
         self.assertTrue(np.all(qso1==qso2))
 
-        fstd1 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
-        fstd2 = cuts.isFSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
+        fstd1 = cuts.isSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
+        fstd2 = cuts.isSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
         self.assertTrue(np.all(fstd1==fstd2))
 
     def _test_table_row(self, targets):
