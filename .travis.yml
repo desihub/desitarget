@@ -31,10 +31,10 @@ addons:
             - texlive-latex-extra
             - dvipng
 # python:
-    # - 2.6
+    # - 2.6 Note: no longer testing 2.6; what's actually tested is under "matrix"
     # - 2.7
-    # - 3.3
-    # - 3.4
+    # - 3.5
+    # - 3.6
     # This is just for "egg_info".  All other builds are explicitly given in the matrix
 env:
     global:
@@ -69,8 +69,8 @@ env:
         # Debug the Travis install process.
         - DEBUG=False
     matrix:
-        - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
-        - PYTHON_VERSION=2.7 SETUP_CMD='bdist_egg'
+#        - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+#        - PYTHON_VERSION=2.7 SETUP_CMD='bdist_egg'
         - PYTHON_VERSION=3.5 SETUP_CMD='egg_info'
         - PYTHON_VERSION=3.5 SETUP_CMD='bdist_egg'
         - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
