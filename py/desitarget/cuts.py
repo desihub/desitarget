@@ -679,7 +679,8 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     std &= pm > 2.
 
     #ADM fail if dupsource is not Boolean, as was the case for the 7.0 sweeps    
-    if not isinstance(dupsource[0],(bool,np.bool_)):
+    #ADM otherwise logic checks on dupsource will be misleading
+    if not (dupsource.dtype.type == np.bool_):
         log.error('GAIA_DUPLICATED_SOURCE (dupsource) should be boolean!')
         raise IOError
 
@@ -1865,10 +1866,10 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     return colors, r, photOK
 
 def _is_row(table):
-    '''Return True/False if this is a row of a table instead of a full table
+    """Return True/False if this is a row of a table instead of a full table
 
     supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
-    '''
+    """
     import astropy.io.fits.fitsrec
     import astropy.table.row
     if isinstance(table, (astropy.io.fits.fitsrec.FITS_record, astropy.table.row.Row)) or \
@@ -1897,10 +1898,6 @@ def unextinct_fluxes(objects):
     else:
         result = np.zeros(len(objects), dtype=dtype)
 
-#ADM This was a hack for DR3 because of some corrupt sweeps/Tractor files,
-#ADM the comment can be removed if DR4/DR5 run OK. It's just here as a reminder.
-#    dered_decam_flux = np.divide(objects['DECAM_FLUX'] , objects['DECAM_MW_TRANSMISSION'],
-#                                 where=objects['DECAM_MW_TRANSMISSION']!=0)
     result['GFLUX'] = objects['FLUX_G'] / objects['MW_TRANSMISSION_G']
     result['RFLUX'] = objects['FLUX_R'] / objects['MW_TRANSMISSION_R']
     result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
@@ -2066,13 +2063,14 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if len(w) > 0:
         gaiaparamssolved[w] = 3
 
-    #ADM test if these exist, as they aren't in the Tractor files as of DR7
+    #ADM test if these columns exist, as they aren't in the Tractor files as of DR7
     gaiabprpfactor = None
-    if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in objects.dtype.names:
-        gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
     gaiasigma5dmax = None
-    if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in objects.dtype.names:
+    try:
+        gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
         gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
+    except:
+        pass
 
     #ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"],objects["DEC"])

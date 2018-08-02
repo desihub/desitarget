@@ -59,7 +59,9 @@ class TestIO(unittest.TestCase):
 
     def test_tractor_columns(self):
         #ADM Gaia columns that get added on input
-        from desitarget.gaiamatch import gaiadatamodel
+        from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+        #ADM have to remove the GAIA_RA, GAIA_DEC columns used for matching
+        gaiadatamodel = pop_gaia_coords(gaiadatamodel)
         #ADM BRICK_PRIMARY, SUBPRIORITY and PHOTSYS get added on input
         tscolumns = list(io.tsdatamodel.dtype.names)                 \
                     + ['BRICK_PRIMARY','PHOTSYS','SUBPRIORITY']      \

@@ -138,6 +138,9 @@ class TestCuts(unittest.TestCase):
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
+        #ADM this just suppresses some warnings about zero parallax
+        #ADM for single-row tests
+        targets[0]["parallax"] = 1e-16
 
         self.assertFalse(cuts._is_row(targets))
         self.assertTrue(cuts._is_row(targets[0]))
@@ -185,6 +188,7 @@ class TestCuts(unittest.TestCase):
 
                 self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
 
+    @unittest.skip("The sandbox isn't used much, we will probably deprecate it.")
     def test_select_targets_sandbox(self):
         """Test sandbox cuts at least don't crash
         """
