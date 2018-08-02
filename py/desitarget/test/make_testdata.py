@@ -26,8 +26,8 @@ for brick in ['3301m002', '3301m007', '3303p000']:
     no = np.where(desi_target == 0)[0]
     keep = np.concatenate([yes[0:3], no[0:3]])
 #    data, hdr = fits.getdata(filepath, header=True)
-#    fits.writeto('t/'+basename(filepath), data[keep], header=hdr)
     data, hdr = read_tractor(filepath, header=True)
+
     #ADM the FRACDEV and FRACDEV_IVAR columns can 
     #ADM contain some NaNs, which break testing
     wnan = np.where(data["FRACDEV"] != data["FRACDEV"])
@@ -36,6 +36,11 @@ for brick in ['3301m002', '3301m007', '3303p000']:
     wnan = np.where(data["FRACDEV_IVAR"] != data["FRACDEV_IVAR"])
     if len(wnan[0]) > 0:
         data["FRACDEV_IVAR"][wnan] = 0.
+
+    #ADM the "CONTINUE" comment keyword is not yet implemented
+    #ADM in fitsio, so delete it to prevent fitsio barfing on headers
+    hdr.delete("CONTINUE")
+#    fits.writeto('t/'+basename(filepath), data[keep], header=hdr, overwrite=True)
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made Tractor file for brick {}...t={:.2f}s'.format(brick,time()-start))
 
@@ -46,13 +51,18 @@ for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
     desi_target, bgs_target, mws_target = apply_cuts(filepath)
     yes = np.where( (desi_target != 0) & (mws_target == 0) )[0]
+
     #ADM as nobody is testing the MWS in the sandbox, yet, we need to
     #ADM ensure we ignore MWS targets for testing the main algorithms
     no = np.where(desi_target == 0)[0]
     keep = np.concatenate([yes[0:3], no[0:3]])
 #    data, hdr = fits.getdata(filepath, header=True)
-#    fits.writeto('t/'+basename(filepath), data[keep], header=hdr)
     data, hdr = read_tractor(filepath, header=True)
+
+    #ADM the "CONTINUE" comment keyword is not yet implemented
+    #ADM in fitsio, so delete it to prevent fitsio barfing on headers
+    hdr.delete("CONTINUE")
+#    fits.writeto('t/'+basename(filepath), data[keep], header=hdr, overwrite=True)
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made sweeps file for range {}...t={:.2f}s'.format(radec,time()-start))
 
