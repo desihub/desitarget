@@ -1,0 +1,42 @@
+#!/usr/bin/env python
+
+import sys
+from desitarget import io
+from desitarget.gaiamatch import write_gaia_matches
+from time import time
+start = time()
+
+#import warnings
+#warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Match sweeps files to Gaia and rewrite files with the Gaia columns added')
+ap.add_argument("src", 
+                help="Sweeps file or root directory with sweeps files")
+ap.add_argument("dest", 
+                help="Output directory")
+ap.add_argument("--gaiadir", 
+                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
+                default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [{}]'.format(nproc),
+                default=nproc)
+
+ns = ap.parse_args()
+infiles = io.list_sweepfiles(ns.src)
+if len(infiles) == 0:
+    log.critical('no sweep files found')
+    sys.exit(1)
+
+log.info("running on {} processors".format(ns.numproc))
+
+write_gaia_matches(infiles, numproc=ns.numproc, outdir=ns.dest, gaiadir=ns.gaiadir)
+
+log.info('Wrote sweeps files matched to Gaia to {}...t={:.1f}s'.format(ns.dest, time()-start))
+
