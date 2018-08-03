@@ -31,7 +31,7 @@ addons:
             - texlive-latex-extra
             - dvipng
 # python:
-    # - 2.6 Note: no longer testing 2.6; what's actually tested is under "matrix"
+    # - 2.6 Note: no longer testing 2.6; what's tested is under "matrix" and "standard tests"
     # - 2.7
     # - 3.5
     # - 3.6
@@ -108,10 +108,10 @@ matrix:
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Standard tests.
-        - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='test'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #  env: PYTHON_VERSION=2.7 SETUP_CMD='test'
+        #       CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #       PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Redundant with the coverage test
         # - os: linux

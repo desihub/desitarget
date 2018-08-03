@@ -94,6 +94,9 @@ for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
 #ADM this should go in its own directory /t2 (others are in t1)
 filepath = '{}/sweep-{}.fits'.format(sweepdir, '190m005-200p000')
 data, hdr = read_tractor(filepath, header=True)
+#ADM the "CONTINUE" comment keyword is not yet implemented
+#ADM in fitsio, so delete it to prevent fitsio barfing on headers
+hdr.delete("CONTINUE")
 keep = np.where(data["FLUX_Z"] > 100000)
 fitsio.write('t2/'+basename(filepath), data[keep], header=hdr, clobber=True)
 print('Done...t={:.2f}s'.format(time()-start))
