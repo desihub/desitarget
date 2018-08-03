@@ -4,7 +4,16 @@ desitarget Change Log
 
 0.21.1 (unreleased)
 -------------------
-
+* Produce current sets of target bits for DR7 [`PR #338`_]:
+   * Update the LRG, QSO, STD and MWS algorithms to align with the `wiki`_.
+   * In particular, major updates to the STD and MWS selections.
+   * Don't match to Gaia by default, only if requested. 
+   * Maintain capability to match to Gaia if needed for earlier Data Releases.
+   * Run subsets of target classes by passing, e.g.. `--tcnames STD,QSO`.
+   * Update unit test files to not rely on Gaia.
+   * Bring Data Model into agreement with Legacy Surveys sweeps files.
+   * Rename `FSTD` to be `STD` throughout.
+   * QA fails gracefully if weight maps for  systematics aren't passed.
 * Update the schema for target selection QA [`PR #334`_]:
    * Sample imaging pixels from the Legacy Surveys to make random catalogs.
    * Add E(B-V) from SFD maps and stellar densities from Gaia to the randoms.
@@ -13,7 +22,9 @@ desitarget Change Log
    * Make several new systematics plots.
    * Make new plots of parallax and proper motion information from Gaia.
 
+.. _`wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 .. _`PR #334`: https://github.com/desihub/desitarget/pull/334
+.. _`PR #338`: https://github.com/desihub/desitarget/pull/338
 
 0.21.0 (2018-07-18)
 -------------------
