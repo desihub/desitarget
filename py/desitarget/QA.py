@@ -1417,7 +1417,7 @@ def _load_targdens(bitnames=None):
     targdens['LRG'] = targdict['ntarget_lrg']
     targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
     targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
-    targdens['STD_FSTAR'] = 0
+    targdens['STD'] = 0
     targdens['STD_BRIGHT'] = 0
     targdens['MWS_ANY'] = targdict['ntarget_mws']
     #ADM set "ALL" to be the sum over all the target classes
@@ -2580,7 +2580,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     #ADM clip the target densities at an upper density to improve plot edges
     #ADM by rejecting highly dense outliers
     upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
-                  'STD_FSTAR': 200, 'STD_BRIGHT': 50,
+                  'STD': 200, 'STD_BRIGHT': 50,
                   'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                   'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_ANY': 5000,
                   'MWS_ANY': 2000, 'MWS_MAIN': 10000, 'MWS_WD': 20000, 'MWS_NEARBY': 50,
@@ -2857,6 +2857,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         #ADM add target density vs. systematics plots, if systematics plots were requested
         if systematics:
+            #ADM fail if the pixel systematics weights file was not passed
+            if imaging_map_file is None:
+                log.error("imaging_map_file was not passed so systematics cannot be tracked. Try again passing systematics=False.")
+                raise IOError
             sysdic = _load_systematics()
             sysnames = list(sysdic.keys())
             #ADM html text to embed the systematics plots
@@ -2924,9 +2928,6 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     #ADM if requested, add systematics plots
     if systematics:
-        #ADM fail if the pixel systematics weights file was not passed
-        if imaging_map_file is None:
-            log.error("imaging_map_file was not passed so systematics cannot be tracked")
         from desitarget import io as dtio
         pixmap = dtio.load_pixweight_recarray(imaging_map_file,nside)
         sysdic = _load_systematics()

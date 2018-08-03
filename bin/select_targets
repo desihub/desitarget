@@ -10,6 +10,9 @@ from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightmask import mask_targets
 
+from time import time
+start = time()
+
 #import warnings
 #warnings.simplefilter('error')
 
@@ -42,11 +45,13 @@ ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
 ap.add_argument("--gaiadir", 
                 help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
-ap.add_argument("--nogaia", action='store_false',
-                help="Do NOT match to Gaia DR2 chunks files in order to populate Gaia columns for MWS selection")
+ap.add_argument("--gaiamatch", action='store_true',
+                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
+ap.add_argument('-t','--tcnames', default=None, 
+                help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -58,20 +63,25 @@ if len(infiles) == 0:
 
 log.info("running on {} processors".format(ns.numproc))
 
+#ADM if specific bit names were passed, use them, otherwise run all target classes
+tcnames = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+if ns.tcnames is not None:
+    tcnames = [ bn for bn in ns.tcnames.split(',') ]
+
 if ns.check:
     log.info('Check input files...')
     nbadfiles = check_input_files(infiles, numproc=ns.numproc)
     log.info('{} potentially corrupt files'.format(nbadfiles))
 else:
     targets = select_targets(infiles, numproc=ns.numproc,
-                             qso_selection=ns.qsoselection, match_to_gaia=ns.nogaia,
+                             qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             gaiadir=ns.gaiadir)
+                             gaiadir=ns.gaiadir, tcnames=tcnames)
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     io.write_targets(ns.dest, targets, indir=ns.src,
         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
 
-    log.info('{} targets written to {}'.format(len(targets), ns.dest))
+    log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
 

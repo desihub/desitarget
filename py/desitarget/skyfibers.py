@@ -725,8 +725,10 @@ def bundle_bricks(pixnum, maxpernode, nside,
             #ADM add the total across all of the pixels
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             #ADM a crude estimate of how long the script will take to run
-            eta = np.sum(goodnum)*2.25/14000
-            outnote.append('Estimated time to run in hours (for 64 processors per node): {:.2f}h'
+            #ADM brickspersec is bricks/sec
+            brickspersec = 1.
+            eta = np.sum(goodnum)/brickspersec/3600.
+            outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
                            .format(eta))
             #ADM track the maximum estimated time for shell scripts, etc.
             if eta.astype(int) + 1 > maxeta:
@@ -767,7 +769,7 @@ def bundle_bricks(pixnum, maxpernode, nside,
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             outfile = "$CSCRATCH/skies-dr{}-hp-{}.fits".format(dr,strgoodpix)
             outfiles.append(outfile)
-            print("srun -N 1 select_skies {} {} --numproc 64 --nside {} --healpixels {} &"
+            print("srun -N 1 select_skies {} {} --numproc 32 --nside {} --healpixels {} &"
                   .format(surveydir,outfile,nside,strgoodpix))
     print("wait")
     print("")

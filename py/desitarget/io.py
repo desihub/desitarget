@@ -21,7 +21,7 @@ from desiutil import depend
 #ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South" 
 #ADM photometric system. This will expand with the definition of RELEASE in the 
 #ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched) 
-releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N'}
+releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S'}
 
 oldtscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
@@ -46,6 +46,7 @@ tsdatamodel = np.array([], dtype=[
         ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'),
         ('MW_TRANSMISSION_G', '>f4'), ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'),
         ('FRACFLUX_G', '>f4'), ('FRACFLUX_R', '>f4'), ('FRACFLUX_Z', '>f4'),
+        ('FRACMASKED_G', '>f4'), ('FRACMASKED_R', '>f4'), ('FRACMASKED_Z', '>f4'),
         ('NOBS_G', '>i2'), ('NOBS_R', '>i2'), ('NOBS_Z', '>i2'),
         ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
         ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
@@ -148,10 +149,14 @@ def add_gaia_columns(indata):
     Notes
     -----
         - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
-          but with "GAIA" prepended to the dtype names
+          but with "GAIA_RA" and "GAIA_DEC" removed
     """
     #ADM import the Gaia data model from gaiamatch
-    from desitarget.gaiamatch import gaiadatamodel
+    from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+
+    #ADM remove the Gaia coordinates from the Gaia data model as they aren't
+    #ADM in the imaging surveys data model
+    gaiadatamodel = pop_gaia_coords(gaiadatamodel)
 
     #ADM create the combined data model
     dt = indata.dtype.descr + gaiadatamodel.dtype.descr
@@ -291,7 +296,9 @@ def read_tractor(filename, header=False, columns=None):
     #ADM if Gaia information was passed, add it to the columns to read
     if (columns is None) and \
        (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
-        from desitarget.gaiamatch import gaiadatamodel
+        from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+        #ADM remove the Gaia coordinates as they aren't in the imaging data model
+        gaiadatamodel = pop_gaia_coords(gaiadatamodel)
         gaiacols = gaiadatamodel.dtype.names
         readcolumns += gaiacols
 
@@ -310,7 +317,7 @@ def read_tractor(filename, header=False, columns=None):
 
     #ADM add Gaia columns if not passed
     if (columns is None) and \
-       (('REF_ID' not in fxcolnames) and ('g_id' not in fxcolnames)):
+       (('REF_ID' not in fxcolnames) and ('ref_id' not in fxcolnames)):
         data = add_gaia_columns(data)
 
     #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
