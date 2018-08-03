@@ -5,14 +5,14 @@ desitarget Change Log
 0.21.1 (unreleased)
 -------------------
 * Produce current sets of target bits for DR7 [`PR #338`_]:
-   * Update the LRG, QSO, STD and MWS algorithms to align with the `wiki`_.
-   * In particular, major updates to the STD and MWS selections.
+   * Update the ``LRG``, ``QSO``, ``STD`` and ``MWS`` algorithms to align with the `wiki`_.
+   * In particular, major updates to the ``STD`` and ``MWS`` selections.
    * Don't match to Gaia by default, only if requested. 
    * Maintain capability to match to Gaia if needed for earlier Data Releases.
-   * Run subsets of target classes by passing, e.g.. `--tcnames STD,QSO`.
+   * Run subsets of target classes by passing, e.g.. ``--tcnames STD,QSO``.
    * Update unit test files to not rely on Gaia.
    * Bring Data Model into agreement with Legacy Surveys sweeps files.
-   * Rename `FSTD` to be `STD` throughout.
+   * Rename ``FSTD`` to be ``STD`` throughout.
    * QA fails gracefully if weight maps for  systematics aren't passed.
 * Update the schema for target selection QA [`PR #334`_]:
    * Sample imaging pixels from the Legacy Surveys to make random catalogs.
@@ -42,7 +42,7 @@ desitarget Change Log
    * Sets MWS_MAIN, MWS_WD and MWS_NEARBY bits.
    * Makes individual QA pages for MWS (and other) bits.
 * Change GFA selection to be Gaia-based [`PR #322`_]:
-   * Update the `select_gfas` binary to draw from Gaia DR2.
+   * Update the ``select_gfas`` binary to draw from Gaia DR2.
    * Parallelize across sweeps files to add fluxes from the Legacy Surveys.
    * Gather all Gaia objects to some magnitude limit in the sweeps areas.
 * Add :mod:`desitarget.gaimatch` for matching to Gaia [`PR #322`_]:
@@ -52,15 +52,15 @@ desitarget Change Log
 * Add missing GMM files to installations [`PR #316`_]. 
 * Introduction of pixel-level creation of sky locations [`PR #313`_]:
    * Significant update of :mod:`desitarget.skyfibers`
-   * :mod:`desitarget.skyutilities.astrometry` to remove `astrometry.net` dependency.
-   * :mod:`desitarget.skyutilities.legacypipe` to remove `legacypipe` dependency.
+   * :mod:`desitarget.skyutilities.astrometry` to remove ``astrometry.net`` dependency.
+   * :mod:`desitarget.skyutilities.legacypipe` to remove ``legacypipe`` dependency.
    * Grids sky locations by applying a binary erosion to imaging blob maps.
    * Sinks apertures at the resulting sky locations to derive flux estimates.
    * Sets the ``BAD_SKY`` bit using high flux levels in those apertures.
    * :func:`desitarget.skyfibers.bundle_bricks` to write a slurm script.
    * Parallelizes via HEALPixels to run in a few hours on interactive nodes.
-   * Adds the `select_skies` binary to run from the command line.
-   * Includes `gather_skies` binary to collect results from parallelization.
+   * Adds the ``select_skies`` binary to run from the command line.
+   * Includes ``gather_skies`` binary to collect results from parallelization.
    * Adds functionality to plot good/bad skies against Legacy Survey images.
 * select_mock_targets full footprint updates [`PR #312`_]. 
 * QA fix for testing without healpix weight map [`PR #311`_]. 
