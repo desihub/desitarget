@@ -2,13 +2,14 @@
 desitarget Change Log
 =====================
 
-0.21.2 (unreleased)
+0.22.1 (unreleased)
 -------------------
 
 * No changes yet.
 
-0.21.1 (2018-07-26)
+0.22.0 (2018-08-03)
 -------------------
+
 * Produce current sets of target bits for DR7 [`PR #338`_]:
    * Update the ``LRG``, ``QSO``, ``STD`` and ``MWS`` algorithms to align with the `wiki`_.
    * In particular, major updates to the ``STD`` and ``MWS`` selections.
@@ -19,6 +20,10 @@ desitarget Change Log
    * Bring Data Model into agreement with Legacy Surveys sweeps files.
    * Rename ``FSTD`` to be ``STD`` throughout.
    * QA fails gracefully if weight maps for  systematics aren't passed.
+
+0.21.1 (2018-07-26)
+-------------------
+
 * Update the schema for target selection QA [`PR #334`_]:
    * Sample imaging pixels from the Legacy Surveys to make random catalogs.
    * Add E(B-V) from SFD maps and stellar densities from Gaia to the randoms.
