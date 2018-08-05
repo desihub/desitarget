@@ -25,7 +25,7 @@ ap.add_argument('-g', '--gaiadir',
                 help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
 ap.add_argument('-m', '--maglim', type=float, 
-                help='Magnitude limit on GFA trgets in Gaia G-band (defaults to [18])',
+                help='Magnitude limit on GFA targets in Gaia G-band (defaults to [18])',
                 default=18)
 ap.add_argument('-n', "--numproc", type=int,
                 help='number of concurrent processes to use (defaults to [{}])'.format(nproc),

@@ -240,6 +240,16 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
+    #ADM add the Gaia coordinate columns if they don't exist
+    if not "GAIA_RA" in objects.dtype.names:
+        gc = np.array([], dtype=[('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8')])
+        dt = objects.dtype.descr + gc.dtype.descr
+        nrows = len(objects)
+        objectswgc = np.zeros(nrows, dtype=dt)
+        for col in objects.dtype.names:
+            objectswgc[col] = objects[col]
+        objects = objectswgc
+
     #ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     #ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
     #ADM approximates SDSS r-band. 
