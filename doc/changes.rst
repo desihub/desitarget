@@ -5,7 +5,9 @@ desitarget Change Log
 0.22.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_].
+
+.. _`PR #340`: https://github.com/desihub/desitarget/pull/340
 
 0.22.0 (2018-08-03)
 -------------------
@@ -21,6 +23,9 @@ desitarget Change Log
    * Rename ``FSTD`` to be ``STD`` throughout.
    * QA fails gracefully if weight maps for  systematics aren't passed.
 
+.. _`wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
+.. _`PR #338`: https://github.com/desihub/desitarget/pull/338
+
 0.21.1 (2018-07-26)
 -------------------
 
@@ -32,9 +37,8 @@ desitarget Change Log
    * Make several new systematics plots.
    * Make new plots of parallax and proper motion information from Gaia.
 
-.. _`wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 .. _`PR #334`: https://github.com/desihub/desitarget/pull/334
-.. _`PR #338`: https://github.com/desihub/desitarget/pull/338
+
 
 0.21.0 (2018-07-18)
 -------------------
