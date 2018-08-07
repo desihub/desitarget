@@ -5,7 +5,9 @@ desitarget Change Log
 0.22.1 (unreleased)
 -------------------
 
-* Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_].
+* Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_]:
+   * Also add BRIGHTSTARINBLOB (if available) to target output files.
+   * And include a flag to call STD star cuts function without Gaia columns.
 
 .. _`PR #340`: https://github.com/desihub/desitarget/pull/340
 
