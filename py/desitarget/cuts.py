@@ -697,7 +697,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
           gaia=None, astrometricexcessnoise=None, paramssolved=None,
           pmra=None, pmdec=None, parallax=None, dupsource=None, 
-          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
+          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False,
+          usegaia=True):
     """Select STD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isSTD_colors() for additional info.
 
@@ -730,10 +731,15 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         dupsource: array_like or None
             Whether the source is a duplicate in Gaia (as in the Gaia Data model).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
-        bright: apply magnitude cuts for "bright" conditions; otherwise, choose
-          "normal" brightness standards. Cut is performed on `gaiagmag`.
+            Gaia-based g-, b- and r-band MAGNITUDES (same units as Gaia data model).
+        bright: boolean, defaults to ``False`` 
+           if ``True`` apply magnitude cuts for "bright" conditions; otherwise, 
+           choose "normal" brightness standards. Cut is performed on `gaiagmag`.
+        usegaia: boolean, defaults to ``True``
+           if ``True`` then  call :func:`~desitarget.cuts.isSTD_gaia` to set the 
+           logic cuts. If Gaia is not available (perhaps if you're using mocks)
+           then send ``False`` and pass `gaiagmag` as 22.5-2.5*np.log10(`robs`) 
+           where `robs` is `rflux` without a correction.for Galactic extinction.
 
     Returns:
         mask : boolean array, True if the object has colors like a STD star
@@ -752,10 +758,11 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     #ADM apply the Gaia quality cuts.
-    std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=astrometricexcessnoise, 
-                      pmra=pmra, pmdec=pmdec, parallax=parallax,
-                      dupsource=dupsource, paramssolved=paramssolved,
-                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+    if usegaia:
+        std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=astrometricexcessnoise, 
+                          pmra=pmra, pmdec=pmdec, parallax=parallax,
+                          dupsource=dupsource, paramssolved=paramssolved,
+                          gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
     #ADM apply type=PSF cut
     std &= _psflike(objtype)
