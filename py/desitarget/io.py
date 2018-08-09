@@ -529,7 +529,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
 
-def write_gfas(filename, data, indir=None, nside=None):
+def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -541,9 +541,12 @@ def write_gfas(filename, data, indir=None, nside=None):
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
-    nside: :class:`int`
+    nside: :class:`int`, defaults to None
         If passed, add a column to the GFAs array popluated with HEALPixels 
         at resolution `nside`
+    gaiaepoch: :class:`float`, defaults to None
+        Gaia proper motion reference epoch. If not None, write to header of
+        output file. If None, default to an epoch of 2015.5
     """
     #ADM set up the default logger
     from desiutil.log import get_logger
@@ -569,6 +572,12 @@ def write_gfas(filename, data, indir=None, nside=None):
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
+
+    hdr['REFEPOCH'] =  {'name': 'REFEPOCH',
+                        'value': 2015.5,
+                        'comment': "Gaia Proper Motion Reference Epoch"}
+    if gaiaepoch is not None:
+        hdr['REFEPOCH'] = gaiaepoch
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
