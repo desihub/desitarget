@@ -2153,7 +2153,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if "STD" in tcnames:
         #ADM Make sure to pass all of the needed columns! At one point we stopped
         #ADM passing objtype, which meant no standards were being returned.
-        std = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        std_faint = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
             gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
             zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
@@ -2171,7 +2171,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
     else:
         #ADM if not running the standards selection, set everything to arrays of False
-        std, std_bright = ~primary, ~primary
+        std_faint, std_bright = ~primary, ~primary
 
 
     if "BGS" in tcnames:
@@ -2241,7 +2241,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
     # Standards; still need to set STD_WD
-    desi_target |= std * desi_mask.STD
+    desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
 
     # BGS bright and faint, south

@@ -696,7 +696,7 @@ def apply_sandbox_cuts(objects,FoMthresh=None, MethodELG='XD'):
         desi_target |= elg * desi_mask.ELG
     #desi_target |= qso * desi_mask.QSO
 
-    #desi_target |= fstd * desi_mask.STD_FSTAR
+    #desi_target |= fstd * desi_mask.STD_FAINT
 
     bgs_target = np.zeros_like(desi_target)
     #bgs_target = bgs_bright * bgs_mask.BGS_BRIGHT

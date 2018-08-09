@@ -31,12 +31,16 @@ desi_mask:
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [STD,         33, "standard stars", {obsconditions: DARK|GRAY}]
+    - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK|GRAY}]
     - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_BRIGHT,  35, "standard stars for BRIGHT conditions",
+    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions",
         {obsconditions: BRIGHT}]
     - [BAD_SKY,      36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
+    #- Reserving some bits that we may not use
+    # - [STD_FAINT_BEST,   37, "High quality faint standard stars", {obsconditions: DARK|GRAY}]
+    # - [STD_BRIGHT_BEST,  38, "High quality bright standard stars", {obsconditions: BRIGHT}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,   49, "No known target at this location",
@@ -171,10 +175,12 @@ priorities:
         LRG_2PASS_SOUTH: SAME_AS_LRG
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
-        STD:        -1
+        STD_FAINT:  -1
         STD_WD:     -1
         SKY:        -1
         STD_BRIGHT: -1
+        # STD_FAINT_BEST: -1
+        # STD_BRIGHT_BEST: -1
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities
