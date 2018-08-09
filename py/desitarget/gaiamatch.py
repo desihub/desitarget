@@ -421,3 +421,106 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
             gaiainfo = gaia[idgaia]
         
     return gaiainfo
+
+
+def write_gaia_matches(infiles, numproc=4, outdir=".",
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+    """Match sweeps files to Gaia and rewrite with the Gaia columns added
+
+    Parameters
+    ----------
+    infiles : :class:`list` or `str`
+        A list of input filenames (sweep files) OR a single filename.
+        Arrays in the files must contain at least the columns "RA" and "DEC".
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+    outdir : :class:`str`, optional, default to the current directory
+        The directory to write the files.
+    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        The original sweeps files with the columns in `gaiadatamodel`
+        added (except for the columns `GAIA_RA` and `GAIA_DEC`) are
+        written to file. The filename is the same as the input
+        filename with the ".fits" replaced by "-gaia$DRmatch.fits"
+        where $DR is extracted from the passed gaiadir.
+
+    Notes
+    -----
+        - if numproc==1, use the serial code instead of the parallel code.
+    """
+    from os.path import basename
+    from desitarget import io
+    from desitarget.internal import sharedmem
+
+    #ADM convert a single file, if passed to a list of files
+    if isinstance(infiles,str):
+        infiles = [infiles,]
+
+    #ADM check that files exist before proceeding
+    for filename in infiles:
+        if not os.path.exists(filename):
+            raise ValueError("{} doesn't exist".format(filename))
+
+    nfiles = len(infiles)
+
+    #ADM extract a reasonable name for output files from the Gaia directory
+    drloc = gaiadir.find("dr")
+    #ADM if we didn't find the substring "dr" go generic
+    if drloc == -1:
+        ender = '-gaiamatch.fits'
+    else:
+        ender = '-gaia{}match.fits'.format(gaiadir[drloc:drloc+3])
+
+    #ADM the critical function to run on every file
+    def _get_gaia_matches(fnwdir):
+        '''wrapper on match_gaia_to_primary() given a file name'''
+        #ADM extract the output file name
+        fn = basename(fnwdir)
+        outfile = '{}/{}'.format(outdir,fn.replace(".fits",ender))
+
+        #ADM read in the objects
+        objs, hdr = io.read_tractor(fnwdir,header=True)
+
+        #ADM match to Gaia sources
+        gaiainfo = match_gaia_to_primary(objs, gaiadir=gaiadir)
+        log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
+                 .format(len(objs),time()-start))
+
+        #ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
+        #ADM in the imaging surveys data model
+        gaiainfo = pop_gaia_coords(gaiainfo)
+
+        #ADM add the Gaia column information to the sweeps array
+        for col in gaiainfo.dtype.names:
+            objs[col] = gaiainfo[col]
+
+        fitsio.write(outfile, objs, extname='SWEEP', header=hdr, clobber=True)
+        return True
+
+    #ADM this is just to count sweeps files in _update_status 
+    nfile = np.zeros((), dtype='i8')
+
+    t0 = time()
+    def _update_status(result):
+        ''' wrapper function for the critical reduction operation,
+            that occurs on the main parallel process '''
+        if nfile%50 == 0 and nfile>0:
+            rate = nfile / (time() - t0)
+            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+        nfile[...] += 1    # this is an in-place modification
+        return result
+
+    #- Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            _ = pool.map(_get_gaia_matches, infiles, reduce=_update_status)
+    else:
+        for file in infiles:
+            _ = _update_status(_get_gaia_matches(file))
+
+    return

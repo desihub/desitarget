@@ -38,6 +38,7 @@ oldtscolumns = [
     ]
 
 #ADM this is an empty array of the full TS data model columns and dtypes
+#ADM other columns can be added in read_tractor
 tsdatamodel = np.array([], dtype=[
         ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
         ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
@@ -287,6 +288,11 @@ def read_tractor(filename, header=False, columns=None):
     if (columns is None) and \
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
+
+    #ADM if BRIGHTSTARINBLOB exists (it does for DR7, not for DR6) add it
+    if (columns is None) and \
+       (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
+        readcolumns.append('BRIGHTSTARINBLOB')
 
     #ADM if SUBPRIORITY was passed by the MWS group, add it to the columns to read
     if (columns is None) and \

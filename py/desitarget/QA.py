@@ -1842,15 +1842,16 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     plt.legend(loc='upper left', frameon=False)
 
     #ADM add some metric conditions which are considered a failure for this
-    #ADM target class...
-
-    #ADM determine the cumulative version of the histogram of densities
-    cum = np.cumsum(h)/np.sum(h)
-    #ADM extract which bins correspond to the "68%" of central values
-    w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
-    minbin, maxbin = b[w][0], b[w][-1]
-    #ADM this is a good plot if the peak value is within the ~68% of central values
-    good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
+    #ADM target class...only for classes that have an expected target density
+    good = True
+    if targdens[objtype] > 0.:
+        #ADM determine the cumulative version of the histogram of densities
+        cum = np.cumsum(h)/np.sum(h)
+        #ADM extract which bins correspond to the "68%" of central values
+        w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
+        minbin, maxbin = b[w][0], b[w][-1]
+        #ADM this is a good plot if the peak value is within the ~68% of central values
+        good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
     
     #ADM write out the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
@@ -2583,8 +2584,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                   'STD': 200, 'STD_BRIGHT': 50,
                   'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                   'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_ANY': 5000,
-                  'MWS_ANY': 2000, 'MWS_MAIN': 10000, 'MWS_WD': 20000, 'MWS_NEARBY': 50,
-                  'MWS_MAIN_RED': 10000, 'MWS_MAIN_BLUE': 10000}
+                  'MWS_ANY': 2000, 'MWS_MAIN': 10000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
+                  'MWS_MAIN_RED': 4000, 'MWS_MAIN_BLUE': 4000}
 
     for objtype in targdens:
         if 'ALL' in objtype:
