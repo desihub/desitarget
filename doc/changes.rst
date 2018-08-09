@@ -2,17 +2,29 @@
 desitarget Change Log
 =====================
 
-0.22.1 (unreleased)
+0.23.1 (unreleased)
 -------------------
+
+* No changes yet.
+
+0.23.0 (2018-08-09)
+-------------------
+
+Includes non-backwards compatible changes to standard star bit names.
 
 * Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_]:
    * Also add BRIGHTSTARINBLOB (if available) to target output files.
    * And include a flag to call STD star cuts function without Gaia columns.
+* STD/STD_FSTAR -> STD_FAINT, with corresponding fixes for mocks [`PR #341`_].
 
 .. _`PR #340`: https://github.com/desihub/desitarget/pull/340
+.. _`PR #341`: https://github.com/desihub/desitarget/pull/341
 
 0.22.0 (2018-08-03)
 -------------------
+
+Includes non-backwards compatible changes to standard star target mask
+bit names and selection function names.
 
 * Produce current sets of target bits for DR7 [`PR #338`_]:
    * Update the ``LRG``, ``QSO``, ``STD`` and ``MWS`` algorithms to align with the `wiki`_.
