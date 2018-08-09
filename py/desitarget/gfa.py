@@ -272,7 +272,7 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     if gaiamatch:
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir,
                                      retaingaia=True, gaiabounds=gaiabounds)
-#        log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
+        log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
         #ADM add the Gaia column information to the primary array
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col][:nobjs]
@@ -337,9 +337,10 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     w = np.where(gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim)[0]
     gfas = gfas[w]
     
-    #ADM a final clean-up to remove columns that are Nan
+    #ADM a final clean-up to remove columns that are Nan (from
+    #ADM Gaia-matching) or are 0 (in the sweeps)
     for col in ["PMRA","PMDEC"]:
-        w = np.where(~np.isnan(gfas[col]))[0]
+        w = np.where( ~np.isnan(gfas[col]) & (gfas[col] != 0) )[0]
         gfas = gfas[w]
 #    log.info('Removed {} Gaia objects with NaN columns...t = {:.1f}s'
 #             .format(len(objects)-len(gfas),time()-start))
