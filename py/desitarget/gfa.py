@@ -227,7 +227,7 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
         Magnitude limit for GFAs in Gaia G-band.
     gaiamatch : defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate
-        Gaia columns to facilitate the MWS selection
+        Gaia columns, otherwise assume those columns already exist
     gaiabounds : :class:`list`, optional, defaults to the whole sky
         The area over which to retrieve Gaia objects that don't match a sweeps object. 
         Pass a 4-entry list to form a box bounded by [RAmin, RAmax, DECmin, DECmax].
@@ -378,7 +378,7 @@ def decode_sweep_name(sweepname):
     return [ramin,ramax,decmin,decmax]
 
 
-def select_gfas(infiles, maglim=18, numproc=4,
+def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False,
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Create a set of GFA locations using Gaia
 
@@ -390,6 +390,9 @@ def select_gfas(infiles, maglim=18, numproc=4,
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
+    gaiamatch : defaults to ``False``
+        If ``True``, match to Gaia DR2 chunks files and populate
+        Gaia columns, otherwise assume those columns already exist
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
@@ -422,7 +425,7 @@ def select_gfas(infiles, maglim=18, numproc=4,
         bounds = decode_sweep_name(fn)
 
         return gaia_gfas_from_sweep(fn, maglim=maglim, 
-                                    gaiadir=gaiadir, gaiabounds=bounds)
+                    gaiamatch=gaiamatch, gaiadir=gaiadir, gaiabounds=bounds)
 
     #ADM this is just to count sweeps files in _update_status 
     nfile = np.zeros((), dtype='i8')
