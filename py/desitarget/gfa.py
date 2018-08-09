@@ -213,7 +213,8 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, gfa_data, extname='GFA')
 
 
-def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.], 
+def gaia_gfas_from_sweep(objects, maglim=18., 
+                         gaiamatch=False, gaiabounds=[0.,360.,-90.,90.], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Create a set of GFAs from Gaia-matching for one sweep file or sweep objects
 
@@ -224,6 +225,9 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
         a string corresponding to a sweep filename.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
+    gaiamatch : defaults to ``False``
+        If ``True``, match to Gaia DR2 chunks files and populate
+        Gaia columns to facilitate the MWS selection
     gaiabounds : :class:`list`, optional, defaults to the whole sky
         The area over which to retrieve Gaia objects that don't match a sweeps object. 
         Pass a 4-entry list to form a box bounded by [RAmin, RAmax, DECmin, DECmax].
@@ -240,8 +244,9 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
-    #ADM add the Gaia coordinate columns if they don't exist
-    if not "GAIA_RA" in objects.dtype.names:
+    #ADM add the Gaia coordinate columns if they don't exist and
+    #ADM if Gaia-matching was requested
+    if gaiamatch and not "GAIA_RA" in objects.dtype.names:
         gc = np.array([], dtype=[('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8')])
         dt = objects.dtype.descr + gc.dtype.descr
         nrows = len(objects)
@@ -261,38 +266,41 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     nobjs = len(objects)
 
     #ADM match the sweeps objects to Gaia retaining Gaia objects that do not
-    #ADM have a match in the sweeps
+    #ADM have a match in the sweeps, if Gaia matching was requested
 #    log.info('Starting Gaia match for {} objects...t = {:.1f}s'
 #             .format(nobjs,time()-start))
-    gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir,
+    if gaiamatch:
+        gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir,
                                      retaingaia=True, gaiabounds=gaiabounds)
-#    log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
-    #ADM add the Gaia column information to the primary array
-    for col in gaiainfo.dtype.names:
-        objects[col] = gaiainfo[col][:nobjs]
+#        log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
+        #ADM add the Gaia column information to the primary array
+        for col in gaiainfo.dtype.names:
+            objects[col] = gaiainfo[col][:nobjs]
     
-    #ADM an additional array to hold the Gaia objects that have no sweeps match
-    supg = np.zeros(len(gaiainfo) - nobjs, dtype=objects.dtype)
-    #ADM make sure all of these additional columns have "ridiculous" numbers
-    supg[...] = -1
-    #ADM but default the IVARs that would appear in the sweeps (g/r/z) to 0
-    for col in ["FLUX_IVAR_G", "FLUX_IVAR_R", "FLUX_IVAR_Z"]:
-        supg[col] = 0.
-    #ADM and then TYPE to PSF
-    supg["TYPE"] = 'PSF'
-    #ADM populate these additional objects
-    for col in gaiainfo.dtype.names:
-        supg[col] = gaiainfo[col][nobjs:]
-    #ADM store the Gaia RA/DEC as the default for objects with no sweeps match
-    for col in ["RA","DEC"]:
-        supg[col] = supg["GAIA_"+col]
+        #ADM an additional array to hold the Gaia objects that have no sweeps match
+        supg = np.zeros(len(gaiainfo) - nobjs, dtype=objects.dtype)
+        #ADM make sure all of these additional columns have "ridiculous" numbers
+        supg[...] = -1
+        #ADM but default the IVARs that would appear in the sweeps (g/r/z) to 0
+        for col in ["FLUX_IVAR_G", "FLUX_IVAR_R", "FLUX_IVAR_Z"]:
+            supg[col] = 0.
+        #ADM and then TYPE to PSF
+        supg["TYPE"] = 'PSF'
+        #ADM populate these additional objects
+        for col in gaiainfo.dtype.names:
+            supg[col] = gaiainfo[col][nobjs:]
+        #ADM store the Gaia RA/DEC as the default for objects with no sweeps match
+        for col in ["RA","DEC"]:
+            supg[col] = supg["GAIA_"+col]
 
-    #ADM combine the primary and supplemental arrays
-    objects = np.hstack([objects,supg])
+        #ADM combine the primary and supplemental arrays
+        objects = np.hstack([objects,supg])
 
     #ADM only retain objects with Gaia matches
     #ADM it's fine to propagate an empty array if there are no matches
-    w = np.where(objects["REF_ID"] != -1)[0]
+    #ADM note that the sweeps use 0 for objects with no REF_ID
+    #ADM and desitarget.gaiamatch uses -1. So, > 0 checks both.
+    w = np.where(objects["REF_ID"] > 0)[0]
     objects = objects[w]
 
     #ADM it's possible that a Gaia object matches two sweeps objects, so
@@ -303,8 +311,8 @@ def gaia_gfas_from_sweep(objects, maglim=18., gaiabounds=[0.,360.,-90.,90.],
     objects = objects[ind]
      
     #ADM determine a TARGETID for any objects on a brick (this should
-    #ADM end up as -1 for anything that is Gaia-only as all of
-    #ADM objid, brickid and release should be -1
+    #ADM end up as -1 for anything that is Gaia-only (from Gaia-matching)
+    #ADM as all of objid, brickid and release should be -1
     targetid = encode_targetid(objid=objects['OBJID'],
                                brickid=objects['BRICKID'],
                                release=objects['RELEASE'])
