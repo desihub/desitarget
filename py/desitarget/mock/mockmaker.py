@@ -3119,7 +3119,7 @@ class STARMaker(SelectTargets):
             criteria.  Defaults to None.
 
         """
-        from desitarget.cuts import isFSTD
+        from desitarget.cuts import isSTD
 
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
         obs_rflux = targets['FLUX_R'] # observed (attenuated) flux
@@ -3127,34 +3127,49 @@ class STARMaker(SelectTargets):
         gsnr, rsnr, zsnr = gflux*0+100, rflux*0+100, zflux*0+100    # Hack -- fixed S/N
         gfracflux, rfracflux, zfracflux = gflux*0, rflux*0, zflux*0 # # No contamination from neighbors.
         objtype = np.repeat('PSF', len(targets)).astype('U3') # Right data type?!?
+        #ADM hack in values of the number of observations
+        gnobs, rnobs, znobs = gflux*0+1, rflux*0+1, zflux*0+1
+        #ADM hack in values of fracmasked
+        gfracmasked, rfracmasked, zfracmasked = gflux*0+0.001, rflux*0+0.001, zflux*0+0.001
+        #ADM hack in the ivars using the hacked snr
+        gfluxivar, rfluxivar, zfluxivar = (gsnr/gflux)**2., (rsnr/rflux)**2., (zsnr/zflux)**2.
 
-        # Select dark-time FSTD targets.  Temporary hack to use the BOSS
+        # Select dark-time STD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
         if boss_std is not None:
             rbright, rfaint = 16, 19
-            fstd = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
+            std = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
                 obs_rflux > 10**((22.5 - rfaint)/2.5) )
         else:
-            fstd = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
-                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                          obs_rflux=obs_rflux)
+            #ADM as we have no Gaia information in the mocks, call with usegaia=False 
+            #ADM and pass the observerved r-band as a proxy for gaia G-band
+            std = isSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                        gfracmasked=gfracmasked, rfracmasked=rfracmasked, 
+                        zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                        usegaia=False, bright=False, gaiagmag=22.5-2.5*np.log10(obs_rflux) )
 
-        targets['DESI_TARGET'] |= (fstd != 0) * self.desi_mask.STD_FSTAR
+        targets['DESI_TARGET'] |= (std != 0) * self.desi_mask.STD
 
-        # Select bright-time FSTD targets.  Temporary hack to use the BOSS
+        # Select bright-time STD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
         if boss_std is not None:
-            rbright, rfaint = 14, 17
-            fstd_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
+            #ADM current bright limits are 15 to 18 in Gaia G-band
+            rbright, rfaint = 15, 18
+            std_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
                 obs_rflux > 10**((22.5 - rfaint)/2.5) )
         else:
-            fstd_bright = isFSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                                 gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, 
-                                 gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                                 obs_rflux=obs_rflux, bright=True)
+            #ADM as we have no Gaia information in the mocks, call with usegaia=False 
+            #ADM and pass the observerved r-band as a proxy for gaia G-band
+            std_bright = isSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
+                               gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                               gfracmasked=gfracmasked, rfracmasked=rfracmasked, 
+                               zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                               gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                               usegaia=False, bright=False, gaiagmag=22.5-2.5*np.log10(obs_rflux) )
 
-        targets['DESI_TARGET'] |= (fstd_bright != 0) * self.desi_mask.STD_BRIGHT
+        targets['DESI_TARGET'] |= (std_bright != 0) * self.desi_mask.STD_BRIGHT
 
     def select_contaminants(self, targets, truth):
         """Select stellar (faint and bright) contaminants for the extragalactic targets.
