@@ -44,7 +44,8 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiadir=ns.gaiadir)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, 
+                   gaiamatch=ns.gaiamatch, gaiadir=ns.gaiadir)
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside)
 
