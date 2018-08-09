@@ -3150,7 +3150,7 @@ class STARMaker(SelectTargets):
                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
                         usegaia=False, bright=False, gaiagmag=22.5-2.5*np.log10(obs_rflux) )
 
-        targets['DESI_TARGET'] |= (std != 0) * self.desi_mask.STD
+        targets['DESI_TARGET'] |= (std != 0) * self.desi_mask.STD_FAINT
 
         # Select bright-time STD targets.  Temporary hack to use the BOSS
         # standard-star selection algorith.
