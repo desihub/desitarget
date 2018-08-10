@@ -289,12 +289,14 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
         #ADM populate these additional objects
         for col in gaiainfo.dtype.names:
             supg[col] = gaiainfo[col][nobjs:]
-        #ADM store the Gaia RA/DEC as the default for objects with no sweeps match
-        for col in ["RA","DEC"]:
-            supg[col] = supg["GAIA_"+col]
 
         #ADM combine the primary and supplemental arrays
         objects = np.hstack([objects,supg])
+
+        #ADM store the Gaia RA/DEC as the default for matched objects
+        #ADM as it's really the Gaia astrometry we want
+        for col in ["RA","DEC"]:
+            objects[col] = objects["GAIA_"+col]
 
     #ADM only retain objects with Gaia matches
     #ADM it's fine to propagate an empty array if there are no matches
