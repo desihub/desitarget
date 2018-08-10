@@ -244,6 +244,10 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     if isinstance(objects, str):
         objects = desitarget.io.read_tractor(objects)
 
+    #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
+    if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
+        log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
+
     #ADM add the Gaia coordinate columns if they don't exist and
     #ADM if Gaia-matching was requested
     if gaiamatch and not "GAIA_RA" in objects.dtype.names:
