@@ -5,7 +5,14 @@ desitarget Change Log
 0.23.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Update GFA targets [`PR #342`_]:
+    * Handle reading Gaia from sweeps as well as matching. Default to *not* matching.
+    * Makes Gaia matching radius stricter to return only the best Gaia objects.
+    * Retains Gaia RA/Dec when matching, instead of RA/Dec from sweeps.
+    * Fixes a bug where Gaia objects in some HEALPixels weren't being read.
+    * Add Gaia epoch to the GFA file header (still needs passed from the sweeps).
+
+.. _`PR #342`: https://github.com/desihub/desitarget/pull/342
 
 0.23.0 (2018-08-09)
 -------------------
