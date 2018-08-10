@@ -270,7 +270,9 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
 #    log.info('Starting Gaia match for {} objects...t = {:.1f}s'
 #             .format(nobjs,time()-start))
     if gaiamatch:
-        gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir,
+        #ADM match with a fairly discriminating radius (0.1 arcsec) to just
+        #ADM get the best sweeps-Gaia correspondence
+        gaiainfo = match_gaia_to_primary(objects, matchrad=0.1, gaiadir=gaiadir,
                                      retaingaia=True, gaiabounds=gaiabounds)
         log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
         #ADM add the Gaia column information to the primary array
