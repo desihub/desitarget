@@ -5,7 +5,9 @@ desitarget Change Log
 0.23.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Set ``NUMOBS`` for LRGs in MTL using target bits instead of magnitude [`PR #345`_].
+
+.. _`PR #345`: https://github.com/desihub/desitarget/pull/345
 
 0.23.0 (2018-08-09)
 -------------------
