@@ -44,7 +44,7 @@ commissioning_obsmask:
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
-    comm_mask:
+    commissioning_mask:
         STD_GAIA: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         STD_BRIGHT: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         STD_TEST: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}

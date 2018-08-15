@@ -1,6 +1,6 @@
 """
-desitarget.sv.svtargetmask
-==========================
+desitarget.sv.sv_targetmask
+===========================
 
 This looks more like a script than an actual module.
 """
@@ -17,7 +17,7 @@ def _load_bits():
     """
     global _bitdefs
     if _bitdefs is None:
-        _filepath = resource_filename('desitarget', "sv/data/svtargetmask.yaml")
+        _filepath = resource_filename('desitarget', "sv/data/sv_targetmask.yaml")
         with open(_filepath) as fx:
             _bitdefs = yaml.load(fx)
         try:

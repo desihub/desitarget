@@ -1,6 +1,6 @@
 """
-desitarget.comm.commtargetmask
-==============================
+desitarget.comm.commissioning_targetmask
+========================================
 
 This looks more like a script than an actual module.
 """
@@ -17,7 +17,7 @@ def _load_bits():
     """
     global _bitdefs
     if _bitdefs is None:
-        _filepath = resource_filename('desitarget', "comm/data/commtargetmask.yaml")
+        _filepath = resource_filename('desitarget', "commissioning/data/commissioning_targetmask.yaml")
         with open(_filepath) as fx:
             _bitdefs = yaml.load(fx)
         try:
@@ -48,7 +48,7 @@ def _load_priorities():
                     priorities[bitname]['MORE_ZGOOD'] = priorities[bitname]['UNOBS']
 
                 #- fill in other states as priority=1
-                for state, blat, foo in _bitdefs['comm_obsmask']:
+                for state, blat, foo in _bitdefs['commissioning_obsmask']:
                     if state not in priorities[bitname]:
                         priorities[bitname][state] = 1
             else:
@@ -64,8 +64,8 @@ def _load_priorities():
 if _bitdefs is None:
     _load_bits()
 try:
-    comm_mask = BitMask('comm_mask', _bitdefs)
-    comm_obsmask = BitMask('comm_obsmask', _bitdefs)
+    commissioning_mask = BitMask('commissioning_mask', _bitdefs)
+    commissioning_obsmask = BitMask('commissioning_obsmask', _bitdefs)
 except TypeError:
-    comm_mask = object()
-    comm_obsmask = object()
+    commissioning_mask = object()
+    commissioning_obsmask = object()
