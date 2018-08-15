@@ -199,3 +199,71 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
+
+#ADM INITIAL number of observations (NUMOBS) for each target bit
+#ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
+#ADM -1 means that the concept of NUMOBS doesn't apply to this bit
+numobs:
+    #ADM initial number of observations for targets in the main (dark time) survey
+    desi_mask:
+        ELG: 1
+        LRG: 2
+        QSO: 4
+        LRG_1PASS: 1
+        LRG_2PASS: 2
+        LRG_NORTH: SAME_AS_LRG
+        ELG_NORTH: SAME_AS_ELG
+        QSO_NORTH: SAME_AS_QSO
+        LRG_SOUTH: SAME_AS_LRG
+        ELG_SOUTH: SAME_AS_ELG
+        QSO_SOUTH: SAME_AS_QSO
+        LRG_1PASS_NORTH: SAME_AS_LRG_1PASS
+        LRG_2PASS_NORTH: SAME_AS_LRG_2PASS
+        LRG_1PASS_SOUTH: SAME_AS_LRG_1PASS
+        LRG_2PASS_SOUTH: SAME_AS_LRG_2PASS
+        BAD_SKY: 0
+        #- Standards and sky are treated specially; NUMOBS doesn't apply
+        STD_FAINT:  -1
+        STD_WD:     -1
+        SKY:        -1
+        STD_BRIGHT: -1
+        # STD_FAINT_BEST: -1
+        # STD_BRIGHT_BEST: -1
+        SV: -1
+        NO_TARGET:  -1
+        #- placeholders to show we haven't forgotten these bits, but the
+        #- exact bits in the other sections define the number of observations
+        BRIGHT_OBJECT: -1
+        IN_BRIGHT_OBJECT: -1
+        NEAR_BRIGHT_OBJECT: -1
+        BGS_ANY: -1
+        MWS_ANY: -1
+        SECONDARY_ANY: -1
+
+    #ADM initial number of observations for targets in the Bright Galaxy Survey
+    bgs_mask:
+        BGS_FAINT: 1
+        BGS_BRIGHT: 1
+        BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
+        BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
+        BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
+        BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+        BGS_KNOWN_ANY: 1
+        BGS_KNOWN_COLLIDED: 1
+        BGS_KNOWN_SDSS: 1
+        BGS_KNOWN_BOSS: 1
+
+    #ADM initial number of observations for targets in the Bright Galaxy Survey
+    mws_mask: 
+        MWS_MAIN:                     1
+        MWS_WD:                       1
+        MWS_NEARBY:                   1
+        MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
+        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
+        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
+        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN
+        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
+        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
+        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
+
