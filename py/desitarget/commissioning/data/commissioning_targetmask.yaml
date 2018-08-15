@@ -1,5 +1,5 @@
 #- commissioning primary survey targets bit mask:
-comm_mask:
+commissioning_mask:
     
     - [STD_GAIA,  0, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
     - [STD_BRIGHT,  1, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
@@ -18,7 +18,7 @@ comm_mask:
 #- ADM It's possible that we'll want different obsmask criteria compared
 #- ADM to the obsmask in targetmask.yaml for the main survey
 #- ADM (but it's unlikely we'll want different *obsconditions* or *targetids*
-comm_obsmask:
+commissioning_obsmask:
     - [UNOBS,       0, "unobserved"]
     - [OBS,         1, "observed but no spectro pipeline answer yet"]
     - [DONE,        2, "enough observations already obtained"]
