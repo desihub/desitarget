@@ -161,6 +161,7 @@ priorities:
         STD_BRIGHT: -1
         # STD_FAINT_BEST: -1
         # STD_BRIGHT_BEST: -1
+	SV: -1
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities

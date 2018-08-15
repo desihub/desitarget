@@ -1,6 +1,6 @@
 #- commissioning primary survey targets bit mask:
 commissioning_mask:
-    
+
     - [STD_GAIA,  0, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
     - [STD_BRIGHT,  1, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
     - [STD_TEST,    2, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
@@ -51,3 +51,5 @@ priorities:
         STD_CALSPEC: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV_BGS: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV_MWS: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+    #ADM SV is treated specially; priorities don't apply
+        SV: -1
