@@ -158,13 +158,13 @@ def find_gaia_files(objs, neighbors=True,
     #ADM Legacy Surveys do NOT use the NESTED scheme for storing Gaia files
     theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
 
+    #ADM retrieve the pixels in which the locations lie
+    pixnum = hp.ang2pix(nside, theta, phi)
     #ADM if neighbors was sent, then retrieve all pixels that touch each
     #ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
-        pixnum = np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi))
-    #ADM ...otherwise just retrieve the pixels in which the locations lie
-    else:
-        pixnum = hp.ang2pix(nside, theta, phi)
+        pixnum = np.hstack([pixnum, 
+            np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi))])
 
     #ADM retrieve only the UNIQUE pixel numbers. It's possible that only
     #ADM one pixel was produced, so guard against pixnum being non-iterable
