@@ -31,7 +31,7 @@ def _load_bits():
     return
 
 
-def _load_priorities(handle='priorities'):
+def _load_priorities(handle="priorities"):
     """Priorities and NUMOBS are defined in the yaml file, but they aren't 
     a bitmask and so require some extra processing.
     """
@@ -45,6 +45,7 @@ def _load_priorities(handle='priorities'):
                     priorities[bitname] = priorities[other]
 
             #- fill in default "more" priority to be same as "unobs"
+            #ADM specifically applies to dictionary of priorities
             if handle=='priorities':
                 if isinstance(priorities[bitname], dict):
                     if 'MORE_ZWARN' not in priorities[bitname]:
