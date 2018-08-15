@@ -43,13 +43,24 @@ commissioning_obsmask:
 #- Other states are default 1 unless specified here
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
-    #- Dark Survey: priorities 3000 - 3999
     commissioning_mask:
-        STD_GAIA: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        STD_BRIGHT: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        STD_TEST: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        STD_CALSPEC: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        SV_BGS: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        SV_MWS: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-    #ADM SV is treated specially; priorities don't apply
+        STD_GAIA: -1
+        STD_BRIGHT: -1
+        STD_TEST: -1
+        STD_CALSPEC: -1
+        SV_BGS: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV_MWS: {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV: -1
+
+#ADM INITIAL number of observations (NUMOBS) for each target bit
+#ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
+#ADM -1 means that the concept of NUMOBS doesn't apply to this bit
+numobs:
+    commissioning_mask:
+        STD_GAIA: -1
+        STD_BRIGHT: -1
+        STD_TEST: -1
+        STD_CALSPEC: -1
+        SV_BGS: 1
+        SV_MWS: 1
         SV: -1
