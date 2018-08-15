@@ -205,7 +205,7 @@ priorities:
 #ADM -1 means that the concept of NUMOBS doesn't apply to this bit
 numobs:
     #ADM initial number of observations for targets in the main (dark time) survey
-    desi_mask:
+    sv_desi_mask:
         ELG: 1
         LRG: 2
         QSO: 4
@@ -241,7 +241,7 @@ numobs:
         SECONDARY_ANY: -1
 
     #ADM initial number of observations for targets in the Bright Galaxy Survey
-    bgs_mask:
+    sv_bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
@@ -254,7 +254,7 @@ numobs:
         BGS_KNOWN_BOSS: 1
 
     #ADM initial number of observations for targets in the Bright Galaxy Survey
-    mws_mask: 
+    sv_mws_mask: 
         MWS_MAIN:                     1
         MWS_WD:                       1
         MWS_NEARBY:                   1
