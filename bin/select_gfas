@@ -27,9 +27,12 @@ ap.add_argument('-g', '--gaiadir',
 ap.add_argument('-m', '--maglim', type=float, 
                 help='Magnitude limit on GFA targets in Gaia G-band (defaults to [18])',
                 default=18)
+ap.add_argument("--gaiamatch", action='store_true',
+                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for the GFA locations")
 ap.add_argument('-n', "--numproc", type=int,
                 help='number of concurrent processes to use (defaults to [{}])'.format(nproc),
                 default=nproc)
+
 ns = ap.parse_args()
 
 infiles = io.list_sweepfiles(ns.surveydir)
@@ -41,7 +44,8 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiadir=ns.gaiadir)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, 
+                   gaiamatch=ns.gaiamatch, gaiadir=ns.gaiadir)
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside)
 
