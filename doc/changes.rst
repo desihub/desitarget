@@ -15,7 +15,7 @@ desitarget Change Log
 Includes non-backwards compatible changes to standard star bit names.
 
 * Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_]:
-   * Also add BRIGHTSTARINBLOB (if available) to target output files.
+   * Also add ``BRIGHTSTARINBLOB`` (if available) to target output files.
    * And include a flag to call STD star cuts function without Gaia columns.
 * STD/STD_FSTAR -> STD_FAINT, with corresponding fixes for mocks [`PR #341`_].
 
