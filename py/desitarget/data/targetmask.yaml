@@ -8,7 +8,7 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
-    #- ADM allow the primary targets to be split by number of passes
+    #-ADM allow the primary targets to be split by number of passes
     - [LRG_1PASS,   3, "LRG observed in 1st pass", {obsconditions: DARK}]
     - [LRG_2PASS,   4, "LRG observed in 2nd pass", {obsconditions: DARK}]
 
@@ -41,6 +41,13 @@ desi_mask:
     #- Reserving some bits that we may not use
     # - [STD_FAINT_BEST,   37, "High quality faint standard stars", {obsconditions: DARK|GRAY}]
     # - [STD_BRIGHT_BEST,  38, "High quality bright standard stars", {obsconditions: BRIGHT}]
+
+    #ADM 6 bits that, in combination, enumerate different iterations of survey validation (SV). 
+    #ADM 000000 means "main survey". 
+    #ADM 000001 means "commisioning".
+    #ADM higher numbers refer to different iterations of SV, starting at 000002
+    #ADM SHARED BETWEEN commissioning_mask, desi_mask and sv_mask!
+    - [SV, 42, "encode main survey/SV/commissioning (encompasses bits 42-47 inclusive)",     {nbits: 6}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,   49, "No known target at this location",

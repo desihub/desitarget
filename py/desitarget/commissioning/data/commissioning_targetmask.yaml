@@ -11,6 +11,13 @@ commissioning_mask:
     - [SV_BGS,             8, "Any SV-like BGS bit is set", {obsconditions: BRIGHT}]
     - [SV_MWS,             9, "Any SV-like MWS bit is set", {obsconditions: BRIGHT}]
 
+    #ADM 6 bits that, in combination, enumerate different iterations of survey validation (SV).
+    #ADM 000000 means "main survey".
+    #ADM 000001 means "commisioning".
+    #ADM higher numbers refer to different iterations of SV, starting at 000002
+    #ADM SHARED BETWEEN commissioning_mask, desi_mask and sv_mask!
+    - [SV, 42, "encode main survey/SV/commissioning (encompasses bits 42-47 inclusive)",     {nbits: 6}]
+
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
 #- will consider the observations "DONE" while another bit will want "MORE".
