@@ -420,18 +420,20 @@ def calc_numobs(targets):
 
     Args:
         targets: numpy structured array or astropy Table of targets, including
-            columns DESI_TARGET, DECAM_FLUX, and DECAM_MW_TRANSMISSION
+            columns `DESI_TARGET`, `BGS_TARGET` or `MWS_TARGET`
 
     Returns:
         array of integers of requested number of observations
 
     Notes:
-        if ZFLUX or (DECAM_FLUX and DECAM_MW_TRANSMISSION) are in targets,
-            then LRG numobs depends upon zmag, else defaults to 2
-        This is NUMOBS desired before any spectroscopic observations; i.e.
+        This is `NUMOBS` desired before any spectroscopic observations; i.e.
             it does *not* take redshift into consideration (which is relevant
             for interpreting low-z vs high-z QSOs)
     """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
     # Default is one observation
     nobs = np.ones(len(targets), dtype='i4')
 
@@ -449,24 +451,26 @@ def calc_numobs(targets):
     if n_no_target_class > 0:
         raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
 
-    #- LRGs get 1, 2, or 3 observations depending upon magnitude
-    zflux = None
-    if 'ZFLUX' in targets.dtype.names:
-        zflux = targets['ZFLUX']
-    elif 'DECAM_FLUX' in targets.dtype.names:
-        if 'DECAM_MW_TRANSMISSION' in targets.dtype.names:
-            zflux = targets['DECAM_FLUX'][:,4] / targets['DECAM_MW_TRANSMISSION'][:,4]
-        else:
-            zflux = targets['DECAM_FLUX'][:,4]
-
+    #- LRGs get 1, 2, or (perhaps) 3 observations depending upon magnitude
+    #ADM set this using the LRG_1PASS/2PASS and maybe even 3PASS bits
     islrg = (targets['DESI_TARGET'] & desi_mask.LRG) != 0
-    if zflux is not None:
-        lrg2 = islrg & (zflux < 10**((22.5-20.36)/2.5))
-        lrg3 = islrg & (zflux < 10**((22.5-20.56)/2.5))
+    #ADM default to 2 passes for LRGs
+    nobs[islrg] = 2
+    #ADM for redundancy in case the defaults change, explicitly set
+    #ADM NOBS for 1PASS and 2PASS LRGs
+    try:
+        lrg1 = (targets['DESI_TARGET'] & desi_mask.LRG_1PASS) != 0
+        lrg2 = (targets['DESI_TARGET'] & desi_mask.LRG_2PASS) != 0
+        nobs[lrg1] = 1
         nobs[lrg2] = 2
+    except AttributeError:
+        log.error('per-pass LRG bits not set in {}'.format(desi_mask))
+    #ADM also reserve a setting for LRG_3PASS, but fail gracefully for now
+    try:
+        lrg3 = (targets['DESI_TARGET'] & desi_mask.LRG_3PASS) != 0
         nobs[lrg3] = 3
-    else:
-        nobs[islrg] = 2
+    except AttributeError:
+        pass
 
     #- TBD: flag QSOs for 4 obs ahead of time, or only after confirming
     #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?

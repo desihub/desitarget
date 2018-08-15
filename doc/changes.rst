@@ -5,6 +5,7 @@ desitarget Change Log
 0.23.1 (unreleased)
 -------------------
 
+* Set ``NUMOBS`` for LRGs in MTL using target bits instead of magnitude [`PR #345`_].
 * Update GFA targets [`PR #342`_]:
     * Handle reading Gaia from sweeps as well as matching. Default to *not* matching.
     * Makes Gaia matching radius stricter to return only the best Gaia objects.
@@ -13,16 +14,17 @@ desitarget Change Log
     * Add Gaia epoch to the GFA file header (still needs passed from the sweeps).
 
 .. _`PR #342`: https://github.com/desihub/desitarget/pull/342
+.. _`PR #345`: https://github.com/desihub/desitarget/pull/345
 
 0.23.0 (2018-08-09)
 -------------------
 
 Includes non-backwards compatible changes to standard star bit names.
 
-* Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_]:
-   * Also add BRIGHTSTARINBLOB (if available) to target output files.
-   * And include a flag to call STD star cuts function without Gaia columns.
 * STD/STD_FSTAR -> STD_FAINT, with corresponding fixes for mocks [`PR #341`_].
+* Match sweeps to Gaia and write new sweeps with Gaia columns [`PR #340`_]:
+   * Also add ``BRIGHTSTARINBLOB`` (if available) to target output files.
+   * And include a flag to call STD star cuts function without Gaia columns.
 
 .. _`PR #340`: https://github.com/desihub/desitarget/pull/340
 .. _`PR #341`: https://github.com/desihub/desitarget/pull/341
