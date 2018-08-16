@@ -290,7 +290,7 @@ def decode_targetid(targetid):
     return objid, brickid, release, mock, sky
 
 ############################################################
-def initial_priority_numobs(bitarray):
+def initial_priority_numobs(targets):
     """highest initial priority and corresponding numobs for an array of target bits
 
     Parameters
@@ -575,6 +575,9 @@ def finalize(targets, desi_target, bgs_target, mws_target, sky=0):
         - DESI_TARGET: target selection flags
         - MWS_TARGET: target selection flags
         - BGS_TARGET: target selection flags
+        - PRIORITY: initial priority at which to observe target
+        - SUBPRIORITY: random number used to break ties for fibers
+        - NUMOBS: initial number of observations for target
     """
     ntargets = len(targets)
     assert ntargets == len(desi_target)
@@ -589,9 +592,16 @@ def finalize(targets, desi_target, bgs_target, mws_target, sky=0):
                                release=targets['RELEASE'],
                                sky=sky)
 
+    #ADM create a subpriority from a 0->1 random draw
+    subpriority = np.random.random(ntargets)
+    nodata = np.zeros(ntargets, dtype='int')-1
+
     #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,
-        ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'],
-        [targetid, desi_target, bgs_target, mws_target], usemask=False)
+        ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY', 'SUBPRIORIY', 'NUMOBS'],
+        [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False)
+
+    #ADM determine the initial priority and number of observations
+    targets["PRIORITY"], targets["NUMOBS"] = initial_priority_numobs(targets)
 
     return targets
