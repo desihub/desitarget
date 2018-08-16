@@ -605,8 +605,14 @@ def finalize(targets, desi_target, bgs_target, mws_target, sky=0):
         - MWS_TARGET: target selection flags
         - BGS_TARGET: target selection flags
         - PRIORITY: initial priority at which to observe target
-        - SUBPRIORITY: random number used to break ties for fibers
+        - SUBPRIORITY: a placeholder column that is set to zero
         - NUMOBS: initial number of observations for target
+
+    Notes:
+        - SUBPRIORITY is the only column that isn't populated. This is
+          because it's easier to populate it in a reproducible fashion
+          when collecting targets rather than on a per-brick basis
+          when this function is called. It's set to all zeros.
     """
     ntargets = len(targets)
     assert ntargets == len(desi_target)
@@ -621,9 +627,8 @@ def finalize(targets, desi_target, bgs_target, mws_target, sky=0):
                                release=targets['RELEASE'],
                                sky=sky)
 
-    #ADM create a subpriority from a 0->1 random draw
-    subpriority = np.random.random(ntargets)
     nodata = np.zeros(ntargets, dtype='int')-1
+    subpriority = np.zeros(ntargets, dtype='float')
 
     #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,

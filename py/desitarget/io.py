@@ -389,7 +389,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     log = get_logger()
 
     #ADM use RELEASE to determine the release string for the input targets
-    if len(data) == 0:
+    ntargs = len(data)
+    if ntargs == 0:
         #ADM if there are no targets, then we don't know the Data Release
         drstring = 'unknowndr'
     else:
@@ -420,6 +421,12 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
+    #ADM populate SUBPRIORITY with a reproducible random float
+    if "SUBPRIORITY" in data.dtype.names:
+        np.random.seed(616)
+        data["SUBPRIORITY"] = np.random.random(ntargs)
+
+    #ADM add the type of survey (main, commissioning, sv) to the header
     hdr["SURVEY"] = survey
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
