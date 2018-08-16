@@ -176,37 +176,6 @@ def add_gaia_columns(indata):
     return outdata
 
 
-def add_subpriority(indata):
-    """Add the SUBPRIORITY column to a sweeps-style array
-
-    Parameters
-    ----------
-    indata : :class:`numpy.ndarray`
-        Numpy structured array to which to add SUBPRIORITY column
-
-    Returns
-    -------
-    :class:`numpy.ndarray`
-        Input array with SUBPRIORITY added (and set)
-    """
-    #ADM add SUBPRIORITY to the data model
-    spdt = [('SUBPRIORITY', '>f4')]
-    dt = indata.dtype.descr + spdt
-
-    #ADM create a new numpy array with the fields from the new data model...
-    nrows = len(indata)
-    outdata = np.empty(nrows, dtype=dt)
-
-    #ADM ...and populate them with the passed columns of data
-    for col in indata.dtype.names:
-        outdata[col] = indata[col]
-
-    #ADM populate the subpriority array randomly from 0->1
-    outdata["SUBPRIORITY"] = np.random.random(nrows)
-
-    return outdata
-
-
 def add_photsys(indata):
     """Add the PHOTSYS column to a sweeps-style array
 
@@ -294,11 +263,6 @@ def read_tractor(filename, header=False, columns=None):
        (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
         readcolumns.append('BRIGHTSTARINBLOB')
 
-    #ADM if SUBPRIORITY was passed by the MWS group, add it to the columns to read
-    if (columns is None) and \
-       (('SUBPRIORITY' in fxcolnames) or ('subpriority' in fxcolnames)):
-        readcolumns.append('SUBPRIORITY')
-
     #ADM if Gaia information was passed, add it to the columns to read
     if (columns is None) and \
        (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
@@ -315,11 +279,6 @@ def read_tractor(filename, header=False, columns=None):
         data = convert_from_old_data_model(fx,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
-
-    #ADM need to add the SUBPRIORITY column if it wasn't passed by the MWS group
-    if (columns is None) and \
-       (('SUBPRIORITY' not in fxcolnames) and ('subpriority' not in fxcolnames)):
-        data = add_subpriority(data)
 
     #ADM add Gaia columns if not passed
     if (columns is None) and \
