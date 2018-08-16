@@ -2213,7 +2213,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
 
-
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.
     desi_target  = lrg_south * desi_mask.LRG_SOUTH
