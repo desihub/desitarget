@@ -598,7 +598,7 @@ def finalize(targets, desi_target, bgs_target, mws_target, sky=0):
 
     #- Add new columns: TARGETID, TARGETFLAG, NUMOBS
     targets = rfn.append_fields(targets,
-        ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY', 'SUBPRIORIY', 'NUMOBS'],
+        ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY', 'SUBPRIORITY', 'NUMOBS'],
         [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False)
 
     #ADM determine the initial priority and number of observations

@@ -369,7 +369,7 @@ def release_to_photsys(release):
 
 
 def write_targets(filename, data, indir=None, qso_selection=None,
-                  sandboxcuts=False, nside=None):
+                  sandboxcuts=False, nside=None, survey="?"):
     """Write a target catalogue.
 
     Parameters
@@ -379,6 +379,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     nside: :class:`int`
         If passed, add a column to the targets array popluated
         with HEALPixels at resolution `nside`
+    survey: :class:`str`, optional, defaults to "?"
+        Written to output file header as the keyword `SURVEY`
     """
     # FIXME: assert data and tsbits schema
 
@@ -417,6 +419,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
+
+    hdr["SURVEY"] = survey
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
