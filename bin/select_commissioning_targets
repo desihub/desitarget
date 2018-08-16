@@ -1,0 +1,63 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+import fitsio
+
+from desitarget import io
+from desitarget.commissioning.cuts import select_targets
+
+from time import time
+start = time()
+
+#import warnings
+#warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+nside = 64 #ADM default HEALPix Nside used throughout desitarget
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Generates DESI target bits from Legacy Surveys sweeps or tractor files')
+ap.add_argument("src", 
+                help="Tractor/sweeps file or root directory with tractor/sweeps files")
+ap.add_argument("dest", 
+                help="Output target selection file")
+ap.add_argument("--gaiadir", 
+                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
+                default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
+ap.add_argument("--gaiamatch", action='store_true',
+                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [{}]'.format(nproc),
+                default=nproc)
+ap.add_argument('-t','--tcnames', default=None, 
+                help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
+
+ns = ap.parse_args()
+infiles = io.list_sweepfiles(ns.src)
+if len(infiles) == 0:
+    infiles = io.list_tractorfiles(ns.src)
+if len(infiles) == 0:
+    log.critical('no sweep or tractor files found')
+    sys.exit(1)
+
+log.info("running on {} processors".format(ns.numproc))
+
+#ADM if specific bit names were passed, use them, otherwise run all target classes
+tcnames = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+if ns.tcnames is not None:
+    tcnames = [ bn for bn in ns.tcnames.split(',') ]
+
+targets = select_targets(infiles, numproc=ns.numproc,
+                         gaiamatch=ns.gaiamatch, gaiadir=ns.gaiadir, tcnames=tcnames)
+
+io.write_targets(ns.dest, targets, indir=ns.src, survey="comm", nside=nside)
+
+log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
+
