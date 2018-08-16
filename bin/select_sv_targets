@@ -7,7 +7,8 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.commissioning.cuts import select_targets
+from desitarget.sv.sv_cuts import select_targets, qso_selection_options
+from desitarget.brightmask import mask_targets
 
 from time import time
 start = time()
@@ -23,11 +24,16 @@ from desiutil.log import get_logger
 log = get_logger()
 
 from argparse import ArgumentParser
-ap = ArgumentParser(description='Generates DESI commissioning target bits from Legacy Surveys sweeps or tractor files')
+ap = ArgumentParser(description='Generates DESI SV target bits from Legacy Surveys sweeps or tractor files')
 ap.add_argument("src", 
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", 
                 help="Output target selection file")
+ap.add_argument('-m', "--mask", 
+                help="If sent then mask the targets, the name of the mask file should be supplied")
+ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
+                help="QSO target selection method")
+### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--gaiadir", 
                 help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
@@ -55,9 +61,13 @@ if ns.tcnames is not None:
     tcnames = [ bn for bn in ns.tcnames.split(',') ]
 
 targets = select_targets(infiles, numproc=ns.numproc,
-                         gaiamatch=ns.gaiamatch, gaiadir=ns.gaiadir, tcnames=tcnames)
+                         qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
+                         gaiadir=ns.gaiadir, tcnames=tcnames)
+if ns.mask:
+    targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-io.write_targets(ns.dest, targets, indir=ns.src, survey="comm", nside=nside)
+io.write_targets(ns.dest, targets, indir=ns.src, survey="sv"
+                 qso_selection=ns.qsoselection, nside=nside)
 
 log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
 
