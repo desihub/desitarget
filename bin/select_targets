@@ -80,7 +80,7 @@ else:
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-    io.write_targets(ns.dest, targets, indir=ns.src, survey="main"
+    io.write_targets(ns.dest, targets, indir=ns.src, survey="main",
                      qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
 
     log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))

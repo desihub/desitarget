@@ -313,14 +313,43 @@ def initial_priority_numobs(targets):
         - the initial priority that should be used for each target bit is in the file
           data/targetmask.yaml and is called `UNOBS`. It can be retrieved from the
           targeting masks using, e.g., `desi_mask["ELG"].priorities["UNOBS"]`
+        - the maximum value of the `SV` bits in `desi_mask` is read to determine
+          which mask to import
     """
+    #ADM set up the default logger
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    #ADM determine the SV number from the corresponding bits by bit-shifting
+    #ADM to the left-end and then to the right-end of the SV bit allocation
+    svnum = list(set((targets["DESI_TARGET"] & (2**desi_mask.SV.nbits - 1
+                         << desi_mask.SV.bitnum)) >> desi_mask.SV.bitnum))
+    #ADM any set of targets should correspond to only 1 unique SV number
+    if len(svnum) > 1:
+        log.critical("Multiple SV numbers in the same targets file!")
+        raise ValueError
+    svnum = svnum[0]
+        
+    #ADM if the svnum is 0, default to the main survey masks. If it's 1
+    #ADM import the commissioning mask. If it's > 1 import the SV masks
+    colnames = ["DESI_TARGET", "BGS_TARGET", "MWS_TARGET"]
+    masks = [desi_mask, bgs_mask, mws_mask]
+    if svnum == 1:
+        from desitarget.commissioning.commissioning_targetmask import commissioning_mask
+        colnames = ["DESI_TARGET"]
+        masks = [commissioning_mask]
+    else if svnum == 2:
+        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_desi_mask
+        masks = [sv_desi_mask, sv_bgs_mask, sv_mws_mask]
+    else if svnum > 2:
+        log.critical("Second iteration of SV not yet accounted for!")
+        raise ValueError
 
     #ADM set up the output arrays
     outpriority = np.zeros(len(targets), dtype='int')-1
     outnumobs = np.zeros(len(targets), dtype='int')-1
 
-    for colname, mask in zip(["DESI_TARGET", "BGS_TARGET", "MWS_TARGET"],
-                             [desi_mask, bgs_mask, mws_mask]):
+    for colname, mask in zip(colnames,masks):
         #ADM first determine which bits actually have priorities
         bitnames = []
         for name in mask.names():
