@@ -64,6 +64,10 @@ tsdatamodel = np.array([], dtype=[
         ('DCHISQ', '>f4', (5,))
          ])
 
+def desitarget_nside():
+    """Default HEALPix Nside for all target selection algorithms. """
+    nside = 64
+    return nside
 
 def convert_from_old_data_model(fx,columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model

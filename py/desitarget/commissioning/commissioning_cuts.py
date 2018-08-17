@@ -1,6 +1,6 @@
 """
-desitarget.comm.comm_cuts
-=========================
+desitarget.commissioning.commissioning_cuts
+===========================================
 
 Target Selection for DESI commissioning
 
