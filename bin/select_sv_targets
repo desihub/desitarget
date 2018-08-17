@@ -18,7 +18,7 @@ start = time()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-nside = 64 #ADM default HEALPix Nside used throughout desitarget
+nside = io.desitarget_nside()
 
 from desiutil.log import get_logger
 log = get_logger()

@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.commissioning.cuts import select_targets
+from desitarget.commissioning.commissioning_cuts import select_targets
 
 from time import time
 start = time()
@@ -17,7 +17,7 @@ start = time()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-nside = 64 #ADM default HEALPix Nside used throughout desitarget
+nside = io.desitarget_nside()
 
 from desiutil.log import get_logger
 log = get_logger()
