@@ -430,7 +430,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    #ADM add the type of survey (main, commissioning, sv) to the header
+    #ADM add the type of survey (main, commissioning; or "cmx", sv) to the header
     hdr["SURVEY"] = survey
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)

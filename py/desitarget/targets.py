@@ -314,7 +314,7 @@ def initial_priority_numobs(targets):
           data/targetmask.yaml and is called `UNOBS`. It can be retrieved from the
           targeting masks using, e.g., `desi_mask["ELG"].priorities["UNOBS"]`
         - the maximum value of the `SV` bits in `desi_mask` is read to determine
-          which mask(s) to import (main survey, commissioning, some iteration of SV)
+          which mask(s) to import (main survey, commissioning; "cmx", some iteration of SV)
     """
     #ADM set up the default logger
     from desiutil.log import get_logger
@@ -335,9 +335,9 @@ def initial_priority_numobs(targets):
     colnames = ["DESI_TARGET", "BGS_TARGET", "MWS_TARGET"]
     masks = [desi_mask, bgs_mask, mws_mask]
     if svnum == 1:
-        from desitarget.commissioning.commissioning_targetmask import commissioning_mask
+        from desitarget.cmx.cmx_targetmask import cmx_mask
         colnames = ["DESI_TARGET"]
-        masks = [commissioning_mask]
+        masks = [cmx_mask]
     elif svnum == 2:
         from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_desi_mask
         masks = [sv_desi_mask, sv_bgs_mask, sv_mws_mask]
