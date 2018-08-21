@@ -56,9 +56,14 @@ if len(infiles) == 0:
 log.info("running on {} processors".format(ns.numproc))
 
 #ADM if specific bit names were passed, use them, otherwise run all target classes
-tcnames = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
 if ns.tcnames is not None:
     tcnames = [ bn for bn in ns.tcnames.split(',') ]
+    if not np.all([ tcname in tcdefault for tcname in tcnames ]):
+        log.critical("passed tcnames should all be one of {}".format(tcdefault))
+        raise IOError
+else:
+    tcnames = tcdefault
 
 targets = select_targets(infiles, numproc=ns.numproc,
                          qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
