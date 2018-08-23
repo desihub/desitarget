@@ -14,21 +14,22 @@ def load_mask_bits(prefix=""):
     us = ""
     if len(prefix) > 0:
         us = '_'
-    fn = "{}/data/{}{}targetmask.yaml".format(prefix,prefix,us)
+    prename = prefix+us
+    fn = "{}/data/{}targetmask.yaml".format(prefix,prename)
     _filepath = resource_filename('desitarget', fn)
     with open(_filepath) as fx:
         bitdefs = yaml.load(fx)
         try:
-            bitdefs = _load_mask_priorities(bitdefs,handle="priorities")
+            bitdefs = _load_mask_priorities(bitdefs,handle="priorities",prename=prename)
         except TypeError:
             pass
         try:
-            bitdefs = _load_mask_priorities(bitdefs,handle="numobs")
+            bitdefs = _load_mask_priorities(bitdefs,handle="numobs",prename=prename)
         except TypeError:
             pass
     return bitdefs
 
-def _load_mask_priorities(bitdefs,handle="priorities"):
+def _load_mask_priorities(bitdefs,handle="priorities",prename=""):
     """Priorities and NUMOBS are defined in the yaml file, but they aren't 
     a bitmask and so require some extra processing.
     """
@@ -50,7 +51,7 @@ def _load_mask_priorities(bitdefs,handle="priorities"):
                         priorities[bitname]['MORE_ZGOOD'] = priorities[bitname]['UNOBS']
 
                     #- fill in other states as priority=1
-                    for state, blat, foo in bitdefs['obsmask']:
+                    for state, blat, foo in bitdefs[prename+'obsmask']:
                         if state not in priorities[bitname]:
                             priorities[bitname][state] = 1
                 else:
