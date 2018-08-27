@@ -62,9 +62,9 @@ class TestIO(unittest.TestCase):
         from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
         #ADM have to remove the GAIA_RA, GAIA_DEC columns used for matching
         gaiadatamodel = pop_gaia_coords(gaiadatamodel)
-        #ADM BRICK_PRIMARY, SUBPRIORITY and PHOTSYS get added on input
-        tscolumns = list(io.tsdatamodel.dtype.names)                 \
-                    + ['BRICK_PRIMARY','PHOTSYS','SUBPRIORITY']      \
+        #ADM BRICK_PRIMARY and PHOTSYS get added on input
+        tscolumns = list(io.tsdatamodel.dtype.names)          \
+                    + ['BRICK_PRIMARY','PHOTSYS']             \
                     + list(gaiadatamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)

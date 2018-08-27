@@ -1,10 +1,10 @@
 """
-desitarget.cuts
-===============
+desitarget.sv.sv_cuts
+=====================
 
-Target Selection for DECALS catalogue data
+Target Selection for DESI Survey Validation
 
-https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
+https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
@@ -2212,6 +2212,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
+
 
     # Construct the targetflag bits for DECaLS (i.e. South)
     # This should really be refactored into a dedicated function.

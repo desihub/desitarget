@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
+from desitarget.sv.sv_cuts import select_targets, qso_selection_options
 from desitarget.brightmask import mask_targets
 
 from time import time
@@ -24,23 +24,15 @@ from desiutil.log import get_logger
 log = get_logger()
 
 from argparse import ArgumentParser
-ap = ArgumentParser(description='Generates DESI target bits from Legacy Surveys sweeps or tractor files')
+ap = ArgumentParser(description='Generates DESI SV target bits from Legacy Surveys sweeps or tractor files')
 ap.add_argument("src", 
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", 
                 help="Output target selection file")
-ap.add_argument('-c', "--check", action='store_true',
-                help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('-m', "--mask", 
                 help="If sent then mask the targets, the name of the mask file should be supplied")
-ap.add_argument("--sandbox", action='store_true',
-                help="Apply the sandbox target selection algorithms")
-ap.add_argument("--FoMthresh", type=float,
-                help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
-ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
-                help="Method used in sandbox target for ELG")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--gaiadir", 
                 help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
@@ -73,20 +65,14 @@ if ns.tcnames is not None:
 else:
     tcnames = tcdefault
 
-if ns.check:
-    log.info('Check input files...')
-    nbadfiles = check_input_files(infiles, numproc=ns.numproc)
-    log.info('{} potentially corrupt files'.format(nbadfiles))
-else:
-    targets = select_targets(infiles, numproc=ns.numproc,
-                             qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
-                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             gaiadir=ns.gaiadir, tcnames=tcnames)
-    if ns.mask:
-        targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
+targets = select_targets(infiles, numproc=ns.numproc,
+                         qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
+                         gaiadir=ns.gaiadir, tcnames=tcnames)
+if ns.mask:
+    targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-    io.write_targets(ns.dest, targets, indir=ns.src, survey="main",
-                     qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
+io.write_targets(ns.dest, targets, indir=ns.src, survey="sv",
+                 qso_selection=ns.qsoselection, nside=nside)
 
-    log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
+log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
 

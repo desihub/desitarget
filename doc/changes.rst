@@ -5,6 +5,17 @@ desitarget Change Log
 0.23.1 (unreleased)
 -------------------
 
+* Refactor to allow separate commissioning and SV target selections [`PR #346`_]:
+    * Added ``sv`` and ``commissioning`` directories.
+    * New infrastructure to have different cuts for SV and commissioning:
+        * separate target masks (e.g. ``sv/data/sv_targetmask.yaml``).
+        * separate cuts modules (e.g. ``sv_cuts.py``).
+    * Added executables for SV/commissioning (e.g. ``select_sv_targets``).
+    * Initial ``NUMOBS`` and ``PRIORITY`` added as columns in ``targets-`` files.
+    * Initial ``NUMOBS`` is now hardcoded in target masks, instead of being set by MTL.
+    * ``SV`` bits added to target masks to track if targets are from SV/comm/main.
+    * sv/comm/main can now be written to the header of the ``targets-`` files.
+    * ``SUBPRIORITY`` is set when writing targets to facilitate reproducibility.
 * Set ``NUMOBS`` for LRGs in MTL using target bits instead of magnitude [`PR #345`_].
 * Update GFA targets [`PR #342`_]:
     * Handle reading Gaia from sweeps as well as matching. Default to *not* matching.
@@ -15,6 +26,7 @@ desitarget Change Log
 
 .. _`PR #342`: https://github.com/desihub/desitarget/pull/342
 .. _`PR #345`: https://github.com/desihub/desitarget/pull/345
+.. _`PR #346`: https://github.com/desihub/desitarget/pull/346
 
 0.23.0 (2018-08-09)
 -------------------
