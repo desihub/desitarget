@@ -192,7 +192,7 @@ def apply_cuts(objects, gaiamatch=False,
     return cmx_target
 
 
-def select_targets(infiles, numproc=4, gaiamatch=False
+def select_targets(infiles, numproc=4, gaiamatch=False,
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Process input files in parallel to select commissioning (cmx) targets
 
