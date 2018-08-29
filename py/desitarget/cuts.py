@@ -1117,7 +1117,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     return mws
 
 
-def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None, south=True):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
 
     Args:
@@ -1125,6 +1125,9 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
         mask : boolean array, True if the object has colors like an old stellar population,
@@ -1145,7 +1148,11 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         grcolor = 2.5 * np.log10(rflux / gflux)
-        mwsstar &= (grcolor > 0.0)
+        # Assume no difference in north vs south color-cuts.
+        if south:
+            mwsstar &= (grcolor > 0.0)
+        else:
+            mwsstar &= (grcolor > 0.0)
 
     return mwsstar
 
