@@ -746,16 +746,17 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
            if ``True`` apply magnitude cuts for "bright" conditions; otherwise, 
            choose "normal" brightness standards. Cut is performed on `gaiagmag`.
         usegaia: boolean, defaults to ``True``
-           if ``True`` then  call :func:`~desitarget.cuts.isSTD_gaia` to set the 
+           if ``True`` then call :func:`~desitarget.cuts.isSTD_gaia` to set the
            logic cuts. If Gaia is not available (perhaps if you're using mocks)
-           then send ``False`` and pass `gaiagmag` as 22.5-2.5*np.log10(`robs`) 
-           where `robs` is `rflux` without a correction.for Galactic extinction.
+           then send ``False``, in which case we use the LS r-band magnitude as
+           a proxy for the Gaia G-band magnitude (ignoring---incorrectly---that
+           we have already corrected for Galactic extinction.)
         south: boolean, defaults to True
             Use color-cuts based on photometry from the "south" (DECaLS) as
             opposed to the "north" (MzLS+BASS).
 
     Returns:
-        mask : boolean array, True if the object has colors like a STD star
+        mask : boolean array, True if the object has colors like a STD star.
 
     Notes:
         - Gaia data model is at:
@@ -812,7 +813,6 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         std &= gaiamag_ < gfaint
 
     return std
-
 
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaia=None, primary=None,
