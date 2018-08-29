@@ -578,7 +578,8 @@ def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
     return elg
 
 
-def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 primary=None, south=True):
     """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
 
     Args:
@@ -586,6 +587,9 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
         mask : boolean array, True if the object has colors like a STD star target
@@ -609,9 +613,15 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
     #ADM optical colors for halo TO or bluer
     grcolor = 2.5 * np.log10(rflux / gflux)
     rzcolor = 2.5 * np.log10(zflux / rflux)
-    std &= rzcolor < 0.2
-    std &= grcolor > 0.
-    std &= grcolor < 0.35
+    # Currently no difference in north vs south color-cuts.
+    if south:
+        std &= rzcolor < 0.2
+        std &= grcolor > 0.
+        std &= grcolor < 0.35
+    else:
+        std &= rzcolor < 0.2
+        std &= grcolor > 0.
+        std &= grcolor < 0.35
 
     return std
 
@@ -698,7 +708,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           gaia=None, astrometricexcessnoise=None, paramssolved=None,
           pmra=None, pmdec=None, parallax=None, dupsource=None, 
           gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False,
-          usegaia=True):
+          usegaia=True, south=True):
     """Select STD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isSTD_colors() for additional info.
 
@@ -736,26 +746,31 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
            if ``True`` apply magnitude cuts for "bright" conditions; otherwise, 
            choose "normal" brightness standards. Cut is performed on `gaiagmag`.
         usegaia: boolean, defaults to ``True``
-           if ``True`` then  call :func:`~desitarget.cuts.isSTD_gaia` to set the 
+           if ``True`` then call :func:`~desitarget.cuts.isSTD_gaia` to set the
            logic cuts. If Gaia is not available (perhaps if you're using mocks)
-           then send ``False`` and pass `gaiagmag` as 22.5-2.5*np.log10(`robs`) 
-           where `robs` is `rflux` without a correction.for Galactic extinction.
+           then send ``False``, in which case we use the LS r-band magnitude as
+           a proxy for the Gaia G-band magnitude (ignoring---incorrectly---that
+           we have already corrected for Galactic extinction.)
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
-        mask : boolean array, True if the object has colors like a STD star
+        mask : boolean array, True if the object has colors like a STD star.
 
     Notes:
         - Gaia data model is at:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
         - Current version (08/01/18) is version 121 on the wiki:
             https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     std = primary.copy()
 
     #ADM apply the Legacy Surveys (optical) magnitude and color cuts.
-    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, south=south)
 
     #ADM apply the Gaia quality cuts.
     if usegaia:
@@ -788,11 +803,16 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         gbright = 16.
         gfaint = 19.
 
-    std &= gaiagmag >= gbright
-    std &= gaiagmag < gfaint
+    if usegaia:
+        std &= gaiagmag >= gbright
+        std &= gaiagmag < gfaint
+    else:
+        # Use LS r-band as a Gaia G-band proxy.
+        gaiamag_proxy = 22.5 - 2.5 * np.log10( rflux.clip(1e-16) )
+        std &= gaiamag_ >= gbright
+        std &= gaiamag_ < gfaint
 
     return std
-
 
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaia=None, primary=None,
@@ -1098,7 +1118,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     return mws
 
 
-def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None, south=True):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
 
     Args:
@@ -1106,6 +1126,9 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
         mask : boolean array, True if the object has colors like an old stellar population,
@@ -1126,7 +1149,11 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         grcolor = 2.5 * np.log10(rflux / gflux)
-        mwsstar &= (grcolor > 0.0)
+        # Assume no difference in north vs south color-cuts.
+        if south:
+            mwsstar &= (grcolor > 0.0)
+        else:
+            mwsstar &= (grcolor > 0.0)
 
     return mwsstar
 
