@@ -802,8 +802,13 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         gbright = 16.
         gfaint = 19.
 
-    std &= gaiagmag >= gbright
-    std &= gaiagmag < gfaint
+    if usegaia:
+        std &= gaiagmag >= gbright
+        std &= gaiagmag < gfaint
+    else:
+        gmag = 22.5 - 2.5 * np.log10( gflux.clip(1e-16) )
+        std &= gmag >= gbright
+        std &= gmag < gfaint
 
     return std
 
