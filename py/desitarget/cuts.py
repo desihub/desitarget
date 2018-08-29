@@ -806,9 +806,10 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         std &= gaiagmag >= gbright
         std &= gaiagmag < gfaint
     else:
-        gmag = 22.5 - 2.5 * np.log10( gflux.clip(1e-16) )
-        std &= gmag >= gbright
-        std &= gmag < gfaint
+        # Use LS r-band as a Gaia G-band proxy.
+        gaiamag_proxy = 22.5 - 2.5 * np.log10( rflux.clip(1e-16) )
+        std &= gaiamag_ >= gbright
+        std &= gaiamag_ < gfaint
 
     return std
 
