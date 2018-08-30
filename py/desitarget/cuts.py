@@ -2049,8 +2049,13 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
         log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
 
-    #ADM add the Gaia columns
-    gaia = objects['REF_ID'] != -1
+    # ADM Add the Gaia columns...
+    # ADM if we don't have REF_CAT in the sweeps use the
+    # ADM minimum value of REF_ID to identify Gaia sources. This will
+    # ADM introduce a small number (< 0.001%) of Tycho-only sources.
+    gaia = objects['REF_ID'] > 0
+    if "REF_CAT" in objects.dtype.names:
+        gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
