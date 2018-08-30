@@ -73,51 +73,62 @@ def apply_cuts(objects):
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
 
-    #- ensure uppercase column names if astropy Table
+    #- Ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM currently only coded for objects with Gaia matches
-    # ADM (e.g. DR7 or above). Fail for earlier data releases.
+    # ADM Currently only coded for objects with Gaia matches
+    # ADM (e.g. DR7 or above). Fail for earlier Data Releases.
     release = objects['RELEASE']
     if release < 7000:
         log.critical('Commissioning cuts only coded for DR7 or above')
         raise ValueError
 
-    # ADM the observed g/r/z fluxes
+    # ADM The observed g/r/z fluxes.
     obs_rflux = objects['FLUX_G']
     obs_rflux = objects['FLUX_R']
     obs_rflux = objects['FLUX_Z']
 
-    # ADM the de-extincted g/r/z/ fluxes
+    # ADM The de-extincted g/r/z/ fluxes.
     from desitarget.cuts import unextinct_fluxes
     flux = unextinct_fluxes(objects)
     gflux = flux['GFLUX']
     rflux = flux['RFLUX']
     zflux = flux['ZFLUX']
 
-    # ADM the Legacy Surveys object type
+    # ADM The Legacy Surveys object type and fracflux flags.
     objtype = objects['TYPE']
+    gfracflux = objects['FRACFLUX_G']
+    rfracflux = objects['FRACFLUX_R']
+    zfracflux = objects['FRACFLUX_Z']
 
-    # ADM add the Gaia columns                                                                                                                                                                      
-    gaia = objects['REF_CAT'] != -1
+    # ADM Add the Gaia columns...
+    # ADM if we don't have REF_CAT in the sweeps use the
+    # ADM minimum value of REF_ID to identify Gaia sources. This will
+    # ADM introduce a small number (< 0.001%) of Tycho-only sources.
+    gaia = objects['REF_ID'] > 0
+    if "REF_CAT" in objects.dtype.names:
+        gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
+    pmraivar = objects['PMRA_IVAR']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
-    # ADM if the RA proper motion is not NaN, then 31 parameters were solved for                                                                                                                    
-    # ADM in Gaia astrometry. Use this to set gaiaparamssolved (value is 3 for NaNs)                                                                                                                
+
+    # ADM If proper motion is not NaN, 31 parameters were solved for
+    # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
+    # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
+    # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
     gaiaparamssolved = np.zeros_like(gaia)+31
-    w = np.where(np.isnan(pmra))[0]
+    w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
     if len(w) > 0:
         gaiaparamssolved[w] = 3
 
     dither = isSTD_dither(gflux=gflux)
 
-    # Construct the targetflag bits for DECaLS (i.e. South)
-    # This should really be refactored into a dedicated function.
+    # ADM Construct the targetflag bits
     cmx_target  = dither * cmx_mask.STD_GAIA
 
     return cmx_target
