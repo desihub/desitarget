@@ -58,7 +58,7 @@ def mw_transmission(data, dust_dir=None):
         raise ValueError
 
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    data['EBV'] = sfdmap.ebv(data['RA'], data['DEC'], mapdir=dust_dir)
+    data['EBV'] = sfdmap.ebv(data['RA'], data['DEC'], mapdir=dust_dir, scaling=1)
 
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
         data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
@@ -178,7 +178,7 @@ def empty_targets_table(nobj=1):
 
     return targets
 
-def empty_truth_table(nobj=1):
+def empty_truth_table(nobj=1, truespectype='GALAXY'):
     """Initialize an empty 'truth' table.
 
     Parameters
@@ -205,24 +205,36 @@ def empty_truth_table(nobj=1):
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+30, unit='mag'))
-    truth.add_column(Column(name='VDISP', length=nobj, dtype='f4', data=np.zeros(nobj), unit='km/s'))
-    
+    truth.add_column(Column(name='MAGFILTER', length=nmodel, dtype='U15')) # normalization filter
+
     truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
 
-    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
-                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
-                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    objtruth = Table()
+    if truespectype.upper() == 'GALAXY':
+        objtruth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+        objtruth.add_column(Column(name='VDISP', length=nobj, dtype='f4', data=np.zeros(nobj), unit='km/s'))
+        objtruth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
+                                   data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+        objtruth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
+                                   data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+        
+    elif truespectype.upper() == 'QSO':
+        pass
+    
+    elif truespectype.upper() == 'STAR':
+        objtruth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
+        objtruth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
+        objtruth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
+        
+    elif truespectype.upper() == 'WD':
+        objtruth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
+        objtruth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
 
-    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
-    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
-
-    return truth
+    return truth, objtruth
 
 def _get_radec(mockfile, nside, pixmap, mxxl=False):
 
@@ -443,7 +455,7 @@ class SelectTargets(object):
 
         return gflux, rflux, zflux, w1flux, w2flux
 
-    def populate_targets_truth(self, data, meta, indx=None, seed=None, psf=True,
+    def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
                                gmm=None,  truespectype='', templatetype='',
                                templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
@@ -2325,7 +2337,7 @@ class LRGMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2339,7 +2351,8 @@ class LRGMaker(SelectTargets):
         if self.wave is None:
             LRGMaker.wave = _default_wave()
         if self.template_maker is None:
-            LRGMaker.template_maker = LRG(wave=self.wave, normfilter=normfilter)
+            LRGMaker.template_maker = LRG(wave=self.wave, normfilter_north='MzLS-z',
+                                          normfilter_south='decam2014-z')
             
         self.meta = self.template_maker.basemeta
 
@@ -2427,7 +2440,7 @@ class LRGMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False, south=True):
         """Generate LRG spectra.
 
         Parameters
@@ -2470,38 +2483,47 @@ class LRGMaker(SelectTargets):
 
         if no_spectra:
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             input_meta['SEED'] = rand.randint(2**31, size=nobj)
             input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-                                                     mean=2.3, sigma=0.1, seed=seed,
-                                                     nside=self.nside_chunk)
+            #input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
+            #                                         mean=2.3, sigma=0.1, seed=seed,
+            #                                         nside=self.nside_chunk)
+            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
+                                       mean=2.3, sigma=0.1, seed=seed,
+                                       nside=self.nside_chunk)
 
             input_meta['MAG'] = gmm['z']
-            if self.template_maker.normfilter != 'decam2014-z':
-                log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
-                    'decam2014-z', self.template_maker.normfilter))
-                raise ValueError
+            if south:
+                input_meta['MAGFILTER'][:] = 'decam2014-z'
+            else:
+                input_meta['MAGFILTER'][:] = 'MzLS-z'
+                
+            #if self.template_maker.normfilter != 'decam2014-z':
+            #    log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
+            #        'decam2014-z', self.template_maker.normfilter))
+            #    raise ValueError
 
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
                 templateid = rand.choice(self.meta['TEMPLATEID'], nobj)
                 input_meta['TEMPLATEID'] = templateid
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                               nocolorcuts=True, novdisp=False)
+            flux, _, meta, objmeta = self.template_maker.make_templates(input_meta=input_meta,
+                                                                        vdisp=vdisp, south=south,
+                                                                        nocolorcuts=True)
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
+        targets, truth = self.populate_targets_truth(data, meta, objmeta, indx=indx, psf=False,
                                                      seed=seed, gmm=gmm,
                                                      truespectype='GALAXY',
                                                      templatetype='LRG')
 
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, objmeta, targets, truth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets.  Input tables are modified in place.

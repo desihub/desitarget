@@ -266,7 +266,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
     # Faintstar targets are a special case.
     if targname.lower() == 'faintstar':
-        chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+        chunkflux, _, chunkmeta, chunkobjmeta, chunktargets, chunktruth = MakeMock.make_spectra(
             data, indx=indx, boss_std=boss_std)
         
         if len(chunktargets) > 0:
@@ -289,7 +289,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
         makemore, itercount, ntot = True, 0, 0
         while makemore:
-            chunkflux, _, chunkmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+            chunkflux, _, chunkmeta, chunkobjmeta, chunktargets, chunktruth = MakeMock.make_spectra(
                 data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
 
             MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
