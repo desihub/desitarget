@@ -121,10 +121,13 @@ def apply_cuts(objects):
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
     # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
     # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
-    gaiaparamssolved = np.zeros_like(gaia)+31
-    w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
-    if len(w) > 0:
-        gaiaparamssolved[w] = 3
+    if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in objects.dtype.names:
+        gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
+    else:
+        gaiaparamssolved = np.zeros_like(gaia)+31
+        w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
+        if len(w) > 0:
+            gaiaparamssolved[w] = 3
 
     dither = isSTD_dither(gflux=gflux)
 

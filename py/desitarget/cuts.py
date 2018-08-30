@@ -2058,6 +2058,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
+    pmraivar = objects['PMRA_IVAR']
     parallax = objects['PARALLAX']
     parallaxivar = objects['PARALLAX_IVAR']
     #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
@@ -2068,21 +2069,26 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
 
-    #ADM if the RA proper motion is not NaN, then 31 parameters were solved for
-    #ADM in Gaia astrometry. Use this to set gaiaparamssolved (value is 3 for NaNs)
-    gaiaparamssolved = np.zeros_like(gaia)+31
-    w = np.where(np.isnan(pmra))[0]
-    if len(w) > 0:
-        gaiaparamssolved[w] = 3
+    # ADM If proper motion is not NaN, 31 parameters were solved for
+    # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
+    # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
+    # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
+    if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in objects.dtype.names:
+        gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
+    else:
+        gaiaparamssolved = np.zeros_like(gaia)+31
+        w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
+        if len(w) > 0:
+            gaiaparamssolved[w] = 3
 
-    #ADM test if these columns exist, as they aren't in the Tractor files as of DR7
+    # ADM Add these columns if they exist, or set them to none.
+    # ADM They aren't in the Tractor files as of DR7.
     gaiabprpfactor = None
     gaiasigma5dmax = None
-    try:
+    if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in objects.dtype.names:
         gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
+    if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in objects.dtype.names:
         gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
-    except:
-        pass
 
     #ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"],objects["DEC"])
