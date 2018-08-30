@@ -23,6 +23,7 @@ from astropy.table import Table, Row
 from desitarget import io
 from desitarget.cuts import _psflike
 from desitarget.internal import sharedmem
+from desitarget.targets import finalize
 from desitarget.cmx.cmx_targetmask import cmx_mask
 
 #ADM set up the DESI default logger
@@ -317,18 +318,17 @@ def select_targets(infiles, numproc=4):
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
-    def _finalize_targets(objects, desi_target):
+    def _finalize_targets(objects, cmx_target):
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         #- on desi_target != 0
-        keep = (desi_target != 0)
+        keep = (cmx_target != 0)
         objects = objects[keep]
-        desi_target = desi_target[keep]
+        cmx_target = cmx_target[keep]
 
         #- Add *_target mask columns
-        #ADM note that only desi_target is defined for commissioning
+        #ADM note that only cmx_target is defined for commissioning
         #ADM so just pass that around
-        targets = desitarget.targets.finalize(
-            objects, desi_target, desi_target, desi_target)
+        targets = finalize(objects, cmx_target, cmx_target, cmx_target)
 
         return io.fix_tractor_dr1_dtype(targets)
 
@@ -336,9 +336,9 @@ def select_targets(infiles, numproc=4):
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects)
+        cmx_target = apply_cuts(objects)
 
-        return _finalize_targets(objects, desi_target, desi_target, desi_target)
+        return _finalize_targets(objects, cmx_target)
 
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
