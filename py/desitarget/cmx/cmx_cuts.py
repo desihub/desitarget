@@ -328,9 +328,10 @@ def select_targets(infiles, numproc=4):
         #- Add *_target mask columns
         #ADM note that only cmx_target is defined for commissioning
         #ADM so just pass that around
-        targets = finalize(objects, cmx_target, cmx_target, cmx_target)
+        targets = finalize(objects, cmx_target, cmx_target, cmx_target,
+                           survey='cmx')
 
-        return io.fix_tractor_dr1_dtype(targets)
+        return targets
 
     #- functions to run on every brick/sweep file
     def _select_targets_file(filename):
