@@ -178,7 +178,7 @@ def empty_targets_table(nobj=1):
 
     return targets
 
-def empty_truth_table(nobj=1, truespectype='GALAXY'):
+def empty_truth_table(nobj=1, templatetype=''):
     """Initialize an empty 'truth' table.
 
     Parameters
@@ -192,6 +192,8 @@ def empty_truth_table(nobj=1, truespectype='GALAXY'):
         Truth table.
     
     """
+    from desisim.io import empty_metatable
+
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
@@ -205,7 +207,7 @@ def empty_truth_table(nobj=1, truespectype='GALAXY'):
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+30, unit='mag'))
-    truth.add_column(Column(name='MAGFILTER', length=nmodel, dtype='U15')) # normalization filter
+    truth.add_column(Column(name='MAGFILTER', length=nobj, dtype='U15')) # normalization filter
 
     truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
@@ -213,26 +215,7 @@ def empty_truth_table(nobj=1, truespectype='GALAXY'):
     truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
 
-    objtruth = Table()
-    if truespectype.upper() == 'GALAXY':
-        objtruth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
-        objtruth.add_column(Column(name='VDISP', length=nobj, dtype='f4', data=np.zeros(nobj), unit='km/s'))
-        objtruth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
-                                   data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-        objtruth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
-                                   data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-        
-    elif truespectype.upper() == 'QSO':
-        pass
-    
-    elif truespectype.upper() == 'STAR':
-        objtruth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-        objtruth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
-        objtruth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
-        
-    elif truespectype.upper() == 'WD':
-        objtruth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-        objtruth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
+    _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype)
 
     return truth, objtruth
 
@@ -502,7 +485,7 @@ class SelectTargets(object):
 
         # Initialize the tables.
         targets = empty_targets_table(nobj)
-        truth = empty_truth_table(nobj)
+        truth, objtruth = empty_truth_table(nobj, templatetype=templatetype)
 
         # Add some basic info.
         for key in ('RA', 'DEC', 'BRICKNAME'):
@@ -539,10 +522,17 @@ class SelectTargets(object):
                 targets[key][:] = gmm[gmmkey]
 
         # Copy various quantities from the metadata table.
-        for key in ('TEMPLATEID', 'SEED', 'REDSHIFT', 'MAG', 'VDISP', 'FLUX_G', 'FLUX_R', 'FLUX_Z',
-                    'FLUX_W1', 'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-            truth[key.replace('REDSHIFT', 'TRUEZ')][:] = meta[key]
+        for key in meta.colnames:
+            if key in truth.colnames:
+                truth[key][:] = meta[key]
+            elif key == 'REDSHIFT':
+                truth['TRUEZ'][:] = meta['REDSHIFT']
 
+        if len(objmeta) > 0: # QSOs have no metadata...
+            for key in objmeta.colnames:
+                if key in objtruth.colnames:
+                    objtruth[key][:] = objmeta[key]
+            
         # Scatter the photometry based on the depth.
         self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
