@@ -2,32 +2,28 @@
 desitarget.cmx.cmx_cuts
 ========================
 
-Target Selection for DESI commissioning (cmx)
-
-https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
+`Target Selection for DESI commissioning (cmx) derived from `the wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* STD_DITHER).
+
+.. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+.. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
 """
-import warnings
+
 from time import time
-import os.path
-
-import numbers
-import sys
-
 import numpy as np
-from pkg_resources import resource_filename
+
+import warnings
 
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
+from desitarget.cuts import _psflike
 from desitarget.internal import sharedmem
 from desitarget.cmx.cmx_targetmask import cmx_mask
-
-from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
 
 #ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -36,18 +32,125 @@ log = get_logger()
 #ADM start the clock
 start = time()
 
+def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
+                    objtype=None, gaia=None, pmra=None, pmdec=None,
+                    aen=None, dupsource=None, paramssolved=None,
+                    primary=None):
+    """The default logic/mask cuts for commissioning stars
 
-def isSTD_dither(gflux=None):
-    """Placeholder for Gaia dithering targets
-       
-    Args:
-        gflux
-            The flux in nano-maggies of g
-    
-    Returns:
-        mask : array_like. True if and only if the object is Gaia
-            dithering target.
+    Parameters
+    ----------
+    gfracflux, rfracflux, zfracflux : :class:`array_like` or :class:`None` 
+        Profile-weighted fraction of the flux from other sources divided
+        by the total flux in g, r and z bands.
+    objtype : :class:`array_like` or :class:`None`
+        The Legacy Surveys TYPE to restrict to point sources.
+    gaia : :class:`boolean array_like` or :class:`None`
+       ``True`` if there is a match between this object in the Legacy
+       Surveys and in Gaia.
+    pmra, pmdec : :class:`array_like` or :class:`None`
+        Gaia-based proper motion in RA and Dec and parallax
+        (same units as the Gaia data model).
+    aen : :class:`array_like` or :class:`None`
+        Gaia Astrometric Excess Noise (as in the Gaia Data Model).
+    dupsource : :class:`array_like` or :class:`None`
+        Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+    paramssolved : :class:`array_like` or :class:`None`
+        How many parameters were solved for in Gaia (as in the Gaia Data model).
+    primary : :class:`array_like` or :class:`None`
+        If given, the ``BRICK_PRIMARY`` column of the catalogue.
+
+    Returns
+    -------
+    :class:`array_like` 
+        True if and only if the object passes the logic cuts for cmx stars.
+
+    Notes
+    -----
+    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - See also `the Gaia data model`_.
     """
+    if primary is None:
+        primary = np.ones_like(gaia, dtype='?')
+        
+    std = primary.copy()
+
+    # ADM A point source with a Gaia match.
+    std &= _psflike(objtype)
+    std &= gaia
+
+    # ADM An Isolated source.
+    fracflux = [gfracflux, rfracflux, zfracflux]
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore') # fracflux can be Inf/NaN.
+        for bandint in (0, 1, 2):  # g, r, z.
+            std &= fracflux[bandint] < 0.01
+
+    # ADM No obvious issues with the astrometry.
+    std &= (aen < 1) & (paramssolved == 31)
+
+    # ADM Finite proper motions.
+    std & = np.isfinite(pmra) & np.isfinite(pmdec)
+
+    # ADM Unique source (not a duplicated source).
+    std &= ~dupsource
+
+    return std
+
+
+def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
+                 gfracflux=None, rfracflux=None, zfracflux=None,
+                 objtype=None, gaia=None, aen=None, pmra=None, pmdec=None,
+                 objtype=None, primary=None):
+    """Gaia stars for dithering tests during commissioning
+
+    Parameters
+    ----------
+    obs_gflux, obs_rflux, obs_zflux : :class:`array_like` or :class:`None`
+        The flux in nano-maggies of g, r, z bands WITHOUT any
+        Galactic extinction correction.
+    gfracflux, rfracflux, zfracflux : :class:`array_like` or :class:`None` 
+        Profile-weighted fraction of the flux from other sources divided
+        by the total flux in g, r and z bands.
+    objtype : :class:`array_like` or :class:`None`
+        The Legacy Surveys TYPE to restrict to point sources.
+    gaia : :class:`boolean array_like` or :class:`None`
+       ``True`` if there is a match between this object in the Legacy
+       Surveys and in Gaia.
+    pmra, pmdec : :class:`array_like` or :class:`None`
+        Gaia-based proper motion in RA and Dec and parallax
+        (same units as the Gaia data model).
+    aen : :class:`array_like` or :class:`None`
+        Gaia Astrometric Excess Noise (as in the Gaia Data Model).
+    dupsource : :class:`array_like` or :class:`None`
+        Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+    paramssolved : :class:`array_like` or :class:`None`
+        How many parameters were solved for in Gaia (as in the Gaia Data model).
+    primary : :class:`array_like` or :class:`None`
+        If given, the ``BRICK_PRIMARY`` column of the catalogue.
+
+    Returns
+    -------
+    :class:`array_like` 
+        True if and only if the object is Gaia dithering target.
+
+    Notes
+    -----
+    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - See also `the Gaia data model`_.       
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+        
+    std = primary.copy()
+    std &= _psflike(objtype)
+    std &= gaia
+
+    bgs &= rflux > 10**((22.5-20.0)/2.5)
+    bgs &= rflux <= 10**((22.5-19.5)/2.5)
+
+
+    return bgs
 
     isdither &= (gflux > 0)
 
