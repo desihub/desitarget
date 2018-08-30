@@ -5,7 +5,7 @@ desitarget.cmx.cmx_cuts
 `Target Selection for DESI commissioning (cmx) derived from `the wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
-flux passes a given selection criterion (*e.g.* STD_DITHER).
+flux passes a given selection criterion (*e.g.* STD_TEST).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
 .. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
@@ -59,7 +59,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     paramssolved : :class:`array_like` or :class:`None`
         How many parameters were solved for in Gaia (as in the Gaia Data model).
     primary : :class:`array_like` or :class:`None`
-        If given, the ``BRICK_PRIMARY`` column of the catalogue.
+        ``True`` for objects that should be passed through the selection.
 
     Returns
     -------
@@ -112,12 +112,12 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
         ``True`` for objects that pass the logic cuts in
         :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
     primary : :class:`array_like` or :class:`None`
-        If given, the ``BRICK_PRIMARY`` column of the catalogue.
+        ``True`` for objects that should be passed through the selection.
 
     Returns
     -------
     :class:`array_like` 
-        True if and only if the object is Gaia dithering target.
+        True if and only if the object is a Gaia "dither" target.
 
     Notes
     -----
@@ -137,6 +137,48 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     isdither &= obs_zflux < 10**((22.5-15.0)/2.5)
 
     return isdither
+
+
+def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
+               isgood=None, primary=None):
+    """Very bright Gaia stars for early commissioning tests.
+
+    Parameters
+    ----------
+    obs_gflux, obs_rflux, obs_zflux : :class:`array_like` or :class:`None`
+        The flux in nano-maggies of g, r, z bands WITHOUT any
+        Galactic extinction correction.
+    isgood : :class:`array_like` or :class:`None`
+        ``True`` for objects that pass the logic cuts in
+        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like` 
+        True if and only if the object is a Gaia "test" target.
+
+    Notes
+    -----
+    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - See also `the Gaia data model`_.       
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+        
+    istest = primary.copy()
+    # ADM passes all of the default logic cuts.
+    istest &= isgood
+
+    # ADM not too bright in g, r, z (> 13 mags)
+    istest &= obs_gflux < 10**((22.5-13.0)/2.5)
+    istest &= obs_rflux < 10**((22.5-13.0)/2.5)
+    istest &= obs_zflux < 10**((22.5-13.0)/2.5)
+    # ADM but brighter than dither targets in g (g < 15)
+    istest &= obs_gflux > 10**((22.5-15.0)/2.5)
+
+    return istest
 
 
 def apply_cuts(objects):
@@ -225,13 +267,20 @@ def apply_cuts(objects):
         primary=primary
     )
 
-    dither = isSTD_dither(
+    #ADM determine if an object is a "dither" star
+    stddither = isSTD_dither(
+        obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
+        isgood=isgood, primary=primary):
+    )
+
+    stdtest = isSTD_test(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary):
     )
 
     # ADM Construct the targetflag bits
-    cmx_target  = dither * cmx_mask.STD_GAIA
+    cmx_target  = stddither * cmx_mask.STD_GAIA
+    cmx_target  = stdtest * cmx_mask.STD_TEST
 
     return cmx_target
 
