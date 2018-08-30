@@ -37,7 +37,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
                     objtype=None, isgaia=None, pmra=None, pmdec=None,
                     aen=None, dupsource=None, paramssolved=None,
                     primary=None):
-    """The default logic/mask cuts for commissioning stars
+    """The default logic/mask cuts for commissioning stars.
 
     Parameters
     ----------
@@ -100,33 +100,17 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
 
 def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
-                 gfracflux=None, rfracflux=None, zfracflux=None,
-                 objtype=None, gaia=None, aen=None, pmra=None, pmdec=None,
-                 objtype=None, primary=None):
-    """Gaia stars for dithering tests during commissioning
+                 isgood=None, primary=None):
+    """Gaia stars for dithering tests during commissioning.
 
     Parameters
     ----------
     obs_gflux, obs_rflux, obs_zflux : :class:`array_like` or :class:`None`
         The flux in nano-maggies of g, r, z bands WITHOUT any
         Galactic extinction correction.
-    gfracflux, rfracflux, zfracflux : :class:`array_like` or :class:`None` 
-        Profile-weighted fraction of the flux from other sources divided
-        by the total flux in g, r and z bands.
-    objtype : :class:`array_like` or :class:`None`
-        The Legacy Surveys TYPE to restrict to point sources.
-    gaia : :class:`boolean array_like` or :class:`None`
-       ``True`` if there is a match between this object in the Legacy
-       Surveys and in Gaia.
-    pmra, pmdec : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec and parallax
-        (same units as the Gaia data model).
-    aen : :class:`array_like` or :class:`None`
-        Gaia Astrometric Excess Noise (as in the Gaia Data Model).
-    dupsource : :class:`array_like` or :class:`None`
-        Whether the source is a duplicate in Gaia (as in the Gaia Data model).
-    paramssolved : :class:`array_like` or :class:`None`
-        How many parameters were solved for in Gaia (as in the Gaia Data model).
+    isgood : :class:`array_like` or :class:`None`
+        ``True`` for objects that pass the logic cuts in
+        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
     primary : :class:`array_like` or :class:`None`
         If given, the ``BRICK_PRIMARY`` column of the catalogue.
 
@@ -143,17 +127,14 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
         
-    std = primary.copy()
-    std &= _psflike(objtype)
-    std &= gaia
+    isdither = primary.copy()
+    # ADM passes all of the default logic cuts.
+    isdither &= isgood
 
-    bgs &= rflux > 10**((22.5-20.0)/2.5)
-    bgs &= rflux <= 10**((22.5-19.5)/2.5)
-
-
-    return bgs
-
-    isdither &= (gflux > 0)
+    # ADM not too bright in g, r, z (> 15 mags)
+    isdither &= obs_gflux < 10**((22.5-15.0)/2.5)
+    isdither &= obs_rflux < 10**((22.5-15.0)/2.5)
+    isdither &= obs_zflux < 10**((22.5-15.0)/2.5)
 
     return isdither
 
@@ -244,7 +225,10 @@ def apply_cuts(objects):
         primary=primary
     )
 
-    dither = isSTD_dither(gflux=gflux)
+    dither = isSTD_dither(
+        obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
+        isgood=isgood, primary=primary):
+    )
 
     # ADM Construct the targetflag bits
     cmx_target  = dither * cmx_mask.STD_GAIA
