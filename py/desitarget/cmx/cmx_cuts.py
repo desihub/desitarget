@@ -32,8 +32,9 @@ log = get_logger()
 #ADM start the clock
 start = time()
 
+
 def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
-                    objtype=None, gaia=None, pmra=None, pmdec=None,
+                    objtype=None, isgaia=None, pmra=None, pmdec=None,
                     aen=None, dupsource=None, paramssolved=None,
                     primary=None):
     """The default logic/mask cuts for commissioning stars
@@ -45,7 +46,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
         by the total flux in g, r and z bands.
     objtype : :class:`array_like` or :class:`None`
         The Legacy Surveys TYPE to restrict to point sources.
-    gaia : :class:`boolean array_like` or :class:`None`
+    isgaia : :class:`boolean array_like` or :class:`None`
        ``True`` if there is a match between this object in the Legacy
        Surveys and in Gaia.
     pmra, pmdec : :class:`array_like` or :class:`None`
@@ -71,13 +72,13 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     - See also `the Gaia data model`_.
     """
     if primary is None:
-        primary = np.ones_like(gaia, dtype='?')
+        primary = np.ones_like(isgaia, dtype='?')
         
     std = primary.copy()
 
     # ADM A point source with a Gaia match.
     std &= _psflike(objtype)
-    std &= gaia
+    std &= isgaia
 
     # ADM An Isolated source.
     fracflux = [gfracflux, rfracflux, zfracflux]
@@ -190,9 +191,9 @@ def apply_cuts(objects):
         raise ValueError
 
     # ADM The observed g/r/z fluxes.
-    obs_rflux = objects['FLUX_G']
+    obs_gflux = objects['FLUX_G']
     obs_rflux = objects['FLUX_R']
-    obs_rflux = objects['FLUX_Z']
+    obs_zflux = objects['FLUX_Z']
 
     # ADM The de-extincted g/r/z/ fluxes.
     from desitarget.cuts import unextinct_fluxes
@@ -211,9 +212,9 @@ def apply_cuts(objects):
     # ADM if we don't have REF_CAT in the sweeps use the
     # ADM minimum value of REF_ID to identify Gaia sources. This will
     # ADM introduce a small number (< 0.001%) of Tycho-only sources.
-    gaia = objects['REF_ID'] > 0
+    isgaia = objects['REF_ID'] > 0
     if "REF_CAT" in objects.dtype.names:
-        gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
+        isgaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     pmraivar = objects['PMRA_IVAR']
@@ -231,6 +232,17 @@ def apply_cuts(objects):
         w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
         if len(w) > 0:
             gaiaparamssolved[w] = 3
+
+    # ADM initially, every object passes the cuts (is True)
+    primary = np.ones_like(objects, dtype=bool)
+
+    #ADM determine if an object passes the default logic for cmx stars
+    isgood = passesSTD_logic(
+        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+        objtype=objtype, isgaia=isgaia, pmra=pmra, pmdec=pmdec,
+        aen=gaiaaen, dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
+        primary=primary
+    )
 
     dither = isSTD_dither(gflux=gflux)
 
