@@ -91,7 +91,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     std &= (aen < 1) & (paramssolved == 31)
 
     # ADM Finite proper motions.
-    std & = np.isfinite(pmra) & np.isfinite(pmdec)
+    std &= np.isfinite(pmra) & np.isfinite(pmdec)
 
     # ADM Unique source (not a duplicated source).
     std &= ~dupsource
@@ -209,7 +209,7 @@ def apply_cuts(objects):
     # ADM Currently only coded for objects with Gaia matches
     # ADM (e.g. DR7 or above). Fail for earlier Data Releases.
     release = objects['RELEASE']
-    if release < 7000:
+    if np.any(release < 7000):
         log.critical('Commissioning cuts only coded for DR7 or above')
         raise ValueError
 
@@ -251,7 +251,7 @@ def apply_cuts(objects):
     if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in objects.dtype.names:
         gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
     else:
-        gaiaparamssolved = np.zeros_like(gaia)+31
+        gaiaparamssolved = np.zeros_like(isgaia)+31
         w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
         if len(w) > 0:
             gaiaparamssolved[w] = 3
@@ -270,45 +270,40 @@ def apply_cuts(objects):
     #ADM determine if an object is a "dither" star
     stddither = isSTD_dither(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
-        isgood=isgood, primary=primary):
+        isgood=isgood, primary=primary
     )
 
     stdtest = isSTD_test(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
-        isgood=isgood, primary=primary):
+        isgood=isgood, primary=primary
     )
 
     # ADM Construct the targetflag bits
     cmx_target  = stddither * cmx_mask.STD_GAIA
-    cmx_target  = stdtest * cmx_mask.STD_TEST
+    cmx_target |= stdtest * cmx_mask.STD_TEST
 
     return cmx_target
 
 
-def select_targets(infiles, numproc=4, gaiamatch=False,
-            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+def select_targets(infiles, numproc=4):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
     ----------
     infiles : :class:`list` or `str` 
-        A list of input filenames (tractor or sweep files) OR a single filename
+        A list of input filenames (tractor or sweep files) OR a single filename.
     numproc : :class:`int`, optional, defaults to 4
-        The number of parallel processes to use
-    gaiamatch : :class:`boolean`, optional, defaults to ``False``
-        If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+        The number of parallel processes to use.
 
     Returns
-    -------   
+    -------
     :class:`~numpy.ndarray`
-        The subset of input targets which pass the cuts, including extra
-        columns for `DESI_TARGET`
+        The subset of input targets which pass the cmx cuts, including an extra
+        column for `CMX_TARGET`.
 
     Notes
     -----
-        - if numproc==1, use serial code instead of parallel
+        - if numproc==1, use serial code instead of parallel.
     """
     from desiutil.log import get_logger
     log = get_logger()
@@ -341,7 +336,7 @@ def select_targets(infiles, numproc=4, gaiamatch=False,
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects,gaiamatch,gaiadir)
+        desi_target, bgs_target, mws_target = apply_cuts(objects)
 
         return _finalize_targets(objects, desi_target, desi_target, desi_target)
 
