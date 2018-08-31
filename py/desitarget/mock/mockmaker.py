@@ -672,7 +672,7 @@ class ReadGaussianField(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', mock_density=False):
+                 zmax_qso=None, target_name='', mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -683,6 +683,9 @@ class ReadGaussianField(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        zmax_qso : :class:`float`
+            Maximum redshift of tracer QSOs to read, to ensure no
+            double-counting with Lya mocks.  Defaults to None.
         target_name : :class:`str`
             Name of the target being read (e.g., ELG, LRG).
         mock_density : :class:`bool`, optional
@@ -743,7 +746,7 @@ class ReadGaussianField(SelectTargets):
 
         mockid = np.arange(len(ra)) # unique ID/row number
         
-        fracarea = pixweight[allpix]
+        fracarea = pixweight[allpix]        
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
@@ -751,7 +754,7 @@ class ReadGaussianField(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -769,7 +772,22 @@ class ReadGaussianField(SelectTargets):
         else:
             data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
             zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
-            
+
+            # cut on maximum redshift
+            if zmax_qso is not None:
+                cut = np.where( zz < zmax_qso )[0]
+                nobj = len(cut)
+                log.info('Trimmed to {} objects with z<{:.2f}'.format(nobj, zmax_qso))
+                if nobj == 0:
+                    return dict()
+                mockid = mockid[cut]
+                allpix = allpix[cut]
+                weight = weight[cut]
+                ra = ra[cut]
+                dec = dec[cut]
+                brickname = brickname[cut]
+                zz = zz[cut]
+                
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
@@ -1173,7 +1191,8 @@ class ReadLyaCoLoRe(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='LYA', nside_lya=16, mock_density=False):
+                 target_name='LYA', nside_lya=16, zmin_lya=None,
+                 mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -1189,6 +1208,9 @@ class ReadLyaCoLoRe(SelectTargets):
         nside_lya : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 16.
+        zmin_lya : :class:`float`
+            Minimum redshift of Lya skewers, to ensure no double-counting with
+            QSO mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
@@ -1242,31 +1264,38 @@ class ReadLyaCoLoRe(SelectTargets):
         # Read the ra,dec coordinates and then restrict to the desired
         # healpixels.
         log.info('Reading {}'.format(mockfile))
-        tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z', 'PIXNUM'],
-                          upper=True, ext=1)
-        
+        try: # new data model
+            tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z_QSO_RSD', 'PIXNUM'],
+                              upper=True, ext=1)
+            zz = tmp['Z_QSO_RSD'].astype('f4')
+        except: # old data model
+            tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z', 'PIXNUM'],
+                              upper=True, ext=1)
+            zz = tmp['Z'].astype('f4')
+            
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
-        zz = tmp['Z'].astype('f4')
         mockpix = tmp['PIXNUM']
         mockid = (tmp['MOCKID'].astype(float)).astype(int)
-        #objid = (tmp['MOCKID'].astype(float)).astype(int) # will change
-        #mockid = objid.copy()
+            
         del tmp
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, ra, dec)
 
         fracarea = pixweight[allpix]
-        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        # force DESI footprint and minimum redshift
+        if zmin_lya is None:
+            zmin_lya = zz.min()
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) * zz >= zmin_lya )[0]
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
-            nobj, target_name, len(np.atleast_1d(healpixels))))
+        log.info('Trimmed to {} {}s in {} healpixel(s) with z>={:.2f}'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels)), zmin_lya))
 
         allpix = allpix[cut]
         weight = 1 / fracarea[cut]
@@ -1948,7 +1977,8 @@ class QSOMaker(SelectTargets):
                                              'v0.0.8_2LPT', 'QSO.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+             healpixels=None, nside=None, zmax_qso=None, mock_density=False,
+             **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1963,6 +1993,9 @@ class QSOMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        zmax_qso : :class:`float`
+            Maximum redshift of tracer QSOs to read, to ensure no
+            double-counting with Lya mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -1990,7 +2023,7 @@ class QSOMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   zmax_qso=zmax_qso, mock_density=mock_density)
         self._update_normfilter(data.get('NORMFILTER'))
 
         return data
@@ -2109,11 +2142,11 @@ class LYAMaker(SelectTargets):
 
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'lya_forest', 'v2.0.2', 'master.fits')
+                                             'lya_forest', 'london', 'v2.0', 'master.fits')
 
     def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
-             healpixels=None, nside=None, nside_lya=16, mock_density=False,
-             **kwargs):
+             healpixels=None, nside=None, nside_lya=16, zmin_lya=None,
+             mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2131,6 +2164,9 @@ class LYAMaker(SelectTargets):
         nside_lya : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 16.
+        zmin_lya : :class:`float`
+            Minimum redshift of Lya skewers, to ensure no double-counting with
+            QSO mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -2158,7 +2194,8 @@ class LYAMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   nside_lya=nside_lya, mock_density=mock_density)
+                                   nside_lya=nside_lya, zmin_lya=zmin_lya,
+                                   mock_density=mock_density)
         self._update_normfilter(data.get('NORMFILTER'))
 
         return data
