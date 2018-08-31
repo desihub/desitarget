@@ -248,6 +248,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
     targets = list()
     truth = list()
+    objtruth = list()
     trueflux = list()
 
     boss_std = None
@@ -261,7 +262,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             ntarget = len(calib)
             if ntarget == 0:
                 log.debug('No (flux) calibration star(s) on this healpixel.')
-                return [targets, truth, trueflux]
+                return [targets, truth, objtruth, trueflux]
             else:
                 log.debug('Generating spectra for {} candidate (flux) calibration stars.'.format(ntarget))
                 indx = indx[calib]
@@ -269,7 +270,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
     # Faintstar targets are a special case.
     if targname.lower() == 'faintstar':
-        chunkflux, _, chunkmeta, chunkobjmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+        chunkflux, _, chunkmeta, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
             data, indx=indx, boss_std=boss_std)
         
         if len(chunktargets) > 0:
@@ -283,6 +284,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         if nkeep > 0:
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
+            if len(chunkobjtruth) > 0: # skies have no objtruth
+                objtruth.append(chunkobjtruth[keep])
             if not no_spectra:
                 trueflux.append(chunkflux[keep, :])
     else:
@@ -292,7 +295,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
         makemore, itercount, ntot = True, 0, 0
         while makemore:
-            chunkflux, _, chunkmeta, chunkobjmeta, chunktargets, chunktruth = MakeMock.make_spectra(
+            chunkflux, _, chunkmeta, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
                 data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
 
             MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
@@ -306,6 +309,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
+                if len(chunkobjtruth) > 0: # skies have no objtruth
+                    objtruth.append(chunkobjtruth[keep])
                 if not no_spectra:
                     trueflux.append(chunkflux[keep, :])
 
@@ -325,10 +330,12 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
+        if len(objtruth) > 0: # skies have no objtruth
+            objtruth = vstack(objtruth)
         if not no_spectra:
             trueflux = np.concatenate(trueflux)
-        
-    return [targets, truth, trueflux]
+
+    return [targets, truth, objtruth, trueflux]
 
 def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     """Determine the density of targets to generate, accounting for fluctuations due
@@ -500,22 +507,23 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     # Unpack the results and return; note that sky targets are a special case.
     results = list(zip(*results))
 
-    #targets = [targ for targ in results[0] if len(targ) > 0]
-    #truth = [tru for tru in results[1] if len(tru) > 0]
-    
-    targets, truth, good = [], [], []
-    for ii, (targ, tru) in enumerate( zip(results[0], results[1]) ):
+    targets, truth, objtruth, good = [], [], [], []
+    for ii, (targ, tru, objtru) in enumerate( zip(results[0], results[1], results[2]) ):
         if len(targ) != len(tru):
-            log.warning('Mismatching argets and truth tables!')
+            log.warning('Mismatching targets and truth tables!')
             raise ValueError
         if len(targ) > 0:
             good.append(ii)
             targets.append(targ)
             truth.append(tru)
+            if len(objtru) > 0: # skies have no objtruth
+                objtruth.append(objtru)
                
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
+        if len(objtruth) > 0: # skies have no objtruth
+            objtruth = vstack(objtruth)
         good = np.array(good)
 
     if sky:
@@ -525,7 +533,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
             trueflux = []
         else:
             if len(good) > 0:
-                trueflux = np.concatenate(np.array(results[2])[good])
+                trueflux = np.concatenate(np.array(results[3])[good])
             else:
                 trueflux = []
                 
@@ -535,7 +543,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     log.info('Total time for {}s = {:.3f} minutes ({:.3f} cpu minutes/deg2).'.format(
         data['TARGET_NAME'], ttime / 60, (ttime*nproc) / area ))
 
-    return targets, truth, trueflux
+    return targets, truth, objtruth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                   seed=None, nproc=1, nside_chunk=128, verbose=False,
@@ -593,6 +601,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         alltargets = list()
         alltruth = list()
+        allobjtruth = list()
         alltrueflux = list()
         allskytargets = list()
         allskytruth = list()
@@ -614,10 +623,10 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             # Generate targets in parallel; SKY targets are special. 
             sky = source_name.upper() == 'SKY'
             calib_only = params['sources'][source_name].get('calib_only', False)
-            targets, truth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
-                                                   nside_chunk=nside_chunk, seed=healseed,
-                                                   nproc=nproc, sky=sky, no_spectra=no_spectra,
-                                                   calib_only=calib_only)
+            targets, truth, objtruth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
+                                                             nside_chunk=nside_chunk, seed=healseed,
+                                                             nproc=nproc, sky=sky, no_spectra=no_spectra,
+                                                             calib_only=calib_only)
             
             if sky:
                 allskytargets.append(targets)
@@ -626,6 +635,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 if len(targets) > 0:
                     alltargets.append(targets)
                     alltruth.append(truth)
+                    allobjtruth.append(objtruth)
                     alltrueflux.append(trueflux)
 
             # Contaminants here?
@@ -637,6 +647,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         if len(alltargets) > 0:
             targets = vstack(alltargets) 
             truth = vstack(alltruth)
+            objtruth = vstack(allobjtruth)
             trueflux = np.concatenate(alltrueflux)
         else:
             targets = []
@@ -647,16 +658,16 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         else:
             skytargets = []
 
-        targets, truth, skytargets, skytruth = finish_catalog(
-            targets, truth, skytargets, skytruth, healpix,
+        targets, truth, objtruth, skytargets, skytruth = finish_catalog(
+            targets, truth, objtruth, skytargets, skytruth, healpix,
             nside, log, seed=healseed)
 
         # Finally, write the results to disk.
-        write_targets_truth(targets, truth, trueflux, MakeMock.wave, skytargets,
-                            skytruth,  healpix, nside, log, output_dir, 
+        write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
+                            skytargets, skytruth,  healpix, nside, log, output_dir, 
                             seed=healseed)
         
-def finish_catalog(targets, truth, skytargets, skytruth, healpix,
+def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None):
     """Add brickid, brick_objid, targetid, and subpriority to target catalog.
     
@@ -703,6 +714,7 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
         targets['TARGETID'][:] = targetid[:nobj]
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
         truth['TARGETID'][:] = targetid[:nobj]
+        objtruth['TARGETID'][:] = objtargetid[:nobj]
 
     if nsky > 0:
         skytargets['BRICKID'][:] = healpix
@@ -712,9 +724,9 @@ def finish_catalog(targets, truth, skytargets, skytruth, healpix,
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
         skytruth['TARGETID'][:] = targetid[nobj:]
         
-    return targets, truth, skytargets, skytruth
+    return targets, truth, objtruth, skytargets, skytruth
 
-def write_targets_truth(targets, truth, trueflux, truewave, skytargets,
+def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,
                         skytruth, healpix, nside, log, output_dir,
                         seed=None):
     """Writes all the final catalogs to disk.
@@ -824,6 +836,8 @@ def write_targets_truth(targets, truth, trueflux, truewave, skytargets,
         hdu = fits.convenience.table_to_hdu(truth)
         hdu.header['EXTNAME'] = 'TRUTH'
         hx.append(hdu)
+
+        import pdb ; pdb.set_trace()
 
         if len(trueflux) > 0:
             hdu = fits.ImageHDU(truewave.astype(np.float32),

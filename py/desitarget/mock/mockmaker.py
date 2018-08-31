@@ -216,6 +216,8 @@ def empty_truth_table(nobj=1, templatetype=''):
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
 
     _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype)
+    if len(objtruth) == 0:
+        objtruth = [] # need an empty list for the multiprocessing in build.select_targets
 
     return truth, objtruth
 
@@ -528,7 +530,7 @@ class SelectTargets(object):
             elif key == 'REDSHIFT':
                 truth['TRUEZ'][:] = meta['REDSHIFT']
 
-        if len(objmeta) > 0: # QSOs have no metadata...
+        if len(objmeta) > 0: # some objects have no metadata...
             for key in objmeta.colnames:
                 if key in objtruth.colnames:
                     objtruth[key][:] = objmeta[key]
@@ -541,7 +543,7 @@ class SelectTargets(object):
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
         
-        return targets, truth
+        return targets, truth, objtruth
 
     def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
         """Compute the median density of targets in the full mock. 
@@ -2580,11 +2582,11 @@ class LRGMaker(SelectTargets):
                     meta[north] = meta1
                     flux[north, :] = flux1
                     
-        targets, truth = self.populate_targets_truth(data, meta, objmeta, indx=indx, psf=False,
-                                                     seed=seed, gmm=gmm, truespectype='GALAXY',
-                                                     templatetype='LRG')
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            gmm=gmm, truespectype='GALAXY', templatetype='LRG')
 
-        return flux, self.wave, meta, objmeta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets.  Input tables are modified in place.
@@ -4233,7 +4235,6 @@ class SKYMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
@@ -4274,17 +4275,16 @@ class SKYMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         meta['SEED'] = rand.randint(2**31, size=nobj)
         meta['REDSHIFT'] = data['Z'][indx]
         
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            truespectype='SKY', templatetype='SKY')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
-                                                     seed=seed, truespectype='SKY',
-                                                     templatetype='SKY')
-
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select SKY targets (i.e., everything).  Input tables are modified in place.
