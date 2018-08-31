@@ -639,6 +639,18 @@ class SelectTargets(object):
         else:
             plt.show()
 
+    def is_south(self, dec):
+        """Divide the "north" and "south" photometric systems based on a
+        constant-declination cut.
+
+        Parameters
+        ----------
+        dec : :class:`numpy.ndarray`
+            Declination of candidate targets (decimal degrees). 
+
+        """
+        return dec <= 32.125
+
 class ReadGaussianField(SelectTargets):
     """Read a Gaussian random field style mock catalog.
 
@@ -747,6 +759,8 @@ class ReadGaussianField(SelectTargets):
         weight = 1 / fracarea[cut]
         ra = ra[cut]
         dec = dec[cut]
+
+        import pdb ; pdb.set_trace()
 
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
