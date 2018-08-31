@@ -474,9 +474,89 @@ def isLRGpass_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
 
     return lrg, lrg1pass, lrg2pass
 
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Call isELG_colors_north if south=False, otherwise call isELG_colors_south.
+    
+    Returns:
+        mask : array_like. True if and only if the object is an ELG target.
+    """
+    if south==False:
+        return isELG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                  w1flux=w1flux, w2flux=w2flux, primary=primary)
+    else:
+        return isELG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                  w1flux=w1flux, w2flux=w2flux, primary=primary)
+
+def isELG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
+                        w2flux=None, ggood=None, primary=None):
+    """See :func:`~desitarget.cuts.isELG_north` for details.
+    This function applies just the flux and color cuts for the BASS/MzLS photometric system.
+
+    Notes:
+    - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#EmissionLinesGalaxiesELG12North:ModifiedFDRselectionwithbrightcutong
+    """
+
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+
+    elg = primary.copy()
+
+    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
+    elg &= gflux > 10**((22.5-23.7)/2.5)                       # g<23.7
+    elg &= rflux > 10**((22.5-23.3)/2.5)                       # r<23.3
+    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
+    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    #ADM this is the original FDR cut to remove stars and low-z galaxies
+    #elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
+    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
+    
+    return elg
+
+def isELG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
+                        w2flux=None, ggood=None, primary=None):
+    """See :func:`~desitarget.cuts.isELG_south` for details.
+    This function applies just the flux and color cuts for the DECaLS photometric system.
+
+    Notes:
+    - Current version (08/01/18) is version 121 on the wiki:
+    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#EmissionLinesGalaxiesELG12South:FDRselectionwithbrightcutong
+    """
+
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+
+    elg = primary.copy()
+
+    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
+    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
+    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
+    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
+
+    return elg
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
-                gallmask=None, rallmask=None, zallmask=None, south=True):
+          gallmask=None, rallmask=None, zallmask=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
     
     Args:   
@@ -500,7 +580,6 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
     else:
         return isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
-
 def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
                 gallmask=None, rallmask=None, zallmask=None):
     """Target Definition of ELG for the BASS/MzLS photometric system. Returning a boolean array.
@@ -519,32 +598,20 @@ def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
             target.
 
     """
-
-    #----- Emission Line Galaxies
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
 
+    # Apply data quality cuts
     elg &= (gallmask == 0)
     elg &= (rallmask == 0)
     elg &= (zallmask == 0)
-    
-    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
-    elg &= gflux > 10**((22.5-23.7)/2.5)                       # g<23.7
-    elg &= rflux > 10**((22.5-23.3)/2.5)                       # r<23.3
-    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
-    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
 
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    #ADM this is the original FDR cut to remove stars and low-z galaxies
-    #elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
-    elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
-    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
+    # Apply color, flux, and star-galaxy separation cuts
+    elg &= isELG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                              w2flux=w2flux, primary=primary)
 
     return elg
-
 
 def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Target Definition of ELG for the DECaLS photometric system. Returning a boolean array.
@@ -560,25 +627,18 @@ def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, pr
             target.
 
     """
-    #----- Emission Line Galaxies
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     elg = primary.copy()
-    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
-    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
-    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
-    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
 
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
-    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
-
+    # Apply color, flux, and star-galaxy separation cuts
+    elg &= isELG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                              w2flux=w2flux, primary=primary)
+    
     return elg
 
-
-def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 primary=None, south=True):
     """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
 
     Args:
@@ -586,6 +646,9 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
         mask : boolean array, True if the object has colors like a STD star target
@@ -609,9 +672,15 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, p
     #ADM optical colors for halo TO or bluer
     grcolor = 2.5 * np.log10(rflux / gflux)
     rzcolor = 2.5 * np.log10(zflux / rflux)
-    std &= rzcolor < 0.2
-    std &= grcolor > 0.
-    std &= grcolor < 0.35
+    # Currently no difference in north vs south color-cuts.
+    if south:
+        std &= rzcolor < 0.2
+        std &= grcolor > 0.
+        std &= grcolor < 0.35
+    else:
+        std &= rzcolor < 0.2
+        std &= grcolor > 0.
+        std &= grcolor < 0.35
 
     return std
 
@@ -698,7 +767,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           gaia=None, astrometricexcessnoise=None, paramssolved=None,
           pmra=None, pmdec=None, parallax=None, dupsource=None, 
           gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False,
-          usegaia=True):
+          usegaia=True, south=True):
     """Select STD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isSTD_colors() for additional info.
 
@@ -736,26 +805,31 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
            if ``True`` apply magnitude cuts for "bright" conditions; otherwise, 
            choose "normal" brightness standards. Cut is performed on `gaiagmag`.
         usegaia: boolean, defaults to ``True``
-           if ``True`` then  call :func:`~desitarget.cuts.isSTD_gaia` to set the 
+           if ``True`` then call :func:`~desitarget.cuts.isSTD_gaia` to set the
            logic cuts. If Gaia is not available (perhaps if you're using mocks)
-           then send ``False`` and pass `gaiagmag` as 22.5-2.5*np.log10(`robs`) 
-           where `robs` is `rflux` without a correction.for Galactic extinction.
+           then send ``False``, in which case we use the LS r-band magnitude as
+           a proxy for the Gaia G-band magnitude (ignoring---incorrectly---that
+           we have already corrected for Galactic extinction.)
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
-        mask : boolean array, True if the object has colors like a STD star
+        mask : boolean array, True if the object has colors like a STD star.
 
     Notes:
         - Gaia data model is at:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
         - Current version (08/01/18) is version 121 on the wiki:
             https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     std = primary.copy()
 
     #ADM apply the Legacy Surveys (optical) magnitude and color cuts.
-    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, south=south)
 
     #ADM apply the Gaia quality cuts.
     if usegaia:
@@ -788,11 +862,16 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         gbright = 16.
         gfaint = 19.
 
-    std &= gaiagmag >= gbright
-    std &= gaiagmag < gfaint
+    if usegaia:
+        std &= gaiagmag >= gbright
+        std &= gaiagmag < gfaint
+    else:
+        # Use LS r-band as a Gaia G-band proxy.
+        gaiamag_proxy = 22.5 - 2.5 * np.log10( rflux.clip(1e-16) )
+        std &= gaiamag_ >= gbright
+        std &= gaiamag_ < gfaint
 
     return std
-
 
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaia=None, primary=None,
@@ -1098,7 +1177,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     return mws
 
 
-def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
+def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None, south=True):
     """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
 
     Args:
@@ -1106,6 +1185,9 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to True
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
         mask : boolean array, True if the object has colors like an old stellar population,
@@ -1126,7 +1208,11 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         grcolor = 2.5 * np.log10(rflux / gflux)
-        mwsstar &= (grcolor > 0.0)
+        # Assume no difference in north vs south color-cuts.
+        if south:
+            mwsstar &= (grcolor > 0.0)
+        else:
+            mwsstar &= (grcolor > 0.0)
 
     return mwsstar
 

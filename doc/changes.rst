@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.23.1 (unreleased)
+0.24.0 (unreleased)
 -------------------
 
 * Make commissioning (cmx) target selection fully functional [`PR #359`_]. Includes:
@@ -11,6 +11,9 @@ desitarget Change Log
     * ``SV_TARGET`` and ``CMX_TARGET`` as output columns instead of as a bit.
 * Remove "legacy" code in QA [`PR #359`_].
     * Weight maps can now be made with :func:`desitarget.randoms.pixmap`.
+* Add isELG_colors functions [`PR #357`_].
+* Adapt cuts.isSTD_colors to deal with different north/south color-cuts [`PR
+  #355`_].
 * Refactor to allow separate commissioning and SV target selections [`PR #346`_]:
     * Added ``sv`` and ``commissioning`` directories.
     * New infrastructure to have different cuts for SV and commissioning:
@@ -33,6 +36,8 @@ desitarget Change Log
 .. _`PR #342`: https://github.com/desihub/desitarget/pull/342
 .. _`PR #345`: https://github.com/desihub/desitarget/pull/345
 .. _`PR #346`: https://github.com/desihub/desitarget/pull/346
+.. _`PR #355`: https://github.com/desihub/desitarget/pull/355
+.. _`PR #357`: https://github.com/desihub/desitarget/pull/357
 .. _`PR #359`: https://github.com/desihub/desitarget/pull/359
 
 0.23.0 (2018-08-09)

@@ -105,6 +105,10 @@ class TestCuts(unittest.TestCase):
         elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         self.assertTrue(np.all(elg1==elg2))
 
+        elg1 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
+        elg2 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
+        self.assertTrue(np.all(elg1==elg2))
+
         # @moustakas - Leaving off objtype will result in different samples!
         psftype = targets['TYPE']
         bgs1 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=primary)
