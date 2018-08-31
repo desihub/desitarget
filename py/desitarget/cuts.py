@@ -1975,7 +1975,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM As we need the column names, 
+    # ADM As we need the column names,
     # ADM capture the case that a single FITS_REC is passed
     import astropy.io.fits.fitsrec
     if isinstance(objects, astropy.io.fits.fitsrec.FITS_record):

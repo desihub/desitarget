@@ -753,7 +753,6 @@ def bundle_bricks(pixnum, maxpernode, nside,
     print('#SBATCH -C haswell')
     print('')
 
-
     #ADM extract the Data Release number from the survey directory
     dr = surveydir.split('dr')[-1][0]
 
@@ -876,7 +875,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g','r','z'],
 
     #ADM a little more information if we're slurming across nodes
     if os.getenv('SLURMD_NODENAME') is not None:
-        print('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     #ADM the critical function to run on every brick
     def _get_skies(brickname):

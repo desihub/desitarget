@@ -976,7 +976,7 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None,
 
     #ADM a little more information if we're slurming across nodes
     if os.getenv('SLURMD_NODENAME') is not None:
-        print('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     #ADM initialize the bricks class, and retrieve the brick information look-up table
     #ADM so it can be used in a common fashion
