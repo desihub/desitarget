@@ -202,7 +202,6 @@ def apply_cuts(objects):
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
-
     #- Ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
@@ -218,11 +217,19 @@ def apply_cuts(objects):
         colnames = objects.dtype.names
 
     # ADM Currently only coded for objects with Gaia matches
-    # ADM (e.g. DR7 or above). Fail for earlier Data Releases.
+    # ADM (e.g. DR6 or above). Fail for earlier Data Releases.
     release = objects['RELEASE']
-    if np.any(release < 7000):
-        log.critical('Commissioning cuts only coded for DR7 or above')
+    if np.any(release < 6000):
+        log.critical('Commissioning cuts only coded for DR6 or above')
         raise ValueError
+    if (np.max(objects['PMRA']) == 0.) & np.any(release < 7000):
+        d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
+        log.info("Zero objects have a proper motion.")
+        log.critical(
+            "Did you mean to send the Gaia-matched sweeps in, e.g., {}?"
+            .format(d)
+        )
+        raise IOError
 
     # ADM The observed g/r/z fluxes.
     obs_gflux = objects['FLUX_G']
