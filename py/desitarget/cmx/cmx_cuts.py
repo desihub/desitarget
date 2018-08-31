@@ -13,6 +13,7 @@ flux passes a given selection criterion (*e.g.* STD_TEST).
 
 from time import time
 import numpy as np
+import os
 
 import warnings
 
@@ -20,8 +21,9 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
+
 from desitarget import io
-from desitarget.cuts import _psflike
+from desitarget.cuts import _psflike, _is_row
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize
 from desitarget.cmx.cmx_targetmask import cmx_mask
@@ -207,6 +209,14 @@ def apply_cuts(objects):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
+    # ADM As we need the column names, 
+    # ADM capture the case that a single FITS_REC is passed
+    import astropy.io.fits.fitsrec
+    if isinstance(objects, astropy.io.fits.fitsrec.FITS_record):
+        colnames = objects.__dict__['array'].dtype.names
+    else:
+        colnames = objects.dtype.names
+
     # ADM Currently only coded for objects with Gaia matches
     # ADM (e.g. DR7 or above). Fail for earlier Data Releases.
     release = objects['RELEASE']
@@ -237,7 +247,7 @@ def apply_cuts(objects):
     # ADM minimum value of REF_ID to identify Gaia sources. This will
     # ADM introduce a small number (< 0.001%) of Tycho-only sources.
     isgaia = objects['REF_ID'] > 0
-    if "REF_CAT" in objects.dtype.names:
+    if "REF_CAT" in colnames:
         isgaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
@@ -249,18 +259,26 @@ def apply_cuts(objects):
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
     # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
     # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
-    if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in objects.dtype.names:
+    if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in colnames:
         gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
     else:
-        gaiaparamssolved = np.zeros_like(isgaia)+31
+        gaiaparamssolved = np.zeros_like(isgaia) + 31
         w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
         if len(w) > 0:
-            gaiaparamssolved[w] = 3
+            #ADM we need to check the case of a single row being passed
+            if _is_row(gaiaparamssolved):
+                gaiaparamsolved = 3
+            else:
+                gaiaparamssolved[w] = 3
 
-    # ADM initially, every object passes the cuts (is True)
-    primary = np.ones_like(objects, dtype=bool)
+    # ADM initially, every object passes the cuts (is True).
+    # ADM need to check the case of a single row being passed.
+    if _is_row(objects):
+        primary = np.bool_(True)
+    else:
+        primary = np.ones_like(objects, dtype=bool)
 
-    #ADM determine if an object passes the default logic for cmx stars
+    # ADM determine if an object passes the default logic for cmx stars
     isgood = passesSTD_logic(
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
         objtype=objtype, isgaia=isgaia, pmra=pmra, pmdec=pmdec,
@@ -268,7 +286,7 @@ def apply_cuts(objects):
         primary=primary
     )
 
-    #ADM determine if an object is a "dither" star
+    # ADM determine if an object is a "dither" star
     stddither = isSTD_dither(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
