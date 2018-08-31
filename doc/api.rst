@@ -8,6 +8,12 @@ desitarget API
 .. automodule:: desitarget.brightmask
     :members:
 
+.. automodule:: desitarget.cmx.cmx_cuts
+    :members:
+
+.. automodule:: desitarget.cmx.cmx_targetmask
+    :members:
+
 .. automodule:: desitarget.contammask
     :members:
 
