@@ -2378,7 +2378,7 @@ class LRGMaker(SelectTargets):
 
     """
     wave, tree, template_maker = None, None, None
-    GMM, GMM_nospectra = None, None
+    GMM_south, GMM_north, GMM_nospectra = None, None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -2404,9 +2404,14 @@ class LRGMaker(SelectTargets):
             zobj = self.meta['Z'].data
             LRGMaker.tree = KDTree(np.vstack((zobj)).T)
 
-        if self.GMM is None:
+        if self.GMM_south is None:
             gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
-            LRGMaker.GMM = GaussianMixtureModel.load(gmmfile)
+            LRGMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
+        if self.GMM_north is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
+            LRGMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
+        self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4', 'exp_r',
+                         'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lrg.fits')
@@ -2460,22 +2465,23 @@ class LRGMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
-    def _GMMsample(self, nsample=1, seed=None):
+    def _GMMsample(self, nsample=1, seed=None, south=True):
         """Sample from the Gaussian mixture model (GMM) for LRGs."""
 
         rand = np.random.RandomState(seed)
-        params = self.GMM.sample(nsample, rand).astype('f4')
+        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
 
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
+        if south:
+            params = self.GMM_south.sample(nsample, rand).astype('f4')
+            for ii, tt in enumerate(self.GMM_tags):
+                samp[tt] = params[:, ii]
+        else:
+            params = self.GMM_north.sample(nsample, rand).astype('f4')
+            for ii, tt in enumerate(self.GMM_tags):
+                samp[tt] = params[:, ii]
             
         return samp
 
@@ -2484,7 +2490,7 @@ class LRGMaker(SelectTargets):
         dist, indx = self.tree.query(matrix)
         return dist, indx
     
-    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False, south=True):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate LRG spectra.
 
         Parameters
@@ -2523,8 +2529,6 @@ class LRGMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        gmm = self._GMMsample(nobj, seed=seed)
-
         if no_spectra:
             flux = []
             meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -2535,36 +2539,49 @@ class LRGMaker(SelectTargets):
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             input_meta['SEED'] = rand.randint(2**31, size=nobj)
             input_meta['REDSHIFT'] = data['Z'][indx]
-            #input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-            #                                         mean=2.3, sigma=0.1, seed=seed,
-            #                                         nside=self.nside_chunk)
-            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-                                       mean=2.3, sigma=0.1, seed=seed,
-                                       nside=self.nside_chunk)
-
-            input_meta['MAG'] = gmm['z']
-            if south:
-                input_meta['MAGFILTER'][:] = 'decam2014-z'
-            else:
-                input_meta['MAGFILTER'][:] = 'MzLS-z'
-                
-            #if self.template_maker.normfilter != 'decam2014-z':
-            #    log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
-            #        'decam2014-z', self.template_maker.normfilter))
-            #    raise ValueError
+            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=2.3,
+                                       sigma=0.1, seed=seed, nside=self.nside_chunk)
 
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
                 templateid = rand.choice(self.meta['TEMPLATEID'], nobj)
                 input_meta['TEMPLATEID'] = templateid
 
-            flux, _, meta, objmeta = self.template_maker.make_templates(input_meta=input_meta,
-                                                                        vdisp=vdisp, south=south,
-                                                                        nocolorcuts=True)
+                # Build north/south spectra separately.
+                meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+                gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
+                
+                south = np.where( data['SOUTH'][indx] == True)[0]
+                if len(south) > 0:
+                    gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
+                
+                    input_meta['MAG'][south] = gmm['z'][south]
+                    input_meta['MAGFILTER'][south] = 'decam2014-z'
+                
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[south], vdisp=vdisp[south], south=True,
+                        nocolorcuts=True)
 
+                    meta[south] = meta1
+                    flux[south, :] = flux1
+
+                north = np.where( data['SOUTH'][indx] == False)[0]
+                if len(north) > 0:
+                    gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
+                
+                    input_meta['MAG'][north] = gmm['z'][north]
+                    input_meta['MAGFILTER'][north] = 'MzLS-z'
+                
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[north], vdisp=vdisp[north], south=False,
+                        nocolorcuts=True)
+
+                    meta[north] = meta1
+                    flux[north, :] = flux1
+                    
         targets, truth = self.populate_targets_truth(data, meta, objmeta, indx=indx, psf=False,
-                                                     seed=seed, gmm=gmm,
-                                                     truespectype='GALAXY',
+                                                     seed=seed, gmm=gmm, truespectype='GALAXY',
                                                      templatetype='LRG')
 
         return flux, self.wave, meta, objmeta, targets, truth
