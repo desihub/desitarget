@@ -2001,14 +2001,15 @@ class QSOMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-g`.
+    use_simqso : :class:`bool`, optional
+        Use desisim.templates.SIMQSO to generated templates rather than
+        desisim.templates.QSO.  Defaults to True.
 
     """
-    wave, template_maker, GMM_nospectra = None, None, None
+    wave, template_maker = None, None
+    GMM_north, GMM_south, GMM_nospectra = None, None, None
     
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, use_simqso=True, **kwargs):
         from desisim.templates import SIMQSO
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -2020,10 +2021,21 @@ class QSOMaker(SelectTargets):
         if self.wave is None:
             QSOMaker.wave = _default_wave()
 
+        self.use_simqso = use_simqso
+
         if self.template_maker is None:
-            QSOMaker.template_maker = SIMQSO(wave=self.wave,
-                                             normfilter_north='BASS-g',
-                                             normfilter_south='decam2014-g')
+            if self.use_simqso:
+                QSOMaker.template_maker = SIMQSO(wave=self.wave)
+            else:
+                QSOMaker.template_maker = QSO(wave=self.wave)
+
+        if self.GMM_north is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/dr2/qso_gmm.fits')
+            QSOMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
+        if self.GMM_south is None:
+            gmmfile = resource_filename('desitarget', 'mock/data/dr2/qso_gmm.fits')
+            QSOMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
+        self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
@@ -2079,7 +2091,6 @@ class QSOMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    zmax_qso=zmax_qso, mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
@@ -2110,8 +2121,12 @@ class QSOMaker(SelectTargets):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
         
         """
+        from desisim.io import empty_metatable
+        
         if seed is None:
             seed = self.seed
 
@@ -2120,25 +2135,64 @@ class QSOMaker(SelectTargets):
         nobj = len(indx)
             
         if no_spectra:
-            from desisim.io import empty_metatable
             rand = np.random.RandomState(seed)
             
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            flux, wave, meta = self.template_maker.make_templates(
-                nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-                lyaforest=False, nocolorcuts=True)
+            # Sample from the north/south GMMs
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx,
-                                                     psf=True, seed=seed,
-                                                     truespectype='QSO',
-                                                     templatetype='QSO')
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype, simqso=self.use_simqso)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        return flux, self.wave, meta, targets, truth
+            if self.use_simqso:
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                            nmodel=len(these), redshift=np.atleast_1d(data['Z'][indx][these]),
+                            seed=seed, lyaforest=False, nocolorcuts=True, south=issouth)
+
+                        meta[these] = meta1
+                        objmeta[these] = objmeta1
+                        flux[these, :] = flux1
+
+            else:
+                input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                input_meta['SEED'] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'] = data['Z'][indx]
+                
+                if self.mockformat == 'gaussianfield':
+                    gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
+                    if len(south) > 0:
+                        gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
+                        input_meta['MAG'][south] = gmm['r'][south]
+                        input_meta['MAGFILTER'][south] = 'decam2014-r'
+                        
+                    if len(north) > 0:
+                        gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
+                        input_meta['MAG'][north] = gmm['r'][north]
+                        input_meta['MAGFILTER'][north] = 'BASS-r'
+
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                            input_meta=input_meta[these], lyaforest=False, nocolorcuts=True,
+                            south=issouth)
+
+                        meta[these] = meta1
+                        objmeta[these] = objmeta1
+                        flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='QSO', templatetype='QSO')
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select QSO targets.  Input tables are modified in place.
@@ -2573,8 +2627,8 @@ class LRGMaker(SelectTargets):
                                        sigma=0.1, seed=seed, nside=self.nside_chunk)
 
             # Sample from the north/south GMMs
-            south = np.where( data['SOUTH'][indx] == True)[0]
-            north = np.where( data['SOUTH'][indx] == False)[0]
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
             gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
             if len(south) > 0:
@@ -2804,8 +2858,8 @@ class ELGMaker(SelectTargets):
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
             # Sample from the north/south GMMs
-            south = np.where( data['SOUTH'][indx] == True)[0]
-            north = np.where( data['SOUTH'][indx] == False)[0]
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
             gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
             if len(south) > 0:
@@ -3052,8 +3106,8 @@ class BGSMaker(SelectTargets):
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
             # Sample from the north/south GMMs
-            south = np.where( data['SOUTH'][indx] == True)[0]
-            north = np.where( data['SOUTH'][indx] == False)[0]
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
             gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
             if len(south) > 0:
@@ -3130,26 +3184,26 @@ class BGSMaker(SelectTargets):
 
         if np.sum(south) > 0:
             # Select BGS_BRIGHT targets.
-            bgs_bright = isBGS_bright(rflux=rflux, south=True)
+            bgs_bright = isBGS_bright(rflux=rflux[south], south=True)
             targets['BGS_TARGET'][south] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
             targets['BGS_TARGET'][south] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
             targets['DESI_TARGET'][south] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
 
             # Select BGS_FAINT targets.
-            bgs_faint = isBGS_faint(rflux=rflux, south=True)
+            bgs_faint = isBGS_faint(rflux=rflux[south], south=True)
             targets['BGS_TARGET'][south] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
             targets['BGS_TARGET'][south] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
             targets['DESI_TARGET'][south] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
         
         if np.sum(north) > 0:
             # Select BGS_BRIGHT targets.
-            bgs_bright = isBGS_bright(rflux=rflux, south=False)
+            bgs_bright = isBGS_bright(rflux=rflux[north], south=False)
             targets['BGS_TARGET'][north] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
             targets['BGS_TARGET'][north] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_NORTH
             targets['DESI_TARGET'][north] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
 
             # Select BGS_FAINT targets.
-            bgs_faint = isBGS_faint(rflux=rflux, south=False)
+            bgs_faint = isBGS_faint(rflux=rflux[north], south=False)
             targets['BGS_TARGET'][north] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
             targets['BGS_TARGET'][north] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_NORTH
             targets['DESI_TARGET'][north] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY

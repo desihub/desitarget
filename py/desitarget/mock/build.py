@@ -153,6 +153,7 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     nside_lya = params.get('nside_lya')
     zmin_lya = params.get('zmin_lya')
     zmax_qso = params.get('zmax_qso')
+    use_simqso = params.get('use_simqso', True)
     nside_galaxia = params.get('nside_galaxia')
     calib_only = params.get('calib_only', False)
 
@@ -165,7 +166,8 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
 
     if MakeMock is None:
         MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk,
-                                                                     calib_only=calib_only)
+                                                                     calib_only=calib_only,
+                                                                     use_simqso=use_simqso)
     else:
         MakeMock.seed = seed # updated seed
         
