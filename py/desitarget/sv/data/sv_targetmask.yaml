@@ -38,13 +38,6 @@ sv_desi_mask:
     # - [STD_FAINT_BEST,   37, "High quality faint standard stars", {obsconditions: DARK|GRAY}]
     # - [STD_BRIGHT_BEST,  38, "High quality bright standard stars", {obsconditions: BRIGHT}]
 
-    #ADM 6 bits that, in combination, enumerate different iterations of survey validation (SV).
-    #ADM 000000 means "main survey".
-    #ADM 000001 means "commisioning".
-    #ADM higher numbers refer to different iterations of SV, starting at 000002
-    #ADM SHARED BETWEEN commissioning_mask, desi_mask and sv_mask!
-    - [SV, 42, "encode main survey/SV/commissioning (encompasses bits 42-47 inclusive)",     {nbits: 6}]
-
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,   49, "No known target at this location",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]

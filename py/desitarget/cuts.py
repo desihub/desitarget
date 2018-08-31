@@ -2061,6 +2061,14 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
             if not col.name.isupper():
                 col.name = col.name.upper()
 
+    # ADM As we need the column names,
+    # ADM capture the case that a single FITS_REC is passed
+    import astropy.io.fits.fitsrec
+    if isinstance(objects, astropy.io.fits.fitsrec.FITS_record):
+        colnames = objects.__dict__['array'].dtype.names
+    else:
+        colnames = objects.dtype.names
+
     #ADM flag whether we're using northen (BASS/MZLS) or
     #ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
@@ -2135,10 +2143,16 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
         log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
 
-    #ADM add the Gaia columns
-    gaia = objects['REF_ID'] != -1
+    # ADM Add the Gaia columns...
+    # ADM if we don't have REF_CAT in the sweeps use the
+    # ADM minimum value of REF_ID to identify Gaia sources. This will
+    # ADM introduce a small number (< 0.001%) of Tycho-only sources.
+    gaia = objects['REF_ID'] > 0
+    if "REF_CAT" in colnames:
+        gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
+    pmraivar = objects['PMRA_IVAR']
     parallax = objects['PARALLAX']
     parallaxivar = objects['PARALLAX_IVAR']
     #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
@@ -2149,21 +2163,30 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
 
-    #ADM if the RA proper motion is not NaN, then 31 parameters were solved for
-    #ADM in Gaia astrometry. Use this to set gaiaparamssolved (value is 3 for NaNs)
-    gaiaparamssolved = np.zeros_like(gaia)+31
-    w = np.where(np.isnan(pmra))[0]
-    if len(w) > 0:
-        gaiaparamssolved[w] = 3
+    # ADM If proper motion is not NaN, 31 parameters were solved for
+    # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
+    # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
+    # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
+    if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in colnames:
+        gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
+    else:
+        gaiaparamssolved = np.zeros_like(gaia) + 31
+        w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
+        if len(w) > 0:
+            #ADM we need to check the case of a single row being passed
+            if _is_row(gaiaparamssolved):
+                gaiaparamsolved = 3
+            else:
+                gaiaparamssolved[w] = 3
 
-    #ADM test if these columns exist, as they aren't in the Tractor files as of DR7
+    # ADM Add these columns if they exist, or set them to none.
+    # ADM They aren't in the Tractor files as of DR7.
     gaiabprpfactor = None
     gaiasigma5dmax = None
-    try:
+    if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in colnames:
         gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
+    if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in colnames:
         gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
-    except:
-        pass
 
     #ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"],objects["DEC"])
@@ -2173,7 +2196,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         primary = objects['BRICK_PRIMARY']
     except (KeyError, ValueError):
         if _is_row(objects):
-            primary = True
+            primary = np.bool_(True)
         else:
             primary = np.ones_like(objects, dtype=bool)
 

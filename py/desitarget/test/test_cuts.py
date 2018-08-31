@@ -44,9 +44,9 @@ class TestCuts(unittest.TestCase):
         data = io.read_tractor(self.sweepfiles[0])
         desi, bgs, mws = cuts.apply_cuts(data)
 
-        # bgs_any1 = (desi & desi_mask.BGS_ANY)
-        # bgs_any2 = (bgs != 0)
-        # self.assertTrue(np.all(bgs_any1 == bgs_any2))
+        bgs_any1 = (desi & desi_mask.BGS_ANY != 0)
+        bgs_any2 = (bgs != 0)
+        self.assertTrue(np.all(bgs_any1 == bgs_any2))
 
     def test_cuts_noprimary(self):
         """Test cuts work with or without "primary"
