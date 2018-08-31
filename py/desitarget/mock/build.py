@@ -237,6 +237,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         Target catalog.
     truth : :class:`astropy.table.Table`
         Corresponding truth table.
+    objtruth : :class:`astropy.table.Table`
+        Corresponding objtype-specific truth table (if applicable).
     trueflux : :class:`numpy.ndarray`
         Array [npixel, ntarget] of observed-frame spectra.  Only computed
         and returned for non-sky targets and if no_spectra=False.
@@ -454,6 +456,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         Target catalog.
     truth : :class:`astropy.table.Table`
         Corresponding truth table.
+    objtruth : :class:`astropy.table.Table`
+        Corresponding objtype-specific truth table (if applicable).
     trueflux : :class:`numpy.ndarray`
         Corresponding noiseless spectra.
 
@@ -517,6 +521,9 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
             targets.append(targ)
             truth.append(tru)
             if len(objtru) > 0: # skies have no objtruth
+                if len(targ) != len(objtru):
+                    log.warning('Mismatching targets and objtruth tables!')
+                    raise ValueError
                 objtruth.append(objtru)
                
     if len(targets) > 0:
@@ -677,6 +684,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         Final set of targets. 
     truth : :class:`astropy.table.Table`
         Corresponding truth table for targets.
+    objtruth : :class:`astropy.table.Table`
+        Corresponding objtype-specific truth table (if applicable).
     skytargets : :class:`astropy.table.Table`
         Sky targets.
     skytruth : :class:`astropy.table.Table`
@@ -692,7 +701,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
             
     Returns
     -------
-    Updated versions of targets, truth, skytargets, and skytruth.
+    Updated versions of targets, truth, objtruth, skytargets, and skytruth.
 
     """
     from desitarget.targets import encode_targetid
@@ -714,7 +723,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['TARGETID'][:] = targetid[:nobj]
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
         truth['TARGETID'][:] = targetid[:nobj]
-        objtruth['TARGETID'][:] = objtargetid[:nobj]
+        objtruth['TARGETID'][:] = targetid[:nobj]
 
     if nsky > 0:
         skytargets['BRICKID'][:] = healpix
@@ -727,8 +736,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     return targets, truth, objtruth, skytargets, skytruth
 
 def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,
-                        skytruth, healpix, nside, log, output_dir,
-                        seed=None):
+                        skytruth, healpix, nside, log, output_dir, seed=None):
     """Writes all the final catalogs to disk.
     
     Parameters
@@ -737,6 +745,8 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
         Final target catalog.
     truth : :class:`astropy.table.Table`
         Corresponding truth table for targets.
+    objtruth : :class:`astropy.table.Table`
+        Corresponding objtype-specific truth table (if applicable).
     trueflux : :class:`numpy.ndarray`
         Array [npixel, ntarget] of observed-frame spectra.  
     truewave : :class:`numpy.ndarray`
@@ -837,8 +847,6 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
         hdu.header['EXTNAME'] = 'TRUTH'
         hx.append(hdu)
 
-        import pdb ; pdb.set_trace()
-
         if len(trueflux) > 0:
             hdu = fits.ImageHDU(truewave.astype(np.float32),
                                 name='WAVE', header=truthhdr)
@@ -848,6 +856,11 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
 
             hdu = fits.ImageHDU(trueflux.astype(np.float32), name='FLUX')
             hdu.header['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
+            hx.append(hdu)
+
+        if len(objtruth) > 0:
+            hdu = fits.convenience.table_to_hdu(objtruth)
+            hdu.header['EXTNAME'] = 'TRUTH_{}'.format(truth['TEMPLATETYPE'][0])
             hx.append(hdu)
 
         try:
