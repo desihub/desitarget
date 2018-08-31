@@ -859,9 +859,11 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
             hx.append(hdu)
 
         if len(objtruth) > 0:
-            hdu = fits.convenience.table_to_hdu(objtruth)
-            hdu.header['EXTNAME'] = 'TRUTH_{}'.format(truth['TEMPLATETYPE'][0])
-            hx.append(hdu)
+            for objtype in sorted(set(truth['TEMPLATETYPE'])):
+                these = objtype == truth['TEMPLATETYPE']
+                hdu = fits.convenience.table_to_hdu(objtruth[these])
+                hdu.header['EXTNAME'] = 'TRUTH_{}'.format(objtype)
+                hx.append(hdu)
 
         try:
             hx.writeto(truthfile+'.tmp', overwrite=True)
