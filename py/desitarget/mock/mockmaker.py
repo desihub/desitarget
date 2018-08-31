@@ -760,8 +760,6 @@ class ReadGaussianField(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        import pdb ; pdb.set_trace()
-
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
@@ -776,7 +774,7 @@ class ReadGaussianField(SelectTargets):
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz}
+               'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': self.is_south(dec)}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -1923,7 +1921,7 @@ class QSOMaker(SelectTargets):
     """
     wave, template_maker, GMM_nospectra = None, None, None
     
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         from desisim.templates import SIMQSO
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -1936,7 +1934,9 @@ class QSOMaker(SelectTargets):
             QSOMaker.wave = _default_wave()
 
         if self.template_maker is None:
-            QSOMaker.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+            QSOMaker.template_maker = SIMQSO(wave=self.wave,
+                                             normfilter_north='BASS-g',
+                                             normfilter_south='decam2014-g')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
@@ -1945,7 +1945,7 @@ class QSOMaker(SelectTargets):
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
-                                             'v0.0.7_2LPT', 'QSO.fits')
+                                             'v0.0.8_2LPT', 'QSO.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=None, mock_density=False, **kwargs):
@@ -2086,7 +2086,7 @@ class LYAMaker(SelectTargets):
     """
     wave, template_maker, GMM_nospectra = None, None, None
 
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         from desisim.templates import SIMQSO
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -2099,7 +2099,9 @@ class LYAMaker(SelectTargets):
             LYAMaker.wave = _default_wave()
             
         if self.template_maker is None:
-            LYAMaker.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+            LYAMaker.template_maker = SIMQSO(wave=self.wave,
+                                             normfilter_north='BASS-g',
+                                             normfilter_south='decam2014-g')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lya.fits')
@@ -2355,7 +2357,8 @@ class LRGMaker(SelectTargets):
         if self.wave is None:
             LRGMaker.wave = _default_wave()
         if self.template_maker is None:
-            LRGMaker.template_maker = LRG(wave=self.wave, normfilter_north='MzLS-z',
+            LRGMaker.template_maker = LRG(wave=self.wave,
+                                          normfilter_north='MzLS-z',
                                           normfilter_south='decam2014-z')
             
         self.meta = self.template_maker.basemeta
@@ -2375,7 +2378,7 @@ class LRGMaker(SelectTargets):
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
-                                             'v0.0.7_2LPT', 'LRG.fits')
+                                             'v0.0.8_2LPT', 'LRG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=None, mock_density=False, **kwargs):
@@ -2567,7 +2570,7 @@ class ELGMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2581,7 +2584,9 @@ class ELGMaker(SelectTargets):
         if self.wave is None:
             ELGMaker.wave = _default_wave()
         if self.template_maker is None:
-            ELGMaker.template_maker = ELG(wave=self.wave, normfilter=normfilter)
+            ELGMaker.template_maker = ELG(wave=self.wave,
+                                          normfilter_north='BASS-r',
+                                          normfilter_south='decam2014-r')
             
         self.meta = self.template_maker.basemeta
 
@@ -2602,7 +2607,7 @@ class ELGMaker(SelectTargets):
         # Default mock catalog.
         self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
                                              'GaussianRandomField',
-                                             'v0.0.7_2LPT', 'ELG.fits')
+                                             'v0.0.8_2LPT', 'ELG.fits')
 
     def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
              healpixels=None, nside=None, mock_density=False, **kwargs):
@@ -2785,7 +2790,7 @@ class BGSMaker(SelectTargets):
     wave, tree, template_maker = None, None, None
     GMM, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
@@ -2799,7 +2804,9 @@ class BGSMaker(SelectTargets):
         if self.wave is None:
             BGSMaker.wave = _default_wave()
         if self.template_maker is None:
-            BGSMaker.template_maker = BGS(wave=self.wave, normfilter=normfilter)
+            BGSMaker.template_maker = BGS(wave=self.wave,
+                                          normfilter_north='BASS-r',
+                                          normfilter_south='decam2014-r')
             
         self.meta = self.template_maker.basemeta
 
@@ -3025,7 +3032,7 @@ class STARMaker(SelectTargets):
     wave, template_maker, tree = None, None, None
     star_maggies_g, star_maggies_r = None, None
     
-    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters
         from desisim.templates import STAR
@@ -3038,7 +3045,9 @@ class STARMaker(SelectTargets):
         if self.wave is None:
             STARMaker.wave = _default_wave()
         if self.template_maker is None:
-            STARMaker.template_maker = STAR(wave=self.wave, normfilter=normfilter)
+            STARMaker.template_maker = STAR(wave=self.wave,
+                                          normfilter_north='BASS-r',
+                                          normfilter_south='decam2014-r')
 
         self.meta = self.template_maker.basemeta
         #self.star_normfilter = star_normfilter
@@ -3263,7 +3272,7 @@ class MWS_MAINMaker(STARMaker):
         Defaults to False.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-r', calib_only=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, **kwargs):
         super(MWS_MAINMaker, self).__init__()
 
         self.calib_only = calib_only
@@ -3440,7 +3449,7 @@ class FAINTSTARMaker(STARMaker):
         each target.  Defaults to `decam2014-r`.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         super(FAINTSTARMaker, self).__init__()
 
         # Default mock catalog.
@@ -3653,7 +3662,7 @@ class MWS_NEARBYMaker(STARMaker):
         each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         super(MWS_NEARBYMaker, self).__init__()
 
         # Default mock catalog.
@@ -3813,7 +3822,7 @@ class WDMaker(SelectTargets):
     wave, da_template_maker, db_template_maker = None, None, None
     wd_maggies_da, wd_maggies_db, tree_da, tree_db = None, None, None, None
 
-    def __init__(self, seed=None, normfilter='decam2014-g', calib_only=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters 
         from desisim.templates import WD
@@ -3828,10 +3837,14 @@ class WDMaker(SelectTargets):
             WDMaker.wave = _default_wave()
             
         if self.da_template_maker is None:
-            WDMaker.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=normfilter)
+            WDMaker.da_template_maker = WD(wave=self.wave, subtype='DA',
+                                          normfilter_north='BASS-g',
+                                          normfilter_south='decam2014-g')
             
         if self.db_template_maker is None:
-            WDMaker.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=normfilter)
+            WDMaker.db_template_maker = WD(wave=self.wave, subtype='DB',
+                                          normfilter_north='BASS-g',
+                                          normfilter_south='decam2014-g')
         
         self.meta_da = self.da_template_maker.basemeta
         self.meta_db = self.db_template_maker.basemeta
