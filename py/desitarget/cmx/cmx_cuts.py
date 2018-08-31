@@ -2,7 +2,7 @@
 desitarget.cmx.cmx_cuts
 ========================
 
-`Target Selection for DESI commissioning (cmx) derived from `the wiki`_.
+Target Selection for DESI commissioning (cmx) derived from `the wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* STD_TEST).

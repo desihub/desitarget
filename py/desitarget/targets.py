@@ -592,7 +592,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         1D array of target selection bit flags.
     sky : :class:`int`, defaults to 0
         Pass `1` to indicate these are blank sky targets, `0` otherwise.
-    survey :class:`str`, defaults to 'main', 
+    survey : :class:`str`, defaults to `main`
         Specifies which target masks yaml file to use. Options are `main`, 
         `cmx` and `sv` for the main survey, commissioning and SV.
 
