@@ -3691,7 +3691,7 @@ class MWS_MAINMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        from desitarget.cuts import isMWS_MAIN_south, isMWS_MAIN_north
+        from desitarget.cuts import _prepare_gaia, isMWS_main_south, isMWS_main_north
         
         #def _isMWS_MAIN(rflux):
         #    """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
@@ -3699,24 +3699,13 @@ class MWS_MAINMaker(STARMaker):
         #    main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
         #    return main
 
-        gaia = objects['REF_ID'] > 0
-        pmra = objects['PMRA']
-        pmdec = objects['PMDEC']
-        pmraivar = objects['PMRA_IVAR']
-        parallax = objects['PARALLAX']
-        parallaxivar = objects['PARALLAX_IVAR']
-        #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
-        parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
-        gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
-        gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
-        gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
-        gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
-        gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
+        gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag, \
+          gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+          gaiasigma5dmax, galb = _prepare_gaia(targets)
 
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        pmra, pmdec, parallax = 
-        gaiagmag, gaiabmag, gaiarmag = 
         
+
         south = self.is_south(targets['DEC'])
         north = ~south
 
@@ -3729,10 +3718,10 @@ class MWS_MAINMaker(STARMaker):
                     gaia=gaia,  gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                     pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
 
-            import pdb ; pdb.set_trace()
+                import pdb ; pdb.set_trace()
                     
-                targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-                targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
+                #targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
+                #targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         
             # Select bright stellar contaminants for the extragalactic targets.
             log.info('Temporarily turning off contaminants.')
