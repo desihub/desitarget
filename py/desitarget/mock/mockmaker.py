@@ -575,11 +575,14 @@ class SelectTargets(object):
         targets = empty_targets_table(nobj)
         truth, objtruth = empty_truth_table(nobj, templatetype=templatetype)
 
-        # Add some basic info.
-        for key in ('RA', 'DEC', 'BRICKNAME'):
-            targets[key][:] = data[key][indx]
-            
-        truth['MOCKID'][:] = data['MOCKID'][indx]
+        # Copy all overlapping information, including Gaia columns.
+        for key in data.keys():
+            if key in targets.colnames:
+                targets[key][:] = data[key][indx]
+
+        #for key in ('RA', 'DEC', 'BRICKNAME'):
+        #    targets[key][:] = data[key][indx]
+        #truth['MOCKID'][:] = data['MOCKID'][indx]
 
         # Add dust, depth, and nobs.
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
@@ -3688,23 +3691,53 @@ class MWS_MAINMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        def _isMWS_MAIN(rflux):
-            """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
-            main = rflux > 10**( (22.5 - 19.0) / 2.5 )
-            main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
-            return main
+        from desitarget.cuts import isMWS_MAIN_south, isMWS_MAIN_north
+        
+        #def _isMWS_MAIN(rflux):
+        #    """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
+        #    main = rflux > 10**( (22.5 - 19.0) / 2.5 )
+        #    main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
+        #    return main
+
+        gaia = objects['REF_ID'] > 0
+        pmra = objects['PMRA']
+        pmdec = objects['PMDEC']
+        pmraivar = objects['PMRA_IVAR']
+        parallax = objects['PARALLAX']
+        parallaxivar = objects['PARALLAX_IVAR']
+        #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
+        parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
+        gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
+        gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
+        gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
+        gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
+        gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
 
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
+        pmra, pmdec, parallax = 
+        gaiagmag, gaiabmag, gaiarmag = 
+        
+        south = self.is_south(targets['DEC'])
+        north = ~south
 
         # Select MWS_MAIN targets.
-        mws_main = _isMWS_MAIN(rflux=rflux)
+        #mws_main = _isMWS_MAIN(rflux=rflux)
 
         if not self.calib_only:
-            targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-            targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
+            if np.sum(south) > 0:
+                mws_s, mws_red_s, mws_blue_s = isMWS_main_south(
+                    gaia=gaia,  gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                    pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
+
+            import pdb ; pdb.set_trace()
+                    
+                targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
+                targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         
             # Select bright stellar contaminants for the extragalactic targets.
-            self.select_contaminants(targets, truth)
+            log.info('Temporarily turning off contaminants.')
+            if False:
+                self.select_contaminants(targets, truth)
 
         # Select standard stars.
         self.select_standards(targets, truth, boss_std=boss_std)
