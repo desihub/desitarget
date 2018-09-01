@@ -51,7 +51,7 @@ def _gal_coords(ra,dec):
     import astropy.units as u
     from astropy.coordinates import SkyCoord
 
-    if hasattr(ra, 'unit') and hasattr(dec, 'unit'):
+    if hasattr(ra, 'unit') and hasattr(dec, 'unit') and ra.unit is not None and dec.unit is not None:
         c = SkyCoord(ra.to(u.deg), dec.to(u.deg))
     else:
         c = SkyCoord(ra*u.deg, dec*u.deg)
