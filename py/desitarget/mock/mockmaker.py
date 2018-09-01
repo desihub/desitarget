@@ -110,30 +110,30 @@ def empty_targets_table(nobj=1):
     """
     targets = Table()
 
-    # RELEASE
+    # RELEASE i4
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
     targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
-    # TYPE
+    # TYPE S4
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
-    # RA_IVAR
-    # DEC_IVAR
-    # DCHISQ
+    # RA_IVAR f4
+    # DEC_IVAR f4
+    # DCHISQ(5) f4
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
-    # FLUX_W3
-    # FLUX_W4
-    # FLUX_IVAR_G
-    # FLUX_IVAR_R
-    # FLUX_IVAR_Z
-    # FLUX_IVAR_W1
-    # FLUX_IVAR_W2
-    # FLUX_IVAR_W3
-    # FLUX_IVAR_W4
+    # FLUX_W3 f4
+    # FLUX_W4 f4
+    targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    # FLUX_IVAR_W3 f4
+    # FLUX_IVAR_W4 f4
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
@@ -141,21 +141,30 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
     # MW_TRANSMISSION_W3
     # MW_TRANSMISSION_W4
-    # NOBS_G
-    # NOBS_R
-    # NOBS_Z
+    # targets.add_column(Column(name='NOBS_G', length=nobj, dtype='i2'))
+    # targets.add_column(Column(name='NOBS_R', length=nobj, dtype='i2'))
+    # targets.add_column(Column(name='NOBS_Z', length=nobj, dtype='i2'))
     # FRACFLUX_G
     # FRACFLUX_R
     # FRACFLUX_Z
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    # FRACMASKED_G
+    # FRACMASKED_R
+    # FRACMASKED_Z
+    # ALLMASK_G
+    # ALLMASK_R
+    # ALLMASK_Z
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     # The following two columns do not appear in the data targets catalog.
-    targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    
+    targets.add_column(Column(name='FRACDEV', length=nobj, dtype='f4'))
+    # FRACDEV_IVAR
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
     # SHAPEDEV_R_IVAR
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
@@ -168,13 +177,36 @@ def empty_targets_table(nobj=1):
     # SHAPEEXP_E1_IVAR
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     # SHAPEEXP_E2_IVAR
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+
+    # Gaia columns
+    # REF_ID
+    targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('i8'))) # default is -1
+    targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
+    # GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR f4
+    targets.add_column(Column(name='GAIA_PHOT_BP_MEAN_MAG', length=nobj, dtype='f4'))
+    # GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR f4
+    targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_MAG', length=nobj, dtype='f4'))    
+    # GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR f4
+    targets.add_column(Column(name='GAIA_ASTROMETRIC_EXCESS_NOISE', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_DUPLICATED_SOURCE', length=nobj, dtype='b1')) # default is False
+    targets.add_column(Column(name='PARALLAX', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PARALLAX_IVAR', length=nobj, dtype='f4')) # need S/N>1
+    targets.add_column(Column(name='PMRA', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMRA_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMDEC_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='BRIGHTSTARINBLOB', length=nobj, dtype='b1'))
+
+    targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+
+    targets.add_column(Column(name='PRIORITY', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='NUMOBS', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-    # PHOTSYS
 
     return targets
 
@@ -269,8 +301,10 @@ class SelectTargets(object):
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            seed=None, qaplot=False):
-        """Add noise to the input (noiseless) photometry based on the depth.  The input
-        targets table is modified in place.
+        """Add noise to the input (noiseless) photometry based on the depth (as well as
+        the inverse variance fluxes in GRZW1W2).
+
+        The input targets table is modified in place.
 
         Parameters
         ----------
@@ -309,17 +343,23 @@ class SelectTargets(object):
 
         for band in ('G', 'R', 'Z'):
             fluxkey = 'FLUX_{}'.format(band)
+            ivarkey = 'FLUX_IVAR_{}'.format(band)
             depthkey = '{}DEPTH_{}'.format(depthprefix, band)
 
             sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
             targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
+            targets[ivarkey][:] = 1 / sigma**2
+
         for band in ('W1', 'W2'):
             fluxkey = 'FLUX_{}'.format(band)
+            ivarkey = 'FLUX_IVAR_{}'.format(band)
             depthkey = 'PSFDEPTH_{}'.format(band)
 
             sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
             targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
+
+            targets[ivarkey][:] = 1 / sigma**2
 
         if qaplot:
             self._qaplot_scatter_photometry(targets, truth)
@@ -541,7 +581,7 @@ class SelectTargets(object):
             
         truth['MOCKID'][:] = data['MOCKID'][indx]
 
-        # Add dust and depth.
+        # Add dust, depth, and nobs.
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
@@ -550,6 +590,8 @@ class SelectTargets(object):
             for prefix in ('PSF', 'GAL'):
                 key = '{}DEPTH_{}'.format(prefix, band)
                 targets[key][:] = data[key][indx]
+            #nobskey = 'NOBS_{}'.format(band)
+            #targets[nobskey][:] = 2 # assume constant!
 
         for band in ('W1', 'W2'):
             key = 'PSFDEPTH_{}'.format(band)
@@ -588,7 +630,7 @@ class SelectTargets(object):
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
-        
+
         return targets, truth, objtruth
 
     def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
@@ -2208,11 +2250,20 @@ class QSOMaker(SelectTargets):
         from desitarget.cuts import isQSO_colors
           
         gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
+        south = self.is_south(targets['DEC'])
+        north = ~south
+        
+        if np.sum(south) > 0:
+            qso = isQSO_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south],
+                               w1flux=w1flux[south], w2flux=w2flux[south], south=True)
+            targets['DESI_TARGET'][south] |= (qso != 0) * self.desi_mask.QSO
+            targets['DESI_TARGET'][south] |= (qso != 0) * self.desi_mask.QSO_SOUTH
 
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        if np.sum(north) > 0:
+            qso = isQSO_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north],
+                               w1flux=w1flux[north], w2flux=w2flux[north], south=False)
+            targets['DESI_TARGET'][north] |= (qso != 0) * self.desi_mask.QSO
+            targets['DESI_TARGET'][north] |= (qso != 0) * self.desi_mask.QSO_NORTH
 
 class LYAMaker(SelectTargets):
     """Read LYA mocks, generate spectra, and select targets.
