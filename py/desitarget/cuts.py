@@ -19,8 +19,6 @@ import sys
 import numpy as np
 from pkg_resources import resource_filename
 
-import astropy.units as u
-from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
@@ -50,8 +48,13 @@ def _gal_coords(ra,dec):
     The Galactic longitude and latitude (l, b)
 
     """
+    import astropy.units as u
+    from astropy.coordinates import SkyCoord
 
-    c = SkyCoord(ra*u.deg, dec*u.deg)
+    if hasattr(ra, 'unit') and hasattr(dec, 'unit'):
+        c = SkyCoord(ra.to(u.deg), dec.to(u.deg))
+    else:
+        c = SkyCoord(ra*u.deg, dec*u.deg)
     gc = c.transform_to('galactic')
 
     return gc.l.value, gc.b.value    
