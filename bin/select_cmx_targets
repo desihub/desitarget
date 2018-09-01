@@ -2,9 +2,7 @@
 
 from __future__ import print_function, division
 
-import os, sys
-import numpy as np
-import fitsio
+import sys
 
 from desitarget import io
 from desitarget.cmx.cmx_cuts import select_targets
@@ -27,12 +25,7 @@ ap = ArgumentParser(description='Generates DESI commissioning (cmx) target bits 
 ap.add_argument("src", 
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", 
-                help="Output target selection file")
-ap.add_argument("--gaiadir", 
-                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
-                default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
-ap.add_argument("--gaiamatch", action='store_true',
-                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
+                help="Output cmx target selection file")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -47,13 +40,7 @@ if len(infiles) == 0:
 
 log.info("running on {} processors".format(ns.numproc))
 
-#ADM if specific bit names were passed, use them, otherwise run all target classes
-tcnames = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
-if ns.tcnames is not None:
-    tcnames = [ bn for bn in ns.tcnames.split(',') ]
-
-targets = select_targets(infiles, numproc=ns.numproc,
-                         gaiamatch=ns.gaiamatch, gaiadir=ns.gaiadir)
+targets = select_targets(infiles, numproc=ns.numproc)
 
 io.write_targets(ns.dest, targets, indir=ns.src, survey="cmx", nside=nside)
 
