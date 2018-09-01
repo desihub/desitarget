@@ -114,7 +114,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
     targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
-    # TYPE S4
+    targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
     # RA_IVAR f4
@@ -240,7 +240,7 @@ def empty_truth_table(nobj=1, templatetype=''):
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+30, unit='mag'))
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj), unit='mag'))
     truth.add_column(Column(name='MAGFILTER', length=nobj, dtype='U15')) # normalization filter
 
     truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
@@ -578,7 +578,10 @@ class SelectTargets(object):
         # Copy all overlapping information, including Gaia columns.
         for key in data.keys():
             if key in targets.colnames:
-                targets[key][:] = data[key][indx]
+                if isinstance(data[key], np.ndarray):
+                    targets[key][:] = data[key][indx]
+                else:
+                    targets[key][:] = np.repeat(data[key], nobj)
 
         #for key in ('RA', 'DEC', 'BRICKNAME'):
         #    targets[key][:] = data[key][indx]
@@ -1230,7 +1233,7 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std,
-
+               'TYPE': 'PSF',
                'REF_ID': mockid,
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
@@ -3699,12 +3702,12 @@ class MWS_MAINMaker(STARMaker):
         #    main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
         #    return main
 
+        objtype, obs_rflux = targets['TYPE'], targets['FLUX_R']
+        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
+        
         gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag, \
           gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
           gaiasigma5dmax, galb = _prepare_gaia(targets)
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        
 
         south = self.is_south(targets['DEC'])
         north = ~south
@@ -3715,13 +3718,16 @@ class MWS_MAINMaker(STARMaker):
         if not self.calib_only:
             if np.sum(south) > 0:
                 mws_s, mws_red_s, mws_blue_s = isMWS_main_south(
-                    gaia=gaia,  gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
-                    pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
+                    gaia=gaia[south],  gflux=gflux[south], rflux=rflux[south],
+                    obs_rflux=obs_rflux[south], pmra=pmra[south], pmdec=pmdec[south],
+                    parallax=parallax[south], objtype=objtype[south])
+
+                
 
                 import pdb ; pdb.set_trace()
                     
                 #targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-                #targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
+                targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
         
             # Select bright stellar contaminants for the extragalactic targets.
             log.info('Temporarily turning off contaminants.')
