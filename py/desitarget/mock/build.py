@@ -677,7 +677,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                             seed=healseed)
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
-                   nside, log, seed=None):
+                   nside, log, seed=None, survey='main'):
     """Add brickid, brick_objid, targetid, and subpriority to target catalog.
     
     Parameters
@@ -700,6 +700,10 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
        Logger object.
     seed : :class:`int`, optional
         Seed for the random number generation.  Defaults to None.
+    survey : :class:`str`
+        Specifies which target masks yaml file to use. Options are `main`, `cmx`
+        and `sv` for the main survey, commissioning and SV, respectively.
+        Defaults to `main`.
             
     Returns
     -------
@@ -727,7 +731,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         truth['TARGETID'][:] = targetid[:nobj]
         objtruth['TARGETID'][:] = targetid[:nobj]
 
-    print('ASSIGN PRIORITY AND NUMOBS!!')
+        targets['PRIORITY'], targets['NUMOBS'] = initial_priority_numobs(targets, survey=survey)
 
     if nsky > 0:
         skytargets['BRICKID'][:] = healpix
@@ -736,6 +740,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         skytargets['TARGETID'][:] = targetid[nobj:]
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
         skytruth['TARGETID'][:] = targetid[nobj:]
+
+        skytargets['PRIORITY'], skytargets['NUMOBS'] = initial_priority_numobs(skytargets, survey=survey)
         
     return targets, truth, objtruth, skytargets, skytruth
 
