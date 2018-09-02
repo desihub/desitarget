@@ -1483,7 +1483,7 @@ def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
 
 def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                   release=None, objtype=None, primary=None, south=True):
+               release=None, objtype=None, primary=None, south=True, optical=False):
     """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
@@ -1503,6 +1503,8 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
             If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to True
             Call isQSO_cuts_north if south=False, otherwise call isQSO_cuts_south.
+        optical: boolean, defaults to `False`
+            Just apply optical color-cuts
 
     Returns:
         mask : array_like. True if and only if the object is a QSO
@@ -1510,14 +1512,14 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
     """
     if south==False:
         return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                                release=release, objtype=objects, primary=primary)
+                                release=release, objtype=objects, primary=primary, optical=optical)
     else:
         return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                                release=release, objtype=objtype, primary=primary)
+                                release=release, objtype=objtype, primary=primary, optical=optical)
 
 
 def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
-               release=None, objtype=None, primary=None):
+                     release=None, objtype=None, primary=None, optical=False):
     """Cuts based QSO target selection for the BASS/MzLS photometric system.
 
     Args:
@@ -1535,6 +1537,8 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        optical: boolean, defaults to `False`
+            Just apply optical color-cuts
 
     Returns:
         mask : array_like. True if and only if the object is a QSO
@@ -1546,7 +1550,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
 
     """
     qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux)
+                             w1flux=w1flux, w2flux=w2flux, optical=optical)
 
     qso &= w1snr > 4
     qso &= w2snr > 2
@@ -1567,7 +1571,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
 
 
 def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
-               release=None, objtype=None, primary=None):
+                     release=None, objtype=None, primary=None, optical=optical):
     """Cuts based QSO target selection for the DECaLS photometric system.
 
     Args:
@@ -1585,6 +1589,8 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
+        optical: boolean, defaults to `False`
+            Just apply optical color-cuts
 
     Returns:
         mask : array_like. True if and only if the object is a QSO
@@ -1596,7 +1602,7 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
 
     """
     qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux)
+                             w1flux=w1flux, w2flux=w2flux, optical=optical)
 
     qso &= w1snr > 4
     qso &= w2snr > 2
@@ -2077,7 +2083,8 @@ def unextinct_fluxes(objects):
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
-               gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+               gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
+               qso_optical_cuts=False):
     """Perform target selection on objects, returning target mask arrays
 
     Args:
@@ -2095,7 +2102,10 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
             for those specific target classes. A useful speed-up when testing.
             Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
         gaiadir : defaults to the the Gaia DR2 path at NERSC
-             Root directory of a Gaia Data Release as used by the Legacy Surveys. 
+             Root directory of a Gaia Data Release as used by the Legacy Surveys.
+        qso_optical_cuts : defaults to `False`
+             Apply just optical color-cuts when selecting QSOs with
+             qso_selection=`colorcuts`.
 
     Returns:
         (desi_target, bgs_target, mws_target) where each element is
@@ -2107,6 +2117,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         To avoid this, pass in objects.copy() instead.
 
     See desitarget.targetmask for the definition of each bit
+
     """
     #- Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
@@ -2259,11 +2270,13 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         if qso_selection=='colorcuts' :
             #ADM determine quasar targets in the north and the south separately
             qso_north = isQSO_cuts_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release)
+                                         w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                         objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
+                                         optical=qso_optical_cuts)
             qso_south = isQSO_cuts_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release)
+                                         w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                         objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
+                                         optical=qso_optical_cuts)
         elif qso_selection == 'randomforest':
             #ADM determine quasar targets in the north and the south separately
             qso_north = isQSO_randomforest_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
