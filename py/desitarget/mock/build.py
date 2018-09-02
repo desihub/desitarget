@@ -706,7 +706,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     Updated versions of targets, truth, objtruth, skytargets, and skytruth.
 
     """
-    from desitarget.targets import encode_targetid
+    from desitarget.targets import encode_targetid, initial_priority_numobs
 
     rand = np.random.RandomState(seed)
     
@@ -726,6 +726,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
         truth['TARGETID'][:] = targetid[:nobj]
         objtruth['TARGETID'][:] = targetid[:nobj]
+
+    print('ASSIGN PRIORITY AND NUMOBS!!')
 
     if nsky > 0:
         skytargets['BRICKID'][:] = healpix
