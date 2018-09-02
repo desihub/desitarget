@@ -21,6 +21,8 @@ from astropy.table import Table, Column
 from desimodel.io import load_pixweight
 from desimodel import footprint
 from desiutil.brick import brickname as get_brickname_from_radec
+from desitarget.cuts import apply_cuts
+from desisim.io import empty_metatable
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger()
@@ -231,8 +233,6 @@ def empty_truth_table(nobj=1, templatetype=''):
         Objtype-specific truth table (if applicable).
     
     """
-    from desisim.io import empty_metatable
-
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
@@ -580,6 +580,8 @@ class SelectTargets(object):
         targets = empty_targets_table(nobj)
         truth, objtruth = empty_truth_table(nobj, templatetype=templatetype)
 
+        truth['MOCKID'][:] = data['MOCKID'][indx]
+
         # Copy all information from DATA to TARGETS.
         for key in data.keys():
             if key in targets.colnames:
@@ -902,7 +904,8 @@ class ReadGaussianField(SelectTargets):
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': self.is_south(dec)}
+               'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': self.is_south(dec),
+               'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -1935,7 +1938,7 @@ class ReadMWS_WD(SelectTargets):
                'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
                'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
-               'SOUTH': self.is_south(dec)}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2075,7 +2078,7 @@ class ReadMWS_NEARBY(SelectTargets):
                'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype,
-               'SOUTH': self.is_south(dec)}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2219,8 +2222,6 @@ class QSOMaker(SelectTargets):
             Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
 
@@ -2299,23 +2300,11 @@ class QSOMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isQSO_colors
-          
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        south = self.is_south(targets['DEC'])
-        north = ~south
-        
-        if np.sum(south) > 0:
-            qso = isQSO_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south],
-                               w1flux=w1flux[south], w2flux=w2flux[south], south=True)
-            targets['DESI_TARGET'][south] |= (qso != 0) * self.desi_mask.QSO
-            targets['DESI_TARGET'][south] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
 
-        if np.sum(north) > 0:
-            qso = isQSO_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north],
-                               w1flux=w1flux[north], w2flux=w2flux[north], south=False)
-            targets['DESI_TARGET'][north] |= (qso != 0) * self.desi_mask.QSO
-            targets['DESI_TARGET'][north] |= (qso != 0) * self.desi_mask.QSO_NORTH
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class LYAMaker(SelectTargets):
     """Read LYA mocks, generate spectra, and select targets.
@@ -2457,7 +2446,6 @@ class LYAMaker(SelectTargets):
         nobj = len(indx)
 
         if no_spectra:
-            from desisim.io import empty_metatable
             rand = np.random.RandomState(seed)
             
             flux = []
@@ -2563,14 +2551,11 @@ class LYAMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isQSO_colors
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
-
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class LRGMaker(SelectTargets):
     """Read LRG mocks, generate spectra, and select targets.
@@ -2704,8 +2689,6 @@ class LRGMaker(SelectTargets):
             Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -2780,23 +2763,11 @@ class LRGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isLRG_colors
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        south = self.is_south(targets['DEC'])
-        north = ~south
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='LRG')
         
-        if np.sum(south) > 0:
-            lrg = isLRG_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south],
-                               w1flux=w1flux[south], w2flux=w2flux[south], south=True)
-            targets['DESI_TARGET'][south] |= (lrg != 0) * self.desi_mask.LRG
-            targets['DESI_TARGET'][south] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
-
-        if np.sum(north) > 0:
-            lrg = isLRG_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north],
-                               w1flux=w1flux[north], w2flux=w2flux[north], south=False)
-            targets['DESI_TARGET'][north] |= (lrg != 0) * self.desi_mask.LRG
-            targets['DESI_TARGET'][north] |= (lrg != 0) * self.desi_mask.LRG_NORTH
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class ELGMaker(SelectTargets):
     """Read ELG mocks, generate spectra, and select targets.
@@ -2935,8 +2906,6 @@ class ELGMaker(SelectTargets):
             Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -3017,23 +2986,11 @@ class ELGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isELG_colors
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        south = self.is_south(targets['DEC'])
-        north = ~south
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='ELG')
         
-        if np.sum(south) > 0:
-            elg = isELG_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south],
-                               w1flux=w1flux[south], w2flux=w2flux[south], south=True)
-            targets['DESI_TARGET'][south] |= (elg != 0) * self.desi_mask.ELG
-            targets['DESI_TARGET'][south] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-
-        if np.sum(north) > 0:
-            elg = isELG_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north],
-                               w1flux=w1flux[north], w2flux=w2flux[north], south=False)
-            targets['DESI_TARGET'][north] |= (elg != 0) * self.desi_mask.ELG
-            targets['DESI_TARGET'][north] |= (elg != 0) * self.desi_mask.ELG_NORTH
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class BGSMaker(SelectTargets):
     """Read BGS mocks, generate spectra, and select targets.
@@ -3180,8 +3137,6 @@ class BGSMaker(SelectTargets):
             Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -3277,37 +3232,11 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isBGS_bright, isBGS_faint
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        south = self.is_south(targets['DEC'])
-        north = ~south
-
-        if np.sum(south) > 0:
-            # Select BGS_BRIGHT targets.
-            bgs_bright = isBGS_bright(rflux=rflux[south], south=True)
-            targets['BGS_TARGET'][south] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
-            targets['BGS_TARGET'][south] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
-            targets['DESI_TARGET'][south] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
-
-            # Select BGS_FAINT targets.
-            bgs_faint = isBGS_faint(rflux=rflux[south], south=True)
-            targets['BGS_TARGET'][south] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
-            targets['BGS_TARGET'][south] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
-            targets['DESI_TARGET'][south] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='BGS')
         
-        if np.sum(north) > 0:
-            # Select BGS_BRIGHT targets.
-            bgs_bright = isBGS_bright(rflux=rflux[north], south=False)
-            targets['BGS_TARGET'][north] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
-            targets['BGS_TARGET'][north] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_NORTH
-            targets['DESI_TARGET'][north] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
-
-            # Select BGS_FAINT targets.
-            bgs_faint = isBGS_faint(rflux=rflux[north], south=False)
-            targets['BGS_TARGET'][north] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
-            targets['BGS_TARGET'][north] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_NORTH
-            targets['DESI_TARGET'][north] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
         
 class STARMaker(SelectTargets):
     """Lower-level Class for preparing for stellar spectra to be generated,
@@ -3382,8 +3311,6 @@ class STARMaker(SelectTargets):
         generation of spectra.
 
         """
-        from desisim.io import empty_metatable
-
         if rand is None:
             rand = np.random.RandomState()
 
@@ -3640,8 +3567,6 @@ class MWS_MAINMaker(STARMaker):
             Corresponding truth table.
         
         """
-        from desisim.io import empty_metatable
-        
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -3691,10 +3616,8 @@ class MWS_MAINMaker(STARMaker):
         return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, boss_std=None):
-        """Select various MWS stars, standard stars, and (bright) contaminants for
-        extragalactic targets.  Input tables are modified in place.
-
-        Note: The selection here eventually will be done with Gaia (I think).
+        """Select various MWS stars and standard stars.  Input tables are modified in
+        place.
 
         Parameters
         ----------
@@ -3708,54 +3631,16 @@ class MWS_MAINMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        from desitarget.cuts import apply_cuts
-        #from desitarget.cuts import _prepare_gaia, isMWS_main_south, isMWS_main_north
-
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='MWS')
-
-        targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
-        targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
-
-        ##def _isMWS_MAIN(rflux):
-        ##    """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
-        ##    main = rflux > 10**( (22.5 - 19.0) / 2.5 )
-        ##    main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
-        ##    return main
-        #
-        #objtype, obs_rflux = targets['TYPE'], targets['FLUX_R']
-        #gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        #
-        #gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag, \
-        #  gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
-        #  gaiasigma5dmax, galb = _prepare_gaia(targets)
-        #
-        #south = self.is_south(targets['DEC'])
-        #north = ~south
-        #
-        ## Select MWS_MAIN targets.
-        ##mws_main = _isMWS_MAIN(rflux=rflux)
-        #
-        #if not self.calib_only:
-        #    if np.sum(south) > 0:
-        #        mws_s, mws_red_s, mws_blue_s = isMWS_main_south(
-        #            gaia=gaia[south],  gflux=gflux[south], rflux=rflux[south],
-        #            obs_rflux=obs_rflux[south], pmra=pmra[south], pmdec=pmdec[south],
-        #            parallax=parallax[south], objtype=objtype[south])
-        #
-        #
-        #
-        #        import pdb ; pdb.set_trace()
-        #            
-        #        #targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-        #        targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS', 'STD'])
         
-            # Select bright stellar contaminants for the extragalactic targets.
+        targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
+        targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
+        targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
+
+        # Select bright stellar contaminants for the extragalactic targets.
         log.info('Temporarily turning off contaminants.')
         if False:
             self.select_contaminants(targets, truth)
-
-        ## Select standard stars.
-        #self.select_standards(targets, truth, boss_std=boss_std)
 
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
@@ -3771,11 +3656,6 @@ class FAINTSTARMaker(STARMaker):
     """
     def __init__(self, seed=None, **kwargs):
         super(FAINTSTARMaker, self).__init__()
-
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', 'galaxia', 'alpha',
-                                             '0.0.5_superfaint', 'healpix')
 
     def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
              healpixels=None, nside=None, nside_galaxia=8, magcut=None,
@@ -3811,6 +3691,8 @@ class FAINTSTARMaker(STARMaker):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'galaxia':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', 'galaxia', 'alpha', '0.0.5_superfaint', 'healpix')
             MockReader = ReadGalaxia(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3862,8 +3744,6 @@ class FAINTSTARMaker(STARMaker):
             Corresponding truth table.
 
         """
-        from desisim.io import empty_metatable
-        
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -3984,11 +3864,6 @@ class MWS_NEARBYMaker(STARMaker):
     def __init__(self, seed=None, **kwargs):
         super(MWS_NEARBYMaker, self).__init__()
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', '100pc', 'v0.0.3',
-                                             'mock_100pc.fits')
-
     def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
              healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
@@ -4021,6 +3896,8 @@ class MWS_NEARBYMaker(STARMaker):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'mws_100pc':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.3', 'mock_100pc.fits')
             MockReader = ReadMWS_NEARBY(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -4032,7 +3909,6 @@ class MWS_NEARBYMaker(STARMaker):
         data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
@@ -4065,8 +3941,6 @@ class MWS_NEARBYMaker(STARMaker):
             Corresponding truth table.
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -4079,30 +3953,42 @@ class MWS_NEARBYMaker(STARMaker):
             flux = []
             meta = self.template_photometry(data, indx, rand)
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
             input_meta['SEED'] = rand.randint(2**31, size=nobj)
             input_meta['REDSHIFT'] = data['Z'][indx]
             input_meta['MAG'] = data['MAG'][indx]
-            input_meta['TEFF'] = data['TEFF'][indx]
-            input_meta['LOGG'] = data['LOGG'][indx]
-            input_meta['FEH'] = data['FEH'][indx]
+            input_meta['MAGFILTER'][:] = data['NORMFILTER']
 
             if self.mockformat == 'mws_100pc':
-                alldata = np.vstack((data['TEFF'][indx],
-                                     data['LOGG'][indx],
-                                     data['FEH'][indx])).T
-                _, templateid = self._query(alldata)
-                input_meta['TEMPLATEID'] = templateid
+                input_meta['TEMPLATEID'] = self._query(
+                    np.vstack((data['TEFF'][indx],
+                               data['LOGG'][indx],
+                               data['FEH'][indx])).T)
 
-            # Note! No colorcuts.
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+            # Build north/south spectra separately.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+        
+            # Build north/south spectra separately.
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
-                                                     seed=seed, truespectype='STAR',
-                                                     templatetype='STAR',
-                                                     templatesubtype=data['TEMPLATESUBTYPE'][indx])
-                                                           
-        return flux, self.wave, meta, targets, truth
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    # Note: no "nocolorcuts" argument!
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], south=issouth)
+
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='STAR', templatetype='STAR',
+            templatesubtype=data['TEMPLATESUBTYPE'][indx])
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_NEARBY targets.  Input tables are modified in place.
@@ -4118,11 +4004,19 @@ class MWS_NEARBYMaker(STARMaker):
             Corresponding truth table.
 
         """
-        mws_nearby = np.ones(len(targets)) # select everything!
-        #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+        if False:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+        else:
+            mws_nearby = np.ones(len(targets)) # select everything!
+            #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
 
-        targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
-        targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
+            desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
+            bgs_target = np.zeros(len(targets)).astype(bool)
+            mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
+
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
@@ -4196,15 +4090,10 @@ class WDMaker(SelectTargets):
         # Build the KD Trees
         if self.tree_da is None:
             WDMaker.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
-                                             self.meta_da['LOGG'].data)).T)
+                                                self.meta_da['LOGG'].data)).T)
         if self.tree_db is None:
             WDMaker.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
-                                         self.meta_db['LOGG'].data)).T)
-
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', 'wd', 'v0.0.2',
-                                             'mock_wd.fits')
+                                                self.meta_db['LOGG'].data)).T)
 
     def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
              healpixels=None, nside=None, mock_density=False, **kwargs):
@@ -4238,6 +4127,8 @@ class WDMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'mws_wd':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', 'wd', 'v0.0.2', 'mock_wd.fits')
             MockReader = ReadMWS_WD(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -4249,7 +4140,6 @@ class WDMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'), objtype=self.objtype)
 
         return data
 
@@ -4258,8 +4148,6 @@ class WDMaker(SelectTargets):
         generation of spectra.
 
         """
-        from desisim.io import empty_metatable
-
         if rand is None:
             rand = np.random.RandomState()
 
@@ -4328,8 +4216,6 @@ class WDMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -4514,8 +4400,6 @@ class SKYMaker(SelectTargets):
             Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
