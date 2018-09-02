@@ -3306,7 +3306,7 @@ class STARMaker(SelectTargets):
                                                self.meta['LOGG'].data,
                                                self.meta['FEH'].data)).T)
         
-    def template_photometry(self, data=None, indx=None, rand=None):
+    def template_photometry(self, data=None, indx=None, rand=None, south=True):
         """Get stellar photometry from the templates themselves, by-passing the
         generation of spectra.
 
@@ -3595,7 +3595,6 @@ class MWS_MAINMaker(STARMaker):
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
         
-            # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
@@ -3631,8 +3630,13 @@ class MWS_MAINMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS', 'STD'])
-        
+        if self.calib_only:
+            tcnames = 'STD'
+        else:
+            tcnames = 'MWS'
+            
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
+
         targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
         targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
@@ -3847,7 +3851,9 @@ class FAINTSTARMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        self.select_contaminants(targets, truth)
+        log.info('Temporarily turning off contaminants.')
+        if False:
+            self.select_contaminants(targets, truth)
 
 class MWS_NEARBYMaker(STARMaker):
     """Read MWS_NEARBY mocks, generate spectra, and select targets.
@@ -3969,7 +3975,6 @@ class MWS_NEARBYMaker(STARMaker):
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
         
-            # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
@@ -4004,18 +4009,15 @@ class MWS_NEARBYMaker(STARMaker):
             Corresponding truth table.
 
         """
-        if False:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
-        else:
-            mws_nearby = np.ones(len(targets)) # select everything!
-            #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+        #desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
 
-            desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
-            bgs_target = np.zeros(len(targets)).astype(bool)
-            mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
+        mws_nearby = np.ones(len(targets)) # select everything!
+        #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+
+        desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
+        mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
 
         targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
         targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
@@ -4224,53 +4226,57 @@ class WDMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        #if no_spectra:
-        #    flux = []
-        #    meta = self.template_photometry(data, indx, rand)
-        #else:
         if self.mockformat == 'mws_wd':
-            allsubtype = data['TEMPLATESUBTYPE'][indx]
             if no_spectra:
-                meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
                 flux = []
             else:
-                meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-                flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-
-                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
                 input_meta['SEED'] = rand.randint(2**31, size=nobj)
                 input_meta['REDSHIFT'] = data['Z'][indx]
                 input_meta['MAG'] = data['MAG'][indx]
-                input_meta['TEFF'] = data['TEFF'][indx]
-                input_meta['LOGG'] = data['LOGG'][indx]
-                input_meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
+                input_meta['MAGFILTER'][:] = data['NORMFILTER']
 
+                meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+
+            allsubtype = data['TEMPLATESUBTYPE'][indx]
             for subtype in ('DA', 'DB'):
-                these = np.where(allsubtype == subtype)[0]
-                if len(these) > 0:
-                    alldata = np.vstack((data['TEFF'][indx][these],
-                                         data['LOGG'][indx][these])).T
-                    _, templateid = self._query(alldata, subtype=subtype)
+                match = np.where(allsubtype == subtype)[0]
+                if len(match) > 0:
+                    input_meta['TEMPLATEID'][match] = self._query(
+                        np.vstack((data['TEFF'][indx][match],
+                                   data['LOGG'][indx][match])).T,
+                        subtype=subtype)
 
-                    if no_spectra:
-                        meta1 = self.template_photometry(data, indx[these],
-                                                         rand, subtype)
-                        meta[these] = meta1
-                    else:
-                        input_meta['TEMPLATEID'][these] = templateid
+                    # Build north/south spectra separately.
+                    south = np.where( data['SOUTH'][indx][match] == True )[0]
+                    north = np.where( data['SOUTH'][indx][match] == False )[0]
 
-                        template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
-                        flux1, _, meta1 = template_maker.make_templates(input_meta=input_meta[these])
+                    for these, issouth in zip( (north, south), (False, True) ):
+                        if len(these) > 0:
+                            if no_spectra:
+                                meta1, objmeta1 = self.template_photometry(
+                                    data, indx[match][these], rand, subtype,
+                                    south=issouth)
+                                meta[match][these] = meta1
+                                objmeta[match][these] = objmeta1
+                            else:
+                                # Note: no "nocolorcuts" argument!
+                                template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
+                                flux1, _, meta1, objmeta1 = template_maker.make_templates(
+                                    input_meta=input_meta[match][these], south=issouth)
 
-                        meta[these] = meta1
-                        flux[these, :] = flux1
+                                meta[match[these]] = meta1
+                                objmeta[match[these]] = objmeta1
+                                flux[match[these], :] = flux1
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
-                                                     seed=seed, truespectype='WD',
-                                                     templatetype='WD',
-                                                     templatesubtype=allsubtype)
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='WD', templatetype='WD',
+            templatesubtype=allsubtype)
 
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
@@ -4287,16 +4293,26 @@ class WDMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        #mws_wd = np.ones(len(targets)) # select everything!
-        mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
-
         if not self.calib_only:
-            targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
-            targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
+            #desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
 
-        # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
+            #mws_wd = np.ones(len(targets)) # select everything!
+            mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
+
+            desi_target = (mws_wd != 0) * self.desi_mask.MWS_ANY
+            mws_target = (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+
+            targets['DESI_TARGET'] |= desi_target
+            targets['MWS_TARGET'] |= mws_target
+
+        # Ad hoc selection of WD standards using just on g-band magnitude (not
+        # TEMPLATESUBTYPE!)
         std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
         targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
+
+        #desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['STD'])
+        #targets['DESI_TARGET'] |= desi_target
+
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
