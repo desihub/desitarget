@@ -1571,7 +1571,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
 
 
 def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
-                     release=None, objtype=None, primary=None, optical=optical):
+                     release=None, objtype=None, primary=None, optical=False):
     """Cuts based QSO target selection for the DECaLS photometric system.
 
     Args:
