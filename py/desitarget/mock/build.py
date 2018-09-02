@@ -601,8 +601,10 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     for source_name in sorted(params['sources'].keys()):
         target_name = params['sources'][source_name].get('target_name')
         calib_only = params['sources'][source_name].get('calib_only', False)
+        use_simqso = params['sources'][source_name].get('use_simqso', True)
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
-            seed=seed, nside_chunk=nside_chunk, calib_only=calib_only))
+            seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
+            use_simqso=use_simqso))
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):

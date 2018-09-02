@@ -2107,7 +2107,7 @@ class QSOMaker(SelectTargets):
     GMM_north, GMM_south, GMM_nospectra = None, None, None
     
     def __init__(self, seed=None, use_simqso=True, **kwargs):
-        from desisim.templates import SIMQSO
+        from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
         super(QSOMaker, self).__init__()
@@ -2229,9 +2229,8 @@ class QSOMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
             
+        rand = np.random.RandomState(seed)
         if no_spectra:
-            rand = np.random.RandomState(seed)
-            
             flux = []
             meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
@@ -2301,6 +2300,8 @@ class QSOMaker(SelectTargets):
 
         """
         desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+
+        import pdb ; pdb.set_trace()
 
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
