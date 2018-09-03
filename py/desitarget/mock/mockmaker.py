@@ -16,7 +16,6 @@ from pkg_resources import resource_filename
 
 import fitsio
 import healpy as hp
-from astropy.table import Table, Column
 
 from desimodel.io import load_pixweight
 from desimodel import footprint
@@ -110,6 +109,8 @@ def empty_targets_table(nobj=1):
         Targets table.
     
     """
+    from astropy.table import Table, Column
+    
     targets = Table()
 
     targets.add_column(Column(name='RELEASE', length=nobj, dtype='i4'))
@@ -233,6 +234,8 @@ def empty_truth_table(nobj=1, templatetype=''):
         Objtype-specific truth table (if applicable).
     
     """
+    from astropy.table import Table, Column
+    
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
@@ -257,6 +260,10 @@ def empty_truth_table(nobj=1, templatetype=''):
     _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype)
     if len(objtruth) == 0:
         objtruth = [] # need an empty list for the multiprocessing in build.select_targets
+    else:
+        if (templatetype == 'QSO' or templatetype == 'ELG' or
+            templatetype == 'LRG' or templatetype == 'BGS'):
+            objtruth.add_column(Column(name='TRUEZ_NORSD', length=nobj, dtype='f4'))
 
     return truth, objtruth
 
@@ -581,6 +588,9 @@ class SelectTargets(object):
         truth, objtruth = empty_truth_table(nobj, templatetype=templatetype)
 
         truth['MOCKID'][:] = data['MOCKID'][indx]
+        if len(objtruth) > 0:
+            if 'Z_NORSD' in data.keys() and 'TRUEZ_NORSD' in objtruth.colnames:
+                objtruth['TRUEZ_NORSD'][:] = data['Z_NORSD'][indx]
 
         # Copy all information from DATA to TARGETS.
         for key in data.keys():
@@ -640,7 +650,7 @@ class SelectTargets(object):
             elif key == 'REDSHIFT':
                 truth['TRUEZ'][:] = meta['REDSHIFT']
 
-        if len(objmeta) > 0: # some objects have no metadata...
+        if len(objmeta) > 0 and len(objtruth) > 0: # some objects have no metadata...
             for key in objmeta.colnames:
                 if key in objtruth.colnames:
                     objtruth[key][:] = objmeta[key]
@@ -884,6 +894,7 @@ class ReadGaussianField(SelectTargets):
         else:
             data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
             zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
+            zz_norsd = data['Z_COSMO'].astype('f4')
 
             # cut on maximum redshift
             if zmax_qso is not None:
@@ -899,13 +910,14 @@ class ReadGaussianField(SelectTargets):
                 dec = dec[cut]
                 brickname = brickname[cut]
                 zz = zz[cut]
+                zz_norsd = zz_norsd[cut]
                 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': self.is_south(dec),
-               'TYPE': 'PSF'}
+               'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -1250,7 +1262,7 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std,
-               'TYPE': 'PSF',
+               
                'REF_ID': mockid,
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
@@ -1267,7 +1279,7 @@ class ReadGalaxia(SelectTargets):
                'PMDEC': gaia['PM_DEC_GAIA'].astype('f4'), # no _STAR_!
                'PMDEC_IVAR': np.zeros(nobj).astype('f4'),
                
-               'SOUTH': self.is_south(dec)}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Handle ivars
         for outkey, gaiakey in zip( ('PARALLAX_IVAR', 'PMRA_IVAR', 'PMDEC_IVAR'),
@@ -1410,13 +1422,16 @@ class ReadLyaCoLoRe(SelectTargets):
         # healpixels.
         log.info('Reading {}'.format(mockfile))
         try: # new data model
-            tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z_QSO_RSD', 'PIXNUM'],
+            tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID', 'Z_QSO_RSD',
+                                                 'Z_QSO_NO_RSD', 'PIXNUM'],
                               upper=True, ext=1)
             zz = tmp['Z_QSO_RSD'].astype('f4')
+            zz_norsd = tmp['Z_QSO_NO_RSD'].astype('f4')
         except: # old data model
             tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z', 'PIXNUM'],
                               upper=True, ext=1)
             zz = tmp['Z'].astype('f4')
+            zz_norsd = tmp['Z'].astype('f4')
             
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
@@ -1447,6 +1462,7 @@ class ReadLyaCoLoRe(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
         zz = zz[cut]
+        zz_norsd = zz_norsd[cut]
         #objid = objid[cut]
         mockpix = mockpix[cut]
         mockid = mockid[cut]
@@ -1456,16 +1472,21 @@ class ReadLyaCoLoRe(SelectTargets):
         for mpix in mockpix:
             lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
+
+        # ToDo: draw magnitudes from an appropriate luminosity function!
+        # 
             
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
         # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',               
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                #'OBJID': objid,
                'MOCKID': mockid, 'LYAFILES': np.array(lyafiles),
-               'BRICKNAME': brickname, 'RA': ra, 'DEC': dec, 'Z': zz}
+               'BRICKNAME': brickname, 'RA': ra, 'DEC': dec,
+               'Z': zz, 'Z_NORSD': zz_norsd,
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2114,11 +2135,10 @@ class QSOMaker(SelectTargets):
 
         self.seed = seed
         self.objtype = 'QSO'
+        self.use_simqso = use_simqso
 
         if self.wave is None:
             QSOMaker.wave = _default_wave()
-
-        self.use_simqso = use_simqso
 
         if self.template_maker is None:
             if self.use_simqso:
@@ -2232,7 +2252,7 @@ class QSOMaker(SelectTargets):
         rand = np.random.RandomState(seed)
         if no_spectra:
             flux = []
-            meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta, [] = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
@@ -2299,9 +2319,12 @@ class QSOMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
-
-        import pdb ; pdb.set_trace()
+        if self.use_simqso:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+        else:
+            desi_target, bgs_target, mws_target = apply_cuts(
+                targets, tcnames='QSO', qso_selection='colorcuts',
+                qso_optical_cuts=True)
 
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -2321,28 +2344,28 @@ class LYAMaker(SelectTargets):
     """
     wave, template_maker, GMM_nospectra = None, None, None
 
-    def __init__(self, seed=None, **kwargs):
-        from desisim.templates import SIMQSO
+    def __init__(self, seed=None, use_simqso=True, **kwargs):
+        from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
         super(LYAMaker, self).__init__()
 
         self.seed = seed
         self.objtype = 'LYA'
+        self.use_simqso = use_simqso
 
         if self.wave is None:
             LYAMaker.wave = _default_wave()
             
         if self.template_maker is None:
-            LYAMaker.template_maker = SIMQSO(wave=self.wave)
+            if self.use_simqso:
+                LYAMaker.template_maker = SIMQSO(wave=self.wave)
+            else:
+                LYAMaker.template_maker = QSO(wave=self.wave)
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lya.fits')
             LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
-
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'lya_forest', 'london', 'v2.0', 'master.fits')
 
     def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
              healpixels=None, nside=None, nside_lya=16, zmin_lya=None,
@@ -2384,6 +2407,8 @@ class LYAMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         
         if self.mockformat == 'colore':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v2.0', 'master.fits')
             MockReader = ReadLyaCoLoRe(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -2396,7 +2421,6 @@ class LYAMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
@@ -2436,6 +2460,7 @@ class LYAMaker(SelectTargets):
 
         """
         import numpy.ma as ma
+        from astropy.table import vstack
         from desispec.interpolation import resample_flux
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
@@ -2446,21 +2471,37 @@ class LYAMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
+        rand = np.random.RandomState(seed)
         if no_spectra:
-            rand = np.random.RandomState(seed)
-            
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta, [] = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
+            # Handle north/south photometry.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+            
+            if not self.use_simqso:
+                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+                input_meta['SEED'] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'] = data['Z'][indx]
+
+                # These magnitudes are a total hack!
+                if len(north) > 0:
+                    input_meta['MAG'][north] = rand.uniform(20, 22.5, len(north)).astype('f4')
+                    input_meta['MAGFILTER'][north] = 'BASS-r'
+                if len(south) > 0:
+                    input_meta['MAG'][south] = rand.uniform(20, 22.5, len(south)).astype('f4')
+                    input_meta['MAGFILTER'][south] = 'decam2014-r'
+                                
             # Read skewers.
             skewer_wave = None
             skewer_trans = None
             skewer_meta = None
 
-            # All the files that contain at least one QSO skewer.
+            # Gather all the files containing at least one QSO skewer.
             alllyafile = data['LYAFILES'][indx]
             uniquelyafiles = sorted(set(alllyafile))
 
@@ -2469,19 +2510,19 @@ class LYAMaker(SelectTargets):
 
                 mockid_in_data = data['MOCKID'][indx][these]
                 mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
-                                             ext=1).astype(float)).astype(int)
+                                              ext=1).astype(float)).astype(int)
                 o2i = dict()
                 for i, o in enumerate(mockid_in_mock):
                     o2i[o] = i
                 indices_in_mock_healpix = np.zeros(mockid_in_data.size).astype(int)
                 for i, o in enumerate(mockid_in_data):
                     if not o in o2i:
-                        log.warning("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile))
+                        log.warning("No MOCKID={} in {}, which should never happen".format(o, lyafile))
                         raise KeyError
-
                     indices_in_mock_healpix[i] = o2i[o]
 
-                tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(
+                # Note: there are read_dlas=False and add_metals=False options.
+                tmp_wave, tmp_trans, tmp_meta, _ = read_lya_skewers(
                     lyafile, indices=indices_in_mock_healpix) 
 
                 if skewer_wave is None:
@@ -2505,41 +2546,76 @@ class LYAMaker(SelectTargets):
             assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
 
             # Now generate the QSO spectra simultaneously **at full wavelength
-            # resolution**.  We do this because the Lya forest (and DLAs) will have
-            # changed the colors, so we need to re-synthesize the photometry.
-            qso_flux, qso_wave, meta = self.template_maker.make_templates(
-                nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-                lyaforest=False, nocolorcuts=True, noresample=True)
+            # resolution**.  We do this because the Lya forest will have changed
+            # the colors, so we need to re-synthesize the photometry below.
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype='QSO', simqso=self.use_simqso)
+            if self.use_simqso:
+                qso_flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+            else:
+                qso_flux = np.zeros([nobj, len(self.template_maker.eigenwave)], dtype='f4')
+            qso_wave = np.zeros_like(qso_flux)
+            
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    if self.use_simqso:
+                        qso_flux1, qso_wave, meta1, objmeta1 = self.template_maker.make_templates(
+                            nmodel=len(these), redshift=data['Z'][indx][these], seed=seed,
+                            lyaforest=False, nocolorcuts=True, noresample=True, south=issouth)
+                    else:
+                        qso_flux1, qso_wave1, meta1, objmeta1 = self.template_maker.make_templates(
+                            input_meta=input_meta[these], lyaforest=False, nocolorcuts=True,
+                            noresample=True, south=issouth)
+                        qso_wave[these, :] = qso_wave1
+                        
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    qso_flux[these, :] = qso_flux1
+
             meta['SUBTYPE'] = 'LYA'
+            objmeta['LYAFOREST'][:] = True
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
+            # Add BALs (ToDo)
+            # ...
+
             # Add DLAs (ToDo).
             # ...
 
-            # Update the photometry
-            maggies = self.template_maker.decamwise.get_ab_maggies(
-                1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
-            for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'),
-                                   ('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                    'wise2010-W1', 'wise2010-W2') ):
-                meta[band] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
-
-            # Unfortunately, to resample to the desired output wavelength vector we
-            # need to loop.
+            # Synthesize north/south photometry.
+            for these, filters in zip( (north, south), (self.template_maker.bassmzlswise, self.template_maker.decamwise) ):
+                if len(these) > 0:
+                    if self.use_simqso:
+                        maggies = filters.get_ab_maggies(1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
+                        for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'), filters.names):
+                            meta[band][these] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
+                    else:
+                        # We have to loop since each QSO has a different wavelength array.
+                        maggies = []
+                        for ii in range(len(these)):
+                            padflux, padwave = filters.pad_spectrum(_flux[these[ii], :], qso_wave[these[ii], :], method='edge')
+                            maggies.append(filters.get_ab_maggies(1e-17 * padflux, padwave.copy(), mask_invalid=True))
+                            
+                        maggies = vstack(maggies)
+                        for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'), filters.names):
+                            meta[band][these] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
+                            
+            # Unfortunately, in order to resample to the desired output
+            # wavelength vector we need to loop.
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-            for ii in range(nobj):
-                flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :],
-                                            extrapolate=True)
+            if qso_wave.ndim == 2:
+                for ii in range(nobj):
+                    flux[ii, :] = resample_flux(self.wave, qso_wave[ii, :], _flux[ii, :], extrapolate=True)
+            else:
+                for ii in range(nobj):
+                    flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :], extrapolate=True)
                                      
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx,
-                                                     psf=True,seed=seed,
-                                                     truespectype='QSO',
-                                                     templatetype='QSO',
-                                                     templatesubtype='LYA')
+        targets, truth, objtruth = self.populate_targets_truth(
+                data, meta, objmeta, indx=indx, psf=True, seed=seed,
+                truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
 
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select Lya/QSO targets.  Input tables are modified in place.
@@ -2700,7 +2776,7 @@ class LRGMaker(SelectTargets):
 
         if no_spectra:
             flux = []
-            meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta, [] = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
@@ -2917,7 +2993,7 @@ class ELGMaker(SelectTargets):
 
         if no_spectra:
             flux = []
-            meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta, [] = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
