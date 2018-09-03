@@ -2577,7 +2577,8 @@ class LYAMaker(SelectTargets):
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
-            # Add BALs (ToDo)
+            # Add BALs
+            #tmp_qso_flux,meta_bal=bal.insert_bals(tmp_qso_wave,tmp_qso_flux, metadata['Z'], balprob=args.balprob,seed=seed)
             # ...
 
             # Add DLAs (ToDo).
