@@ -2218,8 +2218,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         deltaChi2[w] = -1e6
 
     #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
-    if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
-        log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
+    #if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
+    #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag, \
