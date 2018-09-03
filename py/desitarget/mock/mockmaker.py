@@ -198,11 +198,11 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='GAIA_ASTROMETRIC_EXCESS_NOISE', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_DUPLICATED_SOURCE', length=nobj, dtype=bool)) # default is False
     targets.add_column(Column(name='PARALLAX', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PARALLAX_IVAR', length=nobj, dtype='f4')) # need S/N>1
+    targets.add_column(Column(name='PARALLAX_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
     targets.add_column(Column(name='PMRA', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PMRA_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMRA_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
     targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='PMDEC_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMDEC_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
     targets.add_column(Column(name='BRIGHTSTARINBLOB', length=nobj, dtype=bool)) # default is False
 
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
