@@ -2071,7 +2071,7 @@ def _prepare_optical_wise(objects, colnames=None):
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
         w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
-        gracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask,
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask,
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2)
 
 def _prepare_gaia(objects, colnames=None):
@@ -2230,11 +2230,11 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     colnames = _get_colnames(objects)
 
     # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,           \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,  \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,               \
-        gracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                 \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
                             _prepare_optical_wise(objects, colnames=colnames)
 
     #ADM issue a warning if gaiamatch was not sent but there's no Gaia information

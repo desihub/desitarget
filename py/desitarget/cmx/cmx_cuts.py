@@ -23,7 +23,7 @@ from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames
-from deistarget.cuts import _prepare_optical_wise, _prepare_gaia
+from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
 
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize
@@ -38,7 +38,7 @@ start = time()
 
 
 def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
-                    objtype=None, isgaia=None, pmra=None, pmdec=None,
+                    objtype=None, gaia=None, pmra=None, pmdec=None,
                     aen=None, dupsource=None, paramssolved=None,
                     primary=None):
     """The default logic/mask cuts for commissioning stars.
@@ -50,7 +50,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
         by the total flux in g, r and z bands.
     objtype : :class:`array_like` or :class:`None`
         The Legacy Surveys TYPE to restrict to point sources.
-    isgaia : :class:`boolean array_like` or :class:`None`
+    gaia : :class:`boolean array_like` or :class:`None`
        ``True`` if there is a match between this object in the Legacy
        Surveys and in Gaia.
     pmra, pmdec : :class:`array_like` or :class:`None`
@@ -76,13 +76,13 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     - See also `the Gaia data model`_.
     """
     if primary is None:
-        primary = np.ones_like(isgaia, dtype='?')
+        primary = np.ones_like(gaia, dtype='?')
         
     std = primary.copy()
 
     # ADM A point source with a Gaia match.
     std &= _psflike(objtype)
-    std &= isgaia
+    std &= gaia
 
     # ADM An Isolated source.
     fracflux = [gfracflux, rfracflux, zfracflux]
@@ -213,11 +213,11 @@ def apply_cuts(objects):
     colnames = _get_colnames(objects)
 
     # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,           \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,  \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,               \
-        gracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                 \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
                             _prepare_optical_wise(objects, colnames=colnames)
 
     # ADM Currently only coded for objects with Gaia matches
@@ -252,7 +252,7 @@ def apply_cuts(objects):
     # ADM determine if an object passes the default logic for cmx stars
     isgood = passesSTD_logic(
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-        objtype=objtype, isgaia=isgaia, pmra=pmra, pmdec=pmdec,
+        objtype=objtype, gaia=gaia, pmra=pmra, pmdec=pmdec,
         aen=gaiaaen, dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
         primary=primary
     )
