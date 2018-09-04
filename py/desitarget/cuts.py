@@ -2242,7 +2242,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
 
     # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag, \
+    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
       gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
