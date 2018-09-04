@@ -1992,6 +1992,88 @@ def _get_colnames(objects):
 
     return colnames
 
+def _prepare_optical_wise(objects, colnames=None):
+    """Process the Legacy Surveys inputs for target selection."""
+
+    if colnames is None:
+        colnames = _get_colnames(objects)
+
+    #ADM flag whether we're using northen (BASS/MZLS) or
+    #ADM southern (DECaLS) photometry
+    photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
+    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
+
+    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
+    #ADM system to approximate the southern system
+    #ADM turn off shifting the northern photometry to match the southern
+    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
+    #ADM in Tucson was not to do this.
+#    wnorth = np.where(photsys_north)
+#    if len(wnorth[0]) > 0:
+#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
+#                                                   objects["FLUX_R"][wnorth],
+#                                                   objects["FLUX_Z"][wnorth])
+#        objects["FLUX_G"][wnorth] = gshift
+#        objects["FLUX_R"][wnorth] = rshift
+#        objects["FLUX_Z"][wnorth] = zshift
+
+    #ADM the observed r-band flux (used for F standards and MWS, below)
+    #ADM make copies of values that we may reassign due to NaNs
+    obs_rflux = objects['FLUX_R']
+
+    #- undo Milky Way extinction
+    flux = unextinct_fluxes(objects)
+
+    gflux = flux['GFLUX']
+    rflux = flux['RFLUX']
+    zflux = flux['ZFLUX']
+    w1flux = flux['W1FLUX']
+    w2flux = flux['W2FLUX']
+    objtype = objects['TYPE']
+    release = objects['RELEASE']
+
+    gfluxivar = objects['FLUX_IVAR_G']
+    rfluxivar = objects['FLUX_IVAR_R']
+    zfluxivar = objects['FLUX_IVAR_Z']
+
+    gnobs = objects['NOBS_G']
+    rnobs = objects['NOBS_R']
+    znobs = objects['NOBS_Z']
+
+    gfracflux = objects['FRACFLUX_G']
+    rfracflux = objects['FRACFLUX_R']
+    zfracflux = objects['FRACFLUX_Z']
+
+    gfracmasked = objects['FRACMASKED_G']
+    rfracmasked = objects['FRACMASKED_R']
+    zfracmasked = objects['FRACMASKED_Z']
+
+    gallmask = objects['ALLMASK_G']
+    rallmask = objects['ALLMASK_R']
+    zallmask = objects['ALLMASK_Z']
+
+    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
+    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
+    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
+    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
+    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
+
+    # Delta chi2 between PSF and SIMP morphologies; note the sign....
+    dchisq = objects['DCHISQ']
+    deltaChi2 = dchisq[...,0] - dchisq[...,1]
+
+    #ADM remove handful of NaN values from DCHISQ values and make them unselectable
+    w = np.where(deltaChi2 != deltaChi2)
+    #ADM this is to catch the single-object case for unit tests
+    if len(w[0]) > 0:
+        deltaChi2[w] = -1e6
+
+    return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
+        gracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask,
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2)
+
 def _prepare_gaia(objects, colnames=None):
     """Process the various Gaia inputs for target selection."""
 
@@ -2131,91 +2213,29 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
-        #ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        #ADM in the imaging surveys data model
+        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
+        # ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
-        #ADM add the Gaia column information to the primary array
+        # ADM add the Gaia column information to the primary array.
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
 
-    #- ensure uppercase column names if astropy Table
+    #- ensure uppercase column names if astropy Table.
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM As we need the column names,
+    # ADM As we need the column names
     colnames = _get_colnames(objects)
 
-    #ADM flag whether we're using northen (BASS/MZLS) or
-    #ADM southern (DECaLS) photometry
-    photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
-    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
-
-    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
-    #ADM system to approximate the southern system
-    #ADM turn off shifting the northern photometry to match the southern
-    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
-    #ADM in Tucson was not to do this.
-#    wnorth = np.where(photsys_north)
-#    if len(wnorth[0]) > 0:
-#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
-#                                                   objects["FLUX_R"][wnorth],
-#                                                   objects["FLUX_Z"][wnorth])
-#        objects["FLUX_G"][wnorth] = gshift
-#        objects["FLUX_R"][wnorth] = rshift
-#        objects["FLUX_Z"][wnorth] = zshift
-
-    #ADM the observed r-band flux (used for F standards and MWS, below)
-    #ADM make copies of values that we may reassign due to NaNs
-    obs_rflux = objects['FLUX_R']
-
-    #- undo Milky Way extinction
-    flux = unextinct_fluxes(objects)
-
-    gflux = flux['GFLUX']
-    rflux = flux['RFLUX']
-    zflux = flux['ZFLUX']
-    w1flux = flux['W1FLUX']
-    w2flux = flux['W2FLUX']
-    objtype = objects['TYPE']
-    release = objects['RELEASE']
-
-    gfluxivar = objects['FLUX_IVAR_G']
-    rfluxivar = objects['FLUX_IVAR_R']
-    zfluxivar = objects['FLUX_IVAR_Z']
-
-    gnobs = objects['NOBS_G']
-    rnobs = objects['NOBS_R']
-    znobs = objects['NOBS_Z']
-
-    gfracflux = objects['FRACFLUX_G']
-    rfracflux = objects['FRACFLUX_R']
-    zfracflux = objects['FRACFLUX_Z']
-
-    gfracmasked = objects['FRACMASKED_G']
-    rfracmasked = objects['FRACMASKED_R']
-    zfracmasked = objects['FRACMASKED_Z']
-
-    gallmask = objects['ALLMASK_G']
-    rallmask = objects['ALLMASK_R']
-    zallmask = objects['ALLMASK_Z']
-
-    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
-    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
-    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
-    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
-    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
-
-    # Delta chi2 between PSF and SIMP morphologies; note the sign....
-    dchisq = objects['DCHISQ']
-    deltaChi2 = dchisq[...,0] - dchisq[...,1]
-
-    #ADM remove handful of NaN values from DCHISQ values and make them unselectable
-    w = np.where(deltaChi2 != deltaChi2)
-    #ADM this is to catch the single-object case for unit tests
-    if len(w[0]) > 0:
-        deltaChi2[w] = -1e6
+    # ADM process the Legacy Surveys columns for Target Selection.
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,           \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,  \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,               \
+        gracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                 \
+                            _prepare_optical_wise(objects, colnames=colnames)
 
     #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
     #if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
