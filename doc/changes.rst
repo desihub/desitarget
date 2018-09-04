@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Set the ``STD_WD`` bit (it's identical to the ``MWS_WD`` bit) [`PR #364`_].
 * Make commissioning (cmx) target selection fully functional [`PR #359`_]. Includes:
     * Initial target selection algorithms.
     * First unit tests for cmx (> 90% coverage).
@@ -39,6 +40,7 @@ desitarget Change Log
 .. _`PR #355`: https://github.com/desihub/desitarget/pull/355
 .. _`PR #357`: https://github.com/desihub/desitarget/pull/357
 .. _`PR #359`: https://github.com/desihub/desitarget/pull/359
+.. _`PR #364`: https://github.com/desihub/desitarget/pull/364
 
 0.23.0 (2018-08-09)
 -------------------
