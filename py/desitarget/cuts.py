@@ -2273,7 +2273,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
         
-
     if "ELG" in tcnames:
         elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                             gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
@@ -2284,7 +2283,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     #ADM combine ELG target bits for an ELG target based on any imaging
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
-
 
     if "QSO" in tcnames:
         if qso_selection=='colorcuts' :
@@ -2314,30 +2312,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     #ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
-
-
-    if "STD" in tcnames:
-        #ADM Make sure to pass all of the needed columns! At one point we stopped
-        #ADM passing objtype, which meant no standards were being returned.
-        std_faint = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
-        std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
-    else:
-        #ADM if not running the standards selection, set everything to arrays of False
-        std_faint, std_bright = ~primary, ~primary
 
 
     if "BGS" in tcnames:
@@ -2373,7 +2347,32 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
         mws_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
         mws_nearby, mws_wd = ~primary, ~primary
-    
+
+    if "STD" in tcnames:
+        #ADM Make sure to pass all of the needed columns! At one point we stopped
+        #ADM passing objtype, which meant no standards were being returned.
+        std_faint = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
+        std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
+        #ADM the standard WDs are currently identical to the MWS WDs
+        std_wd = mws_wd
+    else:
+        #ADM if not running the standards selection, set everything to arrays of False
+        std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
+
     #ADM combine the north/south MWS bits
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
@@ -2395,19 +2394,20 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
-    #ADM add the per-pass information in the south...
+    # ADM add the per-pass information in the south...
     desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
     desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
-    #ADM ...the north...
+    # ADM ...the north...
     desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
     desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    #ADM ...and combined
+    # ADM ...and combined
     desi_target |= lrg1pass * desi_mask.LRG_1PASS
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
-    # Standards; still need to set STD_WD
+    # ADM Standards
     desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
+    desi_target |= std_wd * desi_mask.STD_WD
 
     # BGS bright and faint, south
     bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
