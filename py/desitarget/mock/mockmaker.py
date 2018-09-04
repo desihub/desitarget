@@ -173,28 +173,28 @@ def empty_targets_table(nobj=1):
     #targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     
     targets.add_column(Column(name='FRACDEV', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='FRACDEV_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACDEV_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
-    #targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
+    targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='SHAPEDEV_E1_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='SHAPEDEV_E2_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEDEV_E2_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
-    #targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
+    targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='SHAPEEXP_E1_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
 
     # Gaia columns
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
-    # GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR - f4
+    targets.add_column(Column(name='GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_PHOT_BP_MEAN_MAG', length=nobj, dtype='f4'))
-    # GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR - f4
+    targets.add_column(Column(name='GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_MAG', length=nobj, dtype='f4'))    
-    # GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR - f4
+    targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_ASTROMETRIC_EXCESS_NOISE', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_DUPLICATED_SOURCE', length=nobj, dtype=bool)) # default is False
     targets.add_column(Column(name='PARALLAX', length=nobj, dtype='f4'))
@@ -203,6 +203,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='PMRA_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
     targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PMDEC_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
+
     targets.add_column(Column(name='BRIGHTSTARINBLOB', length=nobj, dtype=bool)) # default is False
 
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
