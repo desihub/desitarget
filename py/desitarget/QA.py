@@ -46,21 +46,21 @@ def _parse_tcnames(tcstring=None, add_all=True):
 
     Parameters
     ----------
-    tcstring :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
-        Comma-separated names of target classes e.g. QSO,LRG. 
+    tcstring : :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
+        Comma-separated names of target classes e.g. QSO,LRG.
         Options are `ELG`, `QSO`, `LRG`, `MWS`, `BGS`, `STD`.
-    add_all :class:`boolean`, optional, defaults to ``True``
+    add_all : :class:`boolean`, optional, defaults to ``True``
         If ``True``, then include `ALL` in the default names.
 
     Returns
     -------
-    :class:`list` 
+    :class:`list`
         The string of names is converted to a list.
 
     Notes
     -----
-    One useful purpose of this is to check for valid target
-    class strings. An error is thrown if a string is invalid.
+        - One use of this function is to check for valid target class
+          strings. An IOError is raised if a string is invalid.
     """
 
     tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
