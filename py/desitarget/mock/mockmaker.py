@@ -295,7 +295,7 @@ class SelectTargets(object):
     """Methods to help select various target types.
 
     """
-    GMM_LRG, GMM_ELG, GMM_BGS = None, None, None
+    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
     
     def __init__(self):
         from astropy.io import fits
@@ -589,6 +589,7 @@ class SelectTargets(object):
         # Shuffle based on input/prior redshift, so we can get a broad
         # correlation between magnitude and redshift.
         if prior_redshift is not None:
+            pass
             #dat = np.zeros(nobj, dtype=[('redshift', 'f4'), ('mag', 'f4')])
             #dat['redshift'] = prior_redshift
             #dat['mag'] = gmmout['MAG']
@@ -1102,7 +1103,7 @@ class ReadGaussianField(SelectTargets):
         isouth = self.is_south(dec)
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_redshift=zz)
-                            
+
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
@@ -2332,7 +2333,7 @@ class QSOMaker(SelectTargets):
 
     """
     wave, template_maker = None, None
-    GMM_north, GMM_south, GMM_nospectra = None, None, None
+    GMM_QSO, GMM_nospectra = None, None
     
     def __init__(self, seed=None, use_simqso=True, **kwargs):
         from desisim.templates import SIMQSO, QSO
@@ -2353,13 +2354,8 @@ class QSOMaker(SelectTargets):
             else:
                 QSOMaker.template_maker = QSO(wave=self.wave)
 
-        if self.GMM_north is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/qso_gmm.fits')
-            QSOMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
-        if self.GMM_south is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/qso_gmm.fits')
-            QSOMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
-        self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
+        if self.GMM_LRG is None:
+            self.read_GMM(target='LRG')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
@@ -2488,16 +2484,8 @@ class QSOMaker(SelectTargets):
                 input_meta['REDSHIFT'] = data['Z'][indx]
                 
                 if self.mockformat == 'gaussianfield':
-                    gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
-                    if len(south) > 0:
-                        gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
-                        input_meta['MAG'][south] = gmm['r'][south]
-                        input_meta['MAGFILTER'][south] = 'decam2014-r'
-                        
-                    if len(north) > 0:
-                        gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
-                        input_meta['MAG'][north] = gmm['r'][north]
-                        input_meta['MAGFILTER'][north] = 'BASS-r'
+                    input_meta['MAG'][:] = data['MAG'][indx]
+                    input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
                 for these, issouth in zip( (north, south), (False, True) ):
                     if len(these) > 0:
@@ -3406,8 +3394,8 @@ class BGSMaker(SelectTargets):
                     data['SDSS_absmag_r01'][indx],
                     data['SDSS_01gr'][indx])).T )
 
-                input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
