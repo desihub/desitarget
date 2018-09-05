@@ -1992,6 +1992,88 @@ def _get_colnames(objects):
 
     return colnames
 
+def _prepare_optical_wise(objects, colnames=None):
+    """Process the Legacy Surveys inputs for target selection."""
+
+    if colnames is None:
+        colnames = _get_colnames(objects)
+
+    #ADM flag whether we're using northen (BASS/MZLS) or
+    #ADM southern (DECaLS) photometry
+    photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
+    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
+
+    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
+    #ADM system to approximate the southern system
+    #ADM turn off shifting the northern photometry to match the southern
+    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
+    #ADM in Tucson was not to do this.
+#    wnorth = np.where(photsys_north)
+#    if len(wnorth[0]) > 0:
+#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
+#                                                   objects["FLUX_R"][wnorth],
+#                                                   objects["FLUX_Z"][wnorth])
+#        objects["FLUX_G"][wnorth] = gshift
+#        objects["FLUX_R"][wnorth] = rshift
+#        objects["FLUX_Z"][wnorth] = zshift
+
+    #ADM the observed r-band flux (used for F standards and MWS, below)
+    #ADM make copies of values that we may reassign due to NaNs
+    obs_rflux = objects['FLUX_R']
+
+    #- undo Milky Way extinction
+    flux = unextinct_fluxes(objects)
+
+    gflux = flux['GFLUX']
+    rflux = flux['RFLUX']
+    zflux = flux['ZFLUX']
+    w1flux = flux['W1FLUX']
+    w2flux = flux['W2FLUX']
+    objtype = objects['TYPE']
+    release = objects['RELEASE']
+
+    gfluxivar = objects['FLUX_IVAR_G']
+    rfluxivar = objects['FLUX_IVAR_R']
+    zfluxivar = objects['FLUX_IVAR_Z']
+
+    gnobs = objects['NOBS_G']
+    rnobs = objects['NOBS_R']
+    znobs = objects['NOBS_Z']
+
+    gfracflux = objects['FRACFLUX_G']
+    rfracflux = objects['FRACFLUX_R']
+    zfracflux = objects['FRACFLUX_Z']
+
+    gfracmasked = objects['FRACMASKED_G']
+    rfracmasked = objects['FRACMASKED_R']
+    zfracmasked = objects['FRACMASKED_Z']
+
+    gallmask = objects['ALLMASK_G']
+    rallmask = objects['ALLMASK_R']
+    zallmask = objects['ALLMASK_Z']
+
+    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
+    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
+    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
+    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
+    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
+
+    # Delta chi2 between PSF and SIMP morphologies; note the sign....
+    dchisq = objects['DCHISQ']
+    deltaChi2 = dchisq[...,0] - dchisq[...,1]
+
+    #ADM remove handful of NaN values from DCHISQ values and make them unselectable
+    w = np.where(deltaChi2 != deltaChi2)
+    #ADM this is to catch the single-object case for unit tests
+    if len(w[0]) > 0:
+        deltaChi2[w] = -1e6
+
+    return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask,
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2)
+
 def _prepare_gaia(objects, colnames=None):
     """Process the various Gaia inputs for target selection."""
 
@@ -2131,98 +2213,36 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
-        #ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        #ADM in the imaging surveys data model
+        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
+        # ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
-        #ADM add the Gaia column information to the primary array
+        # ADM add the Gaia column information to the primary array.
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
 
-    #- ensure uppercase column names if astropy Table
+    #- ensure uppercase column names if astropy Table.
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM As we need the column names,
+    # ADM As we need the column names
     colnames = _get_colnames(objects)
 
-    #ADM flag whether we're using northen (BASS/MZLS) or
-    #ADM southern (DECaLS) photometry
-    photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
-    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
-
-    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
-    #ADM system to approximate the southern system
-    #ADM turn off shifting the northern photometry to match the southern
-    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
-    #ADM in Tucson was not to do this.
-#    wnorth = np.where(photsys_north)
-#    if len(wnorth[0]) > 0:
-#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
-#                                                   objects["FLUX_R"][wnorth],
-#                                                   objects["FLUX_Z"][wnorth])
-#        objects["FLUX_G"][wnorth] = gshift
-#        objects["FLUX_R"][wnorth] = rshift
-#        objects["FLUX_Z"][wnorth] = zshift
-
-    #ADM the observed r-band flux (used for F standards and MWS, below)
-    #ADM make copies of values that we may reassign due to NaNs
-    obs_rflux = objects['FLUX_R']
-
-    #- undo Milky Way extinction
-    flux = unextinct_fluxes(objects)
-
-    gflux = flux['GFLUX']
-    rflux = flux['RFLUX']
-    zflux = flux['ZFLUX']
-    w1flux = flux['W1FLUX']
-    w2flux = flux['W2FLUX']
-    objtype = objects['TYPE']
-    release = objects['RELEASE']
-
-    gfluxivar = objects['FLUX_IVAR_G']
-    rfluxivar = objects['FLUX_IVAR_R']
-    zfluxivar = objects['FLUX_IVAR_Z']
-
-    gnobs = objects['NOBS_G']
-    rnobs = objects['NOBS_R']
-    znobs = objects['NOBS_Z']
-
-    gfracflux = objects['FRACFLUX_G']
-    rfracflux = objects['FRACFLUX_R']
-    zfracflux = objects['FRACFLUX_Z']
-
-    gfracmasked = objects['FRACMASKED_G']
-    rfracmasked = objects['FRACMASKED_R']
-    zfracmasked = objects['FRACMASKED_Z']
-
-    gallmask = objects['ALLMASK_G']
-    rallmask = objects['ALLMASK_R']
-    zallmask = objects['ALLMASK_Z']
-
-    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
-    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
-    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
-    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
-    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
-
-    # Delta chi2 between PSF and SIMP morphologies; note the sign....
-    dchisq = objects['DCHISQ']
-    deltaChi2 = dchisq[...,0] - dchisq[...,1]
-
-    #ADM remove handful of NaN values from DCHISQ values and make them unselectable
-    w = np.where(deltaChi2 != deltaChi2)
-    #ADM this is to catch the single-object case for unit tests
-    if len(w[0]) > 0:
-        deltaChi2[w] = -1e6
+    # ADM process the Legacy Surveys columns for Target Selection.
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+                            _prepare_optical_wise(objects, colnames=colnames)
 
     #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
     #if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
     #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
 
     # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag, \
+    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
       gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
@@ -2253,7 +2273,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
         
-
     if "ELG" in tcnames:
         elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                             gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
@@ -2264,7 +2283,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     #ADM combine ELG target bits for an ELG target based on any imaging
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
-
 
     if "QSO" in tcnames:
         if qso_selection=='colorcuts' :
@@ -2294,30 +2312,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     #ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
-
-
-    if "STD" in tcnames:
-        #ADM Make sure to pass all of the needed columns! At one point we stopped
-        #ADM passing objtype, which meant no standards were being returned.
-        std_faint = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
-        std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
-    else:
-        #ADM if not running the standards selection, set everything to arrays of False
-        std_faint, std_bright = ~primary, ~primary
 
 
     if "BGS" in tcnames:
@@ -2353,7 +2347,32 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
         mws_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
         mws_nearby, mws_wd = ~primary, ~primary
-    
+
+    if "STD" in tcnames:
+        #ADM Make sure to pass all of the needed columns! At one point we stopped
+        #ADM passing objtype, which meant no standards were being returned.
+        std_faint = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
+        std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
+        #ADM the standard WDs are currently identical to the MWS WDs
+        std_wd = mws_wd
+    else:
+        #ADM if not running the standards selection, set everything to arrays of False
+        std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
+
     #ADM combine the north/south MWS bits
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
@@ -2375,19 +2394,20 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
-    #ADM add the per-pass information in the south...
+    # ADM add the per-pass information in the south...
     desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
     desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
-    #ADM ...the north...
+    # ADM ...the north...
     desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
     desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    #ADM ...and combined
+    # ADM ...and combined
     desi_target |= lrg1pass * desi_mask.LRG_1PASS
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
-    # Standards; still need to set STD_WD
+    # ADM Standards
     desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
+    desi_target |= std_wd * desi_mask.STD_WD
 
     # BGS bright and faint, south
     bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
