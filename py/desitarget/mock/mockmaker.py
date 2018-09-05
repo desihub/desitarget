@@ -440,6 +440,12 @@ class SelectTargets(object):
         from desiutil.sklearn import GaussianMixtureModel
 
         if target is not None:
+            try:
+                if getattr(self, 'GMM_{}'.format(target.upper())) is not None:
+                    return
+            except:
+                return
+
             gmmdir = resource_filename('desitarget', 'mock/data/dr7.1')
             if not os.path.isdir:
                 log.warning('DR7.1 GMM directory {} not found!'.format(gmmdir))
@@ -467,6 +473,117 @@ class SelectTargets(object):
             GMM = [info[2] for info in gmm]
 
             setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
+
+    def sample_GMM(self, nobj, isouth=None, target=None, seed=None):
+        """Sample from the GMMs read by self.read_GMM.
+
+        See desitarget/doc/nb/gmm-dr7.ipynb for details.
+
+        """
+        rand = np.random.RandomState(seed)
+        
+        try:
+            GMM = getattr(self, 'GMM_{}'.format(target.upper()))
+            if GMM is None:
+                self.read_GMM(target=target)
+                GMM = getattr(self, 'GMM_{}'.format(target.upper()))
+        except:
+            return None # no GMM for this target
+            
+        morph = GMM[0]
+        if isouth is None:
+            isouth = np.ones(nobj).astype(bool)
+
+        # Marginalize the morphological fractions over magnitude.
+        magbins = GMM[1]['MAG'].data
+        deltam = np.diff(magbins)[0]
+        minmag, maxmag = magbins.min()-deltam / 2, magbins.max()+deltam / 2
+
+        # Get the total number of each morphological type, accounting for
+        # rounding.
+        frac2d_magbins = np.vstack( [GMM[1][mm].data for mm in morph] )
+        norm = np.sum(frac2d_magbins, axis=1)
+        frac1d_morph = norm / np.sum(norm)
+        nobj_morph = np.round(frac1d_morph*nobj).astype(int)
+        dn = np.sum(nobj_morph) - nobj
+        if dn > 0:
+            nobj_morph[np.argmax(nobj_morph)] -= dn
+        elif dn < 0:
+            nobj_morph[np.argmax(nobj_morph)] += dn
+
+        # Next, sample from the GMM for each morphological type.  For
+        # simplicity we ignore the north-south split here.
+        gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
+        for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
+                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
+                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
+                    'GR', 'RZ'):
+            gmmout[key] = np.zeros(nobj).astype('f4')
+
+        for ii, mm in enumerate(morph):
+            if nobj_morph[ii] > 0:
+                cols = GMM[2][ii]
+                samp = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
+                _samp = GMM[3][ii].sample(nobj)
+                for jj, tt in enumerate(cols):
+                    samp[tt] = _samp[:, jj]
+
+                # Choose samples with the appropriate magnitude-dependent
+                # probability, for this morphological type.
+                prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
+                prob /= np.sum(prob)
+                these = rand.choice(nobj, size=nobj_morph[ii], p=prob, replace=False)
+
+                gthese = np.arange(nobj_morph[ii]) + np.sum(nobj_morph[:ii])
+
+                if 'z' in samp.dtype.names:
+                    gmmout['MAG'][gthese] = samp['z'][these]
+                else:
+                    gmmout['MAG'][gthese] = samp['r'][these]
+                gmmout['GR'][gthese] = samp['gr'][these]
+                gmmout['RZ'][gthese] = samp['rz'][these]
+                gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
+
+                for col in ('reff', 'e1', 'e2'):
+                    sampcol = '{}_{}'.format(col, mm.lower()) # e.g., reff_dev
+                    sampsnrcol = 'snr_{}'.format(sampcol)     # e.g., snr_reff_dev
+
+                    outcol = 'shape{}_{}'.format(mm.lower().replace('rex', 'exp'), col.replace('reff', 'r')).upper()
+                    outivarcol = '{}_ivar'.format(outcol).upper()
+                    if sampcol in samp.dtype.names:
+                        val = samp[sampcol][these]
+                        if col == 'reff':
+                            val = 10**val
+                        gmmout[outcol][gthese] = val
+                        gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
+
+                if mm == 'DEV':
+                    gmmout['FRACDEV'][:] = 1.0
+                elif mm == 'EXP':
+                    gmmout['FRACDEV'][:] = 0.0
+            
+
+        gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
+        gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
+
+        if target == 'LRG':
+            band = 'z'
+        else:
+            band = 'r'
+
+        if np.sum(isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+            else:
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
+
+        if np.sum(~isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+            else:
+                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
+                
+        return gmmout
 
     def _GMMsample(self, nsample=1, seed=None, south=True):
         """Sample from the Gaussian mixture model (GMM) for LRGs."""
@@ -932,8 +1049,6 @@ class ReadGaussianField(SelectTargets):
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
-        isouth = self.is_south(dec)
-
         # Add redshifts.
         if target_name.upper() == 'SKY':
             zz = np.zeros(len(ra))
@@ -958,103 +1073,10 @@ class ReadGaussianField(SelectTargets):
                 zz = zz[cut]
                 zz_norsd = zz_norsd[cut]
 
-        # Get photometry and morphology by sampling from the Gaussian mixture models.
-        if target_name in ('LRG', 'BGS', 'ELG'):
-            rand = np.random.RandomState(seed)
-            self.read_GMM(target=target_name)
-
-            morph = self.GMM_LRG[0]
-
-            # Marginalize the morphological fractions over magnitude.
-            magbins = self.GMM_LRG[1]['MAG'].data
-            deltam = np.diff(magbins)[0]
-            minmag, maxmag = magbins.min()-deltam / 2, magbins.max()+deltam / 2
-
-            # Get the total number of each morphological type, accounting for
-            # rounding.
-            frac2d_magbins = np.vstack( [self.GMM_LRG[1][mm].data for mm in morph] )
-            norm = np.sum(frac2d_magbins, axis=1)
-            frac1d_morph = norm / np.sum(norm)
-            nobj_morph = np.round(frac1d_morph*nobj).astype(int)
-            dn = np.sum(nobj_morph) - nobj
-            if dn > 0:
-                nobj_morph[np.argmax(nobj_morph)] -= dn
-            elif dn < 0:
-                nobj_morph[np.argmax(nobj_morph)] += dn
-
-            # Next, sample from the GMM for each morphological type.  For
-            # simplicity we ignore the north-south split here.
-            gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
-            for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
-                        'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
-                        'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
-                        'GR', 'RZ'):
-                gmmout[key] = np.zeros(nobj).astype('f4')
-
-            for ii, mm in enumerate(morph):
-                if nobj_morph[ii] > 0:
-                    cols = self.GMM_LRG[2][ii]
-                    samp = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
-                    _samp = self.GMM_LRG[3][ii].sample(nobj)
-                    for jj, tt in enumerate(cols):
-                        samp[tt] = _samp[:, jj]
-
-                    # Choose samples with the appropriate magnitude-dependent
-                    # probability, for this morphological type.
-                    prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
-                    prob /= np.sum(prob)
-                    these = rand.choice(nobj, size=nobj_morph[ii], p=prob, replace=False)
-
-                    gthese = np.arange(nobj_morph[ii]) + np.sum(nobj_morph[:ii])
-
-                    if 'z' in samp.dtype.names:
-                        gmmout['MAG'][gthese] = samp['z'][these]
-                    else:
-                        gmmout['MAG'][gthese] = samp['r'][these]
-                    gmmout['GR'][gthese] = samp['gr'][these]
-                    gmmout['RZ'][gthese] = samp['rz'][these]
-                    gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
-
-                    for col in ('reff', 'e1', 'e2'):
-                        sampcol = '{}_{}'.format(col, mm.lower()) # e.g., reff_dev
-                        sampsnrcol = 'snr_{}'.format(sampcol)     # e.g., snr_reff_dev
-                        
-                        outcol = 'shape{}_{}'.format(mm.lower().replace('rex', 'exp'), col.replace('reff', 'r')).upper()
-                        outivarcol = '{}_ivar'.format(outcol).upper()
-                        if sampcol in samp.dtype.names:
-                            val = samp[sampcol][these]
-                            if col == 'reff':
-                                val = 10**val
-                            gmmout[outcol][gthese] = val
-                            gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
-
-                    if mm == 'DEV':
-                        gmmout['FRACDEV'][:] = 1.0
-                    elif mm == 'EXP':
-                        gmmout['FRACDEV'][:] = 0.0
-            
-            gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
-            gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
-
-            if target_name == 'LRG':
-                band = 'z'
-            else:
-                band = 'r'
-                
-            if np.sum(isouth) > 0:
-                if target_name == 'LRG':
-                    gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
-                else:
-                    gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth)
-                    
-            if np.sum(~isouth) > 0:
-                if target_name == 'LRG':
-                    gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
-                else:
-                    gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
-
-        else:
-            gmmout = None
+        # Get photometry and morphologies by sampling from the Gaussian
+        # mixture models.
+        isouth = self.is_south(dec)
+        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth, seed=seed)
                             
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
@@ -2794,8 +2816,7 @@ class LRGMaker(SelectTargets):
 
     """
     wave, tree_north, tree_south, template_maker = None, None, None, None
-    #GMM_north, GMM_south, GMM_nospectra = None, None, None, None
-    GMM_nospectra = None
+    GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -2822,22 +2843,8 @@ class LRGMaker(SelectTargets):
             LRGMaker.tree_south = KDTree( np.vstack((
                 self.meta['Z'].data)).T )
 
-        #if self.GMM is None:
-        #    self.GMM = []
-        #    for morph in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
-        #        gmmfile = resource_filename('desitarget', 'mock/data/dr7.1/gmm_{}_{}.fits'.format(
-        #            self.objtype.lower(), morph.lower()))
-        #        if os.path.isfile(gmmfile):
-        #            self.GMM.append( (morph, GaussianMixtureModel.load(gmmfile)) )
-                
-        #if self.GMM_north is None:
-        #    gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
-        #    LRGMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
-        #if self.GMM_south is None:
-        #    gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
-        #    LRGMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
-        #self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4', 'exp_r',
-        #                 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+        if self.GMM_LRG is None:
+            self.read_GMM(target='LRG')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lrg.fits')
@@ -2948,26 +2955,12 @@ class LRGMaker(SelectTargets):
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
 
-            #gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
-            #if len(south) > 0:
-            #    gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
-            #if len(north) > 0:
-            #    gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
-            
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
                 input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'], nobj)
 
                 input_meta['MAG'] = data['MAG'][indx]
                 input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
-
-                #if len(south) > 0:
-                #    input_meta['MAG'][south] = gmm['z'][south]
-                #    input_meta['MAGFILTER'][south] = 'decam2014-z'
-                #
-                #if len(north) > 0:
-                #    input_meta['MAG'][north] = gmm['z'][north]
-                #    input_meta['MAGFILTER'][north] = 'MzLS-z'
 
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
