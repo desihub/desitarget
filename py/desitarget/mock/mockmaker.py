@@ -2774,18 +2774,16 @@ class LYAMaker(SelectTargets):
                     qso_flux[these, :] = qso_flux1
 
             meta['SUBTYPE'] = 'LYA'
-            objmeta['LYAFOREST'][:] = True
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
             # Add BALs
             if self.balprob > 0:
-                tmp_qso_flux, balmetabal = bal.insert_bals(tmp_qso_wave, tmp_qso_flux,
-                                                           metadata['Z'], balprob=self.balprob,
-                                                           seed=self.seed)
-
-            import pdb ; pdb.set_trace()
+                log.debug('Adding BAL(s) with probability {}'.format(self.balprob))
+                _flux, balmeta = self.BAL.insert_bals(qso_wave, _flux, meta['REDSHIFT'],
+                                                      seed=self.seed,
+                                                      balprob=self.balprob)
 
             # Add DLAs (ToDo).
             # ...
