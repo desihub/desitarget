@@ -65,7 +65,7 @@ if len(infiles) == 0:
 log.info("running on {} processors".format(ns.numproc))
 
 #ADM if specific bit names were passed, use them, otherwise run all target classes
-tcnames = _parse_tcnames(ns.tcnames, all=False)
+tcnames = _parse_tcnames(ns.tcnames, add_all=False)
 
 if ns.check:
     log.info('Check input files...')

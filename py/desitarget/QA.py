@@ -46,7 +46,7 @@ def _parse_tcnames(tcstring=None, add_all=True):
 
     Parameters
     ----------
-    tcnames :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
+    tcstring :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
         Comma-separated names of target classes e.g. QSO,LRG. 
         Options are `ELG`, `QSO`, `LRG`, `MWS`, `BGS`, `STD`.
     add_all :class:`boolean`, optional, defaults to ``True``
@@ -67,15 +67,14 @@ def _parse_tcnames(tcstring=None, add_all=True):
     if add_all:
         tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "ALL"]
 
-    if tcstring is not None:
-        tcnames = [ bn for bn in tcstring.split(',') ]
-
-    if not np.all([ tcname in tcdefault for tcname in tcnames ]):
-        log.critical("passed tcnames should be one of {}".format(tcdefault))
-        raise IOError
-    else:
+    if tcstring is None:
         tcnames = tcdefault
-    
+    else:    
+        tcnames = [ bn for bn in tcstring.split(',') ]
+        if not np.all([ tcname in tcdefault for tcname in tcnames ]):
+            log.critical("passed tcnames should be one of {}".format(tcdefault))
+            raise IOError
+
     return tcnames
 
 def _load_systematics():
@@ -1541,10 +1540,14 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=4 WIDTH="100%">\n')
         html.write('<tr>\n')
-        # ADM add the plots and ascii files...
+        # ADM add the plots 
         for band in ["g","r","z","W1"]:
             html.write('<td align=center><A HREF="nmag-{}-{}.png"><img SRC="nmag-{}-{}.png" width=95% height=auto></A></td>\n'
                        .format(band,objtype,band,objtype))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+        # ADM add the ASCII files to the images
+        for band in ["g","r","z","W1"]:
             html.write('<td align=center><A HREF="nmag-{}-{}.dat">nmag-{}-{}.dat</A></td>\n'
                        .format(band,objtype,band,objtype))
         html.write('</tr>\n')
