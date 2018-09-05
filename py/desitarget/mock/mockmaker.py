@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 import numpy as np
+from glob import glob
 from pkg_resources import resource_filename
 
 import fitsio
@@ -58,10 +59,11 @@ def mw_transmission(data, dust_dir=None):
         log.warning('DUST_DIR input required.')
         raise ValueError
 
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    data['EBV'] = sfdmap.ebv(data['RA'], data['DEC'], mapdir=dust_dir, scaling=1)
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184,
+                    W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
+    data['EBV'] = sfdmap.ebv(data['RA'], data['DEC'], mapdir=dust_dir, scaling=1.0)
 
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
+    for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
         data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
 
 def imaging_depth(source_data):
@@ -129,24 +131,24 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
-    #targets.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
-    #targets.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
     
     targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    #targets.add_column(Column(name='FLUX_IVAR_W3', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    #targets.add_column(Column(name='FLUX_IVAR_W4', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_W3', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_W4', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='MW_TRANSMISSION_W3', length=nobj, dtype='f4'))
-    #targets.add_column(Column(name='MW_TRANSMISSION_W4', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W3', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W4', length=nobj, dtype='f4'))
 
     targets.add_column(Column(name='NOBS_G', length=nobj, dtype='i2'))
     targets.add_column(Column(name='NOBS_R', length=nobj, dtype='i2'))
@@ -168,10 +170,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
 
-    # The following two columns do not appear in the data targets catalog.
-    #targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    #targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    
     targets.add_column(Column(name='FRACDEV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FRACDEV_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
@@ -297,6 +295,8 @@ class SelectTargets(object):
     """Methods to help select various target types.
 
     """
+    GMM_LRG, GMM_ELG, GMM_BGS = None, None, None
+    
     def __init__(self):
         from astropy.io import fits
         from ..targetmask import (desi_mask, bgs_mask, mws_mask)
@@ -427,6 +427,46 @@ class SelectTargets(object):
             vdisp[these] = _sample(nmodel=np.count_nonzero(these))
 
         return vdisp
+
+    def read_GMM(self, target=None):
+        """Read the GMM for the full range of morphological types of a given target
+        type, as well as the magnitude-dependent morphological fraction.
+
+        See desitarget/doc/nb/gmm-dr7.ipynb for details.
+
+        """
+        from astropy.io import fits
+        from astropy.table import Table
+        from desiutil.sklearn import GaussianMixtureModel
+
+        if target is not None:
+            gmmdir = resource_filename('desitarget', 'mock/data/dr7.1')
+            if not os.path.isdir:
+                log.warning('DR7.1 GMM directory {} not found!'.format(gmmdir))
+                raise IOError
+            
+            fracfile = os.path.join(gmmdir, 'fractype_{}.fits'.format(target.lower()))
+            fractype = Table.read(fracfile)
+
+            gmm = []
+            for morph in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+                gmmfile = os.path.join(gmmdir, 'gmm_{}_{}.fits'.format(target.lower(), morph.lower()))
+                if os.path.isfile(gmmfile): # not all targets have all morphologies
+                    # Get the GMM properties modeled.
+                    cols = []
+                    with fits.open(gmmfile, 'readonly') as ff:
+                        ncol = ff[0].header['NCOL']
+                        for ii in range(ncol):
+                            cols.append(ff[0].header['COL{:02d}'.format(ii)])
+                    gmm.append( (morph, cols, GaussianMixtureModel.load(gmmfile)) )
+
+            # Now unpack the list of tuples into a more convenient set of
+            # variables and then repack and return.
+            morph = [info[0] for info in gmm]
+            gmmcols = [info[1] for info in gmm]
+            GMM = [info[2] for info in gmm]
+
+            setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
 
     def _GMMsample(self, nsample=1, seed=None, south=True):
         """Sample from the Gaussian mixture model (GMM) for LRGs."""
@@ -615,7 +655,7 @@ class SelectTargets(object):
         targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
 
         # Add dust, depth, and nobs.
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
 
@@ -795,7 +835,8 @@ class ReadGaussianField(SelectTargets):
         self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 zmax_qso=None, target_name='', mock_density=False):
+                 zmax_qso=None, target_name='', mock_density=False,
+                 seed=None):
         """Read the catalog.
 
         Parameters
@@ -814,6 +855,8 @@ class ReadGaussianField(SelectTargets):
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -889,6 +932,8 @@ class ReadGaussianField(SelectTargets):
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
+        isouth = self.is_south(dec)
+
         # Add redshifts.
         if target_name.upper() == 'SKY':
             zz = np.zeros(len(ra))
@@ -912,13 +957,113 @@ class ReadGaussianField(SelectTargets):
                 brickname = brickname[cut]
                 zz = zz[cut]
                 zz_norsd = zz_norsd[cut]
+
+        # Get photometry and morphology by sampling from the Gaussian mixture models.
+        if target_name in ('LRG', 'BGS', 'ELG'):
+            rand = np.random.RandomState(seed)
+            self.read_GMM(target=target_name)
+
+            morph = self.GMM_LRG[0]
+
+            # Marginalize the morphological fractions over magnitude.
+            magbins = self.GMM_LRG[1]['MAG'].data
+            deltam = np.diff(magbins)[0]
+            minmag, maxmag = magbins.min()-deltam / 2, magbins.max()+deltam / 2
+
+            # Get the total number of each morphological type, accounting for
+            # rounding.
+            frac2d_magbins = np.vstack( [self.GMM_LRG[1][mm].data for mm in morph] )
+            norm = np.sum(frac2d_magbins, axis=1)
+            frac1d_morph = norm / np.sum(norm)
+            nobj_morph = np.round(frac1d_morph*nobj).astype(int)
+            dn = np.sum(nobj_morph) - nobj
+            if dn > 0:
+                nobj_morph[np.argmax(nobj_morph)] -= dn
+            elif dn < 0:
+                nobj_morph[np.argmax(nobj_morph)] += dn
+
+            # Next, sample from the GMM for each morphological type.  For
+            # simplicity we ignore the north-south split here.
+            gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
+            for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
+                        'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
+                        'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
+                        'GR', 'RZ'):
+                gmmout[key] = np.zeros(nobj).astype('f4')
+
+            for ii, mm in enumerate(morph):
+                if nobj_morph[ii] > 0:
+                    cols = self.GMM_LRG[2][ii]
+                    samp = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
+                    _samp = self.GMM_LRG[3][ii].sample(nobj)
+                    for jj, tt in enumerate(cols):
+                        samp[tt] = _samp[:, jj]
+
+                    # Choose samples with the appropriate magnitude-dependent
+                    # probability, for this morphological type.
+                    prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
+                    prob /= np.sum(prob)
+                    these = rand.choice(nobj, size=nobj_morph[ii], p=prob, replace=False)
+
+                    gthese = np.arange(nobj_morph[ii]) + np.sum(nobj_morph[:ii])
+
+                    if 'z' in samp.dtype.names:
+                        gmmout['MAG'][gthese] = samp['z'][these]
+                    else:
+                        gmmout['MAG'][gthese] = samp['r'][these]
+                    gmmout['GR'][gthese] = samp['gr'][these]
+                    gmmout['RZ'][gthese] = samp['rz'][these]
+                    gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
+
+                    for col in ('reff', 'e1', 'e2'):
+                        sampcol = '{}_{}'.format(col, mm.lower()) # e.g., reff_dev
+                        sampsnrcol = 'snr_{}'.format(sampcol)     # e.g., snr_reff_dev
+                        
+                        outcol = 'shape{}_{}'.format(mm.lower().replace('rex', 'exp'), col.replace('reff', 'r')).upper()
+                        outivarcol = '{}_ivar'.format(outcol).upper()
+                        if sampcol in samp.dtype.names:
+                            val = samp[sampcol][these]
+                            if col == 'reff':
+                                val = 10**val
+                            gmmout[outcol][gthese] = val
+                            gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
+
+                    if mm == 'DEV':
+                        gmmout['FRACDEV'][:] = 1.0
+                    elif mm == 'EXP':
+                        gmmout['FRACDEV'][:] = 0.0
+            
+            gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
+            gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
+
+            if target_name == 'LRG':
+                band = 'z'
+            else:
+                band = 'r'
                 
+            if np.sum(isouth) > 0:
+                if target_name == 'LRG':
+                    gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+                else:
+                    gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth)
+                    
+            if np.sum(~isouth) > 0:
+                if target_name == 'LRG':
+                    gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+                else:
+                    gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
+
+        else:
+            gmmout = None
+                            
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
+               'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2649,7 +2794,8 @@ class LRGMaker(SelectTargets):
 
     """
     wave, tree_north, tree_south, template_maker = None, None, None, None
-    GMM_north, GMM_south, GMM_nospectra = None, None, None
+    #GMM_north, GMM_south, GMM_nospectra = None, None, None, None
+    GMM_nospectra = None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -2676,14 +2822,22 @@ class LRGMaker(SelectTargets):
             LRGMaker.tree_south = KDTree( np.vstack((
                 self.meta['Z'].data)).T )
 
-        if self.GMM_north is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
-            LRGMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
-        if self.GMM_south is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
-            LRGMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
-        self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4', 'exp_r',
-                         'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+        #if self.GMM is None:
+        #    self.GMM = []
+        #    for morph in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+        #        gmmfile = resource_filename('desitarget', 'mock/data/dr7.1/gmm_{}_{}.fits'.format(
+        #            self.objtype.lower(), morph.lower()))
+        #        if os.path.isfile(gmmfile):
+        #            self.GMM.append( (morph, GaussianMixtureModel.load(gmmfile)) )
+                
+        #if self.GMM_north is None:
+        #    gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
+        #    LRGMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
+        #if self.GMM_south is None:
+        #    gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
+        #    LRGMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
+        #self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4', 'exp_r',
+        #                 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lrg.fits')
@@ -2733,7 +2887,8 @@ class LRGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density,
+                                   seed=self.seed)
 
         return data
 
@@ -2793,23 +2948,26 @@ class LRGMaker(SelectTargets):
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
 
-            gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
-            if len(south) > 0:
-                gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
-            if len(north) > 0:
-                gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
+            #gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
+            #if len(south) > 0:
+            #    gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
+            #if len(north) > 0:
+            #    gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
             
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
                 input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'], nobj)
 
-                if len(south) > 0:
-                    input_meta['MAG'][south] = gmm['z'][south]
-                    input_meta['MAGFILTER'][south] = 'decam2014-z'
+                input_meta['MAG'] = data['MAG'][indx]
+                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
 
-                if len(north) > 0:
-                    input_meta['MAG'][north] = gmm['z'][north]
-                    input_meta['MAGFILTER'][north] = 'MzLS-z'
+                #if len(south) > 0:
+                #    input_meta['MAG'][south] = gmm['z'][south]
+                #    input_meta['MAGFILTER'][south] = 'decam2014-z'
+                #
+                #if len(north) > 0:
+                #    input_meta['MAG'][north] = gmm['z'][north]
+                #    input_meta['MAGFILTER'][north] = 'MzLS-z'
 
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -2827,7 +2985,7 @@ class LRGMaker(SelectTargets):
                     
         targets, truth, objtruth = self.populate_targets_truth(
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
-            gmm=gmm, truespectype='GALAXY', templatetype='LRG')
+            truespectype='GALAXY', templatetype='LRG')
 
         return flux, self.wave, meta, targets, truth, objtruth
 
