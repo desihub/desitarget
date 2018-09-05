@@ -41,8 +41,45 @@ import healpy as hp
 import numpy.lib.recfunctions as rfn
 
 
+def _parse_tcnames(tcstring=None, add_all=True):
+    """Turn a comma-separated string of target class names into a list.
+
+    Parameters
+    ----------
+    tcnames :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
+        Comma-separated names of target classes e.g. QSO,LRG. 
+        Options are `ELG`, `QSO`, `LRG`, `MWS`, `BGS`, `STD`.
+    add_all :class:`boolean`, optional, defaults to ``True``
+        If ``True``, then include `ALL` in the default names.
+
+    Returns
+    -------
+    :class:`list` 
+        The string of names is converted to a list.
+
+    Notes
+    -----
+    One useful purpose of this is to check for valid target
+    class strings. An error is thrown if a string is invalid.
+    """
+
+    tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+    if add_all:
+        tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "ALL"]
+
+    if tcstring is not None:
+        tcnames = [ bn for bn in tcstring.split(',') ]
+
+    if not np.all([ tcname in tcdefault for tcname in tcnames ]):
+        log.critical("passed tcnames should be one of {}".format(tcdefault))
+        raise IOError
+    else:
+        tcnames = tcdefault
+    
+    return tcnames
+
 def _load_systematics():
-    """Loads information for making systematics plots
+    """Loads information for making systematics plots.
 
     Returns
     -------
@@ -101,13 +138,13 @@ def _prepare_systematics(data,colname):
 
     return outdata
 
-def _load_targdens(bitnames=None):
+def _load_targdens(tcnames=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
 
     Parameters
     ----------
-    bitnames : :class:`list`
+    tcnames : :class:`list`
         A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
         for those specific bits
 
@@ -144,11 +181,11 @@ def _load_targdens(bitnames=None):
     targdens['MWS_WD'] = 0.
     targdens['MWS_NEARBY'] = 0.
 
-    if bitnames is None:
+    if tcnames is None:
         return targdens
     else:
         # ADM this is a dictionary comprehension
-        return {key: value for key, value in targdens.items() if key in bitnames}
+        return {key: value for key, value in targdens.items() if key in tcnames}
 
 def _javastring():
     """Return a string that embeds a date in a webpage
@@ -567,7 +604,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     return
 
-def qamag(cat, objtype, qadir='.', fileprefix="mag"):
+def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     """Make magnitude-based DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -579,7 +616,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
-    fileprefix : :class:`str`, optional, defaults to ``"mag"`` for
+    fileprefix : :class:`str`, optional, defaults to ``"nmag"`` for
         String to be added to the front of the output file name
 
     Returns
@@ -1322,7 +1359,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             # ADM make magnitude histograms
-            qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
+            qamag(targs[w], objtype, qadir=qadir, fileprefix="nmag")
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             if truths is not None:
@@ -1349,7 +1386,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     return totarea
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
-                 weight=True, imaging_map_file=None, bitnames=None, systematics=True):
+                 weight=True, imaging_map_file=None, tcnames=None, systematics=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -1378,7 +1415,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         map (e.g. made by :func:`desitarget.randoms.pixmap()`. If this is not sent, 
         then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
         If this is not set, then systematics plots cannot be made
-    bitnames : :class:`list`
+    tcnames : :class:`list`
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
         for those specific bits. A useful speed-up when testing
     systematics : :class:`boolean`, optional, defaults to True
@@ -1447,7 +1484,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults)
-    targdens = _load_targdens(bitnames=bitnames)
+    targdens = _load_targdens(tcnames=tcnames)
     
     # ADM set up the html file and write preamble to it
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
@@ -1504,9 +1541,11 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=4 WIDTH="100%">\n')
         html.write('<tr>\n')
-        # ADM add the plots...
+        # ADM add the plots and ascii files...
         for band in ["g","r","z","W1"]:
-            html.write('<td align=center><A HREF="mag-{}-{}.png"><img SRC="mag-{}-{}.png" width=95% height=auto></A></td>\n'
+            html.write('<td align=center><A HREF="nmag-{}-{}.png"><img SRC="nmag-{}-{}.png" width=95% height=auto></A></td>\n'
+                       .format(band,objtype,band,objtype))
+            html.write('<td align=center><A HREF="nmag-{}-{}.dat">nmag-{}-{}.dat</A></td>\n'
                        .format(band,objtype,band,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
