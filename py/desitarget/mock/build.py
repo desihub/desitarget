@@ -150,13 +150,16 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     mockfile = params.get('mockfile')
     mockformat = params.get('format')
     magcut = params.get('magcut')
+    nside_galaxia = params.get('nside_galaxia')
+    calib_only = params.get('calib_only', False)
+
+    # QSO/Lya parameters
     nside_lya = params.get('nside_lya')
     zmin_lya = params.get('zmin_lya')
     zmax_qso = params.get('zmax_qso')
     use_simqso = params.get('use_simqso', True)
     balprob = params.get('balprob', 0.0)
-    nside_galaxia = params.get('nside_galaxia')
-    calib_only = params.get('calib_only', False)
+    add_dla = params.get('add_dla', False)
 
     if 'density' in params.keys():
         mock_density = True
@@ -168,7 +171,9 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     if MakeMock is None:
         MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk,
                                                                      calib_only=calib_only,
-                                                                     use_simqso=use_simqso)
+                                                                     use_simqso=use_simqso,
+                                                                     balprob=balprob,
+                                                                     add_dla=add_dla)
     else:
         MakeMock.seed = seed # updated seed
         
@@ -176,8 +181,8 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
                          healpixels=healpixels, nside=nside,
                          magcut=magcut, nside_lya=nside_lya,
                          zmin_lya=zmin_lya, zmax_qso=zmax_qso,
-                         balprob=balprob, nside_galaxia=nside_galaxia,
-                         dust_dir=dust_dir, mock_density=mock_density)
+                         nside_galaxia=nside_galaxia, dust_dir=dust_dir,
+                         mock_density=mock_density)
     if not bool(data):
         return data, MakeMock
 

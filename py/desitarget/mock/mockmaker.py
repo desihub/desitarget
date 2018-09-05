@@ -2532,14 +2532,15 @@ class LYAMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-g`.
+    balprob : :class:`float`, optional
+        Probability of a including one or more BALs.  Defaults to 0.0. 
+    add_dla : :class:`bool`, optional
+        Statistically include DLAs along the line of sight.
 
     """
     wave, template_maker, GMM_nospectra = None, None, None
 
-    def __init__(self, seed=None, use_simqso=True, **kwargs):
+    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False, **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -2548,6 +2549,8 @@ class LYAMaker(SelectTargets):
         self.seed = seed
         self.objtype = 'LYA'
         self.use_simqso = use_simqso
+        self.balprob = balprob
+        self.add_dla = add_dla
 
         if self.wave is None:
             LYAMaker.wave = _default_wave()
@@ -2773,6 +2776,9 @@ class LYAMaker(SelectTargets):
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
             # Add BALs
+
+            import pdb ; pdb.set_trace()
+            
             #tmp_qso_flux,meta_bal=bal.insert_bals(tmp_qso_wave,tmp_qso_flux, metadata['Z'], balprob=args.balprob,seed=seed)
             # ...
 
