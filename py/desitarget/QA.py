@@ -41,69 +41,6 @@ import healpy as hp
 import numpy.lib.recfunctions as rfn
 
 
-def mag_histogram(targetfilename,binsize,outfile):
-    """Detemine the magnitude distribution of targets
-
-    Parameters
-    ----------
-    targetfilename : :class:`str`
-        File name of a list of targets created by select_targets
-    binsize : :class:`float`
-        bin size of the output histogram
-    outfilename: :class:`str`
-        Output file name for the magnitude histograms, which will be written as ASCII
-
-    Returns
-    -------
-    :class:`Nonetype`
-        No return...but prints a raw N(m) to screen for each target type
-    """
-    
-    #ADM set up the default logger
-    from desiutil.log import get_logger
-    log = get_logger()
-
-    #ADM read in target file
-    log.info('Reading in targets file')
-    fx = fitsio.FITS(targetfilename, upper=True)
-    targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET','DECAM_FLUX'])
-
-    #ADM open output file for writing
-    file = open(outfile, "w")
-
-    #ADM calculate the magnitudes of interest
-    log.info('Calculating magnitudes')
-    gfluxes = targetdata["DECAM_FLUX"][...,1]
-    gmags = 22.5-2.5*np.log10(gfluxes*(gfluxes  > 1e-5) + 1e-5*(gfluxes < 1e-5))
-    rfluxes = targetdata["DECAM_FLUX"][...,2]
-    rmags = 22.5-2.5*np.log10(rfluxes*(rfluxes  > 1e-5) + 1e-5*(rfluxes < 1e-5))
-    zfluxes = targetdata["DECAM_FLUX"][...,4]
-    zmags = 22.5-2.5*np.log10(zfluxes*(zfluxes  > 1e-5) + 1e-5*(zfluxes < 1e-5))
-
-    bitnames = ["ALL","LRG","ELG","QSO","BGS","MWS"]
-    bitvals = [-1]+list(2**np.array([0,1,2,60,61]))
-
-    #ADM set up bin edges in magnitude from 15 to 25 at resolution of binsize
-    binedges = np.arange(((25.-15.)/binsize)+1)*binsize + 15
-
-    #ADM loop through bits and print histogram of raw target numbers per magnitude
-    for i, bitval in enumerate(bitvals):
-        log.info('Doing',bitnames[i])
-        w = np.where(targetdata["DESI_TARGET"] & bitval)
-        if len(w[0]):
-            ghist,dum = np.histogram(gmags[w],bins=binedges)
-            rhist,dum = np.histogram(rmags[w],bins=binedges)
-            zhist,dum = np.histogram(zmags[w],bins=binedges)
-            file.write('{}    {}     {}     {}\n'.format(bitnames[i],'g','r','z'))
-            for i in range(len(binedges)-1):
-                outs = '{:.1f} {} {} {}\n'.format(0.5*(binedges[i]+binedges[i+1]),ghist[i],rhist[i],zhist[i])
-                log.info(outs)
-                file.write(outs)
-
-    file.close()
-
-    return None
-
 def _load_systematics():
     """Loads information for making systematics plots
 
@@ -650,7 +587,9 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
     Nothing
         But .png plots of target colors are written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{filter}-{objtype}.png``
-        where filter might be, e.g., ``g``
+        where filter might be, e.g., ``g``. ASCII versions of those files are
+        also written with columns of magnitude bin and target number density. The
+        file is called ``{qadir}/{fileprefix}-{filter}-{objtype}.dat``
     """
 
     # ADM columns in the passed cat as an array 
@@ -678,8 +617,8 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         # ADM plot the magnitude histogram
         # ADM set the number of bins for the redshift histogram to run in 
         # ADM 0.5 intervals from 14 to 14 + 0.5*bins
-        nbins = 24
-        bins = np.arange(nbins)*0.5+14
+        nbins, binsize, binstart = 24, 0.5, 14
+        bins = np.arange(nbins)*binsize+binstart
         # ADM insert a 0 bin and a 100 bin to catch the edges
         bins = np.insert(bins,0,0.)
         bins = np.insert(bins,len(bins),100.)
@@ -704,6 +643,14 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix,filtername,objtype))
         plt.savefig(pngfile,bbox_inches='tight')
         plt.close()
+
+        # ADM create an ASCII file binned 0.1 mags
+        nbins, binmin, binmax = 100, 14, 24
+        h, b = np.histogram(mag,bins=nbins, range=(binmin,binmax) )
+        bincent =  ((np.roll(b,1)+b)/2)[1:]
+        datfile = pngfile.replace("png","dat")
+        np.savetxt(datfile,np.vstack((bincent,h)).T,
+                   fmt='%.2f',header='{}   N({})'.format(filtername,filtername))
 
     return
 
