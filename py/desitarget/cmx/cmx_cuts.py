@@ -21,9 +21,10 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
-
 from desitarget import io
-from desitarget.cuts import _psflike, _is_row
+from desitarget.cuts import _psflike, _is_row, _get_colnames
+from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
+
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize
 from desitarget.cmx.cmx_targetmask import cmx_mask
@@ -37,7 +38,7 @@ start = time()
 
 
 def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
-                    objtype=None, isgaia=None, pmra=None, pmdec=None,
+                    objtype=None, gaia=None, pmra=None, pmdec=None,
                     aen=None, dupsource=None, paramssolved=None,
                     primary=None):
     """The default logic/mask cuts for commissioning stars.
@@ -49,7 +50,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
         by the total flux in g, r and z bands.
     objtype : :class:`array_like` or :class:`None`
         The Legacy Surveys TYPE to restrict to point sources.
-    isgaia : :class:`boolean array_like` or :class:`None`
+    gaia : :class:`boolean array_like` or :class:`None`
        ``True`` if there is a match between this object in the Legacy
        Surveys and in Gaia.
     pmra, pmdec : :class:`array_like` or :class:`None`
@@ -75,13 +76,13 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     - See also `the Gaia data model`_.
     """
     if primary is None:
-        primary = np.ones_like(isgaia, dtype='?')
+        primary = np.ones_like(gaia, dtype='?')
         
     std = primary.copy()
 
     # ADM A point source with a Gaia match.
     std &= _psflike(objtype)
-    std &= isgaia
+    std &= gaia
 
     # ADM An Isolated source.
     fracflux = [gfracflux, rfracflux, zfracflux]
@@ -208,17 +209,19 @@ def apply_cuts(objects):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM As we need the column names,
-    # ADM capture the case that a single FITS_REC is passed
-    import astropy.io.fits.fitsrec
-    if isinstance(objects, astropy.io.fits.fitsrec.FITS_record):
-        colnames = objects.__dict__['array'].dtype.names
-    else:
-        colnames = objects.dtype.names
+    # ADM As we need the column names
+    colnames = _get_colnames(objects)
+
+    # ADM process the Legacy Surveys columns for Target Selection.
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+                            _prepare_optical_wise(objects, colnames=colnames)
 
     # ADM Currently only coded for objects with Gaia matches
     # ADM (e.g. DR6 or above). Fail for earlier Data Releases.
-    release = objects['RELEASE']
     if np.any(release < 6000):
         log.critical('Commissioning cuts only coded for DR6 or above')
         raise ValueError
@@ -231,52 +234,13 @@ def apply_cuts(objects):
         )
         raise IOError
 
-    # ADM The observed g/r/z fluxes.
-    obs_gflux = objects['FLUX_G']
-    obs_rflux = objects['FLUX_R']
-    obs_zflux = objects['FLUX_Z']
+    # Process the Gaia inputs for target selection.
+    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
+      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+      gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
 
-    # ADM The de-extincted g/r/z/ fluxes.
-    from desitarget.cuts import unextinct_fluxes
-    flux = unextinct_fluxes(objects)
-    gflux = flux['GFLUX']
-    rflux = flux['RFLUX']
-    zflux = flux['ZFLUX']
-
-    # ADM The Legacy Surveys object type and fracflux flags.
-    objtype = objects['TYPE']
-    gfracflux = objects['FRACFLUX_G']
-    rfracflux = objects['FRACFLUX_R']
-    zfracflux = objects['FRACFLUX_Z']
-
-    # ADM Add the Gaia columns...
-    # ADM if we don't have REF_CAT in the sweeps use the
-    # ADM minimum value of REF_ID to identify Gaia sources. This will
-    # ADM introduce a small number (< 0.001%) of Tycho-only sources.
-    isgaia = objects['REF_ID'] > 0
-    if "REF_CAT" in colnames:
-        isgaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
-    pmra = objects['PMRA']
-    pmdec = objects['PMDEC']
-    pmraivar = objects['PMRA_IVAR']
-    gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
-    gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
-
-    # ADM If proper motion is not NaN, 31 parameters were solved for
-    # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
-    # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
-    # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
-    if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in colnames:
-        gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
-    else:
-        gaiaparamssolved = np.zeros_like(isgaia) + 31
-        w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
-        if len(w) > 0:
-            #ADM we need to check the case of a single row being passed
-            if _is_row(gaiaparamssolved):
-                gaiaparamsolved = 3
-            else:
-                gaiaparamssolved[w] = 3
+    # ADM a couple of extra columns; the observed g/z fluxes.
+    obs_gflux, obs_zflux = objects['FLUX_G'], objects['FLUX_Z']
 
     # ADM initially, every object passes the cuts (is True).
     # ADM need to check the case of a single row being passed.
@@ -288,7 +252,7 @@ def apply_cuts(objects):
     # ADM determine if an object passes the default logic for cmx stars
     isgood = passesSTD_logic(
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-        objtype=objtype, isgaia=isgaia, pmra=pmra, pmdec=pmdec,
+        objtype=objtype, gaia=gaia, pmra=pmra, pmdec=pmdec,
         aen=gaiaaen, dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
         primary=primary
     )
