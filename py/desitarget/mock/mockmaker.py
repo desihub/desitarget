@@ -296,7 +296,7 @@ class SelectTargets(object):
 
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
-    
+
     def __init__(self):
         from astropy.io import fits
         from ..targetmask import (desi_mask, bgs_mask, mws_mask)
@@ -392,19 +392,6 @@ class SelectTargets(object):
         plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
         plt.legend(loc='upper left')
         plt.show()
-
-    def _update_normfilter(self, normfilter, objtype=None):
-        """Update the normalization filter."""
-        from speclite import filters
-        if normfilter is not None:
-            if objtype == 'WD':
-                self.da_template_maker.normfilter = normfilter
-                self.db_template_maker.normfilter = normfilter
-                self.da_template_maker.normfilt = filters.load_filters(normfilter)
-                self.db_template_maker.normfilt = filters.load_filters(normfilter)
-            else:
-                self.template_maker.normfilter = normfilter
-                self.template_maker.normfilt = filters.load_filters(normfilter)
 
     def _sample_vdisp(self, ra, dec, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
                       seed=None, nside=128):
@@ -609,23 +596,6 @@ class SelectTargets(object):
                 gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
         return gmmout
-
-    def _GMMsample(self, nsample=1, seed=None, south=True):
-        """Sample from the Gaussian mixture model (GMM) for LRGs."""
-
-        rand = np.random.RandomState(seed)
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
-
-        if south:
-            params = self.GMM_south.sample(nsample, rand).astype('f4')
-            for ii, tt in enumerate(self.GMM_tags):
-                samp[tt] = params[:, ii]
-        else:
-            params = self.GMM_north.sample(nsample, rand).astype('f4')
-            for ii, tt in enumerate(self.GMM_tags):
-                samp[tt] = params[:, ii]
-            
-        return samp
 
     def _query(self, matrix, subtype='', return_dist=False, south=True):
         """Return the nearest template number based on the KD Tree."""
@@ -2354,8 +2324,8 @@ class QSOMaker(SelectTargets):
             else:
                 QSOMaker.template_maker = QSO(wave=self.wave)
 
-        if self.GMM_LRG is None:
-            self.read_GMM(target='LRG')
+        if self.GMM_QSO is None:
+            self.read_GMM(target='QSO')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
