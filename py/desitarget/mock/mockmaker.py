@@ -474,7 +474,8 @@ class SelectTargets(object):
 
             setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
 
-    def sample_GMM(self, nobj, isouth=None, target=None, seed=None):
+    def sample_GMM(self, nobj, isouth=None, target=None, seed=None,
+                   prior_mag=None, prior_redshift=None):
         """Sample from the GMMs read by self.read_GMM.
 
         See desitarget/doc/nb/gmm-dr7.ipynb for details.
@@ -561,7 +562,6 @@ class SelectTargets(object):
                     gmmout['FRACDEV'][:] = 1.0
                 elif mm == 'EXP':
                     gmmout['FRACDEV'][:] = 0.0
-            
 
         gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
         gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
@@ -571,6 +571,30 @@ class SelectTargets(object):
         else:
             band = 'r'
 
+        # Sort based on the input/prior magnitude (e.g., for the BGS/MXXL
+        # mocks), but note that we will very likely end up with duplicated
+        # morphologies and colors.
+        if prior_mag is not None:
+            dmcut = 0.3
+            srt = np.zeros(nobj).astype(int)
+            for ii, mg in enumerate(prior_mag):
+                dm = np.where( (np.abs(mg-gmmout['MAG']) < dmcut) )[0]
+                if len(dm) == 0:
+                    srt[ii] = np.argmin(np.abs(mg-gmmout['MAG']))
+                else:
+                    srt[ii] = rand.choice(dm)
+            for key in gmmout.keys():
+                gmmout[key][:] = gmmout[key][srt]
+
+        # Shuffle based on input/prior redshift, so we can get a broad
+        # correlation between magnitude and redshift.
+        if prior_redshift is not None:
+            #dat = np.zeros(nobj, dtype=[('redshift', 'f4'), ('mag', 'f4')])
+            #dat['redshift'] = prior_redshift
+            #dat['mag'] = gmmout['MAG']
+            #srt = np.argsort(dat, order=('redshift', 'mag'))
+
+        # Assign filter names.
         if np.sum(isouth) > 0:
             if target == 'LRG':
                 gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
@@ -582,7 +606,7 @@ class SelectTargets(object):
                 gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
             else:
                 gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
-                
+
         return gmmout
 
     def _GMMsample(self, nsample=1, seed=None, south=True):
@@ -1076,7 +1100,8 @@ class ReadGaussianField(SelectTargets):
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.
         isouth = self.is_south(dec)
-        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth, seed=seed)
+        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+                                 seed=seed, prior_redshift=zz)
                             
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
@@ -1689,7 +1714,7 @@ class ReadMXXL(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='BGS', magcut=None, only_coords=False,
-                 mock_density=False):
+                 mock_density=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -1711,6 +1736,8 @@ class ReadMXXL(SelectTargets):
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -1839,6 +1866,14 @@ class ReadMXXL(SelectTargets):
             return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
                     'MAG': rmag, 'WEIGHT': weight, 'NSIDE': nside}
 
+        # Get photometry and morphologies by sampling from the Gaussian mixture
+        # models.  This is a total hack because our apparent magnitudes (rmag)
+        # will not be consistent with the Gaussian draws.  But as a hack just
+        # sort the shapes and sizes on rmag.
+        isouth = self.is_south(dec)
+        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+                                 seed=seed, prior_mag=rmag)
+
         # Assign bricknames.
         brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
@@ -1847,7 +1882,10 @@ class ReadMXXL(SelectTargets):
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
-               'SDSS_01gr': gr, 'NORMFILTER': 'sdss2010-r', 'SOUTH': self.is_south(dec)}
+               'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -1992,7 +2030,8 @@ class ReadGAMA(SelectTargets):
                'GR_01': data['UGRIZ_ABSMAG_01'][:, 1]-data['UGRIZ_ABSMAG_01'][:, 2],
                'RI_01': data['UGRIZ_ABSMAG_01'][:, 2]-data['UGRIZ_ABSMAG_01'][:, 3],
                'IZ_01': data['UGRIZ_ABSMAG_01'][:, 3]-data['UGRIZ_ABSMAG_01'][:, 4],
-               'NORMFILTER': 'decam2014-r', 'MAG': rmag, 'SOUTH': self.is_south(dec)}
+               'MAGFILTER': np.repeat('decam2014-r', nobj),
+               'MAG': rmag, 'SOUTH': self.is_south(dec)}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2894,8 +2933,7 @@ class LRGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density,
-                                   seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed)
 
         return data
 
@@ -2951,14 +2989,13 @@ class LRGMaker(SelectTargets):
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=2.3,
                                        sigma=0.1, seed=seed, nside=self.nside_chunk)
 
-            # Sample from the north/south GMMs
+            # Differentiate north/south photometry.
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
 
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
                 input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'], nobj)
-
                 input_meta['MAG'] = data['MAG'][indx]
                 input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
 
@@ -3012,7 +3049,7 @@ class ELGMaker(SelectTargets):
 
     """
     wave, tree_north, tree_south, template_maker = None, None, None, None
-    GMM_north, GMM_south, GMM_nospectra = None, None, None
+    GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -3044,14 +3081,8 @@ class ELGMaker(SelectTargets):
                 self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
                 self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
 
-        if self.GMM_north is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
-            ELGMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
-        if self.GMM_south is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
-            ELGMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
-        self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4', 'exp_r',
-                         'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+        if self.GMM_LRG is None:
+            self.read_GMM(target='LRG')
         
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
@@ -3101,7 +3132,7 @@ class ELGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density, seed=self.seed)
 
         return data
             
@@ -3157,33 +3188,19 @@ class ELGMaker(SelectTargets):
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
-            # Sample from the north/south GMMs
+            # Differentiate north/south photometry.
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
 
-            gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
-            if len(south) > 0:
-                gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
-            if len(north) > 0:
-                gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
-
             if self.mockformat == 'gaussianfield':
-                if len(south) > 0:
-                    input_meta['MAG'][south] = gmm['z'][south]
-                    input_meta['MAGFILTER'][south] = 'decam2014-z'
-                    input_meta['TEMPLATEID'][south] = self._query(
-                        np.vstack((data['Z'][indx][south],
-                                   gmm['g'][south]-gmm['r'][south],
-                                   gmm['r'][south]-gmm['z'][south])).T, south=True)
-
-                if len(north) > 0:
-                    input_meta['MAG'][north] = gmm['z'][north]
-                    input_meta['MAGFILTER'][north] = 'MzLS-z'
-                    input_meta['TEMPLATEID'][north] = self._query(
-                        np.vstack((data['Z'][indx][north],
-                                   gmm['g'][north]-gmm['r'][north],
-                                   gmm['r'][north]-gmm['z'][north])).T, south=False)
-
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        input_meta['MAG'][these] = data['MAG'][indx][these]
+                        input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
+                        input_meta['TEMPLATEID'][these] = self._query(
+                            np.vstack((data['Z'][indx][these],
+                                       data['GR'][indx][these],
+                                       data['RZ'][indx][these])).T, south=issouth)
 
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -3201,7 +3218,7 @@ class ELGMaker(SelectTargets):
 
         targets, truth, objtruth = self.populate_targets_truth(
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
-            gmm=gmm, truespectype='GALAXY', templatetype='ELG')
+            truespectype='GALAXY', templatetype='ELG')
 
         return flux, self.wave, meta, targets, truth, objtruth
 
@@ -3235,7 +3252,7 @@ class BGSMaker(SelectTargets):
 
     """
     wave, tree, template_maker = None, None, None
-    GMM_north, GMM_south, GMM_nospectra = None, None, None
+    GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -3262,14 +3279,8 @@ class BGSMaker(SelectTargets):
             gr = mabs[:, 1] - mabs[:, 2]
             BGSMaker.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
 
-        if self.GMM_north is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
-            BGSMaker.GMM_north = GaussianMixtureModel.load(gmmfile)
-        if self.GMM_south is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
-            BGSMaker.GMM_south = GaussianMixtureModel.load(gmmfile)
-        self.GMM_tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4', 'exp_r',
-                         'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
+        if self.GMM_BGS is None:
+            self.read_GMM(target='BGS')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_bgs.fits')
@@ -3332,7 +3343,7 @@ class BGSMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    magcut=magcut, only_coords=only_coords,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density, seed=self.seed)
 
         return data
 
@@ -3382,8 +3393,6 @@ class BGSMaker(SelectTargets):
             meta['REDSHIFT'] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            print('Need the BGS shapes and fluxes to correlate!')
-
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             input_meta['SEED'] = rand.randint(2**31, size=nobj)
             input_meta['REDSHIFT'] = data['Z'][indx]
@@ -3391,16 +3400,6 @@ class BGSMaker(SelectTargets):
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
-            # Sample from the north/south GMMs
-            south = np.where( data['SOUTH'][indx] == True )[0]
-            north = np.where( data['SOUTH'][indx] == False )[0]
-
-            gmm = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in self.GMM_tags] ) )
-            if len(south) > 0:
-                gmm[south] = self._GMMsample(len(south), seed=seed, south=True)
-            if len(north) > 0:
-                gmm[north] = self._GMMsample(len(north), seed=seed, south=False)
-            
             if self.mockformat == 'durham_mxxl_hdf5':
                 input_meta['TEMPLATEID'] = self._query( np.vstack((
                     data['Z'][indx],
@@ -3408,7 +3407,7 @@ class BGSMaker(SelectTargets):
                     data['SDSS_01gr'][indx])).T )
 
                 input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['NORMFILTER']
+                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
 
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
@@ -3418,20 +3417,18 @@ class BGSMaker(SelectTargets):
                     data['GR_01'][indx])).T )
 
                 input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['NORMFILTER']
+                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
 
             elif self.mockformat == 'gaussianfield':
-                if len(south) > 0:
-                    input_meta['MAG'][south] = gmm['z'][south]
-                    input_meta['MAGFILTER'][south] = 'decam2014-z'
-                if len(north) > 0:
-                    input_meta['MAG'][north] = gmm['z'][north]
-                    input_meta['MAGFILTER'][north] = 'MzLS-z'
-
                 # This is not quite right, but choose a template with equal probability.
                 input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'], nobj)
+                input_meta['MAG'] = data['MAG'][indx]
+                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
                 
             # Build north/south spectra separately.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
@@ -3447,7 +3444,7 @@ class BGSMaker(SelectTargets):
 
         targets, truth, objtruth = self.populate_targets_truth(
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
-            gmm=gmm, truespectype='GALAXY', templatetype='BGS')
+            truespectype='GALAXY', templatetype='BGS')
 
         return flux, self.wave, meta, targets, truth, objtruth
 
