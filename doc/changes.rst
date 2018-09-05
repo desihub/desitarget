@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Include per-band number counts for targets on the QA pages [`PR #367`_].
 * Set the ``STD_WD`` bit (it's identical to the ``MWS_WD`` bit) [`PR #364`_].
 * Add notebook for generating Gaussian mixture models from DR7 photometry and
   morphologies of ELG, LRG, and BGS targets [`PR #363`_ and `PR #365`_].
@@ -45,6 +46,7 @@ desitarget Change Log
 .. _`PR #363`: https://github.com/desihub/desitarget/pull/363
 .. _`PR #364`: https://github.com/desihub/desitarget/pull/364
 .. _`PR #365`: https://github.com/desihub/desitarget/pull/365
+.. _`PR #367`: https://github.com/desihub/desitarget/pull/367
 
 0.23.0 (2018-08-09)
 -------------------
