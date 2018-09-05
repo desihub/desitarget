@@ -7,7 +7,7 @@ desitarget Change Log
 
 * Set the ``STD_WD`` bit (it's identical to the ``MWS_WD`` bit) [`PR #364`_].
 * Add notebook for generating Gaussian mixture models from DR7 photometry and
-  morphologies of ELG, LRG, and BGS targets [`PR #363`_].
+  morphologies of ELG, LRG, and BGS targets [`PR #363`_ and `PR #365`_].
 * Make commissioning (cmx) target selection fully functional [`PR #359`_]. Includes:
     * Initial target selection algorithms.
     * First unit tests for cmx (> 90% coverage).
@@ -44,6 +44,7 @@ desitarget Change Log
 .. _`PR #359`: https://github.com/desihub/desitarget/pull/359
 .. _`PR #363`: https://github.com/desihub/desitarget/pull/363
 .. _`PR #364`: https://github.com/desihub/desitarget/pull/364
+.. _`PR #365`: https://github.com/desihub/desitarget/pull/365
 
 0.23.0 (2018-08-09)
 -------------------
