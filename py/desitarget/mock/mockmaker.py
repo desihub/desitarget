@@ -51,14 +51,14 @@ def mw_transmission(data, dust_dir=None):
         If dust_dir is not defined.
     
     """
-    from desitarget.mock import sfdmap
+    from desiutil.dust import SFDMap
 
     if dust_dir is None:
         log.warning('DUST_DIR input required.')
         raise ValueError
 
     extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    data['EBV'] = sfdmap.ebv(data['RA'], data['DEC'], mapdir=dust_dir)
+    data['EBV'] = SFDMap.ebv(data['RA'], data['DEC'], mapdir=dust_dir)
 
     for band in ('G', 'R', 'Z', 'W1', 'W2'):
         data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
