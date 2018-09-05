@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Use new :func:`desiutil.dust.SFDMap` module [`PR #366`_].
 * Set the ``STD_WD`` bit (it's identical to the ``MWS_WD`` bit) [`PR #364`_].
 * Add notebook for generating Gaussian mixture models from DR7 photometry and
   morphologies of ELG, LRG, and BGS targets [`PR #363`_ and `PR #365`_].
@@ -45,6 +46,7 @@ desitarget Change Log
 .. _`PR #363`: https://github.com/desihub/desitarget/pull/363
 .. _`PR #364`: https://github.com/desihub/desitarget/pull/364
 .. _`PR #365`: https://github.com/desihub/desitarget/pull/365
+.. _`PR #366`: https://github.com/desihub/desitarget/pull/366
 
 0.23.0 (2018-08-09)
 -------------------
