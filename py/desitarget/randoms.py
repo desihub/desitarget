@@ -356,8 +356,8 @@ def get_dust(ras,decs,scaling=1,
     :class:`numpy.array`
         E(B-V) values from the SFD dust maps at the passed locations
     """
-    from desitarget.mock import sfdmap
-    return sfdmap.ebv(ras, decs, mapdir=dustdir, scaling=scaling)
+    from desiutil.dust import SFDMap
+    return SFDMap(mapdir=dustdir).ebv(ras, decs, scaling=scaling)
 
 
 def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,

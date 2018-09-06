@@ -53,9 +53,6 @@ desitarget API
 .. automodule:: desitarget.mock.sample
     :members:
 
-.. automodule:: desitarget.mock.sfdmap
-    :members:
-
 .. automodule:: desitarget.mock.sky
     :members:
 
