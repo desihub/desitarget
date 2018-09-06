@@ -275,7 +275,7 @@ def apply_cuts(objects):
     return cmx_target
 
 
-def select_targets(infiles, numproc=4):
+def select_targets(infiles, numproc=4, cmxdir=None):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
@@ -284,6 +284,10 @@ def select_targets(infiles, numproc=4):
         A list of input filenames (tractor or sweep files) OR a single filename.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`.
+        Directory in which to find commmissioning files to which to match, such as the
+        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
+        the :envvar:`CMX_DIR` environment variable.
 
     Returns
     -------
@@ -298,11 +302,18 @@ def select_targets(infiles, numproc=4):
     from desiutil.log import get_logger
     log = get_logger()
 
-    #- Convert single file to list of files
+    # ADM fail if the cmx directory is not set or passed.
+    if not os.path.exists(cmxdir):
+        log.info('pass cmxdir or correctly set the $CMX_DIR environment variable')
+        msg = 'Commissioning files not found in {}'.format(cmxdir)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    #- Convert single file to list of files.
     if isinstance(infiles,str):
         infiles = [infiles,]
 
-    #- Sanity check that files exist before going further
+    #- Sanity check that files exist before going further.
     for filename in infiles:
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
