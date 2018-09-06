@@ -302,9 +302,13 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     from desiutil.log import get_logger
     log = get_logger()
 
+
+    # ADM if cmxdir was not passed, default to environment variable
+    if cmxdir is None:
+        cmxdir = os.environ.get('CMX_DIR')
     # ADM fail if the cmx directory is not set or passed.
     if not os.path.exists(cmxdir):
-        log.info('pass cmxdir or correctly set the $CMX_DIR environment variable')
+        log.info('pass cmxdir or correctly set the $CMX_DIR environment variable...')
         msg = 'Commissioning files not found in {}'.format(cmxdir)
         log.critical(msg)
         raise ValueError(msg)
