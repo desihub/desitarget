@@ -727,7 +727,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     std = primary.copy()
 
     #ADM Bp and Rp are both measured
-    std &=  ~np.isnan(gaiabmag - gaiarmag)
+    std &= ~np.isnan(gaiabmag - gaiarmag)
     
     #ADM no obvious issues with the astrometry solution
     std &= astrometricexcessnoise < 1

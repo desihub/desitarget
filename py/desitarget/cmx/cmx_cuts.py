@@ -22,7 +22,6 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
-from desitarget.cuts import isSTD
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
 
@@ -75,7 +74,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
        ``True`` if there is a match between this object in the Legacy
        Surveys and in Gaia.
     pmra, pmdec : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec and parallax
+        Gaia-based proper motion in RA and Dec
         (same units as the Gaia data model).
     aen : :class:`array_like` or :class:`None`
         Gaia Astrometric Excess Noise (as in the Gaia Data Model).
@@ -123,6 +122,71 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
     return std
 
+    
+def isSTD_bright(gflux=None, rflux=None, zflux=None,
+                 pmra=None, pmdec=None, parallax=None,
+                 gaiagmag=None, isgood=None, primary=None):
+    """A selection that resembles the main survey bright STD stars.
+
+    Parameters
+    ----------
+    gflux, rflux, zflux : :class:`array_like` or :class:`None`
+        Galactic-extinction-corrected flux in nano-maggies in g, r, z bands.
+    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
+        Gaia-based proper motion in RA and Dec, and parallax
+        (same units as the Gaia data model).
+    gaiagmag : :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+    isgood : :class:`array_like` or :class:`None`
+        ``True`` for objects that pass the logic cuts in
+        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        True if and only if the object is a cmx "bright standard" target.
+
+    Notes
+    -----
+    - See also `the Gaia data model`_.
+
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+
+    isbright = primary.copy()
+    # ADM passes all of the default logic cuts.
+    isbright &= isgood
+
+    # ADM the STD color cuts from the main survey.
+    # Clip to avoid warnings from negative numbers.                                                                                                                                                    
+    # ADM we're pretty bright for the STDs, so this should be safe                                                                                                                                      
+    gflux = gflux.clip(1e-16)
+    rflux = rflux.clip(1e-16)
+    zflux = zflux.clip(1e-16)
+
+    # ADM optical colors for halo TO or bluer                                                                                                                                                           
+    grcolor = 2.5 * np.log10(rflux / gflux)
+    rzcolor = 2.5 * np.log10(zflux / rflux)
+    isbright &= rzcolor < 0.2
+    isbright &= grcolor > 0.
+    isbright &= grcolor < 0.35
+
+    # ADM Gaia magnitudes in the "bright" range (15 < G < 18)
+    isbright &= gaiagmag >= 15.
+    isbright &= gaiagmag < 18.
+
+    # ADM a parallax smaller than 1 mas
+    isbright &= parallax < 1.
+
+    #ADM a proper motion larger than 2 mas/yr                                                                                                                                                          
+    pm = np.sqrt(pmra**2. + pmdec**2.)
+    isbright &= pm > 2.
+    
+    return isbright
+
 
 def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
                  isgood=None, primary=None):
@@ -150,7 +214,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     - See also `the Gaia data model`_.       
     """
     if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
+        primary = np.ones_like(obs_rflux, dtype='?')
         
     isdither = primary.copy()
     # ADM passes all of the default logic cuts.
@@ -190,7 +254,7 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     - See also `the Gaia data model`_.       
     """
     if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
+        primary = np.ones_like(obs_rflux, dtype='?')
         
     istest = primary.copy()
     # ADM passes all of the default logic cuts.
@@ -350,9 +414,9 @@ def apply_cuts(objects, cmxdir=None):
         ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
     )
 
-    # ADM determine if an object is STD_BRIGHT based on the
-    # ADM current main survey selection
-    std_bright = isSTD(
+    # ADM determine if an object is STD_BRIGHT. Resembles the main
+    # ADM survey code, but locked in cmx_cuts (and could be altered).
+    std_bright = isSTD_bright(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
         gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
@@ -370,7 +434,6 @@ def apply_cuts(objects, cmxdir=None):
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
     
-
     return cmx_target
 
 
