@@ -22,6 +22,7 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
+from desitarget.cuts import isSTD
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
 
@@ -333,26 +334,42 @@ def apply_cuts(objects, cmxdir=None):
     )
 
     # ADM determine if an object is a "dither" star.
-    stddither = isSTD_dither(
+    std_dither = isSTD_dither(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
     )
 
     # ADM determine if an object is a bright test star.
-    stdtest = isSTD_test(
+    std_test = isSTD_test(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
     )
 
     # ADM determine if an object matched a CALSPEC standard.
-    stdcalspec = isSTD_calspec(
+    std_calspec = isSTD_calspec(
         ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
     )
 
+    # ADM determine if an object is STD_BRIGHT based on the
+    # ADM current main survey selection
+    std_bright = isSTD(
+        primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+        gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+        zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+        gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+        pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True
+    )
+
+
     # ADM Construct the targetflag bits.
-    cmx_target  = stddither * cmx_mask.STD_GAIA
-    cmx_target |= stdtest * cmx_mask.STD_TEST
-    cmx_target |= stdcalspec * cmx_mask.STD_CALSPEC
+    cmx_target  = std_dither * cmx_mask.STD_GAIA
+    cmx_target |= std_test * cmx_mask.STD_TEST
+    cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
+    cmx_target |= std_bright * cmx_mask.STD_BRIGHT
+    
 
     return cmx_target
 
