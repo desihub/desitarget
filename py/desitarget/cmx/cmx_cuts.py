@@ -65,7 +65,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
     Parameters
     ----------
-    gfracflux, rfracflux, zfracflux : :class:`array_like` or :class:`None` 
+    gfracflux, rfracflux, zfracflux : :class:`array_like` or :class:`None`
         Profile-weighted fraction of the flux from other sources divided
         by the total flux in g, r and z bands.
     objtype : :class:`array_like` or :class:`None`
@@ -87,7 +87,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
     Returns
     -------
-    :class:`array_like` 
+    :class:`array_like`
         True if and only if the object passes the logic cuts for cmx stars.
 
     Notes
@@ -140,7 +140,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     Returns
     -------
-    :class:`array_like` 
+    :class:`array_like`
         True if and only if the object is a Gaia "dither" target.
 
     Notes
@@ -180,7 +180,7 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     Returns
     -------
-    :class:`array_like` 
+    :class:`array_like`
         True if and only if the object is a Gaia "test" target.
 
     Notes
@@ -224,31 +224,30 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.
 
     Returns
     -------
-    :class:`array_like` 
+    :class:`array_like`
         True if and only if the object is a "CALSPEC" target.
     """
-    
     if primary is None:
         primary = np.ones_like(ra, dtype='?')
-    
+
     iscalspec = primary.copy()
 
-    # ADM retrieve/check the cmxdir 
+    # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
-    # ADM get the CALSPEC objects
+    # ADM get the CALSPEC objects.
     cmxfile =  os.path.join(cmxdir,'calspec.fits')
     cals = fitsio.read(cmxfile)
 
-    # ADM match the calspec and sweeps objects
+    # ADM match the calspec and sweeps objects.
     cobjs = SkyCoord(ra*u.degree, dec*u.degree)
     ccals = SkyCoord(cals['RA']*u.degree, cals["Dec"]*u.degree)
     idobjs, idcals, _, _ = ccals.search_around_sky(cobjs,matchrad*u.arcsec)
-    
-    # ADM set matching objects to True
+
+    # ADM set matching objects to True.
     calmatch = np.zeros_like(primary, dtype='?')
     calmatch[idobjs] = True
 
-    # ADM something has to both match and been passed through as True
+    # ADM something has to both match and been passed through as True.
     iscalspec &= calmatch
 
     return iscalspec
@@ -282,10 +281,10 @@ def apply_cuts(objects, cmxdir=None):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM retrieve/check the cmxdir 
+    # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
 
-    # ADM As we need the column names
+    # ADM As we need the column names.
     colnames = _get_colnames(objects)
 
     # ADM process the Legacy Surveys columns for Target Selection.
@@ -325,7 +324,7 @@ def apply_cuts(objects, cmxdir=None):
     else:
         primary = np.ones_like(objects, dtype=bool)
 
-    # ADM determine if an object passes the default logic for cmx stars
+    # ADM determine if an object passes the default logic for cmx stars.
     isgood = passesSTD_logic(
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
         objtype=objtype, gaia=gaia, pmra=pmra, pmdec=pmdec,
@@ -333,20 +332,27 @@ def apply_cuts(objects, cmxdir=None):
         primary=primary
     )
 
-    # ADM determine if an object is a "dither" star
+    # ADM determine if an object is a "dither" star.
     stddither = isSTD_dither(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
     )
 
+    # ADM determine if an object is a bright test star.
     stdtest = isSTD_test(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
     )
 
-    # ADM Construct the targetflag bits
+    # ADM determine if an object matched a CALSPEC standard.
+    stdcalspec = isSTD_calspec(
+        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
+    )
+
+    # ADM Construct the targetflag bits.
     cmx_target  = stddither * cmx_mask.STD_GAIA
     cmx_target |= stdtest * cmx_mask.STD_TEST
+    cmx_target |= stdcalspec * cmx_mask.STD_CALSPEC
 
     return cmx_target
 
@@ -387,7 +393,7 @@ def select_targets(infiles, numproc=4, cmxdir=None):
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
-    # ADM retrieve/check the cmxdir 
+    # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
 
     def _finalize_targets(objects, cmx_target):
