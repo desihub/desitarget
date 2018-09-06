@@ -669,12 +669,12 @@ class SelectTargets(object):
         W1mag = zmag - sample['z - W1'] 
         W2mag = W1mag - sample['W1 - W2'] 
         
-        meta['MAG'] = normmag
-        meta['FLUX_G'] = 1e9 * 10**(-0.4 * gmag)
-        meta['FLUX_R'] = 1e9 * 10**(-0.4 * rmag)
-        meta['FLUX_Z'] = 1e9 * 10**(-0.4 * zmag)
-        meta['FLUX_W1'] = 1e9 * 10**(-0.4 * W1mag)
-        meta['FLUX_W2'] = 1e9 * 10**(-0.4 * W2mag)
+        meta['MAG'][:] = normmag
+        meta['FLUX_G'][:] = 1e9 * 10**(-0.4 * gmag)
+        meta['FLUX_R'][:] = 1e9 * 10**(-0.4 * rmag)
+        meta['FLUX_Z'][:] = 1e9 * 10**(-0.4 * zmag)
+        meta['FLUX_W1'][:] = 1e9 * 10**(-0.4 * W1mag)
+        meta['FLUX_W2'][:] = 1e9 * 10**(-0.4 * W2mag)
 
         return meta
 
@@ -754,7 +754,7 @@ class SelectTargets(object):
                     targets[key][:] = np.repeat(data[key], nobj)
 
         # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
-        targets['RELEASE'] = 9999
+        targets['RELEASE'][:] = 9999
         
         south = self.is_south(targets['DEC'])
         north = ~south
@@ -892,8 +892,8 @@ class SelectTargets(object):
             basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
             plot_sky_binned(data['RA'], data['DEC'], weights=data['WEIGHT'],
                             max_bin_area=hp.nside2pixarea(data['NSIDE'], degrees=True),
-                            verbose=False, clip_lo='!1', cmap='viridis',
-                            plot_type='healpix', basemap=basemap,
+                            verbose=False, clip_lo='!1', clip_hi='98%', 
+                            cmap='viridis', plot_type='healpix', basemap=basemap,
                             label=r'{} (targets/deg$^2$)'.format(self.objtype))
             
         if not nozhist:
@@ -1056,7 +1056,7 @@ class ReadGaussianField(SelectTargets):
             if zmax_qso is not None:
                 cut = np.where( zz < zmax_qso )[0]
                 nobj = len(cut)
-                log.info('Trimmed to {} objects with z<{:.2f}'.format(nobj, zmax_qso))
+                log.info('Trimmed to {} objects with z<{:.3f}'.format(nobj, zmax_qso))
                 if nobj == 0:
                     return dict()
                 mockid = mockid[cut]
@@ -1425,7 +1425,9 @@ class ReadGalaxia(SelectTargets):
                'MOCKID': mockid, 'BRICKNAME': brickname,
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'MAGFILTER': np.repeat('sdss2010-r', nobj), 'BOSS_STD': boss_std,
+               'MAGFILTER': np.repeat('sdss2010-r', nobj),
+
+               #'BOSS_STD': boss_std,
                
                'REF_ID': mockid,
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
@@ -1608,18 +1610,16 @@ class ReadLyaCoLoRe(SelectTargets):
         allpix = footprint.radec2pix(nside, ra, dec)
 
         fracarea = pixweight[allpix]
-        # force DESI footprint and minimum redshift
-        if zmin_lya is None:
-            zmin_lya = zz.min()
-        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) * zz >= zmin_lya )[0]
+        # force DESI footprint
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0]
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s) with z>={:.2f}'.format(
-            nobj, target_name, len(np.atleast_1d(healpixels)), zmin_lya))
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
 
         allpix = allpix[cut]
         weight = 1 / fracarea[cut]
@@ -1630,6 +1630,23 @@ class ReadLyaCoLoRe(SelectTargets):
         #objid = objid[cut]
         mockpix = mockpix[cut]
         mockid = mockid[cut]
+
+        # Cut on minimum redshift.
+        if zmin_lya is not None:
+            cut = np.where( zz >= zmin_lya )[0]
+            nobj = len(cut)
+            log.info('Trimmed to {} {}s with z>={:.3f}'.format(nobj, target_name, zmin_lya))
+            if nobj == 0:
+                return dict()
+            allpix = allpix[cut]
+            weight = weight[cut]
+            ra = ra[cut]
+            dec = dec[cut]
+            zz = zz[cut]
+            zz_norsd = zz_norsd[cut]
+            #objid = objid[cut]
+            mockpix = mockpix[cut]
+            mockid = mockid[cut]
 
         # Build the full filenames.
         lyafiles = []
@@ -2427,8 +2444,8 @@ class QSOMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
             # Sample from the north/south GMMs
@@ -2451,8 +2468,8 @@ class QSOMaker(SelectTargets):
 
             else:
                 input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
-                input_meta['SEED'] = rand.randint(2**31, size=nobj)
-                input_meta['REDSHIFT'] = data['Z'][indx]
+                input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'][:] = data['Z'][indx]
                 
                 if self.mockformat == 'gaussianfield':
                     input_meta['MAG'][:] = data['MAG'][indx]
@@ -2648,8 +2665,8 @@ class LYAMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
             # Handle north/south photometry.
@@ -2658,8 +2675,8 @@ class LYAMaker(SelectTargets):
             
             if not self.use_simqso:
                 input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
-                input_meta['SEED'] = rand.randint(2**31, size=nobj)
-                input_meta['REDSHIFT'] = data['Z'][indx]
+                input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'][:] = data['Z'][indx]
 
                 # These magnitudes are a total hack!
                 if len(north) > 0:
@@ -2744,7 +2761,7 @@ class LYAMaker(SelectTargets):
                     objmeta[these] = objmeta1
                     qso_flux[these, :] = qso_flux1
 
-            meta['SUBTYPE'] = 'LYA'
+            meta['SUBTYPE'][:] = 'LYA'
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
@@ -2947,13 +2964,13 @@ class LRGMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=2.3,
                                        sigma=0.1, seed=seed, nside=self.nside_chunk)
 
@@ -2963,9 +2980,9 @@ class LRGMaker(SelectTargets):
 
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
-                input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -3146,13 +3163,13 @@ class ELGMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
@@ -3357,19 +3374,19 @@ class BGSMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
             
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
             if self.mockformat == 'durham_mxxl_hdf5':
-                input_meta['TEMPLATEID'] = self._query( np.vstack((
+                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
                     data['Z'][indx],
                     data['SDSS_absmag_r01'][indx],
                     data['SDSS_01gr'][indx])).T )
@@ -3379,19 +3396,19 @@ class BGSMaker(SelectTargets):
 
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
-                input_meta['TEMPLATEID'] = self._query( np.vstack((
+                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
                     data['Z'][indx],
                     data['RMABS_01'][indx],
                     data['GR_01'][indx])).T )
 
-                input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             elif self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
-                input_meta['TEMPLATEID'] = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
                 
             # Build north/south spectra separately.
             south = np.where( data['SOUTH'][indx] == True )[0]
@@ -3445,7 +3462,8 @@ class STARMaker(SelectTargets):
 
     """
     wave, template_maker, tree = None, None, None
-    star_maggies_g, star_maggies_r = None, None
+    star_maggies_g_north, star_maggies_r_north = None, None
+    star_maggies_g_south, star_maggies_r_south = None, None
     
     def __init__(self, seed=None, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -3466,35 +3484,39 @@ class STARMaker(SelectTargets):
 
         # Pre-compute normalized synthetic photometry for the full set of
         # stellar templates.
-        if self.star_maggies_g is None or self.star_maggies_r is None:
+        if (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
+            self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
+            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
+                                                'wise2010-W1', 'wise2010-W2')
             decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                              'wise2010-W1', 'wise2010-W2')
-            maggies = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_north = bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_south = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
 
             # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
             sdssr = filters.load_filters('sdss2010-r')
 
-            def _get_maggies(flux, wave, maggies, normfilter):
+            def _get_maggies(flux, wave, outmaggies, normfilter):
                 normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
+                for filt, flux in zip( outmaggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+                    outmaggies[filt] /= normmaggies[normfilter.names[0]]
+                    outmaggies.rename_column(filt, flux)
+                return outmaggies
 
-                for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z',
-                                                          'FLUX_W1', 'FLUX_W2') ):
-                    maggies[filt] /= normmaggies[normfilter.names[0]]
-                    maggies.rename_column(filt, flux)
-                    
-                return maggies
-
-            STARMaker.star_maggies_g = _get_maggies(flux, wave, maggies.copy(), sdssg)
-            STARMaker.star_maggies_r = _get_maggies(flux, wave, maggies.copy(), sdssr)
+            STARMaker.star_maggies_g_north = _get_maggies(flux, wave, maggies_north.copy(), sdssg)
+            STARMaker.star_maggies_r_north = _get_maggies(flux, wave, maggies_north.copy(), sdssr)
+            STARMaker.star_maggies_g_south = _get_maggies(flux, wave, maggies_south.copy(), sdssg)
+            STARMaker.star_maggies_r_south = _get_maggies(flux, wave, maggies_south.copy(), sdssr)
 
         # Build the KD Tree.
         if self.tree is None:
-            STARMaker.tree = KDTree(np.vstack((self.meta['TEFF'].data,
-                                               self.meta['LOGG'].data,
-                                               self.meta['FEH'].data)).T)
+            STARMaker.tree = KDTree(np.vstack(
+                (self.meta['TEFF'].data,
+                 self.meta['LOGG'].data,
+                self.meta['FEH'].data)).T)
         
     def template_photometry(self, data=None, indx=None, rand=None, south=True):
         """Get stellar photometry from the templates themselves, by-passing the
@@ -3509,13 +3531,14 @@ class STARMaker(SelectTargets):
         nobj = len(indx)
         
         meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        meta['SEED'] = rand.randint(2**31, size=nobj)
-        meta['REDSHIFT'] = data['Z'][indx]
-        meta['MAG'] = data['MAG'][indx]
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
+        meta['MAG'][:] = data['MAG'][indx]
+        meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
         
-        objmeta['TEFF'] = data['TEFF'][indx]
-        objmeta['LOGG'] = data['LOGG'][indx]
-        objmeta['FEH'] = data['FEH'][indx]
+        objmeta['TEFF'][:] = data['TEFF'][indx]
+        objmeta['LOGG'][:] = data['LOGG'][indx]
+        objmeta['FEH'][:] = data['FEH'][indx]
 
         if self.mockformat == 'galaxia':
             templateid = self._query(np.vstack((data['TEFF'][indx],
@@ -3527,14 +3550,24 @@ class STARMaker(SelectTargets):
                                                 data['FEH'][indx])).T)
 
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
-        
-        if data['MAGFILTER'][0] == 'sdss2010-g':
-            star_maggies = self.star_maggies_g
-        elif data['MAGFILTER'][0] == 'sdss2010-r':
-            star_maggies = self.star_maggies_r
+
+        # A little fragile -- assume that MAGFILTER is the same for all objects...
+        if south:
+            if data['MAGFILTER'][0] == 'sdss2010-g':
+                star_maggies = self.star_maggies_g_south
+            elif data['MAGFILTER'][0] == 'sdss2010-r':
+                star_maggies = self.star_maggies_r_south
+            else:
+                log.warning('Unrecognized normalization filter {}!'.format(data['MAGFILTER'][0]))
+                raise ValueError
         else:
-            log.warning('Unrecognized normalization filter!')
-            raise ValueError
+            if data['MAGFILTER'][0] == 'sdss2010-g':
+                star_maggies = self.star_maggies_g_north
+            elif data['MAGFILTER'][0] == 'sdss2010-r':
+                star_maggies = self.star_maggies_r_north
+            else:
+                log.warning('Unrecognized normalization filter {}!'.format(data['MAGFILTER'][0]))
+                raise ValueError
             
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             meta[key][:] = star_maggies[key][templateid] * normmag
@@ -3769,13 +3802,13 @@ class MWS_MAINMaker(STARMaker):
             meta, objmeta = self.template_photometry(data, indx, rand)
         else:
             input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['MAG'] = data['MAG'][indx]
-            input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            input_meta['MAG'][:] = data['MAG'][indx]
+            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'galaxia':
-                input_meta['TEMPLATEID'] = self._query(
+                input_meta['TEMPLATEID'][:] = self._query(
                     np.vstack((data['TEFF'][indx],
                                data['LOGG'][indx],
                                data['FEH'][indx])).T)
@@ -3932,6 +3965,8 @@ class FAINTSTARMaker(STARMaker):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
 
         """
         if indx is None:
@@ -3982,29 +4017,29 @@ class FAINTSTARMaker(STARMaker):
         log.debug('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
 
         if len(keep) > 0:
-            input_meta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
-            input_meta['SEED'] = objseeds[keep]
-            input_meta['REDSHIFT'] = data['Z'][indx][keep]
-            input_meta['MAG'] = data['MAG'][indx][keep]
-            input_meta['TEFF'] = data['TEFF'][indx][keep]
-            input_meta['LOGG'] = data['LOGG'][indx][keep]
-            input_meta['FEH'] = data['FEH'][indx][keep]
+            input_meta, objmeta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
+            input_meta['SEED'][:] = objseeds[keep]
+            input_meta['REDSHIFT'][:] = data['Z'][indx][keep]
+            input_meta['MAG'][:] = data['MAG'][indx][keep]
+            
+            objmeta['TEFF'][:] = data['TEFF'][indx][keep]
+            objmeta['LOGG'][:] = data['LOGG'][indx][keep]
+            objmeta['FEH'][:] = data['FEH'][indx][keep]
 
             if no_spectra:
                 flux = []
                 meta = input_meta
-                targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
-                                                             psf=True, seed=seed,
-                                                             truespectype='STAR',
-                                                             templatetype='STAR')
+                targets, truth = self.populate_targets_truth(
+                    data, meta, objmeta, indx=indx[keep], psf=True,
+                    seed=seed, truespectype='STAR', templatetype='STAR')
             else:
-                input_meta['TEMPLATEID'] = templateid[keep]
+                input_meta['TEMPLATEID'][:] = templateid[keep]
 
                 # Note! No colorcuts.
                 flux, _, meta, objmeta = self.template_maker.make_templates(input_meta=input_meta)
 
                 # Force consistency in the noisy photometry so we select the same targets. 
-                targets, truth = self.populate_targets_truth(
+                targets, truth, objtruth = self.populate_targets_truth(
                     data, meta, objmeta, indx=indx[keep], psf=True,
                     seed=seed, truespectype='STAR', templatetype='STAR')
                 
@@ -4016,10 +4051,10 @@ class FAINTSTARMaker(STARMaker):
             else:
                 self.select_targets(targets, truth, boss_std=boss_std[keep])
 
-            return flux, self.wave, meta, targets, truth
+            return flux, self.wave, meta, targets, truth, objtruth
 
         else:
-            return [], self.wave, None, [], []
+            return [], self.wave, None, [], [], []
                                                            
     def select_targets(self, targets, truth, boss_std=None):
         """Select faint stellar contaminants for the extragalactic targets.  Input
@@ -4143,13 +4178,13 @@ class MWS_NEARBYMaker(STARMaker):
             meta, objmeta = self.template_photometry(data, indx, rand)
         else:
             input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['MAG'] = data['MAG'][indx]
-            input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            input_meta['MAG'][:] = data['MAG'][indx]
+            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'mws_100pc':
-                input_meta['TEMPLATEID'] = self._query(
+                input_meta['TEMPLATEID'][:] = self._query(
                     np.vstack((data['TEFF'][indx],
                                data['LOGG'][indx],
                                data['FEH'][indx])).T)
@@ -4192,16 +4227,19 @@ class MWS_NEARBYMaker(STARMaker):
             Corresponding truth table.
 
         """
-        #desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+        if False:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+        else:
+            log.warning('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
 
-        mws_nearby = np.ones(len(targets)) # select everything!
-        #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+            mws_nearby = np.ones(len(targets)) # select everything!
+            #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
 
-        desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
-        mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
+            desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
+            mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
 
-        targets['DESI_TARGET'] |= desi_target
-        targets['MWS_TARGET'] |= mws_target
+            targets['DESI_TARGET'] |= desi_target
+            targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
@@ -4215,7 +4253,9 @@ class WDMaker(SelectTargets):
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
-    wd_maggies_da, wd_maggies_db, tree_da, tree_db = None, None, None, None
+    tree_da, tree_db = None, None
+    wd_maggies_da_north, wd_maggies_da_north = None, None
+    wd_maggies_db_south, wd_maggies_db_south = None, None
 
     def __init__(self, seed=None, calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
@@ -4242,32 +4282,35 @@ class WDMaker(SelectTargets):
 
         # Pre-compute normalized synthetic photometry for the full set of DA and
         # DB templates.
-        if self.wd_maggies_da is None or self.wd_maggies_db is None:
+        if (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
+            self.wd_maggies_db_north is None or self.wd_maggies_db_south is None):
 
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
 
+            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
+                                                'wise2010-W1', 'wise2010-W2')
             decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                              'wise2010-W1', 'wise2010-W2')
-            maggies_da = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+
+            maggies_da_north = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_north = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_south = bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_south = bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
 
             # Normalize to sdss-g
             normfilter = filters.load_filters('sdss2010-g')
-            
-            def _get_maggies(flux, wave, maggies, normfilter):
+            def _get_maggies(flux, wave, outmaggies, normfilter):
                 normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
+                for filt, flux in zip( outmaggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+                    outmaggies[filt] /= normmaggies[normfilter.names[0]]
+                    outmaggies.rename_column(filt, flux)
+                return outmaggies
 
-                for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z',
-                                                          'FLUX_W1', 'FLUX_W2') ):
-
-                    maggies[filt] /= normmaggies[normfilter.names[0]]
-                    maggies.rename_column(filt, flux)
-                    
-                return maggies
-
-            WDMaker.wd_maggies_da = _get_maggies(flux_da, wave, maggies_da.copy(), normfilter)
-            WDMaker.wd_maggies_db = _get_maggies(flux_db, wave, maggies_db.copy(), normfilter)
+            WDMaker.wd_maggies_da_north = _get_maggies(flux_da, wave, maggies_da_north.copy(), normfilter)
+            WDMaker.wd_maggies_da_south = _get_maggies(flux_da, wave, maggies_da_south.copy(), normfilter)
+            WDMaker.wd_maggies_db_north = _get_maggies(flux_db, wave, maggies_db_north.copy(), normfilter)
+            WDMaker.wd_maggies_db_south = _get_maggies(flux_db, wave, maggies_db_south.copy(), normfilter)
 
         # Build the KD Trees
         if self.tree_da is None:
@@ -4339,14 +4382,14 @@ class WDMaker(SelectTargets):
         nobj = len(indx)
         
         meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        meta['SEED'] = rand.randint(2**31, size=nobj)
-        meta['REDSHIFT'] = data['Z'][indx]
-        meta['MAG'] = data['MAG'][indx]
-        meta['MAGFILTER'] = data['MAGFILTER'][indx]
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
+        meta['MAG'][:] = data['MAG'][indx]
+        meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+        meta['SUBTYPE'][:] = data['TEMPLATESUBTYPE'][indx]
 
-        objmeta['TEFF'] = data['TEFF'][indx]
-        objmeta['LOGG'] = data['LOGG'][indx]
-        objmeta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
+        objmeta['TEFF'][:] = data['TEFF'][indx]
+        objmeta['LOGG'][:] = data['LOGG'][indx]
 
         if self.mockformat == 'mws_wd':
             templateid = self._query(
@@ -4354,14 +4397,23 @@ class WDMaker(SelectTargets):
                            data['LOGG'][indx])).T, subtype=subtype)
 
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
-        
-        if subtype == 'DA':
-            wd_maggies = self.wd_maggies_da
-        elif subtype == 'DB':
-            wd_maggies = self.wd_maggies_da
+
+        if south:
+            if subtype == 'DA':
+                wd_maggies = self.wd_maggies_da_south
+            elif subtype == 'DB':
+                wd_maggies = self.wd_maggies_db_south
+            else:
+                log.warning('Unrecognized subtype {}!'.format(subtype))
+                raise ValueError
         else:
-            log.warning('Unrecognized subtype {}!'.format(subtype))
-            raise ValueError
+            if subtype == 'DA':
+                wd_maggies = self.wd_maggies_da_north
+            elif subtype == 'DB':
+                wd_maggies = self.wd_maggies_db_north
+            else:
+                log.warning('Unrecognized subtype {}!'.format(subtype))
+                raise ValueError
             
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             meta[key][:] = wd_maggies[key][templateid] * normmag
@@ -4411,10 +4463,10 @@ class WDMaker(SelectTargets):
                 meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             else:
                 input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
-                input_meta['SEED'] = rand.randint(2**31, size=nobj)
-                input_meta['REDSHIFT'] = data['Z'][indx]
-                input_meta['MAG'] = data['MAG'][indx]
-                input_meta['MAGFILTER'] = data['MAGFILTER'][indx]
+                input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'][:] = data['Z'][indx]
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
                 meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
                 flux = np.zeros([nobj, len(self.wave)], dtype='f4')
@@ -4474,25 +4526,30 @@ class WDMaker(SelectTargets):
 
         """
         if not self.calib_only:
-            #desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+            if False:
+                desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+            else:
+                log.warning('Applying ad hoc selection of MWS_WD targets (no Gaia in mocks).')
 
-            #mws_wd = np.ones(len(targets)) # select everything!
-            mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
+                #mws_wd = np.ones(len(targets)) # select everything!
+                mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
 
-            desi_target = (mws_wd != 0) * self.desi_mask.MWS_ANY
-            mws_target = (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+                desi_target = (mws_wd != 0) * self.desi_mask.MWS_ANY
+                mws_target = (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
 
+                targets['DESI_TARGET'] |= desi_target
+                targets['MWS_TARGET'] |= mws_target
+
+        if False:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['STD'])
             targets['DESI_TARGET'] |= desi_target
-            targets['MWS_TARGET'] |= mws_target
-
-        # Ad hoc selection of WD standards using just on g-band magnitude (not
-        # TEMPLATESUBTYPE!)
-        std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
-        targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
-
-        #desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['STD'])
-        #targets['DESI_TARGET'] |= desi_target
-
+        else:
+            log.warning('Applying ad hoc selection of STD_WD targets (no Gaia in mocks).')
+            
+            # Ad hoc selection of WD standards using just on g-band magnitude (not
+            # TEMPLATESUBTYPE!)
+            std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
+            targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -4514,12 +4571,7 @@ class SKYMaker(SelectTargets):
         if self.wave is None:
             SKYMaker.wave = _default_wave()
         
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'uniformsky', '0.1',
-                                             'uniformsky-2048-0.1.fits')
-
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
+    def read(self, mockfile=None, mockformat='uniformsky', dust_dir=None,
              healpixels=None, nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
@@ -4551,8 +4603,12 @@ class SKYMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'uniformsky':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.1', 'uniformsky-2048-0.1.fits')
             MockReader = ReadUniformSky(dust_dir=dust_dir)
         elif self.mockformat == 'gaussianfield':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', '0.0.1', '2048', 'random.fits')
             MockReader = ReadGaussianField(dust_dir=dust_dir)
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -4605,8 +4661,8 @@ class SKYMaker(SelectTargets):
         nobj = len(indx)
 
         meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        meta['SEED'] = rand.randint(2**31, size=nobj)
-        meta['REDSHIFT'] = data['Z'][indx]
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
         
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
         targets, truth, objtruth = self.populate_targets_truth(
