@@ -36,6 +36,26 @@ log = get_logger()
 #ADM start the clock
 start = time()
 
+def _get_cmxdir(cmxdir=None):
+    """Retrieve the base cmx directory with appropriate error checking
+
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory in which to find commmissioning files to which to match, such as the
+        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
+        the :envvar:`CMX_DIR` environment variable.
+    """
+    # ADM if cmxdir was not passed, default to environment variable
+    if cmxdir is None:
+        cmxdir = os.environ.get('CMX_DIR')
+    # ADM fail if the cmx directory is not set or passed.
+    if not os.path.exists(cmxdir):
+        log.info('pass cmxdir or correctly set the $CMX_DIR environment variable...')
+        msg = 'Commissioning files not found in {}'.format(cmxdir)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return cmxdir
+
 
 def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
                     objtype=None, gaia=None, pmra=None, pmdec=None,
@@ -185,13 +205,66 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     return istest
 
 
-def apply_cuts(objects):
+def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.
+                  primary=None):
+    """Match to CALSPEC stars for commissioning tests.
+
+    Parameters
+    ----------
+    ra, dec : :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory in which to find commmissioning files to which to match, such as the
+        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
+        the :envvar:`CMX_DIR` environment variable.
+    matchrad : :class:`float`, optional, defaults to 1 arcsec
+        The matching radius in arcseconds.
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like` 
+        True if and only if the object is a "CALSPEC" target.
+    """
+    
+    if primary is None:
+        primary = np.ones_like(ra, dtype='?')
+    
+    iscalspec = primary.copy()
+
+    # ADM retrieve/check the cmxdir 
+    cmxdir = _get_cmxdir(cmxdir)
+    # ADM get the CALSPEC objects
+    cmxfile =  os.path.join(cmxdir,'calspec.fits')
+    cals = fitsio.read(cmxfile)
+
+    # ADM match the calspec and sweeps objects
+    cobjs = SkyCoord(ra*u.degree, dec*u.degree)
+    ccals = SkyCoord(cals['RA']*u.degree, cals["Dec"]*u.degree)
+    idobjs, idcals, _, _ = ccals.search_around_sky(cobjs,matchrad*u.arcsec)
+    
+    # ADM set matching objects to True
+    calmatch = np.zeros_like(primary, dtype='?')
+    calmatch[idobjs] = True
+
+    # ADM something has to both match and been passed through as True
+    iscalspec &= calmatch
+
+    return iscalspec
+
+
+def apply_cuts(objects, cmxdir=None):
     """Perform commissioning (cmx) target selection on objects, return target mask arrays
 
     Parameters
     ----------
     objects: numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory in which to find commmissioning files to which to match, such as the
+        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
+        the :envvar:`CMX_DIR` environment variable.
 
     Returns
     -------
@@ -208,6 +281,9 @@ def apply_cuts(objects):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
+
+    # ADM retrieve/check the cmxdir 
+    cmxdir = _get_cmxdir(cmxdir)
 
     # ADM As we need the column names
     colnames = _get_colnames(objects)
@@ -284,7 +360,7 @@ def select_targets(infiles, numproc=4, cmxdir=None):
         A list of input filenames (tractor or sweep files) OR a single filename.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
-    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
         Directory in which to find commmissioning files to which to match, such as the
         CALSPEC stars. If not specified, the cmx directory is taken to be the value of
         the :envvar:`CMX_DIR` environment variable.
@@ -302,17 +378,6 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     from desiutil.log import get_logger
     log = get_logger()
 
-
-    # ADM if cmxdir was not passed, default to environment variable
-    if cmxdir is None:
-        cmxdir = os.environ.get('CMX_DIR')
-    # ADM fail if the cmx directory is not set or passed.
-    if not os.path.exists(cmxdir):
-        log.info('pass cmxdir or correctly set the $CMX_DIR environment variable...')
-        msg = 'Commissioning files not found in {}'.format(cmxdir)
-        log.critical(msg)
-        raise ValueError(msg)
-
     #- Convert single file to list of files.
     if isinstance(infiles,str):
         infiles = [infiles,]
@@ -321,6 +386,9 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     for filename in infiles:
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
+
+    # ADM retrieve/check the cmxdir 
+    cmxdir = _get_cmxdir(cmxdir)
 
     def _finalize_targets(objects, cmx_target):
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
@@ -341,7 +409,7 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        cmx_target = apply_cuts(objects)
+        cmx_target = apply_cuts(objects, cmxdir=cmxdir)
 
         return _finalize_targets(objects, cmx_target)
 
