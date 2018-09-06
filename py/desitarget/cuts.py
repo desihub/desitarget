@@ -710,7 +710,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
         paramssolved: array_like or None
             How many parameters were solved for in Gaia (as in the Gaia Data model).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
+            Gaia-based g, b and  r MAGNITUDES (not Galactic-extinction-corrected).
             (same units as the Gaia data model).
 
     Returns:

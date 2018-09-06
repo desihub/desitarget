@@ -69,7 +69,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
         Profile-weighted fraction of the flux from other sources divided
         by the total flux in g, r and z bands.
     objtype : :class:`array_like` or :class:`None`
-        The Legacy Surveys TYPE to restrict to point sources.
+        The Legacy Surveys `TYPE` to restrict to point sources.
     gaia : :class:`boolean array_like` or :class:`None`
        ``True`` if there is a match between this object in the Legacy
        Surveys and in Gaia.
@@ -122,7 +122,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
     return std
 
-    
+
 def isSTD_bright(gflux=None, rflux=None, zflux=None,
                  pmra=None, pmdec=None, parallax=None,
                  gaiagmag=None, isgood=None, primary=None):
@@ -151,7 +151,6 @@ def isSTD_bright(gflux=None, rflux=None, zflux=None,
     Notes
     -----
     - See also `the Gaia data model`_.
-
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -161,71 +160,64 @@ def isSTD_bright(gflux=None, rflux=None, zflux=None,
     isbright &= isgood
 
     # ADM the STD color cuts from the main survey.
-    # Clip to avoid warnings from negative numbers.                                                                                                                                                    
-    # ADM we're pretty bright for the STDs, so this should be safe                                                                                                                                      
+    # Clip to avoid warnings from negative numbers.
+    # ADM we're pretty bright for the STDs, so this should be safe.
     gflux = gflux.clip(1e-16)
     rflux = rflux.clip(1e-16)
     zflux = zflux.clip(1e-16)
 
-    # ADM optical colors for halo TO or bluer                                                                                                                                                           
+    # ADM optical colors for halo TO or bluer.
     grcolor = 2.5 * np.log10(rflux / gflux)
     rzcolor = 2.5 * np.log10(zflux / rflux)
     isbright &= rzcolor < 0.2
     isbright &= grcolor > 0.
     isbright &= grcolor < 0.35
 
-    # ADM Gaia magnitudes in the "bright" range (15 < G < 18)
+    # ADM Gaia magnitudes in the "bright" range (15 < G < 18).
     isbright &= gaiagmag >= 15.
     isbright &= gaiagmag < 18.
 
-    # ADM a parallax smaller than 1 mas
+    # ADM a parallax smaller than 1 mas.
     isbright &= parallax < 1.
 
-    #ADM a proper motion larger than 2 mas/yr                                                                                                                                                          
+    #ADM a proper motion larger than 2 mas/yr.
     pm = np.sqrt(pmra**2. + pmdec**2.)
     isbright &= pm > 2.
-    
+
     return isbright
 
 
-def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
-                 isgood=None, primary=None):
-    """Gaia stars for dithering tests during commissioning.
+def isSV0_BGS(rflux=None, objtype=None, primary=None):
+    """Initial SV-like Bright Galaxy Survey selection (for MzLS/BASS imaging).
 
     Parameters
     ----------
-    obs_gflux, obs_rflux, obs_zflux : :class:`array_like` or :class:`None`
-        The flux in nano-maggies of g, r, z bands WITHOUT any
-        Galactic extinction correction.
-    isgood : :class:`array_like` or :class:`None`
-        ``True`` for objects that pass the logic cuts in
-        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
+    rflux : :class:`array_like` or :class:`None`
+        Galactic-extinction-corrected flux in nano-maggies in r-band.
+    objtype : :class:`array_like` or :class:`None`
+        The Legacy Surveys `TYPE`.
     primary : :class:`array_like` or :class:`None`
         ``True`` for objects that should be passed through the selection.
 
     Returns
     -------
     :class:`array_like`
-        True if and only if the object is a Gaia "dither" target.
+        True if and only if the object is an initial BGS target.
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
-    - See also `the Gaia data model`_.       
+    - Returns the equivalent of ALL BGS classes (for the northern imaging).
     """
     if primary is None:
-        primary = np.ones_like(obs_rflux, dtype='?')
-        
-    isdither = primary.copy()
-    # ADM passes all of the default logic cuts.
-    isdither &= isgood
+        primary = np.ones_like(rflux, dtype='?')
+    isbgs = primary.copy()
+    
+    # ADM simple selection is objects brighter than r of 20...
+    isbgs &= rflux > 10**((22.5-20.0)/2.5)
+    # ADM ...that are not point-like.
+    isbgs &= ~_psflike(objtype)        
 
-    # ADM not too bright in g, r, z (> 15 mags)
-    isdither &= obs_gflux < 10**((22.5-15.0)/2.5)
-    isdither &= obs_rflux < 10**((22.5-15.0)/2.5)
-    isdither &= obs_zflux < 10**((22.5-15.0)/2.5)
-
-    return isdither
+    return isbgs
 
 
 def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
@@ -417,22 +409,22 @@ def apply_cuts(objects, cmxdir=None):
     # ADM determine if an object is STD_BRIGHT. Resembles the main
     # ADM survey code, but locked in cmx_cuts (and could be altered).
     std_bright = isSTD_bright(
-        primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-        gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-        zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-        gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-        pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True
+        gflux=gflux, rflux=rflux, zflux=zflux,
+        pmra=pmra, pmdec=pmdec, parallax=parallax,
+        gaiagmag=gaiagmag, isgood=isgood, primary=primary
     )
 
+    #ADM determine if an object is SV0_BGS
+    sv0_bgs = isSV0_BGS(
+        rflux=rflux, objtype=objtype, primary=primary
+    )
 
     # ADM Construct the targetflag bits.
     cmx_target  = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
+    cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
     
     return cmx_target
 

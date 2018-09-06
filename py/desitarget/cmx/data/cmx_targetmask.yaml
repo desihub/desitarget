@@ -6,10 +6,9 @@ cmx_mask:
     - [STD_TEST,    2, "Very bright stars for early tests", {obsconditions: DARK|GRAY|BRIGHT}]
     - [STD_CALSPEC, 3, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT}]
 
-    #ADM BGS and MWS buts that should resemble at least the initial SV selections, 
-    #ADM although as the SV selection could evolve, this can't be guaranteed
-    - [SV_BGS,      8, "Any SV-like BGS bit is set (from initial SV selection)", {obsconditions: BRIGHT}]
-    - [SV_MWS,      9, "Any SV-like MWS bit is set (from initial SV selection", {obsconditions: BRIGHT}]
+    #ADM BGS and MWS buts that should resemble at least the initial SV selections ("SV0"), 
+    - [SV0_BGS,     8, "Any SV-like BGS (North) bit is set (from initial SV selection)", {obsconditions: BRIGHT}]
+    - [SV0_MWS,     9, "Any SV-like MWS (North) bit is set (from initial SV selection)", {obsconditions: BRIGHT}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
