@@ -2740,10 +2740,10 @@ class LYAMaker(SelectTargets):
             # the colors, so we need to re-synthesize the photometry below.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype='QSO', simqso=self.use_simqso)
             if self.use_simqso:
-                qso_flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+                qso_flux = np.zeros([nobj, len(self.template_maker.basewave)], dtype='f4')
             else:
                 qso_flux = np.zeros([nobj, len(self.template_maker.eigenwave)], dtype='f4')
-            qso_wave = np.zeros_like(qso_flux)
+                qso_wave = np.zeros_like(qso_flux)
             
             for these, issouth in zip( (north, south), (False, True) ):
                 if len(these) > 0:
@@ -2780,11 +2780,11 @@ class LYAMaker(SelectTargets):
             for these, filters in zip( (north, south), (self.template_maker.bassmzlswise, self.template_maker.decamwise) ):
                 if len(these) > 0:
                     if self.use_simqso:
-                        maggies = filters.get_ab_maggies(1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
+                        maggies = filters.get_ab_maggies(1e-17 * _flux[these, :], qso_wave.copy(), mask_invalid=True)
                         for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'), filters.names):
                             meta[band][these] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
                     else:
-                        # We have to loop since each QSO has a different wavelength array.
+                        # We have to loop (and pad) since each QSO has a different wavelength array.
                         maggies = []
                         for ii in range(len(these)):
                             padflux, padwave = filters.pad_spectrum(_flux[these[ii], :], qso_wave[these[ii], :], method='edge')
