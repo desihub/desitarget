@@ -6,7 +6,7 @@ import os, sys
 import numpy as np
 import fitsio
 
-from desitarget.QA import make_qa_page
+from desitarget.QA import make_qa_page, _parse_tcnames
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -25,8 +25,8 @@ ap.add_argument('--nside', default=None, type=int ,
                 help="Specify the healpixel resolution of the sky maps")
 ap.add_argument('-w','--weightmapfile', default=None, 
                 help="Location (e.g. /project/projectdirs/desi/target/catalogs/dr6/pixweight-dr6-0.20.2.fits) of the imaging HEALPix map file for the Data Release that corresponds to these targets (e.g. as made by desitarget.imagefootprint.pixweight()")
-ap.add_argument('-b','--bitnames', default=None, 
-                help="Names of specific bits for which to make the QA pages. (e.g. QSO,LRG,ALL)")
+ap.add_argument('-t','--tcnames', default=None, 
+                help="Names of specific target classes for which to make the QA pages. (e.g. QSO,LRG,ALL)")
 ap.add_argument('--nosystematics', action='store_true', 
                 help="Don't make systematics plots on the front page (perhaps because the weightmapfile was not passed)")
 
@@ -37,9 +37,7 @@ if ns.weightmapfile is None and ns.nosystematics is False:
     log.error("The weightmap file was not passed so systematics cannot be tracked. Try again sending --nosystematics.")
     raise IOError
 
-bitnames = ns.bitnames
-if bitnames is not None:
-    bitnames = [ bn for bn in ns.bitnames.split(',') ]
+tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=True)
 
 makeplots = not(ns.noplots)
 systematics = not(ns.nosystematics)
@@ -52,7 +50,7 @@ else:
 
 make_qa_page(ns.src, qadir=ns.dest,
              mocks=ns.mocks, makeplots=makeplots, max_bin_area=max_bin_area, 
-             imaging_map_file=ns.weightmapfile, bitnames=bitnames, systematics=systematics)
+             imaging_map_file=ns.weightmapfile, tcnames=tcnames, systematics=systematics)
 log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
 log.info('Mocks option was set to {}'.format(ns.mocks))
 log.info('No plots option was set to {}'.format(ns.noplots))

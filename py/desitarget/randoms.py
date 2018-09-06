@@ -357,7 +357,7 @@ def get_dust(ras,decs,scaling=1,
         E(B-V) values from the SFD dust maps at the passed locations
     """
     from desiutil.dust import SFDMap
-    return SFDMap.ebv(ras, decs, mapdir=dustdir, scaling=scaling)
+    return SFDMap(mapdir=dustdir).ebv(ras, decs, scaling=scaling)
 
 
 def get_quantities_in_a_brick(ramin,ramax,decmin,decmax,brickname,density=100000,

@@ -9,6 +9,7 @@ import fitsio
 from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightmask import mask_targets
+from desitarget.QA import _parse_tcnames
 
 from time import time
 start = time()
@@ -64,14 +65,7 @@ if len(infiles) == 0:
 log.info("running on {} processors".format(ns.numproc))
 
 #ADM if specific bit names were passed, use them, otherwise run all target classes
-tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
-if ns.tcnames is not None:
-    tcnames = [ bn for bn in ns.tcnames.split(',') ]
-    if not np.all([ tcname in tcdefault for tcname in tcnames ]):
-        log.critical("passed tcnames should all be one of {}".format(tcdefault))
-        raise IOError
-else:
-    tcnames = tcdefault
+tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 if ns.check:
     log.info('Check input files...')

@@ -41,71 +41,44 @@ import healpy as hp
 import numpy.lib.recfunctions as rfn
 
 
-def mag_histogram(targetfilename,binsize,outfile):
-    """Detemine the magnitude distribution of targets
+def _parse_tcnames(tcstring=None, add_all=True):
+    """Turn a comma-separated string of target class names into a list.
 
     Parameters
     ----------
-    targetfilename : :class:`str`
-        File name of a list of targets created by select_targets
-    binsize : :class:`float`
-        bin size of the output histogram
-    outfilename: :class:`str`
-        Output file name for the magnitude histograms, which will be written as ASCII
+    tcstring : :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
+        Comma-separated names of target classes e.g. QSO,LRG.
+        Options are `ELG`, `QSO`, `LRG`, `MWS`, `BGS`, `STD`.
+    add_all : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, then include `ALL` in the default names.
 
     Returns
     -------
-    :class:`Nonetype`
-        No return...but prints a raw N(m) to screen for each target type
+    :class:`list`
+        The string of names is converted to a list.
+
+    Notes
+    -----
+        - One use of this function is to check for valid target class
+          strings. An IOError is raised if a string is invalid.
     """
-    
-    #ADM set up the default logger
-    from desiutil.log import get_logger
-    log = get_logger()
 
-    #ADM read in target file
-    log.info('Reading in targets file')
-    fx = fitsio.FITS(targetfilename, upper=True)
-    targetdata = fx[1].read(columns=['BRICKID','DESI_TARGET','BGS_TARGET','MWS_TARGET','DECAM_FLUX'])
+    tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+    if add_all:
+        tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "ALL"]
 
-    #ADM open output file for writing
-    file = open(outfile, "w")
+    if tcstring is None:
+        tcnames = tcdefault
+    else:    
+        tcnames = [ bn for bn in tcstring.split(',') ]
+        if not np.all([ tcname in tcdefault for tcname in tcnames ]):
+            log.critical("passed tcnames should be one of {}".format(tcdefault))
+            raise IOError
 
-    #ADM calculate the magnitudes of interest
-    log.info('Calculating magnitudes')
-    gfluxes = targetdata["DECAM_FLUX"][...,1]
-    gmags = 22.5-2.5*np.log10(gfluxes*(gfluxes  > 1e-5) + 1e-5*(gfluxes < 1e-5))
-    rfluxes = targetdata["DECAM_FLUX"][...,2]
-    rmags = 22.5-2.5*np.log10(rfluxes*(rfluxes  > 1e-5) + 1e-5*(rfluxes < 1e-5))
-    zfluxes = targetdata["DECAM_FLUX"][...,4]
-    zmags = 22.5-2.5*np.log10(zfluxes*(zfluxes  > 1e-5) + 1e-5*(zfluxes < 1e-5))
-
-    bitnames = ["ALL","LRG","ELG","QSO","BGS","MWS"]
-    bitvals = [-1]+list(2**np.array([0,1,2,60,61]))
-
-    #ADM set up bin edges in magnitude from 15 to 25 at resolution of binsize
-    binedges = np.arange(((25.-15.)/binsize)+1)*binsize + 15
-
-    #ADM loop through bits and print histogram of raw target numbers per magnitude
-    for i, bitval in enumerate(bitvals):
-        log.info('Doing',bitnames[i])
-        w = np.where(targetdata["DESI_TARGET"] & bitval)
-        if len(w[0]):
-            ghist,dum = np.histogram(gmags[w],bins=binedges)
-            rhist,dum = np.histogram(rmags[w],bins=binedges)
-            zhist,dum = np.histogram(zmags[w],bins=binedges)
-            file.write('{}    {}     {}     {}\n'.format(bitnames[i],'g','r','z'))
-            for i in range(len(binedges)-1):
-                outs = '{:.1f} {} {} {}\n'.format(0.5*(binedges[i]+binedges[i+1]),ghist[i],rhist[i],zhist[i])
-                log.info(outs)
-                file.write(outs)
-
-    file.close()
-
-    return None
+    return tcnames
 
 def _load_systematics():
-    """Loads information for making systematics plots
+    """Loads information for making systematics plots.
 
     Returns
     -------
@@ -164,13 +137,13 @@ def _prepare_systematics(data,colname):
 
     return outdata
 
-def _load_targdens(bitnames=None):
+def _load_targdens(tcnames=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
 
     Parameters
     ----------
-    bitnames : :class:`list`
+    tcnames : :class:`list`
         A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
         for those specific bits
 
@@ -207,11 +180,11 @@ def _load_targdens(bitnames=None):
     targdens['MWS_WD'] = 0.
     targdens['MWS_NEARBY'] = 0.
 
-    if bitnames is None:
+    if tcnames is None:
         return targdens
     else:
         # ADM this is a dictionary comprehension
-        return {key: value for key, value in targdens.items() if key in bitnames}
+        return {key: value for key, value in targdens.items() if key in tcnames}
 
 def _javastring():
     """Return a string that embeds a date in a webpage
@@ -630,7 +603,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     return
 
-def qamag(cat, objtype, qadir='.', fileprefix="mag"):
+def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     """Make magnitude-based DESI targeting QA plots given a passed set of targets
 
     Parameters
@@ -642,7 +615,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots
-    fileprefix : :class:`str`, optional, defaults to ``"mag"`` for
+    fileprefix : :class:`str`, optional, defaults to ``"nmag"`` for
         String to be added to the front of the output file name
 
     Returns
@@ -650,7 +623,9 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
     Nothing
         But .png plots of target colors are written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{filter}-{objtype}.png``
-        where filter might be, e.g., ``g``
+        where filter might be, e.g., ``g``. ASCII versions of those files are
+        also written with columns of magnitude bin and target number density. The
+        file is called ``{qadir}/{fileprefix}-{filter}-{objtype}.dat``
     """
 
     # ADM columns in the passed cat as an array 
@@ -678,8 +653,8 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         # ADM plot the magnitude histogram
         # ADM set the number of bins for the redshift histogram to run in 
         # ADM 0.5 intervals from 14 to 14 + 0.5*bins
-        nbins = 24
-        bins = np.arange(nbins)*0.5+14
+        nbins, binsize, binstart = 24, 0.5, 14
+        bins = np.arange(nbins)*binsize+binstart
         # ADM insert a 0 bin and a 100 bin to catch the edges
         bins = np.insert(bins,0,0.)
         bins = np.insert(bins,len(bins),100.)
@@ -704,6 +679,14 @@ def qamag(cat, objtype, qadir='.', fileprefix="mag"):
         pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix,filtername,objtype))
         plt.savefig(pngfile,bbox_inches='tight')
         plt.close()
+
+        # ADM create an ASCII file binned 0.1 mags
+        nbins, binmin, binmax = 100, 14, 24
+        h, b = np.histogram(mag,bins=nbins, range=(binmin,binmax) )
+        bincent =  ((np.roll(b,1)+b)/2)[1:]
+        datfile = pngfile.replace("png","dat")
+        np.savetxt(datfile,np.vstack((bincent,h)).T,
+                   fmt='%.2f',header='{}   N({})'.format(filtername,filtername))
 
     return
 
@@ -1375,7 +1358,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             # ADM make magnitude histograms
-            qamag(targs[w], objtype, qadir=qadir, fileprefix="mag")
+            qamag(targs[w], objtype, qadir=qadir, fileprefix="nmag")
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
 
             if truths is not None:
@@ -1402,7 +1385,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     return totarea
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', clip2foot=False,
-                 weight=True, imaging_map_file=None, bitnames=None, systematics=True):
+                 weight=True, imaging_map_file=None, tcnames=None, systematics=True):
     """Create a directory containing a webpage structure in which to embed QA plots
 
     Parameters
@@ -1431,7 +1414,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         map (e.g. made by :func:`desitarget.randoms.pixmap()`. If this is not sent, 
         then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
         If this is not set, then systematics plots cannot be made
-    bitnames : :class:`list`
+    tcnames : :class:`list`
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
         for those specific bits. A useful speed-up when testing
     systematics : :class:`boolean`, optional, defaults to True
@@ -1500,7 +1483,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults)
-    targdens = _load_targdens(bitnames=bitnames)
+    targdens = _load_targdens(tcnames=tcnames)
     
     # ADM set up the html file and write preamble to it
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
@@ -1557,9 +1540,15 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=4 WIDTH="100%">\n')
         html.write('<tr>\n')
-        # ADM add the plots...
+        # ADM add the plots 
         for band in ["g","r","z","W1"]:
-            html.write('<td align=center><A HREF="mag-{}-{}.png"><img SRC="mag-{}-{}.png" width=95% height=auto></A></td>\n'
+            html.write('<td align=center><A HREF="nmag-{}-{}.png"><img SRC="nmag-{}-{}.png" width=95% height=auto></A></td>\n'
+                       .format(band,objtype,band,objtype))
+        html.write('</tr>\n')
+        html.write('</table>\n')
+        # ADM add the ASCII files to the images
+        for band in ["g","r","z","W1"]:
+            html.write('<td align=center><A HREF="nmag-{}-{}.dat">nmag-{}-{}.dat</A></td>\n'
                        .format(band,objtype,band,objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
