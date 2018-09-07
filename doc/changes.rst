@@ -4,7 +4,11 @@ desitarget Change Log
 
 0.24.0 (unreleased)
 -------------------
-
+* Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
+    * New functions to define several more commissioning classes.
+    * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
+    * Functionality to reset initial priorities for commissioning targets.
+    * Downloading fitsio using pip/astropy to fix Travis.
 * Include per-band number counts for targets on the QA pages [`PR #367`_].
 * Use new :func:`desiutil.dust.SFDMap` module [`PR #366`_].
 * Set the ``STD_WD`` bit (it's identical to the ``MWS_WD`` bit) [`PR #364`_].
@@ -49,6 +53,7 @@ desitarget Change Log
 .. _`PR #365`: https://github.com/desihub/desitarget/pull/365
 .. _`PR #366`: https://github.com/desihub/desitarget/pull/366
 .. _`PR #367`: https://github.com/desihub/desitarget/pull/367
+.. _`PR #370`: https://github.com/desihub/desitarget/pull/370
 
 0.23.0 (2018-08-09)
 -------------------
