@@ -976,7 +976,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     mws &= gaia
     #ADM main targets are point-like
     mws &= _psflike(objtype)
-    #ADM main targets are 16 <= r < 19 
+    #ADM main targets are 16 <= r < 19
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
     #ADM main targets are robs < 20

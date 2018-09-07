@@ -219,25 +219,38 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
 
     return isbgs
 
+
 def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
               gaiagmag=None, gaiabmag=None, gaiarmag=None,
               pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
+              photbprpexcessfactor=None, astrometricsigma5dmax=None,
               galb=None, gaia=None, primary=None):
     """Initial SV-like Milky Way Survey selection (for MzLS/BASS imaging).
 
     Parameters
     ----------
+    rflux, obs_rflux : :class:`array_like` or :class:`None`
+        Flux in nano-maggies in r-band, with (`rflux`) and 
+        without (`obs_rflux`) Galactic extinction correction.
+    objtype : :class:`array_like` or :class:`None`
+        The Legacy Surveys `TYPE` to restrict to point sources.
+    gaiagmag, gaiabmag, gaiarmag : :class:`array_like` or :class:`None`
+        Gaia-based g-, b- and r-band MAGNITUDES.
+    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
+        Gaia-based proper motion in RA and Dec, and parallax.
+    parallaxovererror : :class:`array_like` or :class:`None`
+        Gaia-based parallax/error.
+    photbprpexcessfactor : :class:`array_like` or :class:`None`
+        Gaia_based BP/RP excess factor.
+    astrometricsigma5dmax : :class:`array_like` or :class:`None`
+        Longest semi-major axis of 5-d error ellipsoid.
+    galb: : :class:`array_like` or :class:`None`
+        Galactic latitude (degrees).
     gaia : :class:`boolean array_like` or :class:`None`
         ``True`` if there is a match between this object in the Legacy
         Surveys and in Gaia.
-    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec, and parallax
-        (same units as the Gaia data model).
-    parallaxovererror : :class:`array_like` or :class:`None`
-        Gaia-based parallax/error
-        (same units as the Gaia data model).
-    galb: array_like or None
-        Galactic latitude (degrees).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
 
     Returns
     -------
@@ -247,6 +260,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     Notes
     -----
     - Returns the equivalent of ALL MWS classes (for the northern imaging).
+    - All Gaia quantities are as in `the Gaia data model`_.       
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -309,7 +323,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
         #ADM retaining white dwarfs that only have relatively poor astrometry.
         iswd &= ( (astrometricsigma5dmax < 1.5) |
                  ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)) )
-        
+
     #ADM return any object that passes any of the MWS cuts.
     return ismws | isnear | iswd
 
