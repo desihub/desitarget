@@ -332,6 +332,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 makemore = False
             else:
                 need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
+                import pdb ; pdb.set_trace()
                 if len(need) > 0:
                     indx = indx[need]
                 else:
