@@ -7,6 +7,7 @@ desitarget Change Log
 * Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
     * New functions to define several more commissioning classes.
     * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
+    * An example ``$CMX_DIR`` is ``/project/projectdirs/desi/target/cmx_files``. 
     * Functionality to reset initial priorities for commissioning targets.
     * Downloading fitsio using pip/astropy to fix Travis.
 * Include per-band number counts for targets on the QA pages [`PR #367`_].
