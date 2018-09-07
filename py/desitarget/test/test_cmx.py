@@ -24,24 +24,26 @@ class TestCMX(unittest.TestCase):
         """Test cuts work with either data or filenames
         """
         # ADM test for tractor files
-        cmx = cuts.apply_cuts(self.tractorfiles[0])
+        cmx, pshift = cuts.apply_cuts(self.tractorfiles[0])
         data = io.read_tractor(self.tractorfiles[0])
-        cmx2 = cuts.apply_cuts(data)
+        cmx2, pshift2  = cuts.apply_cuts(data)
         self.assertTrue(np.all(cmx == cmx2))
+        self.assertTrue(np.all(pshift == pshift2))
 
         # ADM test for sweeps files
-        cmx = cuts.apply_cuts(self.tractorfiles[0])
-        data = io.read_tractor(self.tractorfiles[0])
-        cmx2 = cuts.apply_cuts(data)
+        cmx, pshift = cuts.apply_cuts(self.sweepfiles[0])
+        data = io.read_tractor(self.sweepfiles[0])
+        cmx2, pshift2 = cuts.apply_cuts(data)
         self.assertTrue(np.all(cmx == cmx2))
+        self.assertTrue(np.all(pshift == pshift2))
 
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
-        cmx = cuts.apply_cuts(targets)
+        cmx, pshift = cuts.apply_cuts(targets)
         self.assertEqual(len(cmx), len(targets))
 
-        cmx = cuts.apply_cuts(targets[0])
+        cmx, pshift = cuts.apply_cuts(targets[0])
         self.assertTrue(isinstance(cmx, numbers.Integral), 'CMX_TARGET mask not an int')
 
     def test_astropy_fits(self):

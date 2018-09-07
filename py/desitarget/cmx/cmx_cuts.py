@@ -368,7 +368,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     # ADM prioritize based on magnitude.
     # ADM OK to clip, as these are all Gaia matches.
     rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
-    prio = (10*(25-rmag)).astype(int)
+    prio = np.array((10*(25-rmag)).astype(int))
 
     return isdither, prio
 
@@ -449,13 +449,25 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     cals = fitsio.read(cmxfile)
 
     # ADM match the calspec and sweeps objects.
+    calmatch = np.zeros_like(primary, dtype='?')
     cobjs = SkyCoord(ra*u.degree, dec*u.degree)
     ccals = SkyCoord(cals['RA']*u.degree, cals["Dec"]*u.degree)
-    idobjs, idcals, _, _ = ccals.search_around_sky(cobjs,matchrad*u.arcsec)
 
-    # ADM set matching objects to True.
-    calmatch = np.zeros_like(primary, dtype='?')
-    calmatch[idobjs] = True
+    # ADM make sure to catch the case of a single sweeps object being passed.
+    if cobjs.size == 1:
+        sep = cobjs.separation(ccals)
+        # ADM set matching objects to True.
+        calmatch = np.any(sep < matchrad*u.arcsec)
+    else:
+# ADM This triggers a (non-malicious) Cython RuntimeWarning on search_around_sky:
+# RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
+# ADM Caused by importing a scipy compiled against an older numpy than is installed?
+# e.g. stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            idobjs, idcals, _, _ = ccals.search_around_sky(cobjs,matchrad*u.arcsec)
+        # ADM set matching objects to True.
+        calmatch[idobjs] = True
 
     # ADM something has to both match and been passed through as True.
     iscalspec &= calmatch
@@ -535,7 +547,7 @@ def apply_cuts(objects, cmxdir=None):
     # ADM initially every class has a priority shift of zero.
     if _is_row(objects):
         primary = np.bool_(True)
-        priority_shift = np.int_(0)
+        priority_shift = np.array(0)
     else:
         primary = np.ones_like(objects, dtype=bool)
         priority_shift = np.zeros_like(objects, dtype=int)
