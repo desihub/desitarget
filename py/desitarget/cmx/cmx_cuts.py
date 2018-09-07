@@ -346,13 +346,15 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     -------
     :class:`array_like`
         ``True`` if and only if the object is a Gaia "dither" target.
+    :class:`array_like`
+        A priority shift of 10*(25-rmag) based on r-band magnitude.
 
     Notes
     -----
     - Current version (08/30/18) is version 4 on `the wiki`_.
     """
     if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
+        primary = np.ones_like(obs_rflux, dtype='?')
 
     isdither = primary.copy()
     # ADM passes all of the default logic cuts.
@@ -363,7 +365,12 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     isdither &= obs_rflux < 10**((22.5-15.0)/2.5)
     isdither &= obs_zflux < 10**((22.5-15.0)/2.5)
 
-    return isdither
+    # ADM prioritize based on magnitude.
+    # ADM OK to clip, as these are all Gaia matches.
+    rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
+    prio = (10*(25-rmag)).astype(int)
+
+    return isdither, prio
 
 
 def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
@@ -525,10 +532,13 @@ def apply_cuts(objects, cmxdir=None):
 
     # ADM initially, every object passes the cuts (is True).
     # ADM need to check the case of a single row being passed.
+    # ADM initially every class has a priority shift of zero.
     if _is_row(objects):
         primary = np.bool_(True)
+        priority_shift = np.int_(0)
     else:
         primary = np.ones_like(objects, dtype=bool)
+        priority_shift = np.zeros_like(objects, dtype=int)
 
     # ADM determine if an object passes the default logic for cmx stars.
     isgood = passesSTD_logic(
@@ -539,10 +549,11 @@ def apply_cuts(objects, cmxdir=None):
     )
 
     # ADM determine if an object is a "dither" star.
-    std_dither = isSTD_dither(
+    std_dither, shift_dither = isSTD_dither(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
     )
+    # ADM set up an initial priority shift.
 
     # ADM determine if an object is a bright test star.
     std_test = isSTD_test(
@@ -574,8 +585,12 @@ def apply_cuts(objects, cmxdir=None):
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
     cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
+
+    # ADM update the priority with any shifts.
+    # ADM we may need to update this logic if there are other shifts.
+    priority_shift[std_dither] = shift_dither[std_dither]
     
-    return cmx_target
+    return cmx_target, priority_shift
 
 
 def select_targets(infiles, numproc=4, cmxdir=None):
@@ -617,18 +632,21 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
 
-    def _finalize_targets(objects, cmx_target):
+    def _finalize_targets(objects, cmx_target, priority_shift):
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         #- on desi_target != 0
         keep = (cmx_target != 0)
         objects = objects[keep]
         cmx_target = cmx_target[keep]
+        priority_shift = priority_shift[keep]
 
         #- Add *_target mask columns
         # ADM note that only cmx_target is defined for commissioning
         # ADM so just pass that around
         targets = finalize(objects, cmx_target, cmx_target, cmx_target,
                            survey='cmx')
+        # ADM shift the priorities of targets with functional priorities.
+        targets["PRIORITY"] += priority_shift
 
         return targets
 
@@ -636,9 +654,9 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        cmx_target = apply_cuts(objects, cmxdir=cmxdir)
+        cmx_target, priority_shift = apply_cuts(objects, cmxdir=cmxdir)
 
-        return _finalize_targets(objects, cmx_target)
+        return _finalize_targets(objects, cmx_target, priority_shift)
 
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
