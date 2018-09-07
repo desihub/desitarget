@@ -20,7 +20,7 @@ import healpy as hp
 
 from desimodel.io import load_pixweight
 from desimodel import footprint
-from desiutil.brick import brickname as get_brickname_from_radec
+from desiutil.brick import Bricks
 from desitarget.cuts import apply_cuts
 from desisim.io import empty_metatable
 
@@ -59,11 +59,10 @@ def mw_transmission(data, dust_dir=None):
         log.warning('DUST_DIR input required.')
         raise ValueError
 
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184,
-                    W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
+    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
     data['EBV'] = SFDMap(mapdir=dust_dir).ebv(data['RA'], data['DEC'], scaling=1.0)
 
-    for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
+    for band in ('G', 'R', 'Z', 'W1', 'W2'):
         data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
 
 def imaging_depth(source_data):
@@ -131,24 +130,18 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
-    targets.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
-    targets.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
     
     targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_W3', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_W4', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
     
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_W3', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='MW_TRANSMISSION_W4', length=nobj, dtype='f4'))
 
     targets.add_column(Column(name='NOBS_G', length=nobj, dtype='i2'))
     targets.add_column(Column(name='NOBS_R', length=nobj, dtype='i2'))
@@ -294,10 +287,16 @@ def _default_wave(wavemin=None, wavemax=None, dw=0.2):
 class SelectTargets(object):
     """Methods to help select various target types.
 
+    Parameters
+    ----------
+    bricksize : :class:`float`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        and brickid to each object.  Defaults to 0.25 deg.
+
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
 
-    def __init__(self):
+    def __init__(self, bricksize=0.25):
         from astropy.io import fits
         from ..targetmask import (desi_mask, bgs_mask, mws_mask)
         from ..contammask import contam_mask
@@ -306,6 +305,8 @@ class SelectTargets(object):
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
+
+        self.Bricks = Bricks(bricksize=bricksize)
 
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
@@ -767,7 +768,7 @@ class SelectTargets(object):
         targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
 
         # Add dust, depth, and nobs.
-        for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
 
@@ -933,18 +934,14 @@ class ReadGaussianField(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadGaussianField, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadGaussianField, self).__init__(**kwargs)
         
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  zmax_qso=None, target_name='', mock_density=False,
@@ -1041,9 +1038,6 @@ class ReadGaussianField(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Add redshifts.
         if target_name.upper() == 'SKY':
             zz = np.zeros(len(ra))
@@ -1064,7 +1058,6 @@ class ReadGaussianField(SelectTargets):
                 weight = weight[cut]
                 ra = ra[cut]
                 dec = dec[cut]
-                brickname = brickname[cut]
                 zz = zz[cut]
                 zz_norsd = zz_norsd[cut]
 
@@ -1077,7 +1070,8 @@ class ReadGaussianField(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
                'SOUTH': isouth}
         if gmmout is not None:
@@ -1101,18 +1095,14 @@ class ReadUniformSky(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadUniformSky, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadUniformSky, self).__init__(**kwargs)
 
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='', mock_density=False):
@@ -1203,13 +1193,11 @@ class ReadUniformSky(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'uniformsky',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra))}
 
         # Add MW transmission and the imaging depth.
@@ -1230,17 +1218,13 @@ class ReadGalaxia(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_pixweight = None
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
-        super(ReadGalaxia, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadGalaxia, self).__init__(**kwargs)
 
-        self.bricksize = bricksize
         self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
@@ -1416,13 +1400,11 @@ class ReadGalaxia(SelectTargets):
                     'PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR']
             gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
             
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-        
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
@@ -1502,16 +1484,12 @@ class ReadLyaCoLoRe(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadLyaCoLoRe, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadLyaCoLoRe, self).__init__(**kwargs)
 
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
@@ -1657,16 +1635,14 @@ class ReadLyaCoLoRe(SelectTargets):
         # ToDo: draw magnitudes from an appropriate luminosity function!
         # 
             
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                #'OBJID': objid,
                'MOCKID': mockid, 'LYAFILES': np.array(lyafiles),
-               'BRICKNAME': brickname, 'RA': ra, 'DEC': dec,
-               'Z': zz, 'Z_NORSD': zz_norsd,
+               'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
+               'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
@@ -1687,18 +1663,14 @@ class ReadMXXL(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_radec = None
 
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadMXXL, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadMXXL, self).__init__(**kwargs)
 
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='BGS', magcut=None, only_coords=False,
@@ -1862,13 +1834,11 @@ class ReadMXXL(SelectTargets):
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_mag=rmag)
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'durham_mxxl_hdf5',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
                'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
                'SOUTH': isouth}
@@ -1894,18 +1864,14 @@ class ReadGAMA(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadGAMA, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadGAMA, self).__init__(**kwargs)
         
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='', magcut=None, only_coords=False):
@@ -1999,9 +1965,6 @@ class ReadGAMA(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Add photometry, absolute magnitudes, and redshifts.
         columns = ['FLUX_G', 'FLUX_R', 'FLUX_Z', 'Z', 'UGRIZ_ABSMAG_01']
         data = fitsio.read(mockfile, columns=columns, upper=True, ext=1, rows=cut)
@@ -2012,7 +1975,8 @@ class ReadGAMA(SelectTargets):
         # properties here.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'bgs-gama',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'RMABS_01': data['UGRIZ_ABSMAG_01'][:, 2],
                'UG_01': data['UGRIZ_ABSMAG_01'][:, 0]-data['UGRIZ_ABSMAG_01'][:, 1],
                'GR_01': data['UGRIZ_ABSMAG_01'][:, 1]-data['UGRIZ_ABSMAG_01'][:, 2],
@@ -2035,18 +1999,14 @@ class ReadMWS_WD(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_radec = None
 
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadMWS_WD, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadMWS_WD, self).__init__(**kwargs)
 
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='WD', mock_density=False):
@@ -2145,13 +2105,11 @@ class ReadMWS_WD(SelectTargets):
         logg = data['LOGG'].astype('f4')
         templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
                'MAGFILTER': np.repeat('sdss2010-g', nobj),
                'TEMPLATESUBTYPE': templatesubtype,
@@ -2175,18 +2133,14 @@ class ReadMWS_NEARBY(SelectTargets):
     ----------
     dust_dir : :class:`str`
         Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
 
     """
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadMWS_NEARBY, self).__init__()
+    def __init__(self, dust_dir=None, **kwargs):
+        super(ReadMWS_NEARBY, self).__init__(**kwargs)
 
         self.dust_dir = dust_dir
-        self.bricksize = bricksize
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='MWS_NEARBY', mock_density=False):
@@ -2286,13 +2240,11 @@ class ReadMWS_NEARBY(SelectTargets):
         feh = data['FEH'].astype('f4')
         templatesubtype = data['SPECTRALTYPE']
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.  Is the normalization filter g-band???
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}

@@ -689,7 +689,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
-    """Add brickid, brick_objid, targetid, and subpriority to target catalog.
+    """Add hpxpixel, brick_objid, targetid, subpriority, priority, and numobs to the
+    target catalog.
     
     Parameters
     ----------
@@ -729,12 +730,21 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     nsky = len(skytargets)
     log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
 
+    # Assign TARGETID using the healpixel number, not BRICKID, otherwise we'll
+    # end up with duplicate TARGETID values.
     objid = np.arange(nobj + nsky)
     targetid = encode_targetid(objid=objid, brickid=healpix, mock=1)
+
+    #objid = np.zeros(nobj+nsky).astype('i4')
+    #for brickid in set(targets['BRICKID']):
+    #    indx = brickid == targets['BRICKID']
+    #    objid[indx] = np.arange(np.sum(indx))
+    #targetid = encode_targetid(objid=objid, brickid=targets['BRICKID'], mock=1)
+
     subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
     if nobj > 0:
-        targets['BRICKID'][:] = healpix
+        #targets['BRICKID'][:] = healpix # use the derived BRICKID values
         targets['HPXPIXEL'][:] = healpix
         targets['BRICK_OBJID'][:] = objid[:nobj]
         targets['TARGETID'][:] = targetid[:nobj]
@@ -742,17 +752,20 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         truth['TARGETID'][:] = targetid[:nobj]
         objtruth['TARGETID'][:] = targetid[:nobj]
 
-        targets['PRIORITY'], targets['NUMOBS'] = initial_priority_numobs(targets, survey=survey)
+        targets['PRIORITY'], targets['NUMOBS'] = initial_priority_numobs(
+            targets, survey=survey)
 
     if nsky > 0:
-        skytargets['BRICKID'][:] = healpix
         skytargets['HPXPIXEL'][:] = healpix
         skytargets['BRICK_OBJID'][:] = objid[nobj:]
         skytargets['TARGETID'][:] = targetid[nobj:]
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
         skytruth['TARGETID'][:] = targetid[nobj:]
 
-        skytargets['PRIORITY'], skytargets['NUMOBS'] = initial_priority_numobs(skytargets, survey=survey)
+        skytargets['PRIORITY'], skytargets['NUMOBS'] = initial_priority_numobs(
+            skytargets, survey=survey)
+
+    assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
         
     return targets, truth, objtruth, skytargets, skytruth
 
