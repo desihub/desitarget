@@ -33,69 +33,6 @@ try:
 except TypeError: # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
 
-def mw_transmission(data, dust_dir=None):
-    """Compute the grzW1W2 Galactic transmission for every object.
-    
-    Parameters
-    ----------
-    data : :class:`dict`
-        Input dictionary of sources with RA, Dec coordinates, modified on output
-        to contain reddening and the MW transmission in various bands.
-    params : :class:`dict`
-        Dictionary summary of the input configuration file, restricted to a
-        particular source_name (e.g., 'QSO').
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    Raises
-    ------
-    ValueError
-        If dust_dir is not defined.
-    
-    """
-    from desiutil.dust import SFDMap
-
-    if dust_dir is None:
-        log.warning('DUST_DIR input required.')
-        raise ValueError
-
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    data['EBV'] = SFDMap(mapdir=dust_dir).ebv(data['RA'], data['DEC'], scaling=1.0)
-
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
-
-def imaging_depth(source_data):
-    """Add the imaging depth to the source_data dictionary.
-
-    Note: In future, this should be a much more sophisticated model based on the
-    actual imaging data releases (e.g., it should depend on healpixel).
-
-    Parameters
-    ----------
-    source_data : :class:`dict`
-        Input dictionary of sources with RA, Dec coordinates, modified on output
-        to contain the PSF and galaxy depth in various bands.
-            
-    """
-    nobj = len(source_data['RA'])
-
-    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-    psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('G', 'R', 'Z')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('W1', 'W2')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
-    
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.
 
@@ -299,7 +236,8 @@ class SelectTargets(object):
 
     def __init__(self, bricksize=0.25):
         from astropy.io import fits
-        from ..targetmask import (desi_mask, bgs_mask, mws_mask)
+        from desiutil.dust import SFDMap
+        from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
         
         self.desi_mask = desi_mask
@@ -308,11 +246,65 @@ class SelectTargets(object):
         self.contam_mask = contam_mask
 
         self.Bricks = Bricks(bricksize=bricksize)
+        self.SFDMap = SFDMap()
 
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
         with fits.open(pixfile) as hdulist:
             self.pixmap = hdulist[0].data
+
+    def mw_transmission(self, data):
+        """Compute the grzW1W2 Galactic transmission for every object.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Input dictionary of sources with RA, Dec coordinates, modified on output
+            to contain reddening and the MW transmission in various bands.
+        params : :class:`dict`
+            Dictionary summary of the input configuration file, restricted to a
+            particular source_name (e.g., 'QSO').
+
+        Raises
+        ------
+
+        """
+        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+        data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
+
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+            data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
+
+    def imaging_depth(self, data):
+        """Add the imaging depth to the data dictionary.
+
+        Note: In future, this should be a much more sophisticated model based on the
+        actual imaging data releases (e.g., it should depend on healpixel).
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Input dictionary of sources with RA, Dec coordinates, modified on output
+            to contain the PSF and galaxy depth in various bands.
+
+        """
+        nobj = len(data['RA'])
+
+        psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+        galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+        psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+        galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+        for ii, band in enumerate(('G', 'R', 'Z')):
+            data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+            data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+        wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+        wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+        for ii, band in enumerate(('W1', 'W2')):
+            data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            seed=None, qaplot=False):
@@ -929,21 +921,12 @@ class SelectTargets(object):
         return dec <= 32.125
 
 class ReadGaussianField(SelectTargets):
-    """Read a Gaussian random field style mock catalog.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    """Read a Gaussian random field style mock catalog."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadGaussianField, self).__init__(**kwargs)
         
-        self.dust_dir = dust_dir
-
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  zmax_qso=None, target_name='', mock_density=False,
                  seed=None):
@@ -1079,9 +1062,8 @@ class ReadGaussianField(SelectTargets):
             out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1090,20 +1072,11 @@ class ReadGaussianField(SelectTargets):
         return out
 
 class ReadUniformSky(SelectTargets):
-    """Read a uniform sky style mock catalog.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    """Read a uniform sky style mock catalog."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadUniformSky, self).__init__(**kwargs)
-
-        self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='', mock_density=False):
@@ -1202,9 +1175,8 @@ class ReadUniformSky(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra))}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1213,20 +1185,11 @@ class ReadUniformSky(SelectTargets):
         return out
 
 class ReadGalaxia(SelectTargets):
-    """Read a Galaxia style mock catalog.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    """Read a Galaxia style mock catalog."""
     cached_pixweight = None
 
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadGalaxia, self).__init__(**kwargs)
-
-        self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
                  target_name='MWS_MAIN', magcut=None):
@@ -1438,9 +1401,8 @@ class ReadGalaxia(SelectTargets):
                 out[outkey][good] = (1/gaia[gaiakey]**2).astype('f4')
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         return out
 
@@ -1479,18 +1441,9 @@ class ReadGalaxia(SelectTargets):
         return is_std
 
 class ReadLyaCoLoRe(SelectTargets):
-    """Read a CoLoRe mock catalog of Lya skewers.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
-    def __init__(self, dust_dir=None, **kwargs):
+    """Read a CoLoRe mock catalog of Lya skewers."""
+    def __init__(self, **kwargs):
         super(ReadLyaCoLoRe, self).__init__(**kwargs)
-
-        self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
@@ -1647,9 +1600,8 @@ class ReadLyaCoLoRe(SelectTargets):
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1658,20 +1610,11 @@ class ReadLyaCoLoRe(SelectTargets):
         return out
 
 class ReadMXXL(SelectTargets):
-    """Read a MXXL mock catalog of BGS targets.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    """Read a MXXL mock catalog of BGS targets."""
     cached_radec = None
 
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadMXXL, self).__init__(**kwargs)
-
-        self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='BGS', magcut=None, only_coords=False,
@@ -1847,9 +1790,8 @@ class ReadMXXL(SelectTargets):
             out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1859,21 +1801,12 @@ class ReadMXXL(SelectTargets):
 
 class ReadGAMA(SelectTargets):
     """Read a GAMA catalog of BGS targets.  This reader will only generally be used
-    for the Survey Validation Data Challenge.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    for the Survey Validation Data Challenge."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadGAMA, self).__init__(**kwargs)
         
-        self.dust_dir = dust_dir
-
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='', magcut=None, only_coords=False):
         """Read the catalog.
@@ -1987,27 +1920,17 @@ class ReadGAMA(SelectTargets):
                'MAG': rmag, 'SOUTH': self.is_south(dec)}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         return out
 
 class ReadMWS_WD(SelectTargets):
-    """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD). 
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD)."""
     cached_radec = None
 
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadMWS_WD, self).__init__(**kwargs)
-
-        self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='WD', mock_density=False):
@@ -2117,9 +2040,8 @@ class ReadMWS_WD(SelectTargets):
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2128,20 +2050,11 @@ class ReadMWS_WD(SelectTargets):
         return out
     
 class ReadMWS_NEARBY(SelectTargets):
-    """Read a mock catalog of Milky Way Survey nearby targets (MWS_NEARBY). 
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    """
+    """Read a mock catalog of Milky Way Survey nearby targets (MWS_NEARBY)."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, **kwargs):
+    def __init__(self, **kwargs):
         super(ReadMWS_NEARBY, self).__init__(**kwargs)
-
-        self.dust_dir = dust_dir
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='MWS_NEARBY', mock_density=False):
@@ -2251,9 +2164,8 @@ class ReadMWS_NEARBY(SelectTargets):
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2302,9 +2214,8 @@ class QSOMaker(SelectTargets):
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
             QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
             
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, zmax_qso=None, mock_density=False,
-             **kwargs):
+    def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
+             nside=None, zmax_qso=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2313,8 +2224,6 @@ class QSOMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2341,7 +2250,7 @@ class QSOMaker(SelectTargets):
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'QSO.fits')
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2510,9 +2419,8 @@ class LYAMaker(SelectTargets):
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lya.fits')
             LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-    def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
-             healpixels=None, nside=None, nside_lya=16, zmin_lya=None,
-             mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
+             nside_lya=16, zmin_lya=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2521,8 +2429,6 @@ class LYAMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'CoLoRe'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2552,7 +2458,7 @@ class LYAMaker(SelectTargets):
         if self.mockformat == 'colore':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v2.0', 'master.fits')
-            MockReader = ReadLyaCoLoRe(dust_dir=dust_dir)
+            MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2827,8 +2733,8 @@ class LRGMaker(SelectTargets):
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lrg.fits')
             LRGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2837,8 +2743,6 @@ class LRGMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2861,7 +2765,7 @@ class LRGMaker(SelectTargets):
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'LRG.fits')
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3026,8 +2930,8 @@ class ELGMaker(SelectTargets):
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
             ELGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3036,8 +2940,6 @@ class ELGMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3060,7 +2962,7 @@ class ELGMaker(SelectTargets):
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'ELG.fits')
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3224,9 +3126,8 @@ class BGSMaker(SelectTargets):
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_bgs.fits')
             BGSMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-    def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=None, nside=None, magcut=None, only_coords=False,
-             mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', healpixels=None,
+             nside=None, magcut=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3235,8 +3136,6 @@ class BGSMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'durham_mxxl_hdf5'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3264,13 +3163,13 @@ class BGSMaker(SelectTargets):
         if self.mockformat == 'durham_mxxl_hdf5':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'bgs', 'MXXL', 'desi_footprint', 'v0.0.4', 'BGS.hdf5')            
-            MockReader = ReadMXXL(dust_dir=dust_dir)
+            MockReader = ReadMXXL()
         elif self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'BGS.fits')
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField()
         elif self.mockformat == 'bgs-gama':
-            MockReader = ReadGAMA(dust_dir=dust_dir)
+            MockReader = ReadGAMA()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3663,9 +3562,8 @@ class MWS_MAINMaker(STARMaker):
 
         self.calib_only = calib_only
 
-    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=None, nside=None, nside_galaxia=8, magcut=None,
-             **kwargs):
+    def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
+             nside=None, nside_galaxia=8, magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3674,8 +3572,6 @@ class MWS_MAINMaker(STARMaker):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'galaxia'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3699,7 +3595,7 @@ class MWS_MAINMaker(STARMaker):
         if self.mockformat == 'galaxia':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'mws', 'galaxia', 'alpha', 'v0.0.5', 'healpix')
-            MockReader = ReadGalaxia(dust_dir=dust_dir)
+            MockReader = ReadGalaxia()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3833,9 +3729,8 @@ class FAINTSTARMaker(STARMaker):
     def __init__(self, seed=None, **kwargs):
         super(FAINTSTARMaker, self).__init__()
 
-    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=None, nside=None, nside_galaxia=8, magcut=None,
-             **kwargs):
+    def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
+             nside=None, nside_galaxia=8, magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3844,8 +3739,6 @@ class FAINTSTARMaker(STARMaker):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'galaxia'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3869,7 +3762,7 @@ class FAINTSTARMaker(STARMaker):
         if self.mockformat == 'galaxia':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'mws', 'galaxia', 'alpha', '0.0.5_superfaint', 'healpix')
-            MockReader = ReadGalaxia(dust_dir=dust_dir)
+            MockReader = ReadGalaxia()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -4041,8 +3934,8 @@ class MWS_NEARBYMaker(STARMaker):
     def __init__(self, seed=None, **kwargs):
         super(MWS_NEARBYMaker, self).__init__()
 
-    def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4051,8 +3944,6 @@ class MWS_NEARBYMaker(STARMaker):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'mws_100pc'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -4075,7 +3966,7 @@ class MWS_NEARBYMaker(STARMaker):
         if self.mockformat == 'mws_100pc':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.3', 'mock_100pc.fits')
-            MockReader = ReadMWS_NEARBY(dust_dir=dust_dir)
+            MockReader = ReadMWS_NEARBY()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -4273,8 +4164,8 @@ class WDMaker(SelectTargets):
             WDMaker.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
                                                 self.meta_db['LOGG'].data)).T)
 
-    def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='mws_wd', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4283,8 +4174,6 @@ class WDMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'mws_wd'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -4307,7 +4196,7 @@ class WDMaker(SelectTargets):
         if self.mockformat == 'mws_wd':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'mws', 'wd', 'v0.0.2', 'mock_wd.fits')
-            MockReader = ReadMWS_WD(dust_dir=dust_dir)
+            MockReader = ReadMWS_WD()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -4524,8 +4413,8 @@ class SKYMaker(SelectTargets):
         if self.wave is None:
             SKYMaker.wave = _default_wave()
         
-    def read(self, mockfile=None, mockformat='uniformsky', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='uniformsky', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4534,8 +4423,6 @@ class SKYMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -4558,11 +4445,11 @@ class SKYMaker(SelectTargets):
         if self.mockformat == 'uniformsky':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.1', 'uniformsky-2048-0.1.fits')
-            MockReader = ReadUniformSky(dust_dir=dust_dir)
+            MockReader = ReadUniformSky()
         elif self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', '0.0.1', '2048', 'random.fits')
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError

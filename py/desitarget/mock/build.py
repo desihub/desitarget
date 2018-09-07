@@ -81,18 +81,6 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     rand = np.random.RandomState(seed)
     healpixseeds = rand.randint(2**31, size=npix)
 
-    # Parse DUST_DIR.
-    if 'dust_dir' in params.keys():
-        dust_dir = params['dust_dir']    
-        try:
-            dust_dir = dust_dir.format(**os.environ)
-        except KeyError as e:
-            log.warning('Environment variable not set for DUST_DIR: {}'.format(e))
-            raise ValueError
-    else:
-        log.warning('DUST_DIR parameter not found in configuration file.')
-        raise ValueError
-
     # Create the output directories
     if os.path.exists(output_dir):
         if os.listdir(output_dir):
@@ -106,9 +94,9 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
         len(healpixels), nside, areaperpix, npix * areaperpix))
 
-    return log, healpixseeds, dust_dir
+    return log, healpixseeds
     
-def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
+def read_mock(params, log, seed=None, healpixels=None,
               nside=None, nside_chunk=128, MakeMock=None):
     """Read a mock catalog.
     
@@ -121,8 +109,6 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
     params : :class:`dict`
         Dictionary summary of the input configuration file, restricted to a
         particular source_name (e.g., 'QSO').
-    dust_dir : :class:`str`
-        Full path to the dust maps.
     seed: :class:`int`, optional
         Seed for the random number generator.  Defaults to None.
     healpixels : :class:`numpy.ndarray` or `int`
@@ -181,8 +167,7 @@ def read_mock(params, log, dust_dir=None, seed=None, healpixels=None,
                          healpixels=healpixels, nside=nside,
                          magcut=magcut, nside_lya=nside_lya,
                          zmin_lya=zmin_lya, zmax_qso=zmax_qso,
-                         nside_galaxia=nside_galaxia, dust_dir=dust_dir,
-                         mock_density=mock_density)
+                         nside_galaxia=nside_galaxia, mock_density=mock_density)
     if not bool(data):
         return data, MakeMock
 
@@ -598,11 +583,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     """
     from desitarget.mock import mockmaker
 
-    log, healpixseeds, dust_dir = initialize_targets_truth(
+    log, healpixseeds = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
         output_dir=output_dir, healpixels=healpixels)
 
     # Read (and cache) the MockMaker classes we need.
+    log.info('Initializing and caching all MockMaker classes.')
     AllMakeMock = []
     for source_name in sorted(params['sources'].keys()):
         target_name = params['sources'][source_name].get('target_name')
@@ -632,8 +618,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             # Read the data and ithere are no targets, keep going.
             log.info('Working on target class: {}'.format(source_name))
             data, MakeMock = read_mock(params['sources'][source_name],
-                                       log, dust_dir=dust_dir,
-                                       seed=healseed, healpixels=healpix,
+                                       log, seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii])
             
