@@ -71,8 +71,8 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     objtype : :class:`array_like` or :class:`None`
         The Legacy Surveys `TYPE` to restrict to point sources.
     gaia : :class:`boolean array_like` or :class:`None`
-       ``True`` if there is a match between this object in the Legacy
-       Surveys and in Gaia.
+        ``True`` if there is a match between this object in the Legacy
+        Surveys and in Gaia.
     pmra, pmdec : :class:`array_like` or :class:`None`
         Gaia-based proper motion in RA and Dec
         (same units as the Gaia data model).
@@ -202,7 +202,7 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
     Returns
     -------
     :class:`array_like`
-        True if and only if the object is an initial BGS target.
+        True if and only if the object is an initial BGS target for SV.
 
     Notes
     -----
@@ -211,13 +211,107 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     isbgs = primary.copy()
-    
+
     # ADM simple selection is objects brighter than r of 20...
     isbgs &= rflux > 10**((22.5-20.0)/2.5)
     # ADM ...that are not point-like.
-    isbgs &= ~_psflike(objtype)        
+    isbgs &= ~_psflike(objtype)
 
     return isbgs
+
+def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
+              gaiagmag=None, gaiabmag=None, gaiarmag=None,
+              pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
+              galb=None, gaia=None, primary=None):
+    """Initial SV-like Milky Way Survey selection (for MzLS/BASS imaging).
+
+    Parameters
+    ----------
+    gaia : :class:`boolean array_like` or :class:`None`
+        ``True`` if there is a match between this object in the Legacy
+        Surveys and in Gaia.
+    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
+        Gaia-based proper motion in RA and Dec, and parallax
+        (same units as the Gaia data model).
+    parallaxovererror : :class:`array_like` or :class:`None`
+        Gaia-based parallax/error
+        (same units as the Gaia data model).
+    galb: array_like or None
+        Galactic latitude (degrees).
+
+    Returns
+    -------
+    :class:`array_like`
+        True if and only if the object is an initial MWS target for SV.
+
+    Notes
+    -----
+    - Returns the equivalent of ALL MWS classes (for the northern imaging).
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    ismws = primary.copy()
+    isnear = primary.copy()
+    iswd = primary.copy()
+
+    # ADM apply the selection for all MWS-MAIN targets.
+    # ADM main targets match to a Gaia source.
+    ismws &= gaia
+    # ADM main targets are point-like.
+    ismws &= _psflike(objtype)
+    # ADM main targets are 16 <= r < 19.
+    ismws &= rflux > 10**((22.5-19.0)/2.5)
+    ismws &= rflux <= 10**((22.5-16.0)/2.5)
+    # ADM main targets are robs < 20.
+    ismws &= obs_rflux > 10**((22.5-20.0)/2.5)
+
+    # ADM apply the selection for MWS-NEARBY targets.
+    # ADM must be a Legacy Surveys object that matches a Gaia source.
+    isnear &= gaia
+    # ADM Gaia G mag of less than 20.
+    isnear &= gaiagmag < 20.
+    # ADM parallax cut corresponding to 100pc.
+    isnear &= parallax > 10.
+    # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
+
+    # ADM apply the selection for MWS-WD targets.
+    # ADM must be a Legacy Surveys object that matches a Gaia source.
+    iswd &= gaia
+    #ADM Gaia G mag of less than 20.
+    iswd &= gaiagmag < 20.
+    #ADM Galactic b at least 20o from the plane.
+    iswd &= np.abs(galb) > 20.
+    #ADM gentle cut on parallax significance.
+    iswd &= parallaxovererror > 1.
+    #ADM Color/absolute magnitude cuts of (defining the WD cooling sequence):
+    #ADM Gabs > 5.
+    #ADM Gabs > 5.93 + 5.047(Bp-Rp).
+    #ADM Gabs > 6(Bp-Rp)3 - 21.77(Bp-Rp)2 + 27.91(Bp-Rp) + 0.897
+    #ADM Bp-Rp < 1.7
+    Gabs = gaiagmag+5.*np.log10(parallax.clip(1e-16))-10.
+    br = gaiabmag - gaiarmag
+    iswd &= Gabs > 5.
+    iswd &= Gabs > 5.93 + 5.047*br
+    iswd &= Gabs > 6*br*br*br - 21.77*br*br + 27.91*br + 0.897
+    iswd &= br < 1.7
+    #ADM Finite proper motion to reject quasars.
+    pm = np.sqrt(pmra**2. + pmdec**2.)
+    iswd &= pm > 2.
+
+    #ADM As of DR7, photbprpexcessfactor and astrometricsigma5dmax are not in the
+    #ADM imaging catalogs. Until they are, ignore these cuts.
+    if photbprpexcessfactor is not None:
+        #ADM remove problem objects, which often have bad astrometry.
+        iswd &= photbprpexcessfactor < 1.7 + 0.06*br*br
+
+    if astrometricsigma5dmax is not None:
+        #ADM Reject white dwarfs that have really poor astrometry while.
+        #ADM retaining white dwarfs that only have relatively poor astrometry.
+        iswd &= ( (astrometricsigma5dmax < 1.5) |
+                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)) )
+        
+    #ADM return any object that passes any of the MWS cuts.
+    return ismws | isnear | iswd
 
 
 def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
