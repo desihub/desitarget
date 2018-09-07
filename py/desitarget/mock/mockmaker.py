@@ -12,15 +12,17 @@ from __future__ import (absolute_import, division, print_function,
 
 import os
 import numpy as np
+from glob import glob
 from pkg_resources import resource_filename
 
 import fitsio
 import healpy as hp
-from astropy.table import Table, Column
 
 from desimodel.io import load_pixweight
 from desimodel import footprint
-from desiutil.brick import brickname as get_brickname_from_radec
+from desiutil.brick import Bricks
+from desitarget.cuts import apply_cuts
+from desisim.io import empty_metatable
 
 from desiutil.log import get_logger, DEBUG
 log = get_logger()
@@ -31,69 +33,6 @@ try:
 except TypeError: # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
 
-def mw_transmission(data, dust_dir=None):
-    """Compute the grzW1W2 Galactic transmission for every object.
-    
-    Parameters
-    ----------
-    data : :class:`dict`
-        Input dictionary of sources with RA, Dec coordinates, modified on output
-        to contain reddening and the MW transmission in various bands.
-    params : :class:`dict`
-        Dictionary summary of the input configuration file, restricted to a
-        particular source_name (e.g., 'QSO').
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-
-    Raises
-    ------
-    ValueError
-        If dust_dir is not defined.
-    
-    """
-    from desiutil.dust import SFDMap
-
-    if dust_dir is None:
-        log.warning('DUST_DIR input required.')
-        raise ValueError
-
-    extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
-    data['EBV'] = SFDMap(mapdir=dust_dir).ebv(data['RA'], data['DEC'])
-
-    for band in ('G', 'R', 'Z', 'W1', 'W2'):
-        data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
-
-def imaging_depth(source_data):
-    """Add the imaging depth to the source_data dictionary.
-
-    Note: In future, this should be a much more sophisticated model based on the
-    actual imaging data releases (e.g., it should depend on healpixel).
-
-    Parameters
-    ----------
-    source_data : :class:`dict`
-        Input dictionary of sources with RA, Dec coordinates, modified on output
-        to contain the PSF and galaxy depth in various bands.
-            
-    """
-    nobj = len(source_data['RA'])
-
-    psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
-    galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
-
-    psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-    galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('G', 'R', 'Z')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
-        source_data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
-
-    wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-    wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-
-    for ii, band in enumerate(('W1', 'W2')):
-        source_data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
-    
 def empty_targets_table(nobj=1):
     """Initialize an empty 'targets' table.
 
@@ -108,77 +47,108 @@ def empty_targets_table(nobj=1):
         Targets table.
     
     """
+    from astropy.table import Table, Column
+    
     targets = Table()
 
-    # RELEASE
+    targets.add_column(Column(name='RELEASE', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
     targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
-    # TYPE
+    targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
-    # RA_IVAR
-    # DEC_IVAR
-    # DCHISQ
+    targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
+    targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
+    targets.add_column(Column(name='DCHISQ', length=nobj, dtype='f4', data=np.zeros( (nobj, 5) )))
+    
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
-    # FLUX_W3
-    # FLUX_W4
-    # FLUX_IVAR_G
-    # FLUX_IVAR_R
-    # FLUX_IVAR_Z
-    # FLUX_IVAR_W1
-    # FLUX_IVAR_W2
-    # FLUX_IVAR_W3
-    # FLUX_IVAR_W4
+    
+    targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
-    # MW_TRANSMISSION_W3
-    # MW_TRANSMISSION_W4
-    # NOBS_G
-    # NOBS_R
-    # NOBS_Z
-    # FRACFLUX_G
-    # FRACFLUX_R
-    # FRACFLUX_Z
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    # The following two columns do not appear in the data targets catalog.
-    targets.add_column(Column(name='PSFDEPTH_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
-    targets.add_column(Column(name='PSFDEPTH_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+
+    targets.add_column(Column(name='NOBS_G', length=nobj, dtype='i2'))
+    targets.add_column(Column(name='NOBS_R', length=nobj, dtype='i2'))
+    targets.add_column(Column(name='NOBS_Z', length=nobj, dtype='i2'))
+    targets.add_column(Column(name='FRACFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACFLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACMASKED_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACMASKED_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACMASKED_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='ALLMASK_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='ALLMASK_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='ALLMASK_Z', length=nobj, dtype='f4'))
+    
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+
+    targets.add_column(Column(name='FRACDEV', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FRACDEV_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
-    # SHAPEDEV_R_IVAR
+    targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
-    # SHAPEDEV_E1_IVAR
+    targets.add_column(Column(name='SHAPEDEV_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
-    # SHAPEDEV_E2_IVAR    
+    targets.add_column(Column(name='SHAPEDEV_E2_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
-    # SHAPEEXP_R_IVAR
+    targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
-    # SHAPEEXP_E1_IVAR
+    targets.add_column(Column(name='SHAPEEXP_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
-    # SHAPEEXP_E2_IVAR
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
+
+    # Gaia columns
+    targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
+    targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_PHOT_BP_MEAN_MAG', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_MAG', length=nobj, dtype='f4'))    
+    targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_ASTROMETRIC_EXCESS_NOISE', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='GAIA_DUPLICATED_SOURCE', length=nobj, dtype=bool)) # default is False
+    targets.add_column(Column(name='PARALLAX', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PARALLAX_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
+    targets.add_column(Column(name='PMRA', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMRA_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
+    targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PMDEC_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
+
+    targets.add_column(Column(name='BRIGHTSTARINBLOB', length=nobj, dtype=bool)) # default is False
+
+    targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+
+    targets.add_column(Column(name='PRIORITY', length=nobj, dtype='i8'))
+    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    targets.add_column(Column(name='NUMOBS', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-    # PHOTSYS
 
     return targets
 
-def empty_truth_table(nobj=1):
+def empty_truth_table(nobj=1, templatetype=''):
     """Initialize an empty 'truth' table.
 
     Parameters
@@ -190,8 +160,12 @@ def empty_truth_table(nobj=1):
     -------
     truth : :class:`astropy.table.Table`
         Truth table.
+    objtruth : :class:`astropy.table.Table`
+        Objtype-specific truth table (if applicable).
     
     """
+    from astropy.table import Table, Column
+    
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
@@ -204,25 +178,24 @@ def empty_truth_table(nobj=1):
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
-    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj)+30, unit='mag'))
-    truth.add_column(Column(name='VDISP', length=nobj, dtype='f4', data=np.zeros(nobj), unit='km/s'))
-    
+    truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj), unit='mag'))
+    truth.add_column(Column(name='MAGFILTER', length=nobj, dtype='U15')) # normalization filter
+
     truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
 
-    truth.add_column(Column(name='OIIFLUX', length=nobj, dtype='f4',
-                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
-    truth.add_column(Column(name='HBETAFLUX', length=nobj, dtype='f4',
-                            data=np.zeros(nobj)-1, unit='erg/(s*cm2)'))
+    _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype)
+    if len(objtruth) == 0:
+        objtruth = [] # need an empty list for the multiprocessing in build.select_targets
+    else:
+        if (templatetype == 'QSO' or templatetype == 'ELG' or
+            templatetype == 'LRG' or templatetype == 'BGS'):
+            objtruth.add_column(Column(name='TRUEZ_NORSD', length=nobj, dtype='f4'))
 
-    truth.add_column(Column(name='TEFF', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='K'))
-    truth.add_column(Column(name='LOGG', length=nobj, dtype='f4', data=np.zeros(nobj)-1, unit='m/(s**2)'))
-    truth.add_column(Column(name='FEH', length=nobj, dtype='f4', data=np.zeros(nobj)-1))
-
-    return truth
+    return truth, objtruth
 
 def _get_radec(mockfile, nside, pixmap, mxxl=False):
 
@@ -252,10 +225,19 @@ def _default_wave(wavemin=None, wavemax=None, dw=0.2):
 class SelectTargets(object):
     """Methods to help select various target types.
 
+    Parameters
+    ----------
+    bricksize : :class:`float`, optional
+        Brick diameter used in the imaging surveys; needed to assign a brickname
+        and brickid to each object.  Defaults to 0.25 deg.
+
     """
-    def __init__(self):
+    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
+
+    def __init__(self, bricksize=0.25):
         from astropy.io import fits
-        from ..targetmask import (desi_mask, bgs_mask, mws_mask)
+        from desiutil.dust import SFDMap
+        from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
         
         self.desi_mask = desi_mask
@@ -263,15 +245,73 @@ class SelectTargets(object):
         self.mws_mask = mws_mask
         self.contam_mask = contam_mask
 
+        self.Bricks = Bricks(bricksize=bricksize)
+        self.SFDMap = SFDMap()
+
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
         with fits.open(pixfile) as hdulist:
             self.pixmap = hdulist[0].data
 
+    def mw_transmission(self, data):
+        """Compute the grzW1W2 Galactic transmission for every object.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Input dictionary of sources with RA, Dec coordinates, modified on output
+            to contain reddening and the MW transmission in various bands.
+        params : :class:`dict`
+            Dictionary summary of the input configuration file, restricted to a
+            particular source_name (e.g., 'QSO').
+
+        Raises
+        ------
+
+        """
+        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+        data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
+
+        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+            data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
+
+    def imaging_depth(self, data):
+        """Add the imaging depth to the data dictionary.
+
+        Note: In future, this should be a much more sophisticated model based on the
+        actual imaging data releases (e.g., it should depend on healpixel).
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Input dictionary of sources with RA, Dec coordinates, modified on output
+            to contain the PSF and galaxy depth in various bands.
+
+        """
+        nobj = len(data['RA'])
+
+        psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
+        galdepth_mag = np.array((24.7, 23.9, 23.0))    # 5-sigma, mag
+
+        psfdepth_ivar = (1 / 10**(-0.4 * (psfdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+        galdepth_ivar = (1 / 10**(-0.4 * (galdepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+        for ii, band in enumerate(('G', 'R', 'Z')):
+            data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
+            data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
+
+        wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
+        wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+
+        for ii, band in enumerate(('W1', 'W2')):
+            data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            seed=None, qaplot=False):
-        """Add noise to the input (noiseless) photometry based on the depth.  The input
-        targets table is modified in place.
+        """Add noise to the input (noiseless) photometry based on the depth (as well as
+        the inverse variance fluxes in GRZW1W2).
+
+        The input targets table is modified in place.
 
         Parameters
         ----------
@@ -310,17 +350,23 @@ class SelectTargets(object):
 
         for band in ('G', 'R', 'Z'):
             fluxkey = 'FLUX_{}'.format(band)
+            ivarkey = 'FLUX_IVAR_{}'.format(band)
             depthkey = '{}DEPTH_{}'.format(depthprefix, band)
 
             sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
             targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
+            targets[ivarkey][:] = 1 / sigma**2
+
         for band in ('W1', 'W2'):
             fluxkey = 'FLUX_{}'.format(band)
+            ivarkey = 'FLUX_IVAR_{}'.format(band)
             depthkey = 'PSFDEPTH_{}'.format(band)
 
             sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
             targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
+
+            targets[ivarkey][:] = 1 / sigma**2
 
         if qaplot:
             self._qaplot_scatter_photometry(targets, truth)
@@ -340,19 +386,6 @@ class SelectTargets(object):
         plt.xlim(-0.5, 2) ; plt.ylim(-0.5, 2)
         plt.legend(loc='upper left')
         plt.show()
-
-    def _update_normfilter(self, normfilter, objtype=None):
-        """Update the normalization filter."""
-        from speclite import filters
-        if normfilter is not None:
-            if objtype == 'WD':
-                self.da_template_maker.normfilter = normfilter
-                self.db_template_maker.normfilter = normfilter
-                self.da_template_maker.normfilt = filters.load_filters(normfilter)
-                self.db_template_maker.normfilt = filters.load_filters(normfilter)
-            else:
-                self.template_maker.normfilter = normfilter
-                self.template_maker.normfilt = filters.load_filters(normfilter)
 
     def _sample_vdisp(self, ra, dec, mean=1.9, sigma=0.15, fracvdisp=(0.1, 1),
                       seed=None, nside=128):
@@ -376,6 +409,213 @@ class SelectTargets(object):
 
         return vdisp
 
+    def read_GMM(self, target=None):
+        """Read the GMM for the full range of morphological types of a given target
+        type, as well as the magnitude-dependent morphological fraction.
+
+        See desitarget/doc/nb/gmm-dr7.ipynb for details.
+
+        """
+        from astropy.io import fits
+        from astropy.table import Table
+        from desiutil.sklearn import GaussianMixtureModel
+
+        if target is not None:
+            try:
+                if getattr(self, 'GMM_{}'.format(target.upper())) is not None:
+                    return
+            except:
+                return
+
+            gmmdir = resource_filename('desitarget', 'mock/data/dr7.1')
+            if not os.path.isdir:
+                log.warning('DR7.1 GMM directory {} not found!'.format(gmmdir))
+                raise IOError
+            
+            fracfile = os.path.join(gmmdir, 'fractype_{}.fits'.format(target.lower()))
+            fractype = Table.read(fracfile)
+
+            gmm = []
+            for morph in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+                gmmfile = os.path.join(gmmdir, 'gmm_{}_{}.fits'.format(target.lower(), morph.lower()))
+                if os.path.isfile(gmmfile): # not all targets have all morphologies
+                    # Get the GMM properties modeled.
+                    cols = []
+                    with fits.open(gmmfile, 'readonly') as ff:
+                        ncol = ff[0].header['NCOL']
+                        for ii in range(ncol):
+                            cols.append(ff[0].header['COL{:02d}'.format(ii)])
+                    gmm.append( (morph, cols, GaussianMixtureModel.load(gmmfile)) )
+
+            # Now unpack the list of tuples into a more convenient set of
+            # variables and then repack and return.
+            morph = [info[0] for info in gmm]
+            gmmcols = [info[1] for info in gmm]
+            GMM = [info[2] for info in gmm]
+
+            setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
+
+    def sample_GMM(self, nobj, isouth=None, target=None, seed=None,
+                   prior_mag=None, prior_redshift=None):
+        """Sample from the GMMs read by self.read_GMM.
+
+        See desitarget/doc/nb/gmm-dr7.ipynb for details.
+
+        """
+        rand = np.random.RandomState(seed)
+        
+        try:
+            GMM = getattr(self, 'GMM_{}'.format(target.upper()))
+            if GMM is None:
+                self.read_GMM(target=target)
+                GMM = getattr(self, 'GMM_{}'.format(target.upper()))
+        except:
+            return None # no GMM for this target
+            
+        morph = GMM[0]
+        if isouth is None:
+            isouth = np.ones(nobj).astype(bool)
+
+        # Marginalize the morphological fractions over magnitude.
+        magbins = GMM[1]['MAG'].data
+        deltam = np.diff(magbins)[0]
+        minmag, maxmag = magbins.min()-deltam / 2, magbins.max()+deltam / 2
+
+        # Get the total number of each morphological type, accounting for
+        # rounding.
+        frac2d_magbins = np.vstack( [GMM[1][mm].data for mm in morph] )
+        norm = np.sum(frac2d_magbins, axis=1)
+        frac1d_morph = norm / np.sum(norm)
+        nobj_morph = np.round(frac1d_morph*nobj).astype(int)
+        dn = np.sum(nobj_morph) - nobj
+        if dn > 0:
+            nobj_morph[np.argmax(nobj_morph)] -= dn
+        elif dn < 0:
+            nobj_morph[np.argmax(nobj_morph)] += dn
+
+        # Next, sample from the GMM for each morphological type.  For
+        # simplicity we ignore the north-south split here.
+        gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
+        for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
+                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
+                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
+                    'GR', 'RZ'):
+            gmmout[key] = np.zeros(nobj).astype('f4')
+
+        for ii, mm in enumerate(morph):
+            if nobj_morph[ii] > 0:
+                cols = GMM[2][ii]
+                samp = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
+                _samp = GMM[3][ii].sample(nobj)
+                for jj, tt in enumerate(cols):
+                    samp[tt] = _samp[:, jj]
+
+                # Choose samples with the appropriate magnitude-dependent
+                # probability, for this morphological type.
+                prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
+                prob /= np.sum(prob)
+                these = rand.choice(nobj, size=nobj_morph[ii], p=prob, replace=False)
+
+                gthese = np.arange(nobj_morph[ii]) + np.sum(nobj_morph[:ii])
+
+                if 'z' in samp.dtype.names:
+                    gmmout['MAG'][gthese] = samp['z'][these]
+                else:
+                    gmmout['MAG'][gthese] = samp['r'][these]
+                gmmout['GR'][gthese] = samp['gr'][these]
+                gmmout['RZ'][gthese] = samp['rz'][these]
+                gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
+
+                for col in ('reff', 'e1', 'e2'):
+                    sampcol = '{}_{}'.format(col, mm.lower()) # e.g., reff_dev
+                    sampsnrcol = 'snr_{}'.format(sampcol)     # e.g., snr_reff_dev
+
+                    outcol = 'shape{}_{}'.format(mm.lower().replace('rex', 'exp'), col.replace('reff', 'r')).upper()
+                    outivarcol = '{}_ivar'.format(outcol).upper()
+                    if sampcol in samp.dtype.names:
+                        val = samp[sampcol][these]
+                        if col == 'reff':
+                            val = 10**val
+                        gmmout[outcol][gthese] = val
+                        gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
+
+                if mm == 'DEV':
+                    gmmout['FRACDEV'][:] = 1.0
+                elif mm == 'EXP':
+                    gmmout['FRACDEV'][:] = 0.0
+
+        gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
+        gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
+
+        if target == 'LRG':
+            band = 'z'
+        else:
+            band = 'r'
+
+        # Sort based on the input/prior magnitude (e.g., for the BGS/MXXL
+        # mocks), but note that we will very likely end up with duplicated
+        # morphologies and colors.
+        if prior_mag is not None:
+            dmcut = 0.3
+            srt = np.zeros(nobj).astype(int)
+            for ii, mg in enumerate(prior_mag):
+                dm = np.where( (np.abs(mg-gmmout['MAG']) < dmcut) )[0]
+                if len(dm) == 0:
+                    srt[ii] = np.argmin(np.abs(mg-gmmout['MAG']))
+                else:
+                    srt[ii] = rand.choice(dm)
+            for key in gmmout.keys():
+                gmmout[key][:] = gmmout[key][srt]
+
+        # Shuffle based on input/prior redshift, so we can get a broad
+        # correlation between magnitude and redshift.
+        if prior_redshift is not None:
+            pass
+            #dat = np.zeros(nobj, dtype=[('redshift', 'f4'), ('mag', 'f4')])
+            #dat['redshift'] = prior_redshift
+            #dat['mag'] = gmmout['MAG']
+            #srt = np.argsort(dat, order=('redshift', 'mag'))
+
+        # Assign filter names.
+        if np.sum(isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+            else:
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
+
+        if np.sum(~isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+            else:
+                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
+
+        return gmmout
+
+    def _query(self, matrix, subtype='', return_dist=False, south=True):
+        """Return the nearest template number based on the KD Tree."""
+
+        if subtype == '':
+            try:
+                dist, indx = self.tree.query(matrix) # no north-south split (e.g., BGS/MXXL)
+            except:
+                if south:
+                    dist, indx = self.tree_south.query(matrix)
+                else:
+                    dist, indx = self.tree_north.query(matrix)
+        else:
+            if subtype.upper() == 'DA':
+                dist, indx = self.tree_da.query(matrix)
+            elif subtype.upper() == 'DB':
+                dist, indx = self.tree_db.query(matrix)
+            else:
+                log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
+                raise ValueError
+
+        if return_dist:
+            return dist, indx.astype('i4')
+        else:
+            return indx.astype('i4')
+        
     def sample_gmm_nospectra(self, meta, rand=None):
         """Sample from one of the Gaussian mixture models generated by
         desitarget/doc/nb/gmm-quicksurvey.ipynb.
@@ -423,12 +663,12 @@ class SelectTargets(object):
         W1mag = zmag - sample['z - W1'] 
         W2mag = W1mag - sample['W1 - W2'] 
         
-        meta['MAG'] = normmag
-        meta['FLUX_G'] = 1e9 * 10**(-0.4 * gmag)
-        meta['FLUX_R'] = 1e9 * 10**(-0.4 * rmag)
-        meta['FLUX_Z'] = 1e9 * 10**(-0.4 * zmag)
-        meta['FLUX_W1'] = 1e9 * 10**(-0.4 * W1mag)
-        meta['FLUX_W2'] = 1e9 * 10**(-0.4 * W2mag)
+        meta['MAG'][:] = normmag
+        meta['FLUX_G'][:] = 1e9 * 10**(-0.4 * gmag)
+        meta['FLUX_R'][:] = 1e9 * 10**(-0.4 * rmag)
+        meta['FLUX_Z'][:] = 1e9 * 10**(-0.4 * zmag)
+        meta['FLUX_W1'][:] = 1e9 * 10**(-0.4 * W1mag)
+        meta['FLUX_W2'][:] = 1e9 * 10**(-0.4 * W2mag)
 
         return meta
 
@@ -443,7 +683,7 @@ class SelectTargets(object):
 
         return gflux, rflux, zflux, w1flux, w2flux
 
-    def populate_targets_truth(self, data, meta, indx=None, seed=None, psf=True,
+    def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
                                gmm=None,  truespectype='', templatetype='',
                                templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
@@ -479,6 +719,8 @@ class SelectTargets(object):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
 
         """
         if seed is None:
@@ -490,15 +732,35 @@ class SelectTargets(object):
 
         # Initialize the tables.
         targets = empty_targets_table(nobj)
-        truth = empty_truth_table(nobj)
+        truth, objtruth = empty_truth_table(nobj, templatetype=templatetype)
 
-        # Add some basic info.
-        for key in ('RA', 'DEC', 'BRICKNAME'):
-            targets[key][:] = data[key][indx]
-            
         truth['MOCKID'][:] = data['MOCKID'][indx]
+        if len(objtruth) > 0:
+            if 'Z_NORSD' in data.keys() and 'TRUEZ_NORSD' in objtruth.colnames:
+                objtruth['TRUEZ_NORSD'][:] = data['Z_NORSD'][indx]
 
-        # Add dust and depth.
+        # Copy all information from DATA to TARGETS.
+        for key in data.keys():
+            if key in targets.colnames:
+                if isinstance(data[key], np.ndarray):
+                    targets[key][:] = data[key][indx]
+                else:
+                    targets[key][:] = np.repeat(data[key], nobj)
+
+        # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
+        targets['RELEASE'][:] = 9999
+        
+        south = self.is_south(targets['DEC'])
+        north = ~south
+        if np.sum(south) > 0:
+            targets['PHOTSYS'][south] = 'S'
+        if np.sum(north) > 0:
+            targets['PHOTSYS'][north] = 'N'
+            
+        targets['RA_IVAR'][:], targets['DEC_IVAR'][:] = 1e8, 1e8
+        targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
+
+        # Add dust, depth, and nobs.
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
@@ -507,10 +769,12 @@ class SelectTargets(object):
             for prefix in ('PSF', 'GAL'):
                 key = '{}DEPTH_{}'.format(prefix, band)
                 targets[key][:] = data[key][indx]
+            nobskey = 'NOBS_{}'.format(band)
+            targets[nobskey][:] = 2 # assume constant!
 
-        for band in ('W1', 'W2'):
-            key = 'PSFDEPTH_{}'.format(band)
-            targets[key][:] = data[key][indx]
+        #for band in ('W1', 'W2'):
+        #    key = 'PSFDEPTH_{}'.format(band)
+        #    targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
@@ -527,10 +791,17 @@ class SelectTargets(object):
                 targets[key][:] = gmm[gmmkey]
 
         # Copy various quantities from the metadata table.
-        for key in ('TEMPLATEID', 'SEED', 'REDSHIFT', 'MAG', 'VDISP', 'FLUX_G', 'FLUX_R', 'FLUX_Z',
-                    'FLUX_W1', 'FLUX_W2', 'OIIFLUX', 'HBETAFLUX', 'TEFF', 'LOGG', 'FEH'):
-            truth[key.replace('REDSHIFT', 'TRUEZ')][:] = meta[key]
+        for key in meta.colnames:
+            if key in truth.colnames:
+                truth[key][:] = meta[key]
+            elif key == 'REDSHIFT':
+                truth['TRUEZ'][:] = meta['REDSHIFT']
 
+        if len(objmeta) > 0 and len(objtruth) > 0: # some objects have no metadata...
+            for key in objmeta.colnames:
+                if key in objtruth.colnames:
+                    objtruth[key][:] = objmeta[key]
+            
         # Scatter the photometry based on the depth.
         self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
@@ -538,8 +809,8 @@ class SelectTargets(object):
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
-        
-        return targets, truth
+
+        return targets, truth, objtruth
 
     def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
         """Compute the median density of targets in the full mock. 
@@ -615,8 +886,8 @@ class SelectTargets(object):
             basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
             plot_sky_binned(data['RA'], data['DEC'], weights=data['WEIGHT'],
                             max_bin_area=hp.nside2pixarea(data['NSIDE'], degrees=True),
-                            verbose=False, clip_lo='!1', cmap='viridis',
-                            plot_type='healpix', basemap=basemap,
+                            verbose=False, clip_lo='!1', clip_hi='98%', 
+                            cmap='viridis', plot_type='healpix', basemap=basemap,
                             label=r'{} (targets/deg$^2$)'.format(self.objtype))
             
         if not nozhist:
@@ -637,28 +908,28 @@ class SelectTargets(object):
         else:
             plt.show()
 
+    def is_south(self, dec):
+        """Divide the "north" and "south" photometric systems based on a
+        constant-declination cut.
+
+        Parameters
+        ----------
+        dec : :class:`numpy.ndarray`
+            Declination of candidate targets (decimal degrees). 
+
+        """
+        return dec <= 32.125
+
 class ReadGaussianField(SelectTargets):
-    """Read a Gaussian random field style mock catalog.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    """Read a Gaussian random field style mock catalog."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadGaussianField, self).__init__()
+    def __init__(self, **kwargs):
+        super(ReadGaussianField, self).__init__(**kwargs)
         
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
-
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', mock_density=False):
+                 zmax_qso=None, target_name='', mock_density=False,
+                 seed=None):
         """Read the catalog.
 
         Parameters
@@ -669,11 +940,16 @@ class ReadGaussianField(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        zmax_qso : :class:`float`
+            Maximum redshift of tracer QSOs to read, to ensure no
+            double-counting with Lya mocks.  Defaults to None.
         target_name : :class:`str`
             Name of the target being read (e.g., ELG, LRG).
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -729,7 +1005,7 @@ class ReadGaussianField(SelectTargets):
 
         mockid = np.arange(len(ra)) # unique ID/row number
         
-        fracarea = pixweight[allpix]
+        fracarea = pixweight[allpix]        
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
 
         nobj = len(cut)
@@ -737,7 +1013,7 @@ class ReadGaussianField(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -746,26 +1022,48 @@ class ReadGaussianField(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Add redshifts.
         if target_name.upper() == 'SKY':
             zz = np.zeros(len(ra))
         else:
             data = fitsio.read(mockfile, columns=['Z_COSMO', 'DZ_RSD'], upper=True, ext=1, rows=cut)
             zz = (data['Z_COSMO'].astype('f8') + data['DZ_RSD'].astype('f8')).astype('f4')
-            
+            zz_norsd = data['Z_COSMO'].astype('f4')
+
+            # cut on maximum redshift
+            if zmax_qso is not None:
+                cut = np.where( zz < zmax_qso )[0]
+                nobj = len(cut)
+                log.info('Trimmed to {} objects with z<{:.3f}'.format(nobj, zmax_qso))
+                if nobj == 0:
+                    return dict()
+                mockid = mockid[cut]
+                allpix = allpix[cut]
+                weight = weight[cut]
+                ra = ra[cut]
+                dec = dec[cut]
+                zz = zz[cut]
+                zz_norsd = zz_norsd[cut]
+
+        # Get photometry and morphologies by sampling from the Gaussian
+        # mixture models.
+        isouth = self.is_south(dec)
+        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+                                 seed=seed, prior_redshift=zz)
+
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
-               'RA': ra, 'DEC': dec, 'Z': zz}
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
+               'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
+               'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -774,24 +1072,11 @@ class ReadGaussianField(SelectTargets):
         return out
 
 class ReadUniformSky(SelectTargets):
-    """Read a uniform sky style mock catalog.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    """Read a uniform sky style mock catalog."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadUniformSky, self).__init__()
-
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
+    def __init__(self, **kwargs):
+        super(ReadUniformSky, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='', mock_density=False):
@@ -882,19 +1167,16 @@ class ReadUniformSky(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'uniformsky',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra))}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -903,24 +1185,11 @@ class ReadUniformSky(SelectTargets):
         return out
 
 class ReadGalaxia(SelectTargets):
-    """Read a Galaxia style mock catalog.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    """Read a Galaxia style mock catalog."""
     cached_pixweight = None
 
-    def __init__(self, bricksize=0.25, dust_dir=None):
-        super(ReadGalaxia, self).__init__()
-
-        self.bricksize = bricksize
-        self.dust_dir = dust_dir
+    def __init__(self, **kwargs):
+        super(ReadGalaxia, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
                  target_name='MWS_MAIN', magcut=None):
@@ -1088,21 +1357,52 @@ class ReadGalaxia(SelectTargets):
                 nobj = len(ra)
                 log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-        
+        # Temporary hack to read some Gaia columns from a separate file --
+        gaiafile = galaxiafile.replace('mock_', 'gaia_mock_')
+        if os.path.isfile(gaiafile):
+            cols = ['G_GAIA', 'PM_RA_STAR_GAIA', 'PM_DEC_GAIA', 'PARALLAX_GAIA',
+                    'PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR']
+            gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
+            
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'NORMFILTER': 'sdss2010-r', 'BOSS_STD': boss_std}
+               'MAGFILTER': np.repeat('sdss2010-r', nobj),
+
+               #'BOSS_STD': boss_std,
+               
+               'REF_ID': mockid,
+               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
+               #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
+               #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_RP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
+               #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_ASTROMETRIC_EXCESS_NOISE': np.zeros(nobj).astype('f4'), # placeholder
+               #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'PARALLAX': gaia['PARALLAX_GAIA'].astype('f4'),
+               'PARALLAX_IVAR': np.zeros(nobj).astype('f4'),
+               'PMRA': gaia['PM_RA_STAR_GAIA'].astype('f4'),
+               'PMRA_IVAR': np.zeros(nobj).astype('f4'),
+               'PMDEC': gaia['PM_DEC_GAIA'].astype('f4'), # no _STAR_!
+               'PMDEC_IVAR': np.zeros(nobj).astype('f4'),
+               
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
+
+        # Handle ivars
+        for outkey, gaiakey in zip( ('PARALLAX_IVAR', 'PMRA_IVAR', 'PMDEC_IVAR'),
+                                     ('PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR') ):
+            good = gaia[gaiakey] > 0
+            if np.sum(good) > 0:
+                out[outkey][good] = (1/gaia[gaiakey]**2).astype('f4')
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         return out
 
@@ -1141,25 +1441,13 @@ class ReadGalaxia(SelectTargets):
         return is_std
 
 class ReadLyaCoLoRe(SelectTargets):
-    """Read a CoLoRe mock catalog of Lya skewers.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadLyaCoLoRe, self).__init__()
-
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
+    """Read a CoLoRe mock catalog of Lya skewers."""
+    def __init__(self, **kwargs):
+        super(ReadLyaCoLoRe, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='LYA', nside_lya=16, mock_density=False):
+                 target_name='LYA', nside_lya=16, zmin_lya=None,
+                 mock_density=False):
         """Read the catalog.
 
         Parameters
@@ -1175,6 +1463,9 @@ class ReadLyaCoLoRe(SelectTargets):
         nside_lya : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 16.
+        zmin_lya : :class:`float`
+            Minimum redshift of Lya skewers, to ensure no double-counting with
+            QSO mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
@@ -1228,30 +1519,38 @@ class ReadLyaCoLoRe(SelectTargets):
         # Read the ra,dec coordinates and then restrict to the desired
         # healpixels.
         log.info('Reading {}'.format(mockfile))
-        tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z', 'PIXNUM'],
-                          upper=True, ext=1)
-        
+        try: # new data model
+            tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID', 'Z_QSO_RSD',
+                                                 'Z_QSO_NO_RSD', 'PIXNUM'],
+                              upper=True, ext=1)
+            zz = tmp['Z_QSO_RSD'].astype('f4')
+            zz_norsd = tmp['Z_QSO_NO_RSD'].astype('f4')
+        except: # old data model
+            tmp = fitsio.read(mockfile, columns=['RA', 'DEC', 'MOCKID' ,'Z', 'PIXNUM'],
+                              upper=True, ext=1)
+            zz = tmp['Z'].astype('f4')
+            zz_norsd = tmp['Z'].astype('f4')
+            
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
-        zz = tmp['Z'].astype('f4')
         mockpix = tmp['PIXNUM']
         mockid = (tmp['MOCKID'].astype(float)).astype(int)
-        #objid = (tmp['MOCKID'].astype(float)).astype(int) # will change
-        #mockid = objid.copy()
+            
         del tmp
 
         log.info('Assigning healpix pixels with nside = {}'.format(nside))
         allpix = footprint.radec2pix(nside, ra, dec)
 
         fracarea = pixweight[allpix]
-        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        # force DESI footprint
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0]
 
         nobj = len(cut)
         if nobj == 0:
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         allpix = allpix[cut]
@@ -1259,30 +1558,50 @@ class ReadLyaCoLoRe(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
         zz = zz[cut]
+        zz_norsd = zz_norsd[cut]
         #objid = objid[cut]
         mockpix = mockpix[cut]
         mockid = mockid[cut]
+
+        # Cut on minimum redshift.
+        if zmin_lya is not None:
+            cut = np.where( zz >= zmin_lya )[0]
+            nobj = len(cut)
+            log.info('Trimmed to {} {}s with z>={:.3f}'.format(nobj, target_name, zmin_lya))
+            if nobj == 0:
+                return dict()
+            allpix = allpix[cut]
+            weight = weight[cut]
+            ra = ra[cut]
+            dec = dec[cut]
+            zz = zz[cut]
+            zz_norsd = zz_norsd[cut]
+            #objid = objid[cut]
+            mockpix = mockpix[cut]
+            mockid = mockid[cut]
 
         # Build the full filenames.
         lyafiles = []
         for mpix in mockpix:
             lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
-            
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
 
+        # ToDo: draw magnitudes from an appropriate luminosity function!
+        # 
+            
         # Pack into a basic dictionary.
-        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',               
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                #'OBJID': objid,
                'MOCKID': mockid, 'LYAFILES': np.array(lyafiles),
-               'BRICKNAME': brickname, 'RA': ra, 'DEC': dec, 'Z': zz}
+               'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
+               'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1291,27 +1610,15 @@ class ReadLyaCoLoRe(SelectTargets):
         return out
 
 class ReadMXXL(SelectTargets):
-    """Read a MXXL mock catalog of BGS targets.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    """Read a MXXL mock catalog of BGS targets."""
     cached_radec = None
 
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadMXXL, self).__init__()
-
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
+    def __init__(self, **kwargs):
+        super(ReadMXXL, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='BGS', magcut=None, only_coords=False):
+                 target_name='BGS', magcut=None, only_coords=False,
+                 mock_density=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -1330,6 +1637,11 @@ class ReadMXXL(SelectTargets):
         only_coords : :class:`bool`, optional
             To get some improvement in speed, only read the target coordinates
             and some other basic info.
+        mock_density : :class:`bool`, optional
+            Compute and return the median target density in the mock.  Defaults
+            to False.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -1458,44 +1770,43 @@ class ReadMXXL(SelectTargets):
             return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
                     'MAG': rmag, 'WEIGHT': weight, 'NSIDE': nside}
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
+        # Get photometry and morphologies by sampling from the Gaussian mixture
+        # models.  This is a total hack because our apparent magnitudes (rmag)
+        # will not be consistent with the Gaussian draws.  But as a hack just
+        # sort the shapes and sizes on rmag.
+        isouth = self.is_south(dec)
+        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+                                 seed=seed, prior_mag=rmag)
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'durham_mxxl_hdf5',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
-               'SDSS_01gr': gr, 'NORMFILTER': 'sdss2010-r'}
+               'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
+
+        # Optionally compute the mean mock density.
+        if mock_density:
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
 
         return out
 
 class ReadGAMA(SelectTargets):
     """Read a GAMA catalog of BGS targets.  This reader will only generally be used
-    for the Survey Validation Data Challenge.
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    for the Survey Validation Data Challenge."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadGAMA, self).__init__()
+    def __init__(self, **kwargs):
+        super(ReadGAMA, self).__init__(**kwargs)
         
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
-
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='', magcut=None, only_coords=False):
         """Read the catalog.
@@ -1588,9 +1899,6 @@ class ReadGAMA(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Add photometry, absolute magnitudes, and redshifts.
         columns = ['FLUX_G', 'FLUX_R', 'FLUX_Z', 'Z', 'UGRIZ_ABSMAG_01']
         data = fitsio.read(mockfile, columns=columns, upper=True, ext=1, rows=cut)
@@ -1601,40 +1909,28 @@ class ReadGAMA(SelectTargets):
         # properties here.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'bgs-gama',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'RMABS_01': data['UGRIZ_ABSMAG_01'][:, 2],
                'UG_01': data['UGRIZ_ABSMAG_01'][:, 0]-data['UGRIZ_ABSMAG_01'][:, 1],
                'GR_01': data['UGRIZ_ABSMAG_01'][:, 1]-data['UGRIZ_ABSMAG_01'][:, 2],
                'RI_01': data['UGRIZ_ABSMAG_01'][:, 2]-data['UGRIZ_ABSMAG_01'][:, 3],
                'IZ_01': data['UGRIZ_ABSMAG_01'][:, 3]-data['UGRIZ_ABSMAG_01'][:, 4],
-               'NORMFILTER': 'decam2014-r', 'MAG': rmag}
+               'MAGFILTER': np.repeat('decam2014-r', nobj),
+               'MAG': rmag, 'SOUTH': self.is_south(dec)}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         return out
 
 class ReadMWS_WD(SelectTargets):
-    """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD). 
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    """Read a mock catalog of Milky Way Survey white dwarf targets (MWS_WD)."""
     cached_radec = None
 
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadMWS_WD, self).__init__()
-
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
+    def __init__(self, **kwargs):
+        super(ReadMWS_WD, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='WD', mock_density=False):
@@ -1733,20 +2029,19 @@ class ReadMWS_WD(SelectTargets):
         logg = data['LOGG'].astype('f4')
         templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
-               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype}
+               'MAGFILTER': np.repeat('sdss2010-g', nobj),
+               'TEMPLATESUBTYPE': templatesubtype,
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1755,24 +2050,11 @@ class ReadMWS_WD(SelectTargets):
         return out
     
 class ReadMWS_NEARBY(SelectTargets):
-    """Read a mock catalog of Milky Way Survey nearby targets (MWS_NEARBY). 
-
-    Parameters
-    ----------
-    dust_dir : :class:`str`
-        Full path to the dust maps.
-    bricksize : :class:`int`, optional
-        Brick diameter used in the imaging surveys; needed to assign a brickname
-        to each object.  Defaults to 0.25 deg.
-
-    """
+    """Read a mock catalog of Milky Way Survey nearby targets (MWS_NEARBY)."""
     cached_radec = None
     
-    def __init__(self, dust_dir=None, bricksize=0.25):
-        super(ReadMWS_NEARBY, self).__init__()
-
-        self.dust_dir = dust_dir
-        self.bricksize = bricksize
+    def __init__(self, **kwargs):
+        super(ReadMWS_NEARBY, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='MWS_NEARBY', mock_density=False):
@@ -1872,20 +2154,18 @@ class ReadMWS_NEARBY(SelectTargets):
         feh = data['FEH'].astype('f4')
         templatesubtype = data['SPECTRALTYPE']
 
-        # Assign bricknames.
-        brickname = get_brickname_from_radec(ra, dec, bricksize=self.bricksize)
-
         # Pack into a basic dictionary.  Is the normalization filter g-band???
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': brickname,
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'NORMFILTER': 'sdss2010-g', 'TEMPLATESUBTYPE': templatesubtype}
+               'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
-        if self.dust_dir:
-            mw_transmission(out, dust_dir=self.dust_dir)
-            imaging_depth(out)
+        self.mw_transmission(out)
+        self.imaging_depth(out)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1900,39 +2180,42 @@ class QSOMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-g`.
+    use_simqso : :class:`bool`, optional
+        Use desisim.templates.SIMQSO to generated templates rather than
+        desisim.templates.QSO.  Defaults to True.
 
     """
-    wave, template_maker, GMM_nospectra = None, None, None
+    wave, template_maker = None, None
+    GMM_QSO, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
-        from desisim.templates import SIMQSO
+    def __init__(self, seed=None, use_simqso=True, **kwargs):
+        from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
         super(QSOMaker, self).__init__()
 
         self.seed = seed
         self.objtype = 'QSO'
+        self.use_simqso = use_simqso
 
         if self.wave is None:
             QSOMaker.wave = _default_wave()
 
         if self.template_maker is None:
-            QSOMaker.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+            if self.use_simqso:
+                QSOMaker.template_maker = SIMQSO(wave=self.wave)
+            else:
+                QSOMaker.template_maker = QSO(wave=self.wave)
+
+        if self.GMM_QSO is None:
+            self.read_GMM(target='QSO')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
             QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
             
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'GaussianRandomField',
-                                             'v0.0.7_2LPT', 'QSO.fits')
-
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
+             nside=None, zmax_qso=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -1941,12 +2224,13 @@ class QSOMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        zmax_qso : :class:`float`
+            Maximum redshift of tracer QSOs to read, to ensure no
+            double-counting with Lya mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -1964,7 +2248,9 @@ class QSOMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         
         if self.mockformat == 'gaussianfield':
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'QSO.fits')
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -1974,8 +2260,7 @@ class QSOMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
+                                   zmax_qso=zmax_qso, mock_density=mock_density)
 
         return data
 
@@ -2006,6 +2291,8 @@ class QSOMaker(SelectTargets):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
         
         """
         if seed is None:
@@ -2015,26 +2302,56 @@ class QSOMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
             
+        rand = np.random.RandomState(seed)
         if no_spectra:
-            from desisim.io import empty_metatable
-            rand = np.random.RandomState(seed)
-            
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            flux, wave, meta = self.template_maker.make_templates(
-                nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-                lyaforest=False, nocolorcuts=True)
+            # Sample from the north/south GMMs
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx,
-                                                     psf=True, seed=seed,
-                                                     truespectype='QSO',
-                                                     templatetype='QSO')
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype, simqso=self.use_simqso)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        return flux, self.wave, meta, targets, truth
+            if self.use_simqso:
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                            nmodel=len(these), redshift=np.atleast_1d(data['Z'][indx][these]),
+                            seed=seed, lyaforest=False, nocolorcuts=True, south=issouth)
+
+                        meta[these] = meta1
+                        objmeta[these] = objmeta1
+                        flux[these, :] = flux1
+
+            else:
+                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+                input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'][:] = data['Z'][indx]
+                
+                if self.mockformat == 'gaussianfield':
+                    input_meta['MAG'][:] = data['MAG'][indx]
+                    input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                            input_meta=input_meta[these], lyaforest=False, nocolorcuts=True,
+                            south=issouth)
+
+                        meta[these] = meta1
+                        objmeta[these] = objmeta1
+                        flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='QSO', templatetype='QSO')
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select QSO targets.  Input tables are modified in place.
@@ -2047,14 +2364,16 @@ class QSOMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isQSO_colors
-          
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
+        if self.use_simqso:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+        else:
+            desi_target, bgs_target, mws_target = apply_cuts(
+                targets, tcnames='QSO', qso_selection='colorcuts',
+                qso_optical_cuts=True)
 
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class LYAMaker(SelectTargets):
     """Read LYA mocks, generate spectra, and select targets.
@@ -2063,39 +2382,45 @@ class LYAMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-g`.
+    balprob : :class:`float`, optional
+        Probability of a including one or more BALs.  Defaults to 0.0. 
+    add_dla : :class:`bool`, optional
+        Statistically include DLAs along the line of sight.
 
     """
     wave, template_maker, GMM_nospectra = None, None, None
 
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
-        from desisim.templates import SIMQSO
+    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False, **kwargs):
+        from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
         super(LYAMaker, self).__init__()
 
         self.seed = seed
         self.objtype = 'LYA'
+        self.use_simqso = use_simqso
+        self.balprob = balprob
+        self.add_dla = add_dla
+
+        if balprob > 0:
+            from desisim.bal import BAL
+            self.BAL = BAL()
 
         if self.wave is None:
             LYAMaker.wave = _default_wave()
             
         if self.template_maker is None:
-            LYAMaker.template_maker = SIMQSO(wave=self.wave, normfilter=normfilter)
+            if self.use_simqso:
+                LYAMaker.template_maker = SIMQSO(wave=self.wave)
+            else:
+                LYAMaker.template_maker = QSO(wave=self.wave)
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lya.fits')
             LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'lya_forest', 'v2.0.2', 'master.fits')
-
-    def read(self, mockfile=None, mockformat='CoLoRe', dust_dir=None,
-             healpixels=None, nside=None, nside_lya=16, mock_density=False,
-             **kwargs):
+    def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
+             nside_lya=16, zmin_lya=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2104,8 +2429,6 @@ class LYAMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'CoLoRe'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2113,6 +2436,9 @@ class LYAMaker(SelectTargets):
         nside_lya : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 16.
+        zmin_lya : :class:`float`
+            Minimum redshift of Lya skewers, to ensure no double-counting with
+            QSO mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -2130,7 +2456,9 @@ class LYAMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         
         if self.mockformat == 'colore':
-            MockReader = ReadLyaCoLoRe(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v2.0', 'master.fits')
+            MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2140,8 +2468,8 @@ class LYAMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   nside_lya=nside_lya, mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
+                                   nside_lya=nside_lya, zmin_lya=zmin_lya,
+                                   mock_density=mock_density)
 
         return data
 
@@ -2181,6 +2509,7 @@ class LYAMaker(SelectTargets):
 
         """
         import numpy.ma as ma
+        from astropy.table import vstack
         from desispec.interpolation import resample_flux
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
@@ -2191,22 +2520,37 @@ class LYAMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
+        rand = np.random.RandomState(seed)
         if no_spectra:
-            from desisim.io import empty_metatable
-            rand = np.random.RandomState(seed)
-            
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
+            # Handle north/south photometry.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+            
+            if not self.use_simqso:
+                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+                input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'][:] = data['Z'][indx]
+
+                # These magnitudes are a total hack!
+                if len(north) > 0:
+                    input_meta['MAG'][north] = rand.uniform(20, 22.5, len(north)).astype('f4')
+                    input_meta['MAGFILTER'][north] = 'BASS-r'
+                if len(south) > 0:
+                    input_meta['MAG'][south] = rand.uniform(20, 22.5, len(south)).astype('f4')
+                    input_meta['MAGFILTER'][south] = 'decam2014-r'
+                                
             # Read skewers.
             skewer_wave = None
             skewer_trans = None
             skewer_meta = None
 
-            # All the files that contain at least one QSO skewer.
+            # Gather all the files containing at least one QSO skewer.
             alllyafile = data['LYAFILES'][indx]
             uniquelyafiles = sorted(set(alllyafile))
 
@@ -2215,19 +2559,19 @@ class LYAMaker(SelectTargets):
 
                 mockid_in_data = data['MOCKID'][indx][these]
                 mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
-                                             ext=1).astype(float)).astype(int)
+                                              ext=1).astype(float)).astype(int)
                 o2i = dict()
                 for i, o in enumerate(mockid_in_mock):
                     o2i[o] = i
                 indices_in_mock_healpix = np.zeros(mockid_in_data.size).astype(int)
                 for i, o in enumerate(mockid_in_data):
                     if not o in o2i:
-                        log.warning("No MOCKID={} in {}. It's a bug, should never happen".format(o, lyafile))
+                        log.warning("No MOCKID={} in {}, which should never happen".format(o, lyafile))
                         raise KeyError
-
                     indices_in_mock_healpix[i] = o2i[o]
 
-                tmp_wave, tmp_trans, tmp_meta = read_lya_skewers(
+                # Note: there are read_dlas=False and add_metals=False options.
+                tmp_wave, tmp_trans, tmp_meta, _ = read_lya_skewers(
                     lyafile, indices=indices_in_mock_healpix) 
 
                 if skewer_wave is None:
@@ -2251,41 +2595,79 @@ class LYAMaker(SelectTargets):
             assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
 
             # Now generate the QSO spectra simultaneously **at full wavelength
-            # resolution**.  We do this because the Lya forest (and DLAs) will have
-            # changed the colors, so we need to re-synthesize the photometry.
-            qso_flux, qso_wave, meta = self.template_maker.make_templates(
-                nmodel=nobj, redshift=data['Z'][indx], seed=seed,
-                lyaforest=False, nocolorcuts=True, noresample=True)
-            meta['SUBTYPE'] = 'LYA'
+            # resolution**.  We do this because the Lya forest will have changed
+            # the colors, so we need to re-synthesize the photometry below.
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype='QSO', simqso=self.use_simqso)
+            if self.use_simqso:
+                qso_flux = np.zeros([nobj, len(self.template_maker.basewave)], dtype='f4')
+            else:
+                qso_flux = np.zeros([nobj, len(self.template_maker.eigenwave)], dtype='f4')
+                qso_wave = np.zeros_like(qso_flux)
+            
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    if self.use_simqso:
+                        qso_flux1, qso_wave, meta1, objmeta1 = self.template_maker.make_templates(
+                            nmodel=len(these), redshift=data['Z'][indx][these], seed=seed,
+                            lyaforest=False, nocolorcuts=True, noresample=True, south=issouth)
+                    else:
+                        qso_flux1, qso_wave1, meta1, objmeta1 = self.template_maker.make_templates(
+                            input_meta=input_meta[these], lyaforest=False, nocolorcuts=True,
+                            noresample=True, south=issouth)
+                        qso_wave[these, :] = qso_wave1
+                        
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    qso_flux[these, :] = qso_flux1
+
+            meta['SUBTYPE'][:] = 'LYA'
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
 
+            # Add BALs
+            if self.balprob > 0:
+                log.debug('Adding BAL(s) with probability {}'.format(self.balprob))
+                _flux, balmeta = self.BAL.insert_bals(qso_wave, _flux, meta['REDSHIFT'],
+                                                      seed=self.seed,
+                                                      balprob=self.balprob)
+
             # Add DLAs (ToDo).
             # ...
 
-            # Update the photometry
-            maggies = self.template_maker.decamwise.get_ab_maggies(
-                1e-17 * _flux, qso_wave.copy(), mask_invalid=True)
-            for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'),
-                                   ('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                    'wise2010-W1', 'wise2010-W2') ):
-                meta[band] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
-
-            # Unfortunately, to resample to the desired output wavelength vector we
-            # need to loop.
+            # Synthesize north/south photometry.
+            for these, filters in zip( (north, south), (self.template_maker.bassmzlswise, self.template_maker.decamwise) ):
+                if len(these) > 0:
+                    if self.use_simqso:
+                        maggies = filters.get_ab_maggies(1e-17 * _flux[these, :], qso_wave.copy(), mask_invalid=True)
+                        for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'), filters.names):
+                            meta[band][these] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
+                    else:
+                        # We have to loop (and pad) since each QSO has a different wavelength array.
+                        maggies = []
+                        for ii in range(len(these)):
+                            padflux, padwave = filters.pad_spectrum(_flux[these[ii], :], qso_wave[these[ii], :], method='edge')
+                            maggies.append(filters.get_ab_maggies(1e-17 * padflux, padwave.copy(), mask_invalid=True))
+                            
+                        maggies = vstack(maggies)
+                        for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'), filters.names):
+                            meta[band][these] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
+                            
+            # Unfortunately, in order to resample to the desired output
+            # wavelength vector we need to loop.
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
-            for ii in range(nobj):
-                flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :],
-                                            extrapolate=True)
+            if qso_wave.ndim == 2:
+                for ii in range(nobj):
+                    flux[ii, :] = resample_flux(self.wave, qso_wave[ii, :], _flux[ii, :], extrapolate=True)
+            else:
+                for ii in range(nobj):
+                    flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :], extrapolate=True)
                                      
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx,
-                                                     psf=True,seed=seed,
-                                                     truespectype='QSO',
-                                                     templatetype='QSO',
-                                                     templatesubtype='LYA')
+        targets, truth, objtruth = self.populate_targets_truth(
+                data, meta, objmeta, indx=indx, psf=True, seed=seed,
+                truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
 
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select Lya/QSO targets.  Input tables are modified in place.
@@ -2298,14 +2680,11 @@ class LYAMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isQSO_colors
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
-
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class LRGMaker(SelectTargets):
     """Read LRG mocks, generate spectra, and select targets.
@@ -2317,15 +2696,12 @@ class LRGMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-z`.
 
     """
-    wave, tree, template_maker = None, None, None
-    GMM, GMM_nospectra = None, None
+    wave, tree_north, tree_south, template_maker = None, None, None, None
+    GMM_LRG, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-z', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2339,29 +2715,26 @@ class LRGMaker(SelectTargets):
         if self.wave is None:
             LRGMaker.wave = _default_wave()
         if self.template_maker is None:
-            LRGMaker.template_maker = LRG(wave=self.wave, normfilter=normfilter)
+            LRGMaker.template_maker = LRG(wave=self.wave)
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree is None:
-            zobj = self.meta['Z'].data
-            LRGMaker.tree = KDTree(np.vstack((zobj)).T)
+        if self.tree_north is None:
+            LRGMaker.tree_north = KDTree( np.vstack((
+                self.meta['Z'].data)).T )
+        if self.tree_south is None:
+            LRGMaker.tree_south = KDTree( np.vstack((
+                self.meta['Z'].data)).T )
 
-        if self.GMM is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/lrg_gmm.fits')
-            LRGMaker.GMM = GaussianMixtureModel.load(gmmfile)
+        if self.GMM_LRG is None:
+            self.read_GMM(target='LRG')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lrg.fits')
             LRGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'GaussianRandomField',
-                                             'v0.0.7_2LPT', 'LRG.fits')
-
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2370,8 +2743,6 @@ class LRGMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2392,7 +2763,9 @@ class LRGMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'gaussianfield':
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'LRG.fits')
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2402,31 +2775,10 @@ class LRGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
+                                   mock_density=mock_density, seed=self.seed)
 
         return data
 
-    def _GMMsample(self, nsample=1, seed=None):
-        """Sample from the Gaussian mixture model (GMM) for LRGs."""
-
-        rand = np.random.RandomState(seed)
-        params = self.GMM.sample(nsample, rand).astype('f4')
-
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def _query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-    
     def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate LRG spectra.
 
@@ -2454,10 +2806,10 @@ class LRGMaker(SelectTargets):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -2466,42 +2818,48 @@ class LRGMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        gmm = self._GMMsample(nobj, seed=seed)
-
         if no_spectra:
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-                                                     mean=2.3, sigma=0.1, seed=seed,
-                                                     nside=self.nside_chunk)
+            input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=2.3,
+                                       sigma=0.1, seed=seed, nside=self.nside_chunk)
 
-            input_meta['MAG'] = gmm['z']
-            if self.template_maker.normfilter != 'decam2014-z':
-                log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
-                    'decam2014-z', self.template_maker.normfilter))
-                raise ValueError
+            # Differentiate north/south photometry.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
             if self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
-                templateid = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['TEMPLATEID'] = templateid
+                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                               nocolorcuts=True, novdisp=False)
+            # Build north/south spectra separately.
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
-                                                     seed=seed, gmm=gmm,
-                                                     truespectype='GALAXY',
-                                                     templatetype='LRG')
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], vdisp=vdisp[these], south=issouth,
+                        nocolorcuts=True)
 
-        return flux, self.wave, meta, targets, truth
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+                    
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            truespectype='GALAXY', templatetype='LRG')
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets.  Input tables are modified in place.
@@ -2514,14 +2872,11 @@ class LRGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isLRG_colors
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
-
-        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
-        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='LRG')
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class ELGMaker(SelectTargets):
     """Read ELG mocks, generate spectra, and select targets.
@@ -2533,15 +2888,12 @@ class ELGMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-z`.
 
     """
-    wave, tree, template_maker = None, None, None
-    GMM, GMM_nospectra = None, None
+    wave, tree_north, tree_south, template_maker = None, None, None, None
+    GMM_LRG, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
@@ -2555,31 +2907,31 @@ class ELGMaker(SelectTargets):
         if self.wave is None:
             ELGMaker.wave = _default_wave()
         if self.template_maker is None:
-            ELGMaker.template_maker = ELG(wave=self.wave, normfilter=normfilter)
+            ELGMaker.template_maker = ELG(wave=self.wave)
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree is None:
-            zobj = self.meta['Z'].data
-            gr = self.meta['DECAM_G'].data - self.meta['DECAM_R'].data
-            rz = self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data
-            ELGMaker.tree = KDTree(np.vstack((zobj, gr, rz)).T)
+        if self.tree_north is None:
+            log.warning('Using south ELG KD Tree for north photometry.')
+            ELGMaker.tree_north = KDTree( np.vstack((
+                self.meta['Z'].data,
+                self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
+                self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
+        if self.tree_south is None:
+            ELGMaker.tree_south = KDTree( np.vstack((
+                self.meta['Z'].data,
+                self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
+                self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
 
-        if self.GMM is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/elg_gmm.fits')
-            ELGMaker.GMM = GaussianMixtureModel.load(gmmfile)
-
+        if self.GMM_LRG is None:
+            self.read_GMM(target='LRG')
+        
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
             ELGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'GaussianRandomField',
-                                             'v0.0.7_2LPT', 'ELG.fits')
-
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2588,8 +2940,6 @@ class ELGMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2610,7 +2960,9 @@ class ELGMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'gaussianfield':
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'ELG.fits')
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2620,31 +2972,10 @@ class ELGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
+                                   mock_density=mock_density, seed=self.seed)
 
         return data
             
-    def _GMMsample(self, nsample=1, seed=None):
-        """Sample from the Gaussian mixture model (GMM) for ELGs."""
-
-        rand = np.random.RandomState(seed)
-        params = self.GMM.sample(nsample, rand).astype('f4')
-
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def _query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-    
     def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate ELG spectra.
 
@@ -2672,10 +3003,10 @@ class ELGMaker(SelectTargets):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -2684,43 +3015,52 @@ class ELGMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        gmm = self._GMMsample(nobj, seed=seed)
-
         if no_spectra:
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-                                                     mean=1.9, sigma=0.15, seed=seed,
-                                                     nside=self.nside_chunk)
-            input_meta['MAG'] = gmm['r']
-            if self.template_maker.normfilter != 'decam2014-r':
-                log.warning('Mismatching normalization filter!  Expecting {} but have {}'.format(
-                    'decam2014-z', self.template_maker.normfilter))
-                raise ValueError
+            input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
+                                       sigma=0.15, seed=seed, nside=self.nside_chunk)
+
+            # Differentiate north/south photometry.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
 
             if self.mockformat == 'gaussianfield':
-                alldata = np.vstack((data['Z'][indx],
-                                     gmm['g']-gmm['r'],
-                                     gmm['r']-gmm['z'])).T
-                _, templateid = self._query(alldata)
-                input_meta['TEMPLATEID'] = templateid
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        input_meta['MAG'][these] = data['MAG'][indx][these]
+                        input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
+                        input_meta['TEMPLATEID'][these] = self._query(
+                            np.vstack((data['Z'][indx][these],
+                                       data['GR'][indx][these],
+                                       data['RZ'][indx][these])).T, south=issouth)
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta,
-                                                               nocolorcuts=True, novdisp=False)
+            # Build north/south spectra separately.
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
-                                                     seed=seed, gmm=gmm,
-                                                     truespectype='GALAXY',
-                                                     templatetype='ELG')
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], vdisp=vdisp[these], south=issouth,
+                        nocolorcuts=True)
 
-        return flux, self.wave, meta, targets, truth
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            truespectype='GALAXY', templatetype='ELG')
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select ELG targets.  Input tables are modified in place.
@@ -2733,13 +3073,11 @@ class ELGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isELG
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
-
-        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
-        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='ELG')
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class BGSMaker(SelectTargets):
     """Read BGS mocks, generate spectra, and select targets.
@@ -2751,15 +3089,12 @@ class BGSMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-r`.
 
     """
     wave, tree, template_maker = None, None, None
-    GMM, GMM_nospectra = None, None
+    GMM_LRG, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
@@ -2773,7 +3108,7 @@ class BGSMaker(SelectTargets):
         if self.wave is None:
             BGSMaker.wave = _default_wave()
         if self.template_maker is None:
-            BGSMaker.template_maker = BGS(wave=self.wave, normfilter=normfilter)
+            BGSMaker.template_maker = BGS(wave=self.wave)
             
         self.meta = self.template_maker.basemeta
 
@@ -2784,21 +3119,15 @@ class BGSMaker(SelectTargets):
             gr = mabs[:, 1] - mabs[:, 2]
             BGSMaker.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
 
-        if self.GMM is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/dr2/bgs_gmm.fits')
-            BGSMaker.GMM = GaussianMixtureModel.load(gmmfile)
+        if self.GMM_BGS is None:
+            self.read_GMM(target='BGS')
 
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_bgs.fits')
             BGSMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'bgs', 'MXXL', 'desi_footprint',
-                                             'v0.0.4', 'BGS.hdf5')
-
-    def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', dust_dir=None,
-             healpixels=None, nside=None, magcut=None, only_coords=False, **kwargs):
+    def read(self, mockfile=None, mockformat='durham_mxxl_hdf5', healpixels=None,
+             nside=None, magcut=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2807,8 +3136,6 @@ class BGSMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'durham_mxxl_hdf5'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -2818,6 +3145,8 @@ class BGSMaker(SelectTargets):
             brighter than magcut. 
         only_coords : :class:`bool`, optional
             For various applications, only read the target coordinates.
+        mock_density : :class:`bool`, optional
+            Compute the median target density in the mock.  Defaults to False.
 
         Returns
         -------
@@ -2832,9 +3161,15 @@ class BGSMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'durham_mxxl_hdf5':
-            MockReader = ReadMXXL(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'bgs', 'MXXL', 'desi_footprint', 'v0.0.4', 'BGS.hdf5')            
+            MockReader = ReadMXXL()
+        elif self.mockformat == 'gaussianfield':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'BGS.fits')
+            MockReader = ReadGaussianField()
         elif self.mockformat == 'bgs-gama':
-            MockReader = ReadGAMA(dust_dir=dust_dir)
+            MockReader = ReadGAMA()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -2844,31 +3179,11 @@ class BGSMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   magcut=magcut, only_coords=only_coords)
-        self._update_normfilter(data.get('NORMFILTER'))
+                                   magcut=magcut, only_coords=only_coords,
+                                   mock_density=mock_density, seed=self.seed)
 
         return data
 
-    def _GMMsample(self, nsample=1, seed=None):
-        """Sample from the Gaussian mixture model (GMM) for BGS."""
-
-        rand = np.random.RandomState(seed)
-        params = self.GMM.sample(nsample, rand).astype('f4')
-
-        tags = ('g', 'r', 'z', 'w1', 'w2', 'w3', 'w4')
-        tags = tags + ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2')
-
-        samp = np.empty( nsample, dtype=np.dtype( [(tt, 'f4') for tt in tags] ) )
-        for ii, tt in enumerate(tags):
-            samp[tt] = params[:, ii]
-            
-        return samp
-
-    def _query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-    
     def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate BGS spectra.
 
@@ -2896,10 +3211,10 @@ class BGSMaker(SelectTargets):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -2908,49 +3223,67 @@ class BGSMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        gmm = self._GMMsample(nobj, seed=seed)
-
         if no_spectra:
             flux = []
-            meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'] = data['Z'][indx]
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['MAG'] = data['MAG'][indx]
-            input_meta['VDISP'] = self._sample_vdisp(data['RA'][indx], data['DEC'][indx],
-                                                     mean=1.9, sigma=0.15, seed=seed,
-                                                     nside=self.nside_chunk)
+            input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            
+            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
+                                       sigma=0.15, seed=seed, nside=self.nside_chunk)
 
             if self.mockformat == 'durham_mxxl_hdf5':
-                alldata = np.vstack((data['Z'][indx],
-                                     data['SDSS_absmag_r01'][indx],
-                                     data['SDSS_01gr'][indx])).T
-                _, templateid = self._query(alldata)
-                input_meta['TEMPLATEID'] = templateid
+                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
+                    data['Z'][indx],
+                    data['SDSS_absmag_r01'][indx],
+                    data['SDSS_01gr'][indx])).T )
+
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
-                alldata = np.vstack((data['Z'][indx],
-                                     data['RMABS_01'][indx],
-                                     data['GR_01'][indx])).T
-                _, templateid = self._query(alldata)
-                input_meta['TEMPLATEID'] = templateid
-            else:
-                pass
+                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
+                    data['Z'][indx],
+                    data['RMABS_01'][indx],
+                    data['GR_01'][indx])).T )
 
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta, 
-                                                               nocolorcuts=True, novdisp=False)
-            
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
-                                                     seed=seed, gmm=gmm,
-                                                     truespectype='GALAXY',
-                                                     templatetype='BGS')
-        
-        return flux, self.wave, meta, targets, truth
+            elif self.mockformat == 'gaussianfield':
+                # This is not quite right, but choose a template with equal probability.
+                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+                
+            # Build north/south spectra separately.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], vdisp=vdisp[these], south=issouth,
+                        nocolorcuts=True)
+
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            truespectype='GALAXY', templatetype='BGS')
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select BGS targets.  Input tables are modified in place.
@@ -2963,21 +3296,11 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desitarget.cuts import isBGS_bright, isBGS_faint
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-
-        # Select BGS_BRIGHT targets.
-        bgs_bright = isBGS_bright(rflux=rflux)
-        targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT
-        targets['BGS_TARGET'] |= (bgs_bright != 0) * self.bgs_mask.BGS_BRIGHT_SOUTH
-        targets['DESI_TARGET'] |= (bgs_bright != 0) * self.desi_mask.BGS_ANY
-
-        # Select BGS_FAINT targets.
-        bgs_faint = isBGS_faint(rflux=rflux)
-        targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
-        targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
-        targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='BGS')
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
         
 class STARMaker(SelectTargets):
     """Lower-level Class for preparing for stellar spectra to be generated,
@@ -2988,18 +3311,13 @@ class STARMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-r`.
-    star_normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        the faint stars.  Defaults to `sdss2010-r`.
 
     """
     wave, template_maker, tree = None, None, None
-    star_maggies_g, star_maggies_r = None, None
+    star_maggies_g_north, star_maggies_r_north = None, None
+    star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters
         from desisim.templates import STAR
@@ -3012,56 +3330,51 @@ class STARMaker(SelectTargets):
         if self.wave is None:
             STARMaker.wave = _default_wave()
         if self.template_maker is None:
-            STARMaker.template_maker = STAR(wave=self.wave, normfilter=normfilter)
+            STARMaker.template_maker = STAR(wave=self.wave)
 
         self.meta = self.template_maker.basemeta
-        #self.star_normfilter = star_normfilter
 
         # Pre-compute normalized synthetic photometry for the full set of
         # stellar templates.
-        if self.star_maggies_g is None or self.star_maggies_r is None:
+        if (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
+            self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
+            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
+                                                'wise2010-W1', 'wise2010-W2')
             decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                              'wise2010-W1', 'wise2010-W2')
-            maggies = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_north = bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_south = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
 
             # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
             sdssr = filters.load_filters('sdss2010-r')
 
-            def _get_maggies(flux, wave, maggies, normfilter):
+            def _get_maggies(flux, wave, outmaggies, normfilter):
                 normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
+                for filt, flux in zip( outmaggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+                    outmaggies[filt] /= normmaggies[normfilter.names[0]]
+                    outmaggies.rename_column(filt, flux)
+                return outmaggies
 
-                for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z',
-                                                          'FLUX_W1', 'FLUX_W2') ):
-
-                    maggies[filt] /= normmaggies[normfilter.names[0]]
-                    maggies.rename_column(filt, flux)
-                    
-                return maggies
-
-            STARMaker.star_maggies_g = _get_maggies(flux, wave, maggies.copy(), sdssg)
-            STARMaker.star_maggies_r = _get_maggies(flux, wave, maggies.copy(), sdssr)
+            STARMaker.star_maggies_g_north = _get_maggies(flux, wave, maggies_north.copy(), sdssg)
+            STARMaker.star_maggies_r_north = _get_maggies(flux, wave, maggies_north.copy(), sdssr)
+            STARMaker.star_maggies_g_south = _get_maggies(flux, wave, maggies_south.copy(), sdssg)
+            STARMaker.star_maggies_r_south = _get_maggies(flux, wave, maggies_south.copy(), sdssr)
 
         # Build the KD Tree.
         if self.tree is None:
-            STARMaker.tree = KDTree(np.vstack((self.meta['TEFF'].data,
-                                               self.meta['LOGG'].data,
-                                               self.meta['FEH'].data)).T)
+            STARMaker.tree = KDTree(np.vstack(
+                (self.meta['TEFF'].data,
+                 self.meta['LOGG'].data,
+                self.meta['FEH'].data)).T)
         
-    def _query(self, matrix):
-        """Return the nearest template number based on the KD Tree."""
-        dist, indx = self.tree.query(matrix)
-        return dist, indx
-
-    def template_photometry(self, data=None, indx=None, rand=None):
+    def template_photometry(self, data=None, indx=None, rand=None, south=True):
         """Get stellar photometry from the templates themselves, by-passing the
         generation of spectra.
 
         """
-        from desisim.io import empty_metatable
-
         if rand is None:
             rand = np.random.RandomState()
 
@@ -3069,39 +3382,49 @@ class STARMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
         
-        meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        meta['SEED'] = rand.randint(2**31, size=nobj)
-        meta['REDSHIFT'] = data['Z'][indx]
-        meta['MAG'] = data['MAG'][indx]
-        meta['TEFF'] = data['TEFF'][indx]
-        meta['LOGG'] = data['LOGG'][indx]
-        meta['FEH'] = data['FEH'][indx]
+        meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
+        meta['MAG'][:] = data['MAG'][indx]
+        meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+        
+        objmeta['TEFF'][:] = data['TEFF'][indx]
+        objmeta['LOGG'][:] = data['LOGG'][indx]
+        objmeta['FEH'][:] = data['FEH'][indx]
 
         if self.mockformat == 'galaxia':
-            alldata = np.vstack((data['TEFF'][indx],
-                                 data['LOGG'][indx],
-                                 data['FEH'][indx])).T
-            _, templateid = self._query(alldata)
+            templateid = self._query(np.vstack((data['TEFF'][indx],
+                                                data['LOGG'][indx],
+                                                data['FEH'][indx])).T)
         elif self.mockformat == 'mws_100pc':
-            alldata = np.vstack((data['TEFF'][indx],
-                                 data['LOGG'][indx],
-                                 data['FEH'][indx])).T
-            _, templateid = self._query(alldata)
+            templateid = self._query(np.vstack((data['TEFF'][indx],
+                                                data['LOGG'][indx],
+                                                data['FEH'][indx])).T)
 
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
-        
-        if data['NORMFILTER'] == 'sdss2010-g':
-            star_maggies = self.star_maggies_g
-        elif data['NORMFILTER'] == 'sdss2010-r':
-            star_maggies = self.star_maggies_r
+
+        # A little fragile -- assume that MAGFILTER is the same for all objects...
+        if south:
+            if data['MAGFILTER'][0] == 'sdss2010-g':
+                star_maggies = self.star_maggies_g_south
+            elif data['MAGFILTER'][0] == 'sdss2010-r':
+                star_maggies = self.star_maggies_r_south
+            else:
+                log.warning('Unrecognized normalization filter {}!'.format(data['MAGFILTER'][0]))
+                raise ValueError
         else:
-            log.warning('Unrecognized normalization filter!')
-            raise ValueError
+            if data['MAGFILTER'][0] == 'sdss2010-g':
+                star_maggies = self.star_maggies_g_north
+            elif data['MAGFILTER'][0] == 'sdss2010-r':
+                star_maggies = self.star_maggies_r_north
+            else:
+                log.warning('Unrecognized normalization filter {}!'.format(data['MAGFILTER'][0]))
+                raise ValueError
             
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             meta[key][:] = star_maggies[key][templateid] * normmag
 
-        return meta
+        return meta, objmeta
  
     def select_standards(self, targets, truth, boss_std=None):
         """Select bright- and dark-time standard stars.  Input tables are modified in
@@ -3229,27 +3552,18 @@ class MWS_MAINMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-r`.
     calib_only : :class:`bool`, optional
         Use MWS_MAIN stars as calibration (standard star) targets, only.
         Defaults to False.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-r', calib_only=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, **kwargs):
         super(MWS_MAINMaker, self).__init__()
 
         self.calib_only = calib_only
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', 'galaxia', 'alpha',
-                                             'v0.0.5', 'healpix')
-
-    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=None, nside=None, nside_galaxia=8, magcut=None,
-             **kwargs):
+    def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
+             nside=None, nside_galaxia=8, magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3258,8 +3572,6 @@ class MWS_MAINMaker(STARMaker):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'galaxia'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3281,7 +3593,9 @@ class MWS_MAINMaker(STARMaker):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'galaxia':
-            MockReader = ReadGalaxia(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', 'galaxia', 'alpha', 'v0.0.5', 'healpix')
+            MockReader = ReadGalaxia()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3292,7 +3606,6 @@ class MWS_MAINMaker(STARMaker):
         data = MockReader.readmock(mockfile, target_name='MWS_MAIN',
                                    healpixels=healpixels, nside=nside,
                                    nside_galaxia=nside_galaxia, magcut=magcut)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
@@ -3325,8 +3638,6 @@ class MWS_MAINMaker(STARMaker):
             Corresponding truth table.
         
         """
-        from desisim.io import empty_metatable
-        
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -3334,40 +3645,49 @@ class MWS_MAINMaker(STARMaker):
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
-        
+
         if no_spectra:
             flux = []
-            meta = self.template_photometry(data, indx, rand)
+            meta, objmeta = self.template_photometry(data, indx, rand)
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['MAG'] = data['MAG'][indx]
-            input_meta['TEFF'] = data['TEFF'][indx]
-            input_meta['LOGG'] = data['LOGG'][indx]
-            input_meta['FEH'] = data['FEH'][indx]
+            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            input_meta['MAG'][:] = data['MAG'][indx]
+            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'galaxia':
-                alldata = np.vstack((data['TEFF'][indx],
-                                     data['LOGG'][indx],
-                                     data['FEH'][indx])).T
-                _, templateid = self._query(alldata)
-                input_meta['TEMPLATEID'] = templateid
+                input_meta['TEMPLATEID'][:] = self._query(
+                    np.vstack((data['TEFF'][indx],
+                               data['LOGG'][indx],
+                               data['FEH'][indx])).T)
 
-            # Note! No colorcuts.
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+            # Build north/south spectra separately.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+        
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
-                                                     seed=seed, truespectype='STAR',
-                                                     templatetype='STAR')
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    # Note: no "nocolorcuts" argument!
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], south=issouth)
+
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='STAR', templatetype='STAR')
                                                            
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, boss_std=None):
-        """Select various MWS stars, standard stars, and (bright) contaminants for
-        extragalactic targets.  Input tables are modified in place.
-
-        Note: The selection here eventually will be done with Gaia (I think).
+        """Select various MWS stars and standard stars.  Input tables are modified in
+        place.
 
         Parameters
         ----------
@@ -3381,26 +3701,21 @@ class MWS_MAINMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        def _isMWS_MAIN(rflux):
-            """A function like this should be in desitarget.cuts. Select 15<r<19 stars."""
-            main = rflux > 10**( (22.5 - 19.0) / 2.5 )
-            main &= rflux <= 10**( (22.5 - 15.0) / 2.5 )
-            return main
+        if self.calib_only:
+            tcnames = 'STD'
+        else:
+            tcnames = 'MWS'
+            
+        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
 
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
+        targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
+        targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
+        targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
 
-        # Select MWS_MAIN targets.
-        mws_main = _isMWS_MAIN(rflux=rflux)
-
-        if not self.calib_only:
-            targets['MWS_TARGET'] |= (mws_main != 0) * self.mws_mask.mask('MWS_MAIN')
-            targets['DESI_TARGET'] |= (mws_main != 0) * self.desi_mask.MWS_ANY
-        
-            # Select bright stellar contaminants for the extragalactic targets.
+        # Select bright stellar contaminants for the extragalactic targets.
+        log.info('Temporarily turning off contaminants.')
+        if False:
             self.select_contaminants(targets, truth)
-
-        # Select standard stars.
-        self.select_standards(targets, truth, boss_std=boss_std)
 
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
@@ -3409,22 +3724,13 @@ class FAINTSTARMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-r`.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-r', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         super(FAINTSTARMaker, self).__init__()
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', 'galaxia', 'alpha',
-                                             '0.0.5_superfaint', 'healpix')
-
-    def read(self, mockfile=None, mockformat='galaxia', dust_dir=None,
-             healpixels=None, nside=None, nside_galaxia=8, magcut=None,
-             **kwargs):
+    def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
+             nside=None, nside_galaxia=8, magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3433,8 +3739,6 @@ class FAINTSTARMaker(STARMaker):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'galaxia'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3456,7 +3760,9 @@ class FAINTSTARMaker(STARMaker):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'galaxia':
-            MockReader = ReadGalaxia(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', 'galaxia', 'alpha', '0.0.5_superfaint', 'healpix')
+            MockReader = ReadGalaxia()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3467,7 +3773,6 @@ class FAINTSTARMaker(STARMaker):
         data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
                                    healpixels=healpixels, nside=nside,
                                    nside_galaxia=nside_galaxia, magcut=magcut)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
@@ -3506,10 +3811,10 @@ class FAINTSTARMaker(STARMaker):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
 
         """
-        from desisim.io import empty_metatable
-        
         if indx is None:
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
@@ -3534,9 +3839,9 @@ class FAINTSTARMaker(STARMaker):
         # noisy photometry, and then select targets.
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
 
-        if data['NORMFILTER'] == 'sdss2010-r':
+        if data['MAGFILTER'][0] == 'sdss2010-r':
             star_maggies = self.star_maggies_r
-        elif data['NORMFILTER'] == 'sdss2010-g':
+        elif data['MAGFILTER'][0] == 'sdss2010-g':
             star_maggies = self.star_maggies_g
         else:
             log.warning('Unrecognized normalization filter!')
@@ -3558,32 +3863,32 @@ class FAINTSTARMaker(STARMaker):
         log.debug('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
 
         if len(keep) > 0:
-            input_meta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
-            input_meta['SEED'] = objseeds[keep]
-            input_meta['REDSHIFT'] = data['Z'][indx][keep]
-            input_meta['MAG'] = data['MAG'][indx][keep]
-            input_meta['TEFF'] = data['TEFF'][indx][keep]
-            input_meta['LOGG'] = data['LOGG'][indx][keep]
-            input_meta['FEH'] = data['FEH'][indx][keep]
+            input_meta, objmeta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
+            input_meta['SEED'][:] = objseeds[keep]
+            input_meta['REDSHIFT'][:] = data['Z'][indx][keep]
+            input_meta['MAG'][:] = data['MAG'][indx][keep]
+            
+            objmeta['TEFF'][:] = data['TEFF'][indx][keep]
+            objmeta['LOGG'][:] = data['LOGG'][indx][keep]
+            objmeta['FEH'][:] = data['FEH'][indx][keep]
 
             if no_spectra:
                 flux = []
                 meta = input_meta
-                targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
-                                                             psf=True, seed=seed,
-                                                             truespectype='STAR',
-                                                             templatetype='STAR')
+                targets, truth = self.populate_targets_truth(
+                    data, meta, objmeta, indx=indx[keep], psf=True,
+                    seed=seed, truespectype='STAR', templatetype='STAR')
             else:
-                input_meta['TEMPLATEID'] = templateid[keep]
+                input_meta['TEMPLATEID'][:] = templateid[keep]
 
                 # Note! No colorcuts.
-                flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+                flux, _, meta, objmeta = self.template_maker.make_templates(input_meta=input_meta)
 
                 # Force consistency in the noisy photometry so we select the same targets. 
-                targets, truth = self.populate_targets_truth(data, meta, indx=indx[keep],
-                                                             psf=True, seed=seed,
-                                                             truespectype='STAR',
-                                                             templatetype='STAR')
+                targets, truth, objtruth = self.populate_targets_truth(
+                    data, meta, objmeta, indx=indx[keep], psf=True,
+                    seed=seed, truespectype='STAR', templatetype='STAR')
+                
                 for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
                     targets[filt][:] = _targets[filt][keep]
 
@@ -3592,10 +3897,10 @@ class FAINTSTARMaker(STARMaker):
             else:
                 self.select_targets(targets, truth, boss_std=boss_std[keep])
 
-            return flux, self.wave, meta, targets, truth
+            return flux, self.wave, meta, targets, truth, objtruth
 
         else:
-            return [], self.wave, None, [], []
+            return [], self.wave, None, [], [], []
                                                            
     def select_targets(self, targets, truth, boss_std=None):
         """Select faint stellar contaminants for the extragalactic targets.  Input
@@ -3613,7 +3918,9 @@ class FAINTSTARMaker(STARMaker):
             criteria.  Defaults to None.
 
         """
-        self.select_contaminants(targets, truth)
+        log.info('Temporarily turning off contaminants.')
+        if False:
+            self.select_contaminants(targets, truth)
 
 class MWS_NEARBYMaker(STARMaker):
     """Read MWS_NEARBY mocks, generate spectra, and select targets.
@@ -3622,21 +3929,13 @@ class MWS_NEARBYMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-g`.
 
     """
-    def __init__(self, seed=None, normfilter='decam2014-g', **kwargs):
+    def __init__(self, seed=None, **kwargs):
         super(MWS_NEARBYMaker, self).__init__()
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', '100pc', 'v0.0.3',
-                                             'mock_100pc.fits')
-
-    def read(self, mockfile=None, mockformat='mws_100pc', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3645,8 +3944,6 @@ class MWS_NEARBYMaker(STARMaker):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'mws_100pc'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3667,7 +3964,9 @@ class MWS_NEARBYMaker(STARMaker):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'mws_100pc':
-            MockReader = ReadMWS_NEARBY(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.3', 'mock_100pc.fits')
+            MockReader = ReadMWS_NEARBY()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3678,7 +3977,6 @@ class MWS_NEARBYMaker(STARMaker):
         data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
     
@@ -3711,8 +4009,6 @@ class MWS_NEARBYMaker(STARMaker):
             Corresponding truth table.
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -3723,32 +4019,43 @@ class MWS_NEARBYMaker(STARMaker):
 
         if no_spectra:
             flux = []
-            meta = self.template_photometry(data, indx, rand)
+            meta, objmeta = self.template_photometry(data, indx, rand)
         else:
-            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            input_meta['SEED'] = rand.randint(2**31, size=nobj)
-            input_meta['REDSHIFT'] = data['Z'][indx]
-            input_meta['MAG'] = data['MAG'][indx]
-            input_meta['TEFF'] = data['TEFF'][indx]
-            input_meta['LOGG'] = data['LOGG'][indx]
-            input_meta['FEH'] = data['FEH'][indx]
+            input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            input_meta['MAG'][:] = data['MAG'][indx]
+            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'mws_100pc':
-                alldata = np.vstack((data['TEFF'][indx],
-                                     data['LOGG'][indx],
-                                     data['FEH'][indx])).T
-                _, templateid = self._query(alldata)
-                input_meta['TEMPLATEID'] = templateid
+                input_meta['TEMPLATEID'][:] = self._query(
+                    np.vstack((data['TEFF'][indx],
+                               data['LOGG'][indx],
+                               data['FEH'][indx])).T)
 
-            # Note! No colorcuts.
-            flux, _, meta = self.template_maker.make_templates(input_meta=input_meta)
+            # Build north/south spectra separately.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+        
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
-                                                     seed=seed, truespectype='STAR',
-                                                     templatetype='STAR',
-                                                     templatesubtype=data['TEMPLATESUBTYPE'][indx])
-                                                           
-        return flux, self.wave, meta, targets, truth
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    # Note: no "nocolorcuts" argument!
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], south=issouth)
+
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='STAR', templatetype='STAR',
+            templatesubtype=data['TEMPLATESUBTYPE'][indx])
+
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_NEARBY targets.  Input tables are modified in place.
@@ -3764,11 +4071,19 @@ class MWS_NEARBYMaker(STARMaker):
             Corresponding truth table.
 
         """
-        mws_nearby = np.ones(len(targets)) # select everything!
-        #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+        if False:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+        else:
+            log.warning('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
 
-        targets['MWS_TARGET'] |= (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
-        targets['DESI_TARGET'] |= (mws_nearby != 0) * self.desi_mask.MWS_ANY
+            mws_nearby = np.ones(len(targets)) # select everything!
+            #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
+
+            desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
+            mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
+
+            targets['DESI_TARGET'] |= desi_target
+            targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
@@ -3777,17 +4092,16 @@ class WDMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
-    normfilter : :class:`str`, optional
-        Normalization filter for defining normalization (apparent) magnitude of
-        each target.  Defaults to `decam2014-r`.
     calib_only : :class:`bool`, optional
         Use WDs as calibration (standard star) targets, only.  Defaults to False. 
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
-    wd_maggies_da, wd_maggies_db, tree_da, tree_db = None, None, None, None
+    tree_da, tree_db = None, None
+    wd_maggies_da_north, wd_maggies_da_north = None, None
+    wd_maggies_db_south, wd_maggies_db_south = None, None
 
-    def __init__(self, seed=None, normfilter='decam2014-g', calib_only=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
         from speclite import filters 
         from desisim.templates import WD
@@ -3802,58 +4116,56 @@ class WDMaker(SelectTargets):
             WDMaker.wave = _default_wave()
             
         if self.da_template_maker is None:
-            WDMaker.da_template_maker = WD(wave=self.wave, subtype='DA', normfilter=normfilter)
+            WDMaker.da_template_maker = WD(wave=self.wave, subtype='DA')
             
         if self.db_template_maker is None:
-            WDMaker.db_template_maker = WD(wave=self.wave, subtype='DB', normfilter=normfilter)
+            WDMaker.db_template_maker = WD(wave=self.wave, subtype='DB')
         
         self.meta_da = self.da_template_maker.basemeta
         self.meta_db = self.db_template_maker.basemeta
 
         # Pre-compute normalized synthetic photometry for the full set of DA and
         # DB templates.
-        if self.wd_maggies_da is None or self.wd_maggies_db is None:
+        if (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
+            self.wd_maggies_db_north is None or self.wd_maggies_db_south is None):
 
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
 
+            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
+                                                'wise2010-W1', 'wise2010-W2')
             decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
                                              'wise2010-W1', 'wise2010-W2')
-            maggies_da = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+
+            maggies_da_north = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_north = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_south = bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_south = bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
 
             # Normalize to sdss-g
             normfilter = filters.load_filters('sdss2010-g')
-
-            def _get_maggies(flux, wave, maggies, normfilter):
+            def _get_maggies(flux, wave, outmaggies, normfilter):
                 normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
+                for filt, flux in zip( outmaggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+                    outmaggies[filt] /= normmaggies[normfilter.names[0]]
+                    outmaggies.rename_column(filt, flux)
+                return outmaggies
 
-                for filt, flux in zip( maggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z',
-                                                          'FLUX_W1', 'FLUX_W2') ):
-
-                    maggies[filt] /= normmaggies[normfilter.names[0]]
-                    maggies.rename_column(filt, flux)
-                    
-                return maggies
-
-            WDMaker.wd_maggies_da = _get_maggies(flux_da, wave, maggies_da.copy(), normfilter)
-            WDMaker.wd_maggies_db = _get_maggies(flux_db, wave, maggies_db.copy(), normfilter)
+            WDMaker.wd_maggies_da_north = _get_maggies(flux_da, wave, maggies_da_north.copy(), normfilter)
+            WDMaker.wd_maggies_da_south = _get_maggies(flux_da, wave, maggies_da_south.copy(), normfilter)
+            WDMaker.wd_maggies_db_north = _get_maggies(flux_db, wave, maggies_db_north.copy(), normfilter)
+            WDMaker.wd_maggies_db_south = _get_maggies(flux_db, wave, maggies_db_south.copy(), normfilter)
 
         # Build the KD Trees
         if self.tree_da is None:
             WDMaker.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
-                                             self.meta_da['LOGG'].data)).T)
+                                                self.meta_da['LOGG'].data)).T)
         if self.tree_db is None:
             WDMaker.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
-                                         self.meta_db['LOGG'].data)).T)
+                                                self.meta_db['LOGG'].data)).T)
 
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'mws', 'wd', 'v0.0.2',
-                                             'mock_wd.fits')
-
-    def read(self, mockfile=None, mockformat='mws_wd', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='mws_wd', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3862,8 +4174,6 @@ class WDMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'mws_wd'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -3884,7 +4194,9 @@ class WDMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'mws_wd':
-            MockReader = ReadMWS_WD(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', 'wd', 'v0.0.2', 'mock_wd.fits')
+            MockReader = ReadMWS_WD()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3895,29 +4207,15 @@ class WDMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'), objtype=self.objtype)
 
         return data
 
-    def _query(self, matrix, subtype='DA'):
-        """Return the nearest template number based on the KD Tree."""
-        if subtype.upper() == 'DA':
-            dist, indx = self.tree_da.query(matrix)
-        elif subtype.upper() == 'DB':
-            dist, indx = self.tree_db.query(matrix)
-        else:
-            log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
-            raise ValueError
-
-        return dist, indx
-    
-    def template_photometry(self, data=None, indx=None, rand=None, subtype='DA'):
+    def wd_template_photometry(self, data=None, indx=None, rand=None,
+                               subtype='DA', south=True):
         """Get stellar photometry from the templates themselves, by-passing the
         generation of spectra.
 
         """
-        from desisim.io import empty_metatable
-
         if rand is None:
             rand = np.random.RandomState()
 
@@ -3925,37 +4223,44 @@ class WDMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
         
-        meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        meta['SEED'] = rand.randint(2**31, size=nobj)
-        meta['REDSHIFT'] = data['Z'][indx]
-        meta['MAG'] = data['MAG'][indx]
-        meta['TEFF'] = data['TEFF'][indx]
-        meta['LOGG'] = data['LOGG'][indx]
-        meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
+        meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
+        meta['MAG'][:] = data['MAG'][indx]
+        meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+        meta['SUBTYPE'][:] = data['TEMPLATESUBTYPE'][indx]
+
+        objmeta['TEFF'][:] = data['TEFF'][indx]
+        objmeta['LOGG'][:] = data['LOGG'][indx]
 
         if self.mockformat == 'mws_wd':
-            alldata = np.vstack((data['TEFF'][indx],
-                                 data['LOGG'][indx])).T
-            _, templateid = self._query(alldata)
+            templateid = self._query(
+                np.vstack((data['TEFF'][indx],
+                           data['LOGG'][indx])).T, subtype=subtype)
 
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
-        
-        if data['NORMFILTER'] == 'sdss2010-g':
+
+        if south:
             if subtype == 'DA':
-                wd_maggies = self.wd_maggies_da
+                wd_maggies = self.wd_maggies_da_south
             elif subtype == 'DB':
-                wd_maggies = self.wd_maggies_da
+                wd_maggies = self.wd_maggies_db_south
             else:
                 log.warning('Unrecognized subtype {}!'.format(subtype))
                 raise ValueError
         else:
-            log.warning('Unrecognized normalization filter!')
-            raise ValueError
+            if subtype == 'DA':
+                wd_maggies = self.wd_maggies_da_north
+            elif subtype == 'DB':
+                wd_maggies = self.wd_maggies_db_north
+            else:
+                log.warning('Unrecognized subtype {}!'.format(subtype))
+                raise ValueError
             
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             meta[key][:] = wd_maggies[key][templateid] * normmag
 
-        return meta
+        return meta, objmeta
 
     def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate WD spectra, dealing with DA vs DB white dwarfs separately.
@@ -3986,8 +4291,6 @@ class WDMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -3996,53 +4299,58 @@ class WDMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        #if no_spectra:
-        #    flux = []
-        #    meta = self.template_photometry(data, indx, rand)
-        #else:
         if self.mockformat == 'mws_wd':
-            allsubtype = data['TEMPLATESUBTYPE'][indx]
             if no_spectra:
-                meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
                 flux = []
+                meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             else:
-                meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+                input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+                input_meta['REDSHIFT'][:] = data['Z'][indx]
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+
+                meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
                 flux = np.zeros([nobj, len(self.wave)], dtype='f4')
 
-                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-                input_meta['SEED'] = rand.randint(2**31, size=nobj)
-                input_meta['REDSHIFT'] = data['Z'][indx]
-                input_meta['MAG'] = data['MAG'][indx]
-                input_meta['TEFF'] = data['TEFF'][indx]
-                input_meta['LOGG'] = data['LOGG'][indx]
-                input_meta['SUBTYPE'] = data['TEMPLATESUBTYPE'][indx]
-
+            allsubtype = data['TEMPLATESUBTYPE'][indx]
             for subtype in ('DA', 'DB'):
-                these = np.where(allsubtype == subtype)[0]
-                if len(these) > 0:
-                    alldata = np.vstack((data['TEFF'][indx][these],
-                                         data['LOGG'][indx][these])).T
-                    _, templateid = self._query(alldata, subtype=subtype)
+                match = np.where(allsubtype == subtype)[0]
+                if len(match) > 0:
+                    if not no_spectra:
+                        input_meta['TEMPLATEID'][match] = self._query(
+                            np.vstack((data['TEFF'][indx][match],
+                                       data['LOGG'][indx][match])).T,
+                            subtype=subtype)
 
-                    if no_spectra:
-                        meta1 = self.template_photometry(data, indx[these],
-                                                         rand, subtype)
-                        meta[these] = meta1
-                    else:
-                        input_meta['TEMPLATEID'][these] = templateid
+                    # Build north/south spectra separately.
+                    south = np.where( data['SOUTH'][indx][match] == True )[0]
+                    north = np.where( data['SOUTH'][indx][match] == False )[0]
 
-                        template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
-                        flux1, _, meta1 = template_maker.make_templates(input_meta=input_meta[these])
+                    for these, issouth in zip( (north, south), (False, True) ):
+                        if len(these) > 0:
+                            if no_spectra:
+                                meta1, objmeta1 = self.wd_template_photometry(
+                                    data, indx[match][these], rand, subtype,
+                                    south=issouth)
+                                meta[match][these] = meta1
+                                objmeta[match][these] = objmeta1
+                            else:
+                                # Note: no "nocolorcuts" argument!
+                                template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
+                                flux1, _, meta1, objmeta1 = template_maker.make_templates(
+                                    input_meta=input_meta[match][these], south=issouth)
 
-                        meta[these] = meta1
-                        flux[these, :] = flux1
+                                meta[match[these]] = meta1
+                                objmeta[match[these]] = objmeta1
+                                flux[match[these], :] = flux1
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=True,
-                                                     seed=seed, truespectype='WD',
-                                                     templatetype='WD',
-                                                     templatesubtype=allsubtype)
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='WD', templatetype='WD',
+            templatesubtype=allsubtype)
 
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
@@ -4059,16 +4367,31 @@ class WDMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        #mws_wd = np.ones(len(targets)) # select everything!
-        mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
-
         if not self.calib_only:
-            targets['MWS_TARGET'] |= (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
-            targets['DESI_TARGET'] |= (mws_wd != 0) * self.desi_mask.MWS_ANY
+            if False:
+                desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+            else:
+                log.warning('Applying ad hoc selection of MWS_WD targets (no Gaia in mocks).')
 
-        # Select STD_WD; cut just on g-band magnitude (not TEMPLATESUBTYPE!)
-        std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
-        targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
+                #mws_wd = np.ones(len(targets)) # select everything!
+                mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
+
+                desi_target = (mws_wd != 0) * self.desi_mask.MWS_ANY
+                mws_target = (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
+
+                targets['DESI_TARGET'] |= desi_target
+                targets['MWS_TARGET'] |= mws_target
+
+        if False:
+            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['STD'])
+            targets['DESI_TARGET'] |= desi_target
+        else:
+            log.warning('Applying ad hoc selection of STD_WD targets (no Gaia in mocks).')
+            
+            # Ad hoc selection of WD standards using just on g-band magnitude (not
+            # TEMPLATESUBTYPE!)
+            std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
+            targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -4090,13 +4413,8 @@ class SKYMaker(SelectTargets):
         if self.wave is None:
             SKYMaker.wave = _default_wave()
         
-        # Default mock catalog.
-        self.default_mockfile = os.path.join(os.getenv('DESI_ROOT'), 'mocks',
-                                             'uniformsky', '0.1',
-                                             'uniformsky-2048-0.1.fits')
-
-    def read(self, mockfile=None, mockformat='gaussianfield', dust_dir=None,
-             healpixels=None, nside=None, mock_density=False, **kwargs):
+    def read(self, mockfile=None, mockformat='uniformsky', healpixels=None,
+             nside=None, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4105,8 +4423,6 @@ class SKYMaker(SelectTargets):
             Full path to the mock catalog to read.
         mockformat : :class:`str`
             Mock catalog format.  Defaults to 'gaussianfield'.
-        dust_dir : :class:`str`
-            Full path to the dust maps.
         healpixels : :class:`int`
             Healpixel number to read.
         nside : :class:`int`
@@ -4127,9 +4443,13 @@ class SKYMaker(SelectTargets):
         """
         self.mockformat = mockformat.lower()
         if self.mockformat == 'uniformsky':
-            MockReader = ReadUniformSky(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.1', 'uniformsky-2048-0.1.fits')
+            MockReader = ReadUniformSky()
         elif self.mockformat == 'gaussianfield':
-            MockReader = ReadGaussianField(dust_dir=dust_dir)
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', '0.0.1', '2048', 'random.fits')
+            MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -4140,7 +4460,6 @@ class SKYMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    mock_density=mock_density)
-        self._update_normfilter(data.get('NORMFILTER'))
 
         return data
 
@@ -4169,10 +4488,10 @@ class SKYMaker(SelectTargets):
             Target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
         
         """
-        from desisim.io import empty_metatable
-        
         if seed is None:
             seed = self.seed
         rand = np.random.RandomState(seed)
@@ -4181,17 +4500,16 @@ class SKYMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        meta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-        meta['SEED'] = rand.randint(2**31, size=nobj)
-        meta['REDSHIFT'] = data['Z'][indx]
+        meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
         
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
+        targets, truth, objtruth = self.populate_targets_truth(
+            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            truespectype='SKY', templatetype='SKY')
 
-        targets, truth = self.populate_targets_truth(data, meta, indx=indx, psf=False,
-                                                     seed=seed, truespectype='SKY',
-                                                     templatetype='SKY')
-
-        return flux, self.wave, meta, targets, truth
+        return flux, self.wave, meta, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select SKY targets (i.e., everything).  Input tables are modified in place.

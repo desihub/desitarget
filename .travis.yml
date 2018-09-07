@@ -48,7 +48,7 @@ env:
         - DESIUTIL_VERSION=1.9.9
         - SPECLITE_VERSION=0.7
         - DESISPEC_VERSION=0.18.0
-        - DESISIM_VERSION=0.25.1
+        - DESISIM_VERSION=master
         - DESIMODEL_VERSION=0.9.2
         - DESIMODEL_DATA=branches/test-0.9
         # - DESIMODEL_DATA=trunk
