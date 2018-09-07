@@ -314,7 +314,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             nkeep = len(keep)
             if nkeep > 0:
                 log.debug('Generated {} / {} {} targets on iteration {} / {}.'.format(
-                    nkeep, ntarget, targname, itercount, maxiter))
+                    nkeep, ntarget, targname, itercount+1, maxiter))
                 ntot += nkeep
 
                 targets.append(chunktargets[keep])
@@ -332,7 +332,6 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 makemore = False
             else:
                 need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
-                import pdb ; pdb.set_trace()
                 if len(need) > 0:
                     indx = indx[need]
                 else:
@@ -756,6 +755,9 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['PRIORITY'], targets['NUMOBS'] = initial_priority_numobs(
             targets, survey=survey)
 
+        # Rename TYPE --> MORPHTYPE
+        targets.rename_column('TYPE', 'MORPHTYPE')
+
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = healpix
         skytargets['BRICK_OBJID'][:] = objid[nobj:]
@@ -765,6 +767,9 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
         skytargets['PRIORITY'], skytargets['NUMOBS'] = initial_priority_numobs(
             skytargets, survey=survey)
+
+        # Rename TYPE --> MORPHTYPE
+        skytargets.rename_column('TYPE', 'MORPHTYPE')
 
     assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
         
@@ -850,7 +855,7 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
         log.info('  Sky file {} not written.'.format(skyfile))
 
     if nobj > 0:
-    # Write out the dark- and bright-time standard stars.
+        # Write out the dark- and bright-time standard stars.
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FAINT', 'STD_BRIGHT')):
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix, basedir=output_dir)
             istd = ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |

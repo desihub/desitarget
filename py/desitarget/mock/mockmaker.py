@@ -118,7 +118,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
     targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
-    targets.add_column(Column(name='MORPHTYPE', length=nobj, dtype='S4'))
+    targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
@@ -503,7 +503,7 @@ class SelectTargets(object):
 
         # Next, sample from the GMM for each morphological type.  For
         # simplicity we ignore the north-south split here.
-        gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'MORPHTYPE': np.zeros(nobj).astype('U4')}
+        gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
         for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
                     'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
                     'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
@@ -532,7 +532,7 @@ class SelectTargets(object):
                     gmmout['MAG'][gthese] = samp['r'][these]
                 gmmout['GR'][gthese] = samp['gr'][these]
                 gmmout['RZ'][gthese] = samp['rz'][these]
-                gmmout['MORPHTYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
+                gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
 
                 for col in ('reff', 'e1', 'e2'):
                     sampcol = '{}_{}'.format(col, mm.lower()) # e.g., reff_dev
@@ -1428,7 +1428,7 @@ class ReadGalaxia(SelectTargets):
                'PMDEC': gaia['PM_DEC_GAIA'].astype('f4'), # no _STAR_!
                'PMDEC_IVAR': np.zeros(nobj).astype('f4'),
                
-               'SOUTH': self.is_south(dec), 'MORPHTYPE': 'PSF'}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Handle ivars
         for outkey, gaiakey in zip( ('PARALLAX_IVAR', 'PMRA_IVAR', 'PMDEC_IVAR'),
@@ -1644,7 +1644,7 @@ class ReadLyaCoLoRe(SelectTargets):
                'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
-               'SOUTH': self.is_south(dec), 'MORPHTYPE': 'PSF'}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2114,7 +2114,7 @@ class ReadMWS_WD(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
                'MAGFILTER': np.repeat('sdss2010-g', nobj),
                'TEMPLATESUBTYPE': templatesubtype,
-               'SOUTH': self.is_south(dec), 'MORPHTYPE': 'PSF'}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
@@ -2248,7 +2248,7 @@ class ReadMWS_NEARBY(SelectTargets):
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
-               'SOUTH': self.is_south(dec), 'MORPHTYPE': 'PSF'}
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
         if self.dust_dir:
