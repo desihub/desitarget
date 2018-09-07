@@ -1,5 +1,4 @@
 # mock target configuration file
-dust_dir: '{DUST_DIR}/maps'
 sources:
     BGS: {
         target_name: BGS,
