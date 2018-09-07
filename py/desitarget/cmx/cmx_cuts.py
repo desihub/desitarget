@@ -74,14 +74,13 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
         ``True`` if there is a match between this object in the Legacy
         Surveys and in Gaia.
     pmra, pmdec : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec
-        (same units as the Gaia data model).
+        Gaia-based proper motion in RA and Dec.
     aen : :class:`array_like` or :class:`None`
-        Gaia Astrometric Excess Noise (as in the Gaia Data Model).
+        Gaia Astrometric Excess Noise.
     dupsource : :class:`array_like` or :class:`None`
-        Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+        Whether the source is a duplicate in Gaia.
     paramssolved : :class:`array_like` or :class:`None`
-        How many parameters were solved for in Gaia (as in the Gaia Data model).
+        How many parameters were solved for in Gaia.
     primary : :class:`array_like` or :class:`None`
         ``True`` for objects that should be passed through the selection.
 
@@ -93,7 +92,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     Notes
     -----
     - Current version (08/30/18) is version 4 on `the wiki`_.
-    - See also `the Gaia data model`_.
+    - All Gaia quantities are as in `the Gaia data model`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -134,7 +133,7 @@ def isSTD_bright(gflux=None, rflux=None, zflux=None,
         Galactic-extinction-corrected flux in nano-maggies in g, r, z bands.
     pmra, pmdec, parallax : :class:`array_like` or :class:`None`
         Gaia-based proper motion in RA and Dec, and parallax
-        (same units as the Gaia data model).
+        (same units as `the Gaia data model`_).
     gaiagmag : :class:`array_like` or :class:`None`
         Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
     isgood : :class:`array_like` or :class:`None`
@@ -260,7 +259,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     Notes
     -----
     - Returns the equivalent of ALL MWS classes (for the northern imaging).
-    - All Gaia quantities are as in `the Gaia data model`_.       
+    - All Gaia quantities are as in `the Gaia data model`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -328,6 +327,45 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     return ismws | isnear | iswd
 
 
+def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
+                 isgood=None, primary=None):
+    """Gaia stars for dithering tests during commissioning.
+
+    Parameters
+    ----------
+    obs_gflux, obs_rflux, obs_zflux : :class:`array_like` or :class:`None`
+        The flux in nano-maggies of g, r, z bands WITHOUT any
+        Galactic extinction correction.
+    isgood : :class:`array_like` or :class:`None`
+        ``True`` for objects that pass the logic cuts in
+        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+                                                                                                                                                                                           
+    Returns
+    -------
+    :class:`array_like`
+        True if and only if the object is a Gaia "dither" target.
+
+    Notes
+    -----
+    - Current version (08/30/18) is version 4 on `the wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+
+    isdither = primary.copy()
+    # ADM passes all of the default logic cuts.
+    isdither &= isgood
+
+    # ADM not too bright in g, r, z (> 15 mags).
+    isdither &= obs_gflux < 10**((22.5-15.0)/2.5)
+    isdither &= obs_rflux < 10**((22.5-15.0)/2.5)
+    isdither &= obs_zflux < 10**((22.5-15.0)/2.5)
+
+    return isdither
+
+
 def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
                isgood=None, primary=None):
     """Very bright Gaia stars for early commissioning tests.
@@ -364,13 +402,13 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     istest &= obs_gflux < 10**((22.5-13.0)/2.5)
     istest &= obs_rflux < 10**((22.5-13.0)/2.5)
     istest &= obs_zflux < 10**((22.5-13.0)/2.5)
-    # ADM but brighter than dither targets in g (g < 15)
+    # ADM but brighter than dither targets in g (g < 15).
     istest &= obs_gflux > 10**((22.5-15.0)/2.5)
 
     return istest
 
 
-def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.
+def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
                   primary=None):
     """Match to CALSPEC stars for commissioning tests.
 
