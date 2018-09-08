@@ -2626,6 +2626,7 @@ class LYAMaker(SelectTargets):
                 _flux, balmeta = self.BAL.insert_bals(qso_wave, _flux, meta['REDSHIFT'],
                                                       seed=self.seed,
                                                       balprob=self.balprob)
+                objmeta['BAL_TEMPLATEID'][:] = balmeta['TEMPLATEID']
 
             # Add DLAs (ToDo).
             # ...
