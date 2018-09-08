@@ -253,8 +253,10 @@ def collect_mock_data(targfile):
     log = get_logger(DEBUG)
 
     # ADM retrieve the directory that contains the targets
-    targdir = os.path.dirname(targfile) 
-
+    targdir = os.path.dirname(targfile)
+    if targdir == '':
+        targdir = '.'
+    
     # ADM retrieve the mock data release name
     dcdir = os.path.dirname(targdir)
     dc = os.path.basename(dcdir)
