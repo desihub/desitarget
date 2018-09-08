@@ -686,7 +686,7 @@ class SelectTargets(object):
         return gflux, rflux, zflux, w1flux, w2flux
 
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
-                               gmm=None,  use_simqso=True, truespectype='', templatetype='',
+                               use_simqso=True, truespectype='', templatetype='',
                                templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
         source properties and a spectral metadata table.  
@@ -705,9 +705,6 @@ class SelectTargets(object):
         psf : :class:`bool`, optional
             For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
             otherwise use GALDEPTH.  Defaults to True.
-        gmm : :class:`numpy.ndarray`, optional
-            Sample properties drawn from
-            desiutil.sklearn.GaussianMixtureModel.sample.
         use_simqso : :class:`bool`, optional
             Initialize a SIMQSO-style objtruth table. Defaults to True.
         truespectype : :class:`str` or :class:`numpy.array`, optional
@@ -788,12 +785,6 @@ class SelectTargets(object):
                 truth[key][:] = value
             else:
                 truth[key][:] = np.repeat(value, nobj)
-
-        if gmm is not None:
-            for gmmkey, key in zip( ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2'),
-                                    ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2') ):
-                targets[key][:] = gmm[gmmkey]
 
         # Copy various quantities from the metadata table.
         for key in meta.colnames:
