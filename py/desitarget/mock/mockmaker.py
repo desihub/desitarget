@@ -2351,7 +2351,7 @@ class QSOMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=True, seed=seed,
             truespectype='QSO', templatetype='QSO')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select QSO targets.  Input tables are modified in place.
@@ -2667,7 +2667,7 @@ class LYAMaker(SelectTargets):
                 data, meta, objmeta, indx=indx, psf=True, seed=seed,
                 truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select Lya/QSO targets.  Input tables are modified in place.
@@ -2859,7 +2859,7 @@ class LRGMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='LRG')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets.  Input tables are modified in place.
@@ -3060,7 +3060,7 @@ class ELGMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='ELG')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select ELG targets.  Input tables are modified in place.
@@ -3283,7 +3283,7 @@ class BGSMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select BGS targets.  Input tables are modified in place.
@@ -3683,7 +3683,7 @@ class MWS_MAINMaker(STARMaker):
             data, meta, objmeta, indx=indx, psf=True, seed=seed,
             truespectype='STAR', templatetype='STAR')
                                                            
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, boss_std=None):
         """Select various MWS stars and standard stars.  Input tables are modified in
@@ -3897,7 +3897,7 @@ class FAINTSTARMaker(STARMaker):
             else:
                 self.select_targets(targets, truth, boss_std=boss_std[keep])
 
-            return flux, self.wave, meta, targets, truth, objtruth
+            return flux, self.wave, targets, truth, objtruth
 
         else:
             return [], self.wave, None, [], [], []
@@ -4055,7 +4055,7 @@ class MWS_NEARBYMaker(STARMaker):
             truespectype='STAR', templatetype='STAR',
             templatesubtype=data['TEMPLATESUBTYPE'][indx])
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_NEARBY targets.  Input tables are modified in place.
@@ -4350,7 +4350,7 @@ class WDMaker(SelectTargets):
             truespectype='WD', templatetype='WD',
             templatesubtype=allsubtype)
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
@@ -4509,7 +4509,7 @@ class SKYMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='SKY', templatetype='SKY')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select SKY targets (i.e., everything).  Input tables are modified in place.
