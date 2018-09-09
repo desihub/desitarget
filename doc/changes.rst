@@ -5,6 +5,12 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
+    * New functions to define several more commissioning classes.
+    * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
+    * An example ``$CMX_DIR`` is ``/project/projectdirs/desi/target/cmx_files``. 
+    * Functionality to reset initial priorities for commissioning targets.
+    * Downloading fitsio using pip/astropy to fix Travis.
 * Significant enhancement of `select_mock_targets` (see PR for details) [`PR
   #368`_]. 
 * Include per-band number counts for targets on the QA pages [`PR #367`_].
@@ -52,6 +58,7 @@ desitarget Change Log
 .. _`PR #366`: https://github.com/desihub/desitarget/pull/366
 .. _`PR #367`: https://github.com/desihub/desitarget/pull/367
 .. _`PR #368`: https://github.com/desihub/desitarget/pull/368
+.. _`PR #370`: https://github.com/desihub/desitarget/pull/370
 
 0.23.0 (2018-08-09)
 -------------------
