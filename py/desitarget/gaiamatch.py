@@ -92,7 +92,7 @@ def read_gaia_file(filename, header=False):
 
     Returns
     -------
-    :class:`list`
+    :class:`numpy.ndarray`
         Gaia data translated to targeting format (upper-case etc.) with the
         columns corresponding to `desitarget.secondary.gaiadatamodel`
 

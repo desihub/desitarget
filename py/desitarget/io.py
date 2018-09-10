@@ -70,7 +70,7 @@ def desitarget_nside():
     return nside
 
 def convert_from_old_data_model(fx,columns=None):
-    """Read data from open Tractor/sweeps file and convert to DR4+ data model
+    """Read data from open Tractor/sweeps file and convert to DR4+ data model.
 
     Parameters
     ----------
@@ -139,22 +139,22 @@ def convert_from_old_data_model(fx,columns=None):
 
 
 def add_gaia_columns(indata):
-    """Add columns needed for MWS targeting to a sweeps-style array
+    """Add columns needed for MWS targeting to a sweeps-style array.
 
     Parameters
     ----------
     indata : :class:`numpy.ndarray`
-        Numpy structured array to which to add Gaia-relevant columns
+        Numpy structured array to which to add Gaia-relevant columns.
 
     Returns
     -------
     :class:`numpy.ndarray`
-        Input array with the Gaia columns added
+        Input array with the Gaia columns added.
 
     Notes
     -----
         - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
-          but with "GAIA_RA" and "GAIA_DEC" removed
+          but with "GAIA_RA" and "GAIA_DEC" removed.
     """
     #ADM import the Gaia data model from gaiamatch
     from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
@@ -181,22 +181,22 @@ def add_gaia_columns(indata):
 
 
 def add_photsys(indata):
-    """Add the PHOTSYS column to a sweeps-style array
+    """Add the PHOTSYS column to a sweeps-style array.
 
     Parameters
     ----------
     indata : :class:`numpy.ndarray`
-        Numpy structured array to which to add PHOTSYS column
+        Numpy structured array to which to add PHOTSYS column.
 
     Returns
     -------
     :class:`numpy.ndarray`
-        Input array with PHOTSYS added (and set using RELEASE)
+        Input array with PHOTSYS added (and set using RELEASE).
 
     Notes
     -----
         - The PHOTSYS column is only added if the RELEASE column
-          is available in the passed `indata`
+          is available in the passed `indata`.
     """
     #ADM only add the PHOTSYS column if RELEASE exists
     if 'RELEASE' in indata.dtype.names:
@@ -232,7 +232,7 @@ def read_tractor(filename, header=False, columns=None):
         If ``True``, return (data, header) instead of just data.
     columns: :class:`list`, optional
         Specify the desired Tractor catalog columns to read; defaults to
-        desitarget.io.tsdatamodel.dtype.names
+        desitarget.io.tsdatamodel.dtype.names.
 
     Returns
     -------
@@ -319,12 +319,12 @@ def fix_tractor_dr1_dtype(objects):
     """DR1 tractor files have inconsistent dtype for the TYPE field.  Fix this.
 
     Args:
-        objects : numpy structured array from target file
+        objects : numpy structured array from target file.
 
     Returns:
-        structured array with TYPE.dtype = 'S4' if needed
+        structured array with TYPE.dtype = 'S4' if needed.
 
-    If the type was already correct, returns the original array
+    If the type was already correct, returns the original array.
     """
     if objects['TYPE'].dtype == 'S4':
         return objects
@@ -343,17 +343,17 @@ def release_to_photsys(release):
     Parameters
     ----------
     objects : :class:`int` or :class:`~numpy.ndarray`
-        RELEASE column from a numpy rec array of targets
+        RELEASE column from a numpy rec array of targets.
 
     Returns
     -------
     :class:`str` or :class:`~numpy.ndarray`
         'N' if the RELEASE corresponds to the northern photometric
-        system (MzLS+BASS) and 'S' if it's the southern system (DECaLS)
+        system (MzLS+BASS) and 'S' if it's the southern system (DECaLS).
 
     Notes
     -----
-    Defaults to 'U' if the system is not recognized
+    Defaults to 'U' if the system is not recognized.
     """
     #ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict
     releasenums = np.array(list(releasedict.keys()))
@@ -378,13 +378,13 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
     Parameters
     ----------
-    filename : output target selection file
-    data     : numpy structured array of targets to save
+    filename : output target selection file.
+    data     : numpy structured array of targets to save.
     nside: :class:`int`
         If passed, add a column to the targets array popluated
-        with HEALPixels at resolution `nside`
+        with HEALPixels at resolution `nside`.
     survey: :class:`str`, optional, defaults to "?"
-        Written to output file header as the keyword `SURVEY`
+        Written to output file header as the keyword `SURVEY`.
     """
     # FIXME: assert data and tsbits schema
 
@@ -438,14 +438,14 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
 def write_skies(filename, data, indir=None, apertures_arcsec=None, 
                 badskyflux=None, nside=None):
-    """Write a target catalogue.
+    """Write a target catalogue of sky locations.
 
     Parameters
     ----------
     filename : :class:`str`
         Output target selection file name
     data  : :class:`~numpy.ndarray` 
-        Array of skies to write to file
+        Array of skies to write to file.
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
@@ -457,7 +457,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         individual line in the header, if passed (and if not None).
     nside: :class:`int`
         If passed, add a column to the skies array popluated with HEALPixels 
-        at resolution `nside`
+        at resolution `nside`.
     """
     #ADM set up the default logger
     from desiutil.log import get_logger
@@ -509,18 +509,18 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
     Parameters
     ----------
     filename : :class:`str`
-        Output file name
+        Output file name.
     data  : :class:`~numpy.ndarray` 
-        Array of GFAs to write to file
-    indir : :class:`str`, optional, defaults to None
+        Array of GFAs to write to file.
+    indir : :class:`str`, optional, defaults to None.
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
-    nside: :class:`int`, defaults to None
+    nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with HEALPixels 
-        at resolution `nside`
+        at resolution `nside`.
     gaiaepoch: :class:`float`, defaults to None
         Gaia proper motion reference epoch. If not None, write to header of
-        output file. If None, default to an epoch of 2015.5
+        output file. If None, default to an epoch of 2015.5.
     """
     #ADM set up the default logger
     from desiutil.log import get_logger
@@ -561,9 +561,9 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
     Parameters
     ----------
     filename : :class:`str`
-        Output file name
+        Output file name.
     data  : :class:`~numpy.ndarray` 
-        Array of randoms to write to file
+        Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
@@ -726,7 +726,6 @@ def brickname_from_filename(filename):
         raise ValueError("Invalid tractor brick file: {}!".format(filename))
     return match.group(1)
 
-############################################################
 def brickname_from_filename_with_prefix(filename,prefix=''):
     """Parse `filename` to check if this is a brick file with a given prefix.
 
@@ -735,7 +734,7 @@ def brickname_from_filename_with_prefix(filename,prefix=''):
     filename : :class:`str`
         Full name of a brick file.
     prefix : :class:`str`
-        Optional part of filename immediately preceding the brickname
+        Optional part of filename immediately preceding the brickname.
 
     Returns
     -------
@@ -759,7 +758,6 @@ def brickname_from_filename_with_prefix(filename,prefix=''):
     if match is None:
         raise ValueError("Invalid galaxia mock brick file: {}!".format(filename))
     return match.group(1)
-
 
 def check_fitsio_version(version='0.9.8'):
     """fitsio_ prior to 0.9.8rc1 has a bug parsing boolean columns.
@@ -787,15 +785,15 @@ def check_fitsio_version(version='0.9.8'):
                            '(not {1})!').format(version, fitsio.__version__))
 
 def whitespace_fits_read(filename, **kwargs):
-    """Use fitsio_ to read in a file and strip whitespace from all string columns
+    """Use fitsio_ to read in a file and strip whitespace from all string columns.
 
     .. _fitsio: https://pypi.python.org/pypi/fitsio
 
     Parameters
     ----------
     filename : :class:`str`
-        Name of the file to be read in by fitsio
-    kwargs: arguments that will be passed directly to fitsio
+        Name of the file to be read in by fitsio.
+    kwargs: arguments that will be passed directly to fitsio.
     """
     fitout = fitsio.read(filename, **kwargs)
     #ADM if the header=True option was passed then
@@ -824,16 +822,16 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     Parameters
     ----------
     inmapfile : :class:`str`
-        Name of the file containing the pixel weight map
+        Name of the file containing the pixel weight map.
     nside : :class:`int`
-        After loading, the array will be resampled to this HEALPix nside
+        After loading, the array will be resampled to this HEALPix nside.
     pixmap: `~numpy.array`, optional, defaults to None
-        Pass a pixel map instead of loading it from file
+        Pass a pixel map instead of loading it from file.
 
     Returns
     -------
     :class:`~numpy.array`
-        HEALPixel weight map resampled to the requested nside
+        HEALPixel weight map resampled to the requested nside.
     '''
     import healpy as hp
     from desiutil.log import get_logger
@@ -865,24 +863,24 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
     Parameters
     ----------
     inmapfile : :class:`str`
-        Name of the file containing the pixel weight map
+        Name of the file containing the pixel weight map.
     nside : :class:`int`
-        After loading, the array will be resampled to this HEALPix nside
+        After loading, the array will be resampled to this HEALPix nside.
     pixmap: `~numpy.array`, optional, defaults to None
-        Pass a pixel map instead of loading it from file
+        Pass a pixel map instead of loading it from file.
 
     Returns
     -------
     :class:`~numpy.array`
-        HEALPixel weight map with all columns resampled to the requested nside
+        HEALPixel weight map with all columns resampled to the requested nside.
 
     Notes
     -----
         - Assumes that tha passed map is in the NESTED scheme, and outputs to
-          the NESTED scheme
+          the NESTED scheme.
         - All columns are resampled as the mean of the relevant pixels, except
           if a column `HPXPIXEL` is passed. That column is reassigned the appropriate
-          pixel number at the new nside
+          pixel number at the new nside.
     '''
     import healpy as hp
     from desiutil.log import get_logger
@@ -918,7 +916,6 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
 
     return outdata
 
-
 def gitversion():
     """Returns `git describe --tags --dirty --always`,
     or 'unknown' if not a git repo"""
@@ -938,3 +935,51 @@ def gitversion():
         return str(out.rstrip().decode('ascii'))
     else:
         return 'unknown'
+
+def read_external_file(filename, header=False, columns=["RA","DEC"]):
+    """Read FITS file with loose requirements on upper-case columns and EXTNAME.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        File name with full directory path included.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return (data, header) instead of just data.
+    columns: :class:`list`, optional, defaults to ["RA","DEC"]
+        Specify the desired columns to read.
+
+    Returns
+    -------
+    :class:`numpy.ndarray``
+        
+    Notes
+    -----
+        - Intended to be used with externally supplied files such as locations
+          to be matched for commissioning or secondary targets.
+    """
+    # ADM check we aren't going to have an epic fail on the the version of fitsio.
+    check_fitsio_version()
+
+    # ADM prepare to read in the data by reading in columns.
+    fx = fitsio.FITS(filename, upper=True)
+    fxcolnames = fx[1].get_colnames()
+    hdr = fx[1].read_header()
+    
+    # ADM convert the columns to upper case...
+    colnames = [colname.upper() for colname in fxcolnames]
+    # ADM ...and fail if RA and DEC aren't columns.
+    if not ("RA" in colnames and "DEC" in colnames):
+        msg = 'Input file {} must contain both "RA" and "DEC" columns' \
+             .format(filename)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM read in the RA/DEC columns.
+    outdata = fx[1].read(columns=["RA","DEC"])
+
+    #ADM return data read in from file, with the header if requested.
+    fx.close()
+    if header:
+        return outdata, hdr
+    else:
+        return outdata
