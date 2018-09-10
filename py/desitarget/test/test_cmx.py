@@ -19,29 +19,38 @@ class TestCMX(unittest.TestCase):
         cls.datadir = resource_filename('desitarget.test', 't')
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
+        cls.cmxdir = resource_filename('desitarget.test', 't3')
 
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames
         """
         # ADM test for tractor files
-        cmx = cuts.apply_cuts(self.tractorfiles[0])
+        cmx, pshift = cuts.apply_cuts(self.tractorfiles[0], 
+                                      cmxdir=self.cmxdir)
         data = io.read_tractor(self.tractorfiles[0])
-        cmx2 = cuts.apply_cuts(data)
+        cmx2, pshift2  = cuts.apply_cuts(data,
+                                         cmxdir=self.cmxdir)
         self.assertTrue(np.all(cmx == cmx2))
+        self.assertTrue(np.all(pshift == pshift2))
 
         # ADM test for sweeps files
-        cmx = cuts.apply_cuts(self.tractorfiles[0])
-        data = io.read_tractor(self.tractorfiles[0])
-        cmx2 = cuts.apply_cuts(data)
+        cmx, pshift = cuts.apply_cuts(self.sweepfiles[0],
+                                      cmxdir=self.cmxdir)
+        data = io.read_tractor(self.sweepfiles[0])
+        cmx2, pshift2 = cuts.apply_cuts(data,
+                                      cmxdir=self.cmxdir)
         self.assertTrue(np.all(cmx == cmx2))
+        self.assertTrue(np.all(pshift == pshift2))
 
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
-        cmx = cuts.apply_cuts(targets)
+        cmx, pshift = cuts.apply_cuts(targets,
+                                      cmxdir=self.cmxdir)
         self.assertEqual(len(cmx), len(targets))
 
-        cmx = cuts.apply_cuts(targets[0])
+        cmx, pshift = cuts.apply_cuts(targets[0],
+                                      cmxdir=self.cmxdir)
         self.assertTrue(isinstance(cmx, numbers.Integral), 'CMX_TARGET mask not an int')
 
     def test_astropy_fits(self):
@@ -66,9 +75,12 @@ class TestCMX(unittest.TestCase):
         """Test select targets works with either data or filenames
         """
         for filelist in [self.tractorfiles, self.sweepfiles]:
-            targets = cuts.select_targets(filelist, numproc=1)
-            t1 = cuts.select_targets(filelist[0:1], numproc=1)
-            t2 = cuts.select_targets(filelist[0], numproc=1)
+            targets = cuts.select_targets(filelist, numproc=1,
+                                      cmxdir=self.cmxdir)
+            t1 = cuts.select_targets(filelist[0:1], numproc=1,
+                                      cmxdir=self.cmxdir)
+            t2 = cuts.select_targets(filelist[0], numproc=1,
+                                      cmxdir=self.cmxdir)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
@@ -88,7 +100,8 @@ class TestCMX(unittest.TestCase):
         """
         for nproc in [1,2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
-                targets = cuts.select_targets(filelist, numproc=nproc)
+                targets = cuts.select_targets(filelist, numproc=nproc,
+                                      cmxdir=self.cmxdir)
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
 

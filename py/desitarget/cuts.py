@@ -710,7 +710,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
         paramssolved: array_like or None
             How many parameters were solved for in Gaia (as in the Gaia Data model).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
+            Gaia-based g, b and  r MAGNITUDES (not Galactic-extinction-corrected).
             (same units as the Gaia data model).
 
     Returns:
@@ -727,7 +727,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     std = primary.copy()
 
     #ADM Bp and Rp are both measured
-    std &=  ~np.isnan(gaiabmag - gaiarmag)
+    std &= ~np.isnan(gaiabmag - gaiarmag)
     
     #ADM no obvious issues with the astrometry solution
     std &= astrometricexcessnoise < 1
@@ -976,7 +976,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     mws &= gaia
     #ADM main targets are point-like
     mws &= _psflike(objtype)
-    #ADM main targets are 16 <= r < 19 
+    #ADM main targets are 16 <= r < 19
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
     #ADM main targets are robs < 20
