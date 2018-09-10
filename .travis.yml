@@ -158,9 +158,10 @@ matrix:
         # - python: 2.7
         #   env: NUMPY_VERSION=1.6 SETUP_CMD='test'
 
-        # Do a PEP8 test
-        # - python: 2.7
-        #   env: MAIN_CMD='pep8 astropy --count' SETUP_CMD=''
+        # PEP 8 compliance.
+        - os: linux
+          python: 3.5
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desiutil'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
@@ -174,6 +175,7 @@ install:
     - if [[ $SETUP_CMD == test* ]]; then svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data ${DESIMODEL}/data ; fi
     - if [[ $SETUP_CMD == test* ]]; then conda list; fi
     - if [[ $SETUP_CMD == test* ]]; then python -c 'import numpy; import scipy; print(numpy.__version__); print(numpy.__path__); print(scipy.__version__); print(scipy.__path__)'; fi
+    - if [[ $MAIN_CMD == 'pycodestyle' ]]; then pip install pycodestyle; fi
 
 script:
     - $MAIN_CMD $SETUP_CMD
