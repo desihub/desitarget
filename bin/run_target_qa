@@ -37,7 +37,9 @@ if ns.weightmapfile is None and ns.nosystematics is False:
     log.error("The weightmap file was not passed so systematics cannot be tracked. Try again sending --nosystematics.")
     raise IOError
 
-tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=True)
+tcnames = ns.tcnames
+if tcnames is not None:
+    tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=True)
 
 makeplots = not(ns.noplots)
 systematics = not(ns.nosystematics)

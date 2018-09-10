@@ -81,6 +81,17 @@ else:
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
     healpixels = healpixels[keep]
+
+if args.join:
+    from desitarget.mock.build import join_targets_truth
+    join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, force=args.overwrite)
+    if not args.qa:
+        sys.exit(1)
+
+if args.qa:
+    from desitarget.QA import qa_targets_truth
+    qa_targets_truth(args.output_dir, verbose=args.verbose)
+    sys.exit(1)
     
 # Construct Targets and Truth files
 if not os.path.exists(args.config):
@@ -97,12 +108,4 @@ targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed,
               output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
               no_spectra=args.no_spectra)
 log.info('All done at {}'.format(time.asctime()))
-
-if args.join:
-    from desitarget.mock.build import join_targets_truth
-    join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, force=args.overwrite)
-
-if args.qa:
-    from desitarget.mock.QA import qa_targets_truth
-    qa_targets_truth(args.output_dir, verbose=args.verbose)
 
