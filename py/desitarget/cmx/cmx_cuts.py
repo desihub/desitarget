@@ -446,12 +446,12 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     cmxdir = _get_cmxdir(cmxdir)
     # ADM get the CALSPEC objects.
     cmxfile =  os.path.join(cmxdir,'calspec.fits')
-    cals = fitsio.read(cmxfile)
+    cals = io.read_external_file(cmxfile)
 
     # ADM match the calspec and sweeps objects.
     calmatch = np.zeros_like(primary, dtype='?')
     cobjs = SkyCoord(ra*u.degree, dec*u.degree)
-    ccals = SkyCoord(cals['RA']*u.degree, cals["Dec"]*u.degree)
+    ccals = SkyCoord(cals['RA']*u.degree, cals["DEC"]*u.degree)
 
     # ADM make sure to catch the case of a single sweeps object being passed.
     if cobjs.size == 1:

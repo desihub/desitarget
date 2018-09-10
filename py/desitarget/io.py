@@ -951,7 +951,7 @@ def read_external_file(filename, header=False, columns=["RA","DEC"]):
     Returns
     -------
     :class:`numpy.ndarray``
-        
+
     Notes
     -----
         - Intended to be used with externally supplied files such as locations
@@ -964,7 +964,7 @@ def read_external_file(filename, header=False, columns=["RA","DEC"]):
     fx = fitsio.FITS(filename, upper=True)
     fxcolnames = fx[1].get_colnames()
     hdr = fx[1].read_header()
-    
+
     # ADM convert the columns to upper case...
     colnames = [colname.upper() for colname in fxcolnames]
     # ADM ...and fail if RA and DEC aren't columns.
