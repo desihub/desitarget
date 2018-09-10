@@ -65,7 +65,6 @@ desitarget Change Log
 .. _`PR #370`: https://github.com/desihub/desitarget/pull/370
 .. _`PR #372`: https://github.com/desihub/desitarget/pull/372
 
-
 0.23.0 (2018-08-09)
 -------------------
 
