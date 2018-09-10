@@ -148,13 +148,15 @@ def empty_targets_table(nobj=1):
 
     return targets
 
-def empty_truth_table(nobj=1, templatetype=''):
+def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
     """Initialize an empty 'truth' table.
 
     Parameters
     ----------
     nobj : :class:`int`
         Number of objects.
+    use_simqso : :class:`bool`, optional
+        Initialize a SIMQSO-style objtruth table. Defaults to True.
 
     Returns
     -------
@@ -187,7 +189,7 @@ def empty_truth_table(nobj=1, templatetype=''):
     truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
 
-    _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype)
+    _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype, simqso=use_simqso)
     if len(objtruth) == 0:
         objtruth = [] # need an empty list for the multiprocessing in build.select_targets
     else:
@@ -684,7 +686,7 @@ class SelectTargets(object):
         return gflux, rflux, zflux, w1flux, w2flux
 
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
-                               gmm=None,  truespectype='', templatetype='',
+                               use_simqso=True, truespectype='', templatetype='',
                                templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
         source properties and a spectral metadata table.  
@@ -703,9 +705,8 @@ class SelectTargets(object):
         psf : :class:`bool`, optional
             For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
             otherwise use GALDEPTH.  Defaults to True.
-        gmm : :class:`numpy.ndarray`, optional
-            Sample properties drawn from
-            desiutil.sklearn.GaussianMixtureModel.sample.
+        use_simqso : :class:`bool`, optional
+            Initialize a SIMQSO-style objtruth table. Defaults to True.
         truespectype : :class:`str` or :class:`numpy.array`, optional
             True spectral type.  Defaults to ''.
         templatetype : :class:`str` or :class:`numpy.array`, optional
@@ -732,7 +733,8 @@ class SelectTargets(object):
 
         # Initialize the tables.
         targets = empty_targets_table(nobj)
-        truth, objtruth = empty_truth_table(nobj, templatetype=templatetype)
+        truth, objtruth = empty_truth_table(nobj, templatetype=templatetype,
+                                            use_simqso=use_simqso)
 
         truth['MOCKID'][:] = data['MOCKID'][indx]
         if len(objtruth) > 0:
@@ -783,12 +785,6 @@ class SelectTargets(object):
                 truth[key][:] = value
             else:
                 truth[key][:] = np.repeat(value, nobj)
-
-        if gmm is not None:
-            for gmmkey, key in zip( ('exp_r', 'exp_e1', 'exp_e2', 'dev_r', 'dev_e1', 'dev_e2'),
-                                    ('SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-                                     'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2') ):
-                targets[key][:] = gmm[gmmkey]
 
         # Copy various quantities from the metadata table.
         for key in meta.colnames:
@@ -2327,7 +2323,6 @@ class QSOMaker(SelectTargets):
                         meta[these] = meta1
                         objmeta[these] = objmeta1
                         flux[these, :] = flux1
-
             else:
                 input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
                 input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
@@ -2348,10 +2343,10 @@ class QSOMaker(SelectTargets):
                         flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=True, seed=seed,
-            truespectype='QSO', templatetype='QSO')
+            data, meta, objmeta, indx=indx, psf=True, use_simqso=self.use_simqso,
+            seed=seed, truespectype='QSO', templatetype='QSO')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select QSO targets.  Input tables are modified in place.
@@ -2631,6 +2626,7 @@ class LYAMaker(SelectTargets):
                 _flux, balmeta = self.BAL.insert_bals(qso_wave, _flux, meta['REDSHIFT'],
                                                       seed=self.seed,
                                                       balprob=self.balprob)
+                objmeta['BAL_TEMPLATEID'][:] = balmeta['TEMPLATEID']
 
             # Add DLAs (ToDo).
             # ...
@@ -2667,7 +2663,7 @@ class LYAMaker(SelectTargets):
                 data, meta, objmeta, indx=indx, psf=True, seed=seed,
                 truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select Lya/QSO targets.  Input tables are modified in place.
@@ -2859,7 +2855,7 @@ class LRGMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='LRG')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select LRG targets.  Input tables are modified in place.
@@ -3060,7 +3056,7 @@ class ELGMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='ELG')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select ELG targets.  Input tables are modified in place.
@@ -3283,7 +3279,7 @@ class BGSMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select BGS targets.  Input tables are modified in place.
@@ -3683,7 +3679,7 @@ class MWS_MAINMaker(STARMaker):
             data, meta, objmeta, indx=indx, psf=True, seed=seed,
             truespectype='STAR', templatetype='STAR')
                                                            
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, boss_std=None):
         """Select various MWS stars and standard stars.  Input tables are modified in
@@ -3897,7 +3893,7 @@ class FAINTSTARMaker(STARMaker):
             else:
                 self.select_targets(targets, truth, boss_std=boss_std[keep])
 
-            return flux, self.wave, meta, targets, truth, objtruth
+            return flux, self.wave, targets, truth, objtruth
 
         else:
             return [], self.wave, None, [], [], []
@@ -4055,7 +4051,7 @@ class MWS_NEARBYMaker(STARMaker):
             truespectype='STAR', templatetype='STAR',
             templatesubtype=data['TEMPLATESUBTYPE'][indx])
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_NEARBY targets.  Input tables are modified in place.
@@ -4350,7 +4346,7 @@ class WDMaker(SelectTargets):
             truespectype='WD', templatetype='WD',
             templatesubtype=allsubtype)
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
@@ -4509,7 +4505,7 @@ class SKYMaker(SelectTargets):
             data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='SKY', templatetype='SKY')
 
-        return flux, self.wave, meta, targets, truth, objtruth
+        return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, **kwargs):
         """Select SKY targets (i.e., everything).  Input tables are modified in place.

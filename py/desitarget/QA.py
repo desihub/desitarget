@@ -253,8 +253,10 @@ def collect_mock_data(targfile):
     log = get_logger(DEBUG)
 
     # ADM retrieve the directory that contains the targets
-    targdir = os.path.dirname(targfile) 
-
+    targdir = os.path.dirname(targfile)
+    if targdir == '':
+        targdir = '.'
+    
     # ADM retrieve the mock data release name
     dcdir = os.path.dirname(targdir)
     dc = os.path.basename(dcdir)
@@ -587,9 +589,10 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         cum = np.cumsum(h)/np.sum(h)
         # ADM extract which bins correspond to the "68%" of central values
         w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
-        minbin, maxbin = b[w][0], b[w][-1]
-        # ADM this is a good plot if the peak value is within the ~68% of central values
-        good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
+        if len(w) > 0:
+            minbin, maxbin = b[w][0], b[w][-1]
+            # ADM this is a good plot if the peak value is within the ~68% of central values
+            good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
     
     # ADM write out the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
@@ -1476,10 +1479,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM make a DR string based on the RELEASE column
     # ADM potentially there are multiple DRs in a file
-    if 'RELEASE' in targs.dtype.names:
-        DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+    if mocks:
+        DRs = 'DR Mock'
     else:
-        DRs = "DR Unknown"
+        if 'RELEASE' in targs.dtype.names:
+            DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+        else:
+            DRs = "DR Unknown"
 
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults)
