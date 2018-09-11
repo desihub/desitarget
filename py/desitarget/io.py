@@ -52,7 +52,7 @@ tsdatamodel = np.array([], dtype=[
     ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
     ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
     ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('FLUX_W3', '>f4'), ('FLUX_W4', '>f4'),
-    ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'), 
+    ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'),
     ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'),
     ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
     ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'),

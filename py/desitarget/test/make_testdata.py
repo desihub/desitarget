@@ -44,7 +44,7 @@ for brick in ['3301m002', '3301m007', '3303p000']:
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made Tractor file for brick {}...t={:.2f}s'.format(brick,time()-start))
 
-sweepdir = '/global/cscratch1/sd/desiproc/dr7out/sweep/7.1/'
+sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr7/sweep/7.1/'
 #sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1'
 #sweepdir = '/data/legacysurvey/dr2p/sweep/'
 for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
