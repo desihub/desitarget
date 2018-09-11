@@ -8,7 +8,7 @@ desitarget Change Log
 * Function to read ``RA``, ``DEC`` from  non-standard external files [`PR #372`_].
 * Update the data model for output target files [`PR #372`_]:
     * Change ``TYPE`` to ``MORPHTYPE``.
-    * Remove ``FLUX_W3``, ``FLUX_W4`` and associated W3/W4 columns.
+    * Add ``EBV``.
 * Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
     * New functions to define several more commissioning classes.
     * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
