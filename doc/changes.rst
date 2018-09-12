@@ -8,7 +8,7 @@ desitarget Change Log
 * Function to read ``RA``, ``DEC`` from  non-standard external files [`PR #372`_].
 * Update the data model for output target files [`PR #372`_]:
     * Change ``TYPE`` to ``MORPHTYPE``.
-    * Add ``EBV``.
+    * Add ``EBV``, ``FIBERFLUX_G,R,Z`` and ``FIBERTOTFLUX_G,R,Z``.
 * Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
     * New functions to define several more commissioning classes.
     * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
