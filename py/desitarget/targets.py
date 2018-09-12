@@ -601,6 +601,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     :class:`~numpy.ndarray`
        new targets structured array with the following additions:
           * renaming OBJID -> BRICK_OBJID (it is only unique within a brick).
+          * renaming TYPE -> MORPHTYPE (used downstream in other contexts).
           * Adding new columns:
               - TARGETID: unique ID across all bricks.
               - DESI_TARGET: dark time survey target selection flags.
@@ -624,7 +625,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
 
     #- OBJID in tractor files is only unique within the brick; rename and
     #- create a new unique TARGETID
-    targets = rfn.rename_fields(targets, {'OBJID':'BRICK_OBJID'})
+    targets = rfn.rename_fields(targets, 
+                        {'OBJID':'BRICK_OBJID', 'TYPE':'MORPHTYPE'})
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'],
                                release=targets['RELEASE'],

@@ -2630,7 +2630,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         targets = desitarget.targets.finalize(
             objects, desi_target, bgs_target, mws_target)
 
-        return io.fix_tractor_dr1_dtype(targets)
+        return targets
 
     #- functions to run on every brick/sweep file
     def _select_targets_file(filename):
