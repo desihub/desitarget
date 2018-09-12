@@ -5,6 +5,10 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Function to read ``RA``, ``DEC`` from  non-standard external files [`PR #372`_].
+* Update the data model for output target files [`PR #372`_]:
+    * Change ``TYPE`` to ``MORPHTYPE``.
+    * Add ``EBV``, ``FIBERFLUX_G,R,Z`` and ``FIBERTOTFLUX_G,R,Z``.
 * Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
     * New functions to define several more commissioning classes.
     * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
@@ -59,6 +63,7 @@ desitarget Change Log
 .. _`PR #367`: https://github.com/desihub/desitarget/pull/367
 .. _`PR #368`: https://github.com/desihub/desitarget/pull/368
 .. _`PR #370`: https://github.com/desihub/desitarget/pull/370
+.. _`PR #372`: https://github.com/desihub/desitarget/pull/372
 
 0.23.0 (2018-08-09)
 -------------------
