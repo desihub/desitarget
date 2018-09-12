@@ -31,7 +31,7 @@ addons:
             - texlive-latex-extra
             - dvipng
 # python:
-    # - 2.6
+    # - 2.6 NOTE: no longer testing python 2.x
     # - 2.7
     # - 3.3
     # - 3.4
@@ -71,8 +71,8 @@ env:
         # Debug the Travis install process.
         - DEBUG=False
     matrix:
-        - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
-        - PYTHON_VERSION=2.7 SETUP_CMD='bdist_egg'
+       # - PYTHON_VERSION=2.7 SETUP_CMD='egg_info'
+       # - PYTHON_VERSION=2.7 SETUP_CMD='bdist_egg'
         - PYTHON_VERSION=3.5 SETUP_CMD='egg_info'
         - PYTHON_VERSION=3.5 SETUP_CMD='bdist_egg'
         - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
@@ -82,7 +82,7 @@ matrix:
     # Don't wait for allowed failures.
     fast_finish: true
 
-    # OS X support is still experimental, so don't penalize failuures.
+    # OS X support is still experimental, so don't penalize failures.
     allow_failures:
         - os: osx
         - os: linux
@@ -90,6 +90,9 @@ matrix:
                ASTROPY_VERSION=3.0
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        - os: linux
+          python: 3.5
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W505,E121,E123,E126,E133,E226,E241,E242,E501,E704 py/desitarget'
 
     include:
 
@@ -110,10 +113,10 @@ matrix:
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Standard tests.
-        - os: linux
-          env: PYTHON_VERSION=2.7 SETUP_CMD='test'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+       # - os: linux
+       #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
+       #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+       #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Redundant with the coverage test
         # - os: linux
@@ -154,9 +157,10 @@ matrix:
         # - python: 2.7
         #   env: NUMPY_VERSION=1.6 SETUP_CMD='test'
 
-        # Do a PEP8 test
-        # - python: 2.7
-        #   env: MAIN_CMD='pep8 astropy --count' SETUP_CMD=''
+        # PEP 8 compliance.
+        - os: linux
+          python: 3.5
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W505,E121,E123,E126,E133,E226,E241,E242,E501,E704 py/desitarget'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
@@ -170,6 +174,7 @@ install:
     - if [[ $SETUP_CMD == test* ]]; then svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data ${DESIMODEL}/data ; fi
     - if [[ $SETUP_CMD == test* ]]; then conda list; fi
     - if [[ $SETUP_CMD == test* ]]; then python -c 'import numpy; import scipy; print(numpy.__version__); print(numpy.__path__); print(scipy.__version__); print(scipy.__path__)'; fi
+    - if [[ $MAIN_CMD == 'pycodestyle' ]]; then pip install pycodestyle; fi
 
 script:
     - $MAIN_CMD $SETUP_CMD

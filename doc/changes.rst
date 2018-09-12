@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Remove Python 2.7 from Travis, add an allowed-to-fail PEP 8 check [`PR #373`_].
 * Function to read ``RA``, ``DEC`` from  non-standard external files [`PR #372`_].
 * Update the data model for output target files [`PR #372`_]:
     * Change ``TYPE`` to ``MORPHTYPE``.
@@ -64,6 +65,7 @@ desitarget Change Log
 .. _`PR #368`: https://github.com/desihub/desitarget/pull/368
 .. _`PR #370`: https://github.com/desihub/desitarget/pull/370
 .. _`PR #372`: https://github.com/desihub/desitarget/pull/372
+.. _`PR #373`: https://github.com/desihub/desitarget/pull/373
 
 0.23.0 (2018-08-09)
 -------------------
