@@ -909,7 +909,7 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
             hx.append(hdu)
 
         if len(objtruth) > 0:
-            for obj in sorted(objtruth.keys()):
+            for obj in sorted(set(truth['TEMPLATETYPE'])):
                 hdu = fits.convenience.table_to_hdu(objtruth[obj])
                 hdu.header['EXTNAME'] = 'TRUTH_{}'.format(obj)
                 hx.append(hdu)
