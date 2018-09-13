@@ -30,9 +30,10 @@ from astropy.table import Table, Row
 from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
+from desitarget.cuts import set_target_bits
 
 from desitarget.internal import sharedmem
-import desitarget.targets import finalize
+from desitarget.targets import finalize
 
 from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
 
@@ -800,93 +801,79 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     return std
 
 
-def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                     objtype=None, gaia=None, primary=None,
-                     pmra=None, pmdec=None, parallax=None, 
-                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for MAIN MWS targets for the BASS/MzLS photometric system.
+def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+               objtype=None, gaia=None, primary=None,
+               pmra=None, pmdec=None, parallax=None, obs_rflux=None,
+               gaiagmag=None, gaiabmag=None, gaiarmag=None, south=True):
+    """Set bits for ``MWS_MAIN`` targets.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like or None
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
+            The ``TYPE`` column of `the Legacy Surveys`_ catalogue.
         gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
+            True if there is a match between this object in
+            `the Legacy Surveys`_ and in Gaia.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
+            Gaia-based proper motion in RA and Dec and parallax.
         obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
+            ``rflux`` but WITHOUT any Galactic extinction correction.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES.
+        south: boolean, defaults to ``True``
+            Call :func:`~desitarget.cuts.isMWS_main_north` if ``south=False``,
+            otherwise call :func:`~desitarget.cuts.isMWS_main_south`.
 
     Returns:
-        mask0 : array_like. 
-            True if and only if the object is a MWS-MAIN target.
-        mask1 : array_like. 
-            True if the object is a MWS-MAIN-RED target.
-        mask2 : array_like. 
-            True if the object is a MWS-MAIN-BLUE target.
+        mask : array_like. ``True`` if and only if the object is a ``MWS_MAIN`` target.
+
+    Notes:
+        Gaia quantities have the same units as `the Gaia data model`_.
+    """
+    if south==False:
+        return isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+            objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
+            obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+    else:
+        return isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+            objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
+            obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                     objtype=None, gaia=None, primary=None,
+                     pmra=None, pmdec=None, parallax=None,
+                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+    """Set bits for ``MWS_MAIN`` targets for the BASS/MzLS photometric system
+    (see :func:`~desitarget.cuts.isMWS_main`).
     """
     #ADM currently no difference between N/S for MWS, so easiest
-    #ADM just to use one function
+    #ADM just to use one function.
     return isMWS_main_south(gflux=gflux,rflux=rflux,zflux=zflux,w1flux=w1flux,w2flux=w2flux,
                             objtype=objtype,gaia=gaia,primary=primary,
-                            pmra=pmra,pmdec=pmdec,parallax=parallax,obs_rflux=obs_rflux, 
+                            pmra=pmra,pmdec=pmdec,parallax=parallax,obs_rflux=obs_rflux,
                             gaiagmag=gaiagmag,gaiabmag=gaiabmag,gaiarmag=gaiarmag)
 
-
-def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                      objtype=None, gaia=None, primary=None,
-                     pmra=None, pmdec=None, parallax=None, 
+                     pmra=None, pmdec=None, parallax=None,
                      obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for MAIN MWS targets for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like or None
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
-        gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
-
-    Returns:
-        mask0 : array_like. 
-            True if and only if the object is a MWS-MAIN target.
-        mask1 : array_like. 
-            True if the object is a MWS-MAIN-RED target.
-        mask2 : array_like. 
-            True if the object is a MWS-MAIN-BLUE target.
+    """Set bits for ``MWS_MAIN`` targets for the DECaLS photometric system
+    (see :func:`~desitarget.cuts.isMWS_main`).
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
 
     #ADM do not target any objects for which entries are NaN
-    #ADM and turn off the NaNs for those entries
+    #ADM and turn off the NaNs for those entries.
     nans = (np.isnan(rflux) | np.isnan(gflux) |
                np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
     w = np.where(nans)[0]
     if len(w) > 0:
-        #ADM make copies as we are reassigning values
+        #ADM make copies as we are reassigning values.
         rflux, gflux, obs_rflux = rflux.copy(), gflux.copy(), obs_rflux.copy()
         parallax, pmra, pmdec = parallax.copy(), pmra.copy(), pmdec.copy()
         rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
@@ -895,29 +882,29 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w),len(mws),time()-start))
 
-    #ADM apply the selection for all MWS-MAIN targets
-    #ADM main targets match to a Gaia source
+    #ADM apply the selection for all MWS-MAIN targets.
+    #ADM main targets match to a Gaia source.
     mws &= gaia
-    #ADM main targets are point-like
+    #ADM main targets are point-like.
     mws &= _psflike(objtype)
-    #ADM main targets are 16 <= r < 19 
+    #ADM main targets are 16 <= r < 19.
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
-    #ADM main targets are robs < 20
+    #ADM main targets are robs < 20.
     mws &= obs_rflux > 10**((22.5-20.0)/2.5)
 
-    #ADM calculate the overall proper motion magnitude
+    #ADM calculate the overall proper motion magnitude.
     #ADM inexplicably I'm getting a Runtimewarning here for
-    #ADM a few values in the sqrt, so I'm catching it
+    #ADM a few values in the sqrt, so I'm catching it.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pm = np.sqrt(pmra**2. + pmdec**2.)
-    
-    #ADM make a copy of the main bits for a red/blue split
+
+    #ADM make a copy of the main bits for a red/blue split.
     red = mws.copy()
     blue = mws.copy()
 
-    #ADM MWS-BLUE is g-r < 0.7
+    #ADM MWS-BLUE is g-r < 0.7.
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
     #ADM MWS-RED is g-r >= 0.7 and parallax < 1mas...
@@ -925,20 +912,6 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
     #ADM ...and proper motion < 7.
     red &= pm < 7.
-
-    #ADM no further splitting was deemed necessary as of 5 June 2018
-    # (version 99 of https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection)
-    #ADM make a copy of the red bits for the bright/faint split
-#    rbright = red.copy()
-#    rfaint = red.copy()
-
-    #ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
-#    rbright &= rflux > 10**((22.5-18.0)/2.5)
-#    rbright &= pm < 7.
-
-    #ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-#    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
-#    rfaint &= pm < 5.
 
     return mws, red, blue
 

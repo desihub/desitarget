@@ -25,11 +25,9 @@ from pkg_resources import resource_filename
 
 from astropy.table import Table, Row
 
+import desitarget.targets
 from desitarget import io
 from desitarget.internal import sharedmem
-import desitarget.targets
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
-
 from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
 
 #ADM set up the DESI default logger
@@ -903,11 +901,11 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if south==False:
         return isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-            objtype=objtype, gaia=gaia, primary=primary, pmra=omra, pmdec=pmdec, parallax=parallax,
+            objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
             obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
     else:
         return isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-            objtype=objtype, gaia=gaia, primary=primary, pmra=omra, pmdec=pmdec, parallax=parallax,
+            objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
             obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
 def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
@@ -2138,8 +2136,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked, 
-                    gallmask, rallmask, zallmask, deltaChi2,
-                    gaia, pmra, pmdec, parallax, parallaxovererror, 
+                    gallmask, rallmask, zallmask, 
+                    gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
+                    gaia, pmra, pmdec, parallax, parallaxovererror,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource, 
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection, 
@@ -2169,6 +2168,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     gallmask, rallmask, zallmask: :class:`~numpy.ndarray`
         Bitwise mask set if the central pixel from all images
         satisfy each condition in g, r, z.
+    gsnr, rsnr, zsnr, w1snr, w2snr: :class:`~numpy.ndarray`
+        Signal-to-noise in g, r, z, W1 and W2 defined as the flux per
+        band divided by sigma (flux x sqrt of the inverse variance).
     deltaChi2: :class:`~numpy.ndarray`
         chi2 difference between PSF and SIMP, dchisq_PSF - dchisq_SIMP.
     gaia: :class:`~numpy.ndarray`
@@ -2217,16 +2219,17 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM import different functions depending on whether we're using
     # ADM this (the main survey) code or an iteration of SV.
     if survey == 'main':
-        pass
+        targmodule = desitarget.cuts
+        targmask = desitarget.targetmask
     elif survey == 'sv1':
-        from desitarget.sv.sv_cuts import isLRGpass, isELG, isQSO_cuts, isQSO_randomforest \
-            isBGS_bright, isBGS_faint, isMWS_main, isMWS_nearby, isMWS_WD, isSTD
-        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_mws_mask \
-            as desi_mask, bgs_mask, mws_mask
+        targmodule =  desitarget.sv1.sv1_cuts
+        targmask = desitarget.sv1.sv1_targetmask
     else:
         msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
+
+    from targmask import desi_mask, bgs_mask, mws_mask
 
     if "LRG" in tcnames:
         lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass(primary=primary, 
@@ -2422,7 +2425,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
-    return desi_target, mws_target, bgs_target
+    return desi_target, bgs_target, mws_target
 
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
@@ -2499,8 +2502,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
                             _prepare_optical_wise(objects, colnames=colnames)
 
-    #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
-    #if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
+    # ADM issue a warning if gaiamatch was not sent but there's no Gaia information
+    # if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
     #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
 
     # Process the Gaia inputs for target selection.
@@ -2517,6 +2520,20 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         else:
             primary = np.ones_like(objects, dtype=bool)
 
+    desi_target, bgs_target, mws_target = set_target_bits(
+        photsys_north, photsys_south, obs_rflux,
+        gflux, rflux, zflux, w1flux, w2flux,
+        objtype, release, gfluxivar, rfluxivar, zfluxivar,
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
+        gfracmasked, rfracmasked, zfracmasked,
+        gallmask, rallmask, zallmask, 
+        gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
+        gaia, pmra, pmdec, parallax, parallaxovererror,
+        gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
+        gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
+        tcnames, qso_optical_cuts, qso_selection, primary,
+        survey='main'
+    )
 
     return desi_target, bgs_target, mws_target
 

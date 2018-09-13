@@ -1,5 +1,5 @@
 #- SV primary survey targets bit mask: dark survey + calib + 
-sv_desi_mask:
+desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
@@ -55,7 +55,7 @@ sv_desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     
 #- Bright Galaxy Survey SV targets
-sv_bgs_mask:    
+bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
 
@@ -71,7 +71,7 @@ sv_bgs_mask:
     - [BGS_KNOWN_BOSS,      43, "BGS known BOSS targets", {obsconditions: BRIGHT}]
 
 #- Milky Way Survey SV targets
-sv_mws_mask:
+mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
     # input catalogues. 
@@ -111,7 +111,7 @@ sv_mws_mask:
 #- ADM It's possible that we'll want different obsmask criteria compared
 #- ADM to the obsmask in targetmask.yaml for the main survey
 #- ADM (but it's unlikely we'll want different *obsconditions* or *targetids*
-sv_obsmask:
+obsmask:
     - [UNOBS,       0, "unobserved"]
     - [OBS,         1, "observed but no spectro pipeline answer yet"]
     - [DONE,        2, "enough observations already obtained"]
@@ -130,7 +130,7 @@ sv_obsmask:
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
-    sv_desi_mask:
+    desi_mask:
         ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -167,7 +167,7 @@ priorities:
 
     #- Bright Galaxy Survey: priorities 2000-2999
     #- reobserving successes has lower priority than MWS
-    sv_bgs_mask:
+    bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
@@ -180,7 +180,7 @@ priorities:
         BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
-    sv_mws_mask: 
+    mws_mask: 
         MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -193,12 +193,12 @@ priorities:
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
 
-#ADM INITIAL number of observations (NUMOBS) for each target bit
-#ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
-#ADM -1 means that the concept of NUMOBS doesn't apply to this bit
+# ADM INITIAL number of observations (NUMOBS) for each target bit
+# ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
+# ADM -1 means that the concept of NUMOBS doesn't apply to this bit
 numobs:
-    #ADM initial number of observations for targets in the main (dark time) survey
-    sv_desi_mask:
+    # ADM initial number of observations for targets in the main (dark time) survey
+    desi_mask:
         ELG: 1
         LRG: 2
         QSO: 4
@@ -233,8 +233,8 @@ numobs:
         MWS_ANY: -1
         SECONDARY_ANY: -1
 
-    #ADM initial number of observations for targets in the Bright Galaxy Survey
-    sv_bgs_mask:
+    # ADM initial number of observations for targets in the Bright Galaxy Survey
+    bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
@@ -246,8 +246,8 @@ numobs:
         BGS_KNOWN_SDSS: 1
         BGS_KNOWN_BOSS: 1
 
-    #ADM initial number of observations for targets in the Bright Galaxy Survey
-    sv_mws_mask: 
+    # ADM initial number of observations for targets in the Bright Galaxy Survey
+    mws_mask: 
         MWS_MAIN:                     1
         MWS_WD:                       1
         MWS_NEARBY:                   1
