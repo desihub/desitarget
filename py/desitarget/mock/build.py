@@ -607,7 +607,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         alltargets = list()
         alltruth = list()
-        allobjtruth = list()
+        allobjtruth = dict()
         alltrueflux = list()
         allskytargets = list()
         allskytruth = list()
@@ -640,7 +640,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 if len(targets) > 0:
                     alltargets.append(targets)
                     alltruth.append(truth)
-                    allobjtruth.append(objtruth)
+                    allobjtruth[source_name] = objtruth
                     alltrueflux.append(trueflux)
 
             # Contaminants here?
@@ -652,7 +652,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         if len(alltargets) > 0:
             targets = vstack(alltargets) 
             truth = vstack(alltruth)
-            objtruth = vstack(allobjtruth)
+            objtruth = allobjtruth
             trueflux = np.concatenate(alltrueflux)
         else:
             targets = []
@@ -735,8 +735,33 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['TARGETID'][:] = targetid[:nobj]
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
         truth['TARGETID'][:] = targetid[:nobj]
-        objtruth['TARGETID'][:] = targetid[:nobj]
 
+        # This is a little fragile, but we need to make sure the appropriate
+        # tables in objtruth get the corresponding targetid values from the
+        # targets and truth tables.  LYA is a special case because it has a
+        # TEMPLATETYPE ('QSO') which does not match its SOURCE_NAME ('LYA').
+        for obj in set(truth['TEMPLATETYPE']):
+            these = obj == truth['TEMPLATETYPE']
+            lya = truth['TEMPLATESUBTYPE'][these] == 'LYA'
+            if np.sum(lya) > 0:
+                objtruth['LYA']['TARGETID'][:] = truth['TARGETID'][these][lya]
+            if np.sum(~lya) > 0:
+                objtruth[obj]['TARGETID'][:] = truth['TARGETID'][these][~lya]
+
+        if 'LYA' in objtruth.keys() and 'QSO' in objtruth.keys():
+            objtruth['QSO'] = vstack( (objtruth['QSO'], objtruth['LYA']) )
+            objtruth['QSO'] = objtruth['QSO'][np.argsort(objtruth['QSO']['TARGETID'])]
+        if 'LYA' in objtruth.keys() and not 'QSO' in objtruth.keys():
+            objtruth['QSO'] = objtruth['LYA']
+
+        # Check.
+        for obj in set(truth['TEMPLATETYPE']):
+            these = obj == truth['TEMPLATETYPE']
+            if not np.all( (objtruth[obj]['TARGETID'] == truth['TARGETID'][these]) ) or \
+              not np.all( (objtruth[obj]['TARGETID'] == targets['TARGETID'][these]) ):
+                log.warning('Mismatching TARGETIDs!')
+                raise ValueError                
+                    
         targets['PRIORITY'], targets['NUMOBS'] = initial_priority_numobs(
             targets, survey=survey)
 
@@ -884,10 +909,9 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
             hx.append(hdu)
 
         if len(objtruth) > 0:
-            for objtype in sorted(set(truth['TEMPLATETYPE'])):
-                these = objtype == truth['TEMPLATETYPE']
-                hdu = fits.convenience.table_to_hdu(objtruth[these])
-                hdu.header['EXTNAME'] = 'TRUTH_{}'.format(objtype)
+            for obj in sorted(objtruth.keys()):
+                hdu = fits.convenience.table_to_hdu(objtruth[obj])
+                hdu.header['EXTNAME'] = 'TRUTH_{}'.format(obj)
                 hx.append(hdu)
 
         try:
