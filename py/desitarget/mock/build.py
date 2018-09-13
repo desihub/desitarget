@@ -96,7 +96,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
 
     return log, healpixseeds
     
-def read_mock(params, log, seed=None, healpixels=None,
+def read_mock(params, target_name, log, seed=None, healpixels=None,
               nside=None, nside_chunk=128, MakeMock=None):
     """Read a mock catalog.
     
@@ -104,11 +104,13 @@ def read_mock(params, log, seed=None, healpixels=None,
     ----------
     params : :class:`dict`
         Dictionary defining the mock from which to generate targets.
+    target_name : :class:`str`
+        Target name; mock.mockmaker.[TARGET_NAME]Maker class to instantiate. 
     log : :class:`desiutil.logger`
         Logger object.
     params : :class:`dict`
         Dictionary summary of the input configuration file, restricted to a
-        particular source_name (e.g., 'QSO').
+        particular target (e.g., 'QSO').
     seed: :class:`int`, optional
         Seed for the random number generator.  Defaults to None.
     healpixels : :class:`numpy.ndarray` or `int`
@@ -122,7 +124,7 @@ def read_mock(params, log, seed=None, healpixels=None,
     Returns
     -------
     data : :class:`dict`
-        Parsed source data based on the input mock catalog (to be documented).
+        Parsed target data based on the input mock catalog (to be documented).
 
     Raises
     ------
@@ -132,7 +134,7 @@ def read_mock(params, log, seed=None, healpixels=None,
     """
     from desitarget.mock import mockmaker
 
-    target_name = params.get('target_name')
+    target_type = params.get('target_type')
     mockfile = params.get('mockfile')
     mockformat = params.get('format')
     magcut = params.get('magcut')
@@ -152,7 +154,8 @@ def read_mock(params, log, seed=None, healpixels=None,
     else:
         mock_density = False
 
-    log.info('Target: {}, format: {}, mockfile: {}'.format(target_name, mockformat, mockfile))
+    log.info('Target: {}, type: {}, format: {}, mockfile: {}'.format(
+        target_name, target_type, mockformat, mockfile))
 
     if MakeMock is None:
         MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk,
@@ -382,7 +385,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     log.info('Dividing each nside={} healpixel ({:.2f} deg2) into {} nside={} healpixel(s) ({:.2f} deg2).'.format(
         nside, areaperpixel, nchunk, nside_chunk, areaperchunk))
 
-    # Assign sources to healpix chunks.
+    # Assign targets to healpix chunks.
     #ntarget = len(data['RA'])
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
 
@@ -553,7 +556,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     Parameters
     ----------
     params : :class:`dict`
-        Source parameters.
+        Target parameters.
     healpixels : :class:`numpy.ndarray` or :class:`int`
         Restrict the sample of mock targets analyzed to those lying inside
         this set (array) of healpix pixels.
@@ -590,12 +593,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     # Read (and cache) the MockMaker classes we need.
     log.info('Initializing and caching all MockMaker classes.')
     AllMakeMock = []
-    for source_name in sorted(params['sources'].keys()):
-        target_name = params['sources'][source_name].get('target_name')
-        calib_only = params['sources'][source_name].get('calib_only', False)
-        use_simqso = params['sources'][source_name].get('use_simqso', True)
-        balprob = params['sources'][source_name].get('balprob', 0.0)
-        add_dla = params['sources'][source_name].get('add_dla', False)
+    for target_name in sorted(params['targets'].keys()):
+        target_type = params['targets'][target_name].get('target_type')
+        calib_only = params['targets'][target_name].get('calib_only', False)
+        use_simqso = params['targets'][target_name].get('use_simqso', True)
+        balprob = params['targets'][target_name].get('balprob', 0.0)
+        add_dla = params['targets'][target_name].get('add_dla', False)
 
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
@@ -612,12 +615,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         allskytargets = list()
         allskytruth = list()
 
-        for ii, source_name in enumerate(sorted(params['sources'].keys())):
+        for ii, target_name in enumerate(sorted(params['targets'].keys())):
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data and ithere are no targets, keep going.
-            log.info('Working on target class: {}'.format(source_name))
-            data, MakeMock = read_mock(params['sources'][source_name],
+            log.info('Working on target class: {}'.format(target_name))
+            data, MakeMock = read_mock(params['targets'][target_name], target_name,
                                        log, seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii])
@@ -625,9 +628,10 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             if not bool(data):
                 continue
 
-            # Generate targets in parallel; SKY targets are special. 
-            sky = source_name.upper() == 'SKY'
-            calib_only = params['sources'][source_name].get('calib_only', False)
+            # Generate targets in parallel; SKY targets are special.
+            target_type = params['targets'][target_name]['target_type'].upper()
+            sky = target_type == 'SKY'
+            calib_only = params['targets'][target_name].get('calib_only', False)
             targets, truth, objtruth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
                                                              nside_chunk=nside_chunk, seed=healseed,
                                                              nproc=nproc, sky=sky, no_spectra=no_spectra,
@@ -640,7 +644,10 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 if len(targets) > 0:
                     alltargets.append(targets)
                     alltruth.append(truth)
-                    allobjtruth[source_name] = objtruth
+                    if target_type in allobjtruth.keys(): # e.g., QSO
+                        allobjtruth[target_type] = vstack( (allobjtruth[target_type], objtruth) )
+                    else:
+                        allobjtruth[target_type] = objtruth
                     alltrueflux.append(trueflux)
 
             # Contaminants here?
@@ -736,23 +743,10 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
         truth['TARGETID'][:] = targetid[:nobj]
 
-        # This is a little fragile, but we need to make sure the appropriate
-        # tables in objtruth get the corresponding targetid values from the
-        # targets and truth tables.  LYA is a special case because it has a
-        # TEMPLATETYPE ('QSO') which does not match its SOURCE_NAME ('LYA').
+        # Assign the appropriate TARGETID values to the objtruth tables.
         for obj in set(truth['TEMPLATETYPE']):
             these = obj == truth['TEMPLATETYPE']
-            lya = truth['TEMPLATESUBTYPE'][these] == 'LYA'
-            if np.sum(lya) > 0:
-                objtruth['LYA']['TARGETID'][:] = truth['TARGETID'][these][lya]
-            if np.sum(~lya) > 0:
-                objtruth[obj]['TARGETID'][:] = truth['TARGETID'][these][~lya]
-
-        if 'LYA' in objtruth.keys() and 'QSO' in objtruth.keys():
-            objtruth['QSO'] = vstack( (objtruth['QSO'], objtruth['LYA']) )
-            objtruth['QSO'] = objtruth['QSO'][np.argsort(objtruth['QSO']['TARGETID'])]
-        if 'LYA' in objtruth.keys() and not 'QSO' in objtruth.keys():
-            objtruth['QSO'] = objtruth['LYA']
+            objtruth[obj]['TARGETID'][:] = truth['TARGETID'][these]
 
         # Check.
         for obj in set(truth['TEMPLATETYPE']):
