@@ -871,8 +871,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                objtype=None, gaia=None, primary=None,
-               pmra=None, pmdec=None, parallax=None, 
-               obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None, south=Fal):
+               pmra=None, pmdec=None, parallax=None, obs_rflux=None, 
+               gaiagmag=None, gaiabmag=None, gaiarmag=None, south=True):
     """Set bits for ``MWS_MAIN`` targets.
 
     Args:
@@ -891,9 +891,9 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             ``rflux`` but WITHOUT any Galactic extinction correction.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES.
-        south: boolean, defaults to True
-            Call :func:`~desitarget.cuts._isMWS_main_north` if ``south=False``, 
-            otherwise call :func:`~desitarget.cuts._isMWS_main_south`.
+        south: boolean, defaults to ``True``
+            Call :func:`~desitarget.cuts.isMWS_main_north` if ``south=False``, 
+            otherwise call :func:`~desitarget.cuts.isMWS_main_south`.
     
     Returns:
         mask : array_like. ``True`` if and only if the object is a ``MWS_MAIN`` target.
@@ -902,15 +902,15 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         Gaia quantities have the same units as `the Gaia data model`_.
     """
     if south==False:
-        return _isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        return isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
             objtype=objtype, gaia=gaia, primary=primary, pmra=omra, pmdec=pmdec, parallax=parallax,
             obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
     else:
-        return _isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        return isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
             objtype=objtype, gaia=gaia, primary=primary, pmra=omra, pmdec=pmdec, parallax=parallax,
             obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
-def _isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaia=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
                      obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
@@ -925,7 +925,7 @@ def _isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
                             gaiagmag=gaiagmag,gaiabmag=gaiabmag,gaiarmag=gaiarmag)
 
 
-def _isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaia=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
                      obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
@@ -2220,22 +2220,22 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         pass
     elif survey == 'sv1':
         from desitarget.sv.sv_cuts import isLRGpass, isELG, isQSO_cuts, isQSO_randomforest \
-            isBGS_bright, isBGS_faint
-        
-        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_mws_mask
+            isBGS_bright, isBGS_faint, isMWS_main, isMWS_nearby, isMWS_WD, isSTD
+        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_mws_mask \
+            as desi_mask, bgs_mask, mws_mask
     else:
         msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
     if "LRG" in tcnames:
-        lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass_north(primary=primary, 
-                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
-                    rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+        lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass(primary=primary, 
+                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=False)
 
-        lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass_south(primary=primary, 
-                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
-                    rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+        lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass(primary=primary, 
+                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
+                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=True)
     else:
         #ADM if not running the LRG selection, set everything to arrays of False
         lrg_north, lrg1pass_north, lrg2pass_north = ~primary, ~primary, ~primary
@@ -2247,9 +2247,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
         
     if "ELG" in tcnames:
-        elg_north = isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                            gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
-        elg_south = isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+        elg_north = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                          gallmask=gallmask, rallmask=rallmask, zallmask=zallmask, 
+                          south=False)
+        elg_south = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, 
+                          south=True)
     else:
         #ADM if not running the ELG selection, set everything to arrays of False
         elg_north, elg_south = ~primary, ~primary
@@ -2260,27 +2262,27 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if "QSO" in tcnames:
         if qso_selection=='colorcuts' :
             #ADM determine quasar targets in the north and the south separately
-            qso_north = isQSO_cuts_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                         w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                         objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
-                                         optical=qso_optical_cuts)
-            qso_south = isQSO_cuts_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                         w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                         objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
-                                         optical=qso_optical_cuts)
+            qso_north = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                   w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                   objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
+                                   optical=qso_optical_cuts, south=False)
+            qso_south = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                   w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                   objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
+                                   optical=qso_optical_cuts, south=True)
         elif qso_selection == 'randomforest':
             #ADM determine quasar targets in the north and the south separately
-            qso_north = isQSO_randomforest_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                    objtype=objtype, release=release)
-            qso_south = isQSO_randomforest_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
-                                    objtype=objtype, release=release)
+            qso_north = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                           w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                           objtype=objtype, release=release, south=False)
+            qso_south = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                                           w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
+                                           objtype=objtype, release=release, south=True)
         else:
             raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
                 qso_selection,qso_selection_options))
     else:
-        #ADM if not running the ELG selection, set everything to arrays of False
+        #ADM if not running the QSO selection, set everything to arrays of False
         qso_north, qso_south = ~primary, ~primary
 
     #ADM combine quasar target bits for a quasar target based on any imaging
@@ -2288,10 +2290,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     if "BGS" in tcnames:
         #ADM set the BGS bits
-        bgs_bright_north = isBGS_bright_north(primary=primary, rflux=rflux, objtype=objtype)
-        bgs_bright_south = isBGS_bright_south(primary=primary, rflux=rflux, objtype=objtype)
-        bgs_faint_north = isBGS_faint_north(primary=primary, rflux=rflux, objtype=objtype)
-        bgs_faint_south = isBGS_faint_south(primary=primary, rflux=rflux, objtype=objtype)
+        bgs_bright_north = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype, 
+                                        south=False)
+        bgs_bright_south = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype, 
+                                        south=True)
+        bgs_faint_north = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
+                                      south=False)
+        bgs_faint_south = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
+                                      south=True)
     else:
         #ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
@@ -2303,17 +2309,19 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     if "MWS" in tcnames:
         #ADM set the MWS bits
-        mws_n, mws_red_n, mws_blue_n = isMWS_main_north(primary=primary, gaia=gaia,  
-                            gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
-                            pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
-        mws_s, mws_red_s, mws_blue_s = isMWS_main_south(primary=primary, gaia=gaia,  
-                            gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
-                            pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype)
+        mws_n, mws_red_n, mws_blue_n = isMWS_main(primary=primary, gaia=gaia, 
+                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                    pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
+                    south=False)
+        mws_s, mws_red_s, mws_blue_s = isMWS_main(primary=primary, gaia=gaia,  
+                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
+                    pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
+                    south=True)
         mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
         mws_wd = isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
-             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
-             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
-                          gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+            pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
+            photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
     else:
         #ADM if not running the MWS selection, set everything to arrays of False
         mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
