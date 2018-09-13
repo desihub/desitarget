@@ -331,7 +331,7 @@ def initial_priority_numobs(targets, survey='main'):
         colnames = ["CMX_TARGET"]
         masks = [cmx_mask]
     elif survey == 'sv':
-        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_desi_mask
+        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_mws_mask
         colnames = ["SV_DESI_TARGET", "SV_BGS_TARGET", "SV_MWS_TARGET"]
         masks = [sv_desi_mask, sv_bgs_mask, sv_mws_mask]
     else:

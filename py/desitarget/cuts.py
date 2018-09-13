@@ -8,6 +8,10 @@ https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
+
+.. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+.. _`the Legacy Surveys`: http://www.legacysurvey.org/
+.. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 """
 import warnings
 from time import time
@@ -36,7 +40,7 @@ log = get_logger()
 start = time()
 
 def _gal_coords(ra,dec):
-    """Shift RA, Dec to Galactic coordinates
+    """Shift RA, Dec to Galactic coordinates.
 
     Parameters
     ----------
@@ -61,7 +65,7 @@ def _gal_coords(ra,dec):
 
 
 def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
-    """Same as :func:`~desitarget.cuts.shift_photo_north_pure` accounting for zero fluxes
+    """Same as :func:`~desitarget.cuts.shift_photo_north_pure` accounting for zero fluxes.
 
     Parameters
     ----------
@@ -74,8 +78,7 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
 
     Notes
     -----
-        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
-
+    - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
     """
 
     gshift = gflux * 10**(-0.4*0.029) * (gflux/rflux)**(-0.068)
@@ -86,7 +89,7 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
 
 
 def shift_photo_north(gflux=None, rflux=None, zflux=None):
-    """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system
+    """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system.
 
     Parameters
     ----------
@@ -99,8 +102,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 
     Notes
     -----
-        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
-
+    - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
     """
     
     #ADM only use the g-band color shift when r and g are non-zero
@@ -153,8 +155,7 @@ def isLRG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
     This function applies just the flux and color cuts for the BASS/MzLS photometric system.
 
     Notes:
-    - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+    - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     #ADM currently no difference between N/S for LRG colors, so easiest
     #ADM just to use one function
@@ -168,8 +169,7 @@ def isLRG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
     This function applies just the flux and color cuts for the DECaLS photometric system.
 
     Notes:
-    - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+    - Current version (08/01/18) is version 121 on `the wiki`_
     """
 
     if primary is None:
@@ -239,8 +239,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             The inverse variance of the flux in g-band.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to True
-            Call isLRG_north if south=False, otherwise call isLRG_south.
+        south: boolean, defaults to ``True``
+            Call isLRG_north if ``south=False``, otherwise call isLRG_south.
     
     Returns:
         mask : array_like. True if and only if the object is an LRG
@@ -505,8 +505,7 @@ def isELG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
     This function applies just the flux and color cuts for the BASS/MzLS photometric system.
 
     Notes:
-    - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#EmissionLinesGalaxiesELG12North:ModifiedFDRselectionwithbrightcutong
+    - Current version (08/01/18) is version 121 on `the wiki`_.
     """
 
     if primary is None:
@@ -536,8 +535,7 @@ def isELG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
     This function applies just the flux and color cuts for the DECaLS photometric system.
 
     Notes:
-    - Current version (08/01/18) is version 121 on the wiki:
-    https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#EmissionLinesGalaxiesELG12South:FDRselectionwithbrightcutong
+    - Current version (08/01/18) is version 121 on `the wiki`_.
     """
 
     if primary is None:
@@ -657,9 +655,7 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : boolean array, True if the object has colors like a STD star target
 
     Notes:
-        - Current version (08/01/18) is version 121 on the wiki:
-            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
-
+        - Current version (08/01/18) is version 121 on `the wiki`_.
     """
 
     if primary is None:
@@ -692,35 +688,32 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
                pmra=None, pmdec=None, parallax=None,
                dupsource=None, paramssolved=None,
                gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Gaia quality cuts used to define STD star targets
+    """Gaia quality cuts used to define STD star targets.
 
     Args:
         primary: array_like or None
           If given, the BRICK_PRIMARY column of the catalogue.
         gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
+            True if there is a match between this object in 
+            `the Legacy Surveys`_ and in Gaia.
         astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia (as in the Gaia Data Model).
+            Excess noise of the source in Gaia (as in `the Gaia data model`_).
         pmra, pmdec, parallax: array_like or None
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model).
         dupsource: array_like or None
-            Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+            Whether the source is a duplicate in Gaia (as in `the Gaia Data model`_).
         paramssolved: array_like or None
-            How many parameters were solved for in Gaia (as in the Gaia Data model).
+            How many parameters were solved for in Gaia (as in `the Gaia Data model`_).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             Gaia-based g, b and  r MAGNITUDES (not Galactic-extinction-corrected).
-            (same units as the Gaia data model).
+            (same units as `the Gaia data model`_).
 
     Returns:
         mask : boolean array, True if the object passes Gaia quality cuts.
 
         Notes:
-        - Current version (08/01/18) is version 121 on the wiki:
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
-        - Gaia data model is at:
-        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+        - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -791,8 +784,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
         gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
+            True if there is a match between this object in 
+            `the Legacy Surveys`_ and in Gaia.
         astrometricexcessnoise: array_like or None
             Excess noise of the source in Gaia (as in the Gaia Data Model).
         paramssolved: array_like or None
@@ -823,8 +816,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     Notes:
         - Gaia data model is at:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-        - Current version (08/01/18) is version 121 on the wiki:
-            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+        - Current version (08/01/18) is version 121 on `the wiki`_.
 
     """
     if primary is None:
@@ -876,39 +868,54 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     return std
 
-def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                     objtype=None, gaia=None, primary=None,
-                     pmra=None, pmdec=None, parallax=None, 
-                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for MAIN MWS targets for the BASS/MzLS photometric system.
+
+def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+               objtype=None, gaia=None, primary=None,
+               pmra=None, pmdec=None, parallax=None, 
+               obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None, south=Fal):
+    """Set bits for ``MWS_MAIN`` targets.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like or None
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
+            The ``TYPE`` column of `the Legacy Surveys`_ catalogue.
         gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
+            True if there is a match between this object in 
+            `the Legacy Surveys`_ and in Gaia.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
+            Gaia-based proper motion in RA and Dec and parallax.
         obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
+            ``rflux`` but WITHOUT any Galactic extinction correction.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
-
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES.
+        south: boolean, defaults to True
+            Call :func:`~desitarget.cuts._isMWS_main_north` if ``south=False``, 
+            otherwise call :func:`~desitarget.cuts._isMWS_main_south`.
+    
     Returns:
-        mask0 : array_like. 
-            True if and only if the object is a MWS-MAIN target.
-        mask1 : array_like. 
-            True if the object is a MWS-MAIN-RED target.
-        mask2 : array_like. 
-            True if the object is a MWS-MAIN-BLUE target.
+        mask : array_like. ``True`` if and only if the object is a ``MWS_MAIN`` target.
+    
+    Notes:
+        Gaia quantities have the same units as `the Gaia data model`_.
+    """
+    if south==False:
+        return _isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+            objtype=objtype, gaia=gaia, primary=primary, pmra=omra, pmdec=pmdec, parallax=parallax,
+            obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+    else:
+        return _isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+            objtype=objtype, gaia=gaia, primary=primary, pmra=omra, pmdec=pmdec, parallax=parallax,
+            obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+def _isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                     objtype=None, gaia=None, primary=None,
+                     pmra=None, pmdec=None, parallax=None, 
+                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
+    """Set bits for ``MWS_MAIN`` targets for the BASS/MzLS photometric system
+    (see :func:`~desitarget.cuts.isMWS_main`).
     """
     #ADM currently no difference between N/S for MWS, so easiest
     #ADM just to use one function
@@ -918,39 +925,12 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
                             gaiagmag=gaiagmag,gaiabmag=gaiabmag,gaiarmag=gaiarmag)
 
 
-def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def _isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                      objtype=None, gaia=None, primary=None,
                      pmra=None, pmdec=None, parallax=None, 
                      obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for MAIN MWS targets for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like or None
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
-        gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
-        obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
-
-    Returns:
-        mask0 : array_like. 
-            True if and only if the object is a MWS-MAIN target.
-        mask1 : array_like. 
-            True if the object is a MWS-MAIN-RED target.
-        mask2 : array_like. 
-            True if the object is a MWS-MAIN-BLUE target.
+    """Set bits for ``MWS_MAIN`` targets for the DECaLS photometric system
+    (see :func:`~desitarget.cuts.isMWS_main`).
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1031,19 +1011,18 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         objtype: array_like or None
             The TYPE column of the catalogue to restrict to point sources.
         gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
+            True if there is a match between this object in 
+            `the Legacy Surveys`_ and in Gaia.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         pmra, pmdec, parallax: array_like or None
             Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
+            (same units as `the Gaia data model`_).
         obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction
+            `rflux` but WITHOUT any Galactic extinction correction.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
+            (same units as `the Gaia data model`_).
 
     Returns:
         mask : array_like. 
@@ -1087,33 +1066,28 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
+            True if there is a match between this object in 
+            `the Legacy Surveys`_ and in Gaia.
         galb: array_like or None
             Galactic latitude (degrees).
         astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia (as in the Gaia Data Model).
+            Excess noise of the source in Gaia.
         pmra, pmdec, parallax, parallaxovererror: array_like or None
             Gaia-based proper motion in RA and Dec, and parallax and error
-            (same units as the Gaia data model).
         photbprpexcessfactor: array_like or None
-            Gaia_based BP/RP excess factor (as in the Gaia Data model).
+            Gaia_based BP/RP excess factor.
         astrometricsigma5dmax: array_like or None
-            Longest semi-major axis of 5-d error ellipsoid (as in Gaia Data model).
+            Longest semi-major axis of 5-d error ellipsoid.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
+            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES.
 
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-WD target.
 
     Notes:
-        - Gaia data model is at:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-        - Current version (08/01/18) is version 121 on the wiki:
-            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#WhiteDwarfsMWS-WD
-
+        - Gaia-based quantities have the same units as `the Gaia data model`_.
+        - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1496,7 +1470,7 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
         deltaChi2: array_like[ntargets]
             chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+            `The Legacy Surveys`_ imaging RELEASE.
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -1532,7 +1506,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
         deltaChi2: array_like[ntargets]
             chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+            `The Legacy Surveys`_ imaging RELEASE.
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -1584,7 +1558,7 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
         deltaChi2: array_like[ntargets]
             chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
         release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+            `The Legacy Surveys`_ imaging RELEASE.
         objtype (optional): array_like or None
             If given, the TYPE column of the Tractor catalogue.
         primary (optional): array_like or None
@@ -1632,7 +1606,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
         release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
+            `The Legacy Surveys`_ imaging RELEASE.
         deltaChi2: array_like or None
              If given, difference in chi2 bteween PSF and SIMP morphology
         primary: array_like or None
@@ -1668,7 +1642,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
         release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/).
+            `The Legacy Surveys` imaging RELEASE.
         deltaChi2: array_like or None
              If given, difference in chi2 between PSF and SIMP morphology.
         primary: array_like or None
@@ -1679,9 +1653,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             True if and only if the object is a QSO target.
     
     Notes:
-        as of 08/01/18, based on 
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121
-
+        as of 08/01/18, based on version 121 on `the wiki`_.
     """
     # BRICK_PRIMARY
     if primary is None :
@@ -1790,7 +1762,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         objtype: array_like or None
             If given, the TYPE column of the Tractor catalogue.
         release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/).
+            `The Legacy Surveys`_ imaging RELEASE.
         deltaChi2: array_like or None
              If given, difference in chi2 between PSF and SIMP morphology.
         primary: array_like or None
@@ -1801,9 +1773,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             True if and only if the object is a QSO target.
 
     Notes:
-        as of 08/01/18, based on 
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121
-
+        as of 08/01/18, based on version 121 on `the wiki`_.
     """
     # BRICK_PRIMARY
     if primary is None :
@@ -1903,17 +1873,17 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
 
 def _psflike(psftype):
     """ If the object is PSF """
-    #ADM explicitly checking for NoneType. I can't see why we'd ever want to
-    #ADM run this test on empty information. In the past we have had bugs where
-    #ADM we forgot to pass objtype=objtype in, e.g., isSTD
+    # ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    # ADM run this test on empty information. In the past we have had bugs where
+    # ADM we forgot to pass objtype=objtype in, e.g., isSTD
     if psftype is None:
         raise ValueError("NoneType submitted to _psfflike function")
 
     psftype = np.asarray(psftype)
-    #ADM in Python3 these string literals become byte-like
-    #ADM so to retain Python2 compatibility we need to check
-    #ADM against both bytes and unicode
-    #ADM, also 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
+    # ADM in Python3 these string literals become byte-like
+    # ADM so to retain Python2 compatibility we need to check
+    # ADM against both bytes and unicode
+    # ADM, also 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     psflike = ( (psftype == 'PSF') | (psftype == b'PSF') | 
                 (psftype == 'PSF ') | (psftype == b'PSF ') )
     return psflike
@@ -1921,16 +1891,16 @@ def _psflike(psftype):
 
 def _isonnorthphotsys(photsys):
     """ If the object is from the northen photometric system """
-    #ADM explicitly checking for NoneType. I can't see why we'd ever want to
-    #ADM run this test on empty information. In the past we have had bugs where
-    #ADM we forgot to populate variables before passing them
+    # ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    # ADM run this test on empty information. In the past we have had bugs where
+    # ADM we forgot to populate variables before passing them
     if photsys is None:
         raise ValueError("NoneType submitted to _isonnorthphotsys function")
 
     psftype = np.asarray(photsys)
-    #ADM in Python3 these string literals become byte-like
-    #ADM so to retain Python2 compatibility we need to check
-    #ADM against both bytes and unicode
+    # ADM in Python3 these string literals become byte-like
+    # ADM so to retain Python2 compatibility we need to check
+    # ADM against both bytes and unicode
     northern = ( (photsys == 'N') | (photsys == b'N') )
     return northern
 
@@ -1968,7 +1938,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     return colors, r, photOK
 
 def _is_row(table):
-    """Return True/False if this is a row of a table instead of a full table
+    """Return True/False if this is a row of a table instead of a full table.
 
     supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
     """
@@ -1998,16 +1968,16 @@ def _prepare_optical_wise(objects, colnames=None):
     if colnames is None:
         colnames = _get_colnames(objects)
 
-    #ADM flag whether we're using northen (BASS/MZLS) or
-    #ADM southern (DECaLS) photometry
+    # ADM flag whether we're using northen (BASS/MZLS) or
+    # ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
     photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
 
-    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
-    #ADM system to approximate the southern system
-    #ADM turn off shifting the northern photometry to match the southern
-    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
-    #ADM in Tucson was not to do this.
+    # ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
+    # ADM system to approximate the southern system
+    # ADM turn off shifting the northern photometry to match the southern
+    # ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
+    # ADM in Tucson was not to do this.
 #    wnorth = np.where(photsys_north)
 #    if len(wnorth[0]) > 0:
 #        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
@@ -2017,8 +1987,8 @@ def _prepare_optical_wise(objects, colnames=None):
 #        objects["FLUX_R"][wnorth] = rshift
 #        objects["FLUX_Z"][wnorth] = zshift
 
-    #ADM the observed r-band flux (used for F standards and MWS, below)
-    #ADM make copies of values that we may reassign due to NaNs
+    # ADM the observed r-band flux (used for F standards and MWS, below)
+    # ADM make copies of values that we may reassign due to NaNs
     obs_rflux = objects['FLUX_R']
 
     #- undo Milky Way extinction
@@ -2133,7 +2103,7 @@ def _prepare_gaia(objects, colnames=None):
             gaiabprpfactor, gaiasigma5dmax, galb)
 
 def unextinct_fluxes(objects):
-    """Calculate unextincted DECam and WISE fluxes
+    """Calculate unextincted DECam and WISE fluxes.
 
     Args:
         objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z, 
@@ -2163,97 +2133,100 @@ def unextinct_fluxes(objects):
     else:
         return result
 
-def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
-               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
-               gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
-               qso_optical_cuts=False):
-    """Perform target selection on objects, returning target mask arrays
+def set_target_bits(photsys_north, photsys_south, obs_rflux, 
+                    gflux, rflux, zflux, w1flux, w2flux, 
+                    objtype, release, gfluxivar, rfluxivar, zfluxivar,
+                    gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
+                    gfracmasked, rfracmasked, zfracmasked, 
+                    gallmask, rallmask, zallmask, deltaChi2,
+                    gaia, pmra, pmdec, parallax, parallaxovererror, 
+                    gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource, 
+                    gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
+                    tcnames, qso_optical_cuts, qso_selection, 
+                    primary, survey='main'):
+    """Perform target selection on parameters, returning target mask arrays.
 
-    Args:
-        objects: numpy structured array with UPPERCASE columns needed for
-            target selection, OR a string tractor/sweep filename
+    Parameters
+    ----------
+    photsys_north, photsys_south : :class:`~numpy.ndarray`
+        ``True`` for objects that were drawn from northern (MzLS/BASS) or
+        southern (DECaLS) imaging, respectively.
+    obs_rflux : :class:`~numpy.ndarray`
+        `rflux` but WITHOUT any Galactic extinction correction.
+    gflux, rflux, zflux, w1flux, w2flux : :class:`~numpy.ndarray`
+        The flux in nano-maggies of g, r, z, W1 and W2 bands.
+    objtype, release : :class:`~numpy.ndarray`
+        `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
+    gfluxivar, rfluxivar, zfluxivar: :class:`~numpy.ndarray`
+        The flux inverse variances in g, r, and z bands.
+    gnobs, rnobs, znobs: :class:`~numpy.ndarray`
+        The number of observations (in the central pixel) in g, r and z.
+    gfracflux, rfracflux, zfracflux: :class:`~numpy.ndarray`
+        Profile-weighted fraction of the flux from other sources divided 
+        by the total flux in g, r and z bands.
+    gfracmasked, rfracmasked, zfracmasked: :class:`~numpy.ndarray`
+        Fraction of masked pixels in the g, r and z bands.
+    gallmask, rallmask, zallmask: :class:`~numpy.ndarray`
+        Bitwise mask set if the central pixel from all images
+        satisfy each condition in g, r, z.
+    deltaChi2: :class:`~numpy.ndarray`
+        chi2 difference between PSF and SIMP, dchisq_PSF - dchisq_SIMP.
+    gaia: :class:`~numpy.ndarray`
+        ``True`` if there is a match between this object in 
+        `the Legacy Surveys`_ and in Gaia.
+    pmra, pmdec, parallax, parallaxovererror: :class:`~numpy.ndarray`
+        Gaia-based proper motion in RA and Dec, and parallax and error.
+    gaiagmag, gaiabmag, gaiarmag: :class:`~numpy.ndarray`
+            Gaia-based g-, b- and r-band MAGNITUDES.
+    gaiaaen, gaiadupsource, gaiaparamssolved: :class:`~numpy.ndarray`
+        Gaia-based measures of Astrometric Excess Noise, whether the source 
+        is a duplicate, and how many parameters were solved for.
+    gaiabprpfactor, gaiasigma5dmax: :class:`~numpy.ndarray`
+        Gaia_based BP/RP excess factor and longest semi-major axis 
+        of 5-d error ellipsoid.
+    galb: :class:`~numpy.ndarray`
+        Galactic latitude (degrees).
+    tcnames : :class:`list`, defaults to running all target classes
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+        for those specific target classes. A useful speed-up when testing.
+        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+    qso_optical_cuts : :class:`boolean` defaults to ``False``
+        Apply just optical color-cuts when selecting QSOs with
+        ``qso_selection="colorcuts"``.
+    qso_selection : :class`str`, optional, defaults to ``randomforest``
+        The algorithm to use for QSO selection; valid options are 
+        ``colorcuts`` and ``randomforest``.
+    primary : :class:`~numpy.ndarray`
+        ``True`` for objects that should be considered when setting bits.
+    survey :class:`str`, defaults to 'main'
+        Specifies which target masks yaml file to use. Options are `main` and
+        `svX` (where X is 1, 2, 3 etc.) for the main survey and different 
+        iterations of SV, respectively.
 
-    Options:
-        qso_selection : algorithm to use for QSO selection; valid options
-            are 'colorcuts' and 'randomforest'
-        gaiamatch : defaults to ``False``
-            if ``True``, match to Gaia DR2 chunks files and populate 
-            Gaia columns to facilitate the MWS selection
-        tcnames : :class:`list`, defaults to running all target classes
-            A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
-            for those specific target classes. A useful speed-up when testing.
-            Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-        gaiadir : defaults to the the Gaia DR2 path at NERSC
-             Root directory of a Gaia Data Release as used by the Legacy Surveys.
-        qso_optical_cuts : defaults to `False`
-             Apply just optical color-cuts when selecting QSOs with
-             qso_selection=`colorcuts`.
-
-    Returns:
+    Returns
+    -------   
+    :class:`~numpy.ndarray`
         (desi_target, bgs_target, mws_target) where each element is
-        an ndarray of target selection bitmask flags for each object
-
-    Bugs:
-        If objects is a astropy Table with lowercase column names, this
-        converts them to UPPERCASE in-place, thus modifying the input table.
-        To avoid this, pass in objects.copy() instead.
-
-    See desitarget.targetmask for the definition of each bit
-
-    """
-    #- Check if objects is a filename instead of the actual data
-    if isinstance(objects, str):
-        objects = io.read_tractor(objects)
-
-    #ADM add Gaia information, if requested, and if we're going to actually
-    #ADM process the target classes that need Gaia columns
-    if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
-        log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
-                 .format(len(objects),time()-start))
-        gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
-        log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
-                 .format(len(objects),time()-start))
-        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        # ADM in the imaging surveys data model.
-        gaiainfo = pop_gaia_coords(gaiainfo)
-        # ADM add the Gaia column information to the primary array.
-        for col in gaiainfo.dtype.names:
-            objects[col] = gaiainfo[col]
-
-    #- ensure uppercase column names if astropy Table.
-    if isinstance(objects, (Table, Row)):
-        for col in list(objects.columns.values()):
-            if not col.name.isupper():
-                col.name = col.name.upper()
-
-    # ADM As we need the column names
-    colnames = _get_colnames(objects)
-
-    # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
-        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
-                            _prepare_optical_wise(objects, colnames=colnames)
-
-    #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
-    #if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
-    #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
-
-    # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
-      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
-      gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
+        an ndarray of target selection bitmask flags for each object.
     
-    #- DR1 has targets off the edge of the brick; trim to just this brick
-    try:
-        primary = objects['BRICK_PRIMARY']
-    except (KeyError, ValueError):
-        if _is_row(objects):
-            primary = np.bool_(True)
-        else:
-            primary = np.ones_like(objects, dtype=bool)
+    Notes
+    -----
+    - Gaia quantities have units that are the same as `the Gaia data model`_.
+    """
+
+    # ADM import different functions depending on whether we're using
+    # ADM this (the main survey) code or an iteration of SV.
+    if survey == 'main':
+        pass
+    elif survey == 'sv1':
+        from desitarget.sv.sv_cuts import isLRGpass, isELG, isQSO_cuts, isQSO_randomforest \
+            isBGS_bright, isBGS_faint
+        
+        from desitarget.sv.sv_targetmask import sv_desi_mask, sv_bgs_mask, sv_mws_mask
+    else:
+        msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
 
     if "LRG" in tcnames:
         lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass_north(primary=primary, 
@@ -2312,7 +2285,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     #ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
-
 
     if "BGS" in tcnames:
         #ADM set the BGS bits
@@ -2442,6 +2414,102 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
+    return desi_target, mws_target, bgs_target
+
+
+def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
+               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
+               gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
+               qso_optical_cuts=False):
+    """Perform target selection on objects, returning target mask arrays
+
+    Args:
+        objects: numpy structured array with UPPERCASE columns needed for
+            target selection, OR a string tractor/sweep filename
+
+    Options:
+        qso_selection : algorithm to use for QSO selection; valid options
+            are 'colorcuts' and 'randomforests'
+        gaiamatch : defaults to ``False``
+            if ``True``, match to Gaia DR2 chunks files and populate 
+            Gaia columns to facilitate the MWS selection
+        tcnames : :class:`list`, defaults to running all target classes
+            A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+            for those specific target classes. A useful speed-up when testing.
+            Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+        gaiadir : defaults to the the Gaia DR2 path at NERSC
+             Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
+        qso_optical_cuts : defaults to `False`
+             Apply just optical color-cuts when selecting QSOs with
+             qso_selection=`colorcuts`.
+
+    Returns:
+        (desi_target, bgs_target, mws_target) where each element is
+        an ndarray of target selection bitmask flags for each object
+
+    Bugs:
+        If objects is a astropy Table with lowercase column names, this
+        converts them to UPPERCASE in-place, thus modifying the input table.
+        To avoid this, pass in objects.copy() instead.
+
+    See desitarget.targetmask for the definition of each bit
+
+    """
+    #- Check if objects is a filename instead of the actual data
+    if isinstance(objects, str):
+        objects = io.read_tractor(objects)
+
+    #ADM add Gaia information, if requested, and if we're going to actually
+    #ADM process the target classes that need Gaia columns
+    if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
+        log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
+                 .format(len(objects),time()-start))
+        gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
+        log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
+                 .format(len(objects),time()-start))
+        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
+        # ADM in the imaging surveys data model.
+        gaiainfo = pop_gaia_coords(gaiainfo)
+        # ADM add the Gaia column information to the primary array.
+        for col in gaiainfo.dtype.names:
+            objects[col] = gaiainfo[col]
+
+    #- ensure uppercase column names if astropy Table.
+    if isinstance(objects, (Table, Row)):
+        for col in list(objects.columns.values()):
+            if not col.name.isupper():
+                col.name = col.name.upper()
+
+    # ADM As we need the column names
+    colnames = _get_colnames(objects)
+
+    # ADM process the Legacy Surveys columns for Target Selection.
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+                            _prepare_optical_wise(objects, colnames=colnames)
+
+    #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
+    #if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
+    #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
+
+    # Process the Gaia inputs for target selection.
+    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
+      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+      gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
+    
+    #- DR1 has targets off the edge of the brick; trim to just this brick
+    try:
+        primary = objects['BRICK_PRIMARY']
+    except (KeyError, ValueError):
+        if _is_row(objects):
+            primary = np.bool_(True)
+        else:
+            primary = np.ones_like(objects, dtype=bool)
+
+
     return desi_target, bgs_target, mws_target
 
 
@@ -2565,7 +2633,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             gaiamatch=False, sandbox=False, FoMthresh=None, Method=None, 
             tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
             gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Process input files in parallel to select targets
+    """Process input files in parallel to select targets.
 
     Parameters
     ----------
@@ -2589,10 +2657,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         Method used in the sandbox    
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
-        for those specific target classes. A useful speed-up when testing
+        for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+        Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
 
     Returns
     -------   

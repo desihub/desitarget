@@ -37,7 +37,7 @@ log = get_logger()
 start = time()
 
 def _get_cmxdir(cmxdir=None):
-    """Retrieve the base cmx directory with appropriate error checking
+    """Retrieve the base cmx directory with appropriate error checking.
 
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
         Directory in which to find commmissioning files to which to match, such as the

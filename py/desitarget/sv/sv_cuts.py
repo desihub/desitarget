@@ -2,13 +2,17 @@
 desitarget.sv.sv_cuts
 =====================
 
-Target Selection for DESI Survey Validation
+Target Selection for DESI Survey Validation derived from `the wiki`_.
 
 https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
+
+.. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+.. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
 """
+
 import warnings
 from time import time
 import os.path
@@ -24,9 +28,11 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
+from desitarget.cuts import _psflike, _is_row, _get_colnames
+from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
+
 from desitarget.internal import sharedmem
-import desitarget.targets
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+import desitarget.targets import finalize
 
 from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
 
@@ -1950,12 +1956,12 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     See desitarget.targetmask for the definition of each bit
     """
-    #- Check if objects is a filename instead of the actual data
+    #- Check if objects is a filename instead of the actual data.
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
 
     #ADM add Gaia information, if requested, and if we're going to actually
-    #ADM process the target classes that need Gaia columns
+    #ADM process the target classes that need Gaia columns.
     if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
@@ -1963,133 +1969,58 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects),time()-start))
         #ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        #ADM in the imaging surveys data model
+        #ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
-        #ADM add the Gaia column information to the primary array
+        #ADM add the Gaia column information to the primary array.
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
 
-    #- ensure uppercase column names if astropy Table
+    #- ensure uppercase column names if astropy Table.
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    #ADM flag whether we're using northen (BASS/MZLS) or
-    #ADM southern (DECaLS) photometry
-    photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
-    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
+    # ADM Get the column names.
+    colnames = _get_colnames(objects)
 
-    #ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
-    #ADM system to approximate the southern system
-    #ADM turn off shifting the northern photometry to match the southern
-    #ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
-    #ADM in Tucson was not to do this.
-#    wnorth = np.where(photsys_north)
-#    if len(wnorth[0]) > 0:
-#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
-#                                                   objects["FLUX_R"][wnorth],
-#                                                   objects["FLUX_Z"][wnorth])
-#        objects["FLUX_G"][wnorth] = gshift
-#        objects["FLUX_R"][wnorth] = rshift
-#        objects["FLUX_Z"][wnorth] = zshift
+    # ADM process the Legacy Surveys columns for Target Selection.
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
+        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+                            _prepare_optical_wise(objects, colnames=colnames)
 
-    #ADM the observed r-band flux (used for F standards and MWS, below)
-    #ADM make copies of values that we may reassign due to NaNs
-    obs_rflux = objects['FLUX_R']
 
-    #- undo Milky Way extinction
-    flux = unextinct_fluxes(objects)
+    # ADM Currently only coded for objects with Gaia matches
+    # ADM (e.g. DR6 or above). Fail for earlier Data Releases.
+    if np.any(release < 6000):
+        log.critical('SV cuts only coded for DR6 or above')
+        raise ValueError
+    if (np.max(objects['PMRA']) == 0.) & np.any(release < 7000):
+        d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
+        log.info("Zero objects have a proper motion.")
+        log.critical(
+            "Did you mean to send the Gaia-matched sweeps in, e.g., {}?"
+            .format(d)
+        )
+        raise IOError
 
-    gflux = flux['GFLUX']
-    rflux = flux['RFLUX']
-    zflux = flux['ZFLUX']
-    w1flux = flux['W1FLUX']
-    w2flux = flux['W2FLUX']
-    objtype = objects['TYPE']
-    release = objects['RELEASE']
+    # Process the Gaia inputs for target selection.
+    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
+      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+      gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
 
-    gfluxivar = objects['FLUX_IVAR_G']
-    rfluxivar = objects['FLUX_IVAR_R']
-    zfluxivar = objects['FLUX_IVAR_Z']
-
-    gnobs = objects['NOBS_G']
-    rnobs = objects['NOBS_R']
-    znobs = objects['NOBS_Z']
-
-    gfracflux = objects['FRACFLUX_G']
-    rfracflux = objects['FRACFLUX_R']
-    zfracflux = objects['FRACFLUX_Z']
-
-    gfracmasked = objects['FRACMASKED_G']
-    rfracmasked = objects['FRACMASKED_R']
-    zfracmasked = objects['FRACMASKED_Z']
-
-    gallmask = objects['ALLMASK_G']
-    rallmask = objects['ALLMASK_R']
-    zallmask = objects['ALLMASK_Z']
-
-    gsnr = objects['FLUX_G'] * np.sqrt(objects['FLUX_IVAR_G'])
-    rsnr = objects['FLUX_R'] * np.sqrt(objects['FLUX_IVAR_R'])
-    zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
-    w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
-    w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
-
-    # Delta chi2 between PSF and SIMP morphologies; note the sign....
-    dchisq = objects['DCHISQ']
-    deltaChi2 = dchisq[...,0] - dchisq[...,1]
-
-    #ADM remove handful of NaN values from DCHISQ values and make them unselectable
-    w = np.where(deltaChi2 != deltaChi2)
-    #ADM this is to catch the single-object case for unit tests
-    if len(w[0]) > 0:
-        deltaChi2[w] = -1e6
-
-    #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
-    if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
-        log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
-
-    #ADM add the Gaia columns
-    gaia = objects['REF_ID'] != -1
-    pmra = objects['PMRA']
-    pmdec = objects['PMDEC']
-    parallax = objects['PARALLAX']
-    parallaxivar = objects['PARALLAX_IVAR']
-    #ADM derive the parallax/parallax_error, but set to 0 where the error is bad
-    parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
-    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
-    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
-    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
-    gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
-    gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
-
-    #ADM if the RA proper motion is not NaN, then 31 parameters were solved for
-    #ADM in Gaia astrometry. Use this to set gaiaparamssolved (value is 3 for NaNs)
-    gaiaparamssolved = np.zeros_like(gaia)+31
-    w = np.where(np.isnan(pmra))[0]
-    if len(w) > 0:
-        gaiaparamssolved[w] = 3
-
-    #ADM test if these columns exist, as they aren't in the Tractor files as of DR7
-    gaiabprpfactor = None
-    gaiasigma5dmax = None
-    try:
-        gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
-        gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
-    except:
-        pass
-
-    #ADM Mily Way Selection requires Galactic b
-    _, galb = _gal_coords(objects["RA"],objects["DEC"])
-
-    #- DR1 has targets off the edge of the brick; trim to just this brick
-    try:
-        primary = objects['BRICK_PRIMARY']
-    except (KeyError, ValueError):
-        if _is_row(objects):
-            primary = True
-        else:
-            primary = np.ones_like(objects, dtype=bool)
+    # ADM initially, every object passes the cuts (is True).
+    # ADM need to check the case of a single row being passed.
+    # ADM initially every class has a priority shift of zero.
+    if _is_row(objects):
+        primary = np.bool_(True)
+        priority_shift = np.array(0)
+    else:
+        primary = np.ones_like(objects, dtype=bool)
+        priority_shift = np.zeros_like(objects, dtype=int)
 
     if "LRG" in tcnames:
         lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass_north(primary=primary, 
@@ -2279,120 +2210,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     return desi_target, bgs_target, mws_target
 
-
-def check_input_files(infiles, numproc=4):
-    """
-    Process input files in parallel to check whether they have
-    any bugs that will prevent select_targets from completing,
-    or whether files are corrupted.
-    Useful to run before a full run of select_targets.
-
-    Args:
-        infiles: list of input filenames (tractor or sweep files),
-            OR a single filename
-
-    Optional:
-        numproc: number of parallel processes
-
-    Returns:
-        Nothing, but prints any problematic files to screen
-        together with information on the problem
-
-    Notes:
-        if numproc==1, use serial code instead of parallel
-    """
-    #ADM set up default logging
-    from desiutil.log import get_logger
-    log = get_logger()
-
-    #- Convert single file to list of files
-    if isinstance(infiles,str):
-        infiles = [infiles,]
-
-    #- Sanity check that files exist before going further
-    for filename in infiles:
-        if not os.path.exists(filename):
-            raise ValueError("{} doesn't exist".format(filename))
-
-    #- function to run on every brick/sweep file
-    def _check_input_files(filename):
-        '''Check for corrupted values in a file'''
-        from functools import partial
-        from os.path import getsize
-
-        #ADM read in Tractor or sweeps files
-        objects = io.read_tractor(filename)
-        #ADM if everything is OK the default meassage will be "OK"
-        filemessageroot = 'OK'
-        filemessageend = ''
-        #ADM columns that shouldn't have zero values
-        cols = [
-            'BRICKID',
-#            'RA_IVAR', 'DEC_IVAR',
-            'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
-#            'WISE_FLUX',
-#            'WISE_MW_TRANSMISSION','DCHISQ'
-            ]
-        #ADM for each of these columnes that shouldn't have zero values,
-        #ADM loop through and look for zero values
-        for colname in cols:
-            if np.min(objects[colname]) == 0:
-                filemessageroot = "WARNING...some values are zero for"
-                filemessageend += " "+colname
-
-        #ADM now, loop through entries in the file and search for 4096-byte
-        #ADM blocks that are all zeros (a sign of corruption in file-writing)
-        #ADM Note that fits files are padded by 2880 bytes, so we only want to
-        #ADM process the file length (in bytes) - 2880
-        bytestop = getsize(filename) -2880
-
-        with open(filename, 'rb') as f:
-            for block_number, data in enumerate(iter(partial(f.read, 4096), b'')):
-                if not any(data):
-                    if block_number*4096 < bytestop:
-                        filemessageroot = "WARNING...some values are zero for"
-                        filemessageend += ' 4096-byte-block-#{0}'.format(block_number)
-
-        return [filename,filemessageroot+filemessageend]
-
-    # Counter for number of bricks processed;
-    # a numpy scalar allows updating nbrick in python 2
-    # c.f https://www.python.org/dev/peps/pep-3104/
-    nbrick = np.zeros((), dtype='i8')
-
-    t0 = time()
-    def _update_status(result):
-        ''' wrapper function for the critical reduction operation,
-            that occurs on the main parallel process '''
-        if nbrick%25 == 0 and nbrick>0:
-            elapsed = time() - t0
-            rate = nbrick / elapsed
-            log.info('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
-        nbrick[...] += 1    # this is an in-place modification
-        return result
-
-    #- Parallel process input files
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            fileinfo = pool.map(_check_input_files, infiles, reduce=_update_status)
-    else:
-        fileinfo = list()
-        for fil in infiles:
-            fileinfo.append(_update_status(_check_input_files(fil)))
-
-    fileinfo = np.array(fileinfo)
-    w = np.where(fileinfo[...,1] != 'OK')
-
-    if len(w[0]) == 0:
-        log.info('ALL FILES ARE OK')
-    else:
-        for fil in fileinfo[w]:
-            log.info(fil[0],fil[1])
-
-    return len(w[0])
-
-
 qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
@@ -2462,8 +2279,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         mws_target = mws_target[keep]
 
         #- Add *_target mask columns
-        targets = desitarget.targets.finalize(
-            objects, desi_target, bgs_target, mws_target)
+        targets = finalize(objects, desi_target, bgs_target, mws_target,
+                           survey='sv')
 
         return io.fix_tractor_dr1_dtype(targets)
 
