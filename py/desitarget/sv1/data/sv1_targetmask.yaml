@@ -180,7 +180,7 @@ priorities:
         BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
-    sv1_mws_mask: 
+    sv1_mws_mask:
         MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -247,7 +247,7 @@ numobs:
         BGS_KNOWN_BOSS: 1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
-    sv1_mws_mask: 
+    sv1_mws_mask:
         MWS_MAIN:                     1
         MWS_WD:                       1
         MWS_NEARBY:                   1
