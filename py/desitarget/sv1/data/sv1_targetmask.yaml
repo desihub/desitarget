@@ -1,5 +1,5 @@
 #- SV primary survey targets bit mask: dark survey + calib + 
-desi_mask:
+sv1_desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
@@ -55,7 +55,7 @@ desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     
 #- Bright Galaxy Survey SV targets
-bgs_mask:
+sv1_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
 
@@ -71,7 +71,7 @@ bgs_mask:
     - [BGS_KNOWN_BOSS,      43, "BGS known BOSS targets", {obsconditions: BRIGHT}]
 
 #- Milky Way Survey SV targets
-mws_mask:
+sv1_mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
     # input catalogues. 
@@ -111,7 +111,7 @@ mws_mask:
 #- ADM It's possible that we'll want different obsmask criteria compared
 #- ADM to the obsmask in targetmask.yaml for the main survey
 #- ADM (but it's unlikely we'll want different *obsconditions* or *targetids*
-obsmask:
+sv1_obsmask:
     - [UNOBS,       0, "unobserved"]
     - [OBS,         1, "observed but no spectro pipeline answer yet"]
     - [DONE,        2, "enough observations already obtained"]
@@ -130,7 +130,7 @@ obsmask:
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
-    desi_mask:
+    sv1_desi_mask:
         ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -167,7 +167,7 @@ priorities:
 
     #- Bright Galaxy Survey: priorities 2000-2999
     #- reobserving successes has lower priority than MWS
-    bgs_mask:
+    sv1_bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
@@ -180,7 +180,7 @@ priorities:
         BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
-    mws_mask: 
+    sv1_mws_mask: 
         MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -198,7 +198,7 @@ priorities:
 # ADM -1 means that the concept of NUMOBS doesn't apply to this bit
 numobs:
     # ADM initial number of observations for targets in the main (dark time) survey
-    desi_mask:
+    sv1_desi_mask:
         ELG: 1
         LRG: 2
         QSO: 4
@@ -234,7 +234,7 @@ numobs:
         SECONDARY_ANY: -1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
-    bgs_mask:
+    sv1_bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
@@ -247,7 +247,7 @@ numobs:
         BGS_KNOWN_BOSS: 1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
-    mws_mask: 
+    sv1_mws_mask: 
         MWS_MAIN:                     1
         MWS_WD:                       1
         MWS_NEARBY:                   1

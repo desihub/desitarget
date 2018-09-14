@@ -2216,27 +2216,28 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     - Gaia quantities have units that are the same as `the Gaia data model`_.
     """
 
-    # ADM import different functions depending on whether we're using
-    # ADM this (the main survey) code or an iteration of SV.
+    # ADM import different functions and a different mask depending on 
+    # ADM whether we're using the main survey code or an iteration of SV.
     if survey == 'main':
-        targmodule = desitarget.cuts
-        targmask = desitarget.targetmask
+        import desitarget.cuts as targcuts
+        import desitarget.targetmask as targmask
     elif survey == 'sv1':
-        targmodule =  desitarget.sv1.sv1_cuts
-        targmask = desitarget.sv1.sv1_targetmask
+        import desitarget.sv1.sv1_cuts as targcuts
+        import desitarget.sv1.sv1_targetmask as targmask
     else:
         msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
-    from targmask import desi_mask, bgs_mask, mws_mask
+    desi_mask, bgs_mask, mws_mask = \
+                        targmask.desi_mask, targmask.bgs_mask, targmask.mws_mask
 
     if "LRG" in tcnames:
-        lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass(primary=primary, 
+        lrg_north, lrg1pass_north, lrg2pass_north = targcuts.isLRGpass(primary=primary, 
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=False)
 
-        lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass(primary=primary, 
+        lrg_south, lrg1pass_south, lrg2pass_south = targcuts.isLRGpass(primary=primary, 
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar, 
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=True)
     else:
@@ -2250,10 +2251,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
         
     if "ELG" in tcnames:
-        elg_north = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        elg_north = targcuts.isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                           gallmask=gallmask, rallmask=rallmask, zallmask=zallmask, 
                           south=False)
-        elg_south = isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, 
+        elg_south = targcuts.isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, 
                           south=True)
     else:
         #ADM if not running the ELG selection, set everything to arrays of False
@@ -2265,20 +2266,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if "QSO" in tcnames:
         if qso_selection=='colorcuts' :
             #ADM determine quasar targets in the north and the south separately
-            qso_north = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            qso_north = targcuts.isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
                                    objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                                    optical=qso_optical_cuts, south=False)
-            qso_south = isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            qso_south = targcuts.isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
                                    objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                                    optical=qso_optical_cuts, south=True)
         elif qso_selection == 'randomforest':
             #ADM determine quasar targets in the north and the south separately
-            qso_north = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            qso_north = targcuts.isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                            w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
                                            objtype=objtype, release=release, south=False)
-            qso_south = isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            qso_south = targcuts.isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                                            w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2, 
                                            objtype=objtype, release=release, south=True)
         else:
@@ -2293,13 +2294,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     if "BGS" in tcnames:
         #ADM set the BGS bits
-        bgs_bright_north = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype, 
+        bgs_bright_north = targcuts.isBGS_bright(primary=primary, rflux=rflux, objtype=objtype, 
                                         south=False)
-        bgs_bright_south = isBGS_bright(primary=primary, rflux=rflux, objtype=objtype, 
+        bgs_bright_south = targcuts.isBGS_bright(primary=primary, rflux=rflux, objtype=objtype, 
                                         south=True)
-        bgs_faint_north = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
+        bgs_faint_north = targcuts.isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
                                       south=False)
-        bgs_faint_south = isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
+        bgs_faint_south = targcuts.isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
                                       south=True)
     else:
         #ADM if not running the BGS selection, set everything to arrays of False
@@ -2312,16 +2313,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     if "MWS" in tcnames:
         #ADM set the MWS bits
-        mws_n, mws_red_n, mws_blue_n = isMWS_main(primary=primary, gaia=gaia, 
+        mws_n, mws_red_n, mws_blue_n = targcuts.isMWS_main(primary=primary, gaia=gaia, 
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                     pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
                     south=False)
-        mws_s, mws_red_s, mws_blue_s = isMWS_main(primary=primary, gaia=gaia,  
+        mws_s, mws_red_s, mws_blue_s = targcuts.isMWS_main(primary=primary, gaia=gaia,  
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, 
                     pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
                     south=True)
-        mws_nearby = isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
-        mws_wd = isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
+        mws_nearby = targcuts.isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
+        mws_wd = targcuts.isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
@@ -2334,7 +2335,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if "STD" in tcnames:
         #ADM Make sure to pass all of the needed columns! At one point we stopped
         #ADM passing objtype, which meant no standards were being returned.
-        std_faint = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        std_faint = targcuts.isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
             gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
             zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
@@ -2342,7 +2343,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
             pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
-        std_bright = isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        std_bright = targcuts.isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
             gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
             zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
@@ -2356,23 +2357,22 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         #ADM if not running the standards selection, set everything to arrays of False
         std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
 
-    #ADM combine the north/south MWS bits
+    #ADM combine the north/south MWS bits.
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
 
-    # Construct the targetflag bits for DECaLS (i.e. South)
-    # This should really be refactored into a dedicated function.
+    # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target  = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
-    # Construct the targetflag bits for MzLS and BASS (i.e. North)
+    # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
-    # Construct the targetflag bits combining north and south
+    # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
@@ -2383,20 +2383,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...the north...
     desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
     desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    # ADM ...and combined
+    # ADM ...and combined.
     desi_target |= lrg1pass * desi_mask.LRG_1PASS
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
-    # ADM Standards
+    # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
     desi_target |= std_wd * desi_mask.STD_WD
 
-    # BGS bright and faint, south
+    # BGS bright and faint, south.
     bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
 
-    # BGS bright and faint, north
+    # BGS bright and faint, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
 
@@ -2404,16 +2404,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
 
-    #ADM MWS main, nearby, and WD
+    # ADM MWS main, nearby, and WD.
     mws_target  = mws * mws_mask.MWS_MAIN
     mws_target |= mws_wd * mws_mask.MWS_WD
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY
 
-    #ADM MWS main north/south split
+    # ADM MWS main north/south split.
     mws_target |= mws_n * mws_mask.MWS_MAIN_NORTH
     mws_target |= mws_s * mws_mask.MWS_MAIN_SOUTH
 
-    #ADM MWS main blue/red split
+    # ADM MWS main blue/red split.
     mws_target |= mws_blue * mws_mask.MWS_MAIN_BLUE
     mws_target |= mws_blue_n * mws_mask.MWS_MAIN_BLUE_NORTH
     mws_target |= mws_blue_s * mws_mask.MWS_MAIN_BLUE_SOUTH

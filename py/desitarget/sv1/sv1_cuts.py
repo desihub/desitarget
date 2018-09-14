@@ -1,6 +1,6 @@
 """
-desitarget.sv.sv_cuts
-=====================
+desitarget.sv1.sv1_cuts
+=======================
 
 Target Selection for DESI Survey Validation derived from `the wiki`_.
 
