@@ -4,6 +4,7 @@ omit =
    py/desitarget/_version.py
    py/desitarget/conftest*
    py/desitarget/cython_version*
+   py/desitarget/mock/mockmaker.py
    py/desitarget/setup_package*
    py/desitarget/*/setup_package*
    py/desitarget/*/*/setup_package*
@@ -11,6 +12,7 @@ omit =
    py/desitarget/test/*
    py/desitarget/*/test/*
    py/desitarget/*/*/test/*
+   py/desitarget/train/*
 
 [report]
 exclude_lines =
