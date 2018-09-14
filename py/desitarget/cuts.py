@@ -25,10 +25,10 @@ from pkg_resources import resource_filename
 
 from astropy.table import Table, Row
 
-import desitarget.targets
 from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
+from desitarget.targets import finalize
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -2199,8 +2199,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     primary : :class:`~numpy.ndarray`
         ``True`` for objects that should be considered when setting bits.
     survey : :class:`str`, defaults to ``'main'``
-        Specifies which target masks yaml file and target selection cuts 
-        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.) 
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
 
     Returns
@@ -2434,17 +2434,17 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     Parameters
     ----------
-    objects : :class:`~numpy.ndarray` or `str` 
+    objects : :class:`~numpy.ndarray` or `str`
         numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename.
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
-        The algorithm to use for QSO selection; valid options are 
+        The algorithm to use for QSO selection; valid options are
         ``'colorcuts'`` and ``'randomforest'``
     gaiamatch : :class:`boolean`, optional, defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
         to facilitate the MWS and STD selections.
     tcnames : :class:`list`, defaults to running all target classes
-        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     gaiadir : :class:`str`, optional, defaults to the Gaia DR2 path at NERSC
@@ -2453,16 +2453,16 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``.
     survey : :class:`str`, defaults to ``'main'``
-        Specifies which target masks yaml file and target selection cuts 
-        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.) 
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
 
     Returns
-    -------   
+    -------
     :class:`~numpy.ndarray`
         (desi_target, bgs_target, mws_target) where each element is
         an ndarray of target selection bitmask flags for each object.
-    
+
     Notes
     -----
     - If ``objects`` is an astropy Table with lowercase column names, this
@@ -2656,7 +2656,8 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
             gaiamatch=False, sandbox=False, FoMthresh=None, Method=None, 
             tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
-            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'
+            survey='main'):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2678,13 +2679,17 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         the sandbox. This will write out an "FoM.fits" file for every ELG target
         in the sandbox directory.
     Method : :class:`str`, optional, defaults to `None`
-        Method used in the sandbox.    
+        Method used in the sandbox.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
         for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
         Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
+    survey : :class:`str`, defaults to ``'main'``
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
 
     Returns
     -------   
@@ -2719,8 +2724,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         mws_target = mws_target[keep]
 
         #- Add *_target mask columns
-        targets = desitarget.targets.finalize(
-            objects, desi_target, bgs_target, mws_target)
+        targets = finalize(objects, desi_target, bgs_target, mws_target,
+                           survey=survey)
 
         return targets
 
@@ -2730,7 +2735,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = apply_cuts(objects,
                     qso_selection=qso_selection, gaiamatch=gaiamatch,
-                    tcnames=tcnames, gaiadir=gaiadir, survey='main'
+                    tcnames=tcnames, gaiadir=gaiadir, survey=survey
         )
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
