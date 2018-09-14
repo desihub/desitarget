@@ -543,7 +543,7 @@ def apply_cuts(objects, cmxdir=None):
     obs_gflux, obs_zflux = objects['FLUX_G'], objects['FLUX_Z']
 
     # ADM initially, every object passes the cuts (is True).
-    # ADM need to check the case of a single row being passed.
+    # ADM need to guard against the case of a single row being passed.
     # ADM initially every class has a priority shift of zero.
     if _is_row(objects):
         primary = np.bool_(True)

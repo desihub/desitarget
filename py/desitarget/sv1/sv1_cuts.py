@@ -30,7 +30,7 @@ from astropy.table import Table, Row
 from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
-from desitarget.cuts import set_target_bits
+from desitarget.cuts import apply_cuts
 
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize

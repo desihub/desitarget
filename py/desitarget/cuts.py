@@ -700,9 +700,9 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model).
         dupsource: array_like or None
-            Whether the source is a duplicate in Gaia (as in `the Gaia Data model`_).
+            Whether the source is a duplicate in Gaia (as in `the Gaia data model`_).
         paramssolved: array_like or None
-            How many parameters were solved for in Gaia (as in `the Gaia Data model`_).
+            How many parameters were solved for in Gaia (as in `the Gaia data model`_).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             Gaia-based g, b and  r MAGNITUDES (not Galactic-extinction-corrected).
             (same units as `the Gaia data model`_).
@@ -710,8 +710,8 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     Returns:
         mask : boolean array, True if the object passes Gaia quality cuts.
 
-        Notes:
-        - Current version (08/01/18) is version 121 on `the wiki`_.
+    Notes:
+    - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -785,16 +785,15 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
             True if there is a match between this object in 
             `the Legacy Surveys`_ and in Gaia.
         astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia (as in the Gaia Data Model).
+            Excess noise of the source in Gaia.
         paramssolved: array_like or None
-            How many parameters were solved for in Gaia (as in the Gaia Data model).
+            How many parameters were solved for in Gaia.
         pmra, pmdec, parallax: array_like or None
             Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model).
         dupsource: array_like or None
-            Whether the source is a duplicate in Gaia (as in the Gaia Data model).
+            Whether the source is a duplicate in Gaia.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            Gaia-based g-, b- and r-band MAGNITUDES (same units as Gaia data model).
+            Gaia-based g-, b- and r-band MAGNITUDES.
         bright: boolean, defaults to ``False`` 
            if ``True`` apply magnitude cuts for "bright" conditions; otherwise, 
            choose "normal" brightness standards. Cut is performed on `gaiagmag`.
@@ -812,8 +811,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         mask : boolean array, True if the object has colors like a STD star.
 
     Notes:
-        - Gaia data model is at:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+        - Gaia-based quantities are as in `the Gaia data model`_.
         - Current version (08/01/18) is version 121 on `the wiki`_.
 
     """
@@ -897,7 +895,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : array_like. ``True`` if and only if the object is a ``MWS_MAIN`` target.
     
     Notes:
-        Gaia quantities have the same units as `the Gaia data model`_.
+    - Gaia quantities have the same units as `the Gaia data model`_.
     """
     if south==False:
         return isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
@@ -1084,8 +1082,8 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
             True if and only if the object is a MWS-WD target.
 
     Notes:
-        - Gaia-based quantities have the same units as `the Gaia data model`_.
-        - Current version (08/01/18) is version 121 on `the wiki`_.
+    - Gaia-based quantities have the same units as `the Gaia data model`_.
+    - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1527,7 +1525,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
     qso &= w1snr > 4
     qso &= w2snr > 2
 
-    # ADM default to RELEASE of 6000 if nothing is passed
+    # ADM default to RELEASE of 6000 if nothing is passed.
     if release is None:
         release = np.zeros_like(gflux, dtype='?')+6000
 
@@ -1579,7 +1577,7 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
     qso &= w1snr > 4
     qso &= w2snr > 2
 
-    # ADM default to RELEASE of 5000 if nothing is passed
+    # ADM default to RELEASE of 5000 if nothing is passed.
     if release is None:
         release = np.zeros_like(gflux, dtype='?')+5000
 
@@ -1658,7 +1656,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         primary = np.ones_like(gflux, dtype=bool)
 
     # RELEASE
-    # ADM default to RELEASE of 5000 if nothing is passed
+    # ADM default to RELEASE of 5000 if nothing is passed.
     if release is None :
         release = np.zeros_like(gflux, dtype='?') + 5000
     release = np.atleast_1d( release )
@@ -1778,7 +1776,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         primary = np.ones_like(gflux, dtype=bool)
 
     # RELEASE
-    # ADM default to RELEASE of 5000 if nothing is passed
+    # ADM default to RELEASE of 5000 if nothing is passed.
     if release is None :
         release = np.zeros_like(gflux, dtype='?') + 5000
     release = np.atleast_1d( release )
@@ -2195,15 +2193,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso_optical_cuts : :class:`boolean` defaults to ``False``
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``.
-    qso_selection : :class`str`, optional, defaults to ``randomforest``
+    qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are 
-        ``colorcuts`` and ``randomforest``.
+        ``'colorcuts'`` and ``'randomforest'``
     primary : :class:`~numpy.ndarray`
         ``True`` for objects that should be considered when setting bits.
-    survey :class:`str`, defaults to 'main'
-        Specifies which target masks yaml file to use. Options are `main` and
-        `svX` (where X is 1, 2, 3 etc.) for the main survey and different 
-        iterations of SV, respectively.
+    survey : :class:`str`, defaults to ``'main'``
+        Specifies which target masks yaml file and target selection cuts 
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.) 
+        for the main survey and different iterations of SV, respectively.
 
     Returns
     -------   
@@ -2431,39 +2429,46 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
                gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
-               qso_optical_cuts=False):
-    """Perform target selection on objects, returning target mask arrays
+               qso_optical_cuts=False, survey='main'):
+    """Perform target selection on objects, returning target mask arrays.
 
-    Args:
-        objects: numpy structured array with UPPERCASE columns needed for
-            target selection, OR a string tractor/sweep filename
+    Parameters
+    ----------
+    objects : :class:`~numpy.ndarray` or `str` 
+        numpy structured array with UPPERCASE columns needed for
+        target selection, OR a string tractor/sweep filename.
+    qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
+        The algorithm to use for QSO selection; valid options are 
+        ``'colorcuts'`` and ``'randomforest'``
+    gaiamatch : :class:`boolean`, optional, defaults to ``False``
+        If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
+        to facilitate the MWS and STD selections.
+    tcnames : :class:`list`, defaults to running all target classes
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
+        for those specific target classes. A useful speed-up when testing.
+        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+    gaiadir : :class:`str`, optional, defaults to the Gaia DR2 path at NERSC
+        Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
+    qso_optical_cuts : :class:`boolean` defaults to ``False``
+        Apply just optical color-cuts when selecting QSOs with
+        ``qso_selection="colorcuts"``.
+    survey : :class:`str`, defaults to ``'main'``
+        Specifies which target masks yaml file and target selection cuts 
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.) 
+        for the main survey and different iterations of SV, respectively.
 
-    Options:
-        qso_selection : algorithm to use for QSO selection; valid options
-            are 'colorcuts' and 'randomforests'
-        gaiamatch : defaults to ``False``
-            if ``True``, match to Gaia DR2 chunks files and populate 
-            Gaia columns to facilitate the MWS selection
-        tcnames : :class:`list`, defaults to running all target classes
-            A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
-            for those specific target classes. A useful speed-up when testing.
-            Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-        gaiadir : defaults to the the Gaia DR2 path at NERSC
-             Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
-        qso_optical_cuts : defaults to `False`
-             Apply just optical color-cuts when selecting QSOs with
-             qso_selection=`colorcuts`.
-
-    Returns:
+    Returns
+    -------   
+    :class:`~numpy.ndarray`
         (desi_target, bgs_target, mws_target) where each element is
-        an ndarray of target selection bitmask flags for each object
-
-    Bugs:
-        If objects is a astropy Table with lowercase column names, this
-        converts them to UPPERCASE in-place, thus modifying the input table.
-        To avoid this, pass in objects.copy() instead.
-
-    See desitarget.targetmask for the definition of each bit
+        an ndarray of target selection bitmask flags for each object.
+    
+    Notes
+    -----
+    - If ``objects`` is an astropy Table with lowercase column names, this
+      converts them to UPPERCASE in-place, thus modifying the input table.
+      To avoid this, pass in ``objects.copy()`` instead.
+    - See :mod:`desitarget.targetmask` for the definition of each bit.
 
     """
     #- Check if objects is a filename instead of the actual data
@@ -2502,23 +2507,17 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
                             _prepare_optical_wise(objects, colnames=colnames)
 
-    # ADM issue a warning if gaiamatch was not sent but there's no Gaia information
-    # if np.max(objects['PARALLAX']) == 0. and ~gaiamatch:
-    #    log.warning("Zero objects have a parallax. Did you mean to send gaiamatch?")
-
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
       gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
-    #- DR1 has targets off the edge of the brick; trim to just this brick
-    try:
-        primary = objects['BRICK_PRIMARY']
-    except (KeyError, ValueError):
-        if _is_row(objects):
-            primary = np.bool_(True)
-        else:
-            primary = np.ones_like(objects, dtype=bool)
+    # ADM initially, every object passes the cuts (is True).
+    # ADM need to guard against the case of a single row being passed.
+    if _is_row(objects):
+        primary = np.bool_(True)
+    else:
+        primary = np.ones_like(objects, dtype=bool)
 
     desi_target, bgs_target, mws_target = set_target_bits(
         photsys_north, photsys_south, obs_rflux,
@@ -2532,7 +2531,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection, primary,
-        survey='main'
+        survey=survey
     )
 
     return desi_target, bgs_target, mws_target
@@ -2663,23 +2662,23 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     Parameters
     ----------
     infiles : :class:`list` or `str` 
-        A list of input filenames (tractor or sweep files) OR a single filename
+        A list of input filenames (tractor or sweep files) OR a single filename.
     numproc : :class:`int`, optional, defaults to 4
-        The number of parallel processes to use
-    qso_selection : :class`str`, optional, defaults to `randomforest`
+        The number of parallel processes to use.
+    qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are 
-        'colorcuts' and 'randomforest'
+        ``'colorcuts'`` and ``'randomforest'``.
     gaiamatch : :class:`boolean`, optional, defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
-        to facilitate the MWS and STD selections
+        to facilitate the MWS and STD selections.
     sandbox : :class:`boolean`, optional, defaults to ``False``
-        If ``True``, use the sample selection cuts in :mod:`desitarget.sandbox.cuts`
+        If ``True``, use the sample selection cuts in :mod:`desitarget.sandbox.cuts`.
     FoMthresh : :class:`float`, optional, defaults to `None`
         If a value is passed then run `apply_XD_globalerror` for ELGs in
         the sandbox. This will write out an "FoM.fits" file for every ELG target
-        in the sandbox directory
+        in the sandbox directory.
     Method : :class:`str`, optional, defaults to `None`
-        Method used in the sandbox    
+        Method used in the sandbox.    
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only 
         for those specific target classes. A useful speed-up when testing.
@@ -2691,12 +2690,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     -------   
     :class:`~numpy.ndarray`
         The subset of input targets which pass the cuts, including extra
-        columns for `DESI_TARGET`, `BGS_TARGET`, and `MWS_TARGET` target
-        selection bitmasks
+        columns for ``DESI_TARGET``, ``BGS_TARGET``, and ``MWS_TARGET`` target
+        selection bitmasks.
 
     Notes
     -----
-        - if numproc==1, use serial code instead of parallel
+        - if numproc==1, use serial code instead of parallel.
     """
     from desiutil.log import get_logger
     log = get_logger()
@@ -2729,8 +2728,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_cuts(objects,qso_selection,
-                                                         gaiamatch,tcnames,gaiadir)
+        desi_target, bgs_target, mws_target = apply_cuts(objects,
+                    qso_selection=qso_selection, gaiamatch=gaiamatch,
+                    tcnames=tcnames, gaiadir=gaiadir, survey='main'
+        )
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
