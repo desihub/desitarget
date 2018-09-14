@@ -8,7 +8,9 @@ omit =
    py/desitarget/setup_package*
    py/desitarget/*/setup_package*
    py/desitarget/*/*/setup_package*
+   py/desitarget/sandbox/*
    py/desitarget/sphinx/*
+   py/desitarget/skyutilities/*
    py/desitarget/test/*
    py/desitarget/*/test/*
    py/desitarget/*/*/test/*
