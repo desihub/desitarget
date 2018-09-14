@@ -2654,9 +2654,9 @@ qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-            gaiamatch=False, sandbox=False, FoMthresh=None, Method=None, 
-            tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
-            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'
+            gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
+            tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
+            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
             survey='main'):
     """Process input files in parallel to select targets.
 
@@ -2705,6 +2705,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     from desiutil.log import get_logger
     log = get_logger()
 
+    log.info("Running on the {} survey".format(survey))
+
     #- Convert single file to list of files
     if isinstance(infiles,str):
         infiles = [infiles,]
@@ -2712,7 +2714,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     #- Sanity check that files exist before going further
     for filename in infiles:
         if not os.path.exists(filename):
-            raise ValueError("{} doesn't exist".format(filename))
+            msg = "{} doesn't exist".format(filename)
+            log.critical(msg)
+            raise ValueError(msg)
 
     def _finalize_targets(objects, desi_target, bgs_target, mws_target):
         #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
