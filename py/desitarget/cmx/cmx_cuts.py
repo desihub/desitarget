@@ -591,12 +591,24 @@ def apply_cuts(objects, cmxdir=None):
         rflux=rflux, objtype=objtype, primary=primary
     )
 
+    # ADM determine if an object is SV0_MWS
+    sv0_mws = isSV0_MWS(
+        rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
+        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+        pmra=pmra, pmdec=pmdec, parallax=parallax,
+        parallaxovererror=parallaxovererror,
+        photbprpexcessfactor=gaiabprpfactor,
+        astrometricsigma5dmax=gaiasigma5dmax,
+        galb=galb, gaia=gaia, primary=primary
+    )
+
     # ADM Construct the targetflag bits.
     cmx_target  = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
     cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
+    cmx_target |= sv0_mws * cmx_mask.SV0_MWS
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
