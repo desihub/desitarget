@@ -146,6 +146,10 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='NUMOBS', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
+    # HACK!!!
+    for band in ('G', 'R', 'Z'):
+        targets['FRACMASKED_{}'.format(band)] = 0.001
+
     return targets
 
 def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
@@ -1306,6 +1310,7 @@ class ReadGalaxia(SelectTargets):
             return dict()
 
         mockid = mockid[cut]
+        objid = objid[cut]
         allpix = allpix[cut]
         weight = 1 / fracarea[cut]
         ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
@@ -1339,6 +1344,7 @@ class ReadGalaxia(SelectTargets):
                 return dict()
             else:
                 mockid = mockid[cut]
+                objid = objid[cut]
                 allpix = allpix[cut]
                 weight = weight[cut]
                 ra = ra[cut]
@@ -1353,13 +1359,32 @@ class ReadGalaxia(SelectTargets):
                 nobj = len(ra)
                 log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
-        # Temporary hack to read some Gaia columns from a separate file --
-        gaiafile = galaxiafile.replace('mock_', 'gaia_mock_')
-        if os.path.isfile(gaiafile):
-            cols = ['G_GAIA', 'PM_RA_STAR_GAIA', 'PM_DEC_GAIA', 'PARALLAX_GAIA',
-                    'PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR']
-            gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
-            
+        # Temporary hack to read some Gaia columns from a separate file, but
+        # only for the MWS_MAIN mocks!
+        if target_name.upper() == 'MWS_MAIN':
+            gaiafile = galaxiafile.replace('mock_', 'gaia_mock_')
+            if os.path.isfile(gaiafile):
+                cols = ['G_GAIA', 'PM_RA_STAR_GAIA', 'PM_DEC_GAIA', 'PARALLAX_GAIA',
+                        'PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR']
+                gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
+                    
+        elif target_name.upper() == 'FAINTSTAR': # Hack for FAINTSTAR
+
+            #from astropy.table import Table
+            #morecols = ['PM_RA', 'PM_DEC', 'DM']
+            #moredata = fitsio.read(galaxiafile, columns=morecols, upper=True, ext=1, rows=objid)
+
+            gaia = Table()
+            gaia['G_GAIA'] = mag # hack!
+            gaia['PM_RA_STAR_GAIA'] = np.zeros(nobj)  # moredata['PM_RA']
+            gaia['PM_DEC_GAIA'] = np.zeros(nobj)      # moredata['PM_DEC']
+            gaia['PARALLAX_GAIA'] = np.zeros(nobj)+20 # moredata['D_HELIO'] / 206265.
+            gaia['PARALLAX_GAIA_ERROR'] = np.zeros(nobj)+1e8
+            gaia['PM_RA_GAIA_ERROR'] = np.zeros(nobj)+1e8
+            gaia['PM_DEC_GAIA_ERROR'] = np.zeros(nobj)+1e8
+        else:
+            pass
+        
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
@@ -1368,10 +1393,9 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
-
                #'BOSS_STD': boss_std,
-               
                'REF_ID': mockid,
+
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
@@ -1386,10 +1410,10 @@ class ReadGalaxia(SelectTargets):
                'PMRA_IVAR': np.zeros(nobj).astype('f4'),
                'PMDEC': gaia['PM_DEC_GAIA'].astype('f4'), # no _STAR_!
                'PMDEC_IVAR': np.zeros(nobj).astype('f4'),
-               
+              
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
-        # Handle ivars
+        # Handle ivars -- again, a temporary hack
         for outkey, gaiakey in zip( ('PARALLAX_IVAR', 'PMRA_IVAR', 'PMDEC_IVAR'),
                                      ('PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR') ):
             good = gaia[gaiakey] > 0
@@ -3700,13 +3724,16 @@ class MWS_MAINMaker(STARMaker):
         if self.calib_only:
             tcnames = 'STD'
         else:
-            tcnames = 'MWS'
+            tcnames = ['STD']
+            #tcnames = ['MWS', 'STD']
             
         desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
 
         targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
         targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
+
+        import pdb ; pdb.set_trace()
 
         # Select bright stellar contaminants for the extragalactic targets.
         log.info('Temporarily turning off contaminants.')
@@ -3720,9 +3747,12 @@ class FAINTSTARMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    calib_only : :class:`bool`, optional
+        Use FAINTSTAR stars as calibration (standard star) targets and
+        contaminants, only.  Defaults to True.
 
     """
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, calib_only=True, **kwargs):
         super(FAINTSTARMaker, self).__init__()
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
