@@ -77,6 +77,12 @@ desitarget API
 .. automodule:: desitarget.skyfibers
     :members:
 
+.. automodule:: desitarget.sv1.sv1_cuts
+    :members:
+
+.. automodule:: desitarget.sv1.sv1_targetmask
+    :members:
+
 .. automodule:: desitarget.targetmask
     :members:
 
