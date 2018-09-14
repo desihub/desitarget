@@ -717,37 +717,37 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
         primary = np.ones_like(gflux, dtype='?')
     std = primary.copy()
 
-    # ADM Bp and Rp are both measured
+    # ADM Bp and Rp are both measured.
     std &= ~np.isnan(gaiabmag - gaiarmag)
     
-    # ADM no obvious issues with the astrometry solution
+    # ADM no obvious issues with the astrometry solution.
     std &= astrometricexcessnoise < 1
     std &= paramssolved == 31
 
-    # ADM finite proper motions
+    # ADM finite proper motions.
     std &= np.isfinite(pmra)
     std &= np.isfinite(pmdec)
 
-    # ADM a parallax smaller than 1 mas
+    # ADM a parallax smaller than 1 mas.
     std &= parallax < 1.
 
     # ADM calculate the overall proper motion magnitude
     # ADM inexplicably I'm getting a Runtimewarning here for
-    # ADM a few values in the sqrt, so I'm catching it
+    # ADM a few values in the sqrt, so I'm catching it.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pm = np.sqrt(pmra**2. + pmdec**2.)
 
-    # ADM a proper motion larger than 2 mas/yr
+    # ADM a proper motion larger than 2 mas/yr.
     std &= pm > 2.
 
-    # ADM fail if dupsource is not Boolean, as was the case for the 7.0 sweeps    
-    # ADM otherwise logic checks on dupsource will be misleading
+    # ADM fail if dupsource is not Boolean, as was the case for the 7.0 sweeps
+    # ADM otherwise logic checks on dupsource will be misleading.
     if not (dupsource.dtype.type == np.bool_):
         log.error('GAIA_DUPLICATED_SOURCE (dupsource) should be boolean!')
         raise IOError
 
-    # ADM a unique Gaia source
+    # ADM a unique Gaia source.
     std &= ~dupsource
 
     return std
