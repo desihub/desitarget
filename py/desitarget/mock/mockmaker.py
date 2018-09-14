@@ -3724,16 +3724,13 @@ class MWS_MAINMaker(STARMaker):
         if self.calib_only:
             tcnames = 'STD'
         else:
-            tcnames = ['STD']
-            #tcnames = ['MWS', 'STD']
+            tcnames = ['MWS', 'STD']
             
         desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
 
         targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
         targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
-
-        import pdb ; pdb.set_trace()
 
         # Select bright stellar contaminants for the extragalactic targets.
         log.info('Temporarily turning off contaminants.')
