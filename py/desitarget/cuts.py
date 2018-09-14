@@ -1482,7 +1482,7 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
     """
     if south==False:
         return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                                release=release, objtype=objects, primary=primary, optical=optical)
+                                release=release, objtype=objtype, primary=primary, optical=optical)
     else:
         return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
                                 release=release, objtype=objtype, primary=primary, optical=optical)
@@ -1491,33 +1491,11 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
 def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
                      release=None, objtype=None, primary=None, optical=False):
     """Cuts based QSO target selection for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        release: array_like[ntargets]
-            `The Legacy Surveys`_ imaging RELEASE.
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        optical: boolean, defaults to `False`
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
+    (see :func:`~desitarget.cuts.isQSO_cuts`).
 
     Notes:
         Uses isQSO_colors() to make color cuts first, then applies
             w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-
     """
     qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
                              w1flux=w1flux, w2flux=w2flux, optical=optical)
@@ -1543,33 +1521,11 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
 def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
                      release=None, objtype=None, primary=None, optical=False):
     """Cuts based QSO target selection for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        release: array_like[ntargets]
-            `The Legacy Surveys`_ imaging RELEASE.
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        optical: boolean, defaults to `False`
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
+    (see :func:`~desitarget.cuts.isQSO_cuts`).
 
     Notes:
         Uses isQSO_colors() to make color cuts first, then applies
             w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-
     """
     qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
                              w1flux=w1flux, w2flux=w2flux, optical=optical)
