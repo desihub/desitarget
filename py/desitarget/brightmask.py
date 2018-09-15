@@ -363,11 +363,11 @@ def make_bright_star_mask(bands,maglim,numproc=4,rootdirname='/global/project/pr
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
         /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1. This is only
-        used if `infilename` is not passed.
+        used if ``infilename`` is not passed.
     infilename : :class:`str`, optional,
         if this exists, then the list of bright stars is read in from the file of this name
         if this is not passed, then code defaults to deriving the recarray of bright stars
-        from `rootdirname` via a call to ``collect_bright_stars``.
+        from ``rootdirname`` via a call to ``collect_bright_stars``.
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright star mask.
 
@@ -431,11 +431,11 @@ def make_bright_source_mask(bands,maglim,numproc=4,rootdirname='/global/project/
     rootdirname : :class:`str`, optional, defaults to dr3
         Root directory containing either sweeps or tractor files...e.g. for dr5 this might be
         /global/project/projectdirs/cosmo/data/legacysurvey/dr5/sweep/dr5.0. This is only
-        used if `infilename` is not passed.
+        used if ``infilename`` is not passed.
     infilename : :class:`str`, optional,
         if this exists, then the list of bright sources is read in from the file of this name
         if this is not passed, then code defaults to deriving the recarray of bright sources
-        from `rootdirname` via a call to ``collect_bright_sources``.
+        from ``rootdirname`` via a call to ``collect_bright_sources``.
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output bright source mask.
 
