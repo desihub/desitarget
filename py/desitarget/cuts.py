@@ -2,9 +2,7 @@
 desitarget.cuts
 ===============
 
-Target Selection for DECALS catalogue data
-
-https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
+Target Selection for DECALS catalogue data derived from `the wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).

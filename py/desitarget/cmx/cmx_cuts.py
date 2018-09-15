@@ -2,13 +2,13 @@
 desitarget.cmx.cmx_cuts
 ========================
 
-Target Selection for DESI commissioning (cmx) derived from `the wiki`_.
+Target Selection for DESI commissioning (cmx) derived from `the cmx wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* STD_TEST).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-.. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
+.. _`the cmx wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
 """
 
 from time import time
@@ -91,7 +91,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - Current version (08/30/18) is version 4 on `the cmx wiki`_.
     - All Gaia quantities are as in `the Gaia data model`_.
     """
     if primary is None:
@@ -351,7 +351,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - Current version (08/30/18) is version 4 on `the cmx wiki`_.
     """
     if primary is None:
         primary = np.ones_like(obs_rflux, dtype='?')
@@ -395,7 +395,7 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - Current version (08/30/18) is version 4 on `the cmx wiki`_.
     - See also `the Gaia data model`_.       
     """
     if primary is None:

@@ -2,15 +2,13 @@
 desitarget.sv1.sv1_cuts
 =======================
 
-Target Selection for DESI Survey Validation derived from `the wiki`_.
-
-https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
+Target Selection for DESI Survey Validation derived from `the SV wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-.. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
+.. _`the SV wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
 """
 
 import sys
