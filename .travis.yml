@@ -59,12 +59,12 @@ env:
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml healpy photutils"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml photutils"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
         # - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio"
-        - PIP_ALL_DEPENDENCIES="coveralls fitsio"
+        - PIP_ALL_DEPENDENCIES="coveralls fitsio healpy"
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
         - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION} desimodel=${DESIMODEL_VERSION}"
