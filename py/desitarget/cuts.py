@@ -810,7 +810,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     Notes:
         - Gaia-based quantities are as in `the Gaia data model`_.
-        - Current version (08/01/18) is version 121 on `the wiki`_.
+        - Current version (08/01/18) is version 127 on `the wiki`_.
 
     """
     if primary is None:
