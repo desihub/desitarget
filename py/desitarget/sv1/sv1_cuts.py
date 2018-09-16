@@ -689,7 +689,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
             std &= fracflux[bandint] < 0.01
             std &= fluxivar[bandint] > 0
             std &= nobs[bandint] > 0
-            std &= fracmasked[bandint] > 0
+            std &= fracmasked[bandint] < 0.6
 
     #ADM brightness cuts in Gaia G-band
     if bright:
