@@ -1478,6 +1478,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM automatically detect whether we're running this for the main survey 
     # ADM or SV, etc. and change the column names accordingly.
+    svs = "DESI"  # ADM this is to store sv iteration or cmx as a string.
     colnames = np.array(targs.dtype.names)
     svcolnames = colnames[ ['SV' in name or 'CMX' in name for name in colnames] ]
     # ADM set cmx flag to True if 'CMX_TARGET' is a column and rename that column.
@@ -1485,6 +1486,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     targs = rfn.rename_fields(targs, {'CMX_TARGET':'DESI_TARGET'})
     # ADM strip "SVX" off any columns (rfn.rename_fields forgives missing fields).
     for field in svcolnames:
+        svs = field.split('_')[0] 
         targs = rfn.rename_fields(targs, {field:"_".join(field.split('_')[1:])})
 
     # ADM determine the working nside for the passed max_bin_area.
@@ -1525,7 +1527,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM html preamble.
     htmlmain = open(htmlfile, 'w')
     htmlmain.write('<html><body>\n')
-    htmlmain.write('<h1>DESI Targeting QA pages ({})</h1>\n'.format(DRs))
+    htmlmain.write('<h1>{} Targeting QA pages ({})</h1>\n'.format(svs,DRs))
 
     # ADM links to each collection of plots for each object type.
     htmlmain.write('<b><h2>Jump to a target class:</h2></b>\n')
