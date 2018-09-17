@@ -115,6 +115,13 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
 
+    targets.add_column(Column(name='FIBERFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='f4'))
+
     # Gaia columns
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
@@ -238,11 +245,13 @@ class SelectTargets(object):
         and brickid to each object.  Defaults to 0.25 deg.
 
     """
-    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
+    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
     def __init__(self, bricksize=0.25):
         from astropy.io import fits
+        from speclite import filters
         from desiutil.dust import SFDMap
+        from specsim.fastfiberacceptance import FastFiberAcceptance
         from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
         
@@ -253,6 +262,17 @@ class SelectTargets(object):
 
         self.Bricks = Bricks(bricksize=bricksize)
         self.SFDMap = SFDMap()
+
+        # Cache the plate scale (which is approximate; see
+        # $DESIMODEL/data/desi.yaml), and the FastFiberAcceptance class for the
+        # fiberflux calculation, below.
+        self.plate_scale_arcsec2um = 107.0 / 1.52 # [um/arcsec]
+        if self.FFA is None:
+            SelectTargets.FFA = FastFiberAcceptance(filename=os.path.join(
+                os.getenv('DESIMODEL'), 'data', 'throughput', 'galsim-fiber-acceptance.fits'))
+
+        self.bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z', 'wise2010-W1', 'wise2010-W2')
+        self.decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z', 'wise2010-W1', 'wise2010-W2')
 
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
@@ -689,6 +709,54 @@ class SelectTargets(object):
 
         return gflux, rflux, zflux, w1flux, w2flux
 
+    def get_fiberflux(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
+        """Estimate the fraction of the integrated flux that enters the fiber.
+
+        Assume a reference seeing value (seeingref) of 1.0 arcsec FWHM at
+        a reference wavelength (lambdaref) of 5500 Angstrom.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        south : :class:`bool`
+            True for sources with DECaLS photometry and False for sources with
+            BASS+MzLS photometry.
+        ref_seeing : :class:`float`
+            Reference seeing FWHM in arcsec.  Defaults to 1.0.
+        ref_lambda : :class:`float`
+            Reference wavelength in Angstrom.  Defaults to 5500 A.
+
+        """
+        ntarg = len(targets)
+        fiberflux_g = np.zeros(ntarg).astype('f4')
+        fiberflux_r, fiberflux_z = np.zeros_like(fiberflux_g), np.zeros_like(fiberflux_g)
+
+        if south:
+            lambdafilts = self.decamwise.effective_wavelengths[:4].value # [Angstrom]
+        else:
+            lambdafilts = self.bassmzlswise.effective_wavelengths[:4].value # [Angstrom]
+
+        # Not quite right to use a bulge-like surface-brightness profile for COMP.
+        type2source = {'PSF': 'POINT', 'REX': 'DISK', 'EXP': 'DISK',
+                       'DEV': 'BULGE', 'COMP': 'BULGE'}
+
+        for morphtype in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+            istype = targets['TYPE'] == morphtype
+            if np.sum(istype) > 0:
+                # Assume the radius is independent of wavelength.
+                reff = ( targets['FRACDEV'][istype].data * targets['SHAPEDEV_R'][istype].data +
+                         (1 - targets['FRACDEV'][istype].data) * targets['SHAPEEXP_R'][istype].data )
+                offset = np.zeros( np.sum(istype) ) # fiber offset [um]
+
+                for band, lambdafilt, fiberflux in zip( ('G', 'R', 'Z'), lambdafilts,
+                                                        (fiberflux_g, fiberflux_r, fiberflux_z) ):
+                    sigma_um = np.repeat( ref_seeing * (lambdafilt / ref_lambda)**(-1.0 / 5.0) /
+                                          2.355 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
+                    fiberflux[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
+
+        return fiberflux_g, fiberflux_r, fiberflux_z
+
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
                                use_simqso=True, truespectype='', templatetype='',
                                templatesubtype=''):
@@ -755,17 +823,25 @@ class SelectTargets(object):
 
         # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
         targets['RELEASE'][:] = 9999
-        
-        south = self.is_south(targets['DEC'])
-        north = ~south
-        if np.sum(south) > 0:
+
+        isouth = self.is_south(targets['DEC'])
+        south = np.where( isouth )[0]
+        north = np.where( ~isouth )[0]
+        if len(south) > 0:
             targets['PHOTSYS'][south] = 'S'
-        if np.sum(north) > 0:
+        if len(north) > 0:
             targets['PHOTSYS'][north] = 'N'
             
         targets['RA_IVAR'][:], targets['DEC_IVAR'][:] = 1e8, 1e8
         targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
 
+        # Compute the flux within the fiber.
+        for these, issouth in zip( (north, south), (False, True) ):
+            if len(these) > 0:
+                for band, fiberflux in zip( ('G', 'R', 'Z'), (self.get_fiberflux(targets[these], south=issouth)) ):
+                    targets['FIBERFLUX_{}'.format(band)][these] = fiberflux
+                    targets['FIBERTOTFLUX_{}'.format(band)][these] = fiberflux
+                    
         # Add dust, depth, and nobs.
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
             key = 'MW_TRANSMISSION_{}'.format(band)
@@ -3339,7 +3415,6 @@ class STARMaker(SelectTargets):
     
     def __init__(self, seed=None, **kwargs):
         from scipy.spatial import cKDTree as KDTree
-        from speclite import filters
         from desisim.templates import STAR
 
         super(STARMaker, self).__init__()
@@ -3360,12 +3435,8 @@ class STARMaker(SelectTargets):
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
-            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
-                                                'wise2010-W1', 'wise2010-W2')
-            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                             'wise2010-W1', 'wise2010-W2')
-            maggies_north = bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
-            maggies_south = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_south = self.decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
 
             # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
@@ -4126,7 +4197,6 @@ class WDMaker(SelectTargets):
 
     def __init__(self, seed=None, calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
-        from speclite import filters 
         from desisim.templates import WD
         
         super(WDMaker, self).__init__()
@@ -4155,15 +4225,10 @@ class WDMaker(SelectTargets):
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
 
-            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
-                                                'wise2010-W1', 'wise2010-W2')
-            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                             'wise2010-W1', 'wise2010-W2')
-
-            maggies_da_north = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db_north = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
-            maggies_da_south = bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db_south = bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_north = self.decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_north = self.decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_south = self.bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_south = self.bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
 
             # Normalize to sdss-g
             normfilter = filters.load_filters('sdss2010-g')
