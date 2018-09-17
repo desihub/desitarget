@@ -423,12 +423,17 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
     The passed ``pixmap`` must contain a column ``FRACAREA`` which is used to filter out any
     pixel with less than 90% areal coverage
     """
-    # ADM set up the logger
+    # ADM set up the logger.
     from desiutil.log import get_logger, DEBUG
     log = get_logger()
 
-    # ADM exit if we have a target density column that isn't populated
-    if np.all(pixmap[targcolname]==0):
+    # ADM exit if we have a target density column that isn't populated.
+    try:
+        if np.all(pixmap[targcolname]==0):
+            log.info("Target densities not populated for {}".format(targcolname))
+            return
+    # ADM also exit gracefully if a column name doesn't exist.
+    except ValueError:
         log.info("Target densities not populated for {}".format(targcolname))
         return
 
@@ -1338,7 +1343,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     # ADM clip the target densities at an upper density to improve plot edges
     # ADM by rejecting highly dense outliers
     upclipdict = {k:5000. for k in targdens}
-    if ~cmx:
+    if cmx:
+        desi_mask = cmx_mask
+    else:
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                       'STD_FAINT': 200, 'STD_BRIGHT': 50,
                       'LRG_1PASS': 1000, 'LRG_2PASS': 500,
@@ -1350,9 +1357,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         if 'ALL' in objtype:
             w = np.arange(len(targs))
         else:
-            if  ('BGS' in objtype) & ~('ANY' in objtype):
+            if ('BGS' in objtype) and not('ANY' in objtype) and not(cmx):
                 w = np.where(targs["BGS_TARGET"] & bgs_mask[objtype])[0]
-            elif ('MWS' in objtype) & ~('ANY' in objtype):
+            elif ('MWS' in objtype) and not('ANY' in objtype) and not(cmx):
                 w = np.where(targs["MWS_TARGET"] & mws_mask[objtype])[0]
             else:
                 w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
@@ -1483,6 +1490,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     svcolnames = colnames[ ['SV' in name or 'CMX' in name for name in colnames] ]
     # ADM set cmx flag to True if 'CMX_TARGET' is a column and rename that column.
     cmx = 'CMX_TARGET' in svcolnames
+    # ADM use the commissioning mask bits/names if we have a CMX file.
+    if cmx:
+        desi_mask = cmx_mask
     targs = rfn.rename_fields(targs, {'CMX_TARGET':'DESI_TARGET'})
     # ADM strip "SVX" off any columns (rfn.rename_fields forgives missing fields).
     for field in svcolnames:
@@ -1517,7 +1527,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults).
     targdens = _load_targdens(tcnames=tcnames, cmx=cmx)
-    
+
     # ADM set up the html file and write preamble to it.
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
 
@@ -1637,9 +1647,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             #html.write('</tr>\n')
             #html.write('</table>\n')
 
-        # ADM add target density vs. systematics plots, if systematics plots were requested
-        if systematics:
-            # ADM fail if the pixel systematics weights file was not passed
+        # ADM add target density vs. systematics plots, if systematics plots were requested.
+        # ADM these plots aren't useful if we're looking at commissioning data.
+        if systematics and not(cmx):
+            # ADM fail if the pixel systematics weights file was not passed.
             if imaging_map_file is None:
                 log.error("imaging_map_file was not passed so systematics cannot be tracked. Try again passing systematics=False.")
                 raise IOError
@@ -1744,14 +1755,15 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                 qasystematics_skyplot(pixmap[sysname],sysname,
                               qadir=qadir,downclip=down,upclip=up,plottitle=plotlabel)
                 # ADM make the systematics vs. target density scatter plots
-                # ADM for each target type
-                for objtype in targdens.keys():
-                    # ADM hack to have different FRACAREA quantities for the sky maps and
-                    # ADM the scatter plots
-                    if sysname=="FRACAREA":
-                        down = 0.9
-                    qasystematics_scatterplot(pixmap,sysname,objtype,qadir=qadir,
-                                    downclip=down,upclip=up,nbins=10,xlabel=plotlabel)
+                # ADM for each target type. These plots aren't useful for commissioning.
+                if not(cmx):
+                    for objtype in targdens.keys():
+                       # ADM hack to have different FRACAREA quantities for the sky maps and
+                        # ADM the scatter plots
+                        if sysname=="FRACAREA":
+                            down = 0.9
+                        qasystematics_scatterplot(pixmap,sysname,objtype,qadir=qadir,
+                                        downclip=down,upclip=up,nbins=10,xlabel=plotlabel)
 
         log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
