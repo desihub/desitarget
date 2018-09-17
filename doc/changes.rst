@@ -12,6 +12,8 @@ desitarget Change Log
     * SV0 (commissioning) MWS cuts.
     * Updated STD cuts to fix a `fracmasked` typo.
     * Alterations to Travis coverage to exclude some external code.
+* Fix a bug which resulted in far too few standard stars being selected in the
+  mocks [`PR #378`_].  
 * Fix a bug in how the `objtruth` tables are written out to by
   `select_mock_targets` [`PR #374`_].
 * Remove Python 2.7 from Travis, add an allowed-to-fail PEP 8 check [`PR #373`_].
@@ -76,6 +78,7 @@ desitarget Change Log
 .. _`PR #372`: https://github.com/desihub/desitarget/pull/372
 .. _`PR #373`: https://github.com/desihub/desitarget/pull/373
 .. _`PR #374`: https://github.com/desihub/desitarget/pull/374
+.. _`PR #378`: https://github.com/desihub/desitarget/pull/378
 .. _`PR #380`: https://github.com/desihub/desitarget/pull/380
 
 0.23.0 (2018-08-09)
