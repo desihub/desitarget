@@ -5,6 +5,13 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* First fully working version of SV code [`PR #380`_]. Includes:
+    * (Almost) the only evolving part of the code for SV is now the cuts.
+    * Unit tests for SV that should be easy to maintain.
+    * Bit and column setting for SV that should be maintainable.
+    * SV0 (commissioning) MWS cuts.
+    * Updated STD cuts to fix a `fracmasked` typo.
+    * Alterations to Travis coverage to exclude some external code.
 * Fix a bug in how the `objtruth` tables are written out to by
   `select_mock_targets` [`PR #374`_].
 * Remove Python 2.7 from Travis, add an allowed-to-fail PEP 8 check [`PR #373`_].
@@ -69,6 +76,7 @@ desitarget Change Log
 .. _`PR #372`: https://github.com/desihub/desitarget/pull/372
 .. _`PR #373`: https://github.com/desihub/desitarget/pull/373
 .. _`PR #374`: https://github.com/desihub/desitarget/pull/374
+.. _`PR #380`: https://github.com/desihub/desitarget/pull/380
 
 0.23.0 (2018-08-09)
 -------------------
