@@ -1402,7 +1402,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', 
                  clip2foot=False, weight=True, imaging_map_file=None, 
-                 tcnames=None, systematics=True, survey='main'):
+                 tcnames=None, systematics=True):
     """Create a directory containing a webpage structure in which to embed QA plots.
 
     Parameters
@@ -1436,10 +1436,6 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         for those specific bits. A useful speed-up when testing
     systematics : :class:`boolean`, optional, defaults to ``True``
         If sent, then add plots of systematics to the front page.
-    survey : :class:`str`, defaults to ``'main'``
-        Specifies which target bits and columns to use. Options are ``'main'``, ``'cmx'`` 
-        and ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and different 
-        iterations of SV, respectively.
 
     Returns
     -------
@@ -1480,22 +1476,16 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         targs = fitsio.read(targs)
         log.info('Read in targets...t = {:.1f}s'.format(time()-start))
 
-    # ADM check whether we're running this for the main survey or SV, etc.
-    # ADM and change the column names accordingly.
-    If survey == 'cmx':
-        targs = rfn.rename_fields(targs,
-                        {'DESI_TARGET':'CMX_TARGET'})
-    elif survey[0:2] == 'sv':
-        targs = rfn.rename_fields(targs,
-                        {'DESI_TARGET':"{}_DESI_TARGET".format(survey.upper())}, 
-                        {'BGS_TARGET':"{}_BGS_TARGET".format(survey.upper())}, 
-                        {'MWS_TARGET':"{}_MWS_TARGET".format(survey.upper())}
-        )
-    elif survey != 'main':
-        msg = "survey must be either 'main', 'cmx' or 'svX', not {}!!!"
-                         .format(survey)
-        log.critical(msg)
-        raise ValueError(msg)
+    # ADM automatically detect whether we're running this for the main survey 
+    # ADM or SV, etc. and change the column names accordingly.
+    colnames = np.array(targs.dtype.names)
+    svcolnames = colnames[ ['SV' in name or 'CMX' in name for name in colnames] ]
+    # ADM set cmx flag to True if 'CMX_TARGET' is a column and rename that column.
+    cmx = 'CMX_TARGET' in svcolnames
+    targs = rfn.rename_fields(targs, {'CMX_TARGET':'DESI_TARGET'})
+    # ADM strip "SVX" off any columns (rfn.rename_fields forgives missing fields).
+    for field in svcolnames:
+        targs = rfn.rename_fields(targs, {field:"_".join(field.split('_')[1:])})
 
     # ADM determine the working nside for the passed max_bin_area.
     for n in range(1, 25):
@@ -1524,7 +1514,6 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults).
-    cmx = survey == 'cmx'
     targdens = _load_targdens(tcnames=tcnames, cmx=cmx)
     
     # ADM set up the html file and write preamble to it.
