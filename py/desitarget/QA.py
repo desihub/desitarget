@@ -29,6 +29,7 @@ from desiutil import brick
 from desiutil.log import get_logger, DEBUG
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+from desitarget.cmx.cmx_targetmask import cmx_mask
 
 import warnings, itertools
 import matplotlib
@@ -137,7 +138,7 @@ def _prepare_systematics(data,colname):
 
     return outdata
 
-def _load_targdens(tcnames=None):
+def _load_targdens(tcnames=None, cmx=False):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots
 
@@ -146,6 +147,9 @@ def _load_targdens(tcnames=None):
     tcnames : :class:`list`
         A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
         for those specific bits
+    cmx : :class:`boolean`, optional, defaults to ``False``
+        If passed, load the commissioining bits (with zero density constraints) instead
+        of the main survey/SV bits.
 
     Returns
     -------
@@ -153,33 +157,36 @@ def _load_targdens(tcnames=None):
         A dictionary where the keys are the bit names and the values are the densities           
     """
 
-    from desimodel import io
-    targdict = io.load_target_info()
+    if cmx == False:
+        from desimodel import io
+        targdict = io.load_target_info()
 
-    targdens = {}
-    targdens['ELG'] = targdict['ntarget_elg']
-    targdens['LRG'] = targdict['ntarget_lrg']
-    targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
-    targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
-    targdens['STD_FAINT'] = 0
-    targdens['STD_BRIGHT'] = 0
-    targdens['MWS_ANY'] = targdict['ntarget_mws']
-    # ADM set "ALL" to be the sum over all the target classes
-    targdens['ALL'] = sum(list(targdens.values()))
+        targdens = {}
+        targdens['ELG'] = targdict['ntarget_elg']
+        targdens['LRG'] = targdict['ntarget_lrg']
+        targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
+        targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
+        targdens['STD_FAINT'] = 0.
+        targdens['STD_BRIGHT'] = 0.
+        targdens['MWS_ANY'] = targdict['ntarget_mws']
+        # ADM set "ALL" to be the sum over all the target classes
+        targdens['ALL'] = sum(list(targdens.values()))
 
-    # ADM add in some sub-classes, not that ALL has been calculated
-    targdens['LRG_1PASS'] = 0.
-    targdens['LRG_2PASS'] = 0.
+        # ADM add in some sub-classes, not that ALL has been calculated
+        targdens['LRG_1PASS'] = 0.
+        targdens['LRG_2PASS'] = 0.
     
-    targdens['BGS_FAINT'] = targdict['ntarget_bgs_faint'] 
-    targdens['BGS_BRIGHT'] = targdict['ntarget_bgs_bright'] 
+        targdens['BGS_FAINT'] = targdict['ntarget_bgs_faint'] 
+        targdens['BGS_BRIGHT'] = targdict['ntarget_bgs_bright'] 
 
-    targdens['MWS_MAIN'] = 0.
-    targdens['MWS_MAIN_RED'] = 0.
-    targdens['MWS_MAIN_BLUE'] = 0.
-    targdens['MWS_WD'] = 0.
-    targdens['MWS_NEARBY'] = 0.
-
+        targdens['MWS_MAIN'] = 0.
+        targdens['MWS_MAIN_RED'] = 0.
+        targdens['MWS_MAIN_BLUE'] = 0.
+        targdens['MWS_WD'] = 0.
+        targdens['MWS_NEARBY'] = 0.
+    else:
+        targdens = {k:0. for k in cmx_mask.names()}
+    
     if tcnames is None:
         return targdens
     else:
