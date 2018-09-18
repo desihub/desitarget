@@ -1700,7 +1700,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
         # ADM only retain classes that are actually in the DESI target bit list
-        settargdens = set(main_mask.names()).intersection(set(targdens))        
+        settargdens = set(main_mask.names()).intersection(set(targdens))
         # ADM write out a list of the target categories
         headerlist = list(settargdens)
         headerlist.insert(0," ")

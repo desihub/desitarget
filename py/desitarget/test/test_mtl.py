@@ -1,3 +1,7 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""Test desitarget.mtl.
+"""
 import os
 import unittest
 import numpy as np
@@ -52,7 +56,6 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3, 1]))
 
-        
         #- change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
         self.targets['DESI_TARGET'][0] = Mx.BAD_SKY
         mtl = make_mtl(self.targets, self.zcat, trim=False)
@@ -71,3 +74,10 @@ class TestMTL(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+def test_suite():
+    """Allows testing of only this module with the command::
+
+        python setup.py test -m desitarget.test.test_mtl
+    """
+    return unittest.defaultTestLoader.loadTestsFromName(__name__)
