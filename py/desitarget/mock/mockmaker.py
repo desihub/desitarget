@@ -753,6 +753,14 @@ class SelectTargets(object):
                                           2.355 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
                     fiberflux[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
 
+        fiberflux_g[fiberflux_g > 1] = 1.0
+        fiberflux_r[fiberflux_r > 1] = 1.0
+        fiberflux_z[fiberflux_z > 1] = 1.0
+
+        fiberflux_g[fiberflux_g < 0] = 0.0
+        fiberflux_r[fiberflux_r < 0] = 0.0
+        fiberflux_z[fiberflux_z < 0] = 0.0
+
         return fiberflux_g, fiberflux_r, fiberflux_z
 
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
