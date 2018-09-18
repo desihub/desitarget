@@ -153,10 +153,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='NUMOBS', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
-    # HACK!!!
-    for band in ('G', 'R', 'Z'):
-        targets['FRACMASKED_{}'.format(band)] = 0.001
-
     return targets
 
 def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
