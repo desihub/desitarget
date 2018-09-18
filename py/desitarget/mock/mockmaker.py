@@ -760,10 +760,8 @@ class SelectTargets(object):
                 for band, lambdafilt, fiberfraction in zip( ('G', 'R', 'Z'), lambdafilts,
                                                         (fiberfraction_g, fiberfraction_r, fiberfraction_z) ):
                     sigma_um = np.repeat( ref_seeing * (lambdafilt / ref_lambda)**(-1.0 / 5.0) /
-                                          2.355 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
-                    fiberfraction[istype] = self.FFA.value(
-                        type2source[morphtype], sigma_um,
-                        offset, hlradii=reff)
+                                          2.35482 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
+                    fiberfraction[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
 
         if np.sum( (fiberfraction_r < 0) * (fiberfraction_r > 1) ) > 0:
             log.warning('FIBERFRACTION should be [0-1].')
