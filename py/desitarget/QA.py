@@ -1344,8 +1344,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     # ADM by rejecting highly dense outliers
     upclipdict = {k:5000. for k in targdens}
     if cmx:
-        desi_mask = cmx_mask
+        main_mask = cmx_mask
     else:
+        main_mask = desi_mask
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                       'STD_FAINT': 200, 'STD_BRIGHT': 50,
                       'LRG_1PASS': 1000, 'LRG_2PASS': 500,
@@ -1362,7 +1363,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             elif ('MWS' in objtype) and not('ANY' in objtype) and not(cmx):
                 w = np.where(targs["MWS_TARGET"] & mws_mask[objtype])[0]
             else:
-                w = np.where(targs["DESI_TARGET"] & desi_mask[objtype])[0]
+                w = np.where(targs["DESI_TARGET"] & main_mask[objtype])[0]
 
         if len(w) > 0:
             # ADM make RA/Dec skymaps
@@ -1492,7 +1493,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     cmx = 'CMX_TARGET' in svcolnames
     # ADM use the commissioning mask bits/names if we have a CMX file.
     if cmx:
-        desi_mask = cmx_mask
+        main_mask = cmx_mask
+    else:
+        main_mask = desi_mask
     targs = rfn.rename_fields(targs, {'CMX_TARGET':'DESI_TARGET'})
     # ADM strip "SVX" off any columns (rfn.rename_fields forgives missing fields).
     for field in svcolnames:
@@ -1697,7 +1700,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
         # ADM only retain classes that are actually in the DESI target bit list
-        settargdens = set(desi_mask.names()).intersection(set(targdens))        
+        settargdens = set(main_mask.names()).intersection(set(targdens))        
         # ADM write out a list of the target categories
         headerlist = list(settargdens)
         headerlist.insert(0," ")
@@ -1712,7 +1715,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                     overlaps.append(" ")
                 else:
                     dt = targs["DESI_TARGET"]
-                    overlap = np.sum(((dt & desi_mask[objtype1]) != 0) & ((dt & desi_mask[objtype2]) != 0))/totarea
+                    overlap = np.sum(((dt & main_mask[objtype1]) != 0) & ((dt & main_mask[objtype2]) != 0))/totarea
                     overlaps.append("{:.1f}".format(overlap))
             htmlmain.write(" ".join(['{:>11s}'.format(i) for i in overlaps])+'\n\n')
         # ADM close the matrix text output
