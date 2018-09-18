@@ -703,7 +703,7 @@ class SelectTargets(object):
 
         return gflux, rflux, zflux, w1flux, w2flux
 
-    def get_fiberflux(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
+    def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
         """Estimate the fraction of the integrated flux that enters the fiber.
 
         Assume a reference seeing value (seeingref) of 1.0 arcsec FWHM at
@@ -721,10 +721,24 @@ class SelectTargets(object):
         ref_lambda : :class:`float`
             Reference wavelength in Angstrom.  Defaults to 5500 A.
 
+        Returns
+        -------
+        fiberfraction_g : :class:`numpy.ndarray`
+            Fraction of the total g-band flux entering the fiber.
+        fiberfraction_r : :class:`numpy.ndarray`
+            Fraction of the total r-band flux entering the fiber.
+        fiberfraction_z : :class:`numpy.ndarray`
+            Fraction of the total z-band flux entering the fiber.
+    
+        Raises
+        ------
+        ValueError
+            If fiberfraction is outside the bounds [0-1] (inclusive).
+
         """
         ntarg = len(targets)
-        fiberflux_g = np.zeros(ntarg).astype('f4')
-        fiberflux_r, fiberflux_z = np.zeros_like(fiberflux_g), np.zeros_like(fiberflux_g)
+        fiberfraction_g = np.zeros(ntarg).astype('f4')
+        fiberfraction_r, fiberfraction_z = np.zeros_like(fiberfraction_g), np.zeros_like(fiberfraction_g)
 
         if south:
             lambdafilts = self.decamwise.effective_wavelengths[:4].value # [Angstrom]
@@ -743,21 +757,19 @@ class SelectTargets(object):
                          (1 - targets['FRACDEV'][istype].data) * targets['SHAPEEXP_R'][istype].data )
                 offset = np.zeros( np.sum(istype) ) # fiber offset [um]
 
-                for band, lambdafilt, fiberflux in zip( ('G', 'R', 'Z'), lambdafilts,
-                                                        (fiberflux_g, fiberflux_r, fiberflux_z) ):
+                for band, lambdafilt, fiberfraction in zip( ('G', 'R', 'Z'), lambdafilts,
+                                                        (fiberfraction_g, fiberfraction_r, fiberfraction_z) ):
                     sigma_um = np.repeat( ref_seeing * (lambdafilt / ref_lambda)**(-1.0 / 5.0) /
                                           2.355 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
-                    fiberflux[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
+                    fiberfraction[istype] = self.FFA.value(
+                        type2source[morphtype], sigma_um,
+                        offset, hlradii=reff)
 
-        fiberflux_g[fiberflux_g > 1] = 1.0
-        fiberflux_r[fiberflux_r > 1] = 1.0
-        fiberflux_z[fiberflux_z > 1] = 1.0
+        if np.sum( (fiberfraction_r < 0) * (fiberfraction_r > 1) ) > 0:
+            log.warning('FIBERFRACTION should be [0-1].')
+            raise ValueError
 
-        fiberflux_g[fiberflux_g < 0] = 0.0
-        fiberflux_r[fiberflux_r < 0] = 0.0
-        fiberflux_z[fiberflux_z < 0] = 0.0
-
-        return fiberflux_g, fiberflux_r, fiberflux_z
+        return fiberfraction_g, fiberfraction_r, fiberfraction_z
 
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
                                use_simqso=True, truespectype='', templatetype='',
@@ -837,18 +849,6 @@ class SelectTargets(object):
         targets['RA_IVAR'][:], targets['DEC_IVAR'][:] = 1e8, 1e8
         targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
 
-        # Compute the flux within the fiber.
-        for these, issouth in zip( (north, south), (False, True) ):
-            if len(these) > 0:
-                for band, fiberflux in zip( ('G', 'R', 'Z'), (self.get_fiberflux(targets[these], south=issouth)) ):
-
-                    toobig = fiberflux > targets['FLUX_{}'.format(band)][these]
-                    if np.sum(toobig) > 0:
-                        fiberflux[toobig] = targets['FLUX_{}'.format(band)][these]
-
-                    targets['FIBERFLUX_{}'.format(band)][these] = fiberflux
-                    targets['FIBERTOTFLUX_{}'.format(band)][these] = fiberflux
-                    
         # Add dust, depth, and nobs.
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
             key = 'MW_TRANSMISSION_{}'.format(band)
@@ -881,13 +881,23 @@ class SelectTargets(object):
                 if key in objtruth.colnames:
                     objtruth[key][:] = objmeta[key]
             
-        # Scatter the photometry based on the depth.
+        # Scatter the observed photometry based on the depth and then attenuate
+        # for Galactic extinction.
         self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
-        # Finally, attenuate the observed photometry for Galactic extinction.
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
+
+        # Finally compute the (simulated, observed) flux within the fiber.
+        for these, issouth in zip( (north, south), (False, True) ):
+            if len(these) > 0:
+                fiberfraction = self.get_fiberfraction(targets[these], south=issouth)
+                for band, fraction in zip( ('G', 'R', 'Z'), fiberfraction ):
+                    fiberflux = targets['FLUX_{}'.format(band)][these] * fraction
+
+                    targets['FIBERFLUX_{}'.format(band)][these] = fiberflux
+                    targets['FIBERTOTFLUX_{}'.format(band)][these] = fiberflux
 
         return targets, truth, objtruth
 
