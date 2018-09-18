@@ -122,10 +122,10 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     return std
 
 
-def isSTD_bright(gflux=None, rflux=None, zflux=None,
-                 pmra=None, pmdec=None, parallax=None,
-                 gaiagmag=None, isgood=None, primary=None):
-    """A selection that resembles the main survey bright STD stars.
+def isSV0_STD_bright(gflux=None, rflux=None, zflux=None,
+                     pmra=None, pmdec=None, parallax=None,
+                     gaiagmag=None, isgood=None, primary=None):
+    """A selection that resembles bright STD stars for initial SV.
 
     Parameters
     ----------
@@ -578,9 +578,9 @@ def apply_cuts(objects, cmxdir=None):
         ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
     )
 
-    # ADM determine if an object is STD_BRIGHT. Resembles the main
-    # ADM survey code, but locked in cmx_cuts (and could be altered).
-    std_bright = isSTD_bright(
+    # ADM determine if an object is SV0_STD_BRIGHT. Resembles first
+    # ADM iteration of SV, but locked in cmx_cuts (and could be altered).
+    sv0_std_bright = isSV0_STD_bright(
         gflux=gflux, rflux=rflux, zflux=zflux,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
         gaiagmag=gaiagmag, isgood=isgood, primary=primary
@@ -595,7 +595,7 @@ def apply_cuts(objects, cmxdir=None):
     cmx_target  = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
-    cmx_target |= std_bright * cmx_mask.STD_BRIGHT
+    cmx_target |= sv0_std_bright * cmx_mask.SV0_STD_BRIGHT
     cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
 
     # ADM update the priority with any shifts.

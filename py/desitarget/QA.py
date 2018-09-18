@@ -19,8 +19,6 @@ import textwrap
 import warnings
 import itertools
 import matplotlib
-matplotlib.use('Agg')
-
 import matplotlib.pyplot as plt
 import numpy.lib.recfunctions as rfn
 import healpy as hp
@@ -315,7 +313,6 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
         But a .png plot of target densities is written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{objtype}.png``
     """
-
     label = '{} (targets/deg$^2$)'.format(objtype)
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
