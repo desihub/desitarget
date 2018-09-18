@@ -3409,6 +3409,7 @@ class STARMaker(SelectTargets):
     
     def __init__(self, seed=None, **kwargs):
         from scipy.spatial import cKDTree as KDTree
+        from speclite import filters
         from desisim.templates import STAR
 
         super(STARMaker, self).__init__()
@@ -4191,6 +4192,7 @@ class WDMaker(SelectTargets):
 
     def __init__(self, seed=None, calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
+        from speclite import filters
         from desisim.templates import WD
         
         super(WDMaker, self).__init__()
