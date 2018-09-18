@@ -26,23 +26,12 @@ class TestQA(unittest.TestCase):
         print("working in {}...".format(cls.testdir))
         os.chdir(cls.testdir)
 
-        # ADM make absolutely sure that Tk is not the back-end.
-        # ADM initially unset the matplotlib back-end.
-#        cls.mpl = os.environ.get('MPLBACKEND')
-#        print("setting matplotlib back-end to Agg...")
-#        os.environ["MPLBACKEND"] = 'Agg'
-
     @classmethod
     def tearDownClass(cls):
         #- Remove all test input and output files.
         os.chdir(cls.origdir)
         if os.path.exists(cls.testdir):
             shutil.rmtree(cls.testdir)
-
-        # ADM reset the matplotlib back-end.
-#        print("setting matplotlib back-end to original value...")
-#        if cls.mpl is not None:
-#            os.environ["MPLBACKEND"] = cls.mpl
 
     def setUp(self):
         pass
