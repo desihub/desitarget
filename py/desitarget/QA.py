@@ -1431,7 +1431,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
         only those that lie within the DESI spectroscopic footprint.
     weight : :class:`boolean`, optional, defaults to True
-        If this is set, weight pixels using to ameliorate under dense pixels at the footprint 
+        If this is set, weight pixels to ameliorate under dense pixels at the footprint 
         edges. This uses the `imaging_map_file` HEALPix file for real targets and the default 
         ``DESIMODEL`` HEALPix footprint file for mock targets.
     imaging_map_file : :class:`str`, optional, defaults to no weights

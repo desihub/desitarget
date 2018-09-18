@@ -7,8 +7,10 @@ import os
 import shutil
 import tempfile
 import numpy as np
+import healpy as hp
 from pkg_resources import resource_filename
-from desitarget.QA import make_qa_page
+from desitarget.QA import make_qa_page, _load_systematics
+from desitarget.QA import _parse_tcnames
 from glob import glob
 
 class TestQA(unittest.TestCase):
@@ -18,6 +20,7 @@ class TestQA(unittest.TestCase):
         cls.datadir = resource_filename('desitarget.test', 't/')
         cls.targfile = os.path.join(cls.datadir,'targets.fits')
         cls.cmxfile = os.path.join(cls.datadir,'cmx-targets.fits')
+        cls.pixmapfile = os.path.join(cls.datadir,'pixweight.fits')
         cls.origdir = os.getcwd()
         cls.testdir = tempfile.mkdtemp()
         print("working in {}...".format(cls.testdir))
@@ -59,32 +62,48 @@ class TestQA(unittest.TestCase):
         # ADM but this also tests passing via tcnames.
         tcnames = ["ALL","BGS_FAINT"]
 
-        make_qa_page(self.targfile, qadir=self.testdir, 
-                     systematics=False, tcnames=tcnames)
+        # ADM the large max_bin_area helps speed the tests.
+        make_qa_page(self.targfile, qadir=self.testdir, max_bin_area=99.,
+                     imaging_map_file=self.pixmapfile, tcnames=tcnames)
 
         pngs, htmls = len(glob("*png")), len(glob("*html"))
         dats, alls = len(glob("*dat")), len(glob("./*"))
-        
+        sysplots = len(_load_systematics())
+
         # ADM one webpage is made per tc, plus the index.html.
         self.assertEqual(htmls, len(tcnames)+1)
         # ADM 4 N(m) plots are made per tc.
         self.assertEqual(dats, 4*len(tcnames))
-        # ADM 11 plots are made per tc.
-        self.assertEqual(pngs, 11*len(tcnames))
+        # ADM 11 plots made per tc. plus 2 lots of systematics plots.
+        self.assertEqual(pngs, 11*len(tcnames)+2*sysplots)
         # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
 
     def test_qa_cmx(self):
         """Test plots/pages are made for some commissioning targets.
         """
-
-        make_qa_page(self.cmxfile, qadir=self.testdir, 
+        # ADM the large max_bin_area helps speed the tests.
+        make_qa_page(self.cmxfile, qadir=self.testdir, max_bin_area=99.,
                      systematics=False)
 
         pngs, htmls = len(glob("*png")), len(glob("*html"))
         dats, alls = len(glob("*dat")), len(glob("./*"))
-        
+
+        # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
+
+    def test_parse_tc_names(self):
+        """Test target class strings are parsed into lists.
+        """
+        # ADM the defaults list of target classes without "ALL".
+        no_all = _parse_tcnames(add_all=False)
+        # ADM passing the string instead of defaulting.
+        no_all2 = _parse_tcnames(tcstring=",".join(no_all), add_all=False)
+        # ADM the default list of target classes with "ALL".
+        with_all = _parse_tcnames()
+
+        self.assertTrue(no_all == no_all2)
+        self.assertTrue(set(with_all)-set(no_all) == {'ALL'})
 
 if __name__ == '__main__':
     unittest.main()

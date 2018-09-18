@@ -1,17 +1,21 @@
 #- For the record (and future updates):
-#- This code was used to generate tractor and sweep file subsets for testing.
+# ADM This code generates tractor, sweep, targets, pixweight, mask
+# ADM file subsets for testing.
 #- The hardcoded paths are for NERSC, but you can swap out any
 #- legacy survey data release path as needed.
 # ADM Now (08/01/18) based off DR7 sweeps and Tractor files.
 
-from os.path import basename
+import fitsio
 import numpy as np
+import numpy.lib.recfunctions as rfn
+import healpy as hp
+from os.path import basename
+from time import time
 #from astropy.io import fits
 from desitarget.cuts import apply_cuts
 from desitarget.io import read_tractor
 from desitarget.targets import finalize
-import fitsio
-from time import time
+from desitarget.QA import _load_systematics
 #from desitarget.gaiamatch import find_gaia_files
 
 start = time()
@@ -21,22 +25,13 @@ tractordir = '/project/projectdirs/cosmo/data/legacysurvey/dr7/tractor/330/'
 for brick in ['3301m002', '3301m007', '3303p000']:
     filepath = '{}/tractor-{}.fits'.format(tractordir, brick)
     desi_target, bgs_target, mws_target = apply_cuts(filepath)
-    cmx_target = apply_cuts(filepath, survey='cmx')
     # ADM as nobody is testing the MWS in the sandbox, yet, we need to
     # ADM ensure we ignore MWS targets for testing the main algorithms.
     yes = np.where( (desi_target != 0) & (mws_target == 0) )[0]
     no = np.where(desi_target == 0)[0]
     keep = np.concatenate([yes[0:3], no[0:3]])
-#    data, hdr = fits.getdata(filepath, header=True)
     data, hdr = read_tractor(filepath, header=True)
-    data = data[keep]
-
-    # ADM create a targets file for testing QA (main survey and commissioning).
-    targets = finalize(data, desi_target[keep],
-                    bgs_target[keep], mws_target[keep])
-    cmx_targets = finalize(data, desi_target[keep],
-                    bgs_target[keep], mws_target[keep], survey='cmx')
-
+    
     # ADM the FRACDEV and FRACDEV_IVAR columns can 
     # ADM contain some NaNs, which break testing.
     wnan = np.where(data["FRACDEV"] != data["FRACDEV"])
@@ -49,9 +44,7 @@ for brick in ['3301m002', '3301m007', '3303p000']:
     # ADM the "CONTINUE" comment keyword is not yet implemented
     # ADM in fitsio, so delete it to prevent fitsio barfing on headers.
     hdr.delete("CONTINUE")
-    fitsio.write('t/'+basename(filepath), data, header=hdr, clobber=True)
-    fitsio.write('t/targets.fits', targets, header=hdr, clobber=True)
-    fitsio.write('t/cmx-targets.fits', data, header=hdr, clobber=True)
+    fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
     print('made Tractor file for brick {}...t={:.2f}s'.format(brick,time()-start))
 
 sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr7/sweep/7.1/'
@@ -60,20 +53,45 @@ sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr7/sweep/7.1/'
 for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
     desi_target, bgs_target, mws_target = apply_cuts(filepath)
-    yes = np.where( (desi_target != 0) & (mws_target == 0) )[0]
+    cmx_target = apply_cuts(filepath, survey='cmx')
 
-    # ADM as nobody is testing the MWS in the sandbox, yet, we need to
-    # ADM ensure we ignore MWS targets for testing the main algorithms
+    # ADM as nobody is testing the MWS in the sandbox, yet, we need to.
+    # ADM ensure we ignore MWS targets for testing the main algorithms.
+    yes = np.where( (desi_target != 0) & (mws_target == 0) )[0]
     no = np.where(desi_target == 0)[0]
     keep = np.concatenate([yes[0:3], no[0:3]])
-#    data, hdr = fits.getdata(filepath, header=True)
     data, hdr = read_tractor(filepath, header=True)
 
     # ADM the "CONTINUE" comment keyword is not yet implemented
-    # ADM in fitsio, so delete it to prevent fitsio barfing on headers
+    # ADM in fitsio, so delete it to prevent fitsio barfing on headers.
     hdr.delete("CONTINUE")
+
     fitsio.write('t/'+basename(filepath), data[keep], header=hdr, clobber=True)
+
     print('made sweeps file for range {}...t={:.2f}s'.format(radec,time()-start))
+
+# ADM only need to write out one set of targets. So fine outside of loop.
+# ADM create a targets file for testing QA (main survey and commissioning)
+# ADM we get more test coverage if one file has > 1000 targets.
+many = yes[:1001]
+targets = finalize(data[many], desi_target[many],
+                    bgs_target[many], mws_target[many])
+cmx_targets = finalize(data[keep], desi_target[keep],
+                    bgs_target[keep], mws_target[keep], survey='cmx')
+# ADM remove some columns from the target file that aren't needed for
+# ADM testing. It's a big file.
+needtargs = np.empty(len(many), dtype= [('RA', '>f8'), ('DEC', '>f8'), 
+    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), 
+    ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('MW_TRANSMISSION_G', '>f4'), 
+    ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'), 
+    ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'), 
+    ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4'), 
+    ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'), ('MWS_TARGET', '<i8')
+])
+for col in needtargs.dtype.names:
+    needtargs[col] = targets[col]
+fitsio.write('t/targets.fits', needtargs, header=hdr, clobber=True)
+fitsio.write('t/cmx-targets.fits', cmx_targets, header=hdr, clobber=True)
 
 # ADM as of DR7, ignore the Gaia files
 # ADM adding Gaia files to which to match 
@@ -108,4 +126,12 @@ data, hdr = read_tractor(filepath, header=True)
 hdr.delete("CONTINUE")
 keep = np.where(data["FLUX_Z"] > 100000)
 fitsio.write('t2/'+basename(filepath), data[keep], header=hdr, clobber=True)
+
+# ADM adding a fake pixel weight map
+sysdic = _load_systematics()
+npix = hp.nside2npix(2)
+pixmap = np.ones(npix, dtype=[(k,'>f4') for k in sysdic.keys()])
+pixmap = rfn.append_fields(pixmap, "ALL", np.ones(npix), dtypes='>f4')
+fitsio.write('t/pixweight.fits', pixmap, clobber=True)
+
 print('Done...t={:.2f}s'.format(time()-start))
