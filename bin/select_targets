@@ -2,7 +2,7 @@
 
 from __future__ import print_function, division
 
-import os, sys
+import sys
 import numpy as np
 import fitsio
 
@@ -75,7 +75,7 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             gaiadir=ns.gaiadir, tcnames=tcnames)
+                             gaiadir=ns.gaiadir, tcnames=tcnames, survey='main')
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
