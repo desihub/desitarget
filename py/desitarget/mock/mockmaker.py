@@ -566,9 +566,7 @@ class SelectTargets(object):
                         gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
 
                 if mm == 'DEV':
-                    gmmout['FRACDEV'][:] = 1.0
-                elif mm == 'EXP':
-                    gmmout['FRACDEV'][:] = 0.0
+                    gmmout['FRACDEV'][gthese] = 1.0
 
         gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
         gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
@@ -853,10 +851,6 @@ class SelectTargets(object):
                 targets[key][:] = data[key][indx]
             nobskey = 'NOBS_{}'.format(band)
             targets[nobskey][:] = 2 # assume constant!
-
-        #for band in ('W1', 'W2'):
-        #    key = 'PSFDEPTH_{}'.format(band)
-        #    targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
