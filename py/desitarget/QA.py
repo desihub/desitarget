@@ -34,7 +34,7 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 
 from desiutil import brick
-from desiutil.log import get_logger, DEBUG
+from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
@@ -61,6 +61,8 @@ def _parse_tcnames(tcstring=None, add_all=True):
         - One use of this function is to check for valid target class
           strings. An IOError is raised if a string is invalid.
     """
+    # ADM set up the default logger from desiutil
+    log = get_logger()
 
     tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
     if add_all:
@@ -71,8 +73,9 @@ def _parse_tcnames(tcstring=None, add_all=True):
     else:    
         tcnames = [ bn for bn in tcstring.split(',') ]
         if not np.all([ tcname in tcdefault for tcname in tcnames ]):
-            log.critical("passed tcnames should be one of {}".format(tcdefault))
-            raise IOError
+            msg = "passed tcnames should be one of {}".format(tcdefault)
+            log.critical(msg)
+            raise ValueError(msg)
 
     return tcnames
 
@@ -254,8 +257,7 @@ def collect_mock_data(targfile):
     start = time()
 
     # ADM set up the default logger from desiutil
-    from desiutil.log import get_logger, DEBUG
-    log = get_logger(DEBUG)
+    log = get_logger()
 
     # ADM retrieve the directory that contains the targets
     targdir = os.path.dirname(targfile)
@@ -424,7 +426,6 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
     pixel with less than 90% areal coverage
     """
     # ADM set up the logger.
-    from desiutil.log import get_logger, DEBUG
     log = get_logger()
 
     # ADM exit if we have a target density column that isn't populated.
@@ -1209,8 +1210,7 @@ def _in_desi_footprint(targs):
     :class:`integer`
         The INDICES of the input targs that are in the DESI footprint
     """
-    from desiutil.log import get_logger, DEBUG
-    log = get_logger(DEBUG)
+    log = get_logger()
 
     start = time()
     log.info('Start restricting to DESI footprint...t = {:.1f}s'.format(time()-start))
@@ -1275,8 +1275,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     """
 
     # ADM set up the default logger from desiutil.
-    from desiutil.log import get_logger, DEBUG
-    log = get_logger(DEBUG)
+    log = get_logger()
 
     start = time()
     log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
@@ -1458,8 +1457,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     from desispec.io.util import makepath
     # ADM set up the default logger from desiutil.
-    from desiutil.log import get_logger, DEBUG
-    log = get_logger(DEBUG)
+    log = get_logger()
 
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
