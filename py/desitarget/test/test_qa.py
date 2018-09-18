@@ -10,7 +10,7 @@ import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
 from desitarget.QA import make_qa_page, _load_systematics
-from desitarget.QA import _parse_tcnames
+from desitarget.QA import _parse_tcnames, _in_desi_footprint
 from glob import glob
 
 class TestQA(unittest.TestCase):
@@ -101,9 +101,29 @@ class TestQA(unittest.TestCase):
         no_all2 = _parse_tcnames(tcstring=",".join(no_all), add_all=False)
         # ADM the default list of target classes with "ALL".
         with_all = _parse_tcnames()
+        # ADM you shouldn't be able to pass gobbledygook.
+        failed = False
+        try:
+            fooblat = _parse_tcnames(tcstring="blat,foo")
+        except ValueError:
+            failed = True
 
         self.assertTrue(no_all == no_all2)
         self.assertTrue(set(with_all)-set(no_all) == {'ALL'})
+        self.assertTrue(failed)
+
+    def test_in_footprint(self):
+        """Test target class strings are parsed into lists.
+        """
+        # ADM a location that's definitely in DESI (0,0).
+        targs = np.zeros(1,dtype=[('RA', '>f8'), ('DEC', '>f8')])
+        tin = _in_desi_footprint(targs)
+        # ADM shift to a location definitely out of DESI (0,-60).
+        targs["DEC"] = -60.
+        tout = _in_desi_footprint(targs)
+
+        self.assertEqual(len(tin[0]),1)
+        self.assertEqual(len(tout[0]),0)
 
 if __name__ == '__main__':
     unittest.main()
