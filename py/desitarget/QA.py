@@ -1774,6 +1774,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     htmlmain.write('<b><i>Last updated {}</b></i>\n'.format(js))
     htmlmain.write('</html></body>\n')
     htmlmain.close()
+    print(htmlmain.closed)
 
     # ADM make sure all of the relevant directories and plots can be read by a web-browser
     cmd = 'chmod 644 {}/*'.format(qadir)
