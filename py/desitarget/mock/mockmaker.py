@@ -845,6 +845,11 @@ class SelectTargets(object):
         for these, issouth in zip( (north, south), (False, True) ):
             if len(these) > 0:
                 for band, fiberflux in zip( ('G', 'R', 'Z'), (self.get_fiberflux(targets[these], south=issouth)) ):
+
+                    toobig = fiberflux > targets['FLUX_{}'.format(band)][these]
+                    if np.sum(toobig) > 0:
+                        fiberflux[toobig] = targets['FLUX_{}'.format(band)][these]
+
                     targets['FIBERFLUX_{}'.format(band)][these] = fiberflux
                     targets['FIBERTOTFLUX_{}'.format(band)][these] = fiberflux
                     
