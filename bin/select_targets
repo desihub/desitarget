@@ -9,7 +9,7 @@ import fitsio
 from desitarget import io
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightmask import mask_targets
-from desitarget.QA import _parse_tcnames
+#from desitarget.QA import _parse_tcnames
 
 from time import time
 start = time()
@@ -53,6 +53,46 @@ ap.add_argument("--numproc", type=int,
                 default=nproc)
 ap.add_argument('-t','--tcnames', default=None, 
                 help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
+
+
+def _parse_tcnames(tcstring=None, add_all=True):
+    """Turn a comma-separated string of target class names into a list.
+
+    Parameters
+    ----------
+    tcstring : :class:`str`, optional, defaults to `"ELG,QSO,LRG,MWS,BGS,STD,(ALL)"`
+        Comma-separated names of target classes e.g. QSO,LRG.
+        Options are `ELG`, `QSO`, `LRG`, `MWS`, `BGS`, `STD`.
+    add_all : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, then include `ALL` in the default names.
+
+    Returns
+    -------
+    :class:`list`
+        The string of names is converted to a list.
+
+    Notes
+    -----
+        - One use of this function is to check for valid target class
+          strings. An IOError is raised if a string is invalid.
+    """
+
+    tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
+    if add_all:
+        tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "ALL"]
+
+    if tcstring is None:
+        tcnames = tcdefault
+    else:
+        tcnames = [ bn for bn in tcstring.split(',') ]
+        if not np.all([ tcname in tcdefault for tcname in tcnames ]):
+            log.critical("passed tcnames should be one of {}".format(tcdefault))
+            raise IOError
+
+    return tcnames
+
+
+
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
