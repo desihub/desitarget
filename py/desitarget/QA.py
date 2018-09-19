@@ -19,7 +19,6 @@ import warnings
 import itertools
 import numpy.lib.recfunctions as rfn
 import healpy as hp
-# ADM fake the matplotlib display so it doesn't die on allocated nodes.
 from collections import defaultdict
 from glob import glob
 from scipy.optimize import leastsq
@@ -31,9 +30,10 @@ from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
+# ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt   # noqa: E402
 
 
 def _parse_tcnames(tcstring=None, add_all=True):
@@ -1027,8 +1027,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             verts = [(rzmin, ylim[0]),
                      (rzmin, np.polyval(coeff0, rzmin)),
                      (rzpivot, np.polyval(coeff1, rzpivot)),
-                     ((ylim[0] - 0.1 - coeff1[1]) / coeff1[0], ylim[0] - 0.1)
-            ]
+                     ((ylim[0] - 0.1 - coeff1[1]) / coeff1[0], ylim[0] - 0.1)]
+
         if verts:
             ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
 
@@ -1042,8 +1042,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             verts = [(-0.3, 1.3),
                      (1.1, 1.3),
                      (1.1, ylim[0]-0.05),
-                     (-0.3, ylim[0]-0.05)
-            ]
+                     (-0.3, ylim[0]-0.05)]
 
         if plottype == 'r-W1W2':
             verts = None
