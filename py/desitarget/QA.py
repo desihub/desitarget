@@ -8,7 +8,6 @@ desitarget.QA
 Module dealing with Quality Assurance tests for Target Selection
 """
 from __future__ import (absolute_import, division)
-
 from time import time
 import numpy as np
 import fitsio
@@ -18,28 +17,23 @@ import random
 import textwrap
 import warnings
 import itertools
-
 import numpy.lib.recfunctions as rfn
 import healpy as hp
-
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-
 from collections import defaultdict
 from glob import glob
 from scipy.optimize import leastsq
 from scipy.spatial import ConvexHull
-
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-
 from desiutil import brick
 from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 
 def _parse_tcnames(tcstring=None, add_all=True):
