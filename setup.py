@@ -7,10 +7,6 @@ from __future__ import absolute_import, division, print_function
 import glob
 import os
 import sys
-import matplotlib
-# ADM Force matplotlib to not use any Xwindows backend.
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 from setuptools import setup, find_packages
 #
 # DESI support code.
