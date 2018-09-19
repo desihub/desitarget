@@ -7,6 +7,7 @@ desitarget Change Log
 
 * Refactor QA to work with commissioning and SV files [`PR #382`_].
 * Add (first) unit tests for QA [`PR #382`_].
+* Estimate FIBERFLUX_[G,R,Z] for mock targets. [`PR #381`_].  
 * First fully working version of SV code [`PR #380`_]. Includes:
     * (Almost) the only evolving part of the code for SV is now the cuts.
     * Unit tests for SV that should be easy to maintain.
@@ -82,6 +83,7 @@ desitarget Change Log
 .. _`PR #374`: https://github.com/desihub/desitarget/pull/374
 .. _`PR #378`: https://github.com/desihub/desitarget/pull/378
 .. _`PR #380`: https://github.com/desihub/desitarget/pull/380
+.. _`PR #381`: https://github.com/desihub/desitarget/pull/381
 .. _`PR #382`: https://github.com/desihub/desitarget/pull/382
 
 0.23.0 (2018-08-09)
