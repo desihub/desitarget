@@ -5,8 +5,10 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Refactor QA to work with commissioning and SV files [`PR #382`_].
+* Add (first) unit tests for QA [`PR #382`_].
 * Fix a bug which resulted in far too few standard stars being selected in the
-  mocks [`PR #378`_].  
+  mocks [`PR #378`_].
 * Fix a bug in how the `objtruth` tables are written out to by
   `select_mock_targets` [`PR #374`_].
 * Remove Python 2.7 from Travis, add an allowed-to-fail PEP 8 check [`PR #373`_].
@@ -72,6 +74,7 @@ desitarget Change Log
 .. _`PR #373`: https://github.com/desihub/desitarget/pull/373
 .. _`PR #374`: https://github.com/desihub/desitarget/pull/374
 .. _`PR #378`: https://github.com/desihub/desitarget/pull/378
+.. _`PR #382`: https://github.com/desihub/desitarget/pull/382
 
 0.23.0 (2018-08-09)
 -------------------
