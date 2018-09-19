@@ -567,10 +567,18 @@ class SelectTargets(object):
         gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
         gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
 
-        if target == 'LRG':
-            band = 'z'
-        else:
-            band = 'r'
+        # Assign filter names.
+        if np.sum(isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+            else:
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
+
+        if np.sum(~isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+            else:
+                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
         # Sort based on the input/prior magnitude (e.g., for the BGS/MXXL
         # mocks), but note that we will very likely end up with duplicated
@@ -586,6 +594,9 @@ class SelectTargets(object):
                     srt[ii] = rand.choice(dm)
             for key in gmmout.keys():
                 gmmout[key][:] = gmmout[key][srt]
+            # Remove these keys to preserve the values assigned in the reader
+            # (e.g., ReadMXXL) class.
+            [gmmout.pop(key) for key in ('MAG', 'MAGFILTER')]
 
         # Shuffle based on input/prior redshift, so we can get a broad
         # correlation between magnitude and redshift.
@@ -595,19 +606,6 @@ class SelectTargets(object):
             #dat['redshift'] = prior_redshift
             #dat['mag'] = gmmout['MAG']
             #srt = np.argsort(dat, order=('redshift', 'mag'))
-
-        # Assign filter names.
-        if np.sum(isouth) > 0:
-            if target == 'LRG':
-                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
-            else:
-                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
-
-        if np.sum(~isouth) > 0:
-            if target == 'LRG':
-                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
-            else:
-                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
         return gmmout
 
@@ -763,9 +761,16 @@ class SelectTargets(object):
                                           2.35482 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
                     fiberfraction[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
 
+        # Sanity check.
         if np.sum( (fiberfraction_r < 0) * (fiberfraction_r > 1) ) > 0:
             log.warning('FIBERFRACTION should be [0-1].')
             raise ValueError
+
+        # Put a floor of 5% (otherwise would be zero for large objects).
+        for fiberfraction in (fiberfraction_g, fiberfraction_r, fiberfraction_z):
+            zero = fiberfraction == 0
+            if np.sum(zero) > 0:
+                fiberfraction[zero] = 0.05
 
         return fiberfraction_g, fiberfraction_r, fiberfraction_z
 
@@ -1893,6 +1898,7 @@ class ReadMXXL(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
                'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
                'SOUTH': isouth}
+
         if gmmout is not None:
             out.update(gmmout)
 
