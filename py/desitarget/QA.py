@@ -18,10 +18,14 @@ import random
 import textwrap
 import warnings
 import itertools
-import matplotlib
-import matplotlib.pyplot as plt
+
 import numpy.lib.recfunctions as rfn
 import healpy as hp
+
+#ADM fake the matplotlib display so it doesn't die on allocated nodes.
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 
 from collections import defaultdict
 from glob import glob
