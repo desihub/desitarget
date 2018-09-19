@@ -59,7 +59,7 @@ env:
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml photutils"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml photutils basemap"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
