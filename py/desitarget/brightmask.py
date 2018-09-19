@@ -54,8 +54,8 @@ def _rexlike(rextype):
     # ADM so to retain Python2 compatibility we need to check
     # ADM against both bytes and unicode.
     # ADM also 'REX' for astropy.io.fits; 'REX ' for fitsio (sigh).
-    rexlike = ( (rextype == 'REX') | (rextype == b'REX') |
-                (rextype == 'REX ') | (rextype == b'REX ') )
+    rexlike = ((rextype == 'REX') | (rextype == b'REX') |
+               (rextype == 'REX ') | (rextype == b'REX '))
     return rexlike
 
 
@@ -72,19 +72,19 @@ def max_objid_bricks(targs):
     maxobjid : :class:`dictionary`
         A dictionary with keys for each unique BRICKID and values of the maximum OBJID in that brick
     """
-    
+
     # ADM the maximum BRICKID in the passed target set.
     brickmax = np.max(targs["BRICKID"])
 
     # ADM how many OBJIDs are in each unique brick, starting from 0 and ordered on BRICKID.
-    h = np.histogram(targs["BRICKID"],range=[0, brickmax], bins=brickmax)[0]
+    h = np.histogram(targs["BRICKID"], range=[0, brickmax], bins=brickmax)[0]
     # ADM remove zero entries from the histogram.
     h = h[np.where(h > 0)]
     # ADM the index of the maximum OBJID in eacn brick if the bricks are ordered on BRICKID and OBJID.
     maxind = np.cumsum(h)-1
 
     # ADM an array of BRICKID, OBJID sorted first on BRICKID and then on OBJID within each BRICKID.
-    ordered = np.array(sorted(zip(targs["BRICKID"],targs["BRICK_OBJID"]), key=lambda x: (x[0], x[1])))
+    ordered = np.array(sorted(zip(targs["BRICKID"], targs["BRICK_OBJID"]), key=lambda x: (x[0], x[1])))
 
     # ADM return a dictionary of the maximum OBJID (values) for each BRICKID (keys).
     return dict(ordered[maxind])
@@ -182,7 +182,7 @@ def collect_bright_sources(bands, maglim, numproc=4,
         raise IOError('No sweep or tractor files found in {}'.format(rootdirname))
 
     # ADM force the input maglim to be a list (in case a single value was passed).
-    if type(maglim) == type(16) or type(maglim) == type(16.):
+    if isinstance(maglim, int) or isinstance(maglim, float):
         maglim = [maglim]
 
     # ADM set bands to uppercase if passed as lower case.
@@ -221,7 +221,7 @@ def collect_bright_sources(bands, maglim, numproc=4,
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process."""
-        if nfiles%25 == 0:
+        if nfiles % 25 == 0:
             elapsed = time() - t0
             rate = nfiles / elapsed
             log.info('{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
@@ -375,8 +375,8 @@ def make_bright_star_mask(bands, maglim, numproc=4,
     Returns
     -------
     :class:`recarray`
-        - The bright source mask in the form ``RA``, ``DEC``, ``TARGETID``, 
-          ``IN_RADIUS``, ``NEAR_RADIUS``, ``E1``, ``E2``, ``TYPE`` 
+        - The bright source mask in the form ``RA``, ``DEC``, ``TARGETID``,
+          ``IN_RADIUS``, ``NEAR_RADIUS``, ``E1``, ``E2``, ``TYPE``
           (may also be written to file if "outfilename" is passed).
         - TARGETID is as calculated in :mod:`desitarget.targets.encode_targetid`.
         - The radii are in ARCSECONDS (they default to equivalents of half-light radii for ellipses).
@@ -386,11 +386,11 @@ def make_bright_star_mask(bands, maglim, numproc=4,
 
     Notes
     -----
-        - ``IN_RADIUS`` is a smaller radius that corresponds to the ``IN_BRIGHT_OBJECT`` bit in 
+        - ``IN_RADIUS`` is a smaller radius that corresponds to the ``IN_BRIGHT_OBJECT`` bit in
           ``data/targetmask.yaml`` (and is in ARCSECONDS).
-        - ``NEAR_RADIUS`` is a radius that corresponds to the ``NEAR_BRIGHT_OBJECT`` bit in 
+        - ``NEAR_RADIUS`` is a radius that corresponds to the ``NEAR_BRIGHT_OBJECT`` bit in
           ``data/targetmask.yaml`` (and is in ARCSECONDS).
-        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask 
+        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask
           (in every band) to set the ``NEAR_RADIUS``:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
           and half that radius to set the `IN_RADIUS`. We convert this from arcminutes to arcseconds.
@@ -449,8 +449,8 @@ def make_bright_source_mask(bands, maglim, numproc=4,
     Returns
     -------
     :class:`recarray`
-        - The bright source mask in the form ``RA`, ``DEC``, ``TARGETID``, ``IN_RADIUS``, 
-          ``NEAR_RADIUS``, ``E1``, ``E2``, ``TYPE`` 
+        - The bright source mask in the form ``RA`, ``DEC``, ``TARGETID``, ``IN_RADIUS``,
+          ``NEAR_RADIUS``, ``E1``, ``E2``, ``TYPE``
           (may also be written to file if ``outfilename`` is passed).
         - ``TARGETID`` is as calculated in :mod:`desitarget.targets.encode_targetid`.
         - The radii are in ARCSECONDS (they default to equivalents of half-light radii for ellipses).
@@ -461,11 +461,11 @@ def make_bright_source_mask(bands, maglim, numproc=4,
 
     Notes
     -----
-        - ``IN_RADIUS`` is a smaller radius that corresponds to the ``IN_BRIGHT_OBJECT`` bit in 
+        - ``IN_RADIUS`` is a smaller radius that corresponds to the ``IN_BRIGHT_OBJECT`` bit in
           ``data/targetmask.yaml`` (and is in ARCSECONDS).
-        - ``NEAR_RADIUS`` is a radius that corresponds to the ``NEAR_BRIGHT_OBJECT`` bit in 
+        - ``NEAR_RADIUS`` is a radius that corresponds to the ``NEAR_BRIGHT_OBJECT`` bit in
           ``data/targetmask.yaml`` (and is in ARCSECONDS).
-        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask 
+        - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask
           (in every band) to set the ``NEAR_RADIUS``:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
           and half that radius to set the `IN_RADIUS`. We convert this from arcminutes to arcseconds.
@@ -479,12 +479,12 @@ def make_bright_source_mask(bands, maglim, numproc=4,
     nobsnames = np.array(["NOBS_"+band for band in bands])
 
     # ADM force the input maglim to be a list (in case a single value was passed).
-    if type(maglim) == type(16) or type(maglim) == type(16.):
+    if isinstance(maglim, int) or isinstance(maglim, float):
         maglim = [maglim]
 
     if len(bandnames) != len(maglim):
-        msg = 'bands has to be the same length as maglim and {} does not equal {}'
-        .format(len(bandnames), len(maglim))
+        msg = "bands has to be the same length as maglim and {} does not equal {}".format(
+            len(bandnames), len(maglim))
         raise IOError(msg)
 
     # ADM change input magnitude(s) to a flux to test against.
@@ -536,7 +536,7 @@ def make_bright_source_mask(bands, maglim, numproc=4,
         e2[wdev] = objs[wdev]['SHAPEDEV_E2']
     # ADM finally use the Tycho radius (see the notes above) for PSF or star-like objects.
     # ADM More consideration will be needed to derive correct numbers for this for DESI!!!
-    # ADM this calculation was for "near" Tycho objects and was in arcmin, so we convert 
+    # ADM this calculation was for "near" Tycho objects and was in arcmin, so we convert
     # ADM it to arcsec and multiply it by infac (see the top of the module).
     tycho_in_radius = infac*(0.0802*mags*mags - 1.860*mags + 11.625)*60.
     wpsf = np.where(_psflike(objtype))
@@ -547,7 +547,7 @@ def make_bright_source_mask(bands, maglim, numproc=4,
 
     # ADM create an output recarray that is just RA, Dec, TARGETID and the radius.
     done = objs[['RA', 'DEC']].copy()
-    done = rfn.append_fields(done,["TARGETID", "IN_RADIUS", "NEAR_RADIUS", "E1", "E2", "TYPE"],
+    done = rfn.append_fields(done, ["TARGETID", "IN_RADIUS", "NEAR_RADIUS", "E1", "E2", "TYPE"],
                              [targetid, in_radius, near_radius, e1, e2, objtype],
                              usemask=False,
                              dtypes=['>i8', '>f4', '>f4', '>f4', '>f4', '|S4'])
@@ -569,10 +569,10 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     limits : :class:`list`, optional
         The RA/Dec limits of the plot in the form [ramin, ramax, decmin, decmax].
     radius : :class: `str`, optional
-        Which mask radius to plot (``IN_RADIUS`` or ``NEAR_RADIUS``). Both can be plotted 
+        Which mask radius to plot (``IN_RADIUS`` or ``NEAR_RADIUS``). Both can be plotted
         by calling this function twice with show=False and then with ``over=True``.
     show : :class:`boolean`
-        If True, then display the plot, Otherwise, just execute the plot commands 
+        If True, then display the plot, Otherwise, just execute the plot commands
         so it can be added to, shown or saved to file later.
 
     Returns
@@ -587,7 +587,7 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     mask = np.atleast_1d(mask)
 
     # ADM set up the plot.
-    fig, ax = plt.subplots(1, figsize=(8,8))
+    fig, ax = plt.subplots(1, figsize=(8, 8))
 
     plt.xlabel('RA (o)')
     plt.ylabel('Dec (o)')
@@ -607,12 +607,12 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     # ADM passing flipped RAs (so RA increases to the east).
     w = np.where((mask["RA"] > np.min(limits[:2])-tol) & (mask["RA"] < np.max(limits[:2])+tol) &
                  (mask["DEC"] > np.min(limits[-2:])-tol) & (mask["DEC"] < np.max(limits[-2:])+tol))
-    if len(w[0])==0:
+    if len(w[0]) == 0:
         log.error('No mask entries within specified limits ({})'.format(limits))
     else:
         mask = mask[w]
-                
-    # ADM create ellipse polygons for each entry in the mask and 
+
+    # ADM create ellipse polygons for each entry in the mask and
     # ADM make a list of matplotlib patches for them.
     patches = []
     for i, ellipse in enumerate(mask):
@@ -648,12 +648,12 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
 
     Returns
     -------
-    in_mask : array_like. 
+    in_mask : array_like.
         ``True`` for array entries that correspond to a target that is IN a mask.
-    near_mask : array_like. 
+    near_mask : array_like.
         ``True`` for array entries that correspond to a target that is NEAR a mask.
     """
-    
+
     t0 = time()
 
     # ADM set up default logger.
@@ -704,7 +704,7 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
         # ADM first initiate a list for each relevant key (mask ID).
         for maskid in set(idellmask):
             targidineachmask[maskid] = []
-        # ADM then append those lists until they contain the IDs of each 
+        # ADM then append those lists until they contain the IDs of each
         # ADM relevant target as the values.
         for index, targid in enumerate(idelltargs):
             targidineachmask[idellmask[index]].append(targid)
@@ -717,20 +717,20 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
             mask = sourcemask[maskid]
             # ADM Refine True/False for being in a mask based on the elliptical masks.
             in_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
-                                         mask["IN_RADIUS"], mask["E1"], mask["E2"])
+                                              mask["IN_RADIUS"], mask["E1"], mask["E2"])
             if not inonly:
-                near_mask[targids] |= is_in_ellipse(ellras, elldecs, 
+                near_mask[targids] |= is_in_ellipse(ellras, elldecs,
                                                     mask["RA"], mask["DEC"],
-                                                    mask["NEAR_RADIUS"], 
+                                                    mask["NEAR_RADIUS"],
                                                     mask["E1"], mask["E2"])
-                
+
         log.info('Done with elliptical masking...t={:1f}s'.format(time()-t0))
 
     # ADM finally, record targets that were in a circles-on-the-sky mask, which
     # ADM trumps any information about just being in an elliptical mask.
     # ADM find angular separations less than the mask radius for circle masks
     # ADM matches that meet these criteria are in a circle mask (at least one).
-    w_in = np.where((d2d.arcsec < sourcemask[idmask]["IN_RADIUS"]) & rex_or_psf)        
+    w_in = np.where((d2d.arcsec < sourcemask[idmask]["IN_RADIUS"]) & rex_or_psf)
     in_mask[idtargs[w_in]] = True
 
     if not inonly:
@@ -752,7 +752,7 @@ def is_bright_source(targs, sourcemask):
         A recarray containing a bright source mask as made by, e.g.,
         :mod:`desitarget.brightmask.make_bright_star_mask` or
         :mod:`desitarget.brightmask.make_bright_source_mask`.
-    
+
     Returns
     -------
     is_mask : array_like
@@ -794,16 +794,16 @@ def generate_safe_locations(sourcemask, Nperradius=1):
 
     Returns
     -------
-    ra : array_like. 
+    ra : array_like.
         The Right Ascensions of the SAFE (BADSKY) locations.
-    dec : array_like. 
+    dec : array_like.
         The Declinations of the SAFE (BADSKY) locations.
 
     Notes
     -----
         - See Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for details.
     """
-    
+
     # ADM the radius of each mask in arcseconds with a 0.1% kick to
     # ADM ensure that positions are beyond the mask edges.
     radius = sourcemask["IN_RADIUS"]*1.001
@@ -827,14 +827,14 @@ def generate_safe_locations(sourcemask, Nperradius=1):
                                               sourcemask[w_circle]["DEC"],
                                               radius[w_circle], Nsafe[w_circle])
         ras, decs = np.concatenate((ras, circras)), np.concatenate((decs, circdecs))
-        
-    # ADM generate the safe location for elliptical masks 
+
+    # ADM generate the safe location for elliptical masks
     # ADM (which is slower as it requires a loop).
     if len(w_ellipse[0]) > 0:
         for w in w_ellipse[0]:
             ellras, elldecs = ellipse_boundary(sourcemask[w]["RA"],
                                                sourcemask[w]["DEC"], radius[w],
-                                               sourcemask[w]["E1"], 
+                                               sourcemask[w]["E1"],
                                                sourcemask[w]["E2"], Nsafe[w])
             ras, decs = np.concatenate((ras, ellras)), np.concatenate((decs, elldecs))
 
@@ -931,7 +931,7 @@ def append_safe_targets(targs, sourcemask, nside=None, drbricks=None):
     safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'],
                                         brickid=safes['BRICKID'],
                                         sky=1)
-        
+
     # ADM return the input targs with the SAFE targets appended.
     return np.hstack([targs, safes])
 
@@ -954,9 +954,9 @@ def set_target_bits(targs, sourcemask):
 
     Notes
     -----
-        - Sets ``IN_BRIGHT_OBJECT`` and ``NEAR_BRIGHT_OBJECT`` via matches to 
+        - Sets ``IN_BRIGHT_OBJECT`` and ``NEAR_BRIGHT_OBJECT`` via matches to
           circular and/or elliptical masks.
-        - Sets BRIGHT_OBJECT via an index match on TARGETID 
+        - Sets BRIGHT_OBJECT via an index match on TARGETID
           (defined as in :mod:`desitarget.targets.encode_targetid`).
 
     See :mod:`desitarget.targetmask` for the definition of each bit.
@@ -974,7 +974,7 @@ def set_target_bits(targs, sourcemask):
     return desi_target
 
 
-def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10,10,10], numproc=4,
+def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10, 10], numproc=4,
                  rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',
                  outfilename=None, drbricks=None):
     """Add bits for if objects are in a bright mask, and SAFE (BADSKY) locations, to a target set.
@@ -986,7 +986,7 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10,10,
         a file that contains such a set of targets
     inmaskfile : :class:`str`, optional
         An input bright souece mask created by, e.g.
-        :mod:`desitarget.brightmask.make_bright_star_mask` or 
+        :mod:`desitarget.brightmask.make_bright_star_mask` or
         :mod:`desitarget.brightmask.make_bright_source_mask`
         If None, defaults to making the bright mask from scratch
         The next 5 parameters are only relevant to making the bright mask from scratch
@@ -1054,7 +1054,7 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10,10,
 
     # ADM generate SAFE locations and add them to the target list.
     targs = append_safe_targets(targs, sourcemask, nside=nside, drbricks=drbricks)
-    
+
     log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
 
     # ADM update the bits depending on whether targets are in a mask.
@@ -1063,8 +1063,8 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10,10,
     done["DESI_TARGET"] = dt
 
     # ADM remove any SAFE locations that are in bright masks (because they aren't really safe).
-    w = np.where(  ((done["DESI_TARGET"] & desi_mask.BAD_SKY) == 0)  | 
-                   ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0)  )
+    w = np.where(((done["DESI_TARGET"] & desi_mask.BAD_SKY) == 0) |
+                   ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0))
     if len(w[0]) > 0:
         done = done[w]
 
@@ -1074,4 +1074,3 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10,10,
     log.info('Finishing up...t={:.1f}s'.format(time()-t0))
 
     return done
-
