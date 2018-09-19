@@ -2,13 +2,13 @@
 desitarget.cmx.cmx_cuts
 ========================
 
-Target Selection for DESI commissioning (cmx) derived from `the wiki`_.
+Target Selection for DESI commissioning (cmx) derived from `the cmx wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* STD_TEST).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-.. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
+.. _`the cmx wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/CommissioningTargets
 """
 
 from time import time
@@ -37,7 +37,7 @@ log = get_logger()
 start = time()
 
 def _get_cmxdir(cmxdir=None):
-    """Retrieve the base cmx directory with appropriate error checking
+    """Retrieve the base cmx directory with appropriate error checking.
 
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
         Directory in which to find commmissioning files to which to match, such as the
@@ -91,7 +91,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - Current version (08/30/18) is version 4 on `the cmx wiki`_.
     - All Gaia quantities are as in `the Gaia data model`_.
     """
     if primary is None:
@@ -351,7 +351,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - Current version (08/30/18) is version 4 on `the cmx wiki`_.
     """
     if primary is None:
         primary = np.ones_like(obs_rflux, dtype='?')
@@ -395,7 +395,7 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     Notes
     -----
-    - Current version (08/30/18) is version 4 on `the wiki`_.
+    - Current version (08/30/18) is version 4 on `the cmx wiki`_.
     - See also `the Gaia data model`_.       
     """
     if primary is None:
@@ -543,7 +543,7 @@ def apply_cuts(objects, cmxdir=None):
     obs_gflux, obs_zflux = objects['FLUX_G'], objects['FLUX_Z']
 
     # ADM initially, every object passes the cuts (is True).
-    # ADM need to check the case of a single row being passed.
+    # ADM need to guard against the case of a single row being passed.
     # ADM initially every class has a priority shift of zero.
     if _is_row(objects):
         primary = np.bool_(True)
@@ -591,12 +591,24 @@ def apply_cuts(objects, cmxdir=None):
         rflux=rflux, objtype=objtype, primary=primary
     )
 
+    # ADM determine if an object is SV0_MWS
+    sv0_mws = isSV0_MWS(
+        rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
+        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+        pmra=pmra, pmdec=pmdec, parallax=parallax,
+        parallaxovererror=parallaxovererror,
+        photbprpexcessfactor=gaiabprpfactor,
+        astrometricsigma5dmax=gaiasigma5dmax,
+        galb=galb, gaia=gaia, primary=primary
+    )
+
     # ADM Construct the targetflag bits.
     cmx_target  = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= sv0_std_bright * cmx_mask.SV0_STD_BRIGHT
     cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
+    cmx_target |= sv0_mws * cmx_mask.SV0_MWS
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.

@@ -5,6 +5,11 @@ desitarget.brightmask
 =====================
 
 Module for studying and masking bright sources in the sweeps
+
+.. _`Tech Note 2346`: https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346
+.. _`Tech Note 2348`: https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2348
+.. _`the DR5 sweeps`: http://legacysurvey.org/dr5/files/#sweep-catalogs
+.. _`Legacy Surveys catalogs`: http://legacysurvey.org/dr5/catalogs/
 """
 from __future__ import (absolute_import, division)
 from time import time
@@ -353,12 +358,12 @@ def make_bright_star_mask(bands, maglim, numproc=4,
     ----------
     bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z".
-        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        Can pass multiple bands as string, e.g. ``"GRZ"``, in which case maglim has to be a
         list of the same length as the string.
     maglim : :class:`float`
         The upper limit in that magnitude band for which to assemble a list of bright stars.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
-        same length (e.g., "GRZ" for [12.3,12.7,12.6].
+        same length (e.g., ``"GRZ"`` for [12.3,12.7,12.6]).
     numproc : :class:`int`, optional
         Number of processes over which to parallelize.
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -393,7 +398,7 @@ def make_bright_star_mask(bands, maglim, numproc=4,
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask
           (in every band) to set the ``NEAR_RADIUS``:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
-          and half that radius to set the `IN_RADIUS`. We convert this from arcminutes to arcseconds.
+          and half that radius to set the ``IN_RADIUS``. We convert this from arcminutes to arcseconds.
         - It's an open question as to what the correct radii are for DESI observations.
     """
     # ADM set up default logger
@@ -427,12 +432,12 @@ def make_bright_source_mask(bands, maglim, numproc=4,
     ----------
     bands : :class:`str`
         A magnitude band from the sweeps, e.g., "G", "R", "Z".
-        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
+        Can pass multiple bands as string, e.g. ``"GRZ"``, in which case maglim has to be a
         list of the same length as the string.
     maglim : :class:`float`
         The upper limit in that magnitude band for which to assemble a list of bright sources.
         Can pass a list of magnitude limits, in which case bands has to be a string of the
-        same length (e.g., "GRZ" for [12.3,12.7,12.6].
+        same length (e.g., ``"GRZ"`` for [12.3,12.7,12.6]).
     numproc : :class:`int`, optional
         Number of processes over which to parallelize.
     rootdirname : :class:`str`, optional, defaults to dr3
@@ -468,7 +473,7 @@ def make_bright_source_mask(bands, maglim, numproc=4,
         - Currently uses the radius-as-a-function-of-B-mag for Tycho stars from the BOSS mask
           (in every band) to set the ``NEAR_RADIUS``:
           R = (0.0802B*B - 1.860B + 11.625) (see Eqn. 9 of https://arxiv.org/pdf/1203.6594.pdf)
-          and half that radius to set the `IN_RADIUS`. We convert this from arcminutes to arcseconds.
+          and half that radius to set the ``IN_RADIUS``. We convert this from arcminutes to arcseconds.
         - It's an open question as to what the correct radii are for DESI observations.
     """
 
@@ -564,15 +569,15 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     Parameters
     ----------
     mask : :class:`recarray`
-        A mask constructed by make_bright_source_mask
-        (or read in from file in the make_bright_source_mask format).
+        A mask constructed by ``make_bright_source_mask``
+        (or read in from file in the ``make_bright_source_mask`` format).
     limits : :class:`list`, optional
         The RA/Dec limits of the plot in the form [ramin, ramax, decmin, decmax].
     radius : :class: `str`, optional
         Which mask radius to plot (``IN_RADIUS`` or ``NEAR_RADIUS``). Both can be plotted
         by calling this function twice with show=False and then with ``over=True``.
     show : :class:`boolean`
-        If True, then display the plot, Otherwise, just execute the plot commands
+        If ``True``, then display the plot, Otherwise, just execute the plot commands
         so it can be added to, shown or saved to file later.
 
     Returns
@@ -801,7 +806,7 @@ def generate_safe_locations(sourcemask, Nperradius=1):
 
     Notes
     -----
-        - See Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for details.
+        - See `Tech Note 2346`_ for details.
     """
 
     # ADM the radius of each mask in arcseconds with a 0.1% kick to
@@ -847,7 +852,7 @@ def append_safe_targets(targs, sourcemask, nside=None, drbricks=None):
     Parameters
     ----------
     targs : :class:`~numpy.ndarray`
-        A recarray of targets as made by, e.g. :mod"`desitarget.cuts.select_targets`.
+        A recarray of targets as made by, e.g. :mod:`desitarget.cuts.select_targets`.
     nside : :class:`integer`
         The HEALPix nside used throughout the DESI data model.
     sourcemask : :class:`~numpy.ndarray`
@@ -864,12 +869,10 @@ def append_safe_targets(targs, sourcemask, nside=None, drbricks=None):
 
     Notes
     -----
-        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
-          on the SAFE (BADSKY) locations.
-        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348 for more details
-          on setting the SKY bit in TARGETID.
-        - Currently hard-coded to create an additional 1 safe location per arcsec of mask radius. What is the
-          correct number per radial element (Nperradius) for DESI is an open question.
+        - See `Tech Note 2346`_ for more on the SAFE (BADSKY) locations.
+        - See `Tech Note 2348`_ for more on setting the SKY bit in TARGETID.
+        - Currently hard-coded to create an additional 1 safe location per arcsec of mask radius. 
+          The correct number per radial element (Nperradius) for DESI is an open question.
     """
 
     # ADM Number of safe locations per radial arcsec of each mask.
@@ -1020,10 +1023,8 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10
 
     Notes
     -----
-        - See the Tech Note at https://desi.lbl.gov/DocDB/cgi-bin/private/ShowDocument?docid=2346 for more details
-          about SAFE (BADSKY) locations
-        - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10)
-        - (not including 5-10 minutes to build the source mask from scratch)
+        - See `Tech Note 2346`_ for more details about SAFE (BADSKY) locations.
+        - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10).
     """
 
     # ADM set up default logger.
