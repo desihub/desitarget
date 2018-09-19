@@ -32,8 +32,8 @@ from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 import warnings, itertools
 import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+#matplotlib.use('Agg')
+#import matplotlib.pyplot as plt
 #from matplotlib.colors import LogNorm
 
 import healpy as hp

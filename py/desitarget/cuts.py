@@ -2259,8 +2259,8 @@ def _prepare_optical_wise(objects, colnames=None):
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
         w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
-        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask,
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2)
+        gfracmasked, rfracmasked, zfracmasked, gfracin, rfracin, zfracin ,gallmask, rallmask, zallmask,
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, BRIGHTSTARINBLOB)
 
 def _prepare_gaia(objects, colnames=None):
     """Process the various Gaia inputs for target selection."""
@@ -2288,7 +2288,7 @@ def _prepare_gaia(objects, colnames=None):
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
 
-    Grr = gaiagmag - 22.5 + 2.5*np.log10(obs_rflux)
+    Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
     
     # ADM If proper motion is not NaN, 31 parameters were solved for
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
@@ -2319,7 +2319,7 @@ def _prepare_gaia(objects, colnames=None):
     _, galb = _gal_coords(objects["RA"],objects["DEC"])
 
     return (gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag,
-            gaiabmag, gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved,
+            gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved,
             gaiabprpfactor, gaiasigma5dmax, galb)
 
 def unextinct_fluxes(objects):
@@ -2423,8 +2423,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
         w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
-        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+        gfracmasked, rfracmasked, zfracmasked, gfracin, rfracin, zfracin, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, BRIGHTSTARINBLOB =                  \
                             _prepare_optical_wise(objects, colnames=colnames)
 
     #ADM issue a warning if gaiamatch was not sent but there's no Gaia information
@@ -2433,7 +2433,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
-      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+      gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
     #- DR1 has targets off the edge of the brick; trim to just this brick
