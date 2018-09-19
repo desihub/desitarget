@@ -104,6 +104,9 @@ class TestQA(unittest.TestCase):
     def test_in_footprint(self):
         """Test target class strings are parsed into lists.
         """
+        from desimodel import io
+        tiles = io.load_tiles()
+        print(tiles[60:65])
         # ADM a location that's definitely in DESI (0,0).
         targs = np.zeros(1,dtype=[('RA', '>f8'), ('DEC', '>f8')])
         tin = _in_desi_footprint(targs)
