@@ -41,11 +41,11 @@ env:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        - NUMPY_VERSION=1.13.3
+        # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=2.0.4
+        - ASTROPY_VERSION=2.0.7
         # - SPHINX_VERSION=1.6.6
-        - DESIUTIL_VERSION=1.9.9
+        - DESIUTIL_VERSION=1.9.11
         # - SPECLITE_VERSION=0.7
         - SPECLITE_VERSION=master
         - DESISPEC_VERSION=0.18.0
