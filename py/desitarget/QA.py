@@ -634,14 +634,14 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``FLUX_G``, ``FLUX_R``, ``FLUX_Z`` and 
-        ``FLUX_W1``, columns for magnitude information
+        An array of targets that contains at least ``FLUX_G``, ``FLUX_R``, ``FLUX_Z`` and
+        ``FLUX_W1``, columns for magnitude information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     fileprefix : :class:`str`, optional, defaults to ``"nmag"`` for
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
 
     Returns
     -------
@@ -650,68 +650,70 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
         ``{qadir}/{fileprefix}-{filter}-{objtype}.png``
         where filter might be, e.g., ``g``. ASCII versions of those files are
         also written with columns of magnitude bin and target number density. The
-        file is called ``{qadir}/{fileprefix}-{filter}-{objtype}.dat``
+        file is called ``{qadir}/{fileprefix}-{filter}-{objtype}.dat``.
     """
 
-    # ADM columns in the passed cat as an array 
+    # ADM columns in the passed cat as an array.
     cols = np.array(list(cat.dtype.names))
 
-    # ADM value of flux to clip at for plotting purposes
+    # ADM value of flux to clip at for plotting purposes.
     loclip = 1e-16
 
-    # ADM magnitudes for which to plot histograms
+    # ADM magnitudes for which to plot histograms.
     filters = ['G','R','Z','W1']
-    magnames = [ 'FLUX_' + filter for filter in filters ]
+    magnames = ['FLUX_' + filter for filter in filters]
         
     for fluxname in magnames:
 
-        # ADM convert to magnitudes (fluxes are in nanomaggies)
-        # ADM should be fine to clip for plotting purposes
+        # ADM convert to magnitudes (fluxes are in nanomaggies).
+        # ADM should be fine to clip for plotting purposes.
         mag = 22.5-2.5*np.log10(cat[fluxname].clip(loclip))
 
-        # ADM the name of the filters
+        # ADM the name of the filters.
         filtername = fluxname[5:].lower()
-        #ADM WISE bands have upper-case filter names
+        #ADM WISE bands have upper-case filter names.
         if filtername[0] == 'w':
             filtername = filtername.upper()
         
-        # ADM plot the magnitude histogram
+        # ADM plot the magnitude histogram.
         # ADM set the number of bins for the redshift histogram to run in 
-        # ADM 0.5 intervals from 14 to 14 + 0.5*bins
+        # ADM 0.5 intervals from 14 to 14 + 0.5*bins.
         nbins, binsize, binstart = 24, 0.5, 14
         bins = np.arange(nbins)*binsize+binstart
-        # ADM insert a 0 bin and a 100 bin to catch the edges
-        bins = np.insert(bins,0,0.)
-        bins = np.insert(bins,len(bins),100.)
+        # ADM insert a 0 bin and a 100 bin to catch the edges.
+        bins = np.insert(bins, 0, 0.)
+        bins = np.insert(bins, len(bins), 100.)
 
-        # ADM the density value of the peak redshift histogram bin
+        # ADM the density value of the peak redshift histogram bin.
         h, b = np.histogram(mag,bins=bins)
         peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
         ypeak = np.max(h)
 
-        # ADM set up and make the plot
+        # ADM set up and make the plot.
         plt.clf()
-        # ADM restrict the magnitude limits
+        # ADM restrict the magnitude limits.
         plt.xlim(14, 25)
-        # ADM give a little space for labels on the y-axis
-        plt.ylim((0,ypeak*1.2))
+        # ADM give a little space for labels on the y-axis.
+        plt.ylim((0, ypeak*1.2))
         plt.xlabel(filtername)
         plt.ylabel('N('+filtername+')')
-        plt.hist(mag, bins=bins, histtype='stepfilled', alpha=0.6, 
-             label='Observed {} {}-mag Distribution (Peak {}={:.0f})'.format(objtype,filtername,filtername,peak))
+        plt.hist(mag, bins=bins, histtype='stepfilled', alpha=0.6,
+             label='Observed {} {}-mag Distribution (Peak {}={:.0f})'
+                 .format(objtype, filtername, filtername, peak))
         plt.legend(loc='upper left', frameon=False)
 
-        pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix,filtername,objtype))
-        plt.savefig(pngfile,bbox_inches='tight')
+        pngfile = os.path.join(qadir, '{}-{}-{}.png'
+                               .format(fileprefix, filtername, objtype))
+        plt.savefig(pngfile, bbox_inches='tight')
         plt.close()
 
-        # ADM create an ASCII file binned 0.1 mags
+        # ADM create an ASCII file binned 0.1 mags.
         nbins, binmin, binmax = 100, 14, 24
-        h, b = np.histogram(mag,bins=nbins, range=(binmin,binmax) )
-        bincent =  ((np.roll(b,1)+b)/2)[1:]
-        datfile = pngfile.replace("png","dat")
+        h, b = np.histogram(mag, bins=nbins, range=(binmin, binmax) )
+        bincent =  ((np.roll(b, 1)+b)/2)[1:]
+        datfile = pngfile.replace("png", "dat")
         np.savetxt(datfile,np.vstack((bincent,h)).T,
-                   fmt='%.2f',header='{}   N({})'.format(filtername,filtername))
+                   fmt='%.2f',header='{}   N({})'.format(filtername, filtername))
 
     return
 
@@ -722,54 +724,54 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least "RA", "PARALLAX", 
-        "PMRA" and "PMDEC" 
+        An array of targets that contains at least "RA", "PARALLAX",
+        "PMRA" and "PMDEC".
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     fileprefix : :class:`str`, optional, defaults to ``"gaia"``
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
 
     Returns
     -------
     Nothing
         But .png plots of Gaia information are written to ``qadir``. Two plots are made:
            The file containing distances from parallax is called:
-                 ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``
+                 ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``.
            The file containing proper motion information is called:
-                 ``{qadir}/{fileprefix}-{pm}-{objtype}.png``
+                 ``{qadir}/{fileprefix}-{pm}-{objtype}.png``.
     """
 
-    # ADM change the parallaxes (which are in mas) to distances in parsecs
-    # ADM clip at very small parallaxes to avoid divide-by-zero
-    r = 1000./np.clip(cat["PARALLAX"],1e-16,1e16)
-    # ADM set the angle element of the plot to RA
+    # ADM change the parallaxes (which are in mas) to distances in parsecs.
+    # ADM clip at very small parallaxes to avoid divide-by-zero.
+    r = 1000./np.clip(cat["PARALLAX"], 1e-16, 1e16)
+    # ADM set the angle element of the plot to RA.
     theta = np.radians(cat["RA"])
 
-    # ADM set up the plot in polar projection
+    # ADM set up the plot in polar projection.
     ax = plt.subplot(111, projection='polar')
     ax.scatter(theta, r, s=2, alpha=0.6)
 
-    # ADM only plot out to 110 pc
+    # ADM only plot out to 110 pc.
     ax.set_rmax(125)
-    # ADM add a grid of distances
-    rticknum = np.arange(1,6)*25
+    # ADM add a grid of distances.
+    rticknum = np.arange(1, 6)*25
     rticknames = ["{}".format(num) for num in rticknum]
-    # ADM include the parsec unit for the outermost distance label
+    # ADM include the parsec unit for the outermost distance label.
     rticknames[-1] +='pc'
-    # ADM the most flexible set of rtick controllers is in the ytick attribute
+    # ADM the most flexible set of rtick controllers is in the ytick attribute.
     ax.set_yticks(rticknum)
     ax.set_yticklabels(rticknames)
     ax.grid(True)
 
-    # ADM save the plot
+    # ADM save the plot.
     ax.set_title("Distances at each RA based on Gaia parallaxes", va='bottom')
-    pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'parallax',objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix, 'parallax', objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
-    # ADM plot the proper motions in RA/Dec against each other
+    # ADM plot the proper motions in RA/Dec against each other.
     plt.clf()
     plt.xlabel(r'$PM_{RA}\,(mas\,yr^{-1})$')
     plt.ylabel(r'$PM_{DEC}\,(mas\,yr^{-1})$')
@@ -786,96 +788,96 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Sources)')
 
-    # ADM...otherwise make a scatter plot
+    # ADM...otherwise make a scatter plot.
     else:
         plt.scatter(cat["PMRA"], cat["PMDEC"], alpha=0.6)
 
-    # ADM save the plot
-    pngfile = os.path.join(qadir,'{}-{}-{}.png'.format(fileprefix,'pm',objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    # ADM save the plot.
+    pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix, 'pm', objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
     return
 
 
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
-    """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
+    """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets.
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``TRUESPECTYPE``
+        An array of targets that contains at least ``TRUESPECTYPE``.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     fileprefix : :class:`str`, optional, defaults to ``"mock-fractype"`` for
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
 
     Returns
     -------
     Nothing
         But .png plots of target colors are written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{objtype}.png``
+        ``{qadir}/{fileprefix}-{objtype}.png``.
     """
 
-    # ADM for this type of object, create the names of the possible contaminants
+    # ADM for this type of object, create the names of the possible contaminants.
     from desitarget import contam_mask
     types = np.array(contam_mask.names())
-    # ADM this is something of a hack as it assumes we'll keept
-    # ADM the first 3 letters of each object ("BGS", "ELG" etc.) as sacred
-    wtypes = np.where(np.array([ objtype[:3] in type[:3] for type in types ]))
+    # ADM this is something of a hack as it assumes we'll keep
+    # ADM the first 3 letters of each object ("BGS", "ELG" etc.) as sacred.
+    wtypes = np.where(np.array([objtype[:3] in type[:3] for type in types]))
 
-    # ADM only make a plot if we have contaminant information
+    # ADM only make a plot if we have contaminant information.
     if len(wtypes[0]) > 0:
-        # ADM the relevant contaminant types for this object class
+        # ADM the relevant contaminant types for this object class.
         types = types[wtypes]
 
-        # ADM count each type of object
+        # ADM count each type of object.
         ntypes = len(types)
         typecnt = []
         for typ in types:
-            w = np.where(  (cat["CONTAM_TARGET"] & contam_mask[typ]) != 0 )
+            w = np.where( (cat["CONTAM_TARGET"] & contam_mask[typ]) != 0)
             typecnt.append(len(w[0]))
 
-        # ADM express each type as a fraction of all objects in the catalog
+        # ADM express each type as a fraction of all objects in the catalog.
         frac = np.array(typecnt)/len(cat)
 
-        # ADM set up and make the bar plot with the legend
+        # ADM set up and make the bar plot with the legend.
         plt.clf()
         plt.ylabel('fraction')
         if np.max(frac) > 0:
-            plt.ylim(0,1.2*np.max(frac))
+            plt.ylim(0, 1.2*np.max(frac))
             
         x = np.arange(ntypes)
-        plt.bar(x,frac,alpha=0.6,
+        plt.bar(x, frac, alpha=0.6,
                 label='Fraction of {} classified as'.format(objtype))
         plt.legend(loc='upper left', frameon=False)
     
-        # ADM add the names of the types to the x-axis
-        # ADM first converting the strings to unicode if they're byte-type
-        if isinstance(types[0],bytes):
-            types = [ type.decode() for type in types ]
+        # ADM add the names of the types to the x-axis.
+        # ADM first converting the strings to unicode if they're byte-type.
+        if isinstance(types[0], bytes):
+            types = [type.decode() for type in types]
         
         # ADM to save space, only plot the name of the contaminant on the x-axis 
-        # ADM not the object type (e.g. label as LRG not "QSO_IS_LRG"
+        # ADM not the object type (e.g. label as LRG not "QSO_IS_LRG").
         labels = [typ.split('_')[-1] for typ in types]
         plt.xticks(x, labels)
 
-    # ADM if there was no contaminant info for this objtype, 
-    # ADM then make an empty plot with a message
+    # ADM if there was no contaminant info for this objtype,
+    # ADM then make an empty plot with a message.
     else:
         log = get_logger()
         log.warning('No contaminant information for objects of type {}'.format(objtype))
         plt.clf()
         plt.ylabel('fraction')
-        plt.xlim(0.,1.)
-        plt.ylim(0.,1.)
-        plt.text(0.5,0.5,'NO DATA')
+        plt.xlim(0., 1.)
+        plt.ylim(0., 1.)
+        plt.text(0.5, 0.5, 'NO DATA')
 
-    # ADM write out the plot
-    pngfile = os.path.join(qadir,'{}-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    # ADM write out the plot.
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
     return
@@ -887,46 +889,46 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``TRUEZ`` for redshift information 
-        and ``MAG`` for magnitude information
+        An array of targets that contains at least ``TRUEZ`` for redshift information
+        and ``MAG`` for magnitude information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
-        String to be added to the front of the output N(z) plot file name
+        String to be added to the front of the output N(z) plot file name.
     fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
-        String to be added to the front of the output z vs. mag plot file name
+        String to be added to the front of the output z vs. mag plot file name.
 
     Returns
     -------
     Nothing
         But .png plots of target colors are written to ``qadir``. Two plots are made:
            The file containing N(z) is called:
-                 ``{qadir}/{fileprefixz}-{objtype}.png``
+                 ``{qadir}/{fileprefixz}-{objtype}.png``.
            The file containing z vs. zerr is called:
-                 ``{qadir}/{fileprefixzmag}-{objtype}.png``
+                 ``{qadir}/{fileprefixzmag}-{objtype}.png``.
     """
 
-    # ADM the number of passed objects
+    # ADM the number of passed objects.
     nobjs = len(cat)
 
-    # ADM plot the redshift histogram
+    # ADM plot the redshift histogram.
 
-    # Get the unique combination of template types and subtypes
+    # Get the unique combination of template types and subtypes.
     templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
     templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
 
     truez = cat["TRUEZ"]
     binsz = 0.04
     
-    # ADM set up and make the plot
+    # ADM set up and make the plot.
     plt.clf()
     plt.xlabel('True Redshift z')
     plt.ylabel('N(z)')
     for templatetype in sorted(set(templatetypes)):
         for templatesubtype in set(templatesubtypes):
-            these = np.where( (templatetype == templatetypes) * (templatesubtype == templatesubtypes) )[0]
+            these = np.where((templatetype == templatetypes) * (templatesubtype == templatesubtypes))[0]
             if len(these) > 0:
                 if templatesubtype == '':
                     label = '{} is {}'.format(objtype, templatetype)
@@ -935,7 +937,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
                     
                 nbin = np.max( (np.rint( np.ptp(truez[these]) / binsz).astype(int), 1) )
                 
-                nn, bins = np.histogram(truez[these], bins=nbin, 
+                nn, bins = np.histogram(truez[these], bins=nbin,
                                         range=(truez[these].min(), truez[these].max()))
                 cbins = (bins[:-1] + bins[1:]) / 2.0
                 plt.bar(cbins, nn, align='center', alpha=0.75, label=label,
@@ -943,11 +945,11 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
                         
     plt.legend(loc='upper right', frameon=True)
 
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz, objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
-    # ADM plot the z vs. mag scatter plot
+    # ADM plot the z vs. mag scatter plot.
     plt.clf()
     plt.ylabel('Normalization magnitude')
     plt.xlabel('True Redshift z')
@@ -958,18 +960,18 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
 
     # ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
-        #plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
-        #plt.colorbar()
+        # plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
+        # plt.colorbar()
         hb = plt.hexbin(cat["TRUEZ"], cat["MAG"], mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
                         bins='log', extent=(*zlim, *maglim), gridsize=60)
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Targets)')
         
-    # ADM...otherwise make a scatter plot
+    # ADM...otherwise make a scatter plot.
     else:
         for templatetype in sorted(set(templatetypes)):
             for templatesubtype in set(templatesubtypes):
-                these = np.where( (templatetype == templatetypes) * (templatesubtype == templatesubtypes) )[0]
+                these = np.where((templatetype == templatetypes) * (templatesubtype == templatesubtypes))[0]
                 if len(these) > 0:
                     if templatesubtype == '':
                         label = '{} is {}'.format(objtype, templatetype)
@@ -983,8 +985,8 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
         plt.legend(loc='upper right', frameon=True, ncol=3)
 
     # ADM create the plot
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag, objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
     return
@@ -997,16 +999,16 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     ----------
     cat : :class:`~numpy.array`
         An array of targets that contains at least ``FLUX_G``, ``FLUX_R``, ``FLUX_Z`` and 
-        ``FLUX_W1``, ``FLUX_W2`` columns for color information
+        ``FLUX_W1``, ``FLUX_W2`` columns for color information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     extinction : :class:`~numpy.array`
         An array containing the extinction in each band of interest, must contain at least the columns
-        MW_TRANSMISSION_G, MW_TRANSMISSION_R, MW_TRANSMISSION_Z, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2
+        ``MW_TRANSMISSION_G, _R, _Z, _W1, _W2``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
-    fileprefix : :class:`str`, optional, defaults to ``"color"`` for
-        String to be added to the front of the output file name
+        The output directory to which to write produced plots.
+    fileprefix : :class:`str`, optional, defaults to ``"color"``
+        String to be added to the front of the output file name.
     nodustcorr : :class:`boolean`, optional, defaults to False
         Do not correct for dust extinction.
 
@@ -1015,7 +1017,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     Nothing
         But .png plots of target colors are written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{bands}-{objtype}.png``
-        where bands might be, e.g., ``grz``
+        where bands might be, e.g., ``grz``.
     """
     from matplotlib.patches import Polygon
 
@@ -1062,7 +1064,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         if verts:
             ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
 
-    # ADM unextinct fluxes
+    # ADM unextinct fluxes.
     if nodustcorr:
         gflux = cat['FLUX_G']
         rflux = cat['FLUX_R']
@@ -1076,11 +1078,11 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         w1flux = cat['FLUX_W1'] / extinction['MW_TRANSMISSION_W1']
         w2flux = cat['FLUX_W2'] / extinction['MW_TRANSMISSION_W2']
 
-    # ADM the number of passed objects
+    # ADM the number of passed objects.
     nobjs = len(cat)
 
     # ADM convert to magnitudes (fluxes are in nanomaggies)
-    # ADM should be fine to clip for plotting purposes
+    # ADM should be fine to clip for plotting purposes.
     loclip = 1e-16
     g = 22.5-2.5*np.log10(gflux.clip(loclip))
     r = 22.5-2.5*np.log10(rflux.clip(loclip))
@@ -1088,7 +1090,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
     W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
 
-    # Some color ranges -- need to be smarter here
+    # Some color ranges -- need to be smarter here.
     if objtype == 'LRG':
         grlim = (0.5, 3)
         rzlim = (0.5, 3)
@@ -1101,7 +1103,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     W1W2lim = (-1.0, 1.0)
 
     #-------------------------------------------------------
-    # ADM set up the r-z, g-r plot
+    # ADM set up the r-z, g-r plot.
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$g - r$')
@@ -1112,7 +1114,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
 
-    # ADM...otherwise make a scatter plot
+    # ADM...otherwise make a scatter plot.
     else:
         plt.scatter(r-z, g-r, alpha=0.6)
 
@@ -1124,13 +1126,13 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     if objtype == 'QSO':
         qso_colorbox(plt.gca(), plottype='gr-rz')
 
-    # ADM make the plot
-    pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    # ADM make the plot.
+    pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix, objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
     #-------------------------------------------------------
-    # ADM set up the r-z, r-W1 plot
+    # ADM set up the r-z, r-W1 plot.
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$r - W_1$')
@@ -1141,38 +1143,38 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
         
-        #plt.set_cmap('inferno')
-        #counts, xedges, yedges, image = \
-        #    plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        #if np.sum(counts) > 0:
-        #    plt.colorbar()
-        #else:
-        #    nobjs = 0
-    # ADM...otherwise make a scatter plot
+        # plt.set_cmap('inferno')
+        # counts, xedges, yedges, image = \
+        #     plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        # if np.sum(counts) > 0:
+        #     plt.colorbar()
+        # else:
+        #     nobjs = 0
+    # ADM...otherwise make a scatter plot.
     else:
         plt.scatter(r-z, r-W1, alpha=0.6)
 
     plt.xlim(rzlim)
     plt.ylim(rW1lim)
 
-    ## ADM...or we might not have any WISE data
-    #if nobjs == 0:
-    #    log = get_logger()
-    #    log.warning('No data within r-W1 vs. r-z ranges')
-    #    plt.clf()
-    #    plt.xlabel('r - z')
-    #    plt.ylabel('r - W1')
-    #    plt.xlim(rzlim)
-    #    plt.ylim(rW1lim)
-    #    plt.text(1.,1.,'NO DATA')
+    ## ADM...or we might not have any WISE data.
+    # if nobjs == 0:
+    #     log = get_logger()
+    #     log.warning('No data within r-W1 vs. r-z ranges')
+    #     plt.clf()
+    #     plt.xlabel('r - z')
+    #     plt.ylabel('r - W1')
+    #     plt.xlim(rzlim)
+    #     plt.ylim(rW1lim)
+    #     plt.text(1.,1.,'NO DATA')
 
-    # ADM save the plot
-    pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    # ADM save the plot.
+    pngfile=os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix, objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
     #-------------------------------------------------------
-    # ADM set up the r-z, W1-W2 plot
+    # ADM set up the r-z, W1-W2 plot.
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$W_1 - W_2$')
@@ -1183,64 +1185,69 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
         
-        #plt.set_cmap('inferno')
-        #counts, xedges, yedges, image = \
-        #    plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        #if np.sum(counts) > 0:
-        #    plt.colorbar()
-        #else:
-        #    nobjs = 0
-    # ADM...otherwise make a scatter plot
+        # plt.set_cmap('inferno')
+        # counts, xedges, yedges, image = \
+        #     plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
+        # if np.sum(counts) > 0:
+        #     plt.colorbar()
+        # else:
+        #     nobjs = 0
+    # ADM...otherwise make a scatter plot.
     else:
         plt.scatter(r-z, W1-W2, alpha=0.6)
 
     plt.xlim(rzlim)
     plt.ylim(W1W2lim)
 
-    ## ADM...or we might not have any WISE data
-    #if nobjs == 0:
-    #    log = get_logger()
-    #    log.warning('No data within r-W1 vs. r-z ranges')
-    #    plt.clf()
-    #    plt.xlabel('r - z')
-    #    plt.ylabel('W1 - W2')
-    #    plt.xlim([-1,3])
-    #    plt.ylim([-1,3])
-    #    plt.text(1.,1.,'NO DATA')
+    # # ADM...or we might not have any WISE data
+    # if nobjs == 0:
+    #     log = get_logger()
+    #     log.warning('No data within r-W1 vs. r-z ranges')
+    #     plt.clf()
+    #     plt.xlabel('r - z')
+    #     plt.ylabel('W1 - W2')
+    #     plt.xlim([-1,3])
+    #     plt.ylim([-1,3])
+    #     plt.text(1.,1.,'NO DATA')
 
     # ADM save the plot
-    pngfile=os.path.join(qadir, '{}-rzW1W2-{}.png'.format(fileprefix,objtype))
-    plt.savefig(pngfile,bbox_inches='tight')
+    pngfile=os.path.join(qadir, '{}-rzW1W2-{}.png'.format(fileprefix, objtype))
+    plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
 
 def _in_desi_footprint(targs):
-    """Convenience function for using is_point_in_desi to find which targets are in the footprint
+    """Convenience function for using is_point_in_desi to find which targets are in the footprint.
+
     Parameters
     ----------
     targs : :class:`~numpy.array` or `str`
-        Targets in the DESI data model format, or any array that contains "RA" and "DEC" columns
+        Targets in the DESI data model format, or any array that 
+        contains ``RA`` and ``DEC`` columns.
 
     Returns
     -------
     :class:`integer`
-        The INDICES of the input targs that are in the DESI footprint
+        The INDICES of the input targs that are in the DESI footprint.
     """
     log = get_logger()
 
     start = time()
-    log.info('Start restricting to DESI footprint...t = {:.1f}s'.format(time()-start))
+    log.info('Start restricting to DESI footprint...t = {:.1f}s'
+             .format(time()-start))
 
-    # ADM restrict targets to just the DESI footprint
+    # ADM restrict targets to just the DESI footprint.
     from desimodel import io, footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(),targs["RA"],targs["DEC"])
+    indesi = footprint.is_point_in_desi(io.load_tiles(), targs["RA"], targs["DEC"])
     windesi = np.where(indesi)
     if len(windesi[0]) > 0:
-        log.info("{:.3f}% of targets are in official DESI footprint".format(100.*len(windesi[0])/len(targs)))
+        log.info("{:.3f}% of targets are in official DESI footprint"
+                 .format(100.*len(windesi[0])/len(targs)))
     else:
         log.error("ZERO input targets are within the official DESI footprint!!!")
 
-    log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
+    log.info('Restricted targets to DESI footprint...t = {:.1f}s'
+             .format(time()-start))
 
     return windesi
 
@@ -1270,7 +1277,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         map (e.g. made by :func:` desitarget.randoms.pixmap()` if this is not
         sent, then the weights default to 1 everywhere (i.e. no weighting).
     truths : :class:`~numpy.array` or `str`
-        The truth objects from which the targs were derived in the DESI data model format. 
+        The truth objects from which the targs were derived in the DESI data model format.
         If a string is passed then read from that file (supply the full directory path).
     tcnames : :class:`list`, defaults to None
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
@@ -1286,7 +1293,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     Notes
     -----
-        - The ``DESIMODEL`` environment variable must be set to find the default expected 
+        - The ``DESIMODEL`` environment variable must be set to find the default expected
           target densities.
         - On execution, a set of .png plots for target QA are written to `qadir`.
     """
@@ -1331,7 +1338,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         # ADM load the imaging weights file.
         if imaging_map_file is not None:
             from desitarget import io as dtio
-            pixweight = dtio.load_pixweight_recarray(imaging_map_file,nside)["FRACAREA"]
+            pixweight = dtio.load_pixweight_recarray(imaging_map_file, nside)["FRACAREA"]
             # ADM determine what HEALPixels each target is in, to set the weights.
             fracarea = pixweight[pix]
             # ADM weight by 1/(the fraction of each pixel that is in the DESI footprint)
@@ -1349,7 +1356,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     # ADM calculate the total area (useful for determining overall average densities
     # ADM from the total number of targets/the total area).
-    pixarea = hp.nside2pixarea(nside,degrees=True)
+    pixarea = hp.nside2pixarea(nside, degrees=True)
     totarea = pixarea*totalpixweight
 
     # ADM Current goal target densities for DESI.
@@ -1357,8 +1364,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         targdens = _load_targdens(tcnames=tcnames, cmx=cmx)
 
     # ADM clip the target densities at an upper density to improve plot edges
-    # ADM by rejecting highly dense outliers
-    upclipdict = {k:5000. for k in targdens}
+    # ADM by rejecting highly dense outliers.
+    upclipdict = {k: 5000. for k in targdens}
     if cmx:
         main_mask = cmx_mask
     else:
@@ -1382,51 +1389,58 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 w = np.where(targs["DESI_TARGET"] & main_mask[objtype])[0]
 
         if len(w) > 0:
-            # ADM make RA/Dec skymaps
-            qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype], 
+            # ADM make RA/Dec skymaps.
+            qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype],
                      weights=weights[w], max_bin_area=max_bin_area)
-            log.info('Made sky map for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made sky map for {}...t = {:.1f}s'
+                     .format(objtype, time()-start))
 
-            # ADM make histograms of densities. We already calculated the correctly 
-            # ADM ordered HEALPixels and so don't need to repeat that calculation
-            qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype], 
+            # ADM make histograms of densities. We already calculated the correctly
+            # ADM ordered HEALPixels and so don't need to repeat that calculation.
+            qahisto(pix[w], objtype, qadir=qadir, targdens=targdens, upclip=upclipdict[objtype],
                     weights=weights[w], max_bin_area = max_bin_area, catispix=True)
-            log.info('Made histogram for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made histogram for {}...t = {:.1f}s'
+                     .format(objtype, time()-start))
 
             # ADM make color-color plots
             qacolor(targs[w], objtype, targs[w], qadir=qadir, fileprefix="color")
-            log.info('Made color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made color-color plot for {}...t = {:.1f}s'
+                     .format(objtype, time()-start))
 
             # ADM make magnitude histograms
             qamag(targs[w], objtype, qadir=qadir, fileprefix="nmag")
-            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'
+                     .format(objtype, time()-start))
 
             if truths is not None:
                 # ADM make noiseless color-color plots
                 qacolor(truths[w], objtype, targs[w], qadir=qadir,
                         fileprefix="mock-color", nodustcorr=True)
-                log.info('Made (mock) color-color plot for {}...t = {:.1f}s'.format(objtype,time()-start))
+                log.info('Made (mock) color-color plot for {}...t = {:.1f}s'
+                         .format(objtype, time()-start))
 
                 # ADM make N(z) plots
                 mock_qanz(truths[w], objtype, qadir=qadir, fileprefixz="mock-nz",
                           fileprefixzmag="mock-zvmag")
-                log.info('Made (mock) redshift plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                log.info('Made (mock) redshift plots for {}...t = {:.1f}s'
+                         .format(objtype, time()-start))
 
-                ## ADM plot what fraction of each selected object is actually a contaminant
-                #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
-                #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                # # ADM plot what fraction of each selected object is actually a contaminant
+                # mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
+                # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
                 
             # ADM make Gaia-based plots if we have Gaia columns
             if "PARALLAX" in targs.dtype.names:
                 qagaia(targs[w], objtype, qadir=qadir, fileprefix="gaia")
-                log.info('Made Gaia-based plots for {}...t = {:.1f}s'.format(objtype,time()-start))
+                log.info('Made Gaia-based plots for {}...t = {:.1f}s'
+                         .format(objtype, time()-start))
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
 
 
-def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', 
-                 clip2foot=False, weight=True, imaging_map_file=None, 
+def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
+                 clip2foot=False, weight=True, imaging_map_file=None,
                  tcnames=None, systematics=True):
     """Create a directory containing a webpage structure in which to embed QA plots.
 
@@ -1447,9 +1461,9 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     clip2foot : :class:`boolean`, optional, defaults to False
         use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
         only those that lie within the DESI spectroscopic footprint.
-    weight : :class:`boolean`, optional, defaults to True
-        If this is set, weight pixels to ameliorate under dense pixels at the footprint 
-        edges. This uses the `imaging_map_file` HEALPix file for real targets and the default 
+    weight : :class:`boolean`, optional, defaults to ``True``
+        If this is set, weight pixels to ameliorate under dense pixels at the footprint
+        edges. This uses the `imaging_map_file` HEALPix file for real targets and the default
         ``DESIMODEL`` HEALPix footprint file for mock targets.
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
@@ -1465,12 +1479,12 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     Returns
     -------
     Nothing
-        But the page `index.html` and associated pages and plots are written to ``qadir``
+        But the page `index.html` and associated pages and plots are written to ``qadir``.
 
     Notes
     -----
-    If making plots, then the ``DESIMODEL`` environment variable must be set to find 
-    the file of HEALPixels that overlap the DESI footprint
+    If making plots, then the ``DESIMODEL`` environment variable must be set to find
+    the file of HEALPixels that overlap the DESI footprint.
     """
 
     from desispec.io.util import makepath
@@ -1504,7 +1518,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM or SV, etc. and change the column names accordingly.
     svs = "DESI"  # ADM this is to store sv iteration or cmx as a string.
     colnames = np.array(targs.dtype.names)
-    svcolnames = colnames[ ['SV' in name or 'CMX' in name for name in colnames] ]
+    svcolnames = colnames[['SV' in name or 'CMX' in name for name in colnames]]
     # ADM set cmx flag to True if 'CMX_TARGET' is a column and rename that column.
     cmx = 'CMX_TARGET' in svcolnames
     # ADM use the commissioning mask bits/names if we have a CMX file.
@@ -1515,7 +1529,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     targs = rfn.rename_fields(targs, {'CMX_TARGET':'DESI_TARGET'})
     # ADM strip "SVX" off any columns (rfn.rename_fields forgives missing fields).
     for field in svcolnames:
-        svs = field.split('_')[0] 
+        svs = field.split('_')[0]
         targs = rfn.rename_fields(targs, {field:"_".join(field.split('_')[1:])})
 
     # ADM determine the working nside for the passed max_bin_area.
@@ -1539,7 +1553,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         DRs = 'DR Mock'
     else:
         if 'RELEASE' in targs.dtype.names:
-            DRs = ", ".join([ "DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000 ])
+            DRs = ", ".join(["DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000])
         else:
             DRs = "DR Unknown"
 
@@ -1556,115 +1570,115 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM html preamble.
     htmlmain = open(htmlfile, 'w')
     htmlmain.write('<html><body>\n')
-    htmlmain.write('<h1>{} Targeting QA pages ({})</h1>\n'.format(svs,DRs))
+    htmlmain.write('<h1>{} Targeting QA pages ({})</h1>\n'.format(svs, DRs))
 
     # ADM links to each collection of plots for each object type.
     htmlmain.write('<b><h2>Jump to a target class:</h2></b>\n')
     htmlmain.write('<ul>\n')
     for objtype in targdens.keys():
-        htmlmain.write('<li><A HREF="{}.html"><b>{}</b></A>\n'.format(objtype,objtype))
+        htmlmain.write('<li><A HREF="{}.html"><b>{}</b></A>\n'.format(objtype, objtype))
     htmlmain.write('</ul>\n')
 
-    # ADM for each object type, make a separate page
+    # ADM for each object type, make a separate page.
     for objtype in targdens.keys():        
-        # ADM call each page by the target class name, stick it in the requested directory
+        # ADM call each page by the target class name, out it in the requested directory.
         htmlfile = os.path.join(qadir,'{}.html'.format(objtype))
         html = open(htmlfile, 'w')
 
-        # ADM html preamble
+        # ADM html preamble.
         html.write('<html><body>\n')
-        html.write('<h1>DESI Targeting QA pages - {} ({})</h1>\n'.format(objtype,DRs))
+        html.write('<h1>DESI Targeting QA pages - {} ({})</h1>\n'.format(objtype, DRs))
 
-        # ADM Target Densities
+        # ADM Target Densities.
         html.write('<h2>Target density plots</h2>\n')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
         html.write('<td align=center><A HREF="skymap-{}.png"><img SRC="skymap-{}.png" width=100% height=auto></A></td>\n'
-                   .format(objtype,objtype))
+                   .format(objtype, objtype))
         html.write('<td align=center><A HREF="histo-{}.png"><img SRC="histo-{}.png" width=75% height=auto></A></td>\n'
-                   .format(objtype,objtype))
+                   .format(objtype, objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
-        # ADM color-color plots
+        # ADM color-color plots.
         html.write('<h2>Target color-color plots (corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=3 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
         for colors in ["grz","rzW1","rzW1W2"]:
             html.write('<td align=center><A HREF="color-{}-{}.png"><img SRC="color-{}-{}.png" width=95% height=auto></A></td>\n'
-                       .format(colors,objtype,colors,objtype))
+                       .format(colors, objtype, colors, objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
-        # ADM magnitude plots
+        # ADM magnitude plots.
         html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=4 WIDTH="100%">\n')
         html.write('<tr>\n')
-        # ADM add the plots 
+        # ADM add the plots .
         for band in ["g","r","z","W1"]:
             html.write('<td align=center><A HREF="nmag-{}-{}.png"><img SRC="nmag-{}-{}.png" width=95% height=auto></A></td>\n'
-                       .format(band,objtype,band,objtype))
+                       .format(band, objtype, band, objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
-        # ADM add the ASCII files to the images
+        # ADM add the ASCII files to the images.
         for band in ["g","r","z","W1"]:
             html.write('<td align=center><A HREF="nmag-{}-{}.dat">nmag-{}-{}.dat</A></td>\n'
-                       .format(band,objtype,band,objtype))
+                       .format(band, objtype, band, objtype))
         html.write('</tr>\n')
         html.write('</table>\n')
 
-        # ADM parallax and proper motion plots, if we have that information
+        # ADM parallax and proper motion plots, if we have that information.
         if "PARALLAX" in targs.dtype.names:
             html.write('<h2>Gaia based plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
             html.write('<td align=center><A HREF="gaia-pm-{}.png"><img SRC="gaia-pm-{}.png" width=75% height=auto></A></td>\n'
-                       .format(objtype,objtype))
+                       .format(objtype, objtype))
             html.write('<td align=center><A HREF="gaia-parallax-{}.png"><img SRC="gaia-parallax-{}.png" width=71% height=auto></A></td>\n'
-                       .format(objtype,objtype))
+                       .format(objtype, objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
 
-        # ADM add special plots if we have mock data
+        # ADM add special plots if we have mock data.
         if mocks:
             html.write('<hr>\n')
             html.write('<h1>DESI Mock QA\n')
 
-            # ADM redshift plots
+            # ADM redshift plots.
             html.write('<h2>True Redshift plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
             html.write('<td align=center><A HREF="mock-nz-{}.png"><img SRC="mock-nz-{}.png" height=auto width=95%></A></td>\n'
-                       .format(objtype,objtype))
+                       .format(objtype, objtype))
             html.write('<td align=center><A HREF="mock-zvmag-{}.png"><img SRC="mock-zvmag-{}.png" height=auto width=95%></A></td>\n'
-                       .format(objtype,objtype))
+                       .format(objtype, objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
 
-            # ADM color-color plots
+            # ADM color-color plots.
             html.write('<h2>(Truth) color-color plots (corrected for Galactic extinction)</h2>\n')
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
             for colors in ["grz","rzW1","rzW1W2"]:
                 html.write('<td align=center><A HREF="mock-color-{}-{}.png"><img SRC="mock-color-{}-{}.png" height=auto width=95%></A></td>\n'
-                       .format(colors,objtype,colors,objtype))
+                       .format(colors, objtype, colors, objtype))
             html.write('</tr>\n')
             html.write('</table>\n')
 
-            ## ADM classification fraction plots
-            #html.write('<h2>Fraction of each spectral type plots</h2>\n')
-            #html.write('<table COLS=1 WIDTH="40%">\n')
-            #html.write('<tr>\n')
-            ## ADM add the plots...
-            #html.write('<td align=center><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=auto width=95%></A></td>\n'
-            #           .format("mock-fractype",objtype,"mock-fractype",objtype))
-            #html.write('</tr>\n')
-            #html.write('</table>\n')
+            # # ADM classification fraction plots.
+            # html.write('<h2>Fraction of each spectral type plots</h2>\n')
+            # html.write('<table COLS=1 WIDTH="40%">\n')
+            # html.write('<tr>\n')
+            # # ADM add the plots...
+            # html.write('<td align=center><A HREF="{}-{}.png"><img SRC="{}-{}.png" height=auto width=95%></A></td>\n'
+            #           .format("mock-fractype", objtype, "mock-fractype", objtype))
+            # html.write('</tr>\n')
+            # html.write('</table>\n')
 
         # ADM add target density vs. systematics plots, if systematics plots were requested.
         # ADM these plots aren't useful if we're looking at commissioning data.
@@ -1675,7 +1689,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                 raise IOError
             sysdic = _load_systematics()
             sysnames = list(sysdic.keys())
-            # ADM html text to embed the systematics plots
+            # ADM html text to embed the systematics plots.
             html.write('<h2>Target Density variation vs. Systematics plots</h2>\n')
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
@@ -1683,23 +1697,23 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             while(len(sysnames) > 2):
                 for sys in sysnames[:3]:
                     html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
-                               .format(sys,objtype,sys,objtype))
-                # ADM pop off the 3 columns of systematics that have already been written
+                               .format(sys, objtype, sys, objtype))
+                # ADM pop off the 3 columns of systematics that have already been written.
                 sysnames = sysnames[3:]
                 html.write('</tr>\n')
-            # ADM we popped three systematics at a time, there could be a remaining one or two
+            # ADM we popped three systematics at a time, there could be a remaining one or two.
             if len(sysnames) == 2:
                 for sys in sysnames:
                     html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
-                               .format(sys,objtype,sys,objtype))
+                               .format(sys, objtype, sys, objtype))
                 html.write('</tr>\n')
             if len(sysnames) == 1:
                 html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
-                               .format(sysnames[0],objtype,sysnames[0],objtype))
+                               .format(sysnames[0], objtype, sysnames[0], objtype))
                 html.write('</tr>\n')
             html.write('</table>\n')
 
-        # ADM html postamble
+        # ADM html postamble.
         html.write('<b><i>Last updated {}</b></i>\n'.format(js))
         html.write('</html></body>\n')
         html.close()
@@ -1711,19 +1725,19 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                                 weight=weight, imaging_map_file=imaging_map_file, cmx=cmx)
 
         # ADM add a correlation matrix recording the overlaps between different target
-        # ADM classes as a density
+        # ADM classes as a density.
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
         htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
         htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
-        # ADM only retain classes that are actually in the DESI target bit list
+        # ADM only retain classes that are actually in the DESI target bit list.
         settargdens = set(main_mask.names()).intersection(set(targdens))
-        # ADM write out a list of the target categories
+        # ADM write out a list of the target categories.
         headerlist = list(settargdens)
         headerlist.insert(0," ")
         header = " ".join(['{:>11s}'.format(i) for i in headerlist])+'\n\n'
         htmlmain.write(header)
         # ADM for each pair of target classes, determine how many targets per unit area
-        # ADM have the relevant target bit set for both target classes in the pair
+        # ADM have the relevant target bit set for both target classes in the pair.
         for i, objtype1 in enumerate(settargdens):
             overlaps = [objtype1]
             for j, objtype2 in enumerate(settargdens):
@@ -1734,17 +1748,17 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                     overlap = np.sum(((dt & main_mask[objtype1]) != 0) & ((dt & main_mask[objtype2]) != 0))/totarea
                     overlaps.append("{:.1f}".format(overlap))
             htmlmain.write(" ".join(['{:>11s}'.format(i) for i in overlaps])+'\n\n')
-        # ADM close the matrix text output
+        # ADM close the matrix text output.
         htmlmain.write('</span></PRE>\n\n\n')
         log.info('Done with correlation matrix...t = {:.1f}s'.format(time()-start))
 
-    # ADM if requested, add systematics plots
+    # ADM if requested, add systematics plots.
     if systematics:
         from desitarget import io as dtio
-        pixmap = dtio.load_pixweight_recarray(imaging_map_file,nside)
+        pixmap = dtio.load_pixweight_recarray(imaging_map_file, nside)
         sysdic = _load_systematics()
         sysnames = list(sysdic.keys())
-        # ADM html text to embed the systematics plots
+        # ADM html text to embed the systematics plots.
         htmlmain.write('<h2>Systematics plots</h2>\n')
         htmlmain.write('<table COLS=2 WIDTH="100%">\n')
         htmlmain.write('<tr>\n')
@@ -1752,46 +1766,46 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         while(len(sysnames) > 1):
             for sys in sysnames[:2]:
                 htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
-                               .format(sys,sys))
-                # ADM pop off the 2 columns of systematics that have already been written
+                               .format(sys, sys))
+                # ADM pop off the 2 columns of systematics that have already been written.
             sysnames = sysnames[2:]
             htmlmain.write('</tr>\n')
-        # ADM we popped two systematics at a time, there could be a remaining one
+        # ADM we popped two systematics at a time, there could be a remaining one.
         if len(sysnames)==1:
             htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
-                           .format(sysnames[0],sysnames[0]))
+                           .format(sysnames[0], sysnames[0]))
             htmlmain.write('</tr>\n')
         htmlmain.write('</table>\n')
-        # ADM add the plots
+        # ADM add the plots.
         if makeplots:
             sysnames = list(sysdic.keys())
             for sysname in sysnames:
-                # ADM convert the data and the systematics ranges to more human-readable quantities
+                # ADM convert the data and the systematics ranges to more human-readable quantities.
                 d, u , plotlabel = sysdic[sysname]
-                down, up = _prepare_systematics(np.array([d,u]),sysname)
-                pixmap[sysname] = _prepare_systematics(pixmap[sysname],sysname)
-                # ADM make the systematics sky plots
-                qasystematics_skyplot(pixmap[sysname],sysname,
-                              qadir=qadir,downclip=down,upclip=up,plottitle=plotlabel)
+                down, up = _prepare_systematics(np.array([d,u]), sysname)
+                pixmap[sysname] = _prepare_systematics(pixmap[sysname], sysname)
+                # ADM make the systematics sky plots.
+                qasystematics_skyplot(pixmap[sysname], sysname,
+                              qadir=qadir, downclip=down, upclip=up, plottitle=plotlabel)
                 # ADM make the systematics vs. target density scatter plots
                 # ADM for each target type. These plots aren't useful for commissioning.
                 if not(cmx):
                     for objtype in targdens.keys():
                        # ADM hack to have different FRACAREA quantities for the sky maps and
-                        # ADM the scatter plots
+                        # ADM the scatter plots.
                         if sysname=="FRACAREA":
                             down = 0.9
-                        qasystematics_scatterplot(pixmap,sysname,objtype,qadir=qadir,
-                                        downclip=down,upclip=up,nbins=10,xlabel=plotlabel)
+                        qasystematics_scatterplot(pixmap, sysname, objtype, qadir=qadir,
+                                        downclip=down, upclip=up, nbins=10, xlabel=plotlabel)
 
         log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
-    # ADM html postamble for main page
+    # ADM html postamble for main page.
     htmlmain.write('<b><i>Last updated {}</b></i>\n'.format(js))
     htmlmain.write('</html></body>\n')
     htmlmain.close()
 
-    # ADM make sure all of the relevant directories and plots can be read by a web-browser
+    # ADM make sure all of the relevant directories and plots can be read by a web-browser.
     cmd = 'chmod 644 {}/*'.format(qadir)
     ok = os.system(cmd)
     cmd = 'chmod 775 {}'.format(qadir)
