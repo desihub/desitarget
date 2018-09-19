@@ -115,6 +115,13 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
 
+    targets.add_column(Column(name='FIBERFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='f4'))
+
     # Gaia columns
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
@@ -145,10 +152,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
     targets.add_column(Column(name='NUMOBS', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-
-    # HACK!!!
-    for band in ('G', 'R', 'Z'):
-        targets['FRACMASKED_{}'.format(band)] = 0.001
 
     return targets
 
@@ -238,11 +241,13 @@ class SelectTargets(object):
         and brickid to each object.  Defaults to 0.25 deg.
 
     """
-    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
+    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
     def __init__(self, bricksize=0.25):
         from astropy.io import fits
+        from speclite import filters
         from desiutil.dust import SFDMap
+        from specsim.fastfiberacceptance import FastFiberAcceptance
         from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
         
@@ -253,6 +258,17 @@ class SelectTargets(object):
 
         self.Bricks = Bricks(bricksize=bricksize)
         self.SFDMap = SFDMap()
+
+        # Cache the plate scale (which is approximate; see
+        # $DESIMODEL/data/desi.yaml), and the FastFiberAcceptance class for the
+        # fiberflux calculation, below.
+        self.plate_scale_arcsec2um = 107.0 / 1.52 # [um/arcsec]
+        if self.FFA is None:
+            SelectTargets.FFA = FastFiberAcceptance(filename=os.path.join(
+                os.getenv('DESIMODEL'), 'data', 'throughput', 'galsim-fiber-acceptance.fits'))
+
+        self.bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z', 'wise2010-W1', 'wise2010-W2')
+        self.decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z', 'wise2010-W1', 'wise2010-W2')
 
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
@@ -546,17 +562,23 @@ class SelectTargets(object):
                         gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
 
                 if mm == 'DEV':
-                    gmmout['FRACDEV'][:] = 1.0
-                elif mm == 'EXP':
-                    gmmout['FRACDEV'][:] = 0.0
+                    gmmout['FRACDEV'][gthese] = 1.0
 
         gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
         gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
 
-        if target == 'LRG':
-            band = 'z'
-        else:
-            band = 'r'
+        # Assign filter names.
+        if np.sum(isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+            else:
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
+
+        if np.sum(~isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+            else:
+                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
         # Sort based on the input/prior magnitude (e.g., for the BGS/MXXL
         # mocks), but note that we will very likely end up with duplicated
@@ -572,6 +594,9 @@ class SelectTargets(object):
                     srt[ii] = rand.choice(dm)
             for key in gmmout.keys():
                 gmmout[key][:] = gmmout[key][srt]
+            # Remove these keys to preserve the values assigned in the reader
+            # (e.g., ReadMXXL) class.
+            [gmmout.pop(key) for key in ('MAG', 'MAGFILTER')]
 
         # Shuffle based on input/prior redshift, so we can get a broad
         # correlation between magnitude and redshift.
@@ -581,19 +606,6 @@ class SelectTargets(object):
             #dat['redshift'] = prior_redshift
             #dat['mag'] = gmmout['MAG']
             #srt = np.argsort(dat, order=('redshift', 'mag'))
-
-        # Assign filter names.
-        if np.sum(isouth) > 0:
-            if target == 'LRG':
-                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
-            else:
-                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
-
-        if np.sum(~isouth) > 0:
-            if target == 'LRG':
-                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
-            else:
-                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
         return gmmout
 
@@ -689,6 +701,79 @@ class SelectTargets(object):
 
         return gflux, rflux, zflux, w1flux, w2flux
 
+    def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
+        """Estimate the fraction of the integrated flux that enters the fiber.
+
+        Assume a reference seeing value (seeingref) of 1.0 arcsec FWHM at
+        a reference wavelength (lambdaref) of 5500 Angstrom.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        south : :class:`bool`
+            True for sources with DECaLS photometry and False for sources with
+            BASS+MzLS photometry.
+        ref_seeing : :class:`float`
+            Reference seeing FWHM in arcsec.  Defaults to 1.0.
+        ref_lambda : :class:`float`
+            Reference wavelength in Angstrom.  Defaults to 5500 A.
+
+        Returns
+        -------
+        fiberfraction_g : :class:`numpy.ndarray`
+            Fraction of the total g-band flux entering the fiber.
+        fiberfraction_r : :class:`numpy.ndarray`
+            Fraction of the total r-band flux entering the fiber.
+        fiberfraction_z : :class:`numpy.ndarray`
+            Fraction of the total z-band flux entering the fiber.
+    
+        Raises
+        ------
+        ValueError
+            If fiberfraction is outside the bounds [0-1] (inclusive).
+
+        """
+        ntarg = len(targets)
+        fiberfraction_g = np.zeros(ntarg).astype('f4')
+        fiberfraction_r, fiberfraction_z = np.zeros_like(fiberfraction_g), np.zeros_like(fiberfraction_g)
+
+        if south:
+            lambdafilts = self.decamwise.effective_wavelengths[:4].value # [Angstrom]
+        else:
+            lambdafilts = self.bassmzlswise.effective_wavelengths[:4].value # [Angstrom]
+
+        # Not quite right to use a bulge-like surface-brightness profile for COMP.
+        type2source = {'PSF': 'POINT', 'REX': 'DISK', 'EXP': 'DISK',
+                       'DEV': 'BULGE', 'COMP': 'BULGE'}
+
+        for morphtype in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+            istype = targets['TYPE'] == morphtype
+            if np.sum(istype) > 0:
+                # Assume the radius is independent of wavelength.
+                reff = ( targets['FRACDEV'][istype].data * targets['SHAPEDEV_R'][istype].data +
+                         (1 - targets['FRACDEV'][istype].data) * targets['SHAPEEXP_R'][istype].data )
+                offset = np.zeros( np.sum(istype) ) # fiber offset [um]
+
+                for band, lambdafilt, fiberfraction in zip( ('G', 'R', 'Z'), lambdafilts,
+                                                        (fiberfraction_g, fiberfraction_r, fiberfraction_z) ):
+                    sigma_um = np.repeat( ref_seeing * (lambdafilt / ref_lambda)**(-1.0 / 5.0) /
+                                          2.35482 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
+                    fiberfraction[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
+
+        # Sanity check.
+        if np.sum( (fiberfraction_r < 0) * (fiberfraction_r > 1) ) > 0:
+            log.warning('FIBERFRACTION should be [0-1].')
+            raise ValueError
+
+        # Put a floor of 5% (otherwise would be zero for large objects).
+        for fiberfraction in (fiberfraction_g, fiberfraction_r, fiberfraction_z):
+            zero = fiberfraction == 0
+            if np.sum(zero) > 0:
+                fiberfraction[zero] = 0.05
+
+        return fiberfraction_g, fiberfraction_r, fiberfraction_z
+
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
                                use_simqso=True, truespectype='', templatetype='',
                                templatesubtype=''):
@@ -755,12 +840,13 @@ class SelectTargets(object):
 
         # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
         targets['RELEASE'][:] = 9999
-        
-        south = self.is_south(targets['DEC'])
-        north = ~south
-        if np.sum(south) > 0:
+
+        isouth = self.is_south(targets['DEC'])
+        south = np.where( isouth )[0]
+        north = np.where( ~isouth )[0]
+        if len(south) > 0:
             targets['PHOTSYS'][south] = 'S'
-        if np.sum(north) > 0:
+        if len(north) > 0:
             targets['PHOTSYS'][north] = 'N'
             
         targets['RA_IVAR'][:], targets['DEC_IVAR'][:] = 1e8, 1e8
@@ -777,10 +863,6 @@ class SelectTargets(object):
                 targets[key][:] = data[key][indx]
             nobskey = 'NOBS_{}'.format(band)
             targets[nobskey][:] = 2 # assume constant!
-
-        #for band in ('W1', 'W2'):
-        #    key = 'PSFDEPTH_{}'.format(band)
-        #    targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
@@ -802,13 +884,23 @@ class SelectTargets(object):
                 if key in objtruth.colnames:
                     objtruth[key][:] = objmeta[key]
             
-        # Scatter the photometry based on the depth.
+        # Scatter the observed photometry based on the depth and then attenuate
+        # for Galactic extinction.
         self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
-        # Finally, attenuate the observed photometry for Galactic extinction.
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
+
+        # Finally compute the (simulated, observed) flux within the fiber.
+        for these, issouth in zip( (north, south), (False, True) ):
+            if len(these) > 0:
+                fiberfraction = self.get_fiberfraction(targets[these], south=issouth)
+                for band, fraction in zip( ('G', 'R', 'Z'), fiberfraction ):
+                    fiberflux = targets['FLUX_{}'.format(band)][these] * fraction
+
+                    targets['FIBERFLUX_{}'.format(band)][these] = fiberflux
+                    targets['FIBERTOTFLUX_{}'.format(band)][these] = fiberflux
 
         return targets, truth, objtruth
 
@@ -1806,6 +1898,7 @@ class ReadMXXL(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
                'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
                'SOUTH': isouth}
+
         if gmmout is not None:
             out.update(gmmout)
 
@@ -3360,12 +3453,8 @@ class STARMaker(SelectTargets):
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
-            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
-                                                'wise2010-W1', 'wise2010-W2')
-            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                             'wise2010-W1', 'wise2010-W2')
-            maggies_north = bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
-            maggies_south = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_south = self.decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
 
             # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
@@ -4126,7 +4215,7 @@ class WDMaker(SelectTargets):
 
     def __init__(self, seed=None, calib_only=False, **kwargs):
         from scipy.spatial import cKDTree as KDTree
-        from speclite import filters 
+        from speclite import filters
         from desisim.templates import WD
         
         super(WDMaker, self).__init__()
@@ -4155,15 +4244,10 @@ class WDMaker(SelectTargets):
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
 
-            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
-                                                'wise2010-W1', 'wise2010-W2')
-            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                             'wise2010-W1', 'wise2010-W2')
-
-            maggies_da_north = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db_north = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
-            maggies_da_south = bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db_south = bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_north = self.decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_north = self.decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_south = self.bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_south = self.bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
 
             # Normalize to sdss-g
             normfilter = filters.load_filters('sdss2010-g')

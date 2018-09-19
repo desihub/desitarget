@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Estimate FIBERFLUX_[G,R,Z] for mock targets. [`PR #381`_].  
 * First fully working version of SV code [`PR #380`_]. Includes:
     * (Almost) the only evolving part of the code for SV is now the cuts.
     * Unit tests for SV that should be easy to maintain.
@@ -80,6 +81,7 @@ desitarget Change Log
 .. _`PR #374`: https://github.com/desihub/desitarget/pull/374
 .. _`PR #378`: https://github.com/desihub/desitarget/pull/378
 .. _`PR #380`: https://github.com/desihub/desitarget/pull/380
+.. _`PR #381`: https://github.com/desihub/desitarget/pull/381
 
 0.23.0 (2018-08-09)
 -------------------
