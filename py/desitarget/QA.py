@@ -18,23 +18,23 @@ import random
 import textwrap
 import warnings
 import itertools
-
+# 
 import numpy.lib.recfunctions as rfn
 import healpy as hp
-
-#ADM fake the matplotlib display so it doesn't die on allocated nodes.
+# 
+# ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-
+# 
 from collections import defaultdict
 from glob import glob
 from scipy.optimize import leastsq
 from scipy.spatial import ConvexHull
-
+# 
 from astropy import units as u
 from astropy.coordinates import SkyCoord
-
+# 
 from desiutil import brick
 from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
@@ -72,95 +72,98 @@ def _parse_tcnames(tcstring=None, add_all=True):
 
     if tcstring is None:
         tcnames = tcdefault
-    else:    
-        tcnames = [ bn for bn in tcstring.split(',') ]
-        if not np.all([ tcname in tcdefault for tcname in tcnames ]):
+    else:
+        tcnames = [bn for bn in tcstring.split(',')]
+        if not np.all([tcname in tcdefault for tcname in tcnames]):
             msg = "passed tcnames should be one of {}".format(tcdefault)
             log.critical(msg)
             raise ValueError(msg)
 
     return tcnames
 
+
 def _load_systematics():
     """Loads information for making systematics plots.
 
     Returns
     -------
-    :class:`dictionary` 
+    :class:`dictionary`
         A dictionary where the keys are the names of the systematics
         and the values are arrays of where to clip these systematics in plots
     """
 
     sysdict = {}
 
-    sysdict['FRACAREA']=[0.01,1.,'Fraction of pixel area covered']
-    sysdict['STARDENS']=[150.,4000.,'log10(Stellar Density) per sq. deg.']
-    sysdict['EBV']=[0.001,0.1,'E(B-V)']
-    sysdict['PSFDEPTH_G']=[63.,6300.,'PSF Depth in g-band']
-    sysdict['PSFDEPTH_R']=[25.,2500.,'PSF Depth in r-band']
-    sysdict['PSFDEPTH_Z']=[4.,400.,'PSF Depth in z-band']
-    sysdict['GALDEPTH_G']=[63.,6300.,'Galaxy Depth in g-band']
-    sysdict['GALDEPTH_R']=[25.,2500.,'Galaxy Depth in r-band']
-    sysdict['GALDEPTH_Z']=[4.,400.,'Galaxy Depth in z-band']
+    sysdict['FRACAREA'] = [0.01, 1., 'Fraction of pixel area covered']
+    sysdict['STARDENS'] = [150., 4000., 'log10(Stellar Density) per sq. deg.']
+    sysdict['EBV'] = [0.001, 0.1, 'E(B-V)']
+    sysdict['PSFDEPTH_G'] = [63., 6300., 'PSF Depth in g-band']
+    sysdict['PSFDEPTH_R'] = [25., 2500., 'PSF Depth in r-band']
+    sysdict['PSFDEPTH_Z'] = [4., 400., 'PSF Depth in z-band']
+    sysdict['GALDEPTH_G'] = [63., 6300., 'Galaxy Depth in g-band']
+    sysdict['GALDEPTH_R'] = [25., 2500., 'Galaxy Depth in r-band']
+    sysdict['GALDEPTH_Z'] = [4., 400., 'Galaxy Depth in z-band']
 
     return sysdict
 
-def _prepare_systematics(data,colname):
-    """Functionally convert systematics to more user-friendly numbers
-    
+
+def _prepare_systematics(data, colname):
+    """Functionally convert systematics to more user-friendly numbers.
+
     Parameters
     ----------
-    data :class:`~numpy.array` 
-        An array of the systematic
+    data :class:`~numpy.array`
+        An array of the systematic.
     colname : :class:`str`
-        The column name of the passed systematic, e.g. ``STARDENS``
+        The column name of the passed systematic, e.g. ``STARDENS``.
 
     Returns
     -------
-    :class:`~numpy.array` 
+    :class:`~numpy.array`
         The systematics converted by the appropriate function
     """
 
-    #ADM depth columns need converted to a magnitude-like number
+    # ADM depth columns need converted to a magnitude-like number.
     if "DEPTH" in colname:
-        #ADM zero and negative values should be a very low number (0)
+        # ADM zero and negative values should be a very low number (0).
         wgood = np.where(data > 0)[0]
         outdata = np.zeros(len(data))
         if len(wgood) > 0:
             outdata[wgood] = 22.5-2.5*np.log10(5./np.sqrt(data[wgood]))
-    #ADM the STARDENS columns needs to be expressed as a log
+    # ADM the STARDENS columns needs to be expressed as a log.
     elif "STARDENS" in colname:
-        #ADM zero and negative values should be a very negative number (-99)
+        # ADM zero and negative values should be a very negative number (-99).
         wgood = np.where(data > 0)[0]
         outdata = np.zeros(len(data))-99.
         if len(wgood) > 0:
             outdata[wgood] = np.log10(data[wgood])
     else:
-        #ADM other columns don't need converted
+        # ADM other columns don't need converted.
         outdata = data
 
     return outdata
 
+
 def _load_targdens(tcnames=None, cmx=False):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
-    extracts the target density information in a format useful for targeting QA plots
+    extracts the target density information in a format useful for targeting QA plots.
 
     Parameters
     ----------
     tcnames : :class:`list`
         A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
-        for those specific bits
+        for those specific bits.
     cmx : :class:`boolean`, optional, defaults to ``False``
         If passed, load the commissioning bits (with zero density constraints) instead
         of the main survey/SV bits.
 
     Returns
     -------
-    :class:`dictionary` 
-        A dictionary where the keys are the bit names and the values are the densities           
+    :class:`dictionary`
+        A dictionary where the keys are the bit names and the values are the densities.
     """
 
-    if cmx == False:
+    if cmx is False:
         from desimodel import io
         targdict = io.load_target_info()
 
@@ -188,13 +191,14 @@ def _load_targdens(tcnames=None, cmx=False):
         targdens['MWS_WD'] = 0.
         targdens['MWS_NEARBY'] = 0.
     else:
-        targdens = {k:0. for k in cmx_mask.names()}
-    
+        targdens = {k: 0. for k in cmx_mask.names()}
+
     if tcnames is None:
         return targdens
     else:
         # ADM this is a dictionary comprehension
         return {key: value for key, value in targdens.items() if key in tcnames}
+
 
 def _javastring():
     """Return a string that embeds a date in a webpage
@@ -228,57 +232,58 @@ def _javastring():
     else if (date == 3 || date == 23)
     document.write(" " + lmonth + " " + date + "rd, " + fyear)
     else
-    document.write(" " + lmonth + " " + date + "th, " + fyear)    
+    document.write(" " + lmonth + " " + date + "th, " + fyear)
     </SCRIPT>
     """)
 
     return js
 
+
 def collect_mock_data(targfile):
-    """Given a full path to a mock target file, read in all relevant mock data
+    """Given a full path to a mock target file, read in all relevant mock data.
 
     Parameters
     ----------
     targs : :class:`str`
         The full path to a mock target file in the DESI X per cent survey directory structure
-        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/
+        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/.
 
     Returns
     -------
-    :class:`~numpy.array` 
-        A rec array containing the mock targets
-    :class:`~numpy.array` 
-        A rec array containing the mock truth objects used to generate the mock targets
+    :class:`~numpy.array`
+        A rec array containing the mock targets.
+    :class:`~numpy.array`
+        A rec array containing the mock truth objects used to generate the mock targets.
 
     Notes
     -----
         - Will return 0 if the file structure is incorrect (i.e. if the "truths" can't be
-          found based on the "targs")
+          found based on the "targs").
     """
 
     start = time()
 
-    # ADM set up the default logger from desiutil
+    # ADM set up the default logger from desiutil.
     log = get_logger()
 
-    # ADM retrieve the directory that contains the targets
+    # ADM retrieve the directory that contains the targets.
     targdir = os.path.dirname(targfile)
     if targdir == '':
         targdir = '.'
-    
-    # ADM retrieve the mock data release name
+
+    # ADM retrieve the mock data release name.
     dcdir = os.path.dirname(targdir)
     dc = os.path.basename(dcdir)
 
-    # ADM the file containing truth
+    # ADM the file containing truth.
     truthfile = '{}/truth.fits'.format(targdir)
 
-    # ADM check that the truth file exists
+    # ADM check that the truth file exists.
     if not os.path.exists(truthfile):
         log.warning("Directory structure to truth file is not as expected")
         return 0
 
-    # ADM read in the relevant mock data and return it
+    # ADM read in the relevant mock data and return it.
     targs = fitsio.read(targfile)
     log.info('Read in mock targets...t = {:.1f}s'.format(time()-start))
     truths = fitsio.read(truthfile)
@@ -286,58 +291,60 @@ def collect_mock_data(targfile):
 
     return targs, truths
 
+
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
-    """Visualize the target density with a skymap. First version lifted 
-    shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`)
+    """Visualize the target density with a skymap. First version lifted
+    shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`).
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
         An array of targets that contains at least ``RA`` and ``DEC`` columns for coordinate
-        information
+        information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     upclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the targets at the "high density" end to make plots 
-        conform to similar density scales
+        A cutoff at which to clip the targets at the "high density" end to make plots
+        conform to similar density scales.
     weights : :class:`~numpy.array`, optional, defaults to None
         A weight for each of the passed targets (e.g., to upweight each target in a
-        partial pixel at the edge of the DESI footprint)
+        partial pixel at the edge of the DESI footprint).
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
-        possible to this value without exceeding it
+        possible to this value without exceeding it.
     fileprefix : :class:`str`, optional, defaults to ``"radec"`` for (RA/Dec)
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
 
     Returns
     -------
     Nothing
         But a .png plot of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{objtype}.png``
+        ``{qadir}/{fileprefix}-{objtype}.png``.
     """
     label = '{} (targets/deg$^2$)'.format(objtype)
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
-       
+
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+        basemap = init_sky(galactic_plane_color='k', ax=ax[0])
         plot_sky_binned(cat['RA'], cat['DEC'], weights=weights, max_bin_area=max_bin_area,
-                        clip_lo='!1', clip_hi=upclip, cmap='jet', plot_type='healpix', 
+                        clip_lo='!1', clip_hi=upclip, cmap='jet', plot_type='healpix',
                         label=label, basemap=basemap)
 
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
-    fig.savefig(pngfile,bbox_inches='tight')
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
+    fig.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
     return
 
+
 def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None,
-                  fileprefix="systematics", plottitle=""):
-    """Visualize systematics with a sky map
+                          fileprefix="systematics", plottitle=""):
+    """Visualize systematics with a sky map.
 
     Parameters
     ----------
@@ -345,23 +352,23 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
         An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`.
         Assumed to be in the NESTED scheme and ORDERED BY INCREASING HEALPixel.
     colname : :class:`str`
-        The name of the passed systematic, e.g. ``STARDENS``
+        The name of the passed systematic, e.g. ``STARDENS``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     downclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the systematics at the low end
+        A cutoff at which to clip the systematics at the low end.
     upclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the systematics at the high end
+        A cutoff at which to clip the systematics at the high end.
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
     plottitle : :class:`str`, optional, defaults to empty string
-        An informative title for the plot
+        An informative title for the plot.
 
     Returns
     -------
     Nothing
         But a .png histogram of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{colname}.png``
+        ``{qadir}/{fileprefix}-{colname}.png``.
     """
 
     label = '{}'.format(plottitle)
@@ -369,69 +376,70 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
     ax = np.atleast_1d(ax)
 
     # ADM if downclip was passed as a number, turn it to a string with
-    # ADM an exclamation mark to mask the plot background completely 
+    # ADM an exclamation mark to mask the plot background completely.
     if downclip is not None:
         if type(downclip) != str:
             downclip = '!' + str(downclip)
 
-    # ADM prepare the data to be plotted by matplotlib routines
+    # ADM prepare the data to be plotted by matplotlib routines.
     pixmap = prepare_data(pixmap, clip_lo=downclip, clip_hi=upclip)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+        basemap = init_sky(galactic_plane_color='k', ax=ax[0])
         plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, basemap=basemap)
 
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,colname))
-    fig.savefig(pngfile,bbox_inches='tight')
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, colname))
+    fig.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
     return
 
-def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.', 
-                              downclip=None, upclip=None, nbins=10, 
+
+def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
+                              downclip=None, upclip=None, nbins=10,
                               fileprefix="sysdens", xlabel=None):
-    """Make a target density vs. systematic scatter plot
+    """Make a target density vs. systematic scatter plot.
 
     Parameters
     ----------
     pixmap : :class:`~numpy.array`
-        An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`
+        An array of systematics binned in HEALPixels, made by, e.g. `make_imaging_weight_map`.
     syscolname : :class:`str`
-        The name of the passed systematic, e.g. ``STARDENS``
+        The name of the passed systematic, e.g. ``STARDENS``.
     targcolname : :class:`str`
-        The name of the passed column of target densities, e.g. ``QSO``
+        The name of the passed column of target densities, e.g. ``QSO``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     downclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the systematics at the low end
+        A cutoff at which to clip the systematics at the low end.
     upclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the systematics at the high end
+        A cutoff at which to clip the systematics at the high end.
     nbins : :class:`int`, optional, defaults to 10
-        The number of bins to produce in the scatter plot
+        The number of bins to produce in the scatter plot.
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
     xlabel : :class:`str`, optional, if None defaults to ``syscolname``
-        An informative title for the x-axis of the plot
+        An informative title for the x-axis of the plot.
 
     Returns
     -------
     Nothing
         But a .png histogram of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{syscolname}-{targcolname}.png``
-        
+        ``{qadir}/{fileprefix}-{syscolname}-{targcolname}.png``.
+
     Notes
     -----
     The passed ``pixmap`` must contain a column ``FRACAREA`` which is used to filter out any
-    pixel with less than 90% areal coverage
+    pixel with less than 90% areal coverage.
     """
     # ADM set up the logger.
     log = get_logger()
 
     # ADM exit if we have a target density column that isn't populated.
     try:
-        if np.all(pixmap[targcolname]==0):
+        if np.all(pixmap[targcolname] == 0):
             log.info("Target densities not populated for {}".format(targcolname))
             return
     # ADM also exit gracefully if a column name doesn't exist.
@@ -439,18 +447,18 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
         log.info("Target densities not populated for {}".format(targcolname))
         return
 
-    # ADM if no xlabel was passed, default to syscolname
+    # ADM if no xlabel was passed, default to syscolname.
     if xlabel is None:
         xlabel = syscolname
 
     # ADM remove anything that is in areas with low coverage, or doesn't meet
-    # ADM the clipping criteria
+    # ADM the clipping criteria.
     if downclip is None:
         downclip = -1e30
     if upclip is None:
         upclip = 1e30
-    w = np.where(   (pixmap['FRACAREA'] > 0.9) & 
-                    (pixmap[syscolname] >= downclip) & (pixmap[syscolname] < upclip) )[0]
+    w = np.where((pixmap['FRACAREA'] > 0.9) &
+                    (pixmap[syscolname] >= downclip) & (pixmap[syscolname] < upclip))[0]
     if len(w) > 0:
         pixmapgood = pixmap[w]
     else:
@@ -459,100 +467,101 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
         w = np.where(pixmap['FRACAREA'] > 0.9)
         pixmapgood = pixmap[w]
 
-    # ADM set up the x-axis as the systematic of interest
+    # ADM set up the x-axis as the systematic of interest.
     xx = pixmapgood[syscolname]
-    # ADM let np.histogram choose a sensible binning
+    # ADM let np.histogram choose a sensible binning.
     _, bins = np.histogram(xx, nbins)
-    # ADM the bin centers rather than the edges
-    binmid = np.mean(np.vstack([bins,np.roll(bins,1)]),axis=0)[1:]
+    # ADM the bin centers rather than the edges.
+    binmid = np.mean(np.vstack([bins, np.roll(bins, 1)]), axis=0)[1:]
 
-    # ADM set up the y-axis as the deviation of the target density from median density
+    # ADM set up the y-axis as the deviation of the target density from median density.
     yy = pixmapgood[targcolname]/np.median(pixmapgood[targcolname])
 
-    # ADM determine which bin each systematics value is in
-    wbin  = np.digitize(xx,bins)
+    # ADM determine which bin each systematics value is in.
+    wbin = np.digitize(xx, bins)
     # ADM np.digitize closes the end bin whereas np.histogram
-    # ADM leaves it open, so shift the end bin value back by one
+    # ADM leaves it open, so shift the end bin value back by one.
     wbin[np.argmax(wbin)] -= 1
 
-    # ADM apply thr digitization to the target density values
-    # ADM note that the first digitized bin is 1 not zero
-    meds = [np.median(yy[wbin==bin]) for bin in range(1,nbins+1)]
+    # ADM apply the digitization to the target density values
+    # ADM note that the first digitized bin is 1 not zero.
+    meds = [np.median(yy[wbin == bin]) for bin in range(1, nbins+1)]
 
-    # ADM make the plot
-    plt.scatter(xx,yy,marker='.',color='b', alpha=0.8, s=0.8)
-    plt.plot(binmid,meds,'k--',lw=2)
+    # ADM make the plot.
+    plt.scatter(xx, yy, marker='.', color='b', alpha=0.8, s=0.8)
+    plt.plot(binmid, meds, 'k--', lw=2)
 
-    # ADM set the titles and y range
-    plt.ylim([0.5,1.5])
+    # ADM set the titles and y range.
+    plt.ylim([0.5, 1.5])
     plt.xlabel(xlabel)
     plt.ylabel("Relative {} density".format(targcolname))
 
     pngfile = os.path.join(qadir, '{}-{}-{}.png'
-                           .format(fileprefix,syscolname,targcolname))
-    plt.savefig(pngfile,bbox_inches='tight')
+                           .format(fileprefix, syscolname, targcolname))
+    plt.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
     return
 
-def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, max_bin_area=1.0, 
+
+def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, max_bin_area=1.0,
             fileprefix="histo", catispix=False):
-    """Visualize the target density with a histogram of densities. First version taken 
-    shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`)
+    """Visualize the target density with a histogram of densities. First version taken
+    shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`).
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
         An array of targets that contains at least ``RA`` and ``DEC`` columns for coordinate
-        information
+        information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``
+        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
-        The output directory to which to write produced plots
+        The output directory to which to write produced plots.
     targdens : :class:`dictionary`, optional, defaults to None
         A dictionary of DESI target classes and the goal density for that class. Used, if
-        passed, to label the goal density on the histogram plot        
+        passed, to label the goal density on the histogram plot.
     upclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the targets at the "high density" end to make plots 
-        conform to similar density scales
+        A cutoff at which to clip the targets at the "high density" end to make plots
+        conform to similar density scales.
     weights : :class:`~numpy.array`, optional, defaults to None
         A weight for each of the passed targets (e.g., to upweight each target in a
-        partial pixel at the edge of the DESI footprint)
+        partial pixel at the edge of the DESI footprint).
     max_bin_area : :class:`float`, optional, defaults to 1 degree
         The bin size in the passed coordinates is chosen automatically to be as close as
-        possible to this value without exceeding it
+        possible to this value without exceeding it.
     fileprefix : :class:`str`, optional, defaults to ``"histo"``
-        String to be added to the front of the output file name
+        String to be added to the front of the output file name.
     catispix : :class:`boolean`, optional, defaults to ``False``
         If this is ``True``, then ``cat`` corresponds to the HEALpixel numbers already
         precomputed using ``pixels = footprint.radec2pix(nside, cat["RA"], cat["DEC"])``
         from the RAs and Decs ordered as for ``weights``, rather than the catalog itself.
         If this is True, then max_bin_area must correspond to the `nside` used to
-        precompute the pixel numbers
+        precompute the pixel numbers.
 
     Returns
     -------
     Nothing
         But a .png histogram of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{objtype}.png``
+        ``{qadir}/{fileprefix}-{objtype}.png``.
     """
 
     import healpy as hp
 
-    # ADM determine the nside for the passed max_bin_area
+    # ADM determine the nside for the passed max_bin_area.
     for n in range(1, 25):
         nside = 2 ** n
         bin_area = hp.nside2pixarea(nside, degrees=True)
         if bin_area <= max_bin_area:
             break
-        
-    # ADM the number of HEALPixels and their area at this nside
+
+    # ADM the number of HEALPixels and their area at this nside.
     npix = hp.nside2npix(nside)
     bin_area = hp.nside2pixarea(nside, degrees=True)
 
     # ADM the HEALPixel number for each RA/Dec (this call to desimodel
-    # ADM assumes nest=True, so "weights" should assume nest=True, too)
+    # ADM assumes nest=True, so "weights" should assume nest=True, too).
     if catispix:
         pixels = cat.copy()
     else:
@@ -563,60 +572,61 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     label = '{} (targets/deg$^2$)'.format(objtype)
 
-    # ADM clip the targets to avoid high densities, if requested
+    # ADM clip the targets to avoid high densities, if requested.
     if upclip:
-        dens = np.clip(dens,1,upclip)
+        dens = np.clip(dens, 1, upclip)
 
-    # ADM set the number of bins for the histogram (determined from trial and error)
+    # ADM set the number of bins for the histogram (determined from trial and error).
     nbins = 80
-    # ADM low density objects (QSOs and standard stars) look better with fewer bins
+    # ADM low density objects (QSOs and standard stars) look better with fewer bins.
     if np.max(dens) < 500:
         nbins = 40
-    # ADM the density value of the peak histogram bin
-    h, b = np.histogram(dens,bins=nbins)
+    # ADM the density value of the peak histogram bin.
+    h, b = np.histogram(dens, bins=nbins)
     peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
     ypeak = np.max(h)
 
-    # ADM set up and make the plot
+    # ADM set up and make the plot.
     plt.clf()
-    # ADM only plot to just less than upclip, to prevent displaying pile-ups in that bin
-    plt.xlim((0,0.95*upclip))
-    # ADM give a little space for labels on the y-axis
-    plt.ylim((0,ypeak*1.2))
+    # ADM only plot to just less than upclip, to prevent displaying pile-ups in that bin.
+    plt.xlim((0, 0.95*upclip))
+    # ADM give a little space for labels on the y-axis.
+    plt.ylim((0, ypeak*1.2))
     plt.xlabel(label)
     plt.ylabel('Number of HEALPixels')
 
-    plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, 
-             label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype,peak))
+    plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6,
+             label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype, peak))
     if objtype in targdens.keys():
-        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k', 
-                    label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype,targdens[objtype]))
+        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
+                    label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype, targdens[objtype]))
     plt.legend(loc='upper left', frameon=False)
 
     # ADM add some metric conditions which are considered a failure for this
-    # ADM target class...only for classes that have an expected target density
+    # ADM target class...only for classes that have an expected target density.
     good = True
     if targdens[objtype] > 0.:
-        # ADM determine the cumulative version of the histogram of densities
+        # ADM determine the cumulative version of the histogram of densities.
         cum = np.cumsum(h)/np.sum(h)
-        # ADM extract which bins correspond to the "68%" of central values
-        w = np.where( (cum > 0.15865) & (cum < 0.84135) )[0]
+        # ADM extract which bins correspond to the "68%" of central values.
+        w = np.where((cum > 0.15865) & (cum < 0.84135))[0]
         if len(w) > 0:
             minbin, maxbin = b[w][0], b[w][-1]
-            # ADM this is a good plot if the peak value is within the ~68% of central values
+            # ADM this is a good plot if the peak value is within the ~68% of central values.
             good = (targdens[objtype] > minbin) & (targdens[objtype] < maxbin)
-    
-    # ADM write out the plot
-    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix,objtype))
+
+    # ADM write out the plot.
+    pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
     if good:
-        plt.savefig(pngfile,bbox_inches='tight')
-    # ADM write out a plot with a yellow warning box
+        plt.savefig(pngfile, bbox_inches='tight')
+    # ADM write out a plot with a yellow warning box.
     else:
-        plt.savefig(pngfile,bbox_inches='tight',facecolor='yellow')
+        plt.savefig(pngfile, bbox_inches='tight', facecolor='yellow')
 
     plt.close()
 
     return
+
 
 def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     """Make magnitude-based DESI targeting QA plots given a passed set of targets.
@@ -705,6 +715,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
 
     return
 
+
 def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
     """Make Gaia-based DESI targeting QA plots given a passed set of targets.
 
@@ -785,6 +796,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
     plt.close()
 
     return
+
 
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets
@@ -867,6 +879,7 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     plt.close()
 
     return
+
 
 def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
     """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH.
@@ -975,6 +988,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     plt.close()
 
     return
+
 
 def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False):
     """Make color-based DESI targeting QA plots given a passed set of targets.
@@ -1199,6 +1213,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     plt.savefig(pngfile,bbox_inches='tight')
     plt.close()
 
+
 def _in_desi_footprint(targs):
     """Convenience function for using is_point_in_desi to find which targets are in the footprint
     Parameters
@@ -1228,6 +1243,7 @@ def _in_desi_footprint(targs):
     log.info('Restricted targets to DESI footprint...t = {:.1f}s'.format(time()-start))
 
     return windesi
+
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
                   imaging_map_file=None, truths=None, tcnames=None, cmx=False):
@@ -1407,6 +1423,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
+
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.', 
                  clip2foot=False, weight=True, imaging_map_file=None, 

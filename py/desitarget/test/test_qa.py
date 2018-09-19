@@ -104,13 +104,11 @@ class TestQA(unittest.TestCase):
     def test_in_footprint(self):
         """Test target class strings are parsed into lists.
         """
-        from desimodel import io
-        tiles = io.load_tiles()
-        print(tiles[60:65])
-        # ADM a location that's definitely in DESI (0,0).
+        # ADM a location that's definitely in DESI (38.5,7.5).
         targs = np.zeros(1,dtype=[('RA', '>f8'), ('DEC', '>f8')])
+        targs["RA"], targs["DEC"] = 38.5, 7.5
         tin = _in_desi_footprint(targs)
-        # ADM shift to a location definitely out of DESI (0,-60).
+        # ADM shift to a location definitely out of DESI (38.5,-60).
         targs["DEC"] = -60.
         tout = _in_desi_footprint(targs)
 
@@ -126,5 +124,3 @@ def test_suite():
         python setup.py test -m desitarget.test.test_qa
     """
     return unittest.defaultTestLoader.loadTestsFromName(__name__)
-
-
