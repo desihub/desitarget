@@ -3817,6 +3817,21 @@ class MWS_MAINMaker(STARMaker):
             
         desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
 
+        # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
+        # those are handled in the MWS_NEARBYMaker and WDMaker classes,
+        # respectively.
+        for mwsbit in ('MWS_NEARBY', 'MWS_WD'):
+            these = mws_target & self.mws_mask.mask(mwsbit) != 0
+            if np.sum(these) > 0:
+                mws_target[these] -= self.mws_mask.mask(mwsbit)
+                andthose = mws_target[these] == 0
+                if np.sum(andthose) > 0:
+                    desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
+        
+        these = desi_target & self.desi_mask.mask('STD_WD') != 0
+        if np.sum(these) > 0:
+            desi_target[these] -= self.desi_mask.mask('STD_WD')
+            
         targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
         targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
