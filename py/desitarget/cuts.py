@@ -995,9 +995,12 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  objtype=None, gaia=None, primary=None,
-                 pmra=None, pmdec=None, parallax=None,
+                 pmra=None, pmdec=None, parallax=None, parallaxerr=None,
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
+
+    Notes:
+    - Current version (09/20/18) is version 129 on `the wiki`_.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like or None
@@ -1009,9 +1012,9 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             `the Legacy Surveys`_ and in Gaia.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as `the Gaia data model`_).
+        pmra, pmdec, parallax, parallaxerr: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax (and
+            uncertainty) (same units as `the Gaia data model`_).
         obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction.
         gaiagmag, gaiabmag, gaiarmag: array_like or None
@@ -1021,6 +1024,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-NEARBY target.
+
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1044,7 +1048,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
     # ADM parallax cut corresponding to 100pc
-    mws &= parallax > 10.
+    mws &= (parallax + parallaxerr) > 10. # NB: "+" is correct
     # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
@@ -2014,6 +2018,10 @@ def _prepare_gaia(objects, colnames=None):
     parallaxivar = objects['PARALLAX_IVAR']
     # ADM derive the parallax/parallax_error, but set to 0 where the error is bad
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
+
+    # We also need the parallax uncertainty, to select MWS_NEARBY targets.
+    parallaxerr = np.where(parallaxivar > 0., 1/np.sqrt(parallaxivar), -1e8) # make large and negative
+    
     gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
@@ -2048,7 +2056,7 @@ def _prepare_gaia(objects, colnames=None):
     # ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"],objects["DEC"])
 
-    return (gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag,
+    return (gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag,
             gaiabmag, gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved,
             gaiabprpfactor, gaiasigma5dmax, galb)
 
@@ -2090,7 +2098,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gfracmasked, rfracmasked, zfracmasked, 
                     gallmask, rallmask, zallmask,
                     gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
-                    gaia, pmra, pmdec, parallax, parallaxovererror,
+                    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource, 
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection, 
@@ -2273,7 +2281,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
                     pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
                     south=True)
-        mws_nearby = targcuts.isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax)
+        mws_nearby = targcuts.isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
+                                           parallaxerr=parallaxerr)
         mws_wd = targcuts.isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
@@ -2462,7 +2471,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                             _prepare_optical_wise(objects, colnames=colnames)
 
     # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
       gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
@@ -2481,7 +2490,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gfracmasked, rfracmasked, zfracmasked,
         gallmask, rallmask, zallmask,
         gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
-        gaia, pmra, pmdec, parallax, parallaxovererror,
+        gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection, primary,
