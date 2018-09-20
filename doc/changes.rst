@@ -5,8 +5,12 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
-* Refactor QA to work with commissioning and SV files [`PR #382`_].
-* Add (first) unit tests for QA [`PR #382`_].
+* Bug fixes: [`PR #383`_].
+    * Use `parallax_err` when selecting `MWS_NEARBY` targets.
+    * In `select_mock_targets` do not use Galaxia to select WDs and 100pc
+      targets. 
+* Refactor QA to work with commissioning and SV files and add (first) unit tests
+  for QA. [`PR #382`_].
 * Estimate FIBERFLUX_[G,R,Z] for mock targets. [`PR #381`_].  
 * First fully working version of SV code [`PR #380`_]. Includes:
     * (Almost) the only evolving part of the code for SV is now the cuts.
@@ -85,6 +89,7 @@ desitarget Change Log
 .. _`PR #380`: https://github.com/desihub/desitarget/pull/380
 .. _`PR #381`: https://github.com/desihub/desitarget/pull/381
 .. _`PR #382`: https://github.com/desihub/desitarget/pull/382
+.. _`PR #383`: https://github.com/desihub/desitarget/pull/383
 
 0.23.0 (2018-08-09)
 -------------------
