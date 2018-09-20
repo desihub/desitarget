@@ -1282,9 +1282,11 @@ def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
     bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
     bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
-    bgs &= np.logical_and(rflux/gflux > 10**(-1.0/2.5), rflux/gflux < 10**(4.0/2.5))
-    bgs &= np.logical_and(zflux/rflux > 10**(-1.0/2.5), zflux/rflux < 10**(4.0/2.5))
-    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    #bgs &= np.array([not i for i in BRIGHTSTARINBLOB]
     bgs &= Grr > 0.6
     bgs |= gaiagmag == 0
     #if objtype is not None:
@@ -1323,9 +1325,11 @@ def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
     bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
     bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
-    bgs &= np.logical_and(rflux/gflux > 10**(-1.0/2.5), rflux/gflux < 10**(4.0/2.5))
-    bgs &= np.logical_and(zflux/rflux > 10**(-1.0/2.5), zflux/rflux < 10**(4.0/2.5))
-    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    #bgs &= np.array([not i for i in BRIGHTSTARINBLOB]
     bgs &= Grr > 0.6
     bgs |= gaiagmag == 0
     #if objtype is not None:
@@ -1395,9 +1399,11 @@ def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
     bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
     bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
-    bgs &= np.logical_and(rflux/gflux > 10**(-1.0/2.5), rflux/gflux < 10**(4.0/2.5))
-    bgs &= np.logical_and(zflux/rflux > 10**(-1.0/2.5), zflux/rflux < 10**(4.0/2.5))
-    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    #bgs &= np.array([not i for i in BRIGHTSTARINBLOB]
     bgs &= Grr > 0.6
     bgs |= gaiagmag == 0
     #if objtype is not None:
@@ -1433,9 +1439,11 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
     bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
     bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
-    bgs &= np.logical_and(rflux/gflux > 10**(-1.0/2.5), rflux/gflux < 10**(4.0/2.5))
-    bgs &= np.logical_and(zflux/rflux > 10**(-1.0/2.5), zflux/rflux < 10**(4.0/2.5))
-    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    #bgs &= np.array([not i for i in BRIGHTSTARINBLOB]
     bgs &= Grr > 0.6
     bgs |= gaiagmag == 0
     #if objtype is not None:
@@ -1504,9 +1512,11 @@ def isBGS_wise_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
     bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
     bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
-    bgs &= np.logical_and(rflux/gflux > 10**(-1.0/2.5), rflux/gflux < 10**(4.0/2.5))
-    bgs &= np.logical_and(zflux/rflux > 10**(-1.0/2.5), zflux/rflux < 10**(4.0/2.5))
-    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    #bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
     bgs &= Grr < 0.4
     bgs &= Grr > -1
     bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
@@ -1544,9 +1554,11 @@ def isBGS_wise_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
     bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
     bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
-    bgs &= np.logical_and(rflux/gflux > 10**(-1.0/2.5), rflux/gflux < 10**(4.0/2.5))
-    bgs &= np.logical_and(zflux/rflux > 10**(-1.0/2.5), zflux/rflux < 10**(4.0/2.5))
-    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    #bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
     bgs &= Grr < 0.4
     bgs &= Grr > -1
     bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
@@ -2643,6 +2655,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
     bgs_target |= bgs_wise * bgs_mask.BGS_KNOWN_ANY
+    print('bgs_bright', np.sum(bgs_bright))
 
     #ADM MWS main, nearby, and WD
     mws_target  = mws * mws_mask.MWS_MAIN
