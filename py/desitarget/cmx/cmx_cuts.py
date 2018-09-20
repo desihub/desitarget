@@ -535,7 +535,7 @@ def apply_cuts(objects, cmxdir=None):
         raise IOError
 
     # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, gaiagmag, gaiabmag,   \
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
       gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
 

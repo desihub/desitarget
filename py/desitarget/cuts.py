@@ -2020,7 +2020,10 @@ def _prepare_gaia(objects, colnames=None):
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
 
     # We also need the parallax uncertainty, to select MWS_NEARBY targets.
-    parallaxerr = np.where(parallaxivar > 0., 1/np.sqrt(parallaxivar), -1e8) # make large and negative
+    parallaxerr = np.zeros_like(parallax) - 1e8 # make large and negative
+    notzero = parallaxivar > 0
+    if np.sum(notzero) > 0:
+        parallaxerr[notzero] = 1 / np.sqrt(parallaxivar[notzero])
     
     gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']

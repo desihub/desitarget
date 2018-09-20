@@ -822,9 +822,12 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                  objtype=None, gaia=None, primary=None,
-                 pmra=None, pmdec=None, parallax=None, 
+                 pmra=None, pmdec=None, parallax=None, parallaxerr=None,
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
+
+    Notes:
+    - Current version (09/20/18) is version 129 on `the wiki`_.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like or None
@@ -836,9 +839,12 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Surveys and in Gaia.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model, e.g.:
+        pmra, pmdec, parallax, parallaxerr: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax (and
+            uncertainty) (same units as `the Gaia data model`_).
+        pmra, pmdec, parallax, parallaxerr: array_like or None
+            Gaia-based proper motion in RA and Dec and parallax (and
+            uncertainty) (same units as the Gaia data model, e.g.:
             https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html).
         obs_rflux: array_like or None
             `rflux` but WITHOUT any Galactic extinction correction
@@ -849,6 +855,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-NEARBY target.
+
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -872,7 +879,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     #ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
     #ADM parallax cut corresponding to 100pc
-    mws &= parallax > 10.
+    mws &= (parallax + parallaxerr) > 10. # NB: "+" is correct
     #ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
