@@ -5,6 +5,8 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Refactor QA to work with commissioning and SV files [`PR #382`_].
+* Add (first) unit tests for QA [`PR #382`_].
 * Estimate FIBERFLUX_[G,R,Z] for mock targets. [`PR #381`_].  
 * First fully working version of SV code [`PR #380`_]. Includes:
     * (Almost) the only evolving part of the code for SV is now the cuts.
@@ -14,7 +16,7 @@ desitarget Change Log
     * Updated STD cuts to fix a `fracmasked` typo.
     * Alterations to Travis coverage to exclude some external code.
 * Fix a bug which resulted in far too few standard stars being selected in the
-  mocks [`PR #378`_].  
+  mocks [`PR #378`_].
 * Fix a bug in how the `objtruth` tables are written out to by
   `select_mock_targets` [`PR #374`_].
 * Remove Python 2.7 from Travis, add an allowed-to-fail PEP 8 check [`PR #373`_].
@@ -82,6 +84,7 @@ desitarget Change Log
 .. _`PR #378`: https://github.com/desihub/desitarget/pull/378
 .. _`PR #380`: https://github.com/desihub/desitarget/pull/380
 .. _`PR #381`: https://github.com/desihub/desitarget/pull/381
+.. _`PR #382`: https://github.com/desihub/desitarget/pull/382
 
 0.23.0 (2018-08-09)
 -------------------
