@@ -249,27 +249,10 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     objtruth = list()
     trueflux = list()
 
-    boss_std = None
-
-    # Temporary hack to use BOSS standard stars.
-    if 'BOSS_STD' in data.keys():
-        boss_std = data['BOSS_STD'][indx]
-
-        if calib_only:
-            calib = np.where(boss_std)[0]
-            ntarget = len(calib)
-            if ntarget == 0:
-                log.debug('No (flux) calibration star(s) on this healpixel.')
-                return [targets, truth, objtruth, trueflux]
-            else:
-                log.debug('Generating spectra for {} candidate (flux) calibration stars.'.format(ntarget))
-                indx = indx[calib]
-                boss_std = boss_std[calib]
-
     # Faintstar targets are a special case.
     if targname.lower() == 'faintstar':
         chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-            data, indx=indx, boss_std=boss_std)
+            data, indx=indx)
         
         if len(chunktargets) > 0:
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
@@ -296,7 +279,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
                 data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
 
-            MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
+            MakeMock.select_targets(chunktargets, chunktruth)
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             nkeep = len(keep)
