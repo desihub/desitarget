@@ -2632,17 +2632,17 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # BGS bright and faint, south
     bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
-    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    #bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
     # BGS bright and faint, north
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
-    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    #bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
     # BGS combined, bright and faint
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
-    bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    bgs_target |= bgs_wise * bgs_mask.BGS_KNOWN_ANY
 
     #ADM MWS main, nearby, and WD
     mws_target  = mws * mws_mask.MWS_MAIN
