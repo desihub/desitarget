@@ -999,6 +999,9 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
 
+    Notes:
+    - Current version (09/20/18) is version 129 on `the wiki`_.
+
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like or None
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
