@@ -5,6 +5,8 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Rescale spectral parameters when generating and querying kd-trees in
+  `select_mock_targets` [`PR #386`_].
 * Bug fixes: [`PR #383`_].
     * Use `parallax_err` when selecting `MWS_NEARBY` targets.
     * In `select_mock_targets` do not use Galaxia to select WDs and 100pc
@@ -90,6 +92,7 @@ desitarget Change Log
 .. _`PR #381`: https://github.com/desihub/desitarget/pull/381
 .. _`PR #382`: https://github.com/desihub/desitarget/pull/382
 .. _`PR #383`: https://github.com/desihub/desitarget/pull/383
+.. _`PR #386`: https://github.com/desihub/desitarget/pull/386
 
 0.23.0 (2018-08-09)
 -------------------
