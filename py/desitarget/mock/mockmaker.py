@@ -3015,6 +3015,7 @@ class ELGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
+        # Build the KD Trees
         if self.KDTree_north is None:
             log.warning('Using south ELG KD Tree for north photometry.')
             zobj = self.meta['Z'].data
@@ -3472,13 +3473,14 @@ class STARMaker(SelectTargets):
             STARMaker.star_maggies_r_south = _get_maggies(flux, wave, maggies_south.copy(), sdssr)
 
         # Build the KD Tree.
-        if self.KDTree is None:
-            logteff = np.log10(self.meta['TEFF'].data)
-            logg = self.meta['LOGG']
-            feh = self.meta['FEH']
+        logteff = np.log10(self.meta['TEFF'].data)
+        logg = self.meta['LOGG']
+        feh = self.meta['FEH']
 
-            self.param_min = ( logteff.min(), logg.min(), feh.min() )
-            self.param_range = ( np.ptp(logteff), np.ptp(logg), np.ptp(feh) )
+        self.param_min = ( logteff.min(), logg.min(), feh.min() )
+        self.param_range = ( np.ptp(logteff), np.ptp(logg), np.ptp(feh) )
+
+        if self.KDTree is None:
             STARMaker.KDTree = self.KDTree_build(np.vstack((logteff, logg, feh)).T)
 
     def template_photometry(self, data=None, indx=None, rand=None, south=True):
@@ -3506,8 +3508,8 @@ class STARMaker(SelectTargets):
         if self.mockformat == 'galaxia':
             templateid = self.KDTree_query(np.vstack((
                 np.log10(data['TEFF'][indx]).data,
-                data['LOGG'][indx],
-                data['FEH'][indx])).T)
+                data['LOGG'][indx], data['FEH'][indx])).T)
+            
         elif self.mockformat == 'mws_100pc':
             templateid = self.KDTree_query(np.vstack((
                 np.log10(data['TEFF'][indx]),
@@ -3881,7 +3883,7 @@ class FAINTSTARMaker(STARMaker):
 
         if self.mockformat == 'galaxia':
             templateid = self.KDTree_query(
-                np.vstack((data['TEFF'][indx],
+                np.vstack((np.log10(data['TEFF'][indx]),
                            data['LOGG'][indx],
                            data['FEH'][indx])).T)
 
@@ -4198,21 +4200,21 @@ class WDMaker(SelectTargets):
             WDMaker.wd_maggies_db_south = _get_maggies(flux_db, wave, maggies_db_south.copy(), normfilter)
 
         # Build the KD Trees
+        logteff_da = np.log10(self.meta_da['TEFF'].data)
+        logteff_db = np.log10(self.meta_db['TEFF'].data)
+        logg_da = self.meta_da['LOGG'].data
+        logg_db = self.meta_db['LOGG'].data
+
+        self.param_min_da = ( logteff_da.min(), logg_da.min() )
+        self.param_range_da = ( np.ptp(logteff_da), np.ptp(logg_da) )
+        self.param_min_db = ( logteff_db.min(), logg_db.min() )
+        self.param_range_db = ( np.ptp(logteff_db), np.ptp(logg_db) )
+
         if self.KDTree_da is None:
-            logteff = np.log10(self.meta_da['TEFF'].data)
-            logg = self.meta_da['LOGG'].data
-            
-            self.param_min_da = ( logteff.min(), logg.min() )
-            self.param_range_da = ( np.ptp(logteff), np.ptp(logg) )
-            WDMaker.KDTree_da = self.KDTree_build(np.vstack((logteff, logg)).T, subtype='DA')
+            WDMaker.KDTree_da = self.KDTree_build(np.vstack((logteff_da, logg_da)).T, subtype='DA')
             
         if self.KDTree_db is None:
-            logteff = np.log10(self.meta_db['TEFF'].data)
-            logg = self.meta_db['LOGG'].data
-            
-            self.param_min_db = ( logteff.min(), logg.min() )
-            self.param_range_db = ( np.ptp(logteff), np.ptp(logg) )
-            WDMaker.KDTree_db = self.KDTree_build(np.vstack((logteff, logg)).T, subtype='DB')
+            WDMaker.KDTree_db = self.KDTree_build(np.vstack((logteff_db, logg_db)).T, subtype='DB')
 
     def read(self, mockfile=None, mockformat='mws_wd', healpixels=None,
              nside=None, mock_density=False, **kwargs):
