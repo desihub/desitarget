@@ -54,7 +54,7 @@ if __name__ == '__main__':
     unittest.main()
 
 def test_sample_colors():
-    """Allows testing of only this module with the command::
+    """Allows testing of only this module with the command:
 
         python setup.py test -m desitarget.test.test_sample_colors
     """
