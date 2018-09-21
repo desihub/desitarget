@@ -3672,18 +3672,10 @@ class MWS_MAINMaker(STARMaker):
             input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'galaxia':
-                #input_meta['TEMPLATEID'][:] = self.KDTree_query(
-                #    np.vstack((data['TEFF'][indx], data['LOGG'][indx], data['FEH'][indx])).T
-                #    )
-
-                matrix = np.vstack((np.log10(data['TEFF'][indx]), data['LOGG'][indx], data['FEH'][indx])).T
-                norm = self.KDTree_rescale(matrix)
-                dist, rr = self.KDTree.query(norm, p=2)
-                
-                ww = np.where(np.abs(self.meta['TEFF'][rr]-data['TEFF'][indx]) > 500)[0]
-
-                #ww = np.where(np.abs(self.meta['TEFF'][input_meta['TEMPLATEID']].data-data['TEFF'][indx]) > 500)[0]
-            import pdb ; pdb.set_trace()
+                input_meta['TEMPLATEID'][:] = self.KDTree_query(
+                    np.vstack((np.log10(data['TEFF'][indx]),
+                               data['LOGG'][indx],
+                               data['FEH'][indx])).T)
 
             # Build north/south spectra separately.
             south = np.where( data['SOUTH'][indx] == True )[0]
