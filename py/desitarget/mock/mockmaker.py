@@ -609,22 +609,36 @@ class SelectTargets(object):
 
         return gmmout
 
-    def _query(self, matrix, subtype='', return_dist=False, south=True):
+    def KDTree_rescale(self, matrix):
+        """Normalize input parameters to [0, 1]."""
+        nobj, ndim = matrix.shape
+        return ( (matrix - np.tile(self.param_min, nobj).reshape(nobj, ndim)) /
+                 np.tile( self.param_range, nobj).reshape(nobj, ndim) )
+        
+    def KDTree_build(self, matrix):
+        """Build a KD-tree."""
+        from scipy.spatial import cKDTree as KDTree
+        return KDTree( self.KDTree_rescale(matrix) )
+
+    def KDTree_query(self, matrix, subtype='', return_dist=False, south=True):
         """Return the nearest template number based on the KD Tree."""
+
+        matrix_rescaled = self.KDTree_rescale(matrix)
 
         if subtype == '':
             try:
-                dist, indx = self.tree.query(matrix) # no north-south split (e.g., BGS/MXXL)
+                # no north-south split (e.g., BGS/MXXL)
+                dist, indx = self.KDTree.query( matrix_rescaled ) 
             except:
                 if south:
-                    dist, indx = self.tree_south.query(matrix)
+                    dist, indx = self.KDTree_south.query( matrix_rescaled )
                 else:
-                    dist, indx = self.tree_north.query(matrix)
+                    dist, indx = self.KDTree_north.query( matrix_rescaled )
         else:
             if subtype.upper() == 'DA':
-                dist, indx = self.tree_da.query(matrix)
+                dist, indx = self.KDTree_da.query( matrix_rescaled )
             elif subtype.upper() == 'DB':
-                dist, indx = self.tree_db.query(matrix)
+                dist, indx = self.KDTree_db.query( matrix_rescaled )
             else:
                 log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
                 raise ValueError
@@ -2766,7 +2780,7 @@ class LRGMaker(SelectTargets):
         velocity dispersion to targets.  Defaults to 128.
 
     """
-    wave, tree_north, tree_south, template_maker = None, None, None, None
+    wave, KDTree_north, KDTree_south, template_maker = None, None, None, None
     GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
@@ -2787,11 +2801,11 @@ class LRGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree_north is None:
-            LRGMaker.tree_north = KDTree( np.vstack((
+        if self.KDTree_north is None:
+            LRGMaker.KDTree_north = KDTree( np.vstack((
                 self.meta['Z'].data)).T )
-        if self.tree_south is None:
-            LRGMaker.tree_south = KDTree( np.vstack((
+        if self.KDTree_south is None:
+            LRGMaker.KDTree_south = KDTree( np.vstack((
                 self.meta['Z'].data)).T )
 
         if self.GMM_LRG is None:
@@ -2958,7 +2972,7 @@ class ELGMaker(SelectTargets):
         velocity dispersion to targets.  Defaults to 128.
 
     """
-    wave, tree_north, tree_south, template_maker = None, None, None, None
+    wave, KDTree_north, KDTree_south, template_maker = None, None, None, None
     GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
@@ -2979,14 +2993,14 @@ class ELGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree_north is None:
+        if self.KDTree_north is None:
             log.warning('Using south ELG KD Tree for north photometry.')
-            ELGMaker.tree_north = KDTree( np.vstack((
+            ELGMaker.KDTree_north = KDTree( np.vstack((
                 self.meta['Z'].data,
                 self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
                 self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
-        if self.tree_south is None:
-            ELGMaker.tree_south = KDTree( np.vstack((
+        if self.KDTree_south is None:
+            ELGMaker.KDTree_south = KDTree( np.vstack((
                 self.meta['Z'].data,
                 self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
                 self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
@@ -3105,7 +3119,7 @@ class ELGMaker(SelectTargets):
                     if len(these) > 0:
                         input_meta['MAG'][these] = data['MAG'][indx][these]
                         input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
-                        input_meta['TEMPLATEID'][these] = self._query(
+                        input_meta['TEMPLATEID'][these] = self.KDTree_query(
                             np.vstack((data['Z'][indx][these],
                                        data['GR'][indx][these],
                                        data['RZ'][indx][these])).T, south=issouth)
@@ -3159,7 +3173,7 @@ class BGSMaker(SelectTargets):
         velocity dispersion to targets.  Defaults to 128.
 
     """
-    wave, tree, template_maker = None, None, None
+    wave, KDTree, template_maker = None, None, None
     GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
@@ -3180,12 +3194,12 @@ class BGSMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree is None:
+        if self.KDTree is None:
             zobj = self.meta['Z'].data
             mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
             rmabs = mabs[:, 2]
             gr = mabs[:, 1] - mabs[:, 2]
-            BGSMaker.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
+            BGSMaker.KDTree = KDTree(np.vstack((zobj, rmabs, gr)).T)
 
         if self.GMM_BGS is None:
             self.read_GMM(target='BGS')
@@ -3306,7 +3320,7 @@ class BGSMaker(SelectTargets):
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
             if self.mockformat == 'durham_mxxl_hdf5':
-                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
+                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
                     data['Z'][indx],
                     data['SDSS_absmag_r01'][indx],
                     data['SDSS_01gr'][indx])).T )
@@ -3316,7 +3330,7 @@ class BGSMaker(SelectTargets):
 
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
-                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
+                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
                     data['Z'][indx],
                     data['RMABS_01'][indx],
                     data['GR_01'][indx])).T )
@@ -3381,12 +3395,11 @@ class STARMaker(SelectTargets):
         Seed for reproducibility and random number generation.
 
     """
-    wave, template_maker, tree = None, None, None
+    wave, template_maker, KDTree = None, None, None
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
     def __init__(self, seed=None, **kwargs):
-        from scipy.spatial import cKDTree as KDTree
         from speclite import filters
         from desisim.templates import STAR
 
@@ -3428,12 +3441,18 @@ class STARMaker(SelectTargets):
             STARMaker.star_maggies_r_south = _get_maggies(flux, wave, maggies_south.copy(), sdssr)
 
         # Build the KD Tree.
-        if self.tree is None:
-            STARMaker.tree = KDTree(np.vstack(
-                (self.meta['TEFF'].data,
+        if self.KDTree is None:
+            self.param_min = ( np.log10(self.meta['TEFF'].min()),
+                               self.meta['LOGG'].min(),
+                               self.meta['FEH'].min() )
+            self.param_range = ( np.ptp(np.log10(self.meta['TEFF'])),
+                                 np.ptp(self.meta['LOGG']),
+                                 np.ptp(self.meta['FEH']) )
+            STARMaker.KDTree = self.KDTree_build(np.vstack(
+                (np.log10(self.meta['TEFF'].data),
                  self.meta['LOGG'].data,
-                self.meta['FEH'].data)).T)
-        
+                 self.meta['FEH'].data)).T)
+
     def template_photometry(self, data=None, indx=None, rand=None, south=True):
         """Get stellar photometry from the templates themselves, by-passing the
         generation of spectra.
@@ -3457,13 +3476,13 @@ class STARMaker(SelectTargets):
         objmeta['FEH'][:] = data['FEH'][indx]
 
         if self.mockformat == 'galaxia':
-            templateid = self._query(np.vstack((data['TEFF'][indx],
-                                                data['LOGG'][indx],
-                                                data['FEH'][indx])).T)
+            templateid = self.KDTree_query(np.vstack((data['TEFF'][indx],
+                                                      data['LOGG'][indx],
+                                                      data['FEH'][indx])).T)
         elif self.mockformat == 'mws_100pc':
-            templateid = self._query(np.vstack((data['TEFF'][indx],
-                                                data['LOGG'][indx],
-                                                data['FEH'][indx])).T)
+            templateid = self.KDTree_query(np.vstack((data['TEFF'][indx],
+                                                      data['LOGG'][indx],
+                                                      data['FEH'][indx])).T)
 
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
 
@@ -3653,10 +3672,18 @@ class MWS_MAINMaker(STARMaker):
             input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'galaxia':
-                input_meta['TEMPLATEID'][:] = self._query(
-                    np.vstack((data['TEFF'][indx],
-                               data['LOGG'][indx],
-                               data['FEH'][indx])).T)
+                #input_meta['TEMPLATEID'][:] = self.KDTree_query(
+                #    np.vstack((data['TEFF'][indx], data['LOGG'][indx], data['FEH'][indx])).T
+                #    )
+
+                matrix = np.vstack((np.log10(data['TEFF'][indx]), data['LOGG'][indx], data['FEH'][indx])).T
+                norm = self.KDTree_rescale(matrix)
+                dist, rr = self.KDTree.query(norm, p=2)
+                
+                ww = np.where(np.abs(self.meta['TEFF'][rr]-data['TEFF'][indx]) > 500)[0]
+
+                #ww = np.where(np.abs(self.meta['TEFF'][input_meta['TEMPLATEID']].data-data['TEFF'][indx]) > 500)[0]
+            import pdb ; pdb.set_trace()
 
             # Build north/south spectra separately.
             south = np.where( data['SOUTH'][indx] == True )[0]
@@ -3832,10 +3859,10 @@ class FAINTSTARMaker(STARMaker):
         objseeds = rand.randint(2**31, size=nobj)
 
         if self.mockformat == 'galaxia':
-            alldata = np.vstack((data['TEFF'][indx],
-                                 data['LOGG'][indx],
-                                 data['FEH'][indx])).T
-            _, templateid = self._query(alldata)
+            templateid = self.KDTree_query(
+                np.vstack((data['TEFF'][indx],
+                           data['LOGG'][indx],
+                           data['FEH'][indx])).T)
 
         # Initialize dummy targets and truth tables.
         _targets = empty_targets_table(nobj)
@@ -4027,7 +4054,7 @@ class MWS_NEARBYMaker(STARMaker):
             input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'mws_100pc':
-                input_meta['TEMPLATEID'][:] = self._query(
+                input_meta['TEMPLATEID'][:] = self.KDTree_query(
                     np.vstack((data['TEFF'][indx],
                                data['LOGG'][indx],
                                data['FEH'][indx])).T)
@@ -4096,7 +4123,7 @@ class WDMaker(SelectTargets):
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
-    tree_da, tree_db = None, None
+    KDTree_da, KDTree_db = None, None
     wd_maggies_da_north, wd_maggies_da_north = None, None
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
@@ -4151,11 +4178,11 @@ class WDMaker(SelectTargets):
             WDMaker.wd_maggies_db_south = _get_maggies(flux_db, wave, maggies_db_south.copy(), normfilter)
 
         # Build the KD Trees
-        if self.tree_da is None:
-            WDMaker.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
+        if self.KDTree_da is None:
+            WDMaker.KDTree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
                                                 self.meta_da['LOGG'].data)).T)
-        if self.tree_db is None:
-            WDMaker.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
+        if self.KDTree_db is None:
+            WDMaker.KDTree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
                                                 self.meta_db['LOGG'].data)).T)
 
     def read(self, mockfile=None, mockformat='mws_wd', healpixels=None,
@@ -4228,7 +4255,7 @@ class WDMaker(SelectTargets):
         objmeta['LOGG'][:] = data['LOGG'][indx]
 
         if self.mockformat == 'mws_wd':
-            templateid = self._query(
+            templateid = self.KDTree_query(
                 np.vstack((data['TEFF'][indx],
                            data['LOGG'][indx])).T, subtype=subtype)
 
@@ -4312,7 +4339,7 @@ class WDMaker(SelectTargets):
                 match = np.where(allsubtype == subtype)[0]
                 if len(match) > 0:
                     if not no_spectra:
-                        input_meta['TEMPLATEID'][match] = self._query(
+                        input_meta['TEMPLATEID'][match] = self.KDTree_query(
                             np.vstack((data['TEFF'][indx][match],
                                        data['LOGG'][indx][match])).T,
                             subtype=subtype)
