@@ -3016,24 +3016,24 @@ class ELGMaker(SelectTargets):
         self.meta = self.template_maker.basemeta
 
         # Build the KD Trees
+        log.warning('Using south ELG KD Tree for north photometry.')
+        zobj = self.meta['Z'].data
+        gr_north = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_north = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+
+        self.param_min_north = ( zobj.min(), gr_north.min(), rz_north.min() )
+        self.param_min_south = ( zobj.min(), gr_south.min(), rz_south.min() )
+        self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north) )
+        self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south) )
+        
         if self.KDTree_north is None:
-            log.warning('Using south ELG KD Tree for north photometry.')
-            zobj = self.meta['Z'].data
-            gr = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
-            rz = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
-            
-            self.param_min_north = ( zobj.min(), gr.min(), rz.min() )
-            self.param_range_north = ( np.ptp(zobj), np.ptp(gr), np.ptp(rz) )
-            ELGMaker.KDTree_north = self.KDTree_build( np.vstack((zobj, gr, rz)).T, south=False )
-            
+            ELGMaker.KDTree_north = self.KDTree_build(
+                np.vstack((zobj, gr_north, rz_north)).T, south=False )
         if self.KDTree_south is None:
-            zobj = self.meta['Z'].data
-            gr = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
-            rz = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
-            
-            self.param_min_south = ( zobj.min(), gr.min(), rz.min() )
-            self.param_range_south = ( np.ptp(zobj), np.ptp(gr), np.ptp(rz) )
-            ELGMaker.KDTree_south = self.KDTree_build( np.vstack((zobj, gr, rz)).T, south=True )
+            ELGMaker.KDTree_south = self.KDTree_build(
+                np.vstack((zobj, gr_south, rz_south)).T, south=True )
 
         if self.GMM_LRG is None:
             self.read_GMM(target='LRG')
@@ -3223,14 +3223,14 @@ class BGSMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.KDTree is None:
-            zobj = self.meta['Z'].data
-            mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
-            rmabs = mabs[:, 2]
-            gr = mabs[:, 1] - mabs[:, 2]
+        zobj = self.meta['Z'].data
+        mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
+        rmabs = mabs[:, 2]
+        gr = mabs[:, 1] - mabs[:, 2]
 
-            self.param_min = ( zobj.min(), rmabs.min(), gr.min() )
-            self.param_range = ( np.ptp(zobj), np.ptp(rmabs), np.ptp(gr) )
+        self.param_min = ( zobj.min(), rmabs.min(), gr.min() )
+        self.param_range = ( np.ptp(zobj), np.ptp(rmabs), np.ptp(gr) )
+        if self.KDTree is None:
             BGSMaker.KDTree = self.KDTree_build(np.vstack((zobj, rmabs, gr)).T)
 
         if self.GMM_BGS is None:
