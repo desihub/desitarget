@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.0 (unreleased)
 -------------------
 
+* Fix bug in code that produces data for unit tests [`PR #387`_].
 * Rescale spectral parameters when generating and querying kd-trees in
   `select_mock_targets` [`PR #386`_].
 * Bug fixes: [`PR #383`_].
@@ -93,6 +94,7 @@ desitarget Change Log
 .. _`PR #382`: https://github.com/desihub/desitarget/pull/382
 .. _`PR #383`: https://github.com/desihub/desitarget/pull/383
 .. _`PR #386`: https://github.com/desihub/desitarget/pull/386
+.. _`PR #387`: https://github.com/desihub/desitarget/pull/387
 
 0.23.0 (2018-08-09)
 -------------------

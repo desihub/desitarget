@@ -35,7 +35,7 @@ log = get_logger()
 # ADM start the clock
 start = time()
 
-def _gal_coords(ra,dec):
+def _gal_coords(ra, dec):
     """Shift RA, Dec to Galactic coordinates.
 
     Parameters
@@ -57,7 +57,7 @@ def _gal_coords(ra,dec):
         c = SkyCoord(ra*u.deg, dec*u.deg)
     gc = c.transform_to('galactic')
 
-    return gc.l.value, gc.b.value    
+    return gc.l.value, gc.b.value
 
 
 def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
@@ -100,15 +100,15 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
     """
-    
+
     # ADM only use the g-band color shift when r and g are non-zero
     gshift = gflux * 10**(-0.4*0.029)
-    w = np.where( (gflux != 0) & (rflux != 0) )
+    w = np.where((gflux != 0) & (rflux != 0))
     gshift[w] = (gflux[w] * 10**(-0.4*0.029) * (gflux[w]/rflux[w])**complex(-0.068)).real
 
     # ADM only use the r-band color shift when r and z are non-zero
     # ADM and only use the z-band color shift when r and z are non-zero
-    w = np.where( (rflux != 0) & (zflux != 0) )
+    w = np.where((rflux != 0) & (zflux != 0))
     rshift = rflux * 10**(+0.4*0.012)
     zshift = zflux * 10**(-0.4*0.000)
 
@@ -131,11 +131,11 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
             If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to ``True``
             Call isLRG_colors_north if ``south=False``, otherwise call isLRG_colors_south.
-    
+
     Returns:
         mask : array_like. True if and only if the object is an LRG target.
     """
-    if south==False:
+    if south == False:
         return isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
                                   w1flux=w1flux, w2flux=w2flux,
                                   ggood=ggood, primary=primary)
@@ -195,10 +195,10 @@ def isLRG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
         # ADM this side of the cut was removed on (08/01/2018) to
         # ADM help test masking of WISE stars as an alternative
         # 0.7r + W > 1.7z - 1.0
-        lrg &= ( (w1flux*rflux**complex(0.7)).real > 
-                 ((zflux**complex(1.7))*10**(-0.4*0.6)).real  )
-#        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
-#                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
+        lrg &= ((w1flux*rflux**complex(0.7)).real > 
+                 ((zflux**complex(1.7))*10**(-0.4*0.6)).real)
+#        lrg &= ((w1flux*rflux**complex(0.7)).real < 
+#                 ((zflux**complex(1.7))*10**(0.4*1.0)).real)
         # ADM note the trick of making the exponents complex and taking the real
         # ADM part to allow negative fluxes to be raised to a fractional power
 
@@ -242,7 +242,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : array_like. True if and only if the object is an LRG
             target.
     """
-    if south==False:
+    if south == False:
         return isLRG_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                            rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
                            gflux_ivar=gflux_ivar, primary=primary)
@@ -366,7 +366,7 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : array_like. True if and only if the object is an LRG
             target.
     """
-    if south==False:
+    if south == False:
         return isLRGpass_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                            rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
                            gflux_ivar=gflux_ivar, primary=primary)
@@ -488,7 +488,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     Returns:
         mask : array_like. True if and only if the object is an ELG target.
     """
-    if south==False:
+    if south == False:
         return isELG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
                                   w1flux=w1flux, w2flux=w2flux, primary=primary)
     else:
@@ -571,7 +571,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=
         mask : array_like. True if and only if the object is an ELG
             target.
     """
-    if south==False:
+    if south == False:
         return isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                             gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
     else:
@@ -856,7 +856,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         std &= gaiagmag < gfaint
     else:
         # Use LS r-band as a Gaia G-band proxy.
-        gaiamag_proxy = 22.5 - 2.5 * np.log10( rflux.clip(1e-16) )
+        gaiamag_proxy = 22.5 - 2.5 * np.log10(rflux.clip(1e-16))
         std &= gaiamag_ >= gbright
         std &= gaiamag_ < gfaint
 
@@ -895,7 +895,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Notes:
     - Gaia quantities have the same units as `the Gaia data model`_.
     """
-    if south==False:
+    if south == False:
         return isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
             objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
             obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
@@ -913,10 +913,10 @@ def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     """
     # ADM currently no difference between N/S for MWS, so easiest
     # ADM just to use one function
-    return isMWS_main_south(gflux=gflux,rflux=rflux,zflux=zflux,w1flux=w1flux,w2flux=w2flux,
-                            objtype=objtype,gaia=gaia,primary=primary,
-                            pmra=pmra,pmdec=pmdec,parallax=parallax,obs_rflux=obs_rflux,
-                            gaiagmag=gaiagmag,gaiabmag=gaiabmag,gaiarmag=gaiarmag)
+    return isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                            objtype=objtype, gaia=gaia, primary=primary,
+                            pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux,
+                            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
 
 def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -943,7 +943,7 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(w),len(mws),time()-start))
+                 .format(len(w), len(mws), time()-start))
 
     # ADM apply the selection for all MWS-MAIN targets
     # ADM main targets match to a Gaia source
@@ -1040,7 +1040,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         parallax[w], gaiagmag[w] = 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(w),len(mws),time()-start))
+                 .format(len(w), len(mws), time()-start))
 
     # ADM apply the selection for all MWS-NEARBY targets
     # ADM must be a Legacy Surveys object that matches a Gaia source
@@ -1103,7 +1103,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
         mws &= ~nans
         log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(w),len(mws),time()-start))
+                 .format(len(w), len(mws), time()-start))
 
     # ADM apply the selection for all MWS-WD targets
     # ADM must be a Legacy Surveys object that matches a Gaia source
@@ -1146,8 +1146,8 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     if astrometricsigma5dmax is not None:
         # ADM Reject white dwarfs that have really poor astrometry while
         # ADM retaining white dwarfs that only have relatively poor astrometry
-        mws &= ( (astrometricsigma5dmax < 1.5) | 
-                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)) )
+        mws &= ((astrometricsigma5dmax < 1.5) | 
+                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     return mws
 
@@ -1209,7 +1209,7 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Returns:
         mask : array_like. True if and only if the object is a BGS target.
     """
-    if south==False:
+    if south == False:
         return isBGS_faint_north(gflux, rflux, zflux, w1flux, w2flux, 
                                  objtype=objtype, primary=primary)
     else:
@@ -1288,7 +1288,7 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Returns:
         mask : array_like. True if and only if the object is a BGS target.
     """
-    if south==False:
+    if south == False:
         return isBGS_bright_north(gflux, rflux, zflux, w1flux, w2flux, 
                                   objtype=objtype, primary=primary)
     else:
@@ -1360,7 +1360,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True)
     Returns:
         mask : array_like. True if the object has QSO-like colors.
     """
-    if south==False:
+    if south == False:
         return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, 
                                   optical=optical)
     else:
@@ -1482,7 +1482,7 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
         mask : array_like. True if and only if the object is a QSO
             target.
     """
-    if south==False:
+    if south == False:
         return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
                                 release=release, objtype=objtype, primary=primary, optical=optical)
     else:
@@ -1575,7 +1575,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     """
                                
-    if south==False:
+    if south == False:
         return isQSO_randomforest_north(gflux=gflux, rflux=rflux, zflux=zflux,
                                 w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
                                 release=release, deltaChi2=deltaChi2, primary=primary)
@@ -1617,37 +1617,37 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # ADM default to RELEASE of 5000 if nothing is passed.
     if release is None :
         release = np.zeros_like(gflux, dtype='?') + 5000
-    release = np.atleast_1d( release )
+    release = np.atleast_1d(release)
 
     # Build variables for random forest
     nFeatures = 11 # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
-    r = np.atleast_1d( r )
+    r = np.atleast_1d(r)
 
     # Preselection to speed up the process
     rMax = 22.7 # r < 22.7
     rMin = 17.5 # r > 17.5
-    preSelection = ( r < rMax ) & ( r > rMin ) & photOK & primary
+    preSelection = (r < rMax) & (r > rMin) & photOK & primary
     if objtype is not None :
-        preSelection &= _psflike( objtype )
+        preSelection &= _psflike(objtype)
     if deltaChi2 is not None :
-        deltaChi2 = np.atleast_1d( deltaChi2 )
-        preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
+        deltaChi2 = np.atleast_1d(deltaChi2)
+        preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
     
     # "qso" mask initialized to "preSelection" mask
-    qso = np.copy( preSelection )
+    qso = np.copy(preSelection)
     
-    if np.any( preSelection ) :
+    if np.any(preSelection):
         
         from desitarget.myRF import myRF
         
         # Data reduction to preselected objects
-        colorsReduced = colors[ preSelection ]
-        releaseReduced = release[ preSelection ]
-        r_Reduced = r[ preSelection ]
+        colorsReduced = colors[preSelection]
+        releaseReduced = release[preSelection]
+        r_Reduced = r[preSelection]
         colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
-        colorsReducedIndex =  colorsIndex[ preSelection ]
+        colorsReducedIndex =  colorsIndex[preSelection]
     
         # Path to random forest files
         pathToRF = resource_filename('desitarget', 'data')
@@ -1657,45 +1657,45 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
         
         tmpReleaseOK = releaseReduced < 5000
-        if np.any( tmpReleaseOK ) :
+        if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
-            rf_DR3 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=200 , version=1 )
+            rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                          numberOfTrees=200, version=1)
             # rf loading
-            rf_DR3.loadForest( rf_DR3_fileName )
+            rf_DR3.loadForest(rf_DR3_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf_DR3.predict_proba()
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             # Compute optimized proba cut
-            pcut = np.where( tmp_r_Reduced > 20.0 ,
-                             0.95 - ( tmp_r_Reduced - 20.0 ) * 0.08 , 0.95 )
+            pcut = np.where(tmp_r_Reduced > 20.0,
+                            0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
             # Add rf proba test result to "qso" mask            
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = tmp_rf_proba >= pcut
+            qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
         
         tmpReleaseOK = releaseReduced >= 5000
-        if np.any( tmpReleaseOK ) :
+        if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=500 , version=2 )
-            rf_DR5_HighZ = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                                 numberOfTrees=500 , version=2 )
+            rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                           numberOfTrees=500, version=2)
+            rf_DR5_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                                numberOfTrees=500, version=2)
             # rf loading
-            rf_DR5.loadForest( rf_DR5_fileName )
-            rf_DR5_HighZ.loadForest( rf_DR5_HighZ_fileName )
+            rf_DR5.loadForest(rf_DR5_fileName)
+            rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf_DR5.predict_proba()
             tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
             # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            pcut = np.where( tmp_r_Reduced > 20.8 ,
-                             0.88 - ( tmp_r_Reduced - 20.8 ) * 0.025 , 0.88 )
-            pcut[ tmp_r_Reduced > 21.5 ] = 0.8625 - 0.05 * ( tmp_r_Reduced[ tmp_r_Reduced > 21.5 ] - 21.5 )
-            pcut[ tmp_r_Reduced > 22.3 ] = 0.8225 - 0.53 * ( tmp_r_Reduced[ tmp_r_Reduced > 22.3 ] - 22.3 )
-            pcut_HighZ = np.where( tmp_r_Reduced > 20.5 ,
-                                   0.55 - ( tmp_r_Reduced - 20.5 ) * 0.025 , 0.55 )
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            pcut = np.where(tmp_r_Reduced > 20.8,
+                             0.88 - (tmp_r_Reduced - 20.8) * 0.025, 0.88)
+            pcut[tmp_r_Reduced > 21.5] = 0.8625 - 0.05 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.8225 - 0.53 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+            pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
+                                  0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
             # Add rf proba test result to "qso" mask
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
-                ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
     
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "numpy.ndarray"
@@ -1737,37 +1737,37 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # ADM default to RELEASE of 5000 if nothing is passed.
     if release is None :
         release = np.zeros_like(gflux, dtype='?') + 5000
-    release = np.atleast_1d( release )
+    release = np.atleast_1d(release)
 
     # Build variables for random forest
     nFeatures = 11 # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
-    r = np.atleast_1d( r )
+    r = np.atleast_1d(r)
 
     # Preselection to speed up the process
     rMax = 22.7 # r < 22.7
     rMin = 17.5 # r > 17.5
-    preSelection = ( r < rMax ) & ( r > rMin ) & photOK & primary
+    preSelection = (r < rMax) & (r > rMin) & photOK & primary
     if objtype is not None :
-        preSelection &= _psflike( objtype )
+        preSelection &= _psflike(objtype)
     if deltaChi2 is not None :
-        deltaChi2 = np.atleast_1d( deltaChi2 )
-        preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
+        deltaChi2 = np.atleast_1d(deltaChi2)
+        preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
     
     # "qso" mask initialized to "preSelection" mask
-    qso = np.copy( preSelection )
+    qso = np.copy(preSelection)
     
-    if np.any( preSelection ) :
+    if np.any(preSelection):
         
         from desitarget.myRF import myRF
         
         # Data reduction to preselected objects
-        colorsReduced = colors[ preSelection ]
-        releaseReduced = release[ preSelection ]
-        r_Reduced = r[ preSelection ]
-        colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
-        colorsReducedIndex =  colorsIndex[ preSelection ]
+        colorsReduced = colors[preSelection]
+        releaseReduced = release[preSelection]
+        r_Reduced = r[preSelection]
+        colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
+        colorsReducedIndex =  colorsIndex[preSelection]
     
         # Path to random forest files
         pathToRF = resource_filename('desitarget', 'data')
@@ -1777,45 +1777,45 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
         
         tmpReleaseOK = releaseReduced < 5000
-        if np.any( tmpReleaseOK ) :
+        if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
-            rf_DR3 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=200 , version=1 )
+            rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                          numberOfTrees=200, version=1)
             # rf loading
-            rf_DR3.loadForest( rf_DR3_fileName )
+            rf_DR3.loadForest(rf_DR3_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf_DR3.predict_proba()
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             # Compute optimized proba cut
-            pcut = np.where( tmp_r_Reduced > 20.0 ,
-                             0.95 - ( tmp_r_Reduced - 20.0 ) * 0.08 , 0.95 )
+            pcut = np.where(tmp_r_Reduced > 20.0,
+                            0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
             # Add rf proba test result to "qso" mask            
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = tmp_rf_proba >= pcut
+            qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
         
         tmpReleaseOK = releaseReduced >= 5000
-        if np.any( tmpReleaseOK ) :
+        if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=500 , version=2 )
-            rf_DR5_HighZ = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                                 numberOfTrees=500 , version=2 )
+            rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                          numberOfTrees=500, version=2)
+            rf_DR5_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                                numberOfTrees=500, version=2)
             # rf loading
-            rf_DR5.loadForest( rf_DR5_fileName )
-            rf_DR5_HighZ.loadForest( rf_DR5_HighZ_fileName )
+            rf_DR5.loadForest(rf_DR5_fileName)
+            rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf_DR5.predict_proba()
             tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
             # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            pcut = np.where( tmp_r_Reduced > 20.8 ,
-                             0.88 - ( tmp_r_Reduced - 20.8 ) * 0.025 , 0.88 )
-            pcut[ tmp_r_Reduced > 21.5 ] = 0.8625 - 0.05 * ( tmp_r_Reduced[ tmp_r_Reduced > 21.5 ] - 21.5 )
-            pcut[ tmp_r_Reduced > 22.3 ] = 0.8225 - 0.53 * ( tmp_r_Reduced[ tmp_r_Reduced > 22.3 ] - 22.3 )
-            pcut_HighZ = np.where( tmp_r_Reduced > 20.5 ,
-                                   0.55 - ( tmp_r_Reduced - 20.5 ) * 0.025 , 0.55 )
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            pcut = np.where(tmp_r_Reduced > 20.8,
+                            0.88 - (tmp_r_Reduced - 20.8) * 0.025, 0.88)
+            pcut[tmp_r_Reduced > 21.5] = 0.8625 - 0.05 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.8225 - 0.53 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+            pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
+                                  0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
             # Add rf proba test result to "qso" mask
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
-                ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
     
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "numpy.ndarray"
@@ -1838,8 +1838,8 @@ def _psflike(psftype):
     # ADM so to retain Python2 compatibility we need to check
     # ADM against both bytes and unicode
     # ADM, also 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
-    psflike = ( (psftype == 'PSF') | (psftype == b'PSF') | 
-                (psftype == 'PSF ') | (psftype == b'PSF ') )
+    psflike = ((psftype == 'PSF') | (psftype == b'PSF') | 
+               (psftype == 'PSF ') | (psftype == b'PSF '))
     return psflike
 
 
@@ -1855,7 +1855,7 @@ def _isonnorthphotsys(photsys):
     # ADM in Python3 these string literals become byte-like
     # ADM so to retain Python2 compatibility we need to check
     # ADM against both bytes and unicode
-    northern = ( (photsys == 'N') | (photsys == b'N') )
+    northern = ((photsys == 'N') | (photsys == b'N'))
     return northern
 
 
@@ -1868,15 +1868,15 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     w1flux = w1flux.clip(limitInf)
     w2flux = w2flux.clip(limitInf)
 
-    g=np.where( gflux>limitInf,22.5-2.5*np.log10(gflux), 0.)
-    r=np.where( rflux>limitInf,22.5-2.5*np.log10(rflux), 0.)
-    z=np.where( zflux>limitInf,22.5-2.5*np.log10(zflux), 0.)
-    W1=np.where( w1flux>limitInf, 22.5-2.5*np.log10(w1flux), 0.)
-    W2=np.where( w2flux>limitInf, 22.5-2.5*np.log10(w2flux), 0.)
+    g=np.where(gflux > limitInf, 22.5-2.5*np.log10(gflux), 0.)
+    r=np.where(rflux > limitInf, 22.5-2.5*np.log10(rflux), 0.)
+    z=np.where(zflux > limitInf, 22.5-2.5*np.log10(zflux), 0.)
+    W1=np.where(w1flux > limitInf, 22.5-2.5*np.log10(w1flux), 0.)
+    W2=np.where(w2flux > limitInf, 22.5-2.5*np.log10(w2flux), 0.)
 
-    photOK = (g>0.) & (r>0.) & (z>0.) & (W1>0.) & (W2>0.)
+    photOK = (g > 0.) & (r > 0.) & (z > 0.) & (W1 > 0.) & (W2 > 0.)
 
-    colors  = np.zeros((nbEntries,nfeatures))
+    colors  = np.zeros((nbEntries, nfeatures))
     colors[:,0]=g-r
     colors[:,1]=r-z
     colors[:,2]=g-z
@@ -2039,7 +2039,7 @@ def _prepare_gaia(objects, colnames=None):
         gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
     else:
         gaiaparamssolved = np.zeros_like(gaia) + 31
-        w = np.where( np.isnan(pmra) | (pmraivar == 0) )[0]
+        w = np.where(np.isnan(pmra) | (pmraivar == 0))[0]
         if len(w) > 0:
             # ADM we need to check the case of a single row being passed
             if _is_row(gaiaparamssolved):
@@ -2057,7 +2057,7 @@ def _prepare_gaia(objects, colnames=None):
         gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
 
     # ADM Mily Way Selection requires Galactic b
-    _, galb = _gal_coords(objects["RA"],objects["DEC"])
+    _, galb = _gal_coords(objects["RA"], objects["DEC"])
 
     return (gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag,
             gaiabmag, gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved,
@@ -2247,7 +2247,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                                            objtype=objtype, release=release, south=True)
         else:
             raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
-                qso_selection,qso_selection_options))
+                qso_selection, qso_selection_options))
     else:
         # ADM if not running the QSO selection, set everything to arrays of False
         qso_north, qso_south = ~primary, ~primary
@@ -2445,10 +2445,10 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM process the target classes that need Gaia columns
     if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
-                 .format(len(objects),time()-start))
+                 .format(len(objects), time()-start))
         gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
-                 .format(len(objects),time()-start))
+                 .format(len(objects), time()-start))
         # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
         # ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
@@ -2529,7 +2529,7 @@ def check_input_files(infiles, numproc=4):
     log = get_logger()
 
     #- Convert single file to list of files
-    if isinstance(infiles,str):
+    if isinstance(infiles, str):
         infiles = [infiles,]
 
     #- Sanity check that files exist before going further
@@ -2576,7 +2576,7 @@ def check_input_files(infiles, numproc=4):
                         filemessageroot = "WARNING...some values are zero for"
                         filemessageend += ' 4096-byte-block-#{0}'.format(block_number)
 
-        return [filename,filemessageroot+filemessageend]
+        return [filename, filemessageroot+filemessageend]
 
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
@@ -2611,7 +2611,7 @@ def check_input_files(infiles, numproc=4):
         log.info('ALL FILES ARE OK')
     else:
         for fil in fileinfo[w]:
-            log.info(fil[0],fil[1])
+            log.info(fil[0], fil[1])
 
     return len(w[0])
 
@@ -2674,7 +2674,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     log.info("Running on the {} survey".format(survey))
 
     #- Convert single file to list of files
-    if isinstance(infiles,str):
+    if isinstance(infiles, str):
         infiles = [infiles,]
 
     #- Sanity check that files exist before going further
@@ -2714,7 +2714,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         '''Returns targets in filename that pass the sandbox cuts'''
         from desitarget.sandbox.cuts import apply_sandbox_cuts
         objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects,FoMthresh,Method)
+        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects, FoMthresh, Method)
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 

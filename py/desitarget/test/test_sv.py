@@ -1,3 +1,7 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""Test desitarget.sv.
+"""
 import unittest
 import numpy as np
 
@@ -28,7 +32,7 @@ class TestSV(unittest.TestCase):
                     self.assertTrue(col in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets[desicol]))
 
-                # ADM this test should be fine as long as the mains survey
+                # ADM this test should be fine as long as the main survey
                 # ADM bits don't get divorced from the SV survey bits.
                 bgs1 = (targets[desicol] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets[bgscol] != 0
@@ -37,3 +41,10 @@ class TestSV(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+def test_suite():
+    """Allows testing of only this module with the command:
+
+        python setup.py test -m desitarget.test.test_sv
+    """
+    return unittest.defaultTestLoader.loadTestsFromName(__name__)
