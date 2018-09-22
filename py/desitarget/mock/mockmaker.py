@@ -993,7 +993,7 @@ class SelectTargets(object):
         if density_per_pixel:
             return mock_density
         else:
-            return np.median(mock_density)
+            return np.ceil( np.median(mock_density) )
 
     def qamock_sky(self, data, xlim=(0, 4), nozhist=False, png=None):
         """Generate a QAplot showing the sky and redshift distribution of the objects in
