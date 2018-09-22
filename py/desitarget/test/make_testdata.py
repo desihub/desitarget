@@ -13,6 +13,7 @@ from os.path import basename
 from time import time
 #from astropy.io import fits
 from desitarget.cuts import apply_cuts
+from desitarget.cmx import cmx_cuts
 from desitarget.io import read_tractor
 from desitarget.targets import finalize
 from desitarget.QA import _load_systematics
@@ -53,7 +54,7 @@ sweepdir = '/project/projectdirs/cosmo/data/legacysurvey/dr7/sweep/7.1/'
 for radec in ['310m005-320p000', '320m005-330p000', '330m005-340p000']:
     filepath = '{}/sweep-{}.fits'.format(sweepdir, radec)
     desi_target, bgs_target, mws_target = apply_cuts(filepath)
-    cmx_target = apply_cuts(filepath, survey='cmx')
+    cmx_target = cmx_cuts.apply_cuts(filepath)
 
     # ADM as nobody is testing the MWS in the sandbox, yet, we need to.
     # ADM ensure we ignore MWS targets for testing the main algorithms.

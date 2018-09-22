@@ -43,6 +43,7 @@ import matplotlib.pyplot as plt    # noqa: E402
 infac = 0.5
 nearfac = 1./infac
 
+
 def _rexlike(rextype):
     """If the object is REX (a round exponential galaxy)"""
 
@@ -871,7 +872,7 @@ def append_safe_targets(targs, sourcemask, nside=None, drbricks=None):
     -----
         - See `Tech Note 2346`_ for more on the SAFE (BADSKY) locations.
         - See `Tech Note 2348`_ for more on setting the SKY bit in TARGETID.
-        - Currently hard-coded to create an additional 1 safe location per arcsec of mask radius. 
+        - Currently hard-coded to create an additional 1 safe location per arcsec of mask radius.
           The correct number per radial element (Nperradius) for DESI is an open question.
     """
 
@@ -1065,7 +1066,7 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10
 
     # ADM remove any SAFE locations that are in bright masks (because they aren't really safe).
     w = np.where(((done["DESI_TARGET"] & desi_mask.BAD_SKY) == 0) |
-                   ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0))
+                 ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0))
     if len(w[0]) > 0:
         done = done[w]
 

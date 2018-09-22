@@ -8,6 +8,7 @@ from desiutil.bitmask import BitMask
 import yaml
 from pkg_resources import resource_filename
 
+
 _bitdefs = None
 def _load_bits():
     """Load bit definitions from yaml file.
@@ -19,7 +20,8 @@ def _load_bits():
             _bitdefs = yaml.load(fx)
     return
 
-#- convert to BitMask objects
+
+# - convert to BitMask objects
 if _bitdefs is None:
     _load_bits()
 try:
