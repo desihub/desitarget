@@ -10,7 +10,7 @@ targets:
         target_type: ELG,
         mockfile: '{DESI_ROOT}/mocks/GaussianRandomField/v0.0.8_2LPT/ELG.fits',
         format: gaussianfield,
-        density: 2155,
+        density: 2400,
     }
     LRG: {
         target_type: LRG,

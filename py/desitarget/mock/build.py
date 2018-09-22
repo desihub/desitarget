@@ -186,7 +186,7 @@ def read_mock(params, target_name, log, seed=None, healpixels=None,
             log.warning('Density factor {} should not be > 1!'.format(data['DENSITY_FACTOR']))
             data['DENSITY_FACTOR'] = 1.0
         
-        data['MAXITER'] = 10
+        data['MAXITER'] = 5
 
         log.info('Computed median mock density for {}s of {:.2f} targets/deg2.'.format(
             target_name, data['MOCK_DENSITY']))
@@ -372,7 +372,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     #ntarget = len(data['RA'])
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
 
-    density_factor = data.get('DENSITY_FACTOR') * 1.02
+    density_factor = data.get('DENSITY_FACTOR')
 
     indxperchunk, ntargperchunk = list(), list()
     for pixchunk in set(healpix_chunk):
@@ -399,7 +399,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         #    ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
 
     ntargperchunk = np.array(ntargperchunk)
-
+    
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
@@ -455,7 +455,6 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     nalltarget = np.sum(ntargperchunk)
     log.info('Goal: Generate spectra for {} {} targets ({:.2f} / deg2).'.format(
         nalltarget, data['TARGET_NAME'], nalltarget / area))
-    import pdb ; pdb.set_trace()
 
     rand = np.random.RandomState(seed)
     chunkseeds = rand.randint(2**31, size=nchunk)
