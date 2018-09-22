@@ -58,8 +58,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
-    targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
-    targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
+    targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
+    targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
     targets.add_column(Column(name='DCHISQ', length=nobj, dtype='f4', data=np.zeros( (nobj, 5) )))
     
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
@@ -68,11 +68,11 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
     
-    targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
@@ -93,23 +93,23 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='ALLMASK_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='ALLMASK_Z', length=nobj, dtype='f4'))
     
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
 
     targets.add_column(Column(name='FRACDEV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FRACDEV_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
-    targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
+    targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec**2'))
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
-    targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
+    targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec**2'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
@@ -646,7 +646,7 @@ class SelectTargets(object):
     def KDTree_query(self, matrix, return_dist=False, south=True, subtype=''):
         """Return the nearest template number based on the KD Tree."""
 
-        matrix_rescaled = self.KDTree_rescale(matrix, subtype=subtype)
+        matrix_rescaled = self.KDTree_rescale(matrix, south=south, subtype=subtype)
         
         if subtype == '':
             try:
@@ -3016,24 +3016,30 @@ class ELGMaker(SelectTargets):
         self.meta = self.template_maker.basemeta
 
         # Build the KD Trees
+        log.warning('Using south ELG KD Tree for north photometry.')
+        zobj = self.meta['Z'].data
+        gr_north = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_north = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+
+        self.param_min_north = ( zobj.min(), gr_north.min(), rz_north.min() )
+        self.param_min_south = ( zobj.min(), gr_south.min(), rz_south.min() )
+        self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north) )
+        self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south) )
+        
         if self.KDTree_north is None:
-            log.warning('Using south ELG KD Tree for north photometry.')
-            zobj = self.meta['Z'].data
-            gr = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
-            rz = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
-            
-            self.param_min_north = ( zobj.min(), gr.min(), rz.min() )
-            self.param_range_north = ( np.ptp(zobj), np.ptp(gr), np.ptp(rz) )
-            ELGMaker.KDTree_north = self.KDTree_build( np.vstack((zobj, gr, rz)).T, south=False )
-            
+            ELGMaker.KDTree_north = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_north,
+                    rz_north)).T, south=False )
         if self.KDTree_south is None:
-            zobj = self.meta['Z'].data
-            gr = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
-            rz = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
-            
-            self.param_min_south = ( zobj.min(), gr.min(), rz.min() )
-            self.param_range_south = ( np.ptp(zobj), np.ptp(gr), np.ptp(rz) )
-            ELGMaker.KDTree_south = self.KDTree_build( np.vstack((zobj, gr, rz)).T, south=True )
+            ELGMaker.KDTree_south = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_south,
+                    rz_south)).T, south=True )
 
         if self.GMM_LRG is None:
             self.read_GMM(target='LRG')
@@ -3150,9 +3156,10 @@ class ELGMaker(SelectTargets):
                         input_meta['MAG'][these] = data['MAG'][indx][these]
                         input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
                         input_meta['TEMPLATEID'][these] = self.KDTree_query(
-                            np.vstack((data['Z'][indx][these],
-                                       data['GR'][indx][these],
-                                       data['RZ'][indx][these])).T, south=issouth)
+                            np.vstack((
+                                data['Z'][indx][these],
+                                data['GR'][indx][these],
+                                data['RZ'][indx][these])).T, south=issouth)
 
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -3223,14 +3230,14 @@ class BGSMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.KDTree is None:
-            zobj = self.meta['Z'].data
-            mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
-            rmabs = mabs[:, 2]
-            gr = mabs[:, 1] - mabs[:, 2]
+        zobj = self.meta['Z'].data
+        mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
+        rmabs = mabs[:, 2]
+        gr = mabs[:, 1] - mabs[:, 2]
 
-            self.param_min = ( zobj.min(), rmabs.min(), gr.min() )
-            self.param_range = ( np.ptp(zobj), np.ptp(rmabs), np.ptp(gr) )
+        self.param_min = ( zobj.min(), rmabs.min(), gr.min() )
+        self.param_range = ( np.ptp(zobj), np.ptp(rmabs), np.ptp(gr) )
+        if self.KDTree is None:
             BGSMaker.KDTree = self.KDTree_build(np.vstack((zobj, rmabs, gr)).T)
 
         if self.GMM_BGS is None:

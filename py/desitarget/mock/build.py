@@ -380,7 +380,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         # Subsample the targets on this mini healpixel.
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
-        ntargthispix = np.ceil( len(allindxthispix) * density_factor ).astype('int')
+        ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
         indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
 
         indxperchunk.append(indxthispix)
@@ -399,7 +399,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         #    ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
 
     ntargperchunk = np.array(ntargperchunk)
-
+    
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
