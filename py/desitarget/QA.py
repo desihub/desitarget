@@ -32,8 +32,8 @@ from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 import warnings, itertools
 import matplotlib
-#matplotlib.use('Agg')
-#import matplotlib.pyplot as plt
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
 #from matplotlib.colors import LogNorm
 
 import healpy as hp
@@ -160,7 +160,7 @@ def _load_targdens(tcnames=None):
     targdens['ELG'] = targdict['ntarget_elg']
     targdens['LRG'] = targdict['ntarget_lrg']
     targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
-    targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint'] + targdict['ntarget_bgs_wise']
+    targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']
     targdens['STD_FAINT'] = 0
     targdens['STD_BRIGHT'] = 0
     targdens['MWS_ANY'] = targdict['ntarget_mws']
@@ -173,7 +173,7 @@ def _load_targdens(tcnames=None):
     
     targdens['BGS_FAINT'] = targdict['ntarget_bgs_faint'] 
     targdens['BGS_BRIGHT'] = targdict['ntarget_bgs_bright'] 
-    targdens['BGS_WISE'] = targdict['ntarget_bgs_wise'] 
+    #targdens['BGS_KNOWN_ANY'] = targdict['ntarget_bgs_known_any'] 
 
     targdens['MWS_MAIN'] = 0.
     targdens['MWS_MAIN_RED'] = 0.
@@ -1330,7 +1330,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                   'STD_FAINT': 200, 'STD_BRIGHT': 50,
                   'LRG_1PASS': 1000, 'LRG_2PASS': 500,
-                  'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_WISE': 2500, 'BGS_ANY': 5000,
+                  'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_ANY': 5000,
                   'MWS_ANY': 2000, 'MWS_MAIN': 10000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
                   'MWS_MAIN_RED': 4000, 'MWS_MAIN_BLUE': 4000}
 
