@@ -54,7 +54,6 @@ ap.add_argument("--numproc", type=int,
 ap.add_argument('-t','--tcnames', default=None, 
                 help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
 
-
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
 if len(infiles) == 0:

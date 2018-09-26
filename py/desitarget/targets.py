@@ -106,7 +106,9 @@ def encode_mtl_targetid(targets):
 
     # Set the source bits. Will be different for each survey.
     desi_sources = ['ELG','LRG','QSO']
-    bgs_sources  = ['BGS_FAINT','BGS_BRIGHT', 'BGS_KNOWN_ANY']
+    bgs_sources  = ['BGS_FAINT','BGS_BRIGHT']
+    #uncomment below line when WISE bit has been implemented and comment above line
+    #bgs_sources  = ['BGS_FAINT','BGS_BRIGHT', 'BGS_WISE']
     mws_sources  = ['MWS_MAIN','MWS_WD','MWS_NEARBY']
 
     for name in desi_sources:
@@ -572,8 +574,9 @@ def calc_numobs(targets):
         nobs[ii] = targets['NUMOBS'][ii]+1
         ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_BRIGHT) != 0
         nobs[ii] = targets['NUMOBS'][ii]+1
-        ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_KNOWN_ANY) != 0
-        nobs[ii] = targets['NUMOBS'][ii]+1
+       #uncomment below two lines when WISE bit has been implemented
+       # ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_WISE) != 0
+       # nobs[ii] = targets['NUMOBS'][ii]+1
 
     return nobs
 
