@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.24.0 (unreleased)
+0.24.0 (2018-09-26)
 -------------------
 
 * Fix bug in code that produces data for unit tests [`PR #387`_].
@@ -11,10 +11,10 @@ desitarget Change Log
 * Bug fixes: [`PR #383`_].
     * Use `parallax_err` when selecting `MWS_NEARBY` targets.
     * In `select_mock_targets` do not use Galaxia to select WDs and 100pc
-      targets. 
+      targets.
 * Refactor QA to work with commissioning and SV files and add (first) unit tests
   for QA. [`PR #382`_].
-* Estimate FIBERFLUX_[G,R,Z] for mock targets. [`PR #381`_].  
+* Estimate FIBERFLUX_[G,R,Z] for mock targets. [`PR #381`_].
 * First fully working version of SV code [`PR #380`_]. Includes:
     * (Almost) the only evolving part of the code for SV is now the cuts.
     * Unit tests for SV that should be easy to maintain.
@@ -34,11 +34,11 @@ desitarget Change Log
 * Additional commissioning (cmx) classes and priorities [`PR #370`_]. Includes:
     * New functions to define several more commissioning classes.
     * A ``$CMX_DIR`` to contain files of cmx sources to which to match.
-    * An example ``$CMX_DIR`` is ``/project/projectdirs/desi/target/cmx_files``. 
+    * An example ``$CMX_DIR`` is ``/project/projectdirs/desi/target/cmx_files``.
     * Functionality to reset initial priorities for commissioning targets.
     * Downloading fitsio using pip/astropy to fix Travis.
 * Significant enhancement of `select_mock_targets` (see PR for details) [`PR
-  #368`_]. 
+  #368`_].
 * Include per-band number counts for targets on the QA pages [`PR #367`_].
 * Use new :func:`desiutil.dust.SFDMap` module [`PR #366`_].
 * Set the ``STD_WD`` bit (it's identical to the ``MWS_WD`` bit) [`PR #364`_].
@@ -118,7 +118,7 @@ bit names and selection function names.
 * Produce current sets of target bits for DR7 [`PR #338`_]:
    * Update the ``LRG``, ``QSO``, ``STD`` and ``MWS`` algorithms to align with the `wiki`_.
    * In particular, major updates to the ``STD`` and ``MWS`` selections.
-   * Don't match to Gaia by default, only if requested. 
+   * Don't match to Gaia by default, only if requested.
    * Maintain capability to match to Gaia if needed for earlier Data Releases.
    * Run subsets of target classes by passing, e.g.. ``--tcnames STD,QSO``.
    * Update unit test files to not rely on Gaia.
@@ -153,7 +153,7 @@ bit names and selection function names.
 * Update the Gaia Data Model [`PR #327`_]:
    * Output columns formatted as expected downstream for GFA assignment.
    * Align Gaia Data Model in matching and I/O with the Legacy Surveys.
-* Allow environment variables in select_mock_targets config file [`PR #325`_].  
+* Allow environment variables in select_mock_targets config file [`PR #325`_].
 * First version of Milky Way Survey selection [`PR #324`_]:
    * Catalog-matches to Gaia using :mod:`desitarget.gaimatch`.
    * Sets MWS_MAIN, MWS_WD and MWS_NEARBY bits.
@@ -165,8 +165,8 @@ bit names and selection function names.
 * Add :mod:`desitarget.gaimatch` for matching to Gaia [`PR #322`_]:
    * Can perform object-to-object matching between Gaia and the sweeps.
    * Can, in addition, retain all Gaia objects in an RA/Dec box.
-* Mock targets bug fixes [`PR #318`_]. 
-* Add missing GMM files to installations [`PR #316`_]. 
+* Mock targets bug fixes [`PR #318`_].
+* Add missing GMM files to installations [`PR #316`_].
 * Introduction of pixel-level creation of sky locations [`PR #313`_]:
    * Significant update of :mod:`desitarget.skyfibers`
    * :mod:`desitarget.skyutilities.astrometry` to remove ``astrometry.net`` dependency.
@@ -179,16 +179,16 @@ bit names and selection function names.
    * Adds the ``select_skies`` binary to run from the command line.
    * Includes ``gather_skies`` binary to collect results from parallelization.
    * Adds functionality to plot good/bad skies against Legacy Survey images.
-* select_mock_targets full footprint updates [`PR #312`_]. 
-* QA fix for testing without healpix weight map [`PR #311`_]. 
-* New QSO random forest [`PR #309`_]. 
+* select_mock_targets full footprint updates [`PR #312`_].
+* QA fix for testing without healpix weight map [`PR #311`_].
+* New QSO random forest [`PR #309`_].
 * Restore the no-spectra option of select_mock_targets, for use with quicksurvey
-  [`PR #307`_]. 
+  [`PR #307`_].
 * Better handling of imaging survey areas for QA [`PR #304`_]:
    * :mod:`desitarget.imagefootprint` to build HEALPix weight maps of imaging.
    * Executable (bin) interface to make weight maps from the command line.
    * :mod:`desitarget.io` loader to resample maps to any HEALPix `nside`.
-   * Update :mod:`desitarget.QA` to handle new imaging area weight maps.   
+   * Update :mod:`desitarget.QA` to handle new imaging area weight maps.
 * Improve north/south split functions for LRG and QSO color cuts [`PR #302`_].
 * Minor QA and selection cuts updates [`PR #297`_]:
    * QA matrix of target densities selected in multiple classes.
@@ -239,7 +239,7 @@ bit names and selection function names.
    * Introducing a ``NO_TARGET`` bit.
    * Renaming the ``BADSKY`` bit ``BAD_SKY`` for consistency with other bits.
    * Including ``FRACDEV`` and ``FRACDEV_IVAR`` as outputs.
-   
+
 .. _`PR #289`: https://github.com/desihub/desitarget/pull/289
 .. _`PR #290`: https://github.com/desihub/desitarget/pull/290
 .. _`PR #291`: https://github.com/desihub/desitarget/pull/291
@@ -284,7 +284,7 @@ to importing target mask bits and how mock spectra are generated.
   #254`_].
 * Include (initial) mock QA plots on targeting QA page [`PR #262`_]
 * Added `select_gfa` script [`PR #275`_]
-* Update masking for ellipses ("galaxies") in addition to circles 
+* Update masking for ellipses ("galaxies") in addition to circles
   ("stars") [`PR #277`_].
 
 .. _`PR #254`: https://github.com/desihub/desitarget/pull/254
@@ -348,12 +348,12 @@ to importing target mask bits and how mock spectra are generated.
 0.15.0 (2017-09-29)
 -------------------
 
-* Refactored :mod:`desitarget.QA` to calculate density fluctuations in HEALPixels 
+* Refactored :mod:`desitarget.QA` to calculate density fluctuations in HEALPixels
   instead of in bricks [`PR #217`_]:
 * Updated :mod:`desitarget.io` for the DR5 RELEASE number [`PR #214`_]:
 * Updated :mod:`desitarget.QA` to produce QA plots [`PR #210`_]:
    * Has a simple binary that runs the plot-making software in full
-   * Creates (weighted) 1-D and 2-D density plots 
+   * Creates (weighted) 1-D and 2-D density plots
    * Makes color-color plots
    * Produces a simple .html page that wraps the plots, e.g.
      http://portal.nersc.gov/project/desi/users/adamyers/desitargetQA/
@@ -363,7 +363,7 @@ to importing target mask bits and how mock spectra are generated.
    * Misc other small bug fixes
 * Added ``mpi_select_mock_targets``
 * Changes for mocks [`PR #228`]:
-   * Refactor of ``targets_truth_no_spectra`` 
+   * Refactor of ``targets_truth_no_spectra``
    * Solves bug of healpix patterns present in target mocks.
    * Removes current implementation for target fluctuations.
 * Added ``desitarget.mock.sky.random_sky`` [`PR #219`_]
