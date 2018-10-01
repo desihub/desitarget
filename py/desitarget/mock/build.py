@@ -915,6 +915,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
     import fitsio
     import glob
     from desiutil.log import get_logger
+    log = get_logger()
     
     if comm is not None:
         size = comm.Get_size()
@@ -958,12 +959,10 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
             data = np.hstack(data)
 
     if rank == 0 and outfile is not None:
-        log = get_logger()
-
         if (data is None) or len(data) == 0:
-            message = 'EXT {} not found in any input files'.format(ext)
-            log.error(message)
-            raise IOError(message)
+            message = '{} not found in any input files; skipping'.format(ext)
+            log.warning(message)
+            return None
 
         log.info('Writing {} {}'.format(outfile, ext))
         header = fitsio.read_header(infiles[0], ext)
