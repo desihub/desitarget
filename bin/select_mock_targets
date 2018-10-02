@@ -84,7 +84,7 @@ else:
 
 if args.join:
     from desitarget.mock.build import join_targets_truth
-    join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, force=args.overwrite)
+    join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, overwrite=args.overwrite)
     if not args.qa:
         sys.exit(1)
 
