@@ -1,3 +1,7 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""Old tests of desitarget.brightmask (deprecated).
+"""
 import unittest
 from pkg_resources import resource_filename
 import os.path
@@ -29,6 +33,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         if os.path.exists(self.testbsfile):
             os.remove(self.testbsfile)
 
+    @unittest.skip('This test is deprecated.')
     def test_collect_bright_stars(self):
         """Test the collection of bright stars from the sweeps
         """
@@ -41,6 +46,7 @@ class TestBRIGHTSTAR(unittest.TestCase):
         bs2ids = bs2['BRICKID'].astype(np.int64)*1000000 + bs2['OBJID']
         self.assertTrue(np.all(bs1ids == bs2ids))
 
+    @unittest.skip('This test is deprecated.')
     def test_make_bright_star_mask(self):
         """Test the construction of a bright star mask
         """
@@ -57,3 +63,10 @@ class TestBRIGHTSTAR(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+def test_suite():
+    """Allows testing of only this module with the command:
+
+        python setup.py test -m desitarget.test.test_brightstar
+    """
+    return unittest.defaultTestLoader.loadTestsFromName(__name__)

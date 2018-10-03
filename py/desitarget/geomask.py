@@ -25,6 +25,9 @@ from desitarget.internal import sharedmem
 
 import numpy.lib.recfunctions as rfn
 
+#ADM fake the matplotlib display so it doesn't die on allocated nodes
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse, Rectangle
 from matplotlib.collections import PatchCollection
