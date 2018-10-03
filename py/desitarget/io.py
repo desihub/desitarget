@@ -821,7 +821,7 @@ def whitespace_fits_read(filename, **kwargs):
 
 
 def load_pixweight(inmapfile, nside, pixmap=None):
-    '''Loads a pixel map from file and resamples to a different HEALPixel resolution (nside)
+    """Loads a pixel map from file and resamples to a different HEALPixel resolution (nside)
 
     Parameters
     ----------
@@ -836,7 +836,7 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     -------
     :class:`~numpy.array`
         HEALPixel weight map resampled to the requested nside.
-    '''
+    """
     import healpy as hp
     from desiutil.log import get_logger
     log = get_logger()
@@ -855,14 +855,14 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
-                  .format(nside,pixfile,truenside))
+                  .format(nside,inmapfile,truenside))
 
     #ADM resample the map
     return hp.pixelfunc.ud_grade(pixmap,nside,order_in='NESTED',order_out='NESTED')
 
 
 def load_pixweight_recarray(inmapfile, nside, pixmap=None):
-    '''Like load_pixweight but for a structured array map with multiple columns
+    """Like load_pixweight but for a structured array map with multiple columns
 
     Parameters
     ----------
@@ -885,7 +885,7 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
         - All columns are resampled as the mean of the relevant pixels, except
           if a column `HPXPIXEL` is passed. That column is reassigned the appropriate
           pixel number at the new nside.
-    '''
+    """
     import healpy as hp
     from desiutil.log import get_logger
     log = get_logger()
@@ -904,7 +904,7 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
-                  .format(nside,pixfile,truenside))
+                  .format(nside,inmapfile,truenside))
 
     #ADM set up an output array
     nrows = hp.nside2npix(nside)

@@ -58,8 +58,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
-    targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
-    targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree^2'))
+    targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
+    targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
     targets.add_column(Column(name='DCHISQ', length=nobj, dtype='f4', data=np.zeros( (nobj, 5) )))
     
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
@@ -68,11 +68,11 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
     
-    targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
@@ -93,27 +93,34 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='ALLMASK_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='ALLMASK_Z', length=nobj, dtype='f4'))
     
-    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
-    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies^2'))
+    targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='PSFDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='GALDEPTH_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
 
     targets.add_column(Column(name='FRACDEV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='FRACDEV_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_R', length=nobj, dtype='f4', unit='arcsec'))
-    targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
+    targets.add_column(Column(name='SHAPEDEV_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec**2'))
     targets.add_column(Column(name='SHAPEDEV_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEDEV_E2_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_R', length=nobj, dtype='f4', unit='arcsec'))
-    targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec^2'))
+    targets.add_column(Column(name='SHAPEEXP_R_IVAR', length=nobj, dtype='f4', unit='1/arcsec**2'))
     targets.add_column(Column(name='SHAPEEXP_E1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E1_IVAR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
+
+    targets.add_column(Column(name='FIBERFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='f4'))
 
     # Gaia columns
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
@@ -145,10 +152,6 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
     targets.add_column(Column(name='NUMOBS', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
-
-    # HACK!!!
-    for band in ('G', 'R', 'Z'):
-        targets['FRACMASKED_{}'.format(band)] = 0.001
 
     return targets
 
@@ -238,11 +241,13 @@ class SelectTargets(object):
         and brickid to each object.  Defaults to 0.25 deg.
 
     """
-    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO = None, None, None, None
+    GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
     def __init__(self, bricksize=0.25):
         from astropy.io import fits
+        from speclite import filters
         from desiutil.dust import SFDMap
+        from specsim.fastfiberacceptance import FastFiberAcceptance
         from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
         
@@ -253,6 +258,17 @@ class SelectTargets(object):
 
         self.Bricks = Bricks(bricksize=bricksize)
         self.SFDMap = SFDMap()
+
+        # Cache the plate scale (which is approximate; see
+        # $DESIMODEL/data/desi.yaml), and the FastFiberAcceptance class for the
+        # fiberflux calculation, below.
+        self.plate_scale_arcsec2um = 107.0 / 1.52 # [um/arcsec]
+        if self.FFA is None:
+            SelectTargets.FFA = FastFiberAcceptance(filename=os.path.join(
+                os.getenv('DESIMODEL'), 'data', 'throughput', 'galsim-fiber-acceptance.fits'))
+
+        self.bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z', 'wise2010-W1', 'wise2010-W2')
+        self.decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z', 'wise2010-W1', 'wise2010-W2')
 
         # Read and cache the default pixel weight map.
         pixfile = os.path.join(os.environ['DESIMODEL'],'data','footprint','desi-healpix-weights.fits')
@@ -546,17 +562,23 @@ class SelectTargets(object):
                         gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
 
                 if mm == 'DEV':
-                    gmmout['FRACDEV'][:] = 1.0
-                elif mm == 'EXP':
-                    gmmout['FRACDEV'][:] = 0.0
+                    gmmout['FRACDEV'][gthese] = 1.0
 
         gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
         gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
 
-        if target == 'LRG':
-            band = 'z'
-        else:
-            band = 'r'
+        # Assign filter names.
+        if np.sum(isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+            else:
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
+
+        if np.sum(~isouth) > 0:
+            if target == 'LRG':
+                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+            else:
+                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
         # Sort based on the input/prior magnitude (e.g., for the BGS/MXXL
         # mocks), but note that we will very likely end up with duplicated
@@ -572,6 +594,9 @@ class SelectTargets(object):
                     srt[ii] = rand.choice(dm)
             for key in gmmout.keys():
                 gmmout[key][:] = gmmout[key][srt]
+            # Remove these keys to preserve the values assigned in the reader
+            # (e.g., ReadMXXL) class.
+            [gmmout.pop(key) for key in ('MAG', 'MAGFILTER')]
 
         # Shuffle based on input/prior redshift, so we can get a broad
         # correlation between magnitude and redshift.
@@ -582,37 +607,61 @@ class SelectTargets(object):
             #dat['mag'] = gmmout['MAG']
             #srt = np.argsort(dat, order=('redshift', 'mag'))
 
-        # Assign filter names.
-        if np.sum(isouth) > 0:
-            if target == 'LRG':
-                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
-            else:
-                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
-
-        if np.sum(~isouth) > 0:
-            if target == 'LRG':
-                gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
-            else:
-                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
-
         return gmmout
 
-    def _query(self, matrix, subtype='', return_dist=False, south=True):
-        """Return the nearest template number based on the KD Tree."""
-
+    def KDTree_rescale(self, matrix, south=False, subtype=''):
+        """Normalize input parameters to [0, 1]."""
+        nobj, ndim = matrix.shape
         if subtype == '':
             try:
-                dist, indx = self.tree.query(matrix) # no north-south split (e.g., BGS/MXXL)
+                # no north-south split (e.g., BGS/MXXL)
+                param_min = self.param_min
+                param_range = self.param_range
             except:
                 if south:
-                    dist, indx = self.tree_south.query(matrix)
+                    param_min = self.param_min_south
+                    param_range = self.param_range_south
                 else:
-                    dist, indx = self.tree_north.query(matrix)
+                    param_min = self.param_min_north
+                    param_range = self.param_range_north
         else:
             if subtype.upper() == 'DA':
-                dist, indx = self.tree_da.query(matrix)
+                param_min = self.param_min_da
+                param_range = self.param_range_da
             elif subtype.upper() == 'DB':
-                dist, indx = self.tree_db.query(matrix)
+                param_min = self.param_min_db
+                param_range = self.param_range_db
+            else:
+                log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
+                raise ValueError
+                
+        return ( (matrix - np.tile(param_min, nobj).reshape(nobj, ndim)) /
+                 np.tile( param_range, nobj).reshape(nobj, ndim) )
+        
+    def KDTree_build(self, matrix, south=True, subtype=''):
+        """Build a KD-tree."""
+        from scipy.spatial import cKDTree as KDTree
+        return KDTree( self.KDTree_rescale(matrix, south=south, subtype=subtype) )
+
+    def KDTree_query(self, matrix, return_dist=False, south=True, subtype=''):
+        """Return the nearest template number based on the KD Tree."""
+
+        matrix_rescaled = self.KDTree_rescale(matrix, south=south, subtype=subtype)
+        
+        if subtype == '':
+            try:
+                # no north-south split (e.g., BGS/MXXL)
+                dist, indx = self.KDTree.query( matrix_rescaled ) 
+            except:
+                if south:
+                    dist, indx = self.KDTree_south.query( matrix_rescaled )
+                else:
+                    dist, indx = self.KDTree_north.query( matrix_rescaled )
+        else:
+            if subtype.upper() == 'DA':
+                dist, indx = self.KDTree_da.query( matrix_rescaled )
+            elif subtype.upper() == 'DB':
+                dist, indx = self.KDTree_db.query( matrix_rescaled )
             else:
                 log.warning('Unrecognized SUBTYPE {}!'.format(subtype))
                 raise ValueError
@@ -689,6 +738,79 @@ class SelectTargets(object):
 
         return gflux, rflux, zflux, w1flux, w2flux
 
+    def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
+        """Estimate the fraction of the integrated flux that enters the fiber.
+
+        Assume a reference seeing value (seeingref) of 1.0 arcsec FWHM at
+        a reference wavelength (lambdaref) of 5500 Angstrom.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        south : :class:`bool`
+            True for sources with DECaLS photometry and False for sources with
+            BASS+MzLS photometry.
+        ref_seeing : :class:`float`
+            Reference seeing FWHM in arcsec.  Defaults to 1.0.
+        ref_lambda : :class:`float`
+            Reference wavelength in Angstrom.  Defaults to 5500 A.
+
+        Returns
+        -------
+        fiberfraction_g : :class:`numpy.ndarray`
+            Fraction of the total g-band flux entering the fiber.
+        fiberfraction_r : :class:`numpy.ndarray`
+            Fraction of the total r-band flux entering the fiber.
+        fiberfraction_z : :class:`numpy.ndarray`
+            Fraction of the total z-band flux entering the fiber.
+    
+        Raises
+        ------
+        ValueError
+            If fiberfraction is outside the bounds [0-1] (inclusive).
+
+        """
+        ntarg = len(targets)
+        fiberfraction_g = np.zeros(ntarg).astype('f4')
+        fiberfraction_r, fiberfraction_z = np.zeros_like(fiberfraction_g), np.zeros_like(fiberfraction_g)
+
+        if south:
+            lambdafilts = self.decamwise.effective_wavelengths[:4].value # [Angstrom]
+        else:
+            lambdafilts = self.bassmzlswise.effective_wavelengths[:4].value # [Angstrom]
+
+        # Not quite right to use a bulge-like surface-brightness profile for COMP.
+        type2source = {'PSF': 'POINT', 'REX': 'DISK', 'EXP': 'DISK',
+                       'DEV': 'BULGE', 'COMP': 'BULGE'}
+
+        for morphtype in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+            istype = targets['TYPE'] == morphtype
+            if np.sum(istype) > 0:
+                # Assume the radius is independent of wavelength.
+                reff = ( targets['FRACDEV'][istype].data * targets['SHAPEDEV_R'][istype].data +
+                         (1 - targets['FRACDEV'][istype].data) * targets['SHAPEEXP_R'][istype].data )
+                offset = np.zeros( np.sum(istype) ) # fiber offset [um]
+
+                for band, lambdafilt, fiberfraction in zip( ('G', 'R', 'Z'), lambdafilts,
+                                                        (fiberfraction_g, fiberfraction_r, fiberfraction_z) ):
+                    sigma_um = np.repeat( ref_seeing * (lambdafilt / ref_lambda)**(-1.0 / 5.0) /
+                                          2.35482 * self.plate_scale_arcsec2um, np.sum(istype) ) # [um]
+                    fiberfraction[istype] = self.FFA.value(type2source[morphtype], sigma_um, offset, hlradii=reff)
+
+        # Sanity check.
+        if np.sum( (fiberfraction_r < 0) * (fiberfraction_r > 1) ) > 0:
+            log.warning('FIBERFRACTION should be [0-1].')
+            raise ValueError
+
+        # Put a floor of 5% (otherwise would be zero for large objects).
+        for fiberfraction in (fiberfraction_g, fiberfraction_r, fiberfraction_z):
+            zero = fiberfraction == 0
+            if np.sum(zero) > 0:
+                fiberfraction[zero] = 0.05
+
+        return fiberfraction_g, fiberfraction_r, fiberfraction_z
+
     def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
                                use_simqso=True, truespectype='', templatetype='',
                                templatesubtype=''):
@@ -755,12 +877,13 @@ class SelectTargets(object):
 
         # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
         targets['RELEASE'][:] = 9999
-        
-        south = self.is_south(targets['DEC'])
-        north = ~south
-        if np.sum(south) > 0:
+
+        isouth = self.is_south(targets['DEC'])
+        south = np.where( isouth )[0]
+        north = np.where( ~isouth )[0]
+        if len(south) > 0:
             targets['PHOTSYS'][south] = 'S'
-        if np.sum(north) > 0:
+        if len(north) > 0:
             targets['PHOTSYS'][north] = 'N'
             
         targets['RA_IVAR'][:], targets['DEC_IVAR'][:] = 1e8, 1e8
@@ -777,10 +900,6 @@ class SelectTargets(object):
                 targets[key][:] = data[key][indx]
             nobskey = 'NOBS_{}'.format(band)
             targets[nobskey][:] = 2 # assume constant!
-
-        #for band in ('W1', 'W2'):
-        #    key = 'PSFDEPTH_{}'.format(band)
-        #    targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
@@ -802,13 +921,23 @@ class SelectTargets(object):
                 if key in objtruth.colnames:
                     objtruth[key][:] = objmeta[key]
             
-        # Scatter the photometry based on the depth.
+        # Scatter the observed photometry based on the depth and then attenuate
+        # for Galactic extinction.
         self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
 
-        # Finally, attenuate the observed photometry for Galactic extinction.
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
+
+        # Finally compute the (simulated, observed) flux within the fiber.
+        for these, issouth in zip( (north, south), (False, True) ):
+            if len(these) > 0:
+                fiberfraction = self.get_fiberfraction(targets[these], south=issouth)
+                for band, fraction in zip( ('G', 'R', 'Z'), fiberfraction ):
+                    fiberflux = targets['FLUX_{}'.format(band)][these] * fraction
+
+                    targets['FIBERFLUX_{}'.format(band)][these] = fiberflux
+                    targets['FIBERTOTFLUX_{}'.format(band)][these] = fiberflux
 
         return targets, truth, objtruth
 
@@ -1328,15 +1457,6 @@ class ReadGalaxia(SelectTargets):
         logg = data['LOGG'].astype('f4')
         feh = data['FEH'].astype('f4')
 
-        # Temporary hack to select SDSS standards using extinction-corrected
-        # SDSS mags.
-        boss_std = self.select_sdss_std(data['SDSSU_TRUE_NODUST'],
-                                        data['SDSSG_TRUE_NODUST'],
-                                        data['SDSSR_TRUE_NODUST'],
-                                        data['SDSSI_TRUE_NODUST'],
-                                        data['SDSSZ_TRUE_NODUST'],
-                                        obs_rmag=None)
-        
         if magcut:
             cut = mag < magcut
             if np.count_nonzero(cut) == 0:
@@ -1349,7 +1469,6 @@ class ReadGalaxia(SelectTargets):
                 weight = weight[cut]
                 ra = ra[cut]
                 dec = dec[cut]
-                boss_std = boss_std[cut]
                 zz = zz[cut]
                 mag = mag[cut]
                 mag_obs = mag_obs[cut]
@@ -1393,7 +1512,6 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
-               #'BOSS_STD': boss_std,
                'REF_ID': mockid,
 
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
@@ -1425,40 +1543,6 @@ class ReadGalaxia(SelectTargets):
         self.imaging_depth(out)
 
         return out
-
-    def select_sdss_std(self, umag, gmag, rmag, imag, zmag, obs_rmag=None):
-        """Select standard stars using SDSS photometry and the BOSS algorithm.
-        
-        According to http://www.sdss.org/dr12/algorithms/boss_std_ts the r-band
-        magnitude for the magnitude cuts is the extinction corrected magnitude.
-
-        Parameters
-        ----------
-        umag : :class:`float`
-            SDSS u-band extinction-corrected magnitude.
-        gmag : :class:`float`
-            SDSS g-band extinction-corrected magnitude.
-        rmag : :class:`float`
-            SDSS r-band extinction-corrected magnitude.
-        imag : :class:`float`
-            SDSS i-band extinction-corrected magnitude.
-        zmag : :class:`float`
-            SDSS z-band extinction-corrected magnitude.
-        obs_rmag : :class:`float`
-            SDSS r-band observed (not extinction-corrected) magnitude.
-
-        """
-        umg_cut = ((umag - gmag) - 0.82)**2
-        gmr_cut = ((gmag - rmag) - 0.30)**2
-        rmi_cut = ((rmag - imag) - 0.09)**2
-        imz_cut = ((imag - zmag) - 0.02)**2
-    
-        is_std = np.sqrt((umg_cut + gmr_cut + rmi_cut + imz_cut)) < 0.08
-    
-        if obs_rmag is not None:
-            is_std &= (15.0 < obs_rmag) & (obs_rmag < 19)
-        
-        return is_std
 
 class ReadLyaCoLoRe(SelectTargets):
     """Read a CoLoRe mock catalog of Lya skewers."""
@@ -1806,6 +1890,7 @@ class ReadMXXL(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
                'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
                'SOUTH': isouth}
+
         if gmmout is not None:
             out.update(gmmout)
 
@@ -2718,11 +2803,10 @@ class LRGMaker(SelectTargets):
         velocity dispersion to targets.  Defaults to 128.
 
     """
-    wave, tree_north, tree_south, template_maker = None, None, None, None
+    wave, KDTree_north, KDTree_south, template_maker = None, None, None, None
     GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
-        from scipy.spatial import cKDTree as KDTree
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -2739,12 +2823,13 @@ class LRGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree_north is None:
-            LRGMaker.tree_north = KDTree( np.vstack((
-                self.meta['Z'].data)).T )
-        if self.tree_south is None:
-            LRGMaker.tree_south = KDTree( np.vstack((
-                self.meta['Z'].data)).T )
+        ## Build the KD Tree.  ToDo: add north/south photometry.
+        #if self.KDTree_north is None:
+        #    LRGMaker.KDTree_north = KDTree( np.vstack((
+        #        self.meta['Z'].data)).T )
+        #if self.KDTree_south is None:
+        #    LRGMaker.KDTree_south = KDTree( np.vstack((
+        #        self.meta['Z'].data)).T )
 
         if self.GMM_LRG is None:
             self.read_GMM(target='LRG')
@@ -2910,11 +2995,10 @@ class ELGMaker(SelectTargets):
         velocity dispersion to targets.  Defaults to 128.
 
     """
-    wave, tree_north, tree_south, template_maker = None, None, None, None
+    wave, KDTree_north, KDTree_south, template_maker = None, None, None, None
     GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
-        from scipy.spatial import cKDTree as KDTree
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -2931,17 +3015,31 @@ class ELGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree_north is None:
-            log.warning('Using south ELG KD Tree for north photometry.')
-            ELGMaker.tree_north = KDTree( np.vstack((
-                self.meta['Z'].data,
-                self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
-                self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
-        if self.tree_south is None:
-            ELGMaker.tree_south = KDTree( np.vstack((
-                self.meta['Z'].data,
-                self.meta['DECAM_G'].data - self.meta['DECAM_R'].data,
-                self.meta['DECAM_R'].data - self.meta['DECAM_Z'].data)).T )
+        # Build the KD Trees
+        log.warning('Using south ELG KD Tree for north photometry.')
+        zobj = self.meta['Z'].data
+        gr_north = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_north = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+
+        self.param_min_north = ( zobj.min(), gr_north.min(), rz_north.min() )
+        self.param_min_south = ( zobj.min(), gr_south.min(), rz_south.min() )
+        self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north) )
+        self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south) )
+        
+        if self.KDTree_north is None:
+            ELGMaker.KDTree_north = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_north,
+                    rz_north)).T, south=False )
+        if self.KDTree_south is None:
+            ELGMaker.KDTree_south = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_south,
+                    rz_south)).T, south=True )
 
         if self.GMM_LRG is None:
             self.read_GMM(target='LRG')
@@ -3057,10 +3155,11 @@ class ELGMaker(SelectTargets):
                     if len(these) > 0:
                         input_meta['MAG'][these] = data['MAG'][indx][these]
                         input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
-                        input_meta['TEMPLATEID'][these] = self._query(
-                            np.vstack((data['Z'][indx][these],
-                                       data['GR'][indx][these],
-                                       data['RZ'][indx][these])).T, south=issouth)
+                        input_meta['TEMPLATEID'][these] = self.KDTree_query(
+                            np.vstack((
+                                data['Z'][indx][these],
+                                data['GR'][indx][these],
+                                data['RZ'][indx][these])).T, south=issouth)
 
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -3111,11 +3210,10 @@ class BGSMaker(SelectTargets):
         velocity dispersion to targets.  Defaults to 128.
 
     """
-    wave, tree, template_maker = None, None, None
+    wave, KDTree, template_maker = None, None, None
     GMM_LRG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
-        from scipy.spatial import cKDTree as KDTree
         from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
 
@@ -3132,12 +3230,15 @@ class BGSMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        if self.tree is None:
-            zobj = self.meta['Z'].data
-            mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
-            rmabs = mabs[:, 2]
-            gr = mabs[:, 1] - mabs[:, 2]
-            BGSMaker.tree = KDTree(np.vstack((zobj, rmabs, gr)).T)
+        zobj = self.meta['Z'].data
+        mabs = self.meta['SDSS_UGRIZ_ABSMAG_Z01'].data
+        rmabs = mabs[:, 2]
+        gr = mabs[:, 1] - mabs[:, 2]
+
+        self.param_min = ( zobj.min(), rmabs.min(), gr.min() )
+        self.param_range = ( np.ptp(zobj), np.ptp(rmabs), np.ptp(gr) )
+        if self.KDTree is None:
+            BGSMaker.KDTree = self.KDTree_build(np.vstack((zobj, rmabs, gr)).T)
 
         if self.GMM_BGS is None:
             self.read_GMM(target='BGS')
@@ -3258,7 +3359,7 @@ class BGSMaker(SelectTargets):
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
             if self.mockformat == 'durham_mxxl_hdf5':
-                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
+                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
                     data['Z'][indx],
                     data['SDSS_absmag_r01'][indx],
                     data['SDSS_01gr'][indx])).T )
@@ -3268,7 +3369,7 @@ class BGSMaker(SelectTargets):
 
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
-                input_meta['TEMPLATEID'][:] = self._query( np.vstack((
+                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
                     data['Z'][indx],
                     data['RMABS_01'][indx],
                     data['GR_01'][indx])).T )
@@ -3333,12 +3434,11 @@ class STARMaker(SelectTargets):
         Seed for reproducibility and random number generation.
 
     """
-    wave, template_maker, tree = None, None, None
+    wave, template_maker, KDTree = None, None, None
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
     def __init__(self, seed=None, **kwargs):
-        from scipy.spatial import cKDTree as KDTree
         from speclite import filters
         from desisim.templates import STAR
 
@@ -3360,12 +3460,8 @@ class STARMaker(SelectTargets):
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
-            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
-                                                'wise2010-W1', 'wise2010-W2')
-            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                             'wise2010-W1', 'wise2010-W2')
-            maggies_north = bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
-            maggies_south = decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
+            maggies_south = self.decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
 
             # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
@@ -3384,12 +3480,16 @@ class STARMaker(SelectTargets):
             STARMaker.star_maggies_r_south = _get_maggies(flux, wave, maggies_south.copy(), sdssr)
 
         # Build the KD Tree.
-        if self.tree is None:
-            STARMaker.tree = KDTree(np.vstack(
-                (self.meta['TEFF'].data,
-                 self.meta['LOGG'].data,
-                self.meta['FEH'].data)).T)
-        
+        logteff = np.log10(self.meta['TEFF'].data)
+        logg = self.meta['LOGG']
+        feh = self.meta['FEH']
+
+        self.param_min = ( logteff.min(), logg.min(), feh.min() )
+        self.param_range = ( np.ptp(logteff), np.ptp(logg), np.ptp(feh) )
+
+        if self.KDTree is None:
+            STARMaker.KDTree = self.KDTree_build(np.vstack((logteff, logg, feh)).T)
+
     def template_photometry(self, data=None, indx=None, rand=None, south=True):
         """Get stellar photometry from the templates themselves, by-passing the
         generation of spectra.
@@ -3413,13 +3513,14 @@ class STARMaker(SelectTargets):
         objmeta['FEH'][:] = data['FEH'][indx]
 
         if self.mockformat == 'galaxia':
-            templateid = self._query(np.vstack((data['TEFF'][indx],
-                                                data['LOGG'][indx],
-                                                data['FEH'][indx])).T)
+            templateid = self.KDTree_query(np.vstack((
+                np.log10(data['TEFF'][indx]).data,
+                data['LOGG'][indx], data['FEH'][indx])).T)
+            
         elif self.mockformat == 'mws_100pc':
-            templateid = self._query(np.vstack((data['TEFF'][indx],
-                                                data['LOGG'][indx],
-                                                data['FEH'][indx])).T)
+            templateid = self.KDTree_query(np.vstack((
+                np.log10(data['TEFF'][indx]),
+                data['LOGG'][indx], data['FEH'][indx])).T)
 
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
 
@@ -3446,74 +3547,6 @@ class STARMaker(SelectTargets):
 
         return meta, objmeta
  
-    def select_standards(self, targets, truth, boss_std=None):
-        """Select bright- and dark-time standard stars.  Input tables are modified in
-        place.
-
-        Parameters
-        ----------
-        targets : :class:`astropy.table.Table`
-            Input target catalog.
-        truth : :class:`astropy.table.Table`
-            Corresponding truth table.
-        boss_std : :class:`numpy.ndarray`, optional
-            Boolean array generated by ReadGalaxia.select_sdss_std indicating
-            whether a star satisfies the SDSS/BOSS standard-star selection
-            criteria.  Defaults to None.
-
-        """
-        from desitarget.cuts import isSTD
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-        obs_rflux = targets['FLUX_R'] # observed (attenuated) flux
-
-        gsnr, rsnr, zsnr = gflux*0+100, rflux*0+100, zflux*0+100    # Hack -- fixed S/N
-        gfracflux, rfracflux, zfracflux = gflux*0, rflux*0, zflux*0 # # No contamination from neighbors.
-        objtype = np.repeat('PSF', len(targets)).astype('U3') # Right data type?!?
-        #ADM hack in values of the number of observations
-        gnobs, rnobs, znobs = gflux*0+1, rflux*0+1, zflux*0+1
-        #ADM hack in values of fracmasked
-        gfracmasked, rfracmasked, zfracmasked = gflux*0+0.001, rflux*0+0.001, zflux*0+0.001
-        #ADM hack in the ivars using the hacked snr
-        gfluxivar, rfluxivar, zfluxivar = (gsnr/gflux)**2., (rsnr/rflux)**2., (zsnr/zflux)**2.
-
-        # Select dark-time STD targets.  Temporary hack to use the BOSS
-        # standard-star selection algorith.
-        if boss_std is not None:
-            rbright, rfaint = 16, 19
-            std = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
-                obs_rflux > 10**((22.5 - rfaint)/2.5) )
-        else:
-            #ADM as we have no Gaia information in the mocks, call with usegaia=False 
-            #ADM and pass the observerved r-band as a proxy for gaia G-band
-            std = isSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                        gfracmasked=gfracmasked, rfracmasked=rfracmasked, 
-                        zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        usegaia=False, bright=False, gaiagmag=22.5-2.5*np.log10(obs_rflux) )
-
-        targets['DESI_TARGET'] |= (std != 0) * self.desi_mask.STD_FAINT
-
-        # Select bright-time STD targets.  Temporary hack to use the BOSS
-        # standard-star selection algorith.
-        if boss_std is not None:
-            #ADM current bright limits are 15 to 18 in Gaia G-band
-            rbright, rfaint = 15, 18
-            std_bright = boss_std * ( obs_rflux < 10**((22.5 - rbright)/2.5) ) * (
-                obs_rflux > 10**((22.5 - rfaint)/2.5) )
-        else:
-            #ADM as we have no Gaia information in the mocks, call with usegaia=False 
-            #ADM and pass the observerved r-band as a proxy for gaia G-band
-            std_bright = isSTD(gflux=gflux, rflux=rflux, zflux=zflux, objtype=objtype,
-                               gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                               gfracmasked=gfracmasked, rfracmasked=rfracmasked, 
-                               zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                               gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                               usegaia=False, bright=False, gaiagmag=22.5-2.5*np.log10(obs_rflux) )
-
-        targets['DESI_TARGET'] |= (std_bright != 0) * self.desi_mask.STD_BRIGHT
-
     def select_contaminants(self, targets, truth):
         """Select stellar (faint and bright) contaminants for the extragalactic targets.
         Input tables are modified in place.
@@ -3677,8 +3710,8 @@ class MWS_MAINMaker(STARMaker):
             input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'galaxia':
-                input_meta['TEMPLATEID'][:] = self._query(
-                    np.vstack((data['TEFF'][indx],
+                input_meta['TEMPLATEID'][:] = self.KDTree_query(
+                    np.vstack((np.log10(data['TEFF'][indx]),
                                data['LOGG'][indx],
                                data['FEH'][indx])).T)
 
@@ -3705,7 +3738,7 @@ class MWS_MAINMaker(STARMaker):
                                                            
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, boss_std=None):
+    def select_targets(self, targets, truth):
         """Select various MWS stars and standard stars.  Input tables are modified in
         place.
 
@@ -3715,10 +3748,6 @@ class MWS_MAINMaker(STARMaker):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
-        boss_std : :class:`numpy.ndarray`, optional
-            Boolean array generated by ReadGalaxia.select_sdss_std indicating
-            whether a star satisfies the SDSS/BOSS standard-star selection
-            criteria.  Defaults to None.
 
         """
         if self.calib_only:
@@ -3728,6 +3757,21 @@ class MWS_MAINMaker(STARMaker):
             
         desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
 
+        # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
+        # those are handled in the MWS_NEARBYMaker and WDMaker classes,
+        # respectively.
+        for mwsbit in ('MWS_NEARBY', 'MWS_WD'):
+            these = mws_target & self.mws_mask.mask(mwsbit) != 0
+            if np.sum(these) > 0:
+                mws_target[these] -= self.mws_mask.mask(mwsbit)
+                andthose = mws_target[these] == 0
+                if np.sum(andthose) > 0:
+                    desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
+        
+        these = desi_target & self.desi_mask.mask('STD_WD') != 0
+        if np.sum(these) > 0:
+            desi_target[these] -= self.desi_mask.mask('STD_WD')
+            
         targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
         targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
@@ -3799,7 +3843,7 @@ class FAINTSTARMaker(STARMaker):
 
         return data
     
-    def make_spectra(self, data=None, indx=None, boss_std=None, seed=None, no_spectra=False):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate FAINTSTAR stellar spectra.
 
         Note: These (numerous!) objects are only used as contaminants, so we use
@@ -3813,10 +3857,6 @@ class FAINTSTARMaker(STARMaker):
         indx : :class:`numpy.ndarray`, optional
             Generate spectra for a subset of the objects in the data dictionary,
             as specified using their zero-indexed indices.
-        boss_std : :class:`numpy.ndarray`, optional
-            Boolean array generated by ReadGalaxia.select_sdss_std indicating
-            whether a star satisfies the SDSS/BOSS standard-star selection
-            criteria.  Defaults to None.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
         no_spectra : :class:`bool`, optional
@@ -3849,10 +3889,10 @@ class FAINTSTARMaker(STARMaker):
         objseeds = rand.randint(2**31, size=nobj)
 
         if self.mockformat == 'galaxia':
-            alldata = np.vstack((data['TEFF'][indx],
-                                 data['LOGG'][indx],
-                                 data['FEH'][indx])).T
-            _, templateid = self._query(alldata)
+            templateid = self.KDTree_query(
+                np.vstack((np.log10(data['TEFF'][indx]),
+                           data['LOGG'][indx],
+                           data['FEH'][indx])).T)
 
         # Initialize dummy targets and truth tables.
         _targets = empty_targets_table(nobj)
@@ -3880,7 +3920,7 @@ class FAINTSTARMaker(STARMaker):
 
         self.scatter_photometry(data, _truth, _targets, indx=indx, psf=True, qaplot=False)
 
-        self.select_targets(_targets, _truth, boss_std=boss_std)
+        self.select_targets(_targets, _truth)
 
         keep = np.where(_targets['DESI_TARGET'] != 0)[0]
         log.debug('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
@@ -3915,17 +3955,14 @@ class FAINTSTARMaker(STARMaker):
                 for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
                     targets[filt][:] = _targets[filt][keep]
 
-            if boss_std is None:
-                self.select_targets(targets, truth)
-            else:
-                self.select_targets(targets, truth, boss_std=boss_std[keep])
+            self.select_targets(targets, truth)
 
             return flux, self.wave, targets, truth, objtruth
 
         else:
             return [], self.wave, None, [], [], []
                                                            
-    def select_targets(self, targets, truth, boss_std=None):
+    def select_targets(self, targets, truth):
         """Select faint stellar contaminants for the extragalactic targets.  Input
         tables are modified in place.
 
@@ -3935,10 +3972,6 @@ class FAINTSTARMaker(STARMaker):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
-        boss_std : :class:`numpy.ndarray`, optional
-            Boolean array generated by ReadGalaxia.select_sdss_std indicating
-            whether a star satisfies the SDSS/BOSS standard-star selection
-            criteria.  Defaults to None.
 
         """
         log.info('Temporarily turning off contaminants.')
@@ -4051,8 +4084,8 @@ class MWS_NEARBYMaker(STARMaker):
             input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
             if self.mockformat == 'mws_100pc':
-                input_meta['TEMPLATEID'][:] = self._query(
-                    np.vstack((data['TEFF'][indx],
+                input_meta['TEMPLATEID'][:] = self.KDTree_query(
+                    np.vstack((np.log10(data['TEFF'][indx]),
                                data['LOGG'][indx],
                                data['FEH'][indx])).T)
 
@@ -4120,13 +4153,12 @@ class WDMaker(SelectTargets):
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
-    tree_da, tree_db = None, None
+    KDTree_da, KDTree_db = None, None
     wd_maggies_da_north, wd_maggies_da_north = None, None
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
     def __init__(self, seed=None, calib_only=False, **kwargs):
-        from scipy.spatial import cKDTree as KDTree
-        from speclite import filters 
+        from speclite import filters
         from desisim.templates import WD
         
         super(WDMaker, self).__init__()
@@ -4155,15 +4187,10 @@ class WDMaker(SelectTargets):
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
 
-            bassmzlswise = filters.load_filters('BASS-g', 'BASS-r', 'MzLS-z',
-                                                'wise2010-W1', 'wise2010-W2')
-            decamwise = filters.load_filters('decam2014-g', 'decam2014-r', 'decam2014-z',
-                                             'wise2010-W1', 'wise2010-W2')
-
-            maggies_da_north = decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db_north = decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
-            maggies_da_south = bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
-            maggies_db_south = bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_north = self.decamwise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_north = self.decamwise.get_ab_maggies(flux_db, wave, mask_invalid=True)
+            maggies_da_south = self.bassmzlswise.get_ab_maggies(flux_da, wave, mask_invalid=True)
+            maggies_db_south = self.bassmzlswise.get_ab_maggies(flux_db, wave, mask_invalid=True)
 
             # Normalize to sdss-g
             normfilter = filters.load_filters('sdss2010-g')
@@ -4180,12 +4207,21 @@ class WDMaker(SelectTargets):
             WDMaker.wd_maggies_db_south = _get_maggies(flux_db, wave, maggies_db_south.copy(), normfilter)
 
         # Build the KD Trees
-        if self.tree_da is None:
-            WDMaker.tree_da = KDTree(np.vstack((self.meta_da['TEFF'].data,
-                                                self.meta_da['LOGG'].data)).T)
-        if self.tree_db is None:
-            WDMaker.tree_db = KDTree(np.vstack((self.meta_db['TEFF'].data,
-                                                self.meta_db['LOGG'].data)).T)
+        logteff_da = np.log10(self.meta_da['TEFF'].data)
+        logteff_db = np.log10(self.meta_db['TEFF'].data)
+        logg_da = self.meta_da['LOGG'].data
+        logg_db = self.meta_db['LOGG'].data
+
+        self.param_min_da = ( logteff_da.min(), logg_da.min() )
+        self.param_range_da = ( np.ptp(logteff_da), np.ptp(logg_da) )
+        self.param_min_db = ( logteff_db.min(), logg_db.min() )
+        self.param_range_db = ( np.ptp(logteff_db), np.ptp(logg_db) )
+
+        if self.KDTree_da is None:
+            WDMaker.KDTree_da = self.KDTree_build(np.vstack((logteff_da, logg_da)).T, subtype='DA')
+            
+        if self.KDTree_db is None:
+            WDMaker.KDTree_db = self.KDTree_build(np.vstack((logteff_db, logg_db)).T, subtype='DB')
 
     def read(self, mockfile=None, mockformat='mws_wd', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4257,10 +4293,9 @@ class WDMaker(SelectTargets):
         objmeta['LOGG'][:] = data['LOGG'][indx]
 
         if self.mockformat == 'mws_wd':
-            templateid = self._query(
-                np.vstack((data['TEFF'][indx],
+            templateid = self.KDTree_query(
+                np.vstack((np.log10(data['TEFF'][indx].data),
                            data['LOGG'][indx])).T, subtype=subtype)
-
         normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
 
         if south:
@@ -4341,8 +4376,8 @@ class WDMaker(SelectTargets):
                 match = np.where(allsubtype == subtype)[0]
                 if len(match) > 0:
                     if not no_spectra:
-                        input_meta['TEMPLATEID'][match] = self._query(
-                            np.vstack((data['TEFF'][indx][match],
+                        input_meta['TEMPLATEID'][match] = self.KDTree_query(
+                            np.vstack((np.log10(data['TEFF'][indx][match].data),
                                        data['LOGG'][indx][match])).T,
                             subtype=subtype)
 

@@ -1,3 +1,7 @@
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+"""Test desitarget.mock.sample.
+"""
 import unittest
 import numpy as np
 
@@ -67,3 +71,10 @@ class TestSample(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+def test_suite():
+    """Allows testing of only this module with the command:
+
+        python setup.py test -m desitarget.test.test_sample
+    """
+    return unittest.defaultTestLoader.loadTestsFromName(__name__)

@@ -2,12 +2,12 @@
 
 from __future__ import print_function, division
 
-import os, sys
+import sys
 import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.sv.sv_cuts import select_targets, qso_selection_options
+from desitarget.cuts import select_targets, qso_selection_options
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
 
@@ -34,17 +34,13 @@ ap.add_argument('-m', "--mask",
                 help="If sent then mask the targets, the name of the mask file should be supplied")
 ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
                 help="QSO target selection method")
-### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
-ap.add_argument("--gaiadir", 
-                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
-                default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
-ap.add_argument("--gaiamatch", action='store_true',
-                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
 ap.add_argument("--numproc", type=int,
-                help='number of concurrent processes to use [{}]'.format(nproc),
+                help='number of concurrent processes to use [defaults to {}]'.format(nproc),
                 default=nproc)
 ap.add_argument('-t','--tcnames', default=None, 
                 help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
+ap.add_argument('-i','--iteration', default="1", 
+                help="Iteration of SV target selection to run [defaults to 1 for 'sv1']")
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -54,19 +50,39 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
+survey='sv'+ns.iteration
+
+# ADM Only coded for objects with Gaia matches
+# ADM (e.g. DR6 or above). Fail for earlier Data Releases.
+# ADM Guard against a single file being passed.
+fn = infiles
+if ~isinstance(infiles, str):
+    fn = infiles[0]
+data = fitsio.read(fn, columns=["RELEASE","PMRA"])
+if np.any(data["RELEASE"] < 6000):
+    log.critical('Commissioning cuts only coded for DR6 or above')
+    raise ValueError
+if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
+    d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
+    log.info("Zero objects have a proper motion.")
+    log.critical(
+        "Did you mean to send the Gaia-matched sweeps in, e.g., {}?"
+        .format(d)
+    )
+    raise IOError
+
+
 log.info("running on {} processors".format(ns.numproc))
 
 #ADM if specific bit names were passed, use them, otherwise run all target classes
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 targets = select_targets(infiles, numproc=ns.numproc,
-                         qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
-                         gaiadir=ns.gaiadir, tcnames=tcnames)
+                         qso_selection=ns.qsoselection, tcnames=tcnames, survey=survey)
 if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-io.write_targets(ns.dest, targets, indir=ns.src, survey="sv",
+io.write_targets(ns.dest, targets, indir=ns.src, survey=survey,
                  qso_selection=ns.qsoselection, nside=nside)
 
 log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
-

@@ -8,7 +8,7 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
-    #-ADM allow the primary targets to be split by number of passes
+    #- ADM allow the primary targets to be split by number of passes
     - [LRG_1PASS,   3, "LRG observed in 1st pass", {obsconditions: DARK}]
     - [LRG_2PASS,   4, "LRG observed in 2nd pass", {obsconditions: DARK}]
 
@@ -226,11 +226,11 @@ priorities:
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
 
-#ADM INITIAL number of observations (NUMOBS) for each target bit
-#ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
-#ADM -1 means that the concept of NUMOBS doesn't apply to this bit
+# ADM INITIAL number of observations (NUMOBS) for each target bit
+# ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
+# ADM -1 means that the concept of NUMOBS doesn't apply to this bit
 numobs:
-    #ADM initial number of observations for targets in the main (dark time) survey
+    # ADM initial number of observations for targets in the main (dark time) survey
     desi_mask:
         ELG: 1
         LRG: 2
@@ -266,7 +266,7 @@ numobs:
         MWS_ANY: -1
         SECONDARY_ANY: -1
 
-    #ADM initial number of observations for targets in the Bright Galaxy Survey
+    # ADM initial number of observations for targets in the Bright Galaxy Survey
     bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
@@ -282,7 +282,7 @@ numobs:
         BGS_KNOWN_SDSS: 1
         BGS_KNOWN_BOSS: 1
 
-    #ADM initial number of observations for targets in the Bright Galaxy Survey
+    # ADM initial number of observations for targets in the Bright Galaxy Survey
     mws_mask: 
         MWS_MAIN:                     1
         MWS_WD:                       1

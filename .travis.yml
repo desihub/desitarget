@@ -43,9 +43,9 @@ env:
         # to repeat them for all configurations.
         # - NUMPY_VERSION=1.10
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=2.0.4
+        - ASTROPY_VERSION=2.0.7
         # - SPHINX_VERSION=1.6.6
-        - DESIUTIL_VERSION=1.9.9
+        - DESIUTIL_VERSION=1.9.11
         # - SPECLITE_VERSION=0.7
         - SPECLITE_VERSION=master
         - DESISPEC_VERSION=0.18.0
@@ -59,12 +59,12 @@ env:
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml healpy photutils"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
         # - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio"
-        - PIP_ALL_DEPENDENCIES="coveralls fitsio"
+        - PIP_ALL_DEPENDENCIES="coveralls fitsio healpy"
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
         - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION} desimodel=${DESIMODEL_VERSION}"
@@ -92,7 +92,7 @@ matrix:
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
         - os: linux
           python: 3.5
-          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W505,E121,E123,E126,E133,E226,E241,E242,E501,E704 py/desitarget'
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W503,W504,E121,E123,E126,E133,E226,E241,E242,E501,E704,E731,E741 py/desitarget'
 
     include:
 
@@ -160,7 +160,7 @@ matrix:
         # PEP 8 compliance.
         - os: linux
           python: 3.5
-          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W505,E121,E123,E126,E133,E226,E241,E242,E501,E704 py/desitarget'
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W503,W504,E121,E123,E126,E133,E226,E241,E242,E501,E704,E731,E741 py/desitarget'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git

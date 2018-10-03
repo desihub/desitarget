@@ -249,27 +249,10 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     objtruth = list()
     trueflux = list()
 
-    boss_std = None
-
-    # Temporary hack to use BOSS standard stars.
-    if 'BOSS_STD' in data.keys():
-        boss_std = data['BOSS_STD'][indx]
-
-        if calib_only:
-            calib = np.where(boss_std)[0]
-            ntarget = len(calib)
-            if ntarget == 0:
-                log.debug('No (flux) calibration star(s) on this healpixel.')
-                return [targets, truth, objtruth, trueflux]
-            else:
-                log.debug('Generating spectra for {} candidate (flux) calibration stars.'.format(ntarget))
-                indx = indx[calib]
-                boss_std = boss_std[calib]
-
     # Faintstar targets are a special case.
     if targname.lower() == 'faintstar':
         chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-            data, indx=indx, boss_std=boss_std)
+            data, indx=indx)
         
         if len(chunktargets) > 0:
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
@@ -296,7 +279,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
                 data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
 
-            MakeMock.select_targets(chunktargets, chunktruth, boss_std=boss_std)
+            MakeMock.select_targets(chunktargets, chunktruth)
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             nkeep = len(keep)
@@ -397,7 +380,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         # Subsample the targets on this mini healpixel.
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
-        ntargthispix = np.ceil( len(allindxthispix) * density_factor ).astype('int')
+        ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
         indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
 
         indxperchunk.append(indxthispix)
@@ -416,7 +399,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         #    ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
 
     ntargperchunk = np.array(ntargperchunk)
-
+    
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
@@ -914,7 +897,7 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
             hx.writeto(truthfile+'.tmp', clobber=True)
         os.rename(truthfile+'.tmp', truthfile)
 
-def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None):
+def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, overwrite=False):
     '''
     parallel merge tables from individual files into an output file
 
@@ -932,6 +915,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None):
     import fitsio
     import glob
     from desiutil.log import get_logger
+    log = get_logger()
     
     if comm is not None:
         size = comm.Get_size()
@@ -954,18 +938,42 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None):
         return
     
     #- Each rank reads and combines a different set of files
-    data = np.hstack( [fitsio.read(x, ext) for x in infiles[rank::size]] )
+    data = list()
+    for filename in infiles[rank::size]:
+        try:
+            data.append(fitsio.read(filename, ext))
+        except OSError:  #- yep, OSError not IOError
+            log.info('Extension {} not found in {}'.format(ext, filename))
+            pass
+
+    if len(data) > 0:
+        data = np.hstack(data)
+    else:
+        # some ranks may not touch files that have this ext
+        data = None
 
     if comm is not None:
         data = comm.gather(data, root=0)
         if rank == 0 and size>1:
+            data = [d for d in data if d is not None]
             data = np.hstack(data)
 
     if rank == 0 and outfile is not None:
-        log = get_logger()
-        log.info('Writing {}'.format(outfile))
+        if (data is None) or len(data) == 0:
+            message = '{} not found in any input files; skipping'.format(ext)
+            log.warning(message)
+            return None
+
+        log.info('Writing {} {}'.format(outfile, ext))
         header = fitsio.read_header(infiles[0], ext)
+
+        #- Use tmpout name so interupted I/O doesn't leave a corrupted file
+        #- of the correct name
         tmpout = outfile + '.tmp'
+
+        #- If appending, move file back to tmpout name
+        if (not overwrite) and os.path.exists(outfile):
+            os.rename(outfile, tmpout)
         
         # Find duplicates
         vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
@@ -984,12 +992,12 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None):
             data = np.lib.recfunctions.append_fields(data, colnames, coldata,
                                                      usemask=False)
 
-        fitsio.write(tmpout, data, header=header, extname=ext, clobber=True)
+        fitsio.write(tmpout, data, header=header, extname=ext, clobber=overwrite)
         os.rename(tmpout, outfile)
 
     return data
 
-def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
+def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
     '''
     Join individual healpixel targets and truth files into combined tables
 
@@ -998,7 +1006,7 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
 
     Options:
         outdir: output directory, default to mockdir
-        force: rewrite outputs even if they already exist
+        overwrite: rewrite outputs even if they already exist
         comm: MPI communicator; if not None, read data in parallel
     '''
     import fitsio
@@ -1017,12 +1025,12 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
     #- Use rank 0 to check pre-existing files to avoid N>>1 ranks hitting the disk
     if rank == 0:
         todo = dict()
-        todo['sky'] = not os.path.exists(outdir+'/sky.fits') or force
-        todo['stddark'] = not os.path.exists(outdir+'/standards-dark.fits') or force
-        todo['stdbright'] = not os.path.exists(outdir+'/standards-bright.fits') or force
-        todo['targets'] = not os.path.exists(outdir+'/targets.fits') or force
-        todo['truth'] = not os.path.exists(outdir+'/truth.fits') or force
-        todo['mtl'] = not os.path.exists(outdir+'/mtl.fits') or force
+        todo['sky'] = not os.path.exists(outdir+'/sky.fits') or overwrite
+        todo['stddark'] = not os.path.exists(outdir+'/standards-dark.fits') or overwrite
+        todo['stdbright'] = not os.path.exists(outdir+'/standards-bright.fits') or overwrite
+        todo['targets'] = not os.path.exists(outdir+'/targets.fits') or overwrite
+        todo['truth'] = not os.path.exists(outdir+'/truth.fits') or overwrite
+        todo['mtl'] = not os.path.exists(outdir+'/mtl.fits') or overwrite
     else:
         todo = None
 
@@ -1032,25 +1040,36 @@ def join_targets_truth(mockdir, outdir=None, force=False, comm=None):
     if todo['sky']:
         _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
                            outfile=outdir+'/sky.fits', comm=comm,
+                           overwrite=overwrite,
                            addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
 
     if todo['stddark']:
         _merge_file_tables(mockdir+'/*/*/standards-dark*.fits', 'STD',
                            outfile=outdir+'/standards-dark.fits', comm=comm,
+                           overwrite=overwrite,
                            addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY')))
 
     if todo['stdbright']:
         _merge_file_tables(mockdir+'/*/*/standards-bright*.fits', 'STD',
                            outfile=outdir+'/standards-bright.fits', comm=comm,
+                           overwrite=overwrite,
                            addcols=dict(OBSCONDITIONS=obsmask.mask('BRIGHT')))
 
     if todo['targets']:
         _merge_file_tables(mockdir+'/*/*/targets-*.fits', 'TARGETS',
+                           overwrite=overwrite,
                            outfile=outdir+'/targets.fits', comm=comm)
 
     if todo['truth']:
         _merge_file_tables(mockdir+'/*/*/truth-*.fits', 'TRUTH',
+                           overwrite=overwrite,
                            outfile=outdir+'/truth.fits', comm=comm)
+        # append, not overwrite other per-subclass truth tables
+        for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
+            extname = 'TRUTH_' + templatetype
+            _merge_file_tables(mockdir+'/*/*/truth-*.fits', extname,
+                               overwrite=False,
+                               outfile=outdir+'/truth.fits', comm=comm)
 
     #- Make initial merged target list (MTL) using rank 0
     if rank == 0 and todo['mtl']:
