@@ -336,6 +336,8 @@ class SelectTargets(object):
             beta[beta < -89] = -89
         beta = np.radians(ecoord.lat.value) # [radians]
 
+        beta = np.radians(np.arange(0, 89, 1))
+
         sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level 
                                                 # background structure e.g. striping
         neff = [15.7832, 18.5233]               # effective number of pixels in PSF
@@ -346,16 +348,9 @@ class SelectTargets(object):
             sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
             sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
 
-            wisedepth_mag = (22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) * # 1-sigma, AB mag
-                             10**(-0.4 * vega2ab[ii]) ) 
+            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag
             wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
             data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
-
-        # Relegated, constant-depth model.
-        #wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-        #wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-        #for ii, band in enumerate(('W1', 'W2')):
-        #    data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            seed=None, qaplot=False):
