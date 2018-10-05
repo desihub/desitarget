@@ -20,7 +20,6 @@ import healpy as hp
 
 from desimodel.io import load_pixweight
 from desimodel import footprint
-from desiutil.brick import Bricks
 from desitarget.cuts import apply_cuts
 from desisim.io import empty_metatable
 
@@ -245,8 +244,10 @@ class SelectTargets(object):
 
     def __init__(self, bricksize=0.25):
         from astropy.io import fits
+
         from speclite import filters
         from desiutil.dust import SFDMap
+        from desiutil.brick import Bricks
         from specsim.fastfiberacceptance import FastFiberAcceptance
         from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
@@ -310,6 +311,9 @@ class SelectTargets(object):
             to contain the PSF and galaxy depth in various bands.
 
         """
+        import astropy.units as u
+        from astropy.coordinates import SkyCoord
+
         nobj = len(data['RA'])
 
         psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
@@ -322,11 +326,31 @@ class SelectTargets(object):
             data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
             data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
 
-        wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-        wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+        # compute the WISE depth, which is largely a function of ecliptic latitude 
+        coord = SkyCoord(data['RA']*u.deg, data['DEC']*u.deg)
+        ecoord = coord.transform_to('barycentrictrueecliptic')
+        beta = ecoord.lat.value
+        if np.count_nonzero(beta > 89) > 0: # don't explode at the pole!
+            beta[beta > 89] = 89
+        if np.count_nonzero(beta < -89) > 0: # don't explode at the pole!
+            beta[beta < -89] = -89
+        beta = np.radians(ecoord.lat.value) # [radians]
+
+        beta = np.radians(np.arange(0, 89, 1))
+
+        sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level 
+                                                # background structure e.g. striping
+        neff = [15.7832, 18.5233]               # effective number of pixels in PSF
+        vega2ab = [2.699, 3.339]
+        sig_stat_beta0 = [3.5127802, 9.1581879] # random uncertainty [AB nanomaggies]
 
         for ii, band in enumerate(('W1', 'W2')):
-            data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+            sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
+            sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
+
+            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag
+            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+            data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            seed=None, qaplot=False):
@@ -1058,7 +1082,7 @@ class ReadGaussianField(SelectTargets):
         
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  zmax_qso=None, target_name='', mock_density=False,
-                 seed=None):
+                 only_coords=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -1077,6 +1101,9 @@ class ReadGaussianField(SelectTargets):
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
 
@@ -1173,6 +1200,11 @@ class ReadGaussianField(SelectTargets):
                 dec = dec[cut]
                 zz = zz[cut]
                 zz_norsd = zz_norsd[cut]
+
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
 
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.

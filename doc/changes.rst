@@ -5,7 +5,10 @@ desitarget Change Log
 0.24.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Incorporate simple WISE depth model in `select_mock_targets` which depends on
+  ecliptic latitude [`PR #391`_].
+
+.. _`PR #391`: https://github.com/desihub/desitarget/pull/391
 
 0.24.0 (2018-09-26)
 -------------------
