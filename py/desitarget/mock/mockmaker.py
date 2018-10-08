@@ -336,8 +336,6 @@ class SelectTargets(object):
             beta[beta < -89] = -89
         beta = np.radians(ecoord.lat.value) # [radians]
 
-        beta = np.radians(np.arange(0, 89, 1))
-
         sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level 
                                                 # background structure e.g. striping
         neff = [15.7832, 18.5233]               # effective number of pixels in PSF
