@@ -506,6 +506,8 @@ class SelectTargets(object):
         See desitarget/doc/nb/gmm-dr7.ipynb for details.
 
         """
+        from desitarget.cuts import isLRG_colors, isELG_colors, isQSO_colors
+        
         rand = np.random.RandomState(seed)
         
         try:
@@ -519,6 +521,9 @@ class SelectTargets(object):
         morph = GMM[0]
         if isouth is None:
             isouth = np.ones(nobj).astype(bool)
+
+        south = np.where( isouth )[0]
+        north = np.where( ~isouth )[0]
 
         # Marginalize the morphological fractions over magnitude.
         magbins = GMM[1]['MAG'].data
@@ -546,13 +551,73 @@ class SelectTargets(object):
                     'GR', 'RZ', 'ZW1'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
+        def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5):
+            """Sample from the given GMM iteratively."""
+            iTARG_colors = 'is{}_colors'.format(target.upper())
+
+            nneed = len(samp)
+            need = np.arange(nneed)
+
+            makemore, itercount = True, 0
+            while makemore:
+                # This algorithm is not quite right because the GMMs are drawn
+                # from DR7/south, but we're using them to simulate "north"
+                # photometry as well.
+                _samp = GMM[3][ii].sample(nneed, random_state=rand)
+                for jj, tt in enumerate(cols):
+                    samp[tt][need] = _samp[:, jj]
+                if 'z' in samp.dtype.names:
+                    zmag = samp['z'][need]
+                    rmag = samp['rz'][need] + zmag
+                    gmag = samp['gr'][need] + rmag
+                    w1mag = zmag - samp['zw1'][need]
+                else:
+                    rmag = samp['r'][need]
+                    zmag = rmag - samp['rz'][need]
+                    gmag = samp['gr'][need] + rmag
+                if 'zw1' in samp.dtype.names:
+                    w1mag = zmag - samp['zw1'][need]
+                else:
+                    w1mag = np.zeros_like(rmag)
+                    
+                gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
+                itarg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, south=south)
+                need = np.where( itarg == False )[0]
+                nneed = len(need)
+                if nneed == 0 or itercount == maxiter:
+                    makemore = False
+
+            return samp
+        
         for ii, mm in enumerate(morph):
             if nobj_morph[ii] > 0:
+                # Should really be using north/south GMMs.
                 cols = GMM[2][ii]
-                samp = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
-                _samp = GMM[3][ii].sample(nobj)
-                for jj, tt in enumerate(cols):
-                    samp[tt] = _samp[:, jj]
+                samp = np.zeros( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
+
+                # Iterate to make sure the sampled objects pass color-cuts! 
+                if len(north) > 0:
+                    samp[north] = _samp_iterate(samp[north], target=target, south=False, rand=rand)
+                if len(south) > 0:
+                    samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand)
+                    
+                # No iterating
+                #_samp = GMM[3][ii].sample(nobj, rand=rand)
+                #for jj, tt in enumerate(cols):
+                #    samp[tt] = _samp[:, jj]
+
+                ## Check:
+                #from desitarget.cuts import isLRG_colors
+                #zmag = samp['z']
+                #rmag = samp['rz'] + zmag
+                #gmag = samp['gr'] + rmag
+                #w1mag = zmag - samp['zw1']
+                #gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
+                #itarg = np.zeros(nobj).astype(bool)
+                #itarg_s = isLRG_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south], w1flux=w1flux[south], south=True)
+                #itarg_n = isLRG_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north], w1flux=w1flux[north], south=False)
+                #itarg[np.where(itarg_n)[0]] = True
+                #itarg[np.where(itarg_s)[0]] = True
 
                 # Choose samples with the appropriate magnitude-dependent
                 # probability, for this morphological type.
