@@ -585,7 +585,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
-            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla))
+            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
+            no_spectra=no_spectra))
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
