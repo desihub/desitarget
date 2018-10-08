@@ -20,7 +20,7 @@ import healpy as hp
 
 from desimodel.io import load_pixweight
 from desimodel import footprint
-from desitarget.cuts import apply_cuts
+from desitarget import cuts
 from desisim.io import empty_metatable
 
 from desiutil.log import get_logger, DEBUG
@@ -506,8 +506,6 @@ class SelectTargets(object):
         See desitarget/doc/nb/gmm-dr7.ipynb for details.
 
         """
-        from desitarget.cuts import isLRG_colors, isELG_colors, isQSO_colors
-        
         rand = np.random.RandomState(seed)
         
         try:
@@ -553,13 +551,14 @@ class SelectTargets(object):
 
         def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5):
             """Sample from the given GMM iteratively."""
-            iTARG_colors = 'is{}_colors'.format(target.upper())
+            isTARG_colors = getattr(cuts, 'is{}_colors'.format(target.upper()))
 
             nneed = len(samp)
             need = np.arange(nneed)
 
             makemore, itercount = True, 0
             while makemore:
+                print(itercount, nneed)
                 # This algorithm is not quite right because the GMMs are drawn
                 # from DR7/south, but we're using them to simulate "north"
                 # photometry as well.
@@ -581,11 +580,15 @@ class SelectTargets(object):
                     w1mag = np.zeros_like(rmag)
                     
                 gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
-                itarg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, south=south)
+                itarg = isTARG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, south=south)
                 need = np.where( itarg == False )[0]
                 nneed = len(need)
+
+                #import pdb ; pdb.set_trace()
                 if nneed == 0 or itercount == maxiter:
                     makemore = False
+                    
+                itercount += 1
 
             return samp
         
@@ -2567,9 +2570,9 @@ class QSOMaker(SelectTargets):
 
         """
         if self.use_simqso:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO')
         else:
-            desi_target, bgs_target, mws_target = apply_cuts(
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(
                 targets, tcnames='QSO', qso_selection='colorcuts',
                 qso_optical_cuts=True)
 
@@ -2883,7 +2886,7 @@ class LYAMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3103,7 +3106,7 @@ class LRGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='LRG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='LRG')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3317,7 +3320,7 @@ class ELGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='ELG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='ELG')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3542,7 +3545,7 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='BGS')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='BGS')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3882,7 +3885,7 @@ class MWS_MAINMaker(STARMaker):
         else:
             tcnames = ['MWS', 'STD']
             
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
@@ -4255,7 +4258,7 @@ class MWS_NEARBYMaker(STARMaker):
 
         """
         if False:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
         else:
             log.warning('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
 
@@ -4556,7 +4559,7 @@ class WDMaker(SelectTargets):
         """
         if not self.calib_only:
             if False:
-                desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+                desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
             else:
                 log.warning('Applying ad hoc selection of MWS_WD targets (no Gaia in mocks).')
 
@@ -4570,7 +4573,7 @@ class WDMaker(SelectTargets):
                 targets['MWS_TARGET'] |= mws_target
 
         if False:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['STD'])
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
             targets['DESI_TARGET'] |= desi_target
         else:
             log.warning('Applying ad hoc selection of STD_WD targets (no Gaia in mocks).')
