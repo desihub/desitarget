@@ -3026,7 +3026,7 @@ class ELGMaker(SelectTargets):
 
     """
     wave, KDTree_north, KDTree_south, template_maker = None, None, None, None
-    GMM_LRG, GMM_nospectra = None, None
+    GMM_ELG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from desisim.templates import ELG
@@ -3046,10 +3046,9 @@ class ELGMaker(SelectTargets):
         self.meta = self.template_maker.basemeta
 
         # Build the KD Trees
-        log.warning('Using south ELG KD Tree for north photometry.')
         zobj = self.meta['Z'].data
-        gr_north = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
-        rz_north = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        gr_north = (self.meta['BASS_G'] - self.meta['BASS_R']).data
+        rz_north = (self.meta['BASS_R'] - self.meta['MZLS_Z']).data
         gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
         rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
 
@@ -3071,8 +3070,8 @@ class ELGMaker(SelectTargets):
                     gr_south,
                     rz_south)).T, south=True )
 
-        if self.GMM_LRG is None:
-            self.read_GMM(target='LRG')
+        if self.GMM_ELG is None:
+            self.read_GMM(target='ELG')
         
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
@@ -3462,13 +3461,15 @@ class STARMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
     wave, template_maker, KDTree = None, None, None
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, no_spectra=False, **kwargs):
         from speclite import filters
         from desisim.templates import STAR
 
@@ -3486,7 +3487,7 @@ class STARMaker(SelectTargets):
 
         # Pre-compute normalized synthetic photometry for the full set of
         # stellar templates.
-        if (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
+        if no_spectra and (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
@@ -4178,6 +4179,8 @@ class WDMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
     calib_only : :class:`bool`, optional
         Use WDs as calibration (standard star) targets, only.  Defaults to False. 
 
@@ -4187,7 +4190,7 @@ class WDMaker(SelectTargets):
     wd_maggies_da_north, wd_maggies_da_north = None, None
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
-    def __init__(self, seed=None, calib_only=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
         from speclite import filters
         from desisim.templates import WD
         
@@ -4211,7 +4214,7 @@ class WDMaker(SelectTargets):
 
         # Pre-compute normalized synthetic photometry for the full set of DA and
         # DB templates.
-        if (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
+        if no_spectra and (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
             self.wd_maggies_db_north is None or self.wd_maggies_db_south is None):
 
             wave = self.da_template_maker.basewave
