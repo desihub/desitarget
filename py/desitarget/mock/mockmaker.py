@@ -566,10 +566,11 @@ class SelectTargets(object):
                     gmmout['MAG'][gthese] = samp['z'][these]
                 else:
                     gmmout['MAG'][gthese] = samp['r'][these]
-                import pdb ; pdb.set_trace()
+                if 'zw1' in samp.dtype.names:
+                    gmmout['ZW1'][gthese] = samp['zw1'][these]
+                
                 gmmout['GR'][gthese] = samp['gr'][these]
                 gmmout['RZ'][gthese] = samp['rz'][these]
-                gmmout['ZW1'][gthese] = samp['zW1'][these]
                 gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
 
                 for col in ('reff', 'e1', 'e2'):
