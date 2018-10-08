@@ -543,7 +543,7 @@ class SelectTargets(object):
         for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
                     'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
                     'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
-                    'GR', 'RZ'):
+                    'GR', 'RZ', 'ZW1'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
         for ii, mm in enumerate(morph):
@@ -566,8 +566,10 @@ class SelectTargets(object):
                     gmmout['MAG'][gthese] = samp['z'][these]
                 else:
                     gmmout['MAG'][gthese] = samp['r'][these]
+                import pdb ; pdb.set_trace()
                 gmmout['GR'][gthese] = samp['gr'][these]
                 gmmout['RZ'][gthese] = samp['rz'][these]
+                gmmout['ZW1'][gthese] = samp['zW1'][these]
                 gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
 
                 for col in ('reff', 'e1', 'e2'):
@@ -2853,14 +2855,36 @@ class LRGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        ## Build the KD Tree.  ToDo: add north/south photometry.
-        #if self.KDTree_north is None:
-        #    LRGMaker.KDTree_north = KDTree( np.vstack((
-        #        self.meta['Z'].data)).T )
-        #if self.KDTree_south is None:
-        #    LRGMaker.KDTree_south = KDTree( np.vstack((
-        #        self.meta['Z'].data)).T )
+        # Build the KD Tree.
+        zobj = self.meta['Z'].data
+        gr_north = (self.meta['BASS_G'] - self.meta['BASS_R']).data
+        rz_north = (self.meta['BASS_R'] - self.meta['MZLS_Z']).data
+        zW1_north = (self.meta['MZLS_Z'] - self.meta['W1']).data
+            
+        gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        zW1_south = (self.meta['DECAM_Z'] - self.meta['W1']).data
 
+        self.param_min_north = ( zobj.min(), gr_north.min(), rz_north.min(), zW1_north.min() )
+        self.param_min_south = ( zobj.min(), gr_south.min(), rz_south.min(), zW1_south.min() )
+        self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north), np.ptp(zW1_north) )
+        self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south), np.ptp(zW1_south) )
+        
+        if self.KDTree_north is None:
+            LRGMaker.KDTree_north = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_north,
+                    rz_north,
+                    zW1_north)).T, south=False )
+        if self.KDTree_south is None:
+            LRGMaker.KDTree_south = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_south,
+                    rz_south,
+                    zW1_south)).T, south=True )
+            
         if self.GMM_LRG is None:
             self.read_GMM(target='LRG')
 
@@ -2971,11 +2995,17 @@ class LRGMaker(SelectTargets):
             north = np.where( data['SOUTH'][indx] == False )[0]
 
             if self.mockformat == 'gaussianfield':
-                # This is not quite right, but choose a template with equal probability.
-                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
-
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        input_meta['MAG'][these] = data['MAG'][indx][these]
+                        input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
+                        input_meta['TEMPLATEID'][these] = self.KDTree_query(
+                            np.vstack((
+                                data['Z'][indx][these],
+                                data['GR'][indx][these],
+                                data['RZ'][indx][these],
+                                data['ZW1'][indx][these])).T, south=issouth)
+                        
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
@@ -3240,7 +3270,7 @@ class BGSMaker(SelectTargets):
 
     """
     wave, KDTree, template_maker = None, None, None
-    GMM_LRG, GMM_nospectra = None, None
+    GMM_BGS, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from desisim.templates import BGS
