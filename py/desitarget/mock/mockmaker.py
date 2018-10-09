@@ -558,7 +558,7 @@ class SelectTargets(object):
 
             makemore, itercount = True, 0
             while makemore:
-                print(itercount, nneed)
+                #print(itercount, nneed)
                 # This algorithm is not quite right because the GMMs are drawn
                 # from DR7/south, but we're using them to simulate "north"
                 # photometry as well.
