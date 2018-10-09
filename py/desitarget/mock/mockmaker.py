@@ -1278,6 +1278,7 @@ class ReadGaussianField(SelectTargets):
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.
         isouth = self.is_south(dec)
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_redshift=zz)
 

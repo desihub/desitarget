@@ -284,7 +284,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             nkeep = len(keep)
-            if nkeep > 0:             
+            if nkeep > 0:
                 ntot += nkeep
                 log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
                     nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
@@ -299,8 +299,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             itercount += 1
             if itercount == maxiter or ntot >= ntarget:
                 if maxiter > 1:
-                    log.warning('Generated {} / {} {} targets after {} iterations.'.format(
-                        ntot, ntarget, targname, maxiter))
+                    log.debug('Generated {} / {} {} targets after {} iterations.'.format(
+                        ntot, ntarget, targname, itercount))
                 makemore = False
             else:
                 need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
@@ -314,7 +314,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 #plt.show()
                 
                 if len(need) > 0:
-                    # Distribute the objects that didn't pass target selection to the remaining iterations.
+                    # Distribute the objects that didn't pass target selection
+                    # to the remaining iterations.
                     iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
                     for ii in range(maxiter - itercount):
                         iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
@@ -324,14 +325,18 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
+        if ntot > ntarget: # Only keep up to the number of desired targets.
+            keep = rand.choice(ntot, size=ntarget, replace=False)
+            targets = targets[keep]
+            truth = truth[keep]
         if len(objtruth) > 0: # skies have no objtruth
             objtruth = vstack(objtruth)
+            if ntot > ntarget:
+                objtruth = objtruth[keep]
         if not no_spectra:
             trueflux = np.concatenate(trueflux)
-
-        import pdb ; pdb.set_trace()
-        #if ntot > ntarget: # Only keep up to the number of desired targets.
-        #    keep = rand.choice(ntot, size=ntarget, replace=False)
+            if ntot > ntarget:
+                trueflux = trueflux[keep, :]
 
     return [targets, truth, objtruth, trueflux]
 
