@@ -515,6 +515,15 @@ class SelectTargets(object):
                 GMM = getattr(self, 'GMM_{}'.format(target.upper()))
         except:
             return None # no GMM for this target
+
+        if target == 'LRG':
+            from cuts import isLRG_colors as colorcuts_function
+        elif target == 'ELG':
+            from cuts import isELG_colors as colorcuts_function
+        elif target == 'QSO':
+            from cuts import isQSO_colors as colorcuts_function
+        else:
+            colorcuts_function = None
             
         morph = GMM[0]
         if isouth is None:
@@ -549,14 +558,14 @@ class SelectTargets(object):
                     'GR', 'RZ', 'ZW1'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
-        def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5):
-            """Sample from the given GMM iteratively."""
-            isTARG_colors = getattr(cuts, 'is{}_colors'.format(target.upper()))
-
+        def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5,
+                          colorcuts_function=None):
+            """Sample from the given GMM iteratively and only keep objects that pass our
+            color-cuts."""
             nneed = len(samp)
             need = np.arange(nneed)
 
-            makemore, itercount = True, 0
+            makemore, itercount = True, 1
             while makemore:
                 #print(itercount, nneed)
                 # This algorithm is not quite right because the GMMs are drawn
@@ -565,31 +574,34 @@ class SelectTargets(object):
                 _samp = GMM[3][ii].sample(nneed, random_state=rand)
                 for jj, tt in enumerate(cols):
                     samp[tt][need] = _samp[:, jj]
-                if 'z' in samp.dtype.names:
-                    zmag = samp['z'][need]
-                    rmag = samp['rz'][need] + zmag
-                    gmag = samp['gr'][need] + rmag
-                    w1mag = zmag - samp['zw1'][need]
-                else:
-                    rmag = samp['r'][need]
-                    zmag = rmag - samp['rz'][need]
-                    gmag = samp['gr'][need] + rmag
-                if 'zw1' in samp.dtype.names:
-                    w1mag = zmag - samp['zw1'][need]
-                else:
-                    w1mag = np.zeros_like(rmag)
-                    
-                gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
-                itarg = isTARG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, south=south)
-                need = np.where( itarg == False )[0]
-                nneed = len(need)
 
-                #import pdb ; pdb.set_trace()
+                if colorcuts_function is None:
+                    nneed = 0
+                    makemore = False
+                else:
+                    if 'z' in samp.dtype.names:
+                        zmag = samp['z'][need]
+                        rmag = samp['rz'][need] + zmag
+                        gmag = samp['gr'][need] + rmag
+                        w1mag = zmag - samp['zw1'][need]
+                    else:
+                        rmag = samp['r'][need]
+                        zmag = rmag - samp['rz'][need]
+                        gmag = samp['gr'][need] + rmag
+                    if 'zw1' in samp.dtype.names:
+                        w1mag = zmag - samp['zw1'][need]
+                    else:
+                        w1mag = np.zeros_like(rmag)
+
+                    gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
+                    itarg = isTARG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, south=south)
+                    need = np.where( itarg == False )[0]
+                    nneed = len(need)
+
                 if nneed == 0 or itercount == maxiter:
                     makemore = False
-                    
                 itercount += 1
-
+                    
             return samp
         
         for ii, mm in enumerate(morph):
@@ -600,9 +612,11 @@ class SelectTargets(object):
 
                 # Iterate to make sure the sampled objects pass color-cuts! 
                 if len(north) > 0:
-                    samp[north] = _samp_iterate(samp[north], target=target, south=False, rand=rand)
+                    samp[north] = _samp_iterate(samp[north], target=target, south=False, rand=rand,
+                                                colorcuts_function=colorcuts_function)
                 if len(south) > 0:
-                    samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand)
+                    samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand,
+                                                colorcuts_function=colorcuts_function)
                     
                 # No iterating
                 #_samp = GMM[3][ii].sample(nobj, rand=rand)
@@ -1275,9 +1289,10 @@ class ReadGaussianField(SelectTargets):
             return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
                     'WEIGHT': weight, 'NSIDE': nside}
 
+        isouth = self.is_south(dec)
+
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.
-        isouth = self.is_south(dec)
         log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_redshift=zz)
@@ -1976,11 +1991,13 @@ class ReadMXXL(SelectTargets):
             return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
                     'MAG': rmag, 'WEIGHT': weight, 'NSIDE': nside}
 
+        isouth = self.is_south(dec)
+
         # Get photometry and morphologies by sampling from the Gaussian mixture
         # models.  This is a total hack because our apparent magnitudes (rmag)
         # will not be consistent with the Gaussian draws.  But as a hack just
         # sort the shapes and sizes on rmag.
-        isouth = self.is_south(dec)
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_mag=rmag)
 
