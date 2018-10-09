@@ -517,11 +517,11 @@ class SelectTargets(object):
             return None # no GMM for this target
 
         if target == 'LRG':
-            from cuts import isLRG_colors as colorcuts_function
+            colorcuts_function = cuts.isLRG_colors
         elif target == 'ELG':
-            from cuts import isELG_colors as colorcuts_function
+            colorcuts_function = cuts.isELG_colors
         elif target == 'QSO':
-            from cuts import isQSO_colors as colorcuts_function
+            colorcuts_function = cuts.isQSO_colors
         else:
             colorcuts_function = None
             
@@ -582,19 +582,23 @@ class SelectTargets(object):
                     if 'z' in samp.dtype.names:
                         zmag = samp['z'][need]
                         rmag = samp['rz'][need] + zmag
-                        gmag = samp['gr'][need] + rmag
-                        w1mag = zmag - samp['zw1'][need]
                     else:
                         rmag = samp['r'][need]
                         zmag = rmag - samp['rz'][need]
-                        gmag = samp['gr'][need] + rmag
+                    gmag = samp['gr'][need] + rmag
                     if 'zw1' in samp.dtype.names:
                         w1mag = zmag - samp['zw1'][need]
                     else:
                         w1mag = np.zeros_like(rmag)
+                    if 'w1w2' in samp.dtype.names:
+                        w2mag = w1mag - samp['w1w2'][need]
+                    else:
+                        w2mag = np.zeros_like(rmag)
 
-                    gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
-                    itarg = isTARG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, south=south)
+                    gflux, rflux, zflux, w1flux, w2flux = [1e9 * 10**(-0.4*mg) for mg in
+                                                           (gmag, rmag, zmag, w1mag, w2mag)]
+                    itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                               w1flux=w1flux, w2flux=w2flux, south=south)
                     need = np.where( itarg == False )[0]
                     nneed = len(need)
 

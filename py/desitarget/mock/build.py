@@ -299,7 +299,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             itercount += 1
             if itercount == maxiter or ntot >= ntarget:
                 if maxiter > 1:
-                    log.debug('Generated {} / {} {} targets after {} iterations.'.format(
+                    log.info('Generated {} / {} {} targets after {} iterations.'.format(
                         ntot, ntarget, targname, itercount))
                 makemore = False
             else:
@@ -319,13 +319,12 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                     iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
                     for ii in range(maxiter - itercount):
                         iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
-                else:
-                    makemore = False
 
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
         if ntot > ntarget: # Only keep up to the number of desired targets.
+            log.debug('Removing {} extraneous targets.'.format(ntot - ntarget))
             keep = rand.choice(ntot, size=ntarget, replace=False)
             targets = targets[keep]
             truth = truth[keep]
@@ -547,7 +546,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
                 trueflux = np.concatenate(np.array(results[3])[good])
             else:
                 trueflux = []
-                
+
     log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
