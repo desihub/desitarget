@@ -3610,6 +3610,8 @@ class STARMaker(SelectTargets):
         # stellar templates.
         if no_spectra and (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
+            log.info('Caching stellar template photometry.')
+            
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
             maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
@@ -3693,7 +3695,7 @@ class STARMaker(SelectTargets):
             else:
                 log.warning('Unrecognized normalization filter {}!'.format(data['MAGFILTER'][0]))
                 raise ValueError
-            
+
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             meta[key][:] = star_maggies[key][templateid] * normmag
 
@@ -3760,10 +3762,12 @@ class MWS_MAINMaker(STARMaker):
     calib_only : :class:`bool`, optional
         Use MWS_MAIN stars as calibration (standard star) targets, only.
         Defaults to False.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
-    def __init__(self, seed=None, calib_only=False, **kwargs):
-        super(MWS_MAINMaker, self).__init__()
+    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
+        super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
         self.calib_only = calib_only
 
@@ -3929,7 +3933,7 @@ class MWS_MAINMaker(STARMaker):
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
 
         # Select bright stellar contaminants for the extragalactic targets.
-        log.info('Temporarily turning off contaminants.')
+        log.debug('Temporarily turning off contaminants.')
         if False:
             self.select_contaminants(targets, truth)
 
@@ -3943,10 +3947,12 @@ class FAINTSTARMaker(STARMaker):
     calib_only : :class:`bool`, optional
         Use FAINTSTAR stars as calibration (standard star) targets and
         contaminants, only.  Defaults to True.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
-    def __init__(self, seed=None, calib_only=True, **kwargs):
-        super(FAINTSTARMaker, self).__init__()
+    def __init__(self, seed=None, calib_only=True, no_spectra=False, **kwargs):
+        super(FAINTSTARMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
              nside=None, nside_galaxia=8, magcut=None, **kwargs):
@@ -4137,10 +4143,12 @@ class MWS_NEARBYMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
-    def __init__(self, seed=None, **kwargs):
-        super(MWS_NEARBYMaker, self).__init__()
+    def __init__(self, seed=None, no_spectra=False, **kwargs):
+        super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
     def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4282,7 +4290,7 @@ class MWS_NEARBYMaker(STARMaker):
         if False:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
         else:
-            log.warning('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
+            log.debug('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
 
             mws_nearby = np.ones(len(targets)) # select everything!
             #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
@@ -4337,6 +4345,7 @@ class WDMaker(SelectTargets):
         # DB templates.
         if no_spectra and (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
             self.wd_maggies_db_north is None or self.wd_maggies_db_south is None):
+            log.info('Caching WD template photometry.')
 
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux

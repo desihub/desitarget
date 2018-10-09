@@ -299,7 +299,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             itercount += 1
             if itercount == maxiter or ntot >= ntarget:
                 if maxiter > 1:
-                    log.info('Generated {} / {} {} targets after {} iterations.'.format(
+                    log.debug('Generated {} / {} {} targets after {} iterations.'.format(
                         ntot, ntarget, targname, itercount))
                 makemore = False
             else:
