@@ -2984,7 +2984,7 @@ class LRGMaker(SelectTargets):
             LRGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2997,6 +2997,8 @@ class LRGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -3025,6 +3027,7 @@ class LRGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density, seed=self.seed)
 
         return data
@@ -3199,7 +3202,7 @@ class ELGMaker(SelectTargets):
             ELGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3212,6 +3215,8 @@ class ELGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -3240,6 +3245,7 @@ class ELGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density, seed=self.seed)
 
         return data
