@@ -1250,6 +1250,9 @@ class ReadGaussianField(SelectTargets):
         
         fracarea = pixweight[allpix]        
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1405,6 +1408,9 @@ class ReadUniformSky(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1564,6 +1570,9 @@ class ReadGalaxia(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1780,6 +1789,9 @@ class ReadLyaCoLoRe(SelectTargets):
         fracarea = pixweight[allpix]
         # force DESI footprint
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0]
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1964,6 +1976,9 @@ class ReadMXXL(SelectTargets):
         
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -2123,6 +2138,9 @@ class ReadGAMA(SelectTargets):
         
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -2199,7 +2217,8 @@ class ReadMWS_WD(SelectTargets):
         IOError
             If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if nside is not a scalar.
+            If mockfile is not defined or if nside is not a scalar or if the
+            selection index isn't monotonically increasing.
 
         """
         if mockfile is None:
@@ -2245,6 +2264,9 @@ class ReadMWS_WD(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -2263,7 +2285,7 @@ class ReadMWS_WD(SelectTargets):
         cols = ['RADIALVELOCITY', 'TEFF', 'LOGG', 'SPECTRALTYPE',
                 'PHOT_G_MEAN_MAG', 'PHOT_BP_MEAN_MAG', 'PHOT_RP_MEAN_MAG',
                 'PMRA', 'PMDEC', 'PARALLAX', 'PARALLAX_ERROR',
-                'ASTROMETRIC_EXCESS_NOISE']
+                'ASTROMETRIC_EXCESS_NOISE', 'RA']
         data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
 
         zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
@@ -2399,6 +2421,9 @@ class ReadMWS_NEARBY(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:

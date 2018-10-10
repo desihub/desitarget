@@ -555,9 +555,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     return targets, truth, objtruth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
-                  seed=None, nproc=1, nside_chunk=64, verbose=False,
+                  seed=None, nproc=1, nside_chunk=128, verbose=False,
                   no_spectra=False):
-    print('CHANGE NSIDE_CHUNK BACK!!!!!!!!!!!!!!!!!!!!!!')
     """Generate truth and targets catalogs, and noiseless spectra.
 
     Parameters
