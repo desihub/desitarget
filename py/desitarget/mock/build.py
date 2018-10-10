@@ -319,7 +319,6 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                     iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
                     for ii in range(maxiter - itercount):
                         iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
-
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)

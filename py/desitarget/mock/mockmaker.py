@@ -1644,8 +1644,8 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               
                'REF_ID': mockid,
-
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
@@ -2290,6 +2290,7 @@ class ReadMWS_WD(SelectTargets):
                'MAGFILTER': np.repeat('sdss2010-g', nobj),
                'TEMPLATESUBTYPE': templatesubtype,
 
+               'REF_ID': mockid,
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
@@ -4627,9 +4628,6 @@ class WDMaker(SelectTargets):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
         in place.
 
-        Note: The selection here eventually will be done with Gaia (I think) so
-        for now just do a "perfect" selection.
-
         Parameters
         ----------
         targets : :class:`astropy.table.Table`
@@ -4639,31 +4637,12 @@ class WDMaker(SelectTargets):
 
         """
         if not self.calib_only:
-            if True:
-                desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
-                import pdb ; pdb.set_trace()
-            else:
-                log.warning('Applying ad hoc selection of MWS_WD targets (no Gaia in mocks).')
-
-                #mws_wd = np.ones(len(targets)) # select everything!
-                mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
-
-                desi_target = (mws_wd != 0) * self.desi_mask.MWS_ANY
-                mws_target = (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
-
-                targets['DESI_TARGET'] |= desi_target
-                targets['MWS_TARGET'] |= mws_target
-
-        if True:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
             targets['DESI_TARGET'] |= desi_target
-        else:
-            log.warning('Applying ad hoc selection of STD_WD targets (no Gaia in mocks).')
-            
-            # Ad hoc selection of WD standards using just on g-band magnitude (not
-            # TEMPLATESUBTYPE!)
-            std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
-            targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
+            targets['MWS_TARGET'] |= mws_target
+
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
+        targets['DESI_TARGET'] |= desi_target
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
