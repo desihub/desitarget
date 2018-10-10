@@ -1148,7 +1148,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         # ADM retaining white dwarfs that only have relatively poor astrometry
         mws &= ((astrometricsigma5dmax < 1.5) | 
                  ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
-
+    import pdb ; pdb.set_trace()
     return mws
 
 

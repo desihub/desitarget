@@ -2260,13 +2260,26 @@ class ReadMWS_WD(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        cols = ['RADIALVELOCITY', 'G_SDSS', 'TEFF', 'LOGG', 'SPECTRALTYPE']
+        cols = ['RADIALVELOCITY', 'TEFF', 'LOGG', 'SPECTRALTYPE',
+                'PHOT_G_MEAN_MAG', 'PHOT_BP_MEAN_MAG', 'PHOT_RP_MEAN_MAG',
+                'PMRA', 'PMDEC', 'PARALLAX', 'PARALLAX_ERROR',
+                'ASTROMETRIC_EXCESS_NOISE']
         data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
+
         zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
-        mag = data['G_SDSS'].astype('f4') # SDSS g-band
         teff = data['TEFF'].astype('f4')
         logg = data['LOGG'].astype('f4')
+        mag = data['PHOT_G_MEAN_MAG'].astype('f4')
         templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
+
+        gaia_g = data['PHOT_G_MEAN_MAG'].astype('f4')
+        gaia_bp = data['PHOT_BP_MEAN_MAG'].astype('f4')
+        gaia_rp = data['PHOT_RP_MEAN_MAG'].astype('f4')
+        gaia_pmra = data['PMRA'].astype('f4')
+        gaia_pmdec = data['PMDEC'].astype('f4')
+        gaia_parallax = data['PARALLAX'].astype('f4')
+        gaia_parallax_ivar = (1 / data['PARALLAX_ERROR']**2).astype('f4')
+        gaia_noise = data['ASTROMETRIC_EXCESS_NOISE'].astype('f4')
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
@@ -2276,6 +2289,22 @@ class ReadMWS_WD(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
                'MAGFILTER': np.repeat('sdss2010-g', nobj),
                'TEMPLATESUBTYPE': templatesubtype,
+
+               'GAIA_PHOT_G_MEAN_MAG': gaia_g,
+               #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
+               #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_RP_MEAN_MAG': gaia_rp,
+               #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
+               #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'PARALLAX': gaia_parallax,
+               'PARALLAX_IVAR': gaia_parallax_ivar,
+               'PMRA': gaia_pmra,
+               'PMRA_IVAR': np.ones(nobj).astype('f4'),  # placeholder!
+               'PMDEC': gaia_pmdec,
+               'PMDEC_IVAR': np.ones(nobj).astype('f4'), # placeholder!
+               
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
@@ -4610,8 +4639,9 @@ class WDMaker(SelectTargets):
 
         """
         if not self.calib_only:
-            if False:
+            if True:
                 desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
+                import pdb ; pdb.set_trace()
             else:
                 log.warning('Applying ad hoc selection of MWS_WD targets (no Gaia in mocks).')
 
@@ -4624,7 +4654,7 @@ class WDMaker(SelectTargets):
                 targets['DESI_TARGET'] |= desi_target
                 targets['MWS_TARGET'] |= mws_target
 
-        if False:
+        if True:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
             targets['DESI_TARGET'] |= desi_target
         else:
