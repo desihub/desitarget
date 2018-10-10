@@ -1052,7 +1052,7 @@ class SelectTargets(object):
 
         return targets, truth, objtruth
 
-    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
+    def mock_density(self, mockfile=None, nside=64, density_per_pixel=False):
         """Compute the median density of targets in the full mock. 
 
         Parameters
@@ -1123,10 +1123,10 @@ class SelectTargets(object):
         fig, ax = plt.subplots(1, 2, figsize=(12, 4))
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+            basemap = init_sky(galactic_plane_color='k', ax=ax[0])
             plot_sky_binned(data['RA'], data['DEC'], weights=data['WEIGHT'],
                             max_bin_area=hp.nside2pixarea(data['NSIDE'], degrees=True),
-                            verbose=False, clip_lo='!1', clip_hi='98%', 
+                            verbose=False, clip_lo='!1', clip_hi='95%', 
                             cmap='viridis', plot_type='healpix', basemap=basemap,
                             label=r'{} (targets/deg$^2$)'.format(self.objtype))
             
@@ -1224,7 +1224,7 @@ class ReadGaussianField(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1376,7 +1376,7 @@ class ReadUniformSky(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1731,7 +1731,7 @@ class ReadLyaCoLoRe(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1900,7 +1900,7 @@ class ReadMXXL(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -2208,7 +2208,7 @@ class ReadMWS_WD(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -2332,7 +2332,7 @@ class ReadMWS_NEARBY(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -2443,7 +2443,8 @@ class QSOMaker(SelectTargets):
             QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
             
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, zmax_qso=None, mock_density=False, **kwargs):
+             nside=None, zmax_qso=None, only_coords=False, mock_density=False,
+             **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2459,6 +2460,8 @@ class QSOMaker(SelectTargets):
         zmax_qso : :class:`float`
             Maximum redshift of tracer QSOs to read, to ensure no
             double-counting with Lya mocks.  Defaults to None.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -2477,7 +2480,7 @@ class QSOMaker(SelectTargets):
         
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'QSO.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'qso_0_inpt.fits')
             MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -2488,6 +2491,7 @@ class QSOMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    zmax_qso=zmax_qso, mock_density=mock_density)
 
         return data
@@ -2984,7 +2988,7 @@ class LRGMaker(SelectTargets):
             LRGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2997,6 +3001,8 @@ class LRGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -3025,6 +3031,7 @@ class LRGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density, seed=self.seed)
 
         return data
@@ -3199,7 +3206,7 @@ class ELGMaker(SelectTargets):
             ELGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3212,6 +3219,8 @@ class ELGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -3229,7 +3238,7 @@ class ELGMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'ELG.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'elg_0_inpt.fits')
             MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3240,6 +3249,7 @@ class ELGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density, seed=self.seed)
 
         return data
@@ -4635,7 +4645,7 @@ class SKYMaker(SelectTargets):
             SKYMaker.wave = _default_wave()
         
     def read(self, mockfile=None, mockformat='uniformsky', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4648,6 +4658,8 @@ class SKYMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -4680,6 +4692,7 @@ class SKYMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density)
 
         return data
