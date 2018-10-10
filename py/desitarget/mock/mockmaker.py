@@ -1329,7 +1329,7 @@ class ReadUniformSky(SelectTargets):
         super(ReadUniformSky, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', mock_density=False):
+                 target_name='', mock_density=False, only_coords=False):
         """Read the catalog.
 
         Parameters
@@ -1344,6 +1344,9 @@ class ReadUniformSky(SelectTargets):
             Name of the target being read (e.g., ELG, LRG).
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
             to False.
 
         Returns
@@ -1417,12 +1420,20 @@ class ReadUniformSky(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
+
+        isouth = self.is_south(dec)
+
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'uniformsky',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
-               'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra))}
+               'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra)),
+               'SOUTH': isouth}
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
