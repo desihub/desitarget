@@ -253,8 +253,8 @@ def collect_mock_data(targfile):
     -----
         - Will return 0 if the file structure is incorrect (i.e. if the "truths" can't be
           found based on the "targs").
-    """
 
+    """
     start = time()
 
     # ADM set up the default logger from desiutil.
@@ -280,11 +280,19 @@ def collect_mock_data(targfile):
     # ADM read in the relevant mock data and return it.
     targs = fitsio.read(targfile)
     log.info('Read in mock targets...t = {:.1f}s'.format(time()-start))
-    truths = fitsio.read(truthfile)
+
+    truthinfo = fitsio.FITS(truthfile)
+    truths = truthinfo['TRUTH'].read()
     log.info('Read in mock truth objects...t = {:.1f}s'.format(time()-start))
 
-    return targs, truths
+    objtruths = dict()
+    for objtype in set(truths['TEMPLATETYPE']):
+        oo = objtype.decode('utf-8').strip().upper()
+        extname = 'TRUTH_{}'.format(oo)
+        if extname in truthinfo:
+            objtruths[oo] = truthinfo[extname].read()
 
+    return targs, truths, objtruths
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
@@ -1495,13 +1503,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             if mockdata == 0:
                 mocks = False
             else:
-                targs, truths = mockdata
+                targs, truths, objtruths = mockdata
         else:
             log.warning('To make mock-related plots, targs must be a directory+file-location string...')
             log.warning('...will proceed by only producing the non-mock plots...')
             mocks = False
     else:
-        truths = None
+        truths, objtruths = None, None
 
     # ADM if a filename was passed, read in the targets from that file.
     if isinstance(targs, str):
