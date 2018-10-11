@@ -1516,9 +1516,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
-    
-    targs, truths, objtruths = read_data(targs, mocks=mocks)
-    
+    if isinstance(targs, str):
+        if mocks:
+            targs, truths, objtruths = read_data(targs, mocks=mocks)
+        else:
+            log.warning('Unable to read truth.fits file since targs was passed.')
+            
+            
 
     else:
         # ADM if a filename was passed, read in the targets from that file.
