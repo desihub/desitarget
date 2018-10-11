@@ -55,11 +55,12 @@ def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20, outfile=None):
 
     if outfile is not None:
         from astropy.table import Table
+        keep = dec >= -30
         out = Table()
-        out['HPXPIXEL'] = pix
-        out['RA'] = ra.astype('f8')
-        out['DEC'] = dec.astype('f8')
+        out['HPXPIXEL'] = pix[keep]
+        out['RA'] = ra[keep]
+        out['DEC'] = dec[keep]
         print('Writing {}'.format(outfile))
         out.write(outfile, overwrite=True)
 
-    return ra, dec
+    return ra, dec, pix
