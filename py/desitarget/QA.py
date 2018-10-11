@@ -1432,7 +1432,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
 
             # ADM make Gaia-based plots if we have Gaia columns
-            if "PARALLAX" in targs.dtype.names:
+            if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
                 qagaia(targs[w], objtype, qadir=qadir, fileprefix="gaia")
                 log.info('Made Gaia-based plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
@@ -1632,7 +1632,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</table>\n')
 
         # ADM parallax and proper motion plots, if we have that information.
-        if "PARALLAX" in targs.dtype.names:
+        if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
             html.write('<h2>Gaia based plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
