@@ -1324,6 +1324,172 @@ class ReadGaussianField(SelectTargets):
 
         return out
 
+class ReadBuzzard(SelectTargets):
+    """Read a Buzzard style mock catalog."""
+    cached_pixweight = None
+    
+    def __init__(self, **kwargs):
+        super(ReadBuzzard, self).__init__(**kwargs)
+        
+    def readmock(self, mockfile=None, healpixels=[], nside=[], nside_buzzard=8,
+                 target_name='', magcut=None, only_coords=False, seed=None):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_buzzard : :class:`int`
+            Healpixel nside indicating how the mock on-disk has been organized.
+            Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the top-level Galaxia directory is not found.
+        ValueError
+            (1) If either mockfile or nside_galaxia are not defined; (2) if
+            healpixels or nside are not scalar inputs; or (3) if the input
+            target_name is not recognized.
+
+        """
+        from desitarget.targets import encode_targetid
+        from desitarget.mock.io import get_healpix_dir, findfile
+
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
+        if nside_buzzard is None:
+            log.warning('Nside_buzzard input is required.')
+            raise ValueError
+        
+        mockfile_nside = os.path.join(mockfile, str(nside_buzzard))
+        if not os.path.isdir(mockfile_nside):
+            log.warning('Buzzard top-level directory {} not found!'.format(mockfile_nside))
+            raise IOError
+
+        # Because of the size of the Buzzard mock, healpixels (and nside) must
+        # be scalars.
+        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
+
+        if self.cached_pixweight is None:
+            pixweight = load_pixweight(nside, pixmap=self.pixmap)
+            ReadBuzzard.cached_pixweight = (pixweight, nside)
+        else:
+            pixweight, cached_nside = ReadBuzzard.cached_pixweight
+            if cached_nside != nside:
+                pixweight = load_pixweight(nside, pixmap=self.pixmap)
+                ReadBuzzard.cached_pixweight = (pixweight, nside)
+            else:
+                log.info('Using cached pixel weight map.')
+                pixweight, _ = ReadBuzzard.cached_pixweight
+
+        # Get the set of nside_buzzard pixels that belong to the desired
+        # healpixels (which have nside).  This will break if healpixels is a
+        # vector.
+        theta, phi = hp.pix2ang(nside, healpixels, nest=True)
+        pixnum = hp.ang2pix(nside_buzzard, theta, phi, nest=True)
+
+        buzzardfile = findfile(filetype='Buzzard_v1.6_lensed', nside=nside_buzzard, pixnum=pixnum,
+                               basedir=mockfile_nside, ext='fits')
+        if len(buzzardfile) == 0:
+            log.warning('File {} not found!'.format(buzzardfile))
+            raise IOError
+
+        log.info('Reading {}'.format(buzzardfile))
+        radec = fitsio.read(buzzardfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj = len(radec)
+
+        objid = np.arange(nobj)
+        mockid = encode_targetid(objid=objid, brickid=pixnum, mock=1)
+
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+
+        mockid = mockid[cut]
+        objid = objid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
+        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = radec['DEC'][cut].astype('f8')
+        del radec
+
+        cols = ['Z', 'COEFFS', 'TMAG']
+        data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
+        zz = data['Z'].data.astype('f4')
+        mag = data['TMAG'][:, 2].data.astype('f4') # DES r-band, no MW extinction 
+
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
+
+        isouth = self.is_south(dec)
+
+        ## Get photometry and morphologies by sampling from the Gaussian
+        ## mixture models.
+        #log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+        #gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+        #                         seed=seed, prior_redshift=zz)
+        gmmout = None
+
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'buzzard',
+            'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+            'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+            'BRICKID': self.Bricks.brickid(ra, dec),
+            'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
+
+        # Add MW transmission and the imaging depth.
+        self.mw_transmission(out)
+        self.imaging_depth(out)
+
+        ## Optionally compute the mean mock density.
+        #if mock_density:
+        #    out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+
+        return out
+
 class ReadUniformSky(SelectTargets):
     """Read a uniform sky style mock catalog."""
     cached_radec = None
@@ -4802,3 +4968,78 @@ class SKYMaker(SelectTargets):
 
         """
         targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
+
+class BuzzardMaker(SelectTargets):
+    """Read Buzzard mocks, generate spectra, and select targets.
+
+    Parameters
+    ----------
+    seed : :class:`int`, optional
+        Seed for reproducibility and random number generation.
+
+    """
+    wave = None
+    
+    def __init__(self, seed=None, **kwargs):
+        super(BuzzardMaker, self).__init__()
+
+        self.seed = seed
+        #self.objtype = 'SKY'
+
+        if self.wave is None:
+            BuzzardMaker.wave = _default_wave()
+        
+    def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
+             nside=None, nside_buzzard=8, magcut=None, only_coords=False,
+             **kwargs):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        mockformat : :class:`str`
+            Mock catalog format.  Defaults to 'buzzard'.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_buzzard : :class:`int`
+            Healpixel nside indicating how the mock on-disk has been organized.
+            Defaults to 8.
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary of target properties with various keys (to be documented). 
+
+        Raises
+        ------
+        ValueError
+            If mockformat is not recognized.
+
+        """
+        self.mockformat = mockformat.lower()
+        if self.mockformat == 'buzzard':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'buzzard', 'buzzard_v1.6_desicut')
+            MockReader = ReadBuzzard()
+        else:
+            log.warning('Unrecognized mockformat {}!'.format(mockformat))
+            raise ValueError
+
+        if mockfile is None:
+            mockfile = self.default_mockfile
+
+        data = MockReader.readmock(mockfile, #target_name=self.objtype,
+                                   healpixels=healpixels, nside=nside,
+                                   nside_buzzard=nside_buzzard,
+                                   only_coords=only_coords,
+                                   magcut=magcut)
+
+        return data
