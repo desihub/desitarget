@@ -1,5 +1,3 @@
-import desimodel.io
-import desimodel.footprint
 import numpy as np
 import healpy as hp
 
@@ -10,7 +8,7 @@ def _random_theta_phi(nside, pix):
     phi += np.random.uniform(-dpix/2, dpix/2, size=len(phi)) * np.cos(np.pi/2 - theta)
     return theta % np.pi, phi % (2*np.pi)
 
-def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20):
+def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20, outfile=None):
     '''Returns sky locations within healpixels covering tiles
 
     Options:
@@ -31,6 +29,8 @@ def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20):
     if allsky:
         pix = np.arange( hp.nside2npix(nside) )
     else:
+        import desimodel.io
+        import desimodel.footprint
         if tiles is None:
             tiles = desimodel.io.load_tiles()
         pix = desimodel.footprint.tiles2pix(nside, tiles)
@@ -52,5 +52,14 @@ def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20):
 
     ra = np.degrees(phi)
     dec = 90 - np.degrees(theta)
+
+    if outfile is not None:
+        from astropy.table import Table
+        out = Table()
+        out['HPXPIXEL'] = pix
+        out['RA'] = ra.astype('f8')
+        out['DEC'] = dec.astype('f8')
+        print('Writing {}'.format(outfile))
+        out.write(outfile, overwrite=True)
 
     return ra, dec
