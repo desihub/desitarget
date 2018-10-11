@@ -15,7 +15,7 @@ def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20, outfile=None):
         nside (int): healpixel nside; coverage is uniform at this scale
         allsky (bool): generate sky positions over the full sky
         tiles: DESI tiles to cover, for desimodel.footprint.tiles2pix(); only
-          used if allsky=False.
+        used if allsky=False.
         maxiter (int): maximum number of iterations to ensure coverage
 
     Generates sky locations that are more uniform than true random,
