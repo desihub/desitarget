@@ -1625,7 +1625,8 @@ class ReadGalaxia(SelectTargets):
         super(ReadGalaxia, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
-                 target_name='MWS_MAIN', magcut=None):
+                 target_name='MWS_MAIN', magcut=None, faintstar_mockfile=None,
+                 faintstar_magcut=None):
         """Read the catalog.
 
         Parameters
@@ -1643,7 +1644,13 @@ class ReadGalaxia(SelectTargets):
             Name of the target being read (e.g., MWS_MAIN).
         magcut : :class:`float`
             Magnitude cut (hard-coded to SDSS r-band) to subselect targets
-            brighter than magcut. 
+            brighter than magcut.
+        faintstar_mockfile : :class:`str`, optional
+            Full path to the top-level directory of the Galaxia faint star mock
+            catalog.
+        faintstar_magcut : :class:`float`, optional
+            Magnitude cut (hard-coded to SDSS r-band) to subselect faint star
+            targets brighter than magcut.
 
         Returns
         -------
@@ -1811,6 +1818,8 @@ class ReadGalaxia(SelectTargets):
             gaia['PM_DEC_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
         else:
             pass
+
+        import pdb ; pdb.set_trace()
         
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
@@ -4015,7 +4024,8 @@ class MWS_MAINMaker(STARMaker):
         self.calib_only = calib_only
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
-             nside=None, nside_galaxia=8, magcut=None, **kwargs):
+             nside=None, nside_galaxia=8, magcut=None, faintstar_mockfile=None,
+             faintstar_magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4057,7 +4067,9 @@ class MWS_MAINMaker(STARMaker):
             
         data = MockReader.readmock(mockfile, target_name='MWS_MAIN',
                                    healpixels=healpixels, nside=nside,
-                                   nside_galaxia=nside_galaxia, magcut=magcut)
+                                   nside_galaxia=nside_galaxia, magcut=magcut,
+                                   faintstar_mockfile=faintstar_mockfile,
+                                   faintstar_magcut=faintstar_magcut)
 
         return data
     

@@ -612,17 +612,22 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     # Are we adding contaminants?  If so, cache the relevant classes here.
     if 'contaminants' in params.keys():
         if 'stars' in params['contaminants']:
-            log.info('Initializing and caching MockMaker classes for stellar contaminants.')
-            AllStarsMock = []
-            for target_name in params['contaminants']['stars'].keys():
-                AllStarsMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
-                    seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra))
+            log.info('Initializing and caching MockMaker class for stellar contaminants.')
+            if len(params['contaminants']['stars'].keys()) > 1:
+                log.fatal('Multiple stellar contamination classes are not supported!')
+                raise ValueError
+            star_name, _ = list(params['contaminants']['stars'].items())[0]
+            ContamStarsMock = getattr(mockmaker, '{}Maker'.format(star_name))(
+                seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra)
+                
         if 'galaxies' in params['contaminants']:
-            log.info('Initializing and caching MockMaker classes for extragalactic contaminants.')
-            AllGalaxiesMock = []
-            for target_name in params['contaminants']['stars'].keys():
-                AllGalaxiesMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
-                    seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra))
+            log.info('Initializing and caching MockMaker class for extragalactic contaminants.')
+            if len(params['contaminants']['galaxies'].keys()) > 1:
+                log.fatal('Multiple stellar contamination classes are not supported!')
+                raise ValueError
+            galaxies_name, _ = list(params['contaminants']['galaxies'].items())[0]
+            ContamGalaxiesMock = getattr(mockmaker, '{}Maker'.format(galaxies_name))(
+                seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra)
             
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
@@ -688,7 +693,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         else:
             skytargets = []
 
-        # Now add contaminants.
+        # Now add contaminants.  Should probably push this to its own function.
         if 'contaminants' in params.keys():
             for target_name in params['contaminants']['targets']:
                 cparams = params['contaminants']['targets'][target_name]
@@ -697,25 +702,47 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 if target_name in params['targets'] and 'stars' in cparams.keys():
                     log.info('Generating {:.1f}% stellar contaminants for target class {}.'.format(
                         100*cparams['stars'], target_name))
+                    _, star_params = list(params['contaminants']['stars'].items())[0]
 
+                    # Add faint stars as contaminants.
+                    if 'FAINTSTAR' in star_params:
+                        faintstar_mockfile = star_params['FAINTSTAR']['mockfile']
+                        faintstar_magcut = star_params['FAINTSTAR'].get('magcut', None)
+                    else:
+                        faintstar_mockfile, faintstar_magcut = None, None
+
+                    import pdb ; pdb.set_trace()
+                    
+                    data = ContamStarsMock.read(mockfile=star_params['mockfile'],
+                                                mockformat=star_params['format'],
+                                                healpixels=healpix, nside=nside,
+                                                magcut=star_params.get('magcut', None),
+                                                nside_galaxia=star_params['nside_galaxia'],
+                                                faintstar_mockfile=faintstar_mockfile,
+                                                faintstar_magcut=faintstar_magcut)
+                    
+
+                    import pdb ; pdb.set_trace()
+
+                    # Combine the MWS_MAIN and FAINTSTAR datasets.
                     data = None
                     for Mock, star_name in zip( AllStarsMock, params['contaminants']['stars'].keys() ):
                         mparams = params['contaminants']['stars'][star_name]
-                        mockfile = mparams.get('mockfile')
-                        mockformat = mparams.get('format')
-                        magcut = mparams.get('magcut', None)
-                        nside_galaxia = mparams.get('nside_galaxia')
-                        
-                        _data = Mock.read(mockfile=mockfile, mockformat=mockformat,
-                                          healpixels=healpix, nside=nside, magcut=magcut,
-                                          nside_galaxia=nside_galaxia, mock_density=False)
-                        
+                        _data = Mock.read(mockfile=mparams['mockfile'], mockformat=mparams['mockformat'],
+                                          healpixels=healpix, nside=nside, magcut=mparams.get('magcut', None),
+                                          nside_galaxia=mparams['nside_galaxia'], mock_density=False)
                         if data is None:
                             data = _data.copy()
                         else:
                             for key in data.keys():
                                 if type(data[key]) == np.ndarray:
                                     data[key] = np.hstack( (data[key], _data[key]) )
+                        del _data
+
+                    targets, truth, objtruth, trueflux = get_spectra(data, MakeMock, log, nside=nside,
+                                                                     nside_chunk=nside_chunk, seed=healseed,
+                                                                     nproc=nproc, sky=sky, no_spectra=no_spectra,
+                                                                     calib_only=calib_only)
 
                     import pdb ; pdb.set_trace()
 
