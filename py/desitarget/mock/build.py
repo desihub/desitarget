@@ -611,6 +611,21 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
             no_spectra=no_spectra))
 
+    # Are we adding contaminants?  If so, cache the relevant classes here.
+    if 'contaminants' in params.keys():
+        if 'stars' in params['contaminants']:
+            log.info('Initializing and caching MockMaker classes for stellar contaminants.')
+            AllStarsMock = []
+            for target_name in params['contaminants']['stars'].keys():
+                AllStarsMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
+                    seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra))
+        if 'galaxies' in params['contaminants']:
+            log.info('Initializing and caching MockMaker classes for extragalactic contaminants.')
+            AllGalaxiesMock = []
+            for target_name in params['contaminants']['stars'].keys():
+                AllGalaxiesMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
+                    seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra))
+            
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
         log.info('Working on healpixel {}'.format(healpix))
@@ -657,8 +672,6 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                         allobjtruth[target_type] = objtruth
                     alltrueflux.append(trueflux)
 
-            # Contaminants here?
-
         if len(alltargets) == 0 and len(allskytargets) == 0: # all done
             continue
 
@@ -677,6 +690,26 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         else:
             skytargets = []
 
+        # Now add contaminants.
+        if 'contaminants' in params.keys():
+            for target_name in params['contaminants']['targets']:
+                cparams = params['contaminants']['targets'][target_name]
+
+                # Stars--
+                if target_name in params['targets'] and 'stars' in cparams.keys():
+                    log.info('Generating {}% stellar contaminants for target class {}'.format(
+                        cparams['stars'], target_name))
+
+                # Galaxies--
+                if target_name in params['targets'] and 'galaxies' in cparams.keys():
+                    log.info('Generating {}% extragalactic contaminants for target class {}'.format(
+                        cparams['galaxies'], target_name))
+                    
+                    import pdb ; pdb.set_trace()
+
+
+        import pdb ; pdb.set_trace()
+        
         targets, truth, objtruth, skytargets, skytruth = finish_catalog(
             targets, truth, objtruth, skytargets, skytruth, healpix,
             nside, log, seed=healseed)

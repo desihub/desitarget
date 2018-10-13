@@ -1454,8 +1454,8 @@ class ReadBuzzard(SelectTargets):
 
         cols = ['Z', 'COEFFS', 'TMAG']
         data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
-        zz = data['Z'].data.astype('f4')
-        mag = data['TMAG'][:, 2].data.astype('f4') # DES r-band, no MW extinction 
+        zz = data['Z'].astype('f4')
+        mag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
 
         # Optionally (for a little more speed) only return some basic info. 
         if only_coords:
