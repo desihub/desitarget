@@ -1745,6 +1745,9 @@ class ReadGalaxia(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
         objid = objid[cut]
         allpix = allpix[cut]
@@ -1795,19 +1798,17 @@ class ReadGalaxia(SelectTargets):
                 gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
                     
         elif target_name.upper() == 'FAINTSTAR': # Hack for FAINTSTAR
-
-            #from astropy.table import Table
+            from astropy.table import Table
             #morecols = ['PM_RA', 'PM_DEC', 'DM']
             #moredata = fitsio.read(galaxiafile, columns=morecols, upper=True, ext=1, rows=objid)
-
             gaia = Table()
             gaia['G_GAIA'] = mag # hack!
-            gaia['PM_RA_STAR_GAIA'] = np.zeros(nobj)  # moredata['PM_RA']
-            gaia['PM_DEC_GAIA'] = np.zeros(nobj)      # moredata['PM_DEC']
-            gaia['PARALLAX_GAIA'] = np.zeros(nobj)+20 # moredata['D_HELIO'] / 206265.
-            gaia['PARALLAX_GAIA_ERROR'] = np.zeros(nobj)+1e8
-            gaia['PM_RA_GAIA_ERROR'] = np.zeros(nobj)+1e8
-            gaia['PM_DEC_GAIA_ERROR'] = np.zeros(nobj)+1e8
+            gaia['PM_RA_STAR_GAIA'] = np.zeros(nobj).astype('f4')    # moredata['PM_RA']
+            gaia['PM_DEC_GAIA'] = np.zeros(nobj).astype('f4')        # moredata['PM_DEC']
+            gaia['PARALLAX_GAIA'] = np.zeros(nobj).astype('f4') + 20 # moredata['D_HELIO'] / 206265.
+            gaia['PARALLAX_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
+            gaia['PM_RA_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
+            gaia['PM_DEC_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
         else:
             pass
         
@@ -1821,7 +1822,7 @@ class ReadGalaxia(SelectTargets):
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
                
                'REF_ID': mockid,
-               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
+               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].data,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
@@ -1829,12 +1830,12 @@ class ReadGalaxia(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
-               'PARALLAX': gaia['PARALLAX_GAIA'].astype('f4'),
-               'PARALLAX_IVAR': np.zeros(nobj).astype('f4'),
-               'PMRA': gaia['PM_RA_STAR_GAIA'].astype('f4'),
-               'PMRA_IVAR': np.zeros(nobj).astype('f4'),
-               'PMDEC': gaia['PM_DEC_GAIA'].astype('f4'), # no _STAR_!
-               'PMDEC_IVAR': np.zeros(nobj).astype('f4'),
+               'PARALLAX': gaia['PARALLAX_GAIA'],
+               'PARALLAX_IVAR': np.zeros(nobj),
+               'PMRA': gaia['PM_RA_STAR_GAIA'],
+               'PMRA_IVAR': np.zeros(nobj),
+               'PMDEC': gaia['PM_DEC_GAIA'], # no _STAR_!
+               'PMDEC_IVAR': np.zeros(nobj),
               
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 

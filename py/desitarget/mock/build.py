@@ -96,21 +96,19 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
 
     return log, healpixseeds
     
-def read_mock(params, target_name, log, seed=None, healpixels=None,
+def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
               nside=None, nside_chunk=128, MakeMock=None):
     """Read a mock catalog.
     
     Parameters
     ----------
     params : :class:`dict`
-        Dictionary defining the mock from which to generate targets.
-    target_name : :class:`str`
-        Target name; mock.mockmaker.[TARGET_NAME]Maker class to instantiate. 
-    log : :class:`desiutil.logger`
-        Logger object.
-    params : :class:`dict`
         Dictionary summary of the input configuration file, restricted to a
         particular target (e.g., 'QSO').
+    log : :class:`desiutil.logger`
+        Logger object.
+    target_name : :class:`str`
+        Target name; mock.mockmaker.[TARGET_NAME]Maker class to instantiate. 
     seed: :class:`int`, optional
         Seed for the random number generator.  Defaults to None.
     healpixels : :class:`numpy.ndarray` or `int`
@@ -642,8 +640,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
             # Read the data and ithere are no targets, keep going.
             log.info('Working on target class: {}'.format(target_name))
-            data, MakeMock = read_mock(params['targets'][target_name], target_name,
-                                       log, seed=healseed, healpixels=healpix,
+            data, MakeMock = read_mock(params['targets'][target_name], log, target_name,
+                                       seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii])
             
@@ -697,13 +695,34 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
                 # Stars--
                 if target_name in params['targets'] and 'stars' in cparams.keys():
-                    log.info('Generating {}% stellar contaminants for target class {}'.format(
-                        cparams['stars'], target_name))
+                    log.info('Generating {:.1f}% stellar contaminants for target class {}.'.format(
+                        100*cparams['stars'], target_name))
+
+                    data = None
+                    for Mock, star_name in zip( AllStarsMock, params['contaminants']['stars'].keys() ):
+                        mparams = params['contaminants']['stars'][star_name]
+                        mockfile = mparams.get('mockfile')
+                        mockformat = mparams.get('format')
+                        magcut = mparams.get('magcut', None)
+                        nside_galaxia = mparams.get('nside_galaxia')
+                        
+                        _data = Mock.read(mockfile=mockfile, mockformat=mockformat,
+                                          healpixels=healpix, nside=nside, magcut=magcut,
+                                          nside_galaxia=nside_galaxia, mock_density=False)
+                        
+                        if data is None:
+                            data = _data.copy()
+                        else:
+                            for key in data.keys():
+                                if type(data[key]) == np.ndarray:
+                                    data[key] = np.hstack( (data[key], _data[key]) )
+
+                    import pdb ; pdb.set_trace()
 
                 # Galaxies--
                 if target_name in params['targets'] and 'galaxies' in cparams.keys():
-                    log.info('Generating {}% extragalactic contaminants for target class {}'.format(
-                        cparams['galaxies'], target_name))
+                    log.info('Generating {}% extragalactic contaminants for target class {}.'.format(
+                        100*cparams['galaxies'], target_name))
                     
                     import pdb ; pdb.set_trace()
 
