@@ -247,6 +247,9 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     objtruth = list()
     trueflux = list()
 
+    if ntarget == 0:
+        return [targets, truth, objtruth, trueflux]
+
     # Faintstar targets are a special case.
     if targname.lower() == 'faintstar':
         chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
@@ -277,9 +280,11 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
         while makemore:
             chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
                 data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
-            import pdb ; pdb.set_trace()
 
-            MakeMock.select_targets(chunktargets, chunktruth)
+            MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
+
+            #if ntarget == 2:
+            #    import pdb ; pdb.set_trace()
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             nkeep = len(keep)
@@ -739,6 +744,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                     ntarg = np.sum(targets['DESI_TARGET'] & ContamStarsMock.desi_mask.mask(target_name) != 0)
                     if ntarg > 0:
 
+                        star_data['TARGET_NAME'] = target_name
                         star_data['CONTAM_FACTOR'] = cparams['stars'] * ntarg / len(star_data['RA'])
 
                         contamtargets, contamtruth, contamobjtruth, contamtrueflux = get_spectra(
@@ -746,7 +752,6 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                             seed=healseed, nproc=nproc, no_spectra=no_spectra)
 
                     import pdb ; pdb.set_trace()
-
 
                 # Galaxies--
                 if target_name in params['targets'] and 'galaxies' in cparams.keys():

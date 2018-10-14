@@ -1793,7 +1793,7 @@ class ReadGalaxia(SelectTargets):
             #morecols = ['PM_RA', 'PM_DEC', 'DM']
             #moredata = fitsio.read(galaxiafile, columns=morecols, upper=True, ext=1, rows=objid)
             gaia = Table()
-            gaia['G_GAIA'] = mag # hack!
+            gaia['G_GAIA'] = mag.astype('f4') # hack!
             gaia['PM_RA_STAR_GAIA'] = np.zeros(nobj).astype('f4')    # moredata['PM_RA']
             gaia['PM_DEC_GAIA'] = np.zeros(nobj).astype('f4')        # moredata['PM_DEC']
             gaia['PARALLAX_GAIA'] = np.zeros(nobj).astype('f4') + 20 # moredata['D_HELIO'] / 206265.
@@ -1813,7 +1813,7 @@ class ReadGalaxia(SelectTargets):
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
                
                'REF_ID': mockid,
-               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].data,
+               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'],
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
@@ -3059,9 +3059,9 @@ class LYAMaker(SelectTargets):
                     skewer_meta[k][these] = tmp_meta[k]
 
             # Check we matched things correctly.
-            assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx]))<0.000001)
-            assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx]))<0.000001)
-            assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
+            assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx])) < 0.000001)
+            assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx])) < 0.000001)
+            assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx])) < 0.000001)
 
             # Now generate the QSO spectra simultaneously **at full wavelength
             # resolution**.  We do this because the Lya forest will have changed
