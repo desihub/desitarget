@@ -553,8 +553,10 @@ class SelectTargets(object):
         # simplicity we ignore the north-south split here.
         gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
         for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
-                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
-                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
+                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR',
+                    'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
+                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR',
+                    'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
                     'GR', 'RZ', 'ZW1'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
@@ -622,24 +624,6 @@ class SelectTargets(object):
                     samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand,
                                                 colorcuts_function=colorcuts_function)
                     
-                # No iterating
-                #_samp = GMM[3][ii].sample(nobj, rand=rand)
-                #for jj, tt in enumerate(cols):
-                #    samp[tt] = _samp[:, jj]
-
-                ## Check:
-                #from desitarget.cuts import isLRG_colors
-                #zmag = samp['z']
-                #rmag = samp['rz'] + zmag
-                #gmag = samp['gr'] + rmag
-                #w1mag = zmag - samp['zw1']
-                #gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
-                #itarg = np.zeros(nobj).astype(bool)
-                #itarg_s = isLRG_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south], w1flux=w1flux[south], south=True)
-                #itarg_n = isLRG_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north], w1flux=w1flux[north], south=False)
-                #itarg[np.where(itarg_n)[0]] = True
-                #itarg[np.where(itarg_s)[0]] = True
-
                 # Choose samples with the appropriate magnitude-dependent
                 # probability, for this morphological type.
                 prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
@@ -1819,8 +1803,6 @@ class ReadGalaxia(SelectTargets):
         else:
             pass
 
-        import pdb ; pdb.set_trace()
-        
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
@@ -1858,6 +1840,18 @@ class ReadGalaxia(SelectTargets):
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
         self.imaging_depth(out)
+
+        # Optionally include faint stars.
+        if faintstar_mockfile is not None:
+            log.info('Including faint stellar targets.')
+            faintdata = ReadGalaxia().readmock(mockfile=faintstar_mockfile, target_name='FAINTSTAR',
+                                               healpixels=healpixels, nside=nside,
+                                               nside_galaxia=nside_galaxia, magcut=faintstar_magcut)
+
+            for key in out.keys():
+                if type(out[key]) == np.ndarray:
+                    out[key] = np.hstack( (out[key], faintdata[key]) )
+            del faintdata
 
         return out
 
@@ -2826,7 +2820,7 @@ class QSOMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='QSO'):
         """Select QSO targets.  Input tables are modified in place.
 
         Parameters
@@ -2835,13 +2829,15 @@ class QSOMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
         if self.use_simqso:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO')
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
-                targets, tcnames='QSO', qso_selection='colorcuts',
+                targets, tcnames=targetname, qso_selection='colorcuts',
                 qso_optical_cuts=True)
 
         targets['DESI_TARGET'] |= desi_target
@@ -3143,7 +3139,7 @@ class LYAMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='QSO'):
         """Select Lya/QSO targets.  Input tables are modified in place.
 
         Parameters
@@ -3152,9 +3148,11 @@ class LYAMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3366,7 +3364,7 @@ class LRGMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='LRG'):
         """Select LRG targets.  Input tables are modified in place.
 
         Parameters
@@ -3375,9 +3373,11 @@ class LRGMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='LRG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3583,7 +3583,7 @@ class ELGMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='ELG'):
         """Select ELG targets.  Input tables are modified in place.
 
         Parameters
@@ -3592,9 +3592,11 @@ class ELGMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='ELG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3808,7 +3810,7 @@ class BGSMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='BGS'):
         """Select BGS targets.  Input tables are modified in place.
 
         Parameters
@@ -3819,7 +3821,7 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='BGS')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3857,6 +3859,17 @@ class STARMaker(SelectTargets):
             STARMaker.template_maker = STAR(wave=self.wave)
 
         self.meta = self.template_maker.basemeta
+
+        #nside = 8
+        #stellar_density = dict()
+        #tiles = footprint.load_tiles(onlydesi=True)
+        #tilepix = footprint.tiles2pix(nside, tiles=tiles, per_tile=True)
+        #for pix in np.unique( np.hstack(tilepix) ):
+        #    import pdb ; pdb.set_trace()
+        #    these = pix == tilepix
+        #    stellar_density[pix] = np.mean(tiles['STAR_DENSITY'][these])
+        #    
+        #import pdb ; pdb.set_trace()
 
         # Pre-compute normalized synthetic photometry for the full set of
         # stellar templates.
@@ -4149,7 +4162,7 @@ class MWS_MAINMaker(STARMaker):
                                                            
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, targetname=['MWS', 'STD']):
         """Select various MWS stars and standard stars.  Input tables are modified in
         place.
 
@@ -4159,14 +4172,14 @@ class MWS_MAINMaker(STARMaker):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
         if self.calib_only:
-            tcnames = 'STD'
-        else:
-            tcnames = ['MWS', 'STD']
+            targetname = 'STD'
             
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
@@ -4187,10 +4200,10 @@ class MWS_MAINMaker(STARMaker):
         targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
 
-        # Select bright stellar contaminants for the extragalactic targets.
-        log.debug('Temporarily turning off contaminants.')
-        if False:
-            self.select_contaminants(targets, truth)
+        ## Select bright stellar contaminants for the extragalactic targets.
+        #log.debug('Temporarily turning off contaminants.')
+        #if False:
+        #    self.select_contaminants(targets, truth)
 
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
@@ -4528,7 +4541,7 @@ class MWS_NEARBYMaker(STARMaker):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='MWS'):
         """Select MWS_NEARBY targets.  Input tables are modified in place.
 
         Note: The selection here eventually will be done with Gaia (I think) so
@@ -4540,10 +4553,12 @@ class MWS_NEARBYMaker(STARMaker):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
         if False:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         else:
             log.debug('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
 
@@ -4828,7 +4843,7 @@ class WDMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname=''):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
         in place.
 
@@ -4838,6 +4853,8 @@ class WDMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
         if not self.calib_only:
@@ -4969,7 +4986,7 @@ class SKYMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='SKY'):
         """Select SKY targets (i.e., everything).  Input tables are modified in place.
 
         Parameters
@@ -4978,9 +4995,11 @@ class SKYMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
+        targets['DESI_TARGET'] |= self.desi_mask.mask(targetname)
 
 class BuzzardMaker(SelectTargets):
     """Read Buzzard mocks, generate spectra, and select targets.
