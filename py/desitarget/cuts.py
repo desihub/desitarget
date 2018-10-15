@@ -1531,10 +1531,10 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return bgs
 
 def isBGS_wise(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
-                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-                      gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None, w1snr=None,
-                      gaiagmag=None, objtype=None, primary=None, south=True):
+               gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+               gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+               gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None, w1snr=None,
+               gaiagmag=None, objtype=None, primary=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
@@ -1583,10 +1583,10 @@ def isBGS_wise(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isBGS_wise_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
-                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-                      gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None, w1snr=None,
-                      gaiagmag=None, objtype=None, primary=None):
+                     gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                     gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                     gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None, w1snr=None,
+                     gaiagmag=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets for the BASS/MzLS photometric system.
 
     Args:
@@ -1643,10 +1643,10 @@ def isBGS_wise_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
 
 def isBGS_wise_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
-                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-                      gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None, w1snr=None,
-                      gaiagmag=None, objtype=None, primary=None):
+                     gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                     gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                     gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None, w1snr=None,
+                     gaiagmag=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets for the DECaLS photometric system.
 
     Args:
@@ -2861,7 +2861,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM As we need the column names
     colnames = _get_colnames(objects)
 
-
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,              \
         w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,     \
@@ -2870,7 +2869,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
                             _prepare_optical_wise(objects, colnames=colnames)
-
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
