@@ -18,9 +18,9 @@ import healpy as hp
 
 from desiutil import depend
 
-#ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South" 
-#ADM photometric system. This will expand with the definition of RELEASE in the 
-#ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched) 
+# ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South".
+# ADM photometric system. This will expand with the definition of RELEASE in the
+# ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S'}
 
 oldtscolumns = [
@@ -37,8 +37,8 @@ oldtscolumns = [
     'DCHISQ'
     ]
 
-#ADM this is an empty array of the full TS data model columns and dtypes
-#ADM other columns can be added in read_tractor
+# ADM this is an empty array of the full TS data model columns and dtypes
+# ADM other columns can be added in read_tractor.
 tsdatamodel = np.array([], dtype=[
     ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
     ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
@@ -57,15 +57,20 @@ tsdatamodel = np.array([], dtype=[
     ('FLUX_IVAR_W3', '>f4'), ('FLUX_IVAR_W4', '>f4'),
     ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
     ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'),
-    ('ALLMASK_G', '>i2'), ('ALLMASK_R', '>i2'), ('ALLMASK_Z', '>i2'),
+#    ('ALLMASK_G', '>i2'), ('ALLMASK_R', '>i2'), ('ALLMASK_Z', '>i2'),
     ('FRACDEV', '>f4'), ('FRACDEV_IVAR', '>f4'),
     ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
     ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
     ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
-    ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
-    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
-    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4')
+    ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4')
     ])
+
+dr6todr7datamodel = np.array([], dtype=[
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('BRIGHTSTARINBLOB', '?')
+    ])
+
 
 def desitarget_nside():
     """Default HEALPix Nside for all target selection algorithms. """
@@ -95,47 +100,47 @@ def convert_from_old_data_model(fx,columns=None):
     """
     indata = fx[1].read(columns=columns)
 
-    #ADM the number of objects in the input rec array
+    # ADM the number of objects in the input rec array.
     nrows = len(indata)
 
-    #ADM the column names that haven't changed between the current and the old data model
+    # ADM the column names that haven't changed between the current and the old data model.
     tscolumns = list(tsdatamodel.dtype.names)
     sharedcols = list(set(tscolumns).intersection(oldtscolumns))
 
-    #ADM the data types for the new data model
+    # ADM the data types for the new data model.
     dt = tsdatamodel.dtype
 
-    #ADM need to add BRICKPRIMARY and its data type, if it was passed as a column of interest
+    # ADM need to add BRICKPRIMARY and its data type, if it was passed as a column of interest.
     if ('BRICK_PRIMARY' in columns):
         sharedcols.append('BRICK_PRIMARY')
         dd = dt.descr
         dd.append(('BRICK_PRIMARY', '?'))
         dt = np.dtype(dd)
 
-    #ADM create a new numpy array with the fields from the new data model...
+    # ADM create a new numpy array with the fields from the new data model...
     outdata = np.empty(nrows, dtype=dt)
 
-    #ADM ...and populate them with the passed columns of data
+    # ADM ...and populate them with the passed columns of data.
     for col in sharedcols:
         outdata[col] = indata[col]
 
-    #ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model
+    # ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model.
     decamcols = ['FLUX','MW_TRANSMISSION','FRACFLUX','FLUX_IVAR','NOBS','GALDEPTH']
     decambands = 'UGRIZ'
     for bandnum in [1,2,4]:
         for colstring in decamcols:
             outdata[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:,bandnum]
-        #ADM treat DECAM_DEPTH separately as the syntax is slightly different
+        # ADM treat DECAM_DEPTH separately as the syntax is slightly different.
         outdata["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:,bandnum]
 
-    #ADM change the WISE columns from the old (2-D array) to new (named 1-D array) data model
+    # ADM change the WISE columns from the old (2-D array) to new (named 1-D array) data model.
     wisecols = ['FLUX','MW_TRANSMISSION','FLUX_IVAR']
     for bandnum in [1,2,3,4]:
         for colstring in wisecols:
             outdata[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:,bandnum-1]
 
-    #ADM we also need to include the RELEASE, which we'll always assume is DR3
-    #ADM (deprecating anything from before DR3)
+    # ADM we also need to include the RELEASE, which we'll always assume is DR3
+    # ADM (deprecating anything from before DR3).
     outdata['RELEASE'] = 3000
 
     return outdata
@@ -159,26 +164,58 @@ def add_gaia_columns(indata):
         - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
           but with "GAIA_RA" and "GAIA_DEC" removed.
     """
-    #ADM import the Gaia data model from gaiamatch
+    # ADM import the Gaia data model from gaiamatch.
     from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
 
-    #ADM remove the Gaia coordinates from the Gaia data model as they aren't
-    #ADM in the imaging surveys data model
+    # ADM remove the Gaia coordinates from the Gaia data model as they aren't
+    # ADM in the imaging surveys data model.
     gaiadatamodel = pop_gaia_coords(gaiadatamodel)
 
-    #ADM create the combined data model
+    # ADM create the combined data model.
     dt = indata.dtype.descr + gaiadatamodel.dtype.descr
 
-    #ADM create a new numpy array with the fields from the new data model...
+    # ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
     outdata = np.zeros(nrows, dtype=dt)
 
-    #ADM ...and populate them with the passed columns of data
+    # ADM ...and populate them with the passed columns of data.
     for col in indata.dtype.names:
         outdata[col] = indata[col]
 
-    #ADM set REF_ID to -1 to indicate nothing has a Gaia match (yet)
+    # ADM set REF_ID to -1 to indicate nothing has a Gaia match (yet).
     outdata['REF_ID'] = -1
+    
+    return outdata
+
+
+def add_dr7_columns(indata):
+    """Add columns that are in dr7 that weren't in dr6.
+
+    Parameters
+    ----------
+    indata : :class:`numpy.ndarray`
+        Numpy structured array to which to add DR7 columns.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Input array with DR7 columns added.
+
+    Notes
+    -----
+        - DR7 columns are stored in :mod:`desitarget.io.dr6todr7datamodel`.
+        - The DR7 columns returned are set to all ``0`` or ``False``.
+    """
+    # ADM create the combined data model.
+    dt = indata.dtype.descr + dr6todr7datamodel.dtype.descr
+
+    # ADM create a new numpy array with the fields from the new data model...
+    nrows = len(indata)
+    outdata = np.zeros(nrows, dtype=dt)
+
+    # ADM ...and populate them with the passed columns of data.
+    for col in indata.dtype.names:
+        outdata[col] = indata[col]
     
     return outdata
 
@@ -201,21 +238,21 @@ def add_photsys(indata):
         - The PHOTSYS column is only added if the RELEASE column
           is available in the passed `indata`.
     """
-    #ADM only add the PHOTSYS column if RELEASE exists
+    # ADM only add the PHOTSYS column if RELEASE exists.
     if 'RELEASE' in indata.dtype.names:
-        #ADM add PHOTSYS to the data model
+        # ADM add PHOTSYS to the data model.
         pdt = [('PHOTSYS','|S1')]
         dt = indata.dtype.descr + pdt
 
-        #ADM create a new numpy array with the fields from the new data model...
+        # ADM create a new numpy array with the fields from the new data model...
         nrows = len(indata)
         outdata = np.empty(nrows, dtype=dt)
 
-        #ADM ...and populate them with the passed columns of data
+        # ADM ...and populate them with the passed columns of data.
         for col in indata.dtype.names:
             outdata[col] = indata[col]
 
-        #ADM add the PHOTSYS column
+        # ADM add the PHOTSYS column.
         photsys = release_to_photsys(indata["RELEASE"])
         outdata['PHOTSYS'] = photsys
     else:
@@ -242,7 +279,7 @@ def read_tractor(filename, header=False, columns=None):
     :class:`numpy.ndarray`
         Array with the tractor schema, uppercase field names.
     """
-    #ADM set up the default DESI logger
+    # ADM set up the default DESI logger.
     from desiutil.log import get_logger
     log = get_logger()
 
@@ -254,7 +291,7 @@ def read_tractor(filename, header=False, columns=None):
 
     if columns is None:
         readcolumns = list(tsdatamodel.dtype.names)
-        #ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model
+        # ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model.
         if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
             readcolumns = list(oldtscolumns)
     else:
@@ -265,49 +302,56 @@ def read_tractor(filename, header=False, columns=None):
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
 
-    #ADM if BRIGHTSTARINBLOB exists (it does for DR7, not for DR6) add it
+    # ADM if BRIGHTSTARINBLOB exists (it does for DR7, not for DR6) add it and
+    # ADM the other DR6->DR7 data model updates.
     if (columns is None) and \
        (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
-        readcolumns.append('BRIGHTSTARINBLOB')
+        for col in dr6todr7datamodel.dtype.names:
+            readcolumns.append(col)
 
-    #ADM if Gaia information was passed, add it to the columns to read
-    if (columns is None) and \
-       (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
-        from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
-        #ADM remove the Gaia coordinates as they aren't in the imaging data model
-        gaiadatamodel = pop_gaia_coords(gaiadatamodel)
-        gaiacols = gaiadatamodel.dtype.names
-        readcolumns += gaiacols
-
+    # ADM if Gaia information was passed, add it to the columns to read.
+    if (columns is None):
+        if (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
+            from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+            # ADM remove the Gaia coordinates as they aren't in the imaging data model.
+            gaiadatamodel = pop_gaia_coords(gaiadatamodel)
+            gaiacols = gaiadatamodel.dtype.names
+            readcolumns += gaiacols
+        
     if (columns is None) and \
        (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
-        #ADM Rewrite the data completely to correspond to the DR4+ data model.
-        #ADM we default to writing RELEASE = 3000 ("DR3, or before, data")
+        # ADM Rewrite the data completely to correspond to the DR4+ data model.
+        # ADM we default to writing RELEASE = 3000 ("DR3, or before, data")
         data = convert_from_old_data_model(fx,columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
 
-    #ADM add Gaia columns if not passed
+    # ADM add Gaia columns if not passed.
     if (columns is None) and \
        (('REF_ID' not in fxcolnames) and ('ref_id' not in fxcolnames)):
         data = add_gaia_columns(data)
 
-    #ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname
+    # ADM add DR7 data model updates (with zero/False) columns if not passed.
+    if (columns is None) and \
+       (('BRIGHTSTARINBLOB' not in fxcolnames) and ('brightstarinblob' not in fxcolnames)):
+        data = add_dr7_columns(data)
+
+    # ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname.
     if len(data) == 0:
         log.warning('WARNING: Empty file>', filename)
         dt = data.dtype.descr
         dt[1] = ('BRICKNAME', 'S8')
         data = data.astype(np.dtype(dt))
 
-    #ADM To circumvent whitespace bugs on I/O from fitsio
-    #ADM need to strip any white space from string columns
+    # ADM To circumvent whitespace bugs on I/O from fitsio.
+    # ADM need to strip any white space from string columns.
     for colname in data.dtype.names:
         kind = data[colname].dtype.kind
         if kind == 'U' or kind == 'S':
             data[colname] = np.char.rstrip(data[colname])
 
-    #ADM add the PHOTSYS column to unambiguously check whether we're using imaging
-    #ADM from the "North" or "South"
+    # ADM add the PHOTSYS column to unambiguously check whether we're using imaging
+    # ADM from the "North" or "South".
     data = add_photsys(data)
 
     if header:
@@ -358,20 +402,20 @@ def release_to_photsys(release):
     -----
     Defaults to 'U' if the system is not recognized.
     """
-    #ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict
+    # ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict.
     releasenums = np.array(list(releasedict.keys()))
     photstrings = np.array(list(releasedict.values()))
 
-    #ADM an array with indices running from 0 to the maximum release number + 1
+    # ADM an array with indices running from 0 to the maximum release number + 1.
     r2p = np.empty(np.max(releasenums)+1, dtype='|S1')
 
-    #ADM set each entry to 'U' for an unidentified photometric system
+    # ADM set each entry to 'U' for an unidentified photometric system.
     r2p[:] = 'U'
 
-    #ADM populate where the release numbers exist with the PHOTSYS
+    # ADM populate where the release numbers exist with the PHOTSYS.
     r2p[releasenums] = photstrings
 
-    #ADM return the PHOTSYS string that corresponds to each passed release number
+    # ADM return the PHOTSYS string that corresponds to each passed release number.
     return r2p[release]
 
 
@@ -391,14 +435,14 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     """
     # FIXME: assert data and tsbits schema
 
-    #ADM set up the default logger
+    # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
 
-    #ADM use RELEASE to determine the release string for the input targets
+    # ADM use RELEASE to determine the release string for the input targets.
     ntargs = len(data)
     if ntargs == 0:
-        #ADM if there are no targets, then we don't know the Data Release
+        # ADM if there are no targets, then we don't know the Data Release.
         drstring = 'unknowndr'
     else:
         drint = np.max(data['RELEASE']//1000)
@@ -420,7 +464,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     else:
         depend.setdep(hdr, 'qso-selection', qso_selection)
 
-    #ADM add HEALPix column, if requested by input
+    # ADM add HEALPix column, if requested by input.
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
@@ -428,12 +472,12 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    #ADM populate SUBPRIORITY with a reproducible random float
+    # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names:
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    #ADM add the type of survey (main, commissioning; or "cmx", sv) to the header
+    # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
     hdr["SURVEY"] = survey
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
@@ -462,12 +506,12 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         If passed, add a column to the skies array popluated with HEALPixels 
         at resolution `nside`.
     """
-    #ADM set up the default logger
+    # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
 
-    #ADM force OBSCONDITIONS to be 65535 
-    #ADM (see https://github.com/desihub/desitarget/pull/313)
+    # ADM force OBSCONDITIONS to be 65535
+    # ADM (see https://github.com/desihub/desitarget/pull/313).
     data["OBSCONDITIONS"] = 2**16-1
 
     #- Create header to include versions, etc.
@@ -477,9 +521,9 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
-        #ADM note that if 'dr' is not in the indir DR
-        #ADM directory structure, garbage will
-        #ADM be rewritten gracefully in the header
+        # ADM note that if 'dr' is not in the indir DR
+        # ADM directory structure, garbage will
+        # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
 
@@ -495,7 +539,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
             bssize = "{:.2f}".format(bs)
             hdr[bsname] = bssize
 
-    #ADM add HEALPix column, if requested by input
+    # ADM add HEALPix column, if requested by input.
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
@@ -525,24 +569,24 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
         Gaia proper motion reference epoch. If not None, write to header of
         output file. If None, default to an epoch of 2015.5.
     """
-    #ADM set up the default logger
+    # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
 
-    #ADM create header to include versions, etc.
+    # ADM create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
-        #ADM note that if 'dr' is not in the indir DR
-        #ADM directory structure, garbage will
-        #ADM be rewritten gracefully in the header
+        # ADM note that if 'dr' is not in the indir DR
+        # ADM directory structure, garbage will
+        # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
 
-    #ADM add HEALPix column, if requested by input
+    # ADM add HEALPix column, if requested by input.
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
@@ -577,32 +621,32 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
     """
-    #ADM set up the default logger
+    # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
 
-    #ADM create header to include versions, etc.
+    # ADM create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
-        #ADM note that if 'dr' is not in the indir DR
-        #ADM directory structure, garbage will
-        #ADM be rewritten gracefully in the header
+        # ADM note that if 'dr' is not in the indir DR
+        # ADM directory structure, garbage will
+        # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
-        #ADM also write the mask bits header information
-        #ADM from a mask bits file in this DR
+        # ADM also write the mask bits header information
+        # ADM from a mask bits file in this DR.
         from glob import iglob
         files = iglob(indir+'/coadd/*/*/*maskbits*')
-        #ADM we built an iterator over mask bits files for speed
-        #ADM if there are no such files to iterate over, just pass
+        # ADM we built an iterator over mask bits files for speed
+        # ADM if there are no such files to iterate over, just pass.
         try:
             fn = next(files)
             mbhdr = fitsio.read_header(fn)
-            #ADM extract the keys that include the string 'BITNM'
+            # ADM extract the keys that include the string 'BITNM'.
             bncols = [ key for key in mbhdr.keys() if 'BITNM' in key ]
             for col in bncols:
                 hdr[col] = {'name':col, 
@@ -611,7 +655,7 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         except StopIteration:
             pass
 
-    #ADM add HEALPix column, if requested by input
+    # ADM add HEALPix column, if requested by input.
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
@@ -619,7 +663,7 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    #ADM add density of points if requested by input
+    # ADM add density of points if requested by input.
     if density is not None:
         hdr['DENSITY'] = density
 
@@ -647,8 +691,8 @@ def list_sweepfiles(root):
     from desiutil.log import get_logger
     log = get_logger(timestamp=True)
 
-    #ADM check for duplicate files in case the listing was run
-    #ADM at too low a level in the directory structure
+    # ADM check for duplicate files in case the listing was run
+    # ADM at too low a level in the directory structure.
     check = [os.path.basename(x) for x in iter_sweepfiles(root)]
     if len(check) != len(set(check)):
         log.error("Duplicate sweep files in root directory!")
@@ -668,8 +712,8 @@ def list_tractorfiles(root):
     from desiutil.log import get_logger
     log = get_logger(timestamp=True)
 
-    #ADM check for duplicate files in case the listing was run
-    #ADM at too low a level in the directory structure
+    # ADM check for duplicate files in case the listing was run
+    # ADM at too low a level in the directory structure.
     check = [os.path.basename(x) for x in iter_tractorfiles(root)]
     if len(check) != len(set(check)):
         log.error("Duplicate Tractor files in root directory!")
@@ -799,15 +843,15 @@ def whitespace_fits_read(filename, **kwargs):
     kwargs: arguments that will be passed directly to fitsio.
     """
     fitout = fitsio.read(filename, **kwargs)
-    #ADM if the header=True option was passed then
-    #ADM the output is the header and the data
+    # ADM if the header=True option was passed then
+    # ADM the output is the header and the data.
     data = fitout
     if 'header' in kwargs:
         data, header = fitout
 
-    #ADM guard against the zero-th extension being read by fitsio
+    # ADM guard against the zero-th extension being read by fitsio.
     if data is not None:
-        #ADM strip any whitespace from string columns
+        # ADM strip any whitespace from string columns.
         for colname in data.dtype.names:
             kind = data[colname].dtype.kind
             if kind == 'U' or kind == 'S':
@@ -843,20 +887,20 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     if pixmap is not None:
         log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
     else:
-        #ADM read in the pixel weights file                                                                                                  
+        # ADM read in the pixel weights file.
         if not os.path.exists(inmapfile):
             log.fatal('Input directory does not exist: {}'.format(inmapfile))
             raise ValueError
         pixmap = fitsio.read(inmapfile)
             
-    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it
+    # ADM determine the file's nside, and flag a warning if the passed nside exceeds it.
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
                   .format(nside,inmapfile,truenside))
 
-    #ADM resample the map
+    # ADM resample the map.
     return hp.pixelfunc.ud_grade(pixmap,nside,order_in='NESTED',order_out='NESTED')
 
 
@@ -892,28 +936,28 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
     if pixmap is not None:
         log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
     else:
-        #ADM read in the pixel weights file                                                                                                  
+        # ADM read in the pixel weights file.
         if not os.path.exists(inmapfile):
             log.fatal('Input directory does not exist: {}'.format(inmapfile))
             raise ValueError
         pixmap = fitsio.read(inmapfile)
             
-    #ADM determine the file's nside, and flag a warning if the passed nside exceeds it
+    # ADM determine the file's nside, and flag a warning if the passed nside exceeds it.
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
                   .format(nside,inmapfile,truenside))
 
-    #ADM set up an output array
+    # ADM set up an output array.
     nrows = hp.nside2npix(nside)
     outdata = np.zeros(nrows, dtype=pixmap.dtype)
 
-    #ADM resample the map for each column
+    # ADM resample the map for each column.
     for col in pixmap.dtype.names:
         outdata[col] = hp.pixelfunc.ud_grade(pixmap[col],nside,order_in='NESTED',order_out='NESTED')
 
-    #ADM if one column was the HEALPixel number, recalculate for the new resolution
+    # ADM if one column was the HEALPixel number, recalculate for the new resolution.
     if 'HPXPIXEL' in pixmap.dtype.names:
         outdata["HPXPIXEL"] = np.arange(nrows)
 
@@ -980,7 +1024,7 @@ def read_external_file(filename, header=False, columns=["RA","DEC"]):
     # ADM read in the RA/DEC columns.
     outdata = fx[1].read(columns=["RA","DEC"])
 
-    #ADM return data read in from file, with the header if requested.
+    # ADM return data read in from file, with the header if requested.
     fx.close()
     if header:
         return outdata, hdr
