@@ -11,7 +11,15 @@ desitarget Change Log
     * New data model columns `BRIGHTSTARINBLOB` and `FRACIN_`.
     * Modify I/O to retain (some) backwards-compatibility between DR6 and DR7.
     * Updated unit test example files with appropriate columns.
+* Updated mock sky catalog with positions over a larger footprint [`PR #398`_].
+* Major update to `select_mock_targets` to use the latest (v3.0) basis
+  templates [`PR #395`_].
+* Incorporate simple WISE depth model in `select_mock_targets` which depends on
+  ecliptic latitude [`PR #391`_].
 
+.. _`PR #391`: https://github.com/desihub/desitarget/pull/391
+.. _`PR #395`: https://github.com/desihub/desitarget/pull/395
+.. _`PR #398`: https://github.com/desihub/desitarget/pull/398
 .. _`PR #402`: https://github.com/desihub/desitarget/pull/402
 
 0.24.0 (2018-09-26)

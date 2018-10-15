@@ -270,23 +270,24 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             if not no_spectra:
                 trueflux.append(chunkflux[keep, :])
     else:
-        # Generate the spectra iteratively until we achieve the required
-        # target density.
+        # Generate the spectra iteratively until we achieve the required target
+        # density.  Evenly divide the possible targets into each iteration.
         iterseeds = rand.randint(2**31, size=maxiter)
-
+        iterindx = np.array_split(indx, maxiter)
+        
         makemore, itercount, ntot = True, 0, 0
         while makemore:
             chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-                data, indx=indx, seed=iterseeds[itercount], no_spectra=no_spectra)
+                data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
 
             MakeMock.select_targets(chunktargets, chunktruth)
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             nkeep = len(keep)
             if nkeep > 0:
-                log.debug('Generated {} / {} {} targets on iteration {} / {}.'.format(
-                    nkeep, ntarget, targname, itercount+1, maxiter))
                 ntot += nkeep
+                log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
+                    nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
 
                 targets.append(chunktargets[keep])
                 truth.append(chunktruth[keep])
@@ -296,25 +297,44 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                     trueflux.append(chunkflux[keep, :])
 
             itercount += 1
-            if itercount == maxiter:
+            if itercount == maxiter or ntot >= ntarget:
                 if maxiter > 1:
-                    log.warning('Generated {} / {} {} targets after {} iterations.'.format(
-                        ntot, ntarget, targname, maxiter))
+                    log.debug('Generated {} / {} {} targets after {} iterations.'.format(
+                        ntot, ntarget, targname, itercount))
                 makemore = False
             else:
                 need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
+                #import matplotlib.pyplot as plt
+                #noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+                #gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
+                #rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
+                #plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
+                #plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
+                #plt.legend(loc='upper left')
+                #plt.show()
+                
                 if len(need) > 0:
-                    indx = indx[need]
-                else:
-                    makemore = False
-
+                    # Distribute the objects that didn't pass target selection
+                    # to the remaining iterations.
+                    iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
+                    for ii in range(maxiter - itercount):
+                        iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
+        if ntot > ntarget: # Only keep up to the number of desired targets.
+            log.debug('Removing {} extraneous targets.'.format(ntot - ntarget))
+            keep = rand.choice(ntot, size=ntarget, replace=False)
+            targets = targets[keep]
+            truth = truth[keep]
         if len(objtruth) > 0: # skies have no objtruth
             objtruth = vstack(objtruth)
+            if ntot > ntarget:
+                objtruth = objtruth[keep]
         if not no_spectra:
             trueflux = np.concatenate(trueflux)
+            if ntot > ntarget:
+                trueflux = trueflux[keep, :]
 
     return [targets, truth, objtruth, trueflux]
 
@@ -381,7 +401,10 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
         ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
-        indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
+        if False:
+            indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
+        else:
+            indxthispix = allindxthispix
 
         indxperchunk.append(indxthispix)
         ntargperchunk.append(ntargthispix)
@@ -522,7 +545,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
                 trueflux = np.concatenate(np.array(results[3])[good])
             else:
                 trueflux = []
-                
+
     log.info('Done: Generated spectra for {} {} targets ({:.2f} / deg2).'.format(
         len(targets), data['TARGET_NAME'], len(targets) / area))
 
@@ -585,7 +608,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
-            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla))
+            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
+            no_spectra=no_spectra))
 
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
