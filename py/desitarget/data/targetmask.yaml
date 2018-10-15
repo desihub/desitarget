@@ -62,15 +62,15 @@ desi_mask:
 bgs_mask:    
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
-#    - [BGS_WISE,            2, "BGS wise targets", {obsconditions: BRIGHT}]	#GRAY and DARK?
+    - [BGS_WISE,            2, "BGS wise targets", {obsconditions: BRIGHT}]	#GRAY and DARK?
 
     #- BGS North vs. South selections
     - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
-#    - [BGS_WISE_NORTH,      10, "BGS wise targets from Bok/Mosaic", {obsconditions: BRIGHT}]	#GRAY and DARK?
+    - [BGS_WISE_NORTH,      10, "BGS wise targets from Bok/Mosaic", {obsconditions: BRIGHT}]	#GRAY and DARK?
     - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
-#    - [BGS_WISE_SOUTH,      18, "BGS wise targets from DECam", {obsconditions: BRIGHT}]	#GRAY and DARK?
+    - [BGS_WISE_SOUTH,      18, "BGS wise targets from DECam", {obsconditions: BRIGHT}]	#GRAY and DARK?
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey", {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
