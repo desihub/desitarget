@@ -1292,7 +1292,7 @@ def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     bgs &= rflux < gflux * 10**(4.0/2.5)
     bgs &= zflux > rflux * 10**(-1.0/2.5)
     bgs &= zflux < rflux * 10**(4.0/2.5)
-    bgs &= np.array([not i for i in brightstarinblob])
+    bgs &= ~brightstarinblob
     bgs_gaia = bgs & (Grr > 0.6)
     bgs_nogaia = bgs & (gaiagmag == 0)
     bgs = bgs_gaia | bgs_nogaia
@@ -1354,7 +1354,7 @@ def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     bgs &= rflux < gflux * 10**(4.0/2.5)
     bgs &= zflux > rflux * 10**(-1.0/2.5)
     bgs &= zflux < rflux * 10**(4.0/2.5)
-    bgs &= np.array([not i for i in brightstarinblob])
+    bgs &= ~brightstarinblob
     bgs_gaia = bgs & (Grr > 0.6)
     bgs_nogaia = bgs & (gaiagmag == 0)
     bgs = bgs_gaia | bgs_nogaia
@@ -1463,7 +1463,7 @@ def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     bgs &= rflux < gflux * 10**(4.0/2.5)
     bgs &= zflux > rflux * 10**(-1.0/2.5)
     bgs &= zflux < rflux * 10**(4.0/2.5)
-    bgs &= np.array([not i for i in brightstarinblob])
+    bgs &= ~brightstarinblob
     bgs_gaia = bgs & (Grr > 0.6)
     bgs_nogaia = bgs & (gaiagmag == 0)
     bgs = bgs_gaia | bgs_nogaia
@@ -1522,7 +1522,7 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     bgs &= rflux < gflux * 10**(4.0/2.5)
     bgs &= zflux > rflux * 10**(-1.0/2.5)
     bgs &= zflux < rflux * 10**(4.0/2.5)
-    bgs &= np.array([not i for i in brightstarinblob])
+    bgs &= ~brightstarinblob
     bgs_gaia = bgs & (Grr > 0.6)
     bgs_nogaia = bgs & (gaiagmag == 0)
     bgs = bgs_gaia | bgs_nogaia
@@ -1632,7 +1632,7 @@ def isBGS_wise_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     bgs &= rflux < gflux * 10**(4.0/2.5)
     bgs &= zflux > rflux * 10**(-1.0/2.5)
     bgs &= zflux < rflux * 10**(4.0/2.5)
-    bgs &= np.array([not i for i in brightstarinblob])
+    bgs &= ~brightstarinblob
     bgs &= Grr < 0.4
     bgs &= Grr > -1
     bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
@@ -1692,7 +1692,7 @@ def isBGS_wise_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     bgs &= rflux < gflux * 10**(4.0/2.5)
     bgs &= zflux > rflux * 10**(-1.0/2.5)
     bgs &= zflux < rflux * 10**(4.0/2.5)
-    bgs &= np.array([not i for i in brightstarinblob])
+    bgs &= ~brightstarinblob
     bgs &= Grr < 0.4
     bgs &= Grr > -1
     bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
