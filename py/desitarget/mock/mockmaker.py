@@ -20,8 +20,7 @@ import healpy as hp
 
 from desimodel.io import load_pixweight
 from desimodel import footprint
-from desiutil.brick import Bricks
-from desitarget.cuts import apply_cuts
+from desitarget import cuts
 from desisim.io import empty_metatable
 
 from desiutil.log import get_logger, DEBUG
@@ -245,8 +244,10 @@ class SelectTargets(object):
 
     def __init__(self, bricksize=0.25):
         from astropy.io import fits
+
         from speclite import filters
         from desiutil.dust import SFDMap
+        from desiutil.brick import Bricks
         from specsim.fastfiberacceptance import FastFiberAcceptance
         from ..targetmask import desi_mask, bgs_mask, mws_mask
         from ..contammask import contam_mask
@@ -310,6 +311,9 @@ class SelectTargets(object):
             to contain the PSF and galaxy depth in various bands.
 
         """
+        import astropy.units as u
+        from astropy.coordinates import SkyCoord
+
         nobj = len(data['RA'])
 
         psfdepth_mag = np.array((24.65, 23.61, 22.84)) # 5-sigma, mag
@@ -322,11 +326,29 @@ class SelectTargets(object):
             data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
             data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
 
-        wisedepth_mag = np.array((22.3, 23.8)) # 1-sigma, mag
-        wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+        # compute the WISE depth, which is largely a function of ecliptic latitude 
+        coord = SkyCoord(data['RA']*u.deg, data['DEC']*u.deg)
+        ecoord = coord.transform_to('barycentrictrueecliptic')
+        beta = ecoord.lat.value
+        if np.count_nonzero(beta > 89) > 0: # don't explode at the pole!
+            beta[beta > 89] = 89
+        if np.count_nonzero(beta < -89) > 0: # don't explode at the pole!
+            beta[beta < -89] = -89
+        beta = np.radians(ecoord.lat.value) # [radians]
+
+        sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level 
+                                                # background structure e.g. striping
+        neff = [15.7832, 18.5233]               # effective number of pixels in PSF
+        vega2ab = [2.699, 3.339]
+        sig_stat_beta0 = [3.5127802, 9.1581879] # random uncertainty [AB nanomaggies]
 
         for ii, band in enumerate(('W1', 'W2')):
-            data['PSFDEPTH_{}'.format(band)] = np.repeat(wisedepth_ivar[ii], nobj)
+            sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
+            sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
+
+            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag
+            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
+            data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
 
     def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
                            seed=None, qaplot=False):
@@ -493,10 +515,22 @@ class SelectTargets(object):
                 GMM = getattr(self, 'GMM_{}'.format(target.upper()))
         except:
             return None # no GMM for this target
+
+        if target == 'LRG':
+            colorcuts_function = cuts.isLRG_colors
+        elif target == 'ELG':
+            colorcuts_function = cuts.isELG_colors
+        elif target == 'QSO':
+            colorcuts_function = cuts.isQSO_colors
+        else:
+            colorcuts_function = None
             
         morph = GMM[0]
         if isouth is None:
             isouth = np.ones(nobj).astype(bool)
+
+        south = np.where( isouth )[0]
+        north = np.where( ~isouth )[0]
 
         # Marginalize the morphological fractions over magnitude.
         magbins = GMM[1]['MAG'].data
@@ -521,16 +555,90 @@ class SelectTargets(object):
         for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
                     'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
                     'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
-                    'GR', 'RZ'):
+                    'GR', 'RZ', 'ZW1'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
+        def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5,
+                          colorcuts_function=None):
+            """Sample from the given GMM iteratively and only keep objects that pass our
+            color-cuts."""
+            nneed = len(samp)
+            need = np.arange(nneed)
+
+            makemore, itercount = True, 1
+            while makemore:
+                #print(itercount, nneed)
+                # This algorithm is not quite right because the GMMs are drawn
+                # from DR7/south, but we're using them to simulate "north"
+                # photometry as well.
+                _samp = GMM[3][ii].sample(nneed, random_state=rand)
+                for jj, tt in enumerate(cols):
+                    samp[tt][need] = _samp[:, jj]
+
+                if colorcuts_function is None:
+                    nneed = 0
+                    makemore = False
+                else:
+                    if 'z' in samp.dtype.names:
+                        zmag = samp['z'][need]
+                        rmag = samp['rz'][need] + zmag
+                    else:
+                        rmag = samp['r'][need]
+                        zmag = rmag - samp['rz'][need]
+                    gmag = samp['gr'][need] + rmag
+                    if 'zw1' in samp.dtype.names:
+                        w1mag = zmag - samp['zw1'][need]
+                    else:
+                        w1mag = np.zeros_like(rmag)
+                    if 'w1w2' in samp.dtype.names:
+                        w2mag = w1mag - samp['w1w2'][need]
+                    else:
+                        w2mag = np.zeros_like(rmag)
+
+                    gflux, rflux, zflux, w1flux, w2flux = [1e9 * 10**(-0.4*mg) for mg in
+                                                           (gmag, rmag, zmag, w1mag, w2mag)]
+                    itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                               w1flux=w1flux, w2flux=w2flux, south=south)
+                    need = np.where( itarg == False )[0]
+                    nneed = len(need)
+
+                if nneed == 0 or itercount == maxiter:
+                    makemore = False
+                itercount += 1
+                    
+            return samp
+        
         for ii, mm in enumerate(morph):
             if nobj_morph[ii] > 0:
+                # Should really be using north/south GMMs.
                 cols = GMM[2][ii]
-                samp = np.empty( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
-                _samp = GMM[3][ii].sample(nobj)
-                for jj, tt in enumerate(cols):
-                    samp[tt] = _samp[:, jj]
+                samp = np.zeros( nobj, dtype=np.dtype( [(tt, 'f4') for tt in cols] ) )
+
+                # Iterate to make sure the sampled objects pass color-cuts! 
+                if len(north) > 0:
+                    samp[north] = _samp_iterate(samp[north], target=target, south=False, rand=rand,
+                                                colorcuts_function=colorcuts_function)
+                if len(south) > 0:
+                    samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand,
+                                                colorcuts_function=colorcuts_function)
+                    
+                # No iterating
+                #_samp = GMM[3][ii].sample(nobj, rand=rand)
+                #for jj, tt in enumerate(cols):
+                #    samp[tt] = _samp[:, jj]
+
+                ## Check:
+                #from desitarget.cuts import isLRG_colors
+                #zmag = samp['z']
+                #rmag = samp['rz'] + zmag
+                #gmag = samp['gr'] + rmag
+                #w1mag = zmag - samp['zw1']
+                #gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
+                #itarg = np.zeros(nobj).astype(bool)
+                #itarg_s = isLRG_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south], w1flux=w1flux[south], south=True)
+                #itarg_n = isLRG_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north], w1flux=w1flux[north], south=False)
+                #itarg[np.where(itarg_n)[0]] = True
+                #itarg[np.where(itarg_s)[0]] = True
 
                 # Choose samples with the appropriate magnitude-dependent
                 # probability, for this morphological type.
@@ -544,6 +652,9 @@ class SelectTargets(object):
                     gmmout['MAG'][gthese] = samp['z'][these]
                 else:
                     gmmout['MAG'][gthese] = samp['r'][these]
+                if 'zw1' in samp.dtype.names:
+                    gmmout['ZW1'][gthese] = samp['zw1'][these]
+                
                 gmmout['GR'][gthese] = samp['gr'][these]
                 gmmout['RZ'][gthese] = samp['rz'][these]
                 gmmout['TYPE'][gthese] = np.repeat(mm, nobj_morph[ii])
@@ -941,7 +1052,7 @@ class SelectTargets(object):
 
         return targets, truth, objtruth
 
-    def mock_density(self, mockfile=None, nside=16, density_per_pixel=False):
+    def mock_density(self, mockfile=None, nside=64, density_per_pixel=False):
         """Compute the median density of targets in the full mock. 
 
         Parameters
@@ -1012,10 +1123,10 @@ class SelectTargets(object):
         fig, ax = plt.subplots(1, 2, figsize=(12, 4))
         with warnings.catch_warnings():
             warnings.simplefilter('ignore')
-            basemap = init_sky(galactic_plane_color='k', ax=ax[0]);
+            basemap = init_sky(galactic_plane_color='k', ax=ax[0])
             plot_sky_binned(data['RA'], data['DEC'], weights=data['WEIGHT'],
                             max_bin_area=hp.nside2pixarea(data['NSIDE'], degrees=True),
-                            verbose=False, clip_lo='!1', clip_hi='98%', 
+                            verbose=False, clip_lo='!1', clip_hi='95%', 
                             cmap='viridis', plot_type='healpix', basemap=basemap,
                             label=r'{} (targets/deg$^2$)'.format(self.objtype))
             
@@ -1058,7 +1169,7 @@ class ReadGaussianField(SelectTargets):
         
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  zmax_qso=None, target_name='', mock_density=False,
-                 seed=None):
+                 only_coords=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -1077,6 +1188,9 @@ class ReadGaussianField(SelectTargets):
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
 
@@ -1110,7 +1224,7 @@ class ReadGaussianField(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1136,6 +1250,9 @@ class ReadGaussianField(SelectTargets):
         
         fracarea = pixweight[allpix]        
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1174,9 +1291,16 @@ class ReadGaussianField(SelectTargets):
                 zz = zz[cut]
                 zz_norsd = zz_norsd[cut]
 
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
+
+        isouth = self.is_south(dec)
+
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.
-        isouth = self.is_south(dec)
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_redshift=zz)
 
@@ -1208,7 +1332,7 @@ class ReadUniformSky(SelectTargets):
         super(ReadUniformSky, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', mock_density=False):
+                 target_name='', mock_density=False, only_coords=False):
         """Read the catalog.
 
         Parameters
@@ -1223,6 +1347,9 @@ class ReadUniformSky(SelectTargets):
             Name of the target being read (e.g., ELG, LRG).
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
             to False.
 
         Returns
@@ -1255,7 +1382,7 @@ class ReadUniformSky(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1281,6 +1408,9 @@ class ReadUniformSky(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1296,12 +1426,20 @@ class ReadUniformSky(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
+
+        isouth = self.is_south(dec)
+
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'uniformsky',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
-               'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra))}
+               'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra)),
+               'SOUTH': isouth}
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -1432,6 +1570,9 @@ class ReadGalaxia(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1512,8 +1653,8 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               
                'REF_ID': mockid,
-
                'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
@@ -1610,7 +1751,7 @@ class ReadLyaCoLoRe(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1648,6 +1789,9 @@ class ReadLyaCoLoRe(SelectTargets):
         fracarea = pixweight[allpix]
         # force DESI footprint
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0]
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1779,7 +1923,7 @@ class ReadMXXL(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -1832,6 +1976,9 @@ class ReadMXXL(SelectTargets):
         
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -1874,11 +2021,13 @@ class ReadMXXL(SelectTargets):
             return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
                     'MAG': rmag, 'WEIGHT': weight, 'NSIDE': nside}
 
+        isouth = self.is_south(dec)
+
         # Get photometry and morphologies by sampling from the Gaussian mixture
         # models.  This is a total hack because our apparent magnitudes (rmag)
         # will not be consistent with the Gaussian draws.  But as a hack just
         # sort the shapes and sizes on rmag.
-        isouth = self.is_south(dec)
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
                                  seed=seed, prior_mag=rmag)
 
@@ -1989,6 +2138,9 @@ class ReadGAMA(SelectTargets):
         
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -2065,7 +2217,8 @@ class ReadMWS_WD(SelectTargets):
         IOError
             If the mock data file is not found.
         ValueError
-            If mockfile is not defined or if nside is not a scalar.
+            If mockfile is not defined or if nside is not a scalar or if the
+            selection index isn't monotonically increasing.
 
         """
         if mockfile is None:
@@ -2085,7 +2238,7 @@ class ReadMWS_WD(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -2111,6 +2264,9 @@ class ReadMWS_WD(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -2126,13 +2282,26 @@ class ReadMWS_WD(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        cols = ['RADIALVELOCITY', 'G_SDSS', 'TEFF', 'LOGG', 'SPECTRALTYPE']
+        cols = ['RADIALVELOCITY', 'TEFF', 'LOGG', 'SPECTRALTYPE',
+                'PHOT_G_MEAN_MAG', 'PHOT_BP_MEAN_MAG', 'PHOT_RP_MEAN_MAG',
+                'PMRA', 'PMDEC', 'PARALLAX', 'PARALLAX_ERROR',
+                'ASTROMETRIC_EXCESS_NOISE', 'RA']
         data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
+
         zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
-        mag = data['G_SDSS'].astype('f4') # SDSS g-band
         teff = data['TEFF'].astype('f4')
         logg = data['LOGG'].astype('f4')
+        mag = data['PHOT_G_MEAN_MAG'].astype('f4')
         templatesubtype = np.char.upper(data['SPECTRALTYPE'].astype('<U'))
+
+        gaia_g = data['PHOT_G_MEAN_MAG'].astype('f4')
+        gaia_bp = data['PHOT_BP_MEAN_MAG'].astype('f4')
+        gaia_rp = data['PHOT_RP_MEAN_MAG'].astype('f4')
+        gaia_pmra = data['PMRA'].astype('f4')
+        gaia_pmdec = data['PMDEC'].astype('f4')
+        gaia_parallax = data['PARALLAX'].astype('f4')
+        gaia_parallax_ivar = (1 / data['PARALLAX_ERROR']**2).astype('f4')
+        gaia_noise = data['ASTROMETRIC_EXCESS_NOISE'].astype('f4')
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
@@ -2142,6 +2311,23 @@ class ReadMWS_WD(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
                'MAGFILTER': np.repeat('sdss2010-g', nobj),
                'TEMPLATESUBTYPE': templatesubtype,
+
+               'REF_ID': mockid,
+               'GAIA_PHOT_G_MEAN_MAG': gaia_g,
+               #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
+               #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_RP_MEAN_MAG': gaia_rp,
+               #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
+               #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'PARALLAX': gaia_parallax,
+               'PARALLAX_IVAR': gaia_parallax_ivar,
+               'PMRA': gaia_pmra,
+               'PMRA_IVAR': np.ones(nobj).astype('f4'),  # placeholder!
+               'PMDEC': gaia_pmdec,
+               'PMDEC_IVAR': np.ones(nobj).astype('f4'), # placeholder!
+               
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
@@ -2209,7 +2395,7 @@ class ReadMWS_NEARBY(SelectTargets):
         # Default set of healpixels is the whole DESI footprint.
         if healpixels is None:
             if nside is None:
-                nside = 16
+                nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
 
@@ -2235,6 +2421,9 @@ class ReadMWS_NEARBY(SelectTargets):
 
         fracarea = pixweight[allpix]
         cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
 
         nobj = len(cut)
         if nobj == 0:
@@ -2320,7 +2509,8 @@ class QSOMaker(SelectTargets):
             QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
             
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, zmax_qso=None, mock_density=False, **kwargs):
+             nside=None, zmax_qso=None, only_coords=False, mock_density=False,
+             **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2336,6 +2526,8 @@ class QSOMaker(SelectTargets):
         zmax_qso : :class:`float`
             Maximum redshift of tracer QSOs to read, to ensure no
             double-counting with Lya mocks.  Defaults to None.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -2354,7 +2546,7 @@ class QSOMaker(SelectTargets):
         
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'QSO.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'qso_0_inpt.fits')
             MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -2365,6 +2557,7 @@ class QSOMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    zmax_qso=zmax_qso, mock_density=mock_density)
 
         return data
@@ -2469,9 +2662,9 @@ class QSOMaker(SelectTargets):
 
         """
         if self.use_simqso:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO')
         else:
-            desi_target, bgs_target, mws_target = apply_cuts(
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(
                 targets, tcnames='QSO', qso_selection='colorcuts',
                 qso_optical_cuts=True)
 
@@ -2785,7 +2978,7 @@ class LYAMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='QSO')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -2823,14 +3016,36 @@ class LRGMaker(SelectTargets):
             
         self.meta = self.template_maker.basemeta
 
-        ## Build the KD Tree.  ToDo: add north/south photometry.
-        #if self.KDTree_north is None:
-        #    LRGMaker.KDTree_north = KDTree( np.vstack((
-        #        self.meta['Z'].data)).T )
-        #if self.KDTree_south is None:
-        #    LRGMaker.KDTree_south = KDTree( np.vstack((
-        #        self.meta['Z'].data)).T )
+        # Build the KD Tree.
+        zobj = self.meta['Z'].data
+        gr_north = (self.meta['BASS_G'] - self.meta['BASS_R']).data
+        rz_north = (self.meta['BASS_R'] - self.meta['MZLS_Z']).data
+        zW1_north = (self.meta['MZLS_Z'] - self.meta['W1']).data
+            
+        gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
+        rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        zW1_south = (self.meta['DECAM_Z'] - self.meta['W1']).data
 
+        self.param_min_north = ( zobj.min(), gr_north.min(), rz_north.min(), zW1_north.min() )
+        self.param_min_south = ( zobj.min(), gr_south.min(), rz_south.min(), zW1_south.min() )
+        self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north), np.ptp(zW1_north) )
+        self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south), np.ptp(zW1_south) )
+        
+        if self.KDTree_north is None:
+            LRGMaker.KDTree_north = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_north,
+                    rz_north,
+                    zW1_north)).T, south=False )
+        if self.KDTree_south is None:
+            LRGMaker.KDTree_south = self.KDTree_build(
+                np.vstack((
+                    zobj,
+                    gr_south,
+                    rz_south,
+                    zW1_south)).T, south=True )
+            
         if self.GMM_LRG is None:
             self.read_GMM(target='LRG')
 
@@ -2839,7 +3054,7 @@ class LRGMaker(SelectTargets):
             LRGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2852,6 +3067,8 @@ class LRGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -2880,6 +3097,7 @@ class LRGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density, seed=self.seed)
 
         return data
@@ -2941,11 +3159,17 @@ class LRGMaker(SelectTargets):
             north = np.where( data['SOUTH'][indx] == False )[0]
 
             if self.mockformat == 'gaussianfield':
-                # This is not quite right, but choose a template with equal probability.
-                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
-
+                for these, issouth in zip( (north, south), (False, True) ):
+                    if len(these) > 0:
+                        input_meta['MAG'][these] = data['MAG'][indx][these]
+                        input_meta['MAGFILTER'][these] = data['MAGFILTER'][indx][these]
+                        input_meta['TEMPLATEID'][these] = self.KDTree_query(
+                            np.vstack((
+                                data['Z'][indx][these],
+                                data['GR'][indx][these],
+                                data['RZ'][indx][these],
+                                data['ZW1'][indx][these])).T, south=issouth)
+                        
             # Build north/south spectra separately.
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
@@ -2977,7 +3201,7 @@ class LRGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='LRG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='LRG')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -2996,7 +3220,7 @@ class ELGMaker(SelectTargets):
 
     """
     wave, KDTree_north, KDTree_south, template_maker = None, None, None, None
-    GMM_LRG, GMM_nospectra = None, None
+    GMM_ELG, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from desisim.templates import ELG
@@ -3016,10 +3240,9 @@ class ELGMaker(SelectTargets):
         self.meta = self.template_maker.basemeta
 
         # Build the KD Trees
-        log.warning('Using south ELG KD Tree for north photometry.')
         zobj = self.meta['Z'].data
-        gr_north = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
-        rz_north = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
+        gr_north = (self.meta['BASS_G'] - self.meta['BASS_R']).data
+        rz_north = (self.meta['BASS_R'] - self.meta['MZLS_Z']).data
         gr_south = (self.meta['DECAM_G'] - self.meta['DECAM_R']).data
         rz_south = (self.meta['DECAM_R'] - self.meta['DECAM_Z']).data
 
@@ -3041,15 +3264,15 @@ class ELGMaker(SelectTargets):
                     gr_south,
                     rz_south)).T, south=True )
 
-        if self.GMM_LRG is None:
-            self.read_GMM(target='LRG')
+        if self.GMM_ELG is None:
+            self.read_GMM(target='ELG')
         
         if self.GMM_nospectra is None:
             gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_elg.fits')
             ELGMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3062,6 +3285,8 @@ class ELGMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -3079,7 +3304,7 @@ class ELGMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'ELG.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'elg_0_inpt.fits')
             MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3090,6 +3315,7 @@ class ELGMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density, seed=self.seed)
 
         return data
@@ -3192,7 +3418,7 @@ class ELGMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='ELG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='ELG')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3211,7 +3437,7 @@ class BGSMaker(SelectTargets):
 
     """
     wave, KDTree, template_maker = None, None, None
-    GMM_LRG, GMM_nospectra = None, None
+    GMM_BGS, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
         from desisim.templates import BGS
@@ -3417,7 +3643,7 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames='BGS')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='BGS')
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3432,13 +3658,15 @@ class STARMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
     wave, template_maker, KDTree = None, None, None
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, no_spectra=False, **kwargs):
         from speclite import filters
         from desisim.templates import STAR
 
@@ -3456,8 +3684,10 @@ class STARMaker(SelectTargets):
 
         # Pre-compute normalized synthetic photometry for the full set of
         # stellar templates.
-        if (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
+        if no_spectra and (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
+            log.info('Caching stellar template photometry.')
+            
             flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
             maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
@@ -3541,7 +3771,7 @@ class STARMaker(SelectTargets):
             else:
                 log.warning('Unrecognized normalization filter {}!'.format(data['MAGFILTER'][0]))
                 raise ValueError
-            
+
         for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
             meta[key][:] = star_maggies[key][templateid] * normmag
 
@@ -3608,10 +3838,12 @@ class MWS_MAINMaker(STARMaker):
     calib_only : :class:`bool`, optional
         Use MWS_MAIN stars as calibration (standard star) targets, only.
         Defaults to False.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
-    def __init__(self, seed=None, calib_only=False, **kwargs):
-        super(MWS_MAINMaker, self).__init__()
+    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
+        super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
         self.calib_only = calib_only
 
@@ -3755,7 +3987,7 @@ class MWS_MAINMaker(STARMaker):
         else:
             tcnames = ['MWS', 'STD']
             
-        desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=tcnames)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
@@ -3777,7 +4009,7 @@ class MWS_MAINMaker(STARMaker):
         targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
 
         # Select bright stellar contaminants for the extragalactic targets.
-        log.info('Temporarily turning off contaminants.')
+        log.debug('Temporarily turning off contaminants.')
         if False:
             self.select_contaminants(targets, truth)
 
@@ -3791,10 +4023,12 @@ class FAINTSTARMaker(STARMaker):
     calib_only : :class:`bool`, optional
         Use FAINTSTAR stars as calibration (standard star) targets and
         contaminants, only.  Defaults to True.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
-    def __init__(self, seed=None, calib_only=True, **kwargs):
-        super(FAINTSTARMaker, self).__init__()
+    def __init__(self, seed=None, calib_only=True, no_spectra=False, **kwargs):
+        super(FAINTSTARMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
              nside=None, nside_galaxia=8, magcut=None, **kwargs):
@@ -3985,10 +4219,12 @@ class MWS_NEARBYMaker(STARMaker):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
 
     """
-    def __init__(self, seed=None, **kwargs):
-        super(MWS_NEARBYMaker, self).__init__()
+    def __init__(self, seed=None, no_spectra=False, **kwargs):
+        super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
     def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4128,9 +4364,9 @@ class MWS_NEARBYMaker(STARMaker):
 
         """
         if False:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
         else:
-            log.warning('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
+            log.debug('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
 
             mws_nearby = np.ones(len(targets)) # select everything!
             #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
@@ -4148,6 +4384,8 @@ class WDMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not initialize template photometry.  Defaults to False.
     calib_only : :class:`bool`, optional
         Use WDs as calibration (standard star) targets, only.  Defaults to False. 
 
@@ -4157,7 +4395,7 @@ class WDMaker(SelectTargets):
     wd_maggies_da_north, wd_maggies_da_north = None, None
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
-    def __init__(self, seed=None, calib_only=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
         from speclite import filters
         from desisim.templates import WD
         
@@ -4181,8 +4419,9 @@ class WDMaker(SelectTargets):
 
         # Pre-compute normalized synthetic photometry for the full set of DA and
         # DB templates.
-        if (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
+        if no_spectra and (self.wd_maggies_da_north is None or self.wd_maggies_da_south is None or
             self.wd_maggies_db_north is None or self.wd_maggies_db_south is None):
+            log.info('Caching WD template photometry.')
 
             wave = self.da_template_maker.basewave
             flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
@@ -4414,9 +4653,6 @@ class WDMaker(SelectTargets):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
         in place.
 
-        Note: The selection here eventually will be done with Gaia (I think) so
-        for now just do a "perfect" selection.
-
         Parameters
         ----------
         targets : :class:`astropy.table.Table`
@@ -4426,30 +4662,12 @@ class WDMaker(SelectTargets):
 
         """
         if not self.calib_only:
-            if False:
-                desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['MWS'])
-            else:
-                log.warning('Applying ad hoc selection of MWS_WD targets (no Gaia in mocks).')
-
-                #mws_wd = np.ones(len(targets)) # select everything!
-                mws_wd = ((truth['MAG'] >= 15.0) * (truth['MAG'] <= 20.0)) * 1 # SDSS g-band!
-
-                desi_target = (mws_wd != 0) * self.desi_mask.MWS_ANY
-                mws_target = (mws_wd != 0) * self.mws_mask.mask('MWS_WD')
-
-                targets['DESI_TARGET'] |= desi_target
-                targets['MWS_TARGET'] |= mws_target
-
-        if False:
-            desi_target, bgs_target, mws_target = apply_cuts(targets, tcnames=['STD'])
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
             targets['DESI_TARGET'] |= desi_target
-        else:
-            log.warning('Applying ad hoc selection of STD_WD targets (no Gaia in mocks).')
-            
-            # Ad hoc selection of WD standards using just on g-band magnitude (not
-            # TEMPLATESUBTYPE!)
-            std_wd = (truth['MAG'] <= 19.0) * 1 # SDSS g-band!
-            targets['DESI_TARGET'] |= (std_wd !=0) * self.desi_mask.mask('STD_WD')
+            targets['MWS_TARGET'] |= mws_target
+
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
+        targets['DESI_TARGET'] |= desi_target
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -4472,7 +4690,7 @@ class SKYMaker(SelectTargets):
             SKYMaker.wave = _default_wave()
         
     def read(self, mockfile=None, mockformat='uniformsky', healpixels=None,
-             nside=None, mock_density=False, **kwargs):
+             nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4485,6 +4703,8 @@ class SKYMaker(SelectTargets):
             Healpixel number to read.
         nside : :class:`int`
             Healpixel nside corresponding to healpixels.
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
 
@@ -4517,6 +4737,7 @@ class SKYMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
+                                   only_coords=only_coords,
                                    mock_density=mock_density)
 
         return data
