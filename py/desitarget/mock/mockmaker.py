@@ -1227,7 +1227,7 @@ class ReadGaussianField(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadGaussianField.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadGaussianField.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -1243,7 +1243,7 @@ class ReadGaussianField(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -1264,7 +1264,7 @@ class ReadGaussianField(SelectTargets):
             if zmax_qso is not None:
                 cut = np.where( zz < zmax_qso )[0]
                 nobj = len(cut)
-                log.info('Trimmed to {} objects with z<{:.3f}'.format(nobj, zmax_qso))
+                log.debug('Trimmed to {} objects with z<{:.3f}'.format(nobj, zmax_qso))
                 if nobj == 0:
                     return dict()
                 mockid = mockid[cut]
@@ -1393,7 +1393,7 @@ class ReadBuzzard(SelectTargets):
                 pixweight = load_pixweight(nside, pixmap=self.pixmap)
                 ReadBuzzard.cached_pixweight = (pixweight, nside)
             else:
-                log.info('Using cached pixel weight map.')
+                log.debug('Using cached pixel weight map.')
                 pixweight, _ = ReadBuzzard.cached_pixweight
 
         # Get the set of nside_buzzard pixels that belong to the desired
@@ -1551,7 +1551,7 @@ class ReadUniformSky(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadUniformSky.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadUniformSky.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -1567,7 +1567,7 @@ class ReadUniformSky(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -1610,7 +1610,7 @@ class ReadGalaxia(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
                  target_name='MWS_MAIN', magcut=None, faintstar_mockfile=None,
-                 faintstar_magcut=None):
+                 faintstar_magcut=None, seed=None):
         """Read the catalog.
 
         Parameters
@@ -1635,6 +1635,8 @@ class ReadGalaxia(SelectTargets):
         faintstar_magcut : :class:`float`, optional
             Magnitude cut (hard-coded to SDSS r-band) to subselect faint star
             targets brighter than magcut.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -1688,7 +1690,7 @@ class ReadGalaxia(SelectTargets):
                 pixweight = load_pixweight(nside, pixmap=self.pixmap)
                 ReadGalaxia.cached_pixweight = (pixweight, nside)
             else:
-                log.info('Using cached pixel weight map.')
+                log.debug('Using cached pixel weight map.')
                 pixweight, _ = ReadGalaxia.cached_pixweight
 
         # Get the set of nside_galaxia pixels that belong to the desired
@@ -1697,7 +1699,7 @@ class ReadGalaxia(SelectTargets):
         theta, phi = hp.pix2ang(nside, healpixels, nest=True)
         pixnum = hp.ang2pix(nside_galaxia, theta, phi, nest=True)
 
-        if target_name.upper() == 'MWS_MAIN':
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             filetype = 'mock_allsky_galaxia_desi'
         elif target_name.upper() == 'FAINTSTAR':
             filetype = ('mock_superfaint_allsky_galaxia_desi_b10_cap_north',
@@ -1736,7 +1738,7 @@ class ReadGalaxia(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -1777,11 +1779,11 @@ class ReadGalaxia(SelectTargets):
                 logg = logg[cut]
                 feh = feh[cut]
                 nobj = len(ra)
-                log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
+                log.debug('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
         # Temporary hack to read some Gaia columns from a separate file, but
         # only for the MWS_MAIN mocks!
-        if target_name.upper() == 'MWS_MAIN':
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             gaiafile = galaxiafile.replace('mock_', 'gaia_mock_')
             if os.path.isfile(gaiafile):
                 cols = ['G_GAIA', 'PM_RA_STAR_GAIA', 'PM_DEC_GAIA', 'PARALLAX_GAIA',
@@ -1843,14 +1845,20 @@ class ReadGalaxia(SelectTargets):
 
         # Optionally include faint stars.
         if faintstar_mockfile is not None:
-            log.info('Including faint stellar targets.')
+            log.debug('Supplementing with FAINTSTAR mock targets.')
             faintdata = ReadGalaxia().readmock(mockfile=faintstar_mockfile, target_name='FAINTSTAR',
                                                healpixels=healpixels, nside=nside,
                                                nside_galaxia=nside_galaxia, magcut=faintstar_magcut)
+            
+            # Stack and shuffle so we get a mix of bright and faint stars.
+            rand = np.random.RandomState(seed)
+            newnobj = nobj + len(faintdata['RA'])
+            newindx = rand.choice(newnobj, size=newnobj, replace=False)
 
             for key in out.keys():
                 if type(out[key]) == np.ndarray:
-                    out[key] = np.hstack( (out[key], faintdata[key]) )
+                    out[key] = np.hstack( (out[key], faintdata[key]) )[newindx]
+
             del faintdata
 
         return out
@@ -1968,7 +1976,7 @@ class ReadLyaCoLoRe(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         allpix = allpix[cut]
@@ -1985,7 +1993,7 @@ class ReadLyaCoLoRe(SelectTargets):
         if zmin_lya is not None:
             cut = np.where( zz >= zmin_lya )[0]
             nobj = len(cut)
-            log.info('Trimmed to {} {}s with z>={:.3f}'.format(nobj, target_name, zmin_lya))
+            log.debug('Trimmed to {} {}s with z>={:.3f}'.format(nobj, target_name, zmin_lya))
             if nobj == 0:
                 return dict()
             allpix = allpix[cut]
@@ -2139,7 +2147,7 @@ class ReadMXXL(SelectTargets):
                 ra, dec, zz, rmag, absmag, gr, allpix, pixweight = _read_mockfile(mockfile, nside, self.pixmap)
                 ReadMXXL.cached_radec = (mockfile, nside, ra, dec, zz, rmag, absmag, gr, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, zz, rmag, absmag, gr, allpix, pixweight = ReadMXXL.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2155,7 +2163,7 @@ class ReadMXXL(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -2184,7 +2192,7 @@ class ReadMXXL(SelectTargets):
                 absmag = absmag[cut]
                 gr = gr[cut]
                 nobj = len(ra)
-                log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
+                log.debug('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
         # Optionally (for a little more speed) only return some basic info. 
         if only_coords:
@@ -2301,7 +2309,7 @@ class ReadGAMA(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadGAMA.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadGAMA.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2317,7 +2325,7 @@ class ReadGAMA(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -2427,7 +2435,7 @@ class ReadMWS_WD(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadMWS_WD.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadMWS_WD.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2443,7 +2451,7 @@ class ReadMWS_WD(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -2584,7 +2592,7 @@ class ReadMWS_NEARBY(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadMWS_NEARBY.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadMWS_NEARBY.cached_radec
         
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2600,7 +2608,7 @@ class ReadMWS_NEARBY(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -4037,8 +4045,8 @@ class MWS_MAINMaker(STARMaker):
         self.calib_only = calib_only
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
-             nside=None, nside_galaxia=8, magcut=None, faintstar_mockfile=None,
-             faintstar_magcut=None, **kwargs):
+             nside=None, nside_galaxia=8, target_name='MWS_MAIN', magcut=None,
+             faintstar_mockfile=None, faintstar_magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -4054,6 +4062,17 @@ class MWS_MAINMaker(STARMaker):
         nside_galaxia : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read.  Defaults to 'MWS_MAIN'.
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut.
+        faintstar_mockfile : :class:`str`, optional
+            Full path to the top-level directory of the Galaxia faint star mock
+            catalog.
+        faintstar_magcut : :class:`float`, optional
+            Magnitude cut (hard-coded to SDSS r-band) to subselect faint star
+            targets brighter than magcut.
 
         Returns
         -------
@@ -4078,11 +4097,12 @@ class MWS_MAINMaker(STARMaker):
         if mockfile is None:
             mockfile = self.default_mockfile
             
-        data = MockReader.readmock(mockfile, target_name='MWS_MAIN',
+        data = MockReader.readmock(mockfile, target_name=target_name,
                                    healpixels=healpixels, nside=nside,
                                    nside_galaxia=nside_galaxia, magcut=magcut,
                                    faintstar_mockfile=faintstar_mockfile,
-                                   faintstar_magcut=faintstar_magcut)
+                                   faintstar_magcut=faintstar_magcut,
+                                   seed=self.seed)
 
         return data
     
@@ -4162,7 +4182,7 @@ class MWS_MAINMaker(STARMaker):
                                                            
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, targetname=['MWS', 'STD']):
+    def select_targets(self, targets, truth, targetname=None):
         """Select various MWS stars and standard stars.  Input tables are modified in
         place.
 
@@ -4176,8 +4196,11 @@ class MWS_MAINMaker(STARMaker):
             Target selection cuts to apply.
 
         """
-        if self.calib_only:
-            targetname = 'STD'
+        if targetname is None:
+            if self.calib_only:
+                targetname = 'STD'
+            else:
+                targetname = ['MWS', 'STD']
             
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
 
@@ -4196,14 +4219,9 @@ class MWS_MAINMaker(STARMaker):
         if np.sum(these) > 0:
             desi_target[these] -= self.desi_mask.mask('STD_WD')
             
-        targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
-        targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
-        targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
-
-        ## Select bright stellar contaminants for the extragalactic targets.
-        #log.debug('Temporarily turning off contaminants.')
-        #if False:
-        #    self.select_contaminants(targets, truth)
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class FAINTSTARMaker(STARMaker):
     """Read FAINTSTAR mocks, generate spectra, and select targets.
@@ -4843,7 +4861,7 @@ class WDMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, targetname=''):
+    def select_targets(self, targets, truth, targetname=None):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
         in place.
 
@@ -4857,13 +4875,16 @@ class WDMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        if not self.calib_only:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
-            targets['DESI_TARGET'] |= desi_target
-            targets['MWS_TARGET'] |= mws_target
-
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
+        if targetname is None:
+            if self.calib_only:
+                targetname = 'STD'
+            else:
+                targetname = ['MWS', 'STD']
+        
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -5022,8 +5043,8 @@ class BuzzardMaker(SelectTargets):
             BuzzardMaker.wave = _default_wave()
         
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
-             nside=None, nside_buzzard=8, magcut=None, only_coords=False,
-             **kwargs):
+             nside=None, nside_buzzard=8, target_name='', magcut=None,
+             only_coords=False, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -5039,6 +5060,8 @@ class BuzzardMaker(SelectTargets):
         nside_buzzard : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read.  Defaults to ''.
         magcut : :class:`float`
             Magnitude cut (hard-coded to SDSS r-band) to subselect targets
             brighter than magcut. 
@@ -5068,7 +5091,7 @@ class BuzzardMaker(SelectTargets):
         if mockfile is None:
             mockfile = self.default_mockfile
 
-        data = MockReader.readmock(mockfile, #target_name=self.objtype,
+        data = MockReader.readmock(mockfile, target_name=target_name, 
                                    healpixels=healpixels, nside=nside,
                                    nside_buzzard=nside_buzzard,
                                    only_coords=only_coords,
