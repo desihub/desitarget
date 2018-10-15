@@ -65,7 +65,7 @@ tsdatamodel = np.array([], dtype=[
     ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4')
     ])
 
-dr6todr7datamodel = np.array([], dtype=[
+dr7datamodel = np.array([], dtype=[
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('BRIGHTSTARINBLOB', '?')
@@ -203,11 +203,11 @@ def add_dr7_columns(indata):
 
     Notes
     -----
-        - DR7 columns are stored in :mod:`desitarget.io.dr6todr7datamodel`.
+        - DR7 columns are stored in :mod:`desitarget.io.dr7datamodel`.
         - The DR7 columns returned are set to all ``0`` or ``False``.
     """
     # ADM create the combined data model.
-    dt = indata.dtype.descr + dr6todr7datamodel.dtype.descr
+    dt = indata.dtype.descr + dr7datamodel.dtype.descr
 
     # ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
@@ -306,7 +306,7 @@ def read_tractor(filename, header=False, columns=None):
     # ADM the other DR6->DR7 data model updates.
     if (columns is None) and \
        (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
-        for col in dr6todr7datamodel.dtype.names:
+        for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
 
     # ADM if Gaia information was passed, add it to the columns to read.

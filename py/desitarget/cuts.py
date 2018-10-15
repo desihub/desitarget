@@ -1193,10 +1193,10 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
 
 
 def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
-                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-                      gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
-                      gaiagmag=None, objtype=None, primary=None, south=True):
+                gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
+                gaiagmag=None, objtype=None, primary=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
@@ -1240,6 +1240,7 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                       gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
                       gfluxivar, rfluxivar, zfluxivar, brightstarinblob, Grr,
                       gaiagmag, objtype=objtype, primary=primary)
+
 
 def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                       gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
@@ -1302,7 +1303,6 @@ def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     return bgs
 
 
-
 def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                       gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
                       gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
@@ -1362,6 +1362,7 @@ def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     #    bgs &= ~_psflike(objtype)
 
     return bgs
+
 
 def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                       gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
@@ -1529,6 +1530,7 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     #if objtype is not None:
     #    bgs &= ~_psflike(objtype)
     return bgs
+
 
 def isBGS_wise(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,

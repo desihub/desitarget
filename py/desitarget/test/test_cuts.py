@@ -77,6 +77,8 @@ class TestCuts(unittest.TestCase):
         w2flux = flux['W2FLUX']
 
         gfluxivar = targets['FLUX_IVAR_G']
+        rfluxivar = targets['FLUX_IVAR_R']
+        zfluxivar = targets['FLUX_IVAR_Z']
 
         gsnr = targets['FLUX_G'] * np.sqrt(targets['FLUX_IVAR_G'])
         rsnr = targets['FLUX_R'] * np.sqrt(targets['FLUX_IVAR_R'])
@@ -86,6 +88,21 @@ class TestCuts(unittest.TestCase):
 
         dchisq = targets['DCHISQ']
         deltaChi2 = dchisq[...,0] - dchisq[...,1]
+
+        gnobs, rnobs, znobs = targets['NOBS_G'], targets['NOBS_R'], targets['NOBS_Z']
+        gfracflux = targets['FRACFLUX_G']
+        rfracflux = targets['FRACFLUX_R']
+        zfracflux = targets['FRACFLUX_Z']
+        gfracmasked = targets['FRACMASKED_G']
+        rfracmasked = targets['FRACMASKED_R']
+        zfracmasked = targets['FRACMASKED_Z']
+        gfracin = targets['FRACIN_G']
+        rfracin = targets['FRACIN_R']
+        zfracin = targets['FRACIN_Z']
+        brightstarinblob = targets['BRIGHTSTARINBLOB']
+
+        gaiagmag = targets['GAIA_PHOT_G_MEAN_MAG']
+        Grr = gaiagmag - 22.5 + 2.5*np.log10(targets['FLUX_R'])
 
         if 'BRICK_PRIMARY' in targets.colnames:
             primary = targets['BRICK_PRIMARY']
@@ -97,8 +114,8 @@ class TestCuts(unittest.TestCase):
         lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                     gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
         self.assertTrue(np.all(lrg1==lrg2))
-        #ADM also check that the color selections alone work. This tripped us up once
-        #ADM with the mocks part of the code calling a non-existent LRG colors function.
+        # ADM also check that the color selections alone work. This tripped us up once
+        # ADM with the mocks part of the code calling a non-existent LRG colors function.
         lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, 
                                  w1flux=w1flux, w2flux=w2flux)
         lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, 
@@ -113,19 +130,66 @@ class TestCuts(unittest.TestCase):
         elg2 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         self.assertTrue(np.all(elg1==elg2))
 
-        # @moustakas - Leaving off objtype will result in different samples!
-        psftype = targets['TYPE']
-        bgs1 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS_bright(rflux=rflux, objtype=psftype, primary=None)
+        bgs1 = cuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs, 
+                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, 
+                brightstarinblob=brightstarinblob, Grr=Grr,
+                gaiagmag=gaiagmag, primary=primary)
+        bgs2 = cuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs, 
+                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, 
+                brightstarinblob=brightstarinblob, Grr=Grr,
+                gaiagmag=gaiagmag, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
-        bgs1 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=primary)
-        bgs2 = cuts.isBGS_faint(rflux=rflux, objtype=psftype, primary=None)
+        bgs1 = cuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                brightstarinblob=brightstarinblob, Grr=Grr,
+                gaiagmag=gaiagmag, primary=primary)
+        bgs2 = cuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                brightstarinblob=brightstarinblob, Grr=Grr,
+                gaiagmag=gaiagmag, primary=None)
         self.assertTrue(np.all(bgs1==bgs2))
 
-        #ADM need to include RELEASE for quasar cuts, at least
+        bgs1 = cuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux,
+                w1flux=w1flux, w2flux=w2flux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
+                gaiagmag=gaiagmag, primary=primary)
+        bgs2 = cuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux,
+                w1flux=w1flux, w2flux=w2flux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
+                gaiagmag=gaiagmag, primary=None)
+        self.assertTrue(np.all(bgs1==bgs2))
+
+        # ADM need to include RELEASE for quasar cuts, at least.
         release = targets['RELEASE']
         #- Test that objtype and primary are optional
+        psftype = targets['TYPE']
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                           deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
                           release=release)
@@ -133,8 +197,8 @@ class TestCuts(unittest.TestCase):
                           deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
                           release=release)
         self.assertTrue(np.all(qso1==qso2))
-        #ADM also check that the color selections alone work. This tripped us up once
-        #ADM with the mocks part of the code calling a non-existent LRG colors function.
+        # ADM also check that the color selections alone work. This tripped us up once
+        # ADM with the mocks part of the code calling a non-existent LRG colors function.
         qso1 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False)
         qso2 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=None)
         self.assertTrue(np.all(qso1==qso2))
