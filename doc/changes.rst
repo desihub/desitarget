@@ -5,7 +5,15 @@ desitarget Change Log
 0.24.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Updated mock sky catalog with positions over a larger footprint [`PR #398`_].
+* Major update to `select_mock_targets` to use the latest (v3.0) basis
+  templates [`PR #395`_].
+* Incorporate simple WISE depth model in `select_mock_targets` which depends on
+  ecliptic latitude [`PR #391`_].
+
+.. _`PR #391`: https://github.com/desihub/desitarget/pull/391
+.. _`PR #395`: https://github.com/desihub/desitarget/pull/395
+.. _`PR #398`: https://github.com/desihub/desitarget/pull/398
 
 0.24.0 (2018-09-26)
 -------------------

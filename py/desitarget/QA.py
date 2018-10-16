@@ -663,6 +663,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
         # ADM convert to magnitudes (fluxes are in nanomaggies).
         # ADM should be fine to clip for plotting purposes.
         mag = 22.5-2.5*np.log10(cat[fluxname].clip(loclip))
+        mag = mag[np.isfinite(mag)]
 
         # ADM the name of the filters.
         filtername = fluxname[5:].lower()

@@ -47,7 +47,7 @@ class TestMockBuild(unittest.TestCase):
 
     def test_sky(self):
         nside = 256
-        ra, dec = random_sky(nside)
+        ra, dec, pix = random_sky(nside, allsky=False)
         self.assertEqual(len(ra), len(dec))
         surveypix = desimodel.footprint.tiles2pix(nside)
         theta = np.radians(90 - dec)
