@@ -1211,11 +1211,11 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
         Grr: array_like or None
-            Gaia G band magnitude minus observational r magnitude
+            Gaia G band magnitude minus observational r magnitude.
         gaiagmag: array_like or None
             Gaia G band magnitude
         objtype: array_like or None
@@ -1261,9 +1261,9 @@ def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         gaiagmag: array_like or None
@@ -1322,9 +1322,9 @@ def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         gaiagmag: array_like or None
@@ -1383,9 +1383,9 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         gaiagmag: array_like or None
@@ -1433,9 +1433,9 @@ def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         gaiagmag: array_like or None
@@ -1492,9 +1492,9 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         gaiagmag: array_like or None
@@ -1551,9 +1551,9 @@ def isBGS_wise(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         w1snr: array_like or None
@@ -1603,9 +1603,9 @@ def isBGS_wise_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         w1snr: array_like or None
@@ -1663,9 +1663,9 @@ def isBGS_wise_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         gfracin, rfracin, zfracin: array_like or None
             Fraction of a source's flux within the blob in g,r,z
         gfluxivar, rfluxivar, zfluxivar: array_like or None
-            nverse variance of FLUX g,r,z
+            inverse variance of FLUX g,r,z
         brightstarinblob: boolean array_like or None
-            True if the object shares a blob with a "bright" (Tycho-2) star
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star
         Grr: array_like or None
             Gaia G band magnitude minus observational r magnitude
         w1snr: array_like or None
@@ -1812,7 +1812,8 @@ def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     return qso
 
 
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+               deltaChi2, brighstarinblob=None,
                release=None, objtype=None, primary=None, south=True, optical=False):
     """Convenience function for backwards-compatability prior to north/south split.
 
@@ -1824,7 +1825,9 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
         w2snr: array_like[ntargets]
             S/N in the W2 band.
         deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP.
+        brightstarinblob: boolean array_like or None
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
         release: array_like[ntargets]
             `The Legacy Surveys`_ imaging RELEASE.
         objtype (optional): array_like or None
@@ -1841,14 +1844,17 @@ def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
             target.
     """
     if south == False:
-        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
+        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                                deltaChi2, brightstarinblob=brightstarinblob,
                                 release=release, objtype=objtype, primary=primary, optical=optical)
     else:
-        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
+        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                                deltaChi2, brightstarinblob=brightstarinblob,
                                 release=release, objtype=objtype, primary=primary, optical=optical)
 
 
-def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                     deltaChi2, brightstarinblob=None,
                      release=None, objtype=None, primary=None, optical=False):
     """Cuts based QSO target selection for the BASS/MzLS photometric system.
     (see :func:`~desitarget.cuts.isQSO_cuts`).
@@ -1875,10 +1881,15 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
     if objtype is not None:
         qso &= _psflike(objtype)
 
+    # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        qso &= ~brightstarinblob
+
     return qso
 
 
-def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
+def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                     deltaChi2, brightstarinblob=None,
                      release=None, objtype=None, primary=None, optical=False):
     """Cuts based QSO target selection for the DECaLS photometric system.
     (see :func:`~desitarget.cuts.isQSO_cuts`).
@@ -1893,7 +1904,7 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
     qso &= w1snr > 4
     qso &= w2snr > 2
 
-    # ADM default to RELEASE of 5000 if nothing is passed.
+    # ADM default to RELEASE of 5000 if nothing is passed.                                                                                                                                           
     if release is None:
         release = np.zeros_like(gflux, dtype='?')+5000
 
@@ -1905,11 +1916,16 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi
     if objtype is not None:
         qso &= _psflike(objtype)
 
+    # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        qso &= ~brightstarinblob
+
     return qso
 
 
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                    objtype=None, release=None, deltaChi2=None, primary=None, south=True):
+                       objtype=None, release=None, deltaChi2=None, brighstarinblob=None,
+                       primary=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
@@ -1921,6 +1937,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             `The Legacy Surveys`_ imaging RELEASE.
         deltaChi2: array_like or None
              If given, difference in chi2 bteween PSF and SIMP morphology
+        brightstarinblob: boolean array_like or None
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to ``True``
@@ -1931,41 +1949,28 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         mask : array_like. True if and only if the object is a QSO
             target.
 
+    Notes:
+        as of 10/16/18, based on version 143 on `the wiki`_.
     """
                                
     if south == False:
         return isQSO_randomforest_north(gflux=gflux, rflux=rflux, zflux=zflux,
                                 w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
-                                release=release, deltaChi2=deltaChi2, primary=primary)
+                                release=release, deltaChi2=deltaChi2,
+                                brightstarinblob=brightstarinblob, primary=primary)
     else:
         return isQSO_randomforest_south(gflux=gflux, rflux=rflux, zflux=zflux,
                                 w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
-                                release=release, deltaChi2=deltaChi2, primary=primary)
+                                release=release, deltaChi2=deltaChi2,
+                                brightstarinblob=brightstarinblob, primary=primary)
 
 
 def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, primary=None):
+                        objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                        primary=None):
     """
     Target definition of QSO using a random forest for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            `The Legacy Surveys` imaging RELEASE.
-        deltaChi2: array_like or None
-             If given, difference in chi2 between PSF and SIMP morphology.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask: array_like
-            True if and only if the object is a QSO target.
-    
-    Notes:
-        as of 08/01/18, based on version 121 on `the wiki`_.
+    (see :func:`~desitarget.cuts.isQSO_randomforest`).
     """
     # BRICK_PRIMARY
     if primary is None :
@@ -1987,12 +1992,16 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     rMax = 22.7 # r < 22.7
     rMin = 17.5 # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
-    if objtype is not None :
+
+    if objtype is not None:
         preSelection &= _psflike(objtype)
-    if deltaChi2 is not None :
+    if deltaChi2 is not None:
         deltaChi2 = np.atleast_1d(deltaChi2)
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
-    
+        # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        preSelection &= ~brightstarinblob
+
     # "qso" mask initialized to "preSelection" mask
     qso = np.copy(preSelection)
     
@@ -2064,28 +2073,11 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
 
 
 def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, primary=None):
+                        objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                        primary=None):
     """
     Target definition of QSO using a random forest for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            `The Legacy Surveys`_ imaging RELEASE.
-        deltaChi2: array_like or None
-             If given, difference in chi2 between PSF and SIMP morphology.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask: array_like
-            True if and only if the object is a QSO target.
-
-    Notes:
-        as of 08/01/18, based on version 121 on `the wiki`_.
+    (see :func:`~desitarget.cuts.isQSO_randomforest`).
     """
     # BRICK_PRIMARY
     if primary is None :
@@ -2107,11 +2099,15 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     rMax = 22.7 # r < 22.7
     rMin = 17.5 # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
-    if objtype is not None :
+
+    if objtype is not None:
         preSelection &= _psflike(objtype)
-    if deltaChi2 is not None :
+    if deltaChi2 is not None:
         deltaChi2 = np.atleast_1d(deltaChi2)
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
+    # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        preSelection &= ~brightstarinblob
     
     # "qso" mask initialized to "preSelection" mask
     qso = np.copy(preSelection)
@@ -2467,14 +2463,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked, 
-		    gfracin, rfracin, zfracin,
-                    gallmask, rallmask, zallmask,
+		    gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
                     gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
                     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource, 
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-                    tcnames, qso_optical_cuts, qso_selection, brightstarinblob, Grr,
-                    primary, survey='main'):
+                    tcnames, qso_optical_cuts, qso_selection, brightstarinblob, 
+                    Grr, primary, survey='main'):
     """Perform target selection on parameters, returning target mask arrays.
 
     Parameters
@@ -2530,6 +2525,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are 
         ``'colorcuts'`` and ``'randomforest'``
+    brightstarinblob: boolean array_like or None
+        ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
+    Grr: array_like or None
+        Gaia G band magnitude minus observational r magnitude.
     primary : :class:`~numpy.ndarray`
         ``True`` for objects that should be considered when setting bits.
     survey : :class:`str`, defaults to ``'main'``
@@ -2599,20 +2598,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         if qso_selection=='colorcuts' :
             # ADM determine quasar targets in the north and the south separately
             qso_north = targcuts.isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                   w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                                   w1flux=w1flux, w2flux=w2flux,
+                                   deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
                                    objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                                    optical=qso_optical_cuts, south=False)
             qso_south = targcuts.isQSO_cuts(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                   w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                                   w1flux=w1flux, w2flux=w2flux,
+                                   deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
                                    objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                                    optical=qso_optical_cuts, south=True)
         elif qso_selection == 'randomforest':
             # ADM determine quasar targets in the north and the south separately
             qso_north = targcuts.isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                           w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                                           w1flux=w1flux, w2flux=w2flux,
+                                           deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
                                            objtype=objtype, release=release, south=False)
             qso_south = targcuts.isQSO_randomforest(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                                           w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                                           w1flux=w1flux, w2flux=w2flux,
+                                           deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
                                            objtype=objtype, release=release, south=True)
         else:
             raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
@@ -2873,8 +2876,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                             _prepare_optical_wise(objects, colnames=colnames)
 
     # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
-      gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor, \
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
+      gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,        \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
     # ADM initially, every object passes the cuts (is True).
@@ -2890,14 +2893,13 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
-	gfracin, rfracin, zfracin,
-        gallmask, rallmask, zallmask,
+	gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
         gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
         gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-        tcnames, qso_optical_cuts, qso_selection, brightstarinblob, Grr,
-   	primary,
+        tcnames, qso_optical_cuts, qso_selection, brightstarinblob, 
+        Grr, primary,
         survey=survey
     )
 
