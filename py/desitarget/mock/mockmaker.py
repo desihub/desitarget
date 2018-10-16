@@ -499,7 +499,7 @@ class SelectTargets(object):
 
             setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
 
-    def sample_GMM(self, nobj, isouth=None, target=None, seed=None,
+    def sample_GMM(self, nobj, isouth=None, target=None, seed=None, morph=None,
                    prior_mag=None, prior_redshift=None):
         """Sample from the GMMs read by self.read_GMM.
 
@@ -524,8 +524,10 @@ class SelectTargets(object):
             colorcuts_function = cuts.isQSO_colors
         else:
             colorcuts_function = None
-            
-        morph = GMM[0]
+
+        # Allow an input morphological type, e.g., to simulate contaminants.
+        if morph is None:
+            morph = GMM[0]
         if isouth is None:
             isouth = np.ones(nobj).astype(bool)
 
@@ -539,10 +541,10 @@ class SelectTargets(object):
 
         # Get the total number of each morphological type, accounting for
         # rounding.
-        frac2d_magbins = np.vstack( [GMM[1][mm].data for mm in morph] )
+        frac2d_magbins = np.vstack( [GMM[1][mm].data for mm in np.atleast_1d(morph)] )
         norm = np.sum(frac2d_magbins, axis=1)
         frac1d_morph = norm / np.sum(norm)
-        nobj_morph = np.round(frac1d_morph*nobj).astype(int)
+        nobj_morph = np.round(frac1d_morph * nobj).astype(int)
         dn = np.sum(nobj_morph) - nobj
         if dn > 0:
             nobj_morph[np.argmax(nobj_morph)] -= dn
@@ -610,7 +612,7 @@ class SelectTargets(object):
                     
             return samp
         
-        for ii, mm in enumerate(morph):
+        for ii, mm in enumerate(np.atleast_1d(morph)):
             if nobj_morph[ii] > 0:
                 # Should really be using north/south GMMs.
                 cols = GMM[2][ii]
