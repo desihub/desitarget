@@ -48,6 +48,8 @@ def make_mtl(targets, zcat=None, trim=False):
     n       = len(targets)
     targets = Table(targets)
 
+    del targets['NUMOBS'] # the relevant information coms from zcat['NUMOBS']
+
     # Create redshift catalog
     if zcat is not None:
 
