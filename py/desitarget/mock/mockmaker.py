@@ -1245,7 +1245,7 @@ class ReadGaussianField(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s)'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -1266,7 +1266,7 @@ class ReadGaussianField(SelectTargets):
             if zmax_qso is not None:
                 cut = np.where( zz < zmax_qso )[0]
                 nobj = len(cut)
-                log.debug('Trimmed to {} objects with z<{:.3f}'.format(nobj, zmax_qso))
+                log.info('Trimmed to {} objects with z<{:.3f}'.format(nobj, zmax_qso))
                 if nobj == 0:
                     return dict()
                 mockid = mockid[cut]
@@ -1569,7 +1569,7 @@ class ReadUniformSky(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -1740,7 +1740,7 @@ class ReadGalaxia(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s)'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -1781,7 +1781,7 @@ class ReadGalaxia(SelectTargets):
                 logg = logg[cut]
                 feh = feh[cut]
                 nobj = len(ra)
-                log.debug('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
+                log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
         # Temporary hack to read some Gaia columns from a separate file, but
         # only for the MWS_MAIN mocks!
@@ -1978,7 +1978,7 @@ class ReadLyaCoLoRe(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s)'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         allpix = allpix[cut]
@@ -1995,7 +1995,7 @@ class ReadLyaCoLoRe(SelectTargets):
         if zmin_lya is not None:
             cut = np.where( zz >= zmin_lya )[0]
             nobj = len(cut)
-            log.debug('Trimmed to {} {}s with z>={:.3f}'.format(nobj, target_name, zmin_lya))
+            log.info('Trimmed to {} {}s with z>={:.3f}'.format(nobj, target_name, zmin_lya))
             if nobj == 0:
                 return dict()
             allpix = allpix[cut]
@@ -2165,7 +2165,7 @@ class ReadMXXL(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -2194,7 +2194,7 @@ class ReadMXXL(SelectTargets):
                 absmag = absmag[cut]
                 gr = gr[cut]
                 nobj = len(ra)
-                log.debug('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
+                log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
         # Optionally (for a little more speed) only return some basic info. 
         if only_coords:
@@ -2327,7 +2327,7 @@ class ReadGAMA(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -2453,7 +2453,7 @@ class ReadMWS_WD(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
@@ -2610,7 +2610,7 @@ class ReadMWS_NEARBY(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
-        log.debug('Trimmed to {} {}s in {} healpixel(s).'.format(
+        log.info('Trimmed to {} {}s in {} healpixel(s).'.format(
             nobj, target_name, len(np.atleast_1d(healpixels))))
 
         mockid = mockid[cut]
