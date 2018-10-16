@@ -2844,7 +2844,8 @@ class QSOMaker(SelectTargets):
 
         """
         if self.use_simqso:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                                  qso_selection='colorcuts')
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
                 targets, tcnames=targetname, qso_selection='colorcuts',
@@ -2895,7 +2896,7 @@ class LYAMaker(SelectTargets):
                 LYAMaker.template_maker = QSO(wave=self.wave)
 
         if self.GMM_nospectra is None:
-            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_lya.fits')
+            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
             LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
@@ -3142,7 +3143,7 @@ class LYAMaker(SelectTargets):
             else:
                 for ii in range(nobj):
                     flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :], extrapolate=True)
-                                     
+
         targets, truth, objtruth = self.populate_targets_truth(
                 data, meta, objmeta, indx=indx, psf=True, seed=seed,
                 truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
@@ -3162,7 +3163,12 @@ class LYAMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
+<<<<<<< HEAD
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+=======
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO',
+                                                              qso_selection='colorcuts')
+>>>>>>> qso-speedup
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
