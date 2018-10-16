@@ -1813,7 +1813,7 @@ def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
 
 
 def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-               deltaChi2, brighstarinblob=None,
+               deltaChi2, brightstarinblob=None,
                release=None, objtype=None, primary=None, south=True, optical=False):
     """Convenience function for backwards-compatability prior to north/south split.
 
@@ -1924,7 +1924,7 @@ def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
 
 
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, brighstarinblob=None,
+                       objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
                        primary=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
 

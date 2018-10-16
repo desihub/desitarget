@@ -946,527 +946,6 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     return mwsstar
 
 
-def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-        south: boolean, defaults to True
-            Call isQSO_colors_north if south=False, otherwise call isQSO_colors_south.
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
-    """
-    if south==False:
-        return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, 
-                                  optical=optical)
-    else:
-        return isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, 
-                                  optical=optical)
-
-
-def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if sources have quasar-like colors for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
-    """
-    #----- Quasars
-    # Create some composite fluxes.
-    wflux = 0.75* w1flux + 0.25*w2flux
-    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-
-    qso = np.ones(len(gflux), dtype='?')
-    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
-    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
-    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
-
-    if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
-
-    # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
-    qso &= ~mainseq
-
-    return qso
-
-
-def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if sources have quasar-like colors for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
-    """
-    #----- Quasars
-    # Create some composite fluxes.
-    wflux = 0.75* w1flux + 0.25*w2flux
-    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-
-    qso = np.ones(len(gflux), dtype='?')
-    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
-    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
-    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
-
-    if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
-
-    # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
-    qso &= ~mainseq
-
-    return qso
-
-
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                   release=None, objtype=None, primary=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to True
-            Call isQSO_cuts_north if south=False, otherwise call isQSO_cuts_south.
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
-    """
-    if south==False:
-        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                                release=release, objtype=objects, primary=primary)
-    else:
-        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2,
-                                release=release, objtype=objtype, primary=primary)
-
-
-def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
-               release=None, objtype=None, primary=None):
-    """Cuts based QSO target selection for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
-
-    Notes:
-        Uses isQSO_colors() to make color cuts first, then applies
-            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-
-    """
-    qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux)
-
-    qso &= w1snr > 4
-    qso &= w2snr > 2
-
-    # ADM default to RELEASE of 6000 if nothing is passed.
-    if release is None:
-        release = np.zeros_like(gflux, dtype='?')+6000
-
-    qso &= ((deltaChi2>40.) | (release>=5000) )
-
-    if primary is not None:
-        qso &= primary
-
-    if objtype is not None:
-        qso &= _psflike(objtype)
-
-    return qso
-
-
-def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr, deltaChi2, 
-               release=None, objtype=None, primary=None):
-    """Cuts based QSO target selection for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
-
-    Notes:
-        Uses isQSO_colors() to make color cuts first, then applies
-            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-
-    """
-    qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux)
-
-    qso &= w1snr > 4
-    qso &= w2snr > 2
-
-    # ADM default to RELEASE of 5000 if nothing is passed.
-    if release is None:
-        release = np.zeros_like(gflux, dtype='?')+5000
-
-    qso &= ((deltaChi2>40.) | (release>=5000) )
-
-    if primary is not None:
-        qso &= primary
-
-    if objtype is not None:
-        qso &= _psflike(objtype)
-
-    return qso
-
-
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                    objtype=None, release=None, deltaChi2=None, primary=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/)
-        deltaChi2: array_like or None
-             If given, difference in chi2 bteween PSF and SIMP morphology
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to True
-            Call isQSO_randomforest_north if south=False, 
-            otherwise call isQSO_randomforest_south.
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
-
-    """
-                               
-    if south==False:
-        return isQSO_randomforest_north(gflux=gflux, rflux=rflux, zflux=zflux,
-                                w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
-                                release=release, deltaChi2=deltaChi2, primary=primary)
-    else:
-        return isQSO_randomforest_south(gflux=gflux, rflux=rflux, zflux=zflux,
-                                w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
-                                release=release, deltaChi2=deltaChi2, primary=primary)
-
-
-def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, primary=None):
-    """
-    Target definition of QSO using a random forest for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/).
-        deltaChi2: array_like or None
-             If given, difference in chi2 between PSF and SIMP morphology.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask: array_like
-            True if and only if the object is a QSO target.
-    
-    Notes:
-        as of 08/01/18, based on 
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121
-
-    """
-    # BRICK_PRIMARY
-    if primary is None :
-        primary = np.ones_like(gflux, dtype=bool)
-
-    # RELEASE
-    # ADM default to RELEASE of 5000 if nothing is passed
-    if release is None :
-        release = np.zeros_like(gflux, dtype='?') + 5000
-    release = np.atleast_1d( release )
-
-    # Build variables for random forest
-    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
-    nbEntries = rflux.size
-    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
-    r = np.atleast_1d( r )
-
-    # Preselection to speed up the process
-    rMax = 22.7 # r < 22.7
-    rMin = 17.5 # r > 17.5
-    preSelection = ( r < rMax ) & ( r > rMin ) & photOK & primary
-    if objtype is not None :
-        preSelection &= _psflike( objtype )
-    if deltaChi2 is not None :
-        deltaChi2 = np.atleast_1d( deltaChi2 )
-        preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
-    
-    # "qso" mask initialized to "preSelection" mask
-    qso = np.copy( preSelection )
-    
-    if np.any( preSelection ) :
-        
-        from desitarget.myRF import myRF
-        
-        # Data reduction to preselected objects
-        colorsReduced = colors[ preSelection ]
-        releaseReduced = release[ preSelection ]
-        r_Reduced = r[ preSelection ]
-        colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
-        colorsReducedIndex =  colorsIndex[ preSelection ]
-    
-        # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
-        # rf filenames
-        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
-        
-        tmpReleaseOK = releaseReduced < 5000
-        if np.any( tmpReleaseOK ) :
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR3 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=200 , version=1 )
-            # rf loading
-            rf_DR3.loadForest( rf_DR3_fileName )
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR3.predict_proba()
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            # Compute optimized proba cut
-            pcut = np.where( tmp_r_Reduced > 20.0 ,
-                             0.95 - ( tmp_r_Reduced - 20.0 ) * 0.08 , 0.95 )
-            # Add rf proba test result to "qso" mask            
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = tmp_rf_proba >= pcut
-        
-        tmpReleaseOK = releaseReduced >= 5000
-        if np.any( tmpReleaseOK ) :
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=500 , version=2 )
-            rf_DR5_HighZ = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                                 numberOfTrees=500 , version=2 )
-            # rf loading
-            rf_DR5.loadForest( rf_DR5_fileName )
-            rf_DR5_HighZ.loadForest( rf_DR5_HighZ_fileName )
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR5.predict_proba()
-            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
-            # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            pcut = np.where( tmp_r_Reduced > 20.8 ,
-                             0.88 - ( tmp_r_Reduced - 20.8 ) * 0.025 , 0.88 )
-            pcut[ tmp_r_Reduced > 21.5 ] = 0.8625 - 0.05 * ( tmp_r_Reduced[ tmp_r_Reduced > 21.5 ] - 21.5 )
-            pcut[ tmp_r_Reduced > 22.3 ] = 0.8225 - 0.53 * ( tmp_r_Reduced[ tmp_r_Reduced > 22.3 ] - 22.3 )
-            pcut_HighZ = np.where( tmp_r_Reduced > 20.5 ,
-                                   0.55 - ( tmp_r_Reduced - 20.5 ) * 0.025 , 0.55 )
-            # Add rf proba test result to "qso" mask
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
-                ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
-    
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "numpy.ndarray"
-    if nbEntries == 1 :
-        qso = qso[0]
-    
-    return qso
-
-
-def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, primary=None):
-    """
-    Target definition of QSO using a random forest for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            The Legacy Survey imaging RELEASE (e.g. http://legacysurvey.org/release/).
-        deltaChi2: array_like or None
-             If given, difference in chi2 between PSF and SIMP morphology.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask: array_like
-            True if and only if the object is a QSO target.
-
-    Notes:
-        as of 08/01/18, based on 
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121
-
-    """
-    # BRICK_PRIMARY
-    if primary is None :
-        primary = np.ones_like(gflux, dtype=bool)
-
-    # RELEASE
-    # ADM default to RELEASE of 5000 if nothing is passed
-    if release is None :
-        release = np.zeros_like(gflux, dtype='?') + 5000
-    release = np.atleast_1d( release )
-
-    # Build variables for random forest
-    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
-    nbEntries = rflux.size
-    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
-    r = np.atleast_1d( r )
-
-    # Preselection to speed up the process
-    rMax = 22.7 # r < 22.7
-    rMin = 17.5 # r > 17.5
-    preSelection = ( r < rMax ) & ( r > rMin ) & photOK & primary
-    if objtype is not None :
-        preSelection &= _psflike( objtype )
-    if deltaChi2 is not None :
-        deltaChi2 = np.atleast_1d( deltaChi2 )
-        preSelection[ release < 5000 ] &= deltaChi2[ release < 5000 ] > 30.
-    
-    # "qso" mask initialized to "preSelection" mask
-    qso = np.copy( preSelection )
-    
-    if np.any( preSelection ) :
-        
-        from desitarget.myRF import myRF
-        
-        # Data reduction to preselected objects
-        colorsReduced = colors[ preSelection ]
-        releaseReduced = release[ preSelection ]
-        r_Reduced = r[ preSelection ]
-        colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
-        colorsReducedIndex =  colorsIndex[ preSelection ]
-    
-        # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
-        # rf filenames
-        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
-        
-        tmpReleaseOK = releaseReduced < 5000
-        if np.any( tmpReleaseOK ) :
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR3 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=200 , version=1 )
-            # rf loading
-            rf_DR3.loadForest( rf_DR3_fileName )
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR3.predict_proba()
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            # Compute optimized proba cut
-            pcut = np.where( tmp_r_Reduced > 20.0 ,
-                             0.95 - ( tmp_r_Reduced - 20.0 ) * 0.08 , 0.95 )
-            # Add rf proba test result to "qso" mask            
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = tmp_rf_proba >= pcut
-        
-        tmpReleaseOK = releaseReduced >= 5000
-        if np.any( tmpReleaseOK ) :
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                           numberOfTrees=500 , version=2 )
-            rf_DR5_HighZ = myRF( colorsReduced[ tmpReleaseOK ] , pathToRF ,
-                                 numberOfTrees=500 , version=2 )
-            # rf loading
-            rf_DR5.loadForest( rf_DR5_fileName )
-            rf_DR5_HighZ.loadForest( rf_DR5_HighZ_fileName )
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR5.predict_proba()
-            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
-            # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[ tmpReleaseOK ]
-            pcut = np.where( tmp_r_Reduced > 20.8 ,
-                             0.88 - ( tmp_r_Reduced - 20.8 ) * 0.025 , 0.88 )
-            pcut[ tmp_r_Reduced > 21.5 ] = 0.8625 - 0.05 * ( tmp_r_Reduced[ tmp_r_Reduced > 21.5 ] - 21.5 )
-            pcut[ tmp_r_Reduced > 22.3 ] = 0.8225 - 0.53 * ( tmp_r_Reduced[ tmp_r_Reduced > 22.3 ] - 22.3 )
-            pcut_HighZ = np.where( tmp_r_Reduced > 20.5 ,
-                                   0.55 - ( tmp_r_Reduced - 20.5 ) * 0.025 , 0.55 )
-            # Add rf proba test result to "qso" mask
-            qso[ colorsReducedIndex[ tmpReleaseOK ] ] = \
-                ( tmp_rf_proba >= pcut ) | ( tmp_rf_HighZ_proba >= pcut_HighZ )
-    
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "numpy.ndarray"
-    if nbEntries == 1 :
-        qso = qso[0]
-    
-    return qso
-
-
 def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
                 gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
                 gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
@@ -1978,4 +1457,478 @@ def isBGS_wise_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     #    bgs &= ~_psflike(objtype)
     return bgs
 
+
+def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        optical: boolean, defaults to False
+            Just apply optical color-cuts
+        south: boolean, defaults to ``True``
+            Call isQSO_colors_north if ``south=False``, otherwise call isQSO_colors_south.
+
+    Returns:
+        mask : array_like. True if the object has QSO-like colors.
+    """
+    if south == False:
+        return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, 
+                                  optical=optical)
+    else:
+        return isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, 
+                                  optical=optical)
+
+
+def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
+    """Tests if sources have quasar-like colors for the BASS/MzLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        optical: boolean, defaults to False
+            Just apply optical color-cuts
+
+    Returns:
+        mask : array_like. True if the object has QSO-like colors.
+    """
+    #----- Quasars
+    # Create some composite fluxes.
+    wflux = 0.75* w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
+
+    qso = np.ones(len(gflux), dtype='?')
+    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
+    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
+
+    if not optical:
+        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
+
+    # Harder cut on stellar contamination
+    mainseq = rflux > gflux * 10**(0.20/2.5)
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+    if not optical:
+        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    qso &= ~mainseq
+
+    return qso
+
+
+def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
+    """Tests if sources have quasar-like colors for the DECaLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        optical: boolean, defaults to False
+            Just apply optical color-cuts
+
+    Returns:
+        mask : array_like. True if the object has QSO-like colors.
+    """
+    #----- Quasars
+    # Create some composite fluxes.
+    wflux = 0.75* w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
+
+    qso = np.ones(len(gflux), dtype='?')
+    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
+    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
+
+    if not optical:
+        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
+
+    # Harder cut on stellar contamination
+    mainseq = rflux > gflux * 10**(0.20/2.5)
+
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+    if not optical:
+        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    qso &= ~mainseq
+
+    return qso
+
+
+def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+               deltaChi2, brightstarinblob=None,
+               release=None, objtype=None, primary=None, south=True, optical=False):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        w1snr: array_like[ntargets]
+            S/N in the W1 band.
+        w2snr: array_like[ntargets]
+            S/N in the W2 band.
+        deltaChi2: array_like[ntargets]
+            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP.
+        brightstarinblob: boolean array_like or None
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
+        release: array_like[ntargets]
+            `The Legacy Surveys`_ imaging RELEASE.
+        objtype (optional): array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        primary (optional): array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to ``True``
+            Call isQSO_cuts_north if ``south=False``, otherwise call isQSO_cuts_south.
+        optical: boolean, defaults to `False`
+            Just apply optical color-cuts
+
+    Returns:
+        mask : array_like. True if and only if the object is a QSO
+            target.
+    """
+    if south == False:
+        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                                deltaChi2, brightstarinblob=brightstarinblob,
+                                release=release, objtype=objtype, primary=primary, optical=optical)
+    else:
+        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                                deltaChi2, brightstarinblob=brightstarinblob,
+                                release=release, objtype=objtype, primary=primary, optical=optical)
+
+
+def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                     deltaChi2, brightstarinblob=None,
+                     release=None, objtype=None, primary=None, optical=False):
+    """Cuts based QSO target selection for the BASS/MzLS photometric system.
+    (see :func:`~desitarget.cuts.isQSO_cuts`).
+
+    Notes:
+        Uses isQSO_colors() to make color cuts first, then applies
+            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
+    """
+    qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
+                             w1flux=w1flux, w2flux=w2flux, optical=optical)
+
+    qso &= w1snr > 4
+    qso &= w2snr > 2
+
+    # ADM default to RELEASE of 6000 if nothing is passed.
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+6000
+
+    qso &= ((deltaChi2>40.) | (release>=5000) )
+
+    if primary is not None:
+        qso &= primary
+
+    if objtype is not None:
+        qso &= _psflike(objtype)
+
+    # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        qso &= ~brightstarinblob
+
+    return qso
+
+
+def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
+                     deltaChi2, brightstarinblob=None,
+                     release=None, objtype=None, primary=None, optical=False):
+    """Cuts based QSO target selection for the DECaLS photometric system.
+    (see :func:`~desitarget.cuts.isQSO_cuts`).
+
+    Notes:
+        Uses isQSO_colors() to make color cuts first, then applies
+            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
+    """
+    qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
+                             w1flux=w1flux, w2flux=w2flux, optical=optical)
+
+    qso &= w1snr > 4
+    qso &= w2snr > 2
+
+    # ADM default to RELEASE of 5000 if nothing is passed.                                                                                                                                           
+    if release is None:
+        release = np.zeros_like(gflux, dtype='?')+5000
+
+    qso &= ((deltaChi2>40.) | (release>=5000) )
+
+    if primary is not None:
+        qso &= primary
+
+    if objtype is not None:
+        qso &= _psflike(objtype)
+
+    # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        qso &= ~brightstarinblob
+
+    return qso
+
+
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                       objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                       primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, W1, and W2 bands.
+        objtype: array_like or None
+            If given, the TYPE column of the Tractor catalogue.
+        release: array_like[ntargets]
+            `The Legacy Surveys`_ imaging RELEASE.
+        deltaChi2: array_like or None
+             If given, difference in chi2 bteween PSF and SIMP morphology
+        brightstarinblob: boolean array_like or None
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to ``True``
+            Call isQSO_randomforest_north if ``south=False``, 
+            otherwise call isQSO_randomforest_south.
+
+    Returns:
+        mask : array_like. True if and only if the object is a QSO
+            target.
+
+    Notes:
+        as of 10/16/18, based on version 143 on `the wiki`_.
+    """
+                               
+    if south == False:
+        return isQSO_randomforest_north(gflux=gflux, rflux=rflux, zflux=zflux,
+                                w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
+                                release=release, deltaChi2=deltaChi2,
+                                brightstarinblob=brightstarinblob, primary=primary)
+    else:
+        return isQSO_randomforest_south(gflux=gflux, rflux=rflux, zflux=zflux,
+                                w1flux=w1flux, w2flux=w2flux, objtype=objtype, 
+                                release=release, deltaChi2=deltaChi2,
+                                brightstarinblob=brightstarinblob, primary=primary)
+
+
+def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                        objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                        primary=None):
+    """
+    Target definition of QSO using a random forest for the BASS/MzLS photometric system.
+    (see :func:`~desitarget.cuts.isQSO_randomforest`).
+    """
+    # BRICK_PRIMARY
+    if primary is None :
+        primary = np.ones_like(gflux, dtype=bool)
+
+    # RELEASE
+    # ADM default to RELEASE of 5000 if nothing is passed.
+    if release is None :
+        release = np.zeros_like(gflux, dtype='?') + 5000
+    release = np.atleast_1d(release)
+
+    # Build variables for random forest
+    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
+    nbEntries = rflux.size
+    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+    r = np.atleast_1d(r)
+
+    # Preselection to speed up the process
+    rMax = 22.7 # r < 22.7
+    rMin = 17.5 # r > 17.5
+    preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    if objtype is not None:
+        preSelection &= _psflike(objtype)
+    if deltaChi2 is not None:
+        deltaChi2 = np.atleast_1d(deltaChi2)
+        preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
+        # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        preSelection &= ~brightstarinblob
+
+    # "qso" mask initialized to "preSelection" mask
+    qso = np.copy(preSelection)
+    
+    if np.any(preSelection):
+        
+        from desitarget.myRF import myRF
+        
+        # Data reduction to preselected objects
+        colorsReduced = colors[preSelection]
+        releaseReduced = release[preSelection]
+        r_Reduced = r[preSelection]
+        colorsIndex =  np.arange(0, nbEntries, dtype=np.int64)
+        colorsReducedIndex =  colorsIndex[preSelection]
+    
+        # Path to random forest files
+        pathToRF = resource_filename('desitarget', 'data')
+        # rf filenames
+        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
+        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
+        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
+        
+        tmpReleaseOK = releaseReduced < 5000
+        if np.any(tmpReleaseOK):
+            # rf initialization - colors data duplicated within "myRF"
+            rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                          numberOfTrees=200, version=1)
+            # rf loading
+            rf_DR3.loadForest(rf_DR3_fileName)
+            # Compute rf probabilities
+            tmp_rf_proba = rf_DR3.predict_proba()
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            # Compute optimized proba cut
+            pcut = np.where(tmp_r_Reduced > 20.0,
+                            0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
+            # Add rf proba test result to "qso" mask            
+            qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
+        
+        tmpReleaseOK = releaseReduced >= 5000
+        if np.any(tmpReleaseOK):
+            # rf initialization - colors data duplicated within "myRF"
+            rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                           numberOfTrees=500, version=2)
+            rf_DR5_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                                numberOfTrees=500, version=2)
+            # rf loading
+            rf_DR5.loadForest(rf_DR5_fileName)
+            rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
+            # Compute rf probabilities
+            tmp_rf_proba = rf_DR5.predict_proba()
+            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
+            # Compute optimized proba cut
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            pcut = np.where(tmp_r_Reduced > 20.8,
+                             0.88 - (tmp_r_Reduced - 20.8) * 0.025, 0.88)
+            pcut[tmp_r_Reduced > 21.5] = 0.8625 - 0.05 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.8225 - 0.53 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+            pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
+                                  0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
+            # Add rf proba test result to "qso" mask
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+    
+    # In case of call for a single object passed to the function with scalar arguments
+    # Return "numpy.bool_" instead of "numpy.ndarray"
+    if nbEntries == 1 :
+        qso = qso[0]
+    
+    return qso
+
+
+def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                        objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                        primary=None):
+    """
+    Target definition of QSO using a random forest for the DECaLS photometric system.
+    (see :func:`~desitarget.cuts.isQSO_randomforest`).
+    """
+    # BRICK_PRIMARY
+    if primary is None :
+        primary = np.ones_like(gflux, dtype=bool)
+
+    # RELEASE
+    # ADM default to RELEASE of 5000 if nothing is passed.
+    if release is None :
+        release = np.zeros_like(gflux, dtype='?') + 5000
+    release = np.atleast_1d(release)
+
+    # Build variables for random forest
+    nFeatures = 11 # Number of attributes describing each object to be classified by the rf
+    nbEntries = rflux.size
+    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+    r = np.atleast_1d(r)
+
+    # Preselection to speed up the process
+    rMax = 22.7 # r < 22.7
+    rMin = 17.5 # r > 17.5
+    preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    if objtype is not None:
+        preSelection &= _psflike(objtype)
+    if deltaChi2 is not None:
+        deltaChi2 = np.atleast_1d(deltaChi2)
+        preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
+    # CAC Reject objects flagged inside a blob.
+    if brightstarinblob is not None:
+        preSelection &= ~brightstarinblob
+    
+    # "qso" mask initialized to "preSelection" mask
+    qso = np.copy(preSelection)
+    
+    if np.any(preSelection):
+        
+        from desitarget.myRF import myRF
+        
+        # Data reduction to preselected objects
+        colorsReduced = colors[preSelection]
+        releaseReduced = release[preSelection]
+        r_Reduced = r[preSelection]
+        colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
+        colorsReducedIndex =  colorsIndex[preSelection]
+    
+        # Path to random forest files
+        pathToRF = resource_filename('desitarget', 'data')
+        # rf filenames
+        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
+        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
+        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
+        
+        tmpReleaseOK = releaseReduced < 5000
+        if np.any(tmpReleaseOK):
+            # rf initialization - colors data duplicated within "myRF"
+            rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                          numberOfTrees=200, version=1)
+            # rf loading
+            rf_DR3.loadForest(rf_DR3_fileName)
+            # Compute rf probabilities
+            tmp_rf_proba = rf_DR3.predict_proba()
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            # Compute optimized proba cut
+            pcut = np.where(tmp_r_Reduced > 20.0,
+                            0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
+            # Add rf proba test result to "qso" mask            
+            qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
+        
+        tmpReleaseOK = releaseReduced >= 5000
+        if np.any(tmpReleaseOK):
+            # rf initialization - colors data duplicated within "myRF"
+            rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                          numberOfTrees=500, version=2)
+            rf_DR5_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                                numberOfTrees=500, version=2)
+            # rf loading
+            rf_DR5.loadForest(rf_DR5_fileName)
+            rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
+            # Compute rf probabilities
+            tmp_rf_proba = rf_DR5.predict_proba()
+            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
+            # Compute optimized proba cut
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            pcut = np.where(tmp_r_Reduced > 20.8,
+                            0.88 - (tmp_r_Reduced - 20.8) * 0.025, 0.88)
+            pcut[tmp_r_Reduced > 21.5] = 0.8625 - 0.05 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.8225 - 0.53 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+            pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
+                                  0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
+            # Add rf proba test result to "qso" mask
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+    
+    # In case of call for a single object passed to the function with scalar arguments
+    # Return "numpy.bool_" instead of "numpy.ndarray"
+    if nbEntries == 1 :
+        qso = qso[0]
+    
+    return qso
 
