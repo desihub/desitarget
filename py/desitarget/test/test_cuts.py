@@ -41,10 +41,13 @@ class TestCuts(unittest.TestCase):
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames
         """
-        desi, bgs, mws = cuts.apply_cuts(self.tractorfiles[0])
-        desi, bgs, mws = cuts.apply_cuts(self.sweepfiles[0])
+        # ADM only test the "BGS" class for speed.
+        # ADM with one run of all target classes for coverage.
+        tc = ["BGS"]
+        desi, bgs, mws = cuts.apply_cuts(self.tractorfiles[0], tcnames=tc)
+        desi, bgs, mws = cuts.apply_cuts(self.sweepfiles[0], tcnames=tc)
         data = io.read_tractor(self.tractorfiles[0])
-        desi, bgs, mws = cuts.apply_cuts(data)
+        desi, bgs, mws = cuts.apply_cuts(data, tcnames=tc)
         data = io.read_tractor(self.sweepfiles[0])
         desi, bgs, mws = cuts.apply_cuts(data)
 
@@ -55,7 +58,7 @@ class TestCuts(unittest.TestCase):
     def test_cuts_noprimary(self):
         """Test cuts work with or without "primary"
         """
-        #- BRICK_PRIMARY was removed from the sweeps in dr3 (@moustakas) 
+        #- BRICK_PRIMARY was removed from the sweeps in dr3 (@moustakas).
         targets = Table.read(self.sweepfiles[0])
         if 'BRICK_PRIMARY' in targets.colnames:
             desi1, bgs1, mws1 = cuts.apply_cuts(targets)
@@ -191,10 +194,12 @@ class TestCuts(unittest.TestCase):
         #- Test that objtype and primary are optional
         psftype = targets['TYPE']
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
+                          deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                          w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
                           release=release)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
+                          deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                          w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
                           release=release)
         self.assertTrue(np.all(qso1==qso2))
         # ADM also check that the color selections alone work. This tripped us up once
@@ -210,15 +215,19 @@ class TestCuts(unittest.TestCase):
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
+        # ADM only test the ELG cuts for speed. There's a
+        # ADM full run through all classes in test_cuts_basic.
+        tc = ["ELG"]
+
         self.assertFalse(cuts._is_row(targets))
         self.assertTrue(cuts._is_row(targets[0]))
 
-        desi, bgs, mws = cuts.apply_cuts(targets)
+        desi, bgs, mws = cuts.apply_cuts(targets, tcnames=tc)
         self.assertEqual(len(desi), len(targets))
         self.assertEqual(len(bgs), len(targets))
         self.assertEqual(len(mws), len(targets))
 
-        desi, bgs, mws = cuts.apply_cuts(targets[0])
+        desi, bgs, mws = cuts.apply_cuts(targets[0], tcnames=tc)
         self.assertTrue(isinstance(desi, numbers.Integral), 'DESI_TARGET mask not an int')
         self.assertTrue(isinstance(bgs, numbers.Integral), 'BGS_TARGET mask not an int')
         self.assertTrue(isinstance(mws, numbers.Integral), 'MWS_TARGET mask not an int')
@@ -244,10 +253,14 @@ class TestCuts(unittest.TestCase):
     def test_select_targets(self):
         """Test select targets works with either data or filenames
         """
+        # ADM only test the ELG cuts for speed. There's a
+        # ADM full run through all classes in test_cuts_basic.
+        tc = ["LRG"]
+
         for filelist in [self.tractorfiles, self.sweepfiles]:
-            targets = cuts.select_targets(filelist, numproc=1)
-            t1 = cuts.select_targets(filelist[0:1], numproc=1)
-            t2 = cuts.select_targets(filelist[0], numproc=1)
+            targets = cuts.select_targets(filelist, numproc=1, tcnames=tc)
+            t1 = cuts.select_targets(filelist[0:1], numproc=1, tcnames=tc)
+            t2 = cuts.select_targets(filelist[0], numproc=1, tcnames=tc)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
@@ -287,12 +300,16 @@ class TestCuts(unittest.TestCase):
     def test_qso_selection_options(self):
         """Test the QSO selection options are passed correctly
         """
+        tc = ["QSO"]
+
         targetfile = self.tractorfiles[0]
         for qso_selection in cuts.qso_selection_options:
-            results = cuts.select_targets(targetfile, qso_selection=qso_selection)
+            results = cuts.select_targets(targetfile,
+                                    tcnames=tc, qso_selection=qso_selection)
             
         with self.assertRaises(ValueError):
-            results = cuts.select_targets(targetfile, numproc=1, qso_selection='blatfoo')
+            results = cuts.select_targets(targetfile, numproc=1,
+                                    tcnames=tc, qso_selection='blatfoo')
 
     def test_missing_files(self):
         """Test the code will die gracefully if input files are missing
@@ -303,9 +320,14 @@ class TestCuts(unittest.TestCase):
     def test_parallel_select(self):
         """Test multiprocessing parallelization works
         """
+        # ADM only test the ELG, BGS cuts for speed. There's a
+        # ADM full run through all classes in test_cuts_basic.
+        tc = ["ELG", "BGS"]
+
         for nproc in [1,2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
-                targets = cuts.select_targets(filelist, numproc=nproc)
+                targets = cuts.select_targets(filelist, 
+                                              numproc=nproc, tcnames=tc)
                 self.assertTrue('DESI_TARGET' in targets.dtype.names)
                 self.assertTrue('BGS_TARGET' in targets.dtype.names)
                 self.assertTrue('MWS_TARGET' in targets.dtype.names)
