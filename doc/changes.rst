@@ -12,6 +12,7 @@ desitarget Change Log
     * Add cut on `BRIGHTSTARINBLOB` to QSO selection.
     * Modify I/O to retain (some) backwards-compatibility between DR6 and DR7.
     * Updated unit test example files with appropriate columns.
+    * Speed-up of `cuts` unit tests without loss of coverage.
 * Updated mock sky catalog with positions over a larger footprint [`PR #398`_].
 * Major update to `select_mock_targets` to use the latest (v3.0) basis
   templates [`PR #395`_].
