@@ -3163,12 +3163,8 @@ class LYAMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-<<<<<<< HEAD
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
-=======
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO',
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
                                                               qso_selection='colorcuts')
->>>>>>> qso-speedup
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -4210,7 +4206,11 @@ class MWS_MAINMaker(STARMaker):
             else:
                 targetname = ['MWS', 'STD']
             
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+
+        # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
+        # targets can be used as QSO contaminants.
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              qso_selection='colorcuts')
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,

@@ -284,8 +284,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-            #if 'CONTAM_NAME' in data.keys():
-            #    import pdb ; pdb.set_trace()
+            if 'CONTAM_NAME' in data.keys():
+                import pdb ; pdb.set_trace()
 
             nkeep = len(keep)
             if nkeep > 0:
@@ -654,8 +654,10 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                     100*cparams['stars'], target_type))
 
                 if target_type == 'BGS':
+                    morph = 'REX'
                     mask_type = 'BGS_ANY'
                 else:
+                    morph = None
                     mask_type = target_type
                 ntarg = np.sum(targets['DESI_TARGET'] & ContamStarsMock.desi_mask.mask(mask_type) != 0)
 
@@ -664,9 +666,9 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                     star_data['CONTAM_NAME'] = 'CONTAM_STAR'
                     star_data['CONTAM_FACTOR'] = cparams['stars'] * ntarg / len(star_data['RA'])
 
-                    # Sample from the appropriate Gaussian mixture model and the
-                    # generate the spectra.
-                    gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph='REX',
+                    # Sample from the appropriate Gaussian mixture model and
+                    # then generate the spectra.
+                    gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                         isouth=star_data['SOUTH'],
                                                         seed=healseed, prior_mag=star_data['MAG'])
                     star_data.update(gmmout)
