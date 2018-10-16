@@ -5,10 +5,11 @@ desitarget Change Log
 0.24.1 (unreleased)
 -------------------
 
-* Updates to Bright Galaxy Survey selections [`PR #402`_]. Includes:
+* Updates to Bright Galaxy Survey and QSO selections [`PR #402`_]. Includes:
     * Updates to `BGS_FAINT` and `BGS_BRIGHT` target selections.
     * New `BGS_WISE` selection and implementation.
     * New data model columns `BRIGHTSTARINBLOB` and `FRACIN_`.
+    * Add cut on `BRIGHTSTARINBLOB` to QSO selection.
     * Modify I/O to retain (some) backwards-compatibility between DR6 and DR7.
     * Updated unit test example files with appropriate columns.
 * Updated mock sky catalog with positions over a larger footprint [`PR #398`_].
