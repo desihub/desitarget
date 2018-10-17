@@ -10,7 +10,7 @@ import sys
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from desitarget.targets    import calc_numobs, calc_priority, encode_mtl_targetid
+from desitarget.targets import calc_numobs, calc_priority
 
 
 ############################################################
