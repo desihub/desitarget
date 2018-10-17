@@ -308,14 +308,14 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 makemore = False
             else:
                 need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
-                #import matplotlib.pyplot as plt
-                #noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-                #gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
-                #rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
-                #plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
-                #plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
-                #plt.legend(loc='upper left')
-                #plt.show()
+                import matplotlib.pyplot as plt
+                noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+                gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
+                rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
+                plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
+                plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
+                plt.legend(loc='upper left')
+                plt.show()
                 
                 if len(need) > 0:
                     # Distribute the objects that didn't pass target selection

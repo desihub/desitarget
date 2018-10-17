@@ -3884,20 +3884,27 @@ class STARMaker(SelectTargets):
         #import pdb ; pdb.set_trace()
 
         # Pre-compute normalized synthetic photometry for the full set of
-        # stellar templates.
+        # stellar templates.  Move this to the templates themselves!
         if no_spectra and (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             log.info('Caching stellar template photometry.')
-            
-            flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
-            maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
-            maggies_south = self.decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
-
-            # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
             sdssr = filters.load_filters('sdss2010-r')
 
+            flux, wave = self.template_maker.baseflux, self.template_maker.basewave
+            padflux, padwave = sdssr.pad_spectrum(flux, wave, method='edge')
+
+            maggies_north = self.bassmzlswise.get_ab_maggies(padflux, padwave, mask_invalid=True)
+            maggies_south = self.decamwise.get_ab_maggies(padflux, padwave, mask_invalid=True)
+            if 'W1-R' in self.meta.colnames: # >v3.0 templates
+                sdssrnorm = sdssr.get_ab_maggies(padflux, padwave)['sdss2010-r'].data
+                maggies_north['wise2010-W1'] = sdssrnorm * 10**(-0.4 * self.meta['W1-R'].data)
+                maggies_south['wise2010-W1'] = sdssrnorm * 10**(-0.4 * self.meta['W1-R'].data)
+                maggies_north['wise2010-W2'] = sdssrnorm * 10**(-0.4 * self.meta['W2-R'].data)
+                maggies_south['wise2010-W2'] = sdssrnorm * 10**(-0.4 * self.meta['W2-R'].data)
+            
+            # Normalize to both sdss-g and sdss-r
             def _get_maggies(flux, wave, outmaggies, normfilter):
                 normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
                 for filt, flux in zip( outmaggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
