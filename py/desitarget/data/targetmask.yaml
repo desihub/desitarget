@@ -62,12 +62,15 @@ desi_mask:
 bgs_mask:    
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
+#    - [BGS_WISE,            2, "BGS wise targets", {obsconditions: BRIGHT}]	#GRAY and DARK?
 
     #- BGS North vs. South selections
     - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
+#    - [BGS_WISE_NORTH,      10, "BGS wise targets from Bok/Mosaic", {obsconditions: BRIGHT}]	#GRAY and DARK?
     - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
+#    - [BGS_WISE_SOUTH,      18, "BGS wise targets from DECam", {obsconditions: BRIGHT}]	#GRAY and DARK?
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey", {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
@@ -197,10 +200,13 @@ priorities:
     bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+#        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+#        BGS_WISE_SOUTH: SAME_AS_BGS_WISE
+#        BGS_WISE_NORTH: SAME_AS_BGS_WISE
         BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -264,10 +270,13 @@ numobs:
     bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
+#        BGS_WISE: 1
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+#        BGS_WISE_SOUTH: SAME_AS_BGS_WISE
+#        BGS_WISE_NORTH: SAME_AS_BGS_WISE
         BGS_KNOWN_ANY: 1
         BGS_KNOWN_COLLIDED: 1
         BGS_KNOWN_SDSS: 1

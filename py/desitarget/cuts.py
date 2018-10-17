@@ -1192,13 +1192,32 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     return mwsstar
 
 
-def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                objtype=None, primary=None, south=True):
+def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None,
+                      gaiagmag=None, objtype=None, primary=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        gaiagmag: array_like or None
+            Gaia G band magnitude
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
@@ -1211,19 +1230,43 @@ def isBGS_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if south == False:
         return isBGS_faint_north(gflux, rflux, zflux, w1flux, w2flux, 
-                                 objtype=objtype, primary=primary)
+                      gnobs, rnobs, znobs, gfracmasked, rfracmasked, zfracmasked,
+                      gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
+                      gfluxivar, rfluxivar, zfluxivar, BRIGHTSTARINBLOB, Grr,
+                      gaiagmag, objtype=objtype, primary=primary)
     else:
         return isBGS_faint_south(gflux, rflux, zflux, w1flux, w2flux, 
-                                 objtype=objtype, primary=primary)
+                      gnobs, rnobs, znobs, gfracmasked, rfracmasked, zfracmasked,
+                      gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
+                      gfluxivar, rfluxivar, zfluxivar, BRIGHTSTARINBLOB, Grr,
+                      gaiagmag, objtype=objtype, primary=primary)
 
-
-def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                objtype=None, primary=None):
+def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None,
+                      gaiagmag=None, objtype=None, primary=None):
     """Target Definition of BGS faint targets for the BASS/MzLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        gaiagmag: array_like or None
+            Gaia G band magnitude
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
@@ -1236,21 +1279,56 @@ def isBGS_faint_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+    bgs_gaia = primary.copy()
+    bgs_nogaia = primary.copy()
     bgs &= rflux > 10**((22.5-20.0)/2.5)
     bgs &= rflux <= 10**((22.5-19.5)/2.5)
-    if objtype is not None:
-        bgs &= ~_psflike(objtype)
+    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
+    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
+    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
+    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
+    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs_gaia = bgs & (Grr > 0.6)
+    bgs_nogaia = bgs & (gaiagmag == 0)
+    bgs = bgs_gaia | bgs_nogaia
+    #if objtype is not None:
+    #    bgs &= ~_psflike(objtype)
 
     return bgs
 
 
-def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                objtype=None, primary=None):
+
+def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None,
+                      gaiagmag=None, objtype=None, primary=None):
     """Target Definition of BGS faint targets for the DECaLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        gaiagmag: array_like or None
+            Gaia G band magnitude
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
@@ -1263,25 +1341,58 @@ def isBGS_faint_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+    bgs_gaia = primary.copy()
+    bgs_nogaia = primary.copy()
     bgs &= rflux > 10**((22.5-20.0)/2.5)
     bgs &= rflux <= 10**((22.5-19.5)/2.5)
-    if objtype is not None:
-        bgs &= ~_psflike(objtype)
+    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
+    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
+    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
+    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
+    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs_gaia = bgs & (Grr > 0.6)
+    bgs_nogaia = bgs & (gaiagmag == 0)
+    bgs = bgs_gaia | bgs_nogaia
+    #if objtype is not None:
+    #    bgs &= ~_psflike(objtype)
 
     return bgs
 
-
-def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 objtype=None, primary=None, south=True):
+def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None,
+                      gaiagmag=None, objtype=None, primary=None, south=True):
     """Convenience function for backwards-compatability prior to north/south split.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        gaiagmag: array_like or None
+            Gaia G band magnitude
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue
+            If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to ``True``
             Call isBGS_bright_north if ``south=False``, otherwise call isBGS_bright_south.
 
@@ -1290,19 +1401,44 @@ def isBGS_bright(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if south == False:
         return isBGS_bright_north(gflux, rflux, zflux, w1flux, w2flux, 
-                                  objtype=objtype, primary=primary)
+                      gnobs, rnobs, znobs, gfracmasked, rfracmasked, zfracmasked,
+                      gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
+                      gfluxivar, rfluxivar, zfluxivar, BRIGHTSTARINBLOB, Grr,
+                      gaiagmag, objtype=objtype, primary=primary)
     else:
         return isBGS_bright_south(gflux, rflux, zflux, w1flux, w2flux, 
-                                  objtype=objtype, primary=primary)
+                      gnobs, rnobs, znobs, gfracmasked, rfracmasked, zfracmasked,
+                      gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
+                      gfluxivar, rfluxivar, zfluxivar, BRIGHTSTARINBLOB, Grr,
+                      gaiagmag, objtype=objtype, primary=primary)
 
 
-def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, primary=None):
+def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None,
+                      gaiagmag=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets for the BASS/MzLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        gaiagmag: array_like or None
+            Gaia G band magnitude
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
@@ -1315,19 +1451,53 @@ def isBGS_bright_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+    bgs_gaia = primary.copy()
+    bgs_nogaia = primary.copy()
     bgs &= rflux > 10**((22.5-19.5)/2.5)
-    if objtype is not None:
-        bgs &= ~_psflike(objtype)
+    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
+    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
+    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
+    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
+    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs_gaia = bgs & (Grr > 0.6)
+    bgs_nogaia = bgs & (gaiagmag == 0)
+    bgs = bgs_gaia | bgs_nogaia
+    #if objtype is not None:
+    #    bgs &= ~_psflike(objtype)
     return bgs
 
 
-def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, primary=None):
+def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None,
+                      gaiagmag=None, objtype=None, primary=None):
     """Target Definition of BGS bright targets for the DECaLS photometric system.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        gaiagmag: array_like or None
+            Gaia G band magnitude
         objtype: array_like or None
             If given, The TYPE column of the catalogue.
         primary: array_like or None
@@ -1340,9 +1510,195 @@ def isBGS_bright_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+    bgs_gaia = primary.copy()
+    bgs_nogaia = primary.copy()
     bgs &= rflux > 10**((22.5-19.5)/2.5)
-    if objtype is not None:
-        bgs &= ~_psflike(objtype)
+    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
+    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
+    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
+    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
+    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs_gaia = bgs & (Grr > 0.6)
+    bgs_nogaia = bgs & (gaiagmag == 0)
+    bgs = bgs_gaia | bgs_nogaia
+    #if objtype is not None:
+    #    bgs &= ~_psflike(objtype)
+    return bgs
+
+def isBGS_wise(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None, w1snr=None,
+                      gaiagmag=None, objtype=None, primary=None, south=True):
+    """Convenience function for backwards-compatability prior to north/south split.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        w1snr: array_like or None
+            W1 band signal to noise
+        gaiagmag: array_like or None
+            Gaia G band magnitude
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+        south: boolean, defaults to ``True``
+            Call isBGS_bright_north if south=False, otherwise call isBGS_bright_south.
+
+    Returns:
+        mask : array_like. True if and only if the object is a BGS target.
+    """
+    if south==False:
+        return isBGS_wise_north(gflux, rflux, zflux, w1flux, w2flux, 
+                      gnobs, rnobs, znobs, gfracmasked, rfracmasked, zfracmasked,
+                      gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
+                      gfluxivar, rfluxivar, zfluxivar, BRIGHTSTARINBLOB, Grr, w1snr,
+                      gaiagmag, objtype=objtype, primary=primary)
+    else:
+        return isBGS_wise_south(gflux, rflux, zflux, w1flux, w2flux, 
+                      gnobs, rnobs, znobs, gfracmasked, rfracmasked, zfracmasked,
+                      gfracflux, rfracflux, zfracflux, gfracin, rfracin, zfracin,
+                      gfluxivar, rfluxivar, zfluxivar, BRIGHTSTARINBLOB, Grr, w1snr,
+                      gaiagmag, objtype=objtype, primary=primary)
+
+
+def isBGS_wise_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None, w1snr=None,
+                      gaiagmag=None, objtype=None, primary=None):
+    """Target Definition of BGS bright targets for the BASS/MzLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        w1snr: array_like or None
+            W1 band signal to noise
+        gaiagmag: array_like or None
+            Gaia G band magnitude
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only if the object is a BGS target.
+    """
+    #------ Bright Galaxy Survey
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
+    bgs &= rflux > 10**((22.5-20.0)/2.5)
+    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
+    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
+    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
+    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
+    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= Grr < 0.4
+    bgs &= Grr > -1
+    bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
+    bgs &= w1snr > 5
+    #if objtype is not None:
+    #    bgs &= ~_psflike(objtype)
+    return bgs
+
+
+def isBGS_wise_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                      gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                      gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+                      gfluxivar=None, rfluxivar=None, zfluxivar=None, BRIGHTSTARINBLOB=None, Grr=None, w1snr=None,
+                      gaiagmag=None, objtype=None, primary=None):
+    """Target Definition of BGS bright targets for the DECaLS photometric system.
+
+    Args:
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gnobs, rnobs, znobs: array_like or None
+            Number of observations in g, r, z bands
+        gfracmasked, rfracmasked, zfracmasked: array_like or None
+            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z
+        fracflux, rfracflux, zfracflux: array_like or None
+            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z
+        gfracin, rfracin, zfracin: array_like or None
+            Fraction of a source's flux within the blob in g,r,z
+        gfluxivar, rfluxivar, zfluxivar: array_like or None
+            nverse variance of FLUX g,r,z
+        BRIGHTSTARINBLOB: boolean array_like or None
+            True if the object shares a blob with a "bright" (Tycho-2) star
+        Grr: array_like or None
+            Gaia G band magnitude minus observational r magnitude
+        w1snr: array_like or None
+            W1 band signal to noise
+        gaiagmag: array_like or None
+            Gaia G band magnitude
+        objtype: array_like or None
+            If given, The TYPE column of the catalogue.
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only if the object is a BGS target.
+    """
+    #------ Bright Galaxy Survey
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
+    bgs &= rflux > 10**((22.5-20.0)/2.5)
+    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
+    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
+    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
+    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
+    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= rflux > gflux * 10**(-1.0/2.5)
+    bgs &= rflux < gflux * 10**(4.0/2.5)
+    bgs &= zflux > rflux * 10**(-1.0/2.5)
+    bgs &= zflux < rflux * 10**(4.0/2.5)
+    bgs &= np.array([not i for i in BRIGHTSTARINBLOB])
+    bgs &= Grr < 0.4
+    bgs &= Grr > -1
+    bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
+    bgs &= w1snr > 5
+    #if objtype is not None:
+    #    bgs &= ~_psflike(objtype)
     return bgs
 
 
@@ -1972,6 +2328,10 @@ def _prepare_optical_wise(objects, colnames=None):
     rfracmasked = objects['FRACMASKED_R']
     zfracmasked = objects['FRACMASKED_Z']
 
+    gfracin = objects['FRACIN_G']
+    rfracin = objects['FRACIN_R']
+    zfracin = objects['FRACIN_Z']
+    
     gallmask = objects['ALLMASK_G']
     rallmask = objects['ALLMASK_R']
     zallmask = objects['ALLMASK_Z']
@@ -1981,6 +2341,9 @@ def _prepare_optical_wise(objects, colnames=None):
     zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
     w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
+    
+    #For BGS target selection
+    BRIGHTSTARINBLOB = objects['BRIGHTSTARINBLOB'] 
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
@@ -1995,8 +2358,8 @@ def _prepare_optical_wise(objects, colnames=None):
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
         w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
-        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask,
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2)
+        gfracmasked, rfracmasked, zfracmasked, gfracin, rfracin, zfracin ,gallmask, rallmask, zallmask,
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, BRIGHTSTARINBLOB)
 
 def _prepare_gaia(objects, colnames=None):
     """Process the various Gaia inputs for target selection."""
@@ -2030,7 +2393,10 @@ def _prepare_gaia(objects, colnames=None):
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
-
+    
+    #For BGS target selection
+    Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
+    
     # ADM If proper motion is not NaN, 31 parameters were solved for
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
     # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
@@ -2060,7 +2426,7 @@ def _prepare_gaia(objects, colnames=None):
     _, galb = _gal_coords(objects["RA"], objects["DEC"])
 
     return (gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag,
-            gaiabmag, gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved,
+            gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved,
             gaiabprpfactor, gaiasigma5dmax, galb)
 
 def unextinct_fluxes(objects):
@@ -2099,12 +2465,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked, 
+		    gfracin, rfracin, zfracin,
                     gallmask, rallmask, zallmask,
                     gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
                     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource, 
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-                    tcnames, qso_optical_cuts, qso_selection, 
+                    tcnames, qso_optical_cuts, qso_selection, BRIGHTSTARINBLOB, Grr,
                     primary, survey='main'):
     """Perform target selection on parameters, returning target mask arrays.
 
@@ -2256,23 +2623,48 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
     if "BGS" in tcnames:
-        # ADM set the BGS bits
-        bgs_bright_north = targcuts.isBGS_bright(primary=primary, rflux=rflux, objtype=objtype,
-                                        south=False)
-        bgs_bright_south = targcuts.isBGS_bright(primary=primary, rflux=rflux, objtype=objtype,
-                                        south=True)
-        bgs_faint_north = targcuts.isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
-                                      south=False)
-        bgs_faint_south = targcuts.isBGS_faint(primary=primary, rflux=rflux, objtype=objtype,
-                                      south=True)
+        #ADM set the BGS bits
+        bgs_bright_north = targcuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
+                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, BRIGHTSTARINBLOB=BRIGHTSTARINBLOB, Grr=Grr,
+                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=False)
+        bgs_bright_south = targcuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
+                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, BRIGHTSTARINBLOB=BRIGHTSTARINBLOB, Grr=Grr,
+                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=True)
+        bgs_faint_north = targcuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
+                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, BRIGHTSTARINBLOB=BRIGHTSTARINBLOB, Grr=Grr,
+                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=False)
+        bgs_faint_south = targcuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
+                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, BRIGHTSTARINBLOB=BRIGHTSTARINBLOB, Grr=Grr,
+                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=True)
+        bgs_wise_north = targcuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
+                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, BRIGHTSTARINBLOB=BRIGHTSTARINBLOB, Grr=Grr, w1snr=w1snr,
+                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=False)
+        bgs_wise_south = targcuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
+                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, BRIGHTSTARINBLOB=BRIGHTSTARINBLOB, Grr=Grr, w1snr=w1snr,
+                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=True)
+        
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
         bgs_faint_north, bgs_faint_south = ~primary, ~primary
+        bgs_wise_north, bgs_wise_south = ~primary, ~primary
 
     # ADM combine BGS targeting bits for a BGS selected in any imaging
     bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
+    bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
 
     if "MWS" in tcnames:
         # ADM set the MWS bits
@@ -2359,14 +2751,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # BGS bright and faint, south.
     bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
+    #uncomment next line when BGS_WISE_SOUTH bit has been implemented
+    #bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
     # BGS bright and faint, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
+    #uncomment next line when BGS_WISE_NORTH bit has been implemented
+    #bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
     # BGS combined, bright and faint
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
+    #uncomment next line when BGS_WISE bit has been implemented
+    #bgs_target |= bgs_wise * bgs_mask.BGS_WISE
 
     # ADM MWS main, nearby, and WD.
     mws_target  = mws * mws_mask.MWS_MAIN
@@ -2456,6 +2854,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
 
+
     #- ensure uppercase column names if astropy Table.
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
@@ -2465,17 +2864,19 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM As we need the column names
     colnames = _get_colnames(objects)
 
+
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
         w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
-        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+        gfracmasked, rfracmasked, zfracmasked, gfracin, rfracin, zfracin, gallmask, rallmask, zallmask, \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, BRIGHTSTARINBLOB =                  \
                             _prepare_optical_wise(objects, colnames=colnames)
+
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
-      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+      gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
     
     # ADM initially, every object passes the cuts (is True).
@@ -2491,12 +2892,14 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
+	gfracin, rfracin, zfracin,
         gallmask, rallmask, zallmask,
         gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
         gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-        tcnames, qso_optical_cuts, qso_selection, primary,
+        tcnames, qso_optical_cuts, qso_selection, BRIGHTSTARINBLOB, Grr,
+   	primary,
         survey=survey
     )
 
