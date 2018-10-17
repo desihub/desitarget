@@ -509,12 +509,12 @@ def apply_cuts(objects, cmxdir=None):
     # ADM As we need the column names.
     colnames = _get_colnames(objects)
 
-    # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,            \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,   \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                \
-        gfracmasked, rfracmasked, zfracmasked, gallmask, rallmask, zallmask, \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2 =                  \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,              \
+        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,     \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                  \
+        gfracmasked, rfracmasked, zfracmasked,                                 \
+        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
                             _prepare_optical_wise(objects, colnames=colnames)
 
     # ADM in addition, cmx needs ra and dec.
@@ -536,7 +536,7 @@ def apply_cuts(objects, cmxdir=None):
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
-      gaiarmag, gaiaaen, gaiadupsource, gaiaparamssolved, gaiabprpfactor, \
+      gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor, \
       gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
 
     # ADM a couple of extra columns; the observed g/z fluxes.
