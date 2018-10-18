@@ -5,6 +5,7 @@ desitarget Change Log
 0.24.1 (unreleased)
 -------------------
 
+* Refactor of BGS selections to separate masking and color cuts [`PR #407`_].
 * Updates to Bright Galaxy Survey and QSO selections [`PR #402`_]. Includes:
     * Updates to `BGS_FAINT` and `BGS_BRIGHT` target selections.
     * New `BGS_WISE` selection and implementation.
@@ -23,6 +24,7 @@ desitarget Change Log
 .. _`PR #395`: https://github.com/desihub/desitarget/pull/395
 .. _`PR #398`: https://github.com/desihub/desitarget/pull/398
 .. _`PR #402`: https://github.com/desihub/desitarget/pull/402
+.. _`PR #407`: https://github.com/desihub/desitarget/pull/407
 
 0.24.0 (2018-09-26)
 -------------------
