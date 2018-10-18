@@ -1501,8 +1501,7 @@ class ReadUniformSky(SelectTargets):
             Compute and return the median target density in the mock.  Defaults
         only_coords : :class:`bool`, optional
             To get some improvement in speed, only read the target coordinates
-            and some other basic info.
-            to False.
+            and some other basic info.  Defaults to False.
 
         Returns
         -------
@@ -1872,7 +1871,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False):
+                 mock_density=False, only_coords=False):
         """Read the catalog.
 
         Parameters
@@ -1894,6 +1893,9 @@ class ReadLyaCoLoRe(SelectTargets):
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        only_coords : :class:`bool`, optional
+            Only read the target coordinates and some other basic info.
+            Defaults to False.
 
         Returns
         -------
@@ -2007,6 +2009,11 @@ class ReadLyaCoLoRe(SelectTargets):
             #objid = objid[cut]
             mockpix = mockpix[cut]
             mockid = mockid[cut]
+
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
 
         # Build the full filenames.
         lyafiles = []
@@ -2900,7 +2907,8 @@ class LYAMaker(SelectTargets):
             LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
-             nside_lya=16, zmin_lya=None, mock_density=False, **kwargs):
+             nside_lya=16, zmin_lya=None, mock_density=False, only_coords=False,
+             **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2921,6 +2929,9 @@ class LYAMaker(SelectTargets):
             QSO mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
+        only_coords : :class:`bool`, optional
+            Only read the target coordinates and some other basic info.
+            Defaults to False.
 
         Returns
         -------
@@ -2937,7 +2948,7 @@ class LYAMaker(SelectTargets):
         
         if self.mockformat == 'colore':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v2.0', 'master.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v4.0', 'master.fits')
             MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -2949,7 +2960,8 @@ class LYAMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density,
+                                   only_coords=only_coords)
 
         return data
 
@@ -3272,7 +3284,7 @@ class LRGMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'LRG.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'lrg_0_inpt.fits')
             MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
