@@ -133,61 +133,20 @@ class TestCuts(unittest.TestCase):
         elg2 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         self.assertTrue(np.all(elg1==elg2))
 
-        bgs1 = cuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux,
-                gnobs=gnobs, rnobs=rnobs, znobs=znobs, 
-                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, 
-                brightstarinblob=brightstarinblob, Grr=Grr,
-                gaiagmag=gaiagmag, primary=primary)
-        bgs2 = cuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux,
-                gnobs=gnobs, rnobs=rnobs, znobs=znobs, 
-                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, 
-                brightstarinblob=brightstarinblob, Grr=Grr,
-                gaiagmag=gaiagmag, primary=None)
-        self.assertTrue(np.all(bgs1==bgs2))
-
-        bgs1 = cuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux,
-                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                brightstarinblob=brightstarinblob, Grr=Grr,
-                gaiagmag=gaiagmag, primary=primary)
-        bgs2 = cuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux,
-                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                brightstarinblob=brightstarinblob, Grr=Grr,
-                gaiagmag=gaiagmag, primary=None)
-        self.assertTrue(np.all(bgs1==bgs2))
-
-        bgs1 = cuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux,
-                w1flux=w1flux, w2flux=w2flux,
-                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                gaiagmag=gaiagmag, primary=primary)
-        bgs2 = cuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux,
-                w1flux=w1flux, w2flux=w2flux,
-                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                gaiagmag=gaiagmag, primary=None)
-        self.assertTrue(np.all(bgs1==bgs2))
+        for targtype in ["bright", "faint", "wise"]:
+            bgs = []
+            for primary in [primary, None]:
+                bgs.append(
+                    cuts.isBGS(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                        gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                        brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                        primary=primary, targtype=targtype)
+                )
+            self.assertTrue(np.all(bgs[0]==bgs[1]))
 
         # ADM need to include RELEASE for quasar cuts, at least.
         release = targets['RELEASE']
