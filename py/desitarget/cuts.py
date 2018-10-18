@@ -1236,7 +1236,8 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to ``True``
-            Call isBGS_faint_north if ``south=False``, otherwise call isBGS_faint_south.
+            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
         targtype: str, optional, defaults to ``faint``
             Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
             or ``faint`` to use colors appropriate to the ``BGS_BRIGHT`` selection
@@ -1277,11 +1278,11 @@ def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
     _check_BGS_targtype()
     bgs = np.ones(len(gnobs), dtype='?')
 
-    bgs &= (gnobs>=1) & (rnobs>=1) & (znobs>=1)
-    bgs &= (gfracmasked<0.4) & (rfracmasked<0.4) & (zfracmasked<0.4)
-    bgs &= (gfracflux<5.0) & (rfracflux<5.0) & (zfracflux<5.0)
-    bgs &= (gfracin>0.3) & (rfracin>0.3) & (zfracin>0.3)
-    bgs &= (gfluxivar>0) & (rfluxivar>0) & (zfluxivar>0)
+    bgs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
+    bgs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
+    bgs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
+    bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
+    bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
     bgs &= ~brightstarinblob
 
@@ -2250,38 +2251,26 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
+    # ADM set the BGS bits
+    bgs_classes = []
     if "BGS" in tcnames:
-        #ADM set the BGS bits
-        bgs_bright_north = targcuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
-                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=False)
-        bgs_bright_south = targcuts.isBGS_bright(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
-                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=True)
-        bgs_faint_north = targcuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
-                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=False)
-        bgs_faint_south = targcuts.isBGS_faint(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
-                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=True)
-        bgs_wise_north = targcuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
-                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=False)
-        bgs_wise_south = targcuts.isBGS_wise(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, 
-                      gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                      gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                      gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr,
-                      gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=True)
+            for targtype in ["bright", "faint", "wise"]:
+                for south in [False, True]:
+                    bgsclasses.append(
+                        targcuts.isBGS(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                       w1flux=w1flux, w2flux=w2flux, 
+                                       gnobs=gnobs, rnobs=rnobs, znobs=znobs, 
+                                       gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                                       gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
+                                       gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                                       gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, 
+                                       brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag, 
+                                       objtype=objtype, primary=primary, south=south, targtype=targtype)
+
+    bgs_bright_north, bgs_bright_south,  \
+    bgs_faint_north, bgs_faint_south,    \
+    bgs_wise_north, bgs_wise_south =     \
+                        bgs_classes
         
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
