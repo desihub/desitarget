@@ -1246,7 +1246,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Returns:
         mask : array_like. True if and only if the object is a BGS target.
     """
-    _check_BGS_targtype()
+    _check_BGS_targtype(targtype)
 
     #------ Bright Galaxy Survey
     if primary is None:
@@ -1256,7 +1256,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     bgs &= notin_BGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                           gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                           gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr, 
                           gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
                           brightstarinblob=brightstarinblob, targtype=targtype)
 
@@ -1266,16 +1266,16 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return bgs
 
 
-def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None, 
+def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
                    gfracmasked=None, rfracmasked=None, zfracmasked=None,
-                   gfracflux=None, rfracflux=None, zfracflux=None, 
-                   gfracin=None, rfracin=None, zfracin=None,
-                   gfluxivar=None, rfluxivar=None, zfluxivar=None, 
+                   gfracflux=None, rfracflux=None, zfracflux=None,
+                   gfracin=None, rfracin=None, zfracin=None, w1snr=None,
+                   gfluxivar=None, rfluxivar=None, zfluxivar=None,
                    brightstarinblob=None, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS_faint` for parameters).
     """
-    _check_BGS_targtype()
+    _check_BGS_targtype(targtype)
     bgs = np.ones(len(gnobs), dtype='?')
 
     bgs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
@@ -1286,7 +1286,7 @@ def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
 
     bgs &= ~brightstarinblob
 
-    if targtype = 'wise':
+    if targtype == 'wise':
         bgs &= w1snr > 5
 
     return bgs
@@ -1299,27 +1299,27 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     bgs = np.ones(len(gflux), dtype='?')
 
-    if targtype = 'bright':
+    if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
         bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
-    elif targtype = 'faint':
+    elif targtype == 'faint':
         bgs &= rflux > 10**((22.5-20.0)/2.5)
         bgs &= rflux <= 10**((22.5-19.5)/2.5)
         bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
-    elif targtype = 'wise':
+    elif targtype == 'wise':
         bgs &= rflux > 10**((22.5-20.0)/2.5)
         bgs &= Grr < 0.4
         bgs &= Grr > -1
         bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
     else:
-        _check_BGS_targtype()
+        _check_BGS_targtype(targtype)
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
         bgs &= rflux < gflux * 10**(4.0/2.5)
         bgs &= zflux > rflux * 10**(-1.0/2.5)
         bgs &= zflux < rflux * 10**(4.0/2.5)
-    if north:
+    else:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
         bgs &= rflux < gflux * 10**(4.0/2.5)
         bgs &= zflux > rflux * 10**(-1.0/2.5)
@@ -2252,25 +2252,25 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
     # ADM set the BGS bits
-    bgs_classes = []
     if "BGS" in tcnames:
-            for targtype in ["bright", "faint", "wise"]:
-                for south in [False, True]:
-                    bgsclasses.append(
-                        targcuts.isBGS(gflux=gflux, rflux=rflux, zflux=zflux, 
-                                       w1flux=w1flux, w2flux=w2flux, 
-                                       gnobs=gnobs, rnobs=rnobs, znobs=znobs, 
-                                       gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                                       gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux, 
-                                       gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                                       gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, 
-                                       brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag, 
-                                       objtype=objtype, primary=primary, south=south, targtype=targtype)
+        bgs_classes = []
+        for targtype in ["bright", "faint", "wise"]:
+            for south in [False, True]:
+                bgs_classes.append(
+                    targcuts.isBGS(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                                   gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                                   gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                                   gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                                   gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                                   gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                                   brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                                   objtype=objtype, primary=primary, south=south, targtype=targtype)
+                               )
 
-    bgs_bright_north, bgs_bright_south,  \
-    bgs_faint_north, bgs_faint_south,    \
-    bgs_wise_north, bgs_wise_south =     \
-                        bgs_classes
+        bgs_bright_north, bgs_bright_south,  \
+        bgs_faint_north, bgs_faint_south,    \
+        bgs_wise_north, bgs_wise_south =     \
+                                             bgs_classes
         
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
