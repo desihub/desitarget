@@ -1257,11 +1257,11 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                           gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                           gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                           gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr, 
-                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                          brightstarinblob=brightstarinblob, targtype=targtype)
+                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr, 
+                          gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
 
     bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        Grr=Grr, gaiagmag=gaiagmag, south=south, targtype=targtype)
+                        south=south, targtype=targtype)
 
     return bgs
 
@@ -1270,8 +1270,8 @@ def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
                    gfracmasked=None, rfracmasked=None, zfracmasked=None,
                    gfracflux=None, rfracflux=None, zfracflux=None,
                    gfracin=None, rfracin=None, zfracin=None, w1snr=None,
-                   gfluxivar=None, rfluxivar=None, zfluxivar=None,
-                   brightstarinblob=None, targtype=None):
+                   gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
+                   gaiagmag=None, brightstarinblob=None, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS_faint` for parameters).
     """
@@ -1286,14 +1286,22 @@ def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
 
     bgs &= ~brightstarinblob
 
-    if targtype == 'wise':
+    if targtype == 'bright':
+        bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )        
+    elif targtype == 'faint':
+        bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
+    elif targtype == 'wise':
+        bgs &= Grr < 0.4
+        bgs &= Grr > -1
         bgs &= w1snr > 5
+    else:
+        _check_BGS_targtype(targtype)
 
     return bgs
 
 
 def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 Grr=None, gaiagmag=None, south=True, targtype=None):
+                 south=True, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -1301,15 +1309,11 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
-        bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
     elif targtype == 'faint':
         bgs &= rflux > 10**((22.5-20.0)/2.5)
         bgs &= rflux <= 10**((22.5-19.5)/2.5)
-        bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
     elif targtype == 'wise':
         bgs &= rflux > 10**((22.5-20.0)/2.5)
-        bgs &= Grr < 0.4
-        bgs &= Grr > -1
         bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
     else:
         _check_BGS_targtype(targtype)
