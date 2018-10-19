@@ -478,8 +478,8 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gallmask=None, rallmask=None, zallmask=None, brightstarinblob=None,
           south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
-    
-    Args:   
+
+    Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         gallmask, rallmask, zallmask: array_like
@@ -558,7 +558,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         elg &= rflux > 10**((22.5-23.3)/2.5)      # r<23.3
         # ADM the north has a modified FDR cut to remove stars and low-z galaxies.
         elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
-    
+
     return elg
 
 
