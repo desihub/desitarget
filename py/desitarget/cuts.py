@@ -1253,12 +1253,12 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
 
-    bgs &= notin_BGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                          gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr, 
-                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                          gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
+    bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr, 
+                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
+                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
 
     bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                         south=south, targtype=targtype)
@@ -1266,12 +1266,12 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return bgs
 
 
-def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
-                   gfracmasked=None, rfracmasked=None, zfracmasked=None,
-                   gfracflux=None, rfracflux=None, zfracflux=None,
-                   gfracin=None, rfracin=None, zfracin=None, w1snr=None,
-                   gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
-                   gaiagmag=None, brightstarinblob=None, targtype=None):
+def notinBGS_mask(gnobs=None, rnobs=None, znobs=None,
+                  gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                  gfracflux=None, rfracflux=None, zfracflux=None,
+                  gfracin=None, rfracin=None, zfracin=None, w1snr=None,
+                  gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
+                  gaiagmag=None, brightstarinblob=None, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS_faint` for parameters).
     """
