@@ -1287,7 +1287,7 @@ def notin_BGS_mask(gnobs=None, rnobs=None, znobs=None,
     bgs &= ~brightstarinblob
 
     if targtype == 'bright':
-        bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )        
+        bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
     elif targtype == 'faint':
         bgs &= ( (Grr > 0.6) | (gaiagmag == 0) )
     elif targtype == 'wise':
