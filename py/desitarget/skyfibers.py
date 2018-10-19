@@ -195,22 +195,28 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g','r
     desi_target = np.zeros(nskies,dtype='>i8')
     desi_target |= desi_mask.SKY
 
-    #ADM Find where the badskyflux limit is exceeded in any band
-    #ADM first convert badskyflux to an array in case it wasn't passed as such...
-    badskyflux = np.array(badskyflux)
-
-    #ADM ...now check for things that exceed the passed badskyflux limits in any band,
-    #ADM and for things that have infinite errors (zero ivars) in any bands (these 
-    #ADM were typically outside of the imaging footprint, were in CCD gaps, etc.)
-    #ADM remember that we need to test per-band as not all bands may have
-    #ADM been requested as an input
-    bstracker = np.zeros((nskies,naps), dtype=bool)
+    #ADM Find locations where the fluxes are bad. First check if locations
+    #ADM have infinite errors (zero ivars) or zero fluxes in BOTH of g and r
+    #ADM (these are typically outside the imaging footprint, in CCD gaps, etc.).
+    #ADM checking on z, too, is probably overkill, e.g.:
+    #ADM https://github.com/desihub/desitarget/issues/348
+    #ADM Remember that we need to test per-band as not all bands may have
+    #ADM been requested as an input...
+    bstracker = np.ones((nskies,naps), dtype=bool)
     if hasattr(skytable,'apflux_g'):
-        bstracker |= (skytable.apflux_g > badskyflux) | (skytable.apflux_ivar_g == 0)
+        bstracker &= (skytable.apflux_g == 0) | (skytable.apflux_ivar_g == 0)
     if hasattr(skytable,'apflux_r'):
-        bstracker |= (skytable.apflux_r > badskyflux) | (skytable.apflux_ivar_r == 0)
+        bstracker &= (skytable.apflux_r == 0) | (skytable.apflux_ivar_r == 0)
+
+    #ADM ...now check for locations that exceed badskyflux limits in any band.
+    #ADM Remember to make badskyflux an array in case it wasn't passed as such.
+    badskyflux = np.array(badskyflux)
+    if hasattr(skytable,'apflux_g'):
+        bstracker |= (skytable.apflux_g > badskyflux)
+    if hasattr(skytable,'apflux_r'):
+        bstracker |= (skytable.apflux_r > badskyflux)
     if hasattr(skytable,'apflux_z'):
-        bstracker |= (skytable.apflux_z > badskyflux) | (skytable.apflux_ivar_z == 0)
+        bstracker |= (skytable.apflux_z > badskyflux)
 
     #ADM check if this is a bad sky in any aperture, if so then set it to bad
     wbad = np.where( np.any(bstracker, axis=1)  )
