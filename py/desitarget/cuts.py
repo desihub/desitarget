@@ -536,15 +536,16 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     elg = primary.copy()
 
-    # ADM clip to avoid warnings from negative numbers raised to fractional powers.
-    # ADM safe as flux limits prevent selection of sources with a flux below zero.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-
     # ADM cuts shared by the northern and southern selections.
     elg &= gflux < 10**((22.5-21.0)/2.5)          # g>21
     elg &= zflux > rflux * 10**(0.3/2.5)          # (r-z)>0.3
     elg &= zflux < rflux * 10**(1.6/2.5)          # (r-z)<1.6
+
+    # ADM clip to avoid warnings from negative numbers raised to fractional powers.
+    # ADM make sure to do this after the (r-z) cuts to prevent the recovery of
+    # ADM very bright objects with strange colors.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
     elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
 
     # ADM cuts that are unique to the north or south.
