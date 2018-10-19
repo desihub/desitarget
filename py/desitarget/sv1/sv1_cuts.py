@@ -312,109 +312,6 @@ def isLRGpass_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None
     return lrg, lrg1pass, lrg2pass
 
 
-def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
-                gallmask=None, rallmask=None, zallmask=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
-    
-    Args:   
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        gallmask, rallmask, zallmask: array_like
-            Bitwise mask set if the central pixel from all images
-            satisfy each condition in g, r, z
-        south: boolean, defaults to True
-            Call isELG_north if south=False, otherwise call isELG_south.
-
-    Returns:
-        mask : array_like. True if and only if the object is an ELG
-            target.
-    """
-    if south==False:
-        return isELG_north(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                            gallmask=gallmask, rallmask=rallmask, zallmask=zallmask)
-    else:
-        return isELG_south(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
-
-
-def isELG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None,
-                gallmask=None, rallmask=None, zallmask=None):
-    """Target Definition of ELG for the BASS/MzLS photometric system. Returning a boolean array.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        gallmask, rallmask, zallmask: array_like
-            Bitwise mask set if the central pixel from all images 
-            satisfy each condition in g, r, z 
-
-    Returns:
-        mask : array_like. True if and only if the object is an ELG
-            target.
-
-    """
-
-    #----- Emission Line Galaxies
-    if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
-    elg = primary.copy()
-
-    elg &= (gallmask == 0)
-    elg &= (rallmask == 0)
-    elg &= (zallmask == 0)
-    
-    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
-    elg &= gflux > 10**((22.5-23.7)/2.5)                       # g<23.7
-    elg &= rflux > 10**((22.5-23.3)/2.5)                       # r<23.3
-    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
-    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    # ADM this is the original FDR cut to remove stars and low-z galaxies.
-    #elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
-    elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
-    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
-
-    return elg
-
-
-def isELG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
-    """Target Definition of ELG for the DECaLS photometric system. Returning a boolean array.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask : array_like. True if and only if the object is an ELG
-            target.
-
-    """
-    #----- Emission Line Galaxies
-    if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
-    elg = primary.copy()
-    elg &= gflux < 10**((22.5-21.0)/2.5)                       # g>21
-    elg &= rflux > 10**((22.5-23.4)/2.5)                       # r<23.4
-    elg &= zflux > rflux * 10**(0.3/2.5)                       # (r-z)>0.3
-    elg &= zflux < rflux * 10**(1.6/2.5)                       # (r-z)<1.6
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
-    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
-
-    return elg
-
-
 def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
 
@@ -1549,3 +1446,90 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     return bgs
 
+
+def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+          gallmask=None, rallmask=None, zallmask=None, brightstarinblob=None,
+          south=True, primary=None):
+    """Definition of ELG target classes. Returns a boolean array.
+    
+    Args:   
+        gflux, rflux, zflux, w1flux, w2flux: array_like
+            The flux in nano-maggies of g, r, z, w1, and w2 bands.
+        gallmask, rallmask, zallmask: array_like
+            Bitwise mask set if the central pixel from all images
+            satisfy each condition in g, r, z.
+        brightstarinblob: boolean array_like or None
+            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
+        south: boolean, defaults to ``True``
+            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+        primary: array_like or None
+            If given, the BRICK_PRIMARY column of the catalogue.
+
+    Returns:
+        mask : array_like. True if and only if the object is an ELG
+            target.
+
+    Notes:
+    - Current version (08/01/18) is version 144 on `the wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    elg = primary.copy()
+
+    elg &= notinELG_mask(gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
+                         brightstarinblob=brightstarinblob)
+
+    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                        south=south, primary=primary)
+
+    return elg
+
+
+def notinELG_mask(gallmask=None, rallmask=None, zallmask=None, 
+                  brightstarinblob=None):
+    """Standard set of masking cuts used by all ELG target selection classes
+    (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
+    """
+    elg = np.ones(len(gallmask), dtype='?')
+
+    elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
+    elg &= ~brightstarinblob
+
+    return elg
+
+
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, ggood=None, primary=None, south=True):
+    """Color cuts for ELG target selection classes
+    (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+
+    elg = primary.copy()
+
+    # ADM cuts shared by the northern and southern selections.
+    elg &= gflux < 10**((22.5-21.0)/2.5)          # g>21
+    elg &= zflux > rflux * 10**(0.3/2.5)          # (r-z)>0.3
+    elg &= zflux < rflux * 10**(1.6/2.5)          # (r-z)<1.6
+
+    # ADM clip to avoid warnings from negative numbers raised to fractional powers.
+    # ADM make sure to do this after the (r-z) cuts to prevent the recovery of
+    # ADM very bright objects with strange colors.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
+
+    # ADM cuts that are unique to the north or south.
+    if south:
+        elg &= gflux > 10**((22.5-23.45)/2.5)     # g<23.45
+        # ADM the south has the original FDR cut to remove stars and low-z galaxies.
+        elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
+    else:
+        elg &= gflux > 10**((22.5-23.7)/2.5)      # g<23.7
+        elg &= rflux > 10**((22.5-23.3)/2.5)      # r<23.3
+        # ADM the north has a modified FDR cut to remove stars and low-z galaxies.
+        elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
+    
+    return elg
