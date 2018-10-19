@@ -1475,7 +1475,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                           gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                           gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                           gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr, 
-                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr, 
+                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
                           gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
 
     bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
