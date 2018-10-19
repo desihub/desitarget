@@ -518,7 +518,7 @@ def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
     """Standard set of masking cuts used by all ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
     """
-    elg = np.ones(len(gnobs), dtype='?')
+    elg = np.ones(len(gallmask), dtype='?')
 
     elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
     elg &= ~brightstarinblob
@@ -2137,11 +2137,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
         
     if "ELG" in tcnames:
-        elg_north = targcuts.isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                          gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                          south=False)
-        elg_south = targcuts.isELG(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                          south=True)
+        elg_classes = []
+        for south in [False, True]:
+            elg_classes.append(
+                targcuts.isELG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
+                               gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
+                               brightstarinblob=brightstarinblob, south=south)
+            )
+        elg_north, elg_south = elg_classes
     else:
         # ADM if not running the ELG selection, set everything to arrays of False.
         elg_north, elg_south = ~primary, ~primary
@@ -2196,7 +2199,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                                    gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
                                    brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
                                    objtype=objtype, primary=primary, south=south, targtype=targtype)
-                               )
+                )
 
         bgs_bright_north, bgs_bright_south,  \
         bgs_faint_north, bgs_faint_south,    \
