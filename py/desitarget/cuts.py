@@ -1256,7 +1256,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                          gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr, 
+                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
                          gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
 
