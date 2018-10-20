@@ -1391,7 +1391,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None,
     (see, e.g., :func:`~desitarget.cuts.isBGS_faint` for parameters).
     """
     _check_BGS_targtype(targtype)
-    bgs = np.ones(len(gnobs), dtype='?')
+    bgs = np.ones_like(gnobs, dtype='?')
 
     bgs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
     bgs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
@@ -1491,7 +1491,7 @@ def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
     """Standard set of masking cuts used by all ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
     """
-    elg = np.ones(len(gallmask), dtype='?')
+    elg = np.ones_like(gallmask, dtype='?')
 
     elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
     elg &= ~brightstarinblob
