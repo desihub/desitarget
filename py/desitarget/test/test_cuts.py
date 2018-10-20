@@ -277,6 +277,15 @@ class TestCuts(unittest.TestCase):
             results = cuts.select_targets(targetfile, numproc=1,
                                     tcnames=tc, qso_selection='blatfoo')
 
+    def test_bgs_target_types(self):
+        """Test that incorrect BGS target types are caught
+        """
+        with self.assertRaises(ValueError):
+            dum = cuts.isBGS_colors(targtype='blatfoo')
+
+        with self.assertRaises(ValueError):
+            dum = cuts.notinBGS_mask(targtype='blatfoo')
+
     def test_missing_files(self):
         """Test the code will die gracefully if input files are missing
         """

@@ -1126,7 +1126,7 @@ def _check_BGS_targtype(targtype):
     targposs = ['faint', 'bright', 'wise']
 
     if targtype not in targposs:
-        msg = 'targtype must be one of {}'.format(targposs)
+        msg = 'targtype must be one of {} not {}'.format(targposs, targtype)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -1223,8 +1223,6 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None,
         bgs &= Grr < 0.4
         bgs &= Grr > -1
         bgs &= w1snr > 5
-    else:
-        _check_BGS_targtype(targtype)
 
     return bgs
 
@@ -1234,7 +1232,9 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
-    bgs = np.ones(len(gflux), dtype='?')
+    _check_BGS_targtype(targtype)
+
+    bgs = np.ones_like(gflux, dtype='?')
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
@@ -1244,8 +1244,6 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     elif targtype == 'wise':
         bgs &= rflux > 10**((22.5-20.0)/2.5)
         bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
-    else:
-        _check_BGS_targtype(targtype)
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
@@ -1300,7 +1298,7 @@ def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     wflux = 0.75* w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
-    qso = np.ones(len(gflux), dtype='?')
+    qso = np.ones_like(gflux, dtype='?')
     qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
@@ -1343,7 +1341,7 @@ def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     wflux = 0.75* w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
-    qso = np.ones(len(gflux), dtype='?')
+    qso = np.ones_like(gflux, dtype='?')
     qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
