@@ -915,7 +915,6 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     return mws, red, blue
 
 
-
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  objtype=None, gaia=None, primary=None,
                  pmra=None, pmdec=None, parallax=None, parallaxerr=None,
