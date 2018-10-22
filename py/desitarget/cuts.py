@@ -793,71 +793,34 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-               objtype=None, gaia=None, primary=None,
+               gaia=None, primary=None, gfracmasked=None, rfracmasked=None,
                pmra=None, pmdec=None, parallax=None, obs_rflux=None,
-               gaiagmag=None, gaiabmag=None, gaiarmag=None, south=True):
+               gaiagmag=None, gaiabmag=None, gaiarmag=None,
+               gaiaaen=None, gaiadupsource=None, south=True):
     """Set bits for ``MWS_MAIN`` targets.
 
     Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like or None
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        objtype: array_like or None
-            The ``TYPE`` column of `the Legacy Surveys`_ catalogue.
-        gaia: boolean array_like or None
-            True if there is a match between this object in 
-            `the Legacy Surveys`_ and in Gaia.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax.
-        obs_rflux: array_like or None
-            ``rflux`` but WITHOUT any Galactic extinction correction.
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES.
-        south: boolean, defaults to ``True``
-            Call :func:`~desitarget.cuts.isMWS_main_north` if ``south=False``,
-            otherwise call :func:`~desitarget.cuts.isMWS_main_south`.
+        see :func:`~desitarget.cuts.set_target_bits` for parameters.
     
     Returns:
-        mask : array_like. ``True`` if and only if the object is a ``MWS_MAIN`` target.
+        mask1 : array_like. 
+            ``True`` if and only if the object is a ``MWS_MAIN`` target.
+        mask2 : array_like. 
+            ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
+        mask3 : array_like. 
+            ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
     
     Notes:
-    - Gaia quantities have the same units as `the Gaia data model`_.
-    """
-    if south == False:
-        return isMWS_main_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-            objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
-            obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
-    else:
-        return isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-            objtype=objtype, gaia=gaia, primary=primary, pmra=pmra, pmdec=pmdec, parallax=parallax,
-            obs_rflux=obs_rflux, gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
-
-def isMWS_main_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                     objtype=None, gaia=None, primary=None,
-                     pmra=None, pmdec=None, parallax=None, 
-                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for ``MWS_MAIN`` targets for the BASS/MzLS photometric system
-    (see :func:`~desitarget.cuts.isMWS_main`).
-    """
-    # ADM currently no difference between N/S for MWS, so easiest
-    # ADM just to use one function
-    return isMWS_main_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                            objtype=objtype, gaia=gaia, primary=primary,
-                            pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux,
-                            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
-
-
-def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                     objtype=None, gaia=None, primary=None,
-                     pmra=None, pmdec=None, parallax=None, 
-                     obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
-    """Set bits for ``MWS_MAIN`` targets for the DECaLS photometric system
-    (see :func:`~desitarget.cuts.isMWS_main`).
+        - Gaia quantities have the same units as `the Gaia data model`_.
+        - as of 10/22/18, based on version 143 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
-    mws = primary.copy()
+    mws = primary.copy()    
+
+    # ADM currently no difference between N/S for MWS, so easiest
+    # ADM just to use one selection
+    # if south:
 
     # ADM do not target any objects for which entries are NaN
     # ADM and turn off the NaNs for those entries
@@ -874,14 +837,58 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w), len(mws), time()-start))
 
-    # ADM apply the selection for all MWS-MAIN targets
+    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, 
+                              rfracmasked=rfracmasked,
+                              gaiadupsource=gaiadupsource, primary=primary)
+
+    # ADM pass the mws that pass cuts as primary, to restrict to the
+    # ADM sources that weren't in a mask/logic cut.
+    mws, red, blue = isMWS_main_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux,
+        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
+        primary=mws, south=south
+    )
+
+    return mws, red, blue
+
+
+def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
+                       gaiadupsource=None, primary=None):
+    """Standard set of masking-based cuts used by MWS_MAIN target selection class
+    (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
+    """
+    if primary is None:
+        primary = np.ones_like(gaia, dtype='?')
+    mws = primary.copy()    
+
+    # ADM apply the mask/logic selection for all MWS-MAIN targets
     # ADM main targets match to a Gaia source
     mws &= gaia
-    # ADM main targets are point-like
-    mws &= _psflike(objtype)
+    mws &= (gfracmasked < 0.5) & (rfracmasked < 0.5) 
+    mws &= ~gaiadupsource
+
+    return mws
+
+
+def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                      pmra=None, pmdec=None, parallax=None, obs_rflux=None,
+                      gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None, 
+                      primary=None, south=True):
+    """Standard set of color-based cuts used by MWS_MAIN target selection class
+    (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    mws = primary.copy()
+
+    # ADM main targets are point-like based on GAIA_ASTROMETRIC_NOISE.
+    mws &= gaiaaen < 3.0
+
     # ADM main targets are 16 <= r < 19
     mws &= rflux > 10**((22.5-19.0)/2.5)
     mws &= rflux <= 10**((22.5-16.0)/2.5)
+
     # ADM main targets are robs < 20
     mws &= obs_rflux > 10**((22.5-20.0)/2.5)
 
@@ -905,21 +912,8 @@ def isMWS_main_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=Non
     # ADM ...and proper motion < 7.
     red &= pm < 7.
 
-    # ADM no further splitting was deemed necessary as of 5 June 2018
-    # (version 99 of https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection)
-    # ADM make a copy of the red bits for the bright/faint split
-#    rbright = red.copy()
-#    rfaint = red.copy()
-
-    # ADM the bright, red objects are r < 18 and |pm| < 7 mas/yr
-#    rbright &= rflux > 10**((22.5-18.0)/2.5)
-#    rbright &= pm < 7.
-
-    # ADM the faint, red objects are r >= 18 and |pm| < 5 mas/yr
-#    rfaint &= rflux <= 10**((22.5-18.0)/2.5)
-#    rfaint &= pm < 5.
-
     return mws, red, blue
+
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1232,7 +1226,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
 
 def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  south=True, targtype=None, primary=None):
-    """Standard set of masking cuts used by all BGS target selection classes
+    """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
@@ -2223,15 +2217,23 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
 
     if "MWS" in tcnames:
-        # ADM set the MWS bits
-        mws_n, mws_red_n, mws_blue_n = targcuts.isMWS_main(primary=primary, gaia=gaia,
+        mws_classes = []
+        # ADM run the MWS_MAIN target types for both north and south
+        for south in [False, True]:
+            mws_classes.append(
+                targcuts.isMWS_main(
+                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
-                    pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
-                    south=False)
-        mws_s, mws_red_s, mws_blue_s = targcuts.isMWS_main(primary=primary, gaia=gaia,
-                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
-                    pmra=pmra, pmdec=pmdec, parallax=parallax, objtype=objtype,
-                    south=True)
+                    gfracmasked=gfracmasked, rfracmasked=rfracmasked,
+                    pmra=pmra, pmdec=pmdec, parallax=parallax,
+                    primary=primary, south=False
+                )
+            )
+
+        mws_n, mws_red_n, mws_blue_n,    \
+        mws_s, mws_red_s, mws_blue_s  =  \
+                                         np.vstack(mws_classes)
+
         mws_nearby = targcuts.isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
                                            parallaxerr=parallaxerr)
         mws_wd = targcuts.isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
