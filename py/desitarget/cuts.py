@@ -505,7 +505,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     elg = primary.copy()
 
     elg &= notinELG_mask(gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                         brightstarinblob=brightstarinblob)
+                         brightstarinblob=brightstarinblob, primary=primary)
 
     elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                         south=south, primary=primary)
@@ -514,11 +514,13 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def notinELG_mask(gallmask=None, rallmask=None, zallmask=None, 
-                  brightstarinblob=None):
+                  brightstarinblob=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
     """
-    elg = np.ones_like(gallmask, dtype='?')
+    if primary is None:
+        primary = np.ones_like(gallmask, dtype='?')
+    elg = primary.copy()
 
     elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
     elg &= ~brightstarinblob
@@ -527,13 +529,12 @@ def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
 
 
 def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, ggood=None, primary=None, south=True):
+                 w2flux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
     elg = primary.copy()
 
     # ADM cuts shared by the northern and southern selections.
@@ -1181,7 +1182,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
 
-    bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+    bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
                          gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
@@ -1189,12 +1190,12 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                          gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
 
     bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        south=south, targtype=targtype)
+                        south=south, targtype=targtype, primary=primary)
 
     return bgs
 
 
-def notinBGS_mask(gnobs=None, rnobs=None, znobs=None,
+def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
                   gfracmasked=None, rfracmasked=None, zfracmasked=None,
                   gfracflux=None, rfracflux=None, zfracflux=None,
                   gfracin=None, rfracin=None, zfracin=None, w1snr=None,
@@ -1205,7 +1206,9 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None,
     """
     _check_BGS_targtype(targtype)
 
-    bgs = np.ones_like(gnobs, dtype='?')
+    if primary is None:
+        primary = np.ones_like(gnobs, dtype='?')
+    bgs = primary.copy()
 
     bgs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
     bgs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
@@ -1228,13 +1231,15 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None,
 
 
 def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 south=True, targtype=None):
+                 south=True, targtype=None, primary=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
 
-    bgs = np.ones_like(gflux, dtype='?')
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    bgs = primary.copy()
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
