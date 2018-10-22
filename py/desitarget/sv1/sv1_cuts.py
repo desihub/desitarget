@@ -1234,22 +1234,21 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Args:
         see :func:`~desitarget.cuts.set_target_bits` for parameters.
-    
+
     Returns:
-        mask1 : array_like. 
+        mask1 : array_like.
             ``True`` if and only if the object is a ``MWS_MAIN`` target.
-        mask2 : array_like. 
+        mask2 : array_like.
             ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
-        mask3 : array_like. 
+        mask3 : array_like.
             ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
     
     Notes:
-        - Gaia quantities have the same units as `the Gaia data model`_.
         - as of 10/22/18, based on version 143 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
-    mws = primary.copy()    
+    mws = primary.copy()
 
     # ADM currently no difference between N/S for MWS, so easiest
     # ADM just to use one selection
@@ -1270,7 +1269,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w), len(mws), time()-start))
 
-    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, 
+    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked,
                               rfracmasked=rfracmasked,
                               gaiadupsource=gaiadupsource, primary=primary)
 
@@ -1293,12 +1292,12 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
-    mws = primary.copy()    
+    mws = primary.copy()
 
     # ADM apply the mask/logic selection for all MWS-MAIN targets
     # ADM main targets match to a Gaia source
     mws &= gaia
-    mws &= (gfracmasked < 0.5) & (rfracmasked < 0.5) 
+    mws &= (gfracmasked < 0.5) & (rfracmasked < 0.5)
     mws &= ~gaiadupsource
 
     return mws
@@ -1306,7 +1305,7 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
 
 def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                       pmra=None, pmdec=None, parallax=None, obs_rflux=None,
-                      gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None, 
+                      gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
                       primary=None, south=True):
     """Set of color-based cuts used by MWS_MAIN target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
@@ -1331,7 +1330,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pm = np.sqrt(pmra**2. + pmdec**2.)
-    
+
     # ADM make a copy of the main bits for a red/blue split
     red = mws.copy()
     blue = mws.copy()
@@ -1358,7 +1357,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns:
-        mask : array_like. 
+        mask : array_like.
             True if and only if the object is a MWS-NEARBY target.
 
     Notes:
@@ -1392,7 +1391,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return mws
 
 
-def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None, 
+def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
              pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
              photbprpexcessfactor=None, astrometricsigma5dmax=None,
              gaiagmag=None, gaiabmag=None, gaiarmag=None):
@@ -1402,7 +1401,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns:
-        mask : array_like. 
+        mask : array_like.
             True if and only if the object is a MWS-WD target.
 
     Notes:
@@ -1414,7 +1413,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
     # ADM do not target any objects for which entries are NaN
     # ADM and turn off the NaNs for those entries
-    nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) | 
+    nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) |
                    np.isnan(parallax))
     w = np.where(nans)[0]
     if len(w) > 0:
@@ -1440,9 +1439,9 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
     # ADM Color/absolute magnitude cuts of (defining the WD cooling sequence):
     # ADM Gabs > 5
-    # ADM Gabs > 5.93 + 5.047(Bp-Rp) 
-    # ADM Gabs > 6(Bp-Rp)3 - 21.77(Bp-Rp)2 + 27.91(Bp-Rp) + 0.897 
-    # ADM Bp-Rp < 1.7 
+    # ADM Gabs > 5.93 + 5.047(Bp-Rp)
+    # ADM Gabs > 6(Bp-Rp)3 - 21.77(Bp-Rp)2 + 27.91(Bp-Rp) + 0.897
+    # ADM Bp-Rp < 1.7
     Gabs = gaiagmag+5.*np.log10(parallax.clip(1e-16))-10.
     br = gaiabmag - gaiarmag
     mws &= Gabs > 5.
@@ -1458,7 +1457,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
         pm = np.sqrt(pmra**2. + pmdec**2.)
     mws &= pm > 2.
 
-    # ADM As of DR7, photbprpexcessfactor and astrometricsigma5dmax are not in the 
+    # ADM As of DR7, photbprpexcessfactor and astrometricsigma5dmax are not in the
     # ADM imaging catalogs. Until they are, ignore these cuts
     if photbprpexcessfactor is not None:
         # ADM remove problem objects, which often have bad astrometry
@@ -1467,7 +1466,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     if astrometricsigma5dmax is not None:
         # ADM Reject white dwarfs that have really poor astrometry while
         # ADM retaining white dwarfs that only have relatively poor astrometry
-        mws &= ((astrometricsigma5dmax < 1.5) | 
+        mws &= ((astrometricsigma5dmax < 1.5) |
                  ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     return mws
