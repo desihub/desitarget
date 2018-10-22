@@ -8,7 +8,7 @@ desitarget Change Log
 * Updates to several target classes [`PR #408`_]. Includes:
     * Refactor of `ELG` and `MWS_MAIN` selection algorithms.
     * Update of `ELG` and `MWS_MAIN` selection cuts.
-    * Change ``MWS_WD` priority to be higher than `BGS` target classes.
+    * Change `MWS_WD` priority to be higher than `BGS` target classes.
     * Set skies to `BAD` only if both g-band and r-band are missing.
 * Refactor of BGS selections to separate masking and color cuts [`PR #407`_].
 * Updates to Bright Galaxy Survey and QSO selections [`PR #402`_]. Includes:
