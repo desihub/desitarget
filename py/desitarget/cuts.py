@@ -855,7 +855,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
                        gaiadupsource=None, primary=None):
-    """Standard set of masking-based cuts used by MWS_MAIN target selection class
+    """Standard set of masking-based cuts used by MWS_MAIN target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
     if primary is None:
@@ -875,7 +875,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
                       pmra=None, pmdec=None, parallax=None, obs_rflux=None,
                       gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None, 
                       primary=None, south=True):
-    """Standard set of color-based cuts used by MWS_MAIN target selection class
+    """Set of color-based cuts used by MWS_MAIN target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
     if primary is None:
@@ -922,32 +922,15 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
 
-    Notes:
-    - Current version (09/20/18) is version 129 on `the wiki`_.
-
     Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like or None
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
-        gaia: boolean array_like or None
-            True if there is a match between this object in 
-            `the Legacy Surveys`_ and in Gaia.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        pmra, pmdec, parallax, parallaxerr: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax (and
-            uncertainty) (same units as `the Gaia data model`_).
-        obs_rflux: array_like or None
-            `rflux` but WITHOUT any Galactic extinction correction.
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as `the Gaia data model`_).
+        see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-NEARBY target.
 
+    Notes:
+    - Current version (09/20/18) is version 129 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -984,30 +967,13 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
     Args:
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        gaia: boolean array_like or None
-            True if there is a match between this object in 
-            `the Legacy Surveys`_ and in Gaia.
-        galb: array_like or None
-            Galactic latitude (degrees).
-        astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia.
-        pmra, pmdec, parallax, parallaxovererror: array_like or None
-            Gaia-based proper motion in RA and Dec, and parallax and error
-        photbprpexcessfactor: array_like or None
-            Gaia_based BP/RP excess factor.
-        astrometricsigma5dmax: array_like or None
-            Longest semi-major axis of 5-d error ellipsoid.
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES.
+        see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns:
         mask : array_like. 
             True if and only if the object is a MWS-WD target.
 
     Notes:
-    - Gaia-based quantities have the same units as `the Gaia data model`_.
     - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
