@@ -6,7 +6,7 @@ desitarget Change Log
 -------------------
 
 * Updates to several target classes [`PR #408`_]. Includes:
-    * Refactor of `BGS`, `ELG` and `MWS_MAIN` selection algorithms.
+    * Refactor of `ELG` and `MWS_MAIN` selection algorithms.
     * Update of `ELG` and `MWS_MAIN` selection cuts.
     * Change ``MWS_WD` priority to be higher than `BGS` target classes.
     * Set skies to `BAD` only if both g-band and r-band are missing.
