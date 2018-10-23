@@ -7,7 +7,7 @@ desitarget.gaiamatch
 
 Useful Gaia matching routines, in case Gaia isn't absorbed into the Legacy Surveys
 """
-import os 
+import os
 import sys
 import numpy as np
 import fitsio
@@ -257,7 +257,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True,
 
 
 def match_gaia_to_primary(objs, matchrad=1.,
-                          retaingaia=False, gaiabounds=[0.,360.,-90.,90.], 
+                          retaingaia=False, gaiabounds=[0., 360., -90., 90.],
                           gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
     """Match a set of objects to Gaia "chunks" files and return the Gaia information
 

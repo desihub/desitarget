@@ -165,7 +165,7 @@ def _load_targdens(tcnames=None, cmx=False):
         targdens['ELG'] = targdict['ntarget_elg']
         targdens['LRG'] = targdict['ntarget_lrg']
         targdens['QSO'] = targdict['ntarget_qso'] + targdict['ntarget_badqso']
-        targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint'] #add BGS_WISE bit 'targdict['ntarget_bgs_wise'] to BGS_ANY
+        targdens['BGS_ANY'] = targdict['ntarget_bgs_bright'] + targdict['ntarget_bgs_faint']   # add BGS_WISE bit 'targdict['ntarget_bgs_wise'] to BGS_ANY
         targdens['MWS_ANY'] = targdict['ntarget_mws']
         # ADM set "ALL" to be the sum over all the target classes
         targdens['ALL'] = sum(list(targdens.values()))
@@ -180,7 +180,7 @@ def _load_targdens(tcnames=None, cmx=False):
         targdens['BGS_FAINT'] = targdict['ntarget_bgs_faint']
         targdens['BGS_BRIGHT'] = targdict['ntarget_bgs_bright']
         targdens['BGS_WISE'] = 0.
-        #targdens['BGS_WISE'] = targdict['ntarget_bgs_wise']	#uncomment and modify for BGS_WISE bit
+        # targdens['BGS_WISE'] = targdict['ntarget_bgs_wise']	#uncomment and modify for BGS_WISE bit
 
         targdens['MWS_MAIN'] = 0.
         targdens['MWS_MAIN_RED'] = 0.
