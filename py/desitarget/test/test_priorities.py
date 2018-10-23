@@ -19,6 +19,7 @@ class TestPriorities(unittest.TestCase):
             ('MWS_TARGET',np.int64),
             ('Z',np.float32),
             ('ZWARN',np.float32),
+            ('FLUX_R', np.float32),
         ]
         self.targets = Table(np.zeros(3, dtype=dtype))
 

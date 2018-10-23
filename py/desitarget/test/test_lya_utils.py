@@ -19,7 +19,9 @@ class TestLYA(unittest.TestCase):
     def test_lya_priority(self):
         redshift = np.array([2.6, 1.0, 0.5, 1.0])
         rmag = np.array([19.0, 24.0, 23.5, 19.0]) 
-        priorities = np.array([3500, 3400, 3400, 3400])
+        priorities = np.array([3500, 2, 2, 2])
+        print(qso_weight(redshift, rmag))
+        print(lya_priority(redshift, rmag))
         self.assertTrue(np.all(priorities == lya_priority(redshift, rmag)))
                     
 if __name__ == '__main__':
