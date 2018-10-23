@@ -518,7 +518,7 @@ def write_gaia_matches(infiles, numproc=4, outdir=".",
         nfile[...] += 1    # this is an in-place modification
         return result
 
-    #- Parallel process input files
+    # - Parallel process input files
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:

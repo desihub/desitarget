@@ -1764,6 +1764,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
 
     return colors, r, photOK
 
+
 def _is_row(table):
     """Return True/False if this is a row of a table instead of a full table.
 
@@ -1772,10 +1773,11 @@ def _is_row(table):
     import astropy.io.fits.fitsrec
     import astropy.table.row
     if isinstance(table, (astropy.io.fits.fitsrec.FITS_record, astropy.table.row.Row)) or \
-        np.isscalar(table):
+       np.isscalar(table):
         return True
     else:
         return False
+
 
 def _get_colnames(objects):
     """Simple wrapper to get the column names."""
@@ -1788,6 +1790,7 @@ def _get_colnames(objects):
         colnames = objects.dtype.names
 
     return colnames
+
 
 def _prepare_optical_wise(objects, colnames=None):
     """Process the Legacy Surveys inputs for target selection."""
@@ -1879,6 +1882,7 @@ def _prepare_optical_wise(objects, colnames=None):
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
             gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob)
 
+
 def _prepare_gaia(objects, colnames=None):
     """Process the various Gaia inputs for target selection."""
 
@@ -1946,6 +1950,7 @@ def _prepare_gaia(objects, colnames=None):
             gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved,
             gaiabprpfactor, gaiasigma5dmax, galb)
 
+
 def unextinct_fluxes(objects):
     """Calculate unextincted DECam and WISE fluxes.
 
@@ -1976,6 +1981,7 @@ def unextinct_fluxes(objects):
         return Table(result)
     else:
         return result
+
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
@@ -2080,7 +2086,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         raise ValueError(msg)
 
     desi_mask, bgs_mask, mws_mask = \
-                                    targmask.desi_mask, targmask.bgs_mask, targmask.mws_mask
+                    targmask.desi_mask, targmask.bgs_mask, targmask.mws_mask
 
     if "LRG" in tcnames:
         lrg_north, lrg1pass_north, lrg2pass_north = targcuts.isLRGpass(
@@ -2103,7 +2109,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
     lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
     lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
-        
+
     if "ELG" in tcnames:
         elg_classes = []
         for south in [False, True]:
@@ -2121,7 +2127,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
     if "QSO" in tcnames:
-        if qso_selection=='colorcuts':
+        if qso_selection == 'colorcuts':
             # ADM determine quasar targets in the north and the south separately
             qso_north = targcuts.isQSO_cuts(
                 primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
@@ -2179,11 +2185,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     )
                 )
 
-        bgs_bright_north, bgs_bright_south,  \
-        bgs_faint_north, bgs_faint_south,    \
-        bgs_wise_north, bgs_wise_south =     \
-                                             bgs_classes
-        
+        bgs_bright_north, bgs_bright_south,      \
+            bgs_faint_north, bgs_faint_south,    \
+            bgs_wise_north, bgs_wise_south =     \
+                                                 bgs_classes
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
@@ -2209,16 +2214,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             )
 
-        mws_n, mws_red_n, mws_blue_n,    \
-        mws_s, mws_red_s, mws_blue_s  =  \
-                                         np.vstack(mws_classes)
+        mws_n, mws_red_n, mws_blue_n,       \
+            mws_s, mws_red_s, mws_blue_s =  \
+                                            np.vstack(mws_classes)
 
-        mws_nearby = targcuts.isMWS_nearby(gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
-                                           parallaxerr=parallaxerr)
-        mws_wd = targcuts.isMWS_WD(gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
+        mws_nearby = targcuts.isMWS_nearby(
+            gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
+            parallaxerr=parallaxerr
+        )
+        mws_wd = targcuts.isMWS_WD(
+            gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
+        )
     else:
         # ADM if not running the MWS selection, set everything to arrays of False
         mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
@@ -2228,22 +2237,26 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if "STD" in tcnames:
         # ADM Make sure to pass all of the needed columns! At one point we stopped
         # ADM passing objtype, which meant no standards were being returned.
-        std_faint = targcuts.isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+        std_faint = targcuts.isSTD(
+            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
             gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
             zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
             gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
             gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
             pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False)
-        std_bright = targcuts.isSTD(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False
+        )
+        std_bright = targcuts.isSTD(
+            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
             gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
             zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
             gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
             gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
             pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True)
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True
+        )
         # ADM the standard WDs are currently identical to the MWS WDs
         std_wd = mws_wd
     else:
@@ -2256,7 +2269,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
 
     # Construct the targetflag bits for DECaLS (i.e. South).
-    desi_target  = lrg_south * desi_mask.LRG_SOUTH
+    desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
@@ -2286,7 +2299,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= std_wd * desi_mask.STD_WD
 
     # BGS bright and faint, south.
-    bgs_target  = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
+    bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
     bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
@@ -2301,7 +2314,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_wise * bgs_mask.BGS_WISE
 
     # ADM MWS main, nearby, and WD.
-    mws_target  = mws * mws_mask.MWS_MAIN
+    mws_target = mws * mws_mask.MWS_MAIN
     mws_target |= mws_wd * mws_mask.MWS_WD
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY
 
@@ -2325,7 +2338,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
-               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"], 
+               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
                qso_optical_cuts=False, survey='main'):
     """Perform target selection on objects, returning target mask arrays.
@@ -2404,7 +2417,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gfracmasked, rfracmasked, zfracmasked,                                 \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
-                                                    _prepare_optical_wise(objects, colnames=colnames)
+                                        _prepare_optical_wise(objects, colnames=colnames)
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
@@ -2554,6 +2567,7 @@ def check_input_files(infiles, numproc=4):
 qso_selection_options = ['colorcuts', 'randomforest']
 Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
+
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
@@ -2659,6 +2673,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
+
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
