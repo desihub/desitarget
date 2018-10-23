@@ -60,7 +60,7 @@ def qso_weight(redshift,rmag):
     except TypeError: # If redshift and rmag are both scalars the above will fail
         return wgt(redshift, rmag)[0]
 
-def lya_priority(redshift,rmag,prob=None):
+def lya_priority(redshift,rmag,prob=None,min_redshift=2.1):
     """
     Function that prioritizes lya targets using their cosmological value
 
@@ -70,6 +70,8 @@ def lya_priority(redshift,rmag,prob=None):
     rmag: array (n,) with the r-band magnitude of the quasars to prioritize.
     prob: array (n,) NOT IMPLEMENTED: This is a placeholder to add some probabilities
     (of being a quasar or having certain redshift or both) to the calculation as weights.
+    min_redshift: float, it marks the minimum redshift at which we consider reobserving
+        a QSO.
 
     Returns:
     --------
@@ -86,4 +88,5 @@ def lya_priority(redshift,rmag,prob=None):
     min_priority = desi_mask['QSO'].priorities['UNOBS']
     max_priority = desi_mask['QSO'].priorities['MORE_ZGOOD']
     priorities = (min_priority+(max_priority-min_priority)*value).astype(int)
+    priorities[redshift < min_redshift] = desi_mask['QSO'].priorities['DONE']
     return priorities
