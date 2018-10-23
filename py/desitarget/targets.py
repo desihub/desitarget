@@ -10,6 +10,7 @@ import numpy.lib.recfunctions as rfn
 from astropy.table import Table
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask
+from desitarget.lya_utils import lya_priority
 
 ############################################################
 # TARGETID bit packing
@@ -464,12 +465,13 @@ def calc_priority(targets):
 
         # QSO could be Lyman-alpha or Tracer
         name = 'QSO'
+        rmag = 22.5 - 2.5*np.log10(targets['FLUX_R'])
         ii                       = (targets['DESI_TARGET'] & desi_mask[name]) != 0
-        good_hiz                 = zgood & (targets['Z'] >= 2.15) & (targets['ZWARN'] == 0)
         priority[ii & unobs]     = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
         priority[ii & done]      = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
-        priority[ii & good_hiz]  = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
-        priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
+        aux_priority             = lya_priority(targets['Z'][ii & zgood], rmag[ii & zgood]) 
+        priority[ii & zgood]     = np.maximum(priority[ii & zgood], aux_priority)
+        priority[ii & ~zgood]    = np.maximum(priority[ii & ~zgood], desi_mask[name].priorities['DONE'])
         priority[ii & zwarn]     = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
     # BGS targets
