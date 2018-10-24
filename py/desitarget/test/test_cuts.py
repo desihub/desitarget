@@ -93,6 +93,9 @@ class TestCuts(unittest.TestCase):
         deltaChi2 = dchisq[...,0] - dchisq[...,1]
 
         gnobs, rnobs, znobs = targets['NOBS_G'], targets['NOBS_R'], targets['NOBS_Z']
+        gallmask = targets['ALLMASK_G']
+        rallmask = targets['ALLMASK_R']
+        zallmask = targets['ALLMASK_Z']
         gfracflux = targets['FRACFLUX_G']
         rfracflux = targets['FRACFLUX_R']
         zfracflux = targets['FRACFLUX_Z']
@@ -125,8 +128,12 @@ class TestCuts(unittest.TestCase):
                                  w1flux=w1flux, w2flux=w2flux)
         self.assertTrue(np.all(lrg1==lrg2))
 
-        elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
-        elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
+        elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
+                          gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
+                          brightstarinblob=brightstarinblob, primary=primary)
+        elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
+                          gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
+                          brightstarinblob=brightstarinblob, primary=None)
         self.assertTrue(np.all(elg1==elg2))
 
         elg1 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
@@ -269,6 +276,15 @@ class TestCuts(unittest.TestCase):
         with self.assertRaises(ValueError):
             results = cuts.select_targets(targetfile, numproc=1,
                                     tcnames=tc, qso_selection='blatfoo')
+
+    def test_bgs_target_types(self):
+        """Test that incorrect BGS target types are caught
+        """
+        with self.assertRaises(ValueError):
+            dum = cuts.isBGS_colors(targtype='blatfoo')
+
+        with self.assertRaises(ValueError):
+            dum = cuts.notinBGS_mask(targtype='blatfoo')
 
     def test_missing_files(self):
         """Test the code will die gracefully if input files are missing

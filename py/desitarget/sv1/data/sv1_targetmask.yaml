@@ -168,7 +168,8 @@ priorities:
         MWS_ANY: -1
         SECONDARY_ANY: -1
 
-    #- Bright Galaxy Survey: priorities 2000-2999
+    #- Bright Galaxy Survey: priorities 2000-2997
+    # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
     #- reobserving successes has lower priority than MWS
     sv1_bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -186,9 +187,10 @@ priorities:
         BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
+    # ADM WDs should be prioritized above BGS at 2998
     sv1_mws_mask:
         MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
         MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
