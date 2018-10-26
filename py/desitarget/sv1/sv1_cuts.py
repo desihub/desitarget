@@ -28,286 +28,105 @@ log = get_logger()
 start = time()
 
 
-def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, ggood=None, primary=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
-        ggood: array_like
-            Set to True for objects with good g-band photometry.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to True
-            Call isLRG_colors_north if south=False, otherwise call isLRG_colors_south.
-    
-    Returns:
-        mask : array_like. True if and only if the object is an LRG target.
-    """
-    if south==False:
-        return isLRG_colors_north(gflux=gflux, rflux=rflux, zflux=zflux, 
-                                  w1flux=w1flux, w2flux=w2flux,
-                                  ggood=ggood, primary=primary)
-    else:
-        return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, 
-                                  w1flux=w1flux, w2flux=w2flux,
-                                  ggood=ggood, primary=primary)
-
-
-def isLRG_colors_north(gflux=None, rflux=None, zflux=None, w1flux=None,
-                        w2flux=None, ggood=None, primary=None):
-    """This function applies just the flux and color cuts for the BASS/MzLS photometric system.
-    (see :func:`~desitarget.sv1.sv1_cuts.isLRG_colors_south` for details).
-
-    """
-    # ADM currently no difference between N/S for LRG colors, so easiest
-    # ADM just to use one function.
-    return isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, ggood=ggood,
-                              w1flux=w1flux, w2flux=w2flux, primary=primary)
-
-
-def isLRG_colors_south(gflux=None, rflux=None, zflux=None, w1flux=None,
-                        w2flux=None, ggood=None, primary=None):
-    """See :func:`~desitarget.cuts.isLRG_south` for details.
-    This function applies just the flux and color cuts for the DECaLS photometric system.
-
-    Notes:
-        - Current version (09/21/18) is version 17 on `the SV wiki`_.
-    """
-
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    if ggood is None:
-        ggood = np.ones_like(gflux, dtype='?')
-
-    # Basic flux and color cuts
-    lrg = primary.copy()
-    lrg &= (zflux > 10**(0.4*(22.5-20.4))) # z<20.4
-    lrg &= (zflux < 10**(0.4*(22.5-18))) # z>18
-    lrg &= (zflux < 10**(0.4*2.5)*rflux) # r-z<2.5
-    lrg &= (zflux > 10**(0.4*0.8)*rflux) # r-z>0.8
-
-    # The code below can overflow, since the fluxes are float32 arrays
-    # which have a maximum value of 3e38. Therefore, if eg. zflux~1.0e10
-    # this will overflow, and crash the code.
-    with np.errstate(over='ignore'):
-        # ADM updated Zhou/Newman cut:
-        # Wlrg = -0.6 < (z-w1) - 0.7*(r-z) < 1.0 ->
-        # 0.7r + W < 1.7z + 0.6 &&
-        # 0.7r + W > 1.7z - 1.0
-        lrg &= ( (w1flux*rflux**complex(0.7)).real > 
-                 ((zflux**complex(1.7))*10**(-0.4*0.6)).real  )
-        lrg &= ( (w1flux*rflux**complex(0.7)).real < 
-                 ((zflux**complex(1.7))*10**(0.4*1.0)).real )
-        # ADM note the trick of making the exponents complex and taking the real
-        # ADM part to allow negative fluxes to be raised to a fractional power.
-
-        # Now for the work-horse sliding flux-color cut:
-        # ADM updated Zhou/Newman cut:
-        # mlrg2 = z-2*(r-z-1.2) < 19.45 -> 3*z < 19.45-2.4-2*r
-        lrg &= (zflux**3 > 10**(0.4*(22.5+2.4-19.45))*rflux**2)
-        # Another guard against bright & red outliers
-        # mlrg2 = z-2*(r-z-1.2) > 17.4 -> 3*z > 17.4-2.4-2*r
-        lrg &= (zflux**3 < 10**(0.4*(22.5+2.4-17.4))*rflux**2)
-
-        # Finally, a cut to exclude the z<0.4 objects while retaining the elbow at
-        # z=0.4-0.5.  r-z>1.2 || (good_data_in_g and g-r>1.7).  Note that we do not
-        # require gflux>0.
-        lrg &= np.logical_or((zflux > 10**(0.4*1.2)*rflux), (ggood & (rflux>10**(0.4*1.7)*gflux)))
-
-    return lrg
-
-
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
+    """Target Definition of LRG. Returns a boolean array.
        
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
-        rflux_snr, zflux_snr, w1flux_snr: array_like
-            The signal-to-noise in the r, z and W1 bands defined as the flux
-            per band divided by sigma (flux x the sqrt of the inverse variance).
-        gflux_ivar: array_like
-            The inverse variance of the flux in g-band.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to True
-            Call isLRG_north if south=False, otherwise call isLRG_south.
+    Parameters
+    ----------
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
     
-    Returns:
-        mask : array_like. True if and only if the object is an LRG
-            target.
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is an LRG target.
+    :class:`array_like`
+        ``True`` if the object is a ONE pass (bright) LRG target.
+    :class:`array_like`
+        ``True`` if the object is a TWO pass (fainter) LRG target.   
     """
-    if south==False:
-        return isLRG_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                           rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                           gflux_ivar=gflux_ivar, primary=primary)
-    else:
-        return isLRG_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                           rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                           gflux_ivar=gflux_ivar, primary=primary)
-
-
-def isLRG_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-                gflux_ivar=None, primary=None):
-    """Target Definition of LRG for the BASS/MzLS photometric system. Returns a boolean array.
-    (see :func:`~desitarget.sv1.sv1_cuts.isLRG_south`).
-    """
-    # ADM currently no difference between N/S for LRG masking, so easiest
-    # ADM just to use one function.
-    return isLRG_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                       w2flux=w2flux, rflux_snr=rflux_snr, zflux_snr=zflux_snr,
-                       w1flux_snr=w1flux_snr, gflux_ivar=gflux_ivar,
-                       primary=primary)
-
-
-def isLRG_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gflux_ivar=None, primary=None):
-    """Target Definition of LRG for the DECaLS photometric system.. Returns a boolean array.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
-        rflux_snr, zflux_snr, w1flux_snr: array_like
-            The signal-to-noise in the r, z and W1 bands defined as the flux
-            per band divided by sigma (flux x the sqrt of the inverse variance).
-        gflux_ivar: array_like
-            The inverse variance of the flux in g-band
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask : array_like. True if and only if the object is an LRG
-            target.
-
-    Notes:
-        - Current version (09/21/18) is version 17 on `the SV wiki`_.
-    """
-    #----- Luminous Red Galaxies
+    # ADM LRG SV targets, pass-based.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
-    # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
-    # used!).  Also note: We do not require gflux>0!  Objects can be very red.
     lrg = primary.copy()
-    lrg &= (rflux_snr > 0) # and rallmask == 0
-    lrg &= (zflux_snr > 0) # and zallmask == 0
-    lrg &= (w1flux_snr > 4)
-    lrg &= (rflux > 0)
-    lrg &= (zflux > 0)
-    ggood = (gflux_ivar > 0) # and gallmask == 0
 
-    # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
-                              w2flux=w2flux, ggood=ggood, primary=primary)
+    lrg &= notinLRG_mask(primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr)
+
+    # ADM pass the lrg that pass cuts as primary, to restrict to the
+    # ADM sources that weren't in a mask/logic cut.        
+    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                        south=south, primary=lrg)
+
+    return lrg, lrg1pass, lrg2pass
+
+
+def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None)
+    """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is NOT masked for poor quality.
+
+    Notes:
+        - Current version (10/24/18) is version 21 on `the SV wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    lrg = primary.copy()
+
+    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r
+    lrg &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z
+    lrg &= (w1flux_snr > 4) & (w1flux >0)  # ADM quality in W1
 
     return lrg
 
 
-def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gflux_ivar=None, primary=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
-       
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
-        rflux_snr, zflux_snr, w1flux_snr: array_like
-            The signal-to-noise in the r, z and W1 bands defined as the flux
-            per band divided by sigma (flux x the sqrt of the inverse variance).
-        gflux_ivar: array_like
-            The inverse variance of the flux in g-band.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to True
-            Call isLRG_north if south=False, otherwise call isLRG_south.
-    
-    Returns:
-        mask0 : array_like. 
-            True if and only if the object is an LRG target.
-        mask1 : array_like. 
-            True if the object is a ONE pass (bright) LRG target.
-        mask2 : array_like. 
-            True if the object is a TWO pass (fainter) LRG target.
-    """
-    if south==False:
-        return isLRGpass_north(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                           rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                           gflux_ivar=gflux_ivar, primary=primary)
-    else:
-        return isLRGpass_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                           rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                           gflux_ivar=gflux_ivar, primary=primary)
-
-
-def isLRGpass_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-                    rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-                    gflux_ivar=None, primary=None):
-    """LRGs in different passes (one pass, two pass etc.) for the MzLS/BASS system.
-    (See :func:`~desitarget.sv1.sv1_cuts.isLRGpass_south` for details).
-    """
-    # ADM currently no difference between N/S for LRG pass selection, so easiest
-    # ADM just to use one function.
-    return isLRGpass_south(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                           w2flux=w2flux, rflux_snr=rflux_snr, zflux_snr=zflux_snr,
-                           w1flux_snr=w1flux_snr, gflux_ivar=gflux_ivar,
-                           primary=primary)
-
-
-def isLRGpass_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gflux_ivar=None, primary=None):
-    """LRGs in different passes (one pass, two pass etc.) for the DECaLS system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1 and W2 bands (if needed).
-        rflux_snr, zflux_snr, w1flux_snr: array_like
-            The signal-to-noise in the r, z and W1 bands defined as the flux
-            per band divided by sigma (flux x the sqrt of the inverse variance).
-        gflux_ivar: array_like
-            The inverse variance of the flux in g-band.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-
-    Returns:
-        mask0 : array_like. 
-            True if and only if the object is an LRG target.
-        mask1 : array_like. 
-            True if the object is a ONE pass (bright) LRG target.
-        mask2 : array_like. 
-            True if the object is a TWO pass (fainter) LRG target.
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, south=True, primary=None):
+    """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
     Notes:
-        - Current version (09/21/18) is version 17 on `the SV wiki`_.
+        - Current version (10/24/18) is version 21 on `the SV wiki`_.
     """
-    # ----- Luminous Red Galaxies
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
     lrg = primary.copy()
+    
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask
+    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
+    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
+    w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
 
-    # ADM apply the color and flag selection for all LRGs.
-    lrg &= isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                 rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                 gflux_ivar=gflux_ivar, primary=primary)
+    if south:
+        lrg &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8  # Non-stellar cut
+        lrg &= zmag < 20.8                           # z < 20.8 (two exposure limit)
+        lrg &= zmag >= 18.01                         # z > 18.01 (reduce overlap with BGS)
+        lrg &= rmag - zmag > 0.65                    # r-z > 0.65 (broad color box)
+        lrg &= ((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2 | 
+                zmag < 19.7 | 
+                (w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2 |
+                (W1 < 19.15 & r-W1 < 1.88)           # Curved sliding optical and IR cuts with low-z extension
+    else:
+        lrg &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # Non-stellar cut
+        lrg &= zmag < 20.755                           # z < 20.8 (two exposure limit)
+        lrg &= zmag >= 17.965                          # z > 18.01 (reduce overlap with BGS)
+        lrg &= rmag - zmag > 0.75                      # r-z > 0.65 (broad color box)
+        lrg &= ((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2 | 
+                zmag < 19.655 | 
+                (w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2 |
+                (W1 < 19.139 & r-W1 < 1.833)           # Curved sliding optical and IR cuts with low-z extension
 
     lrg1pass = lrg.copy()
     lrg2pass = lrg.copy()
 
-    # ADM one-pass LRGs are 18 (the BGS limit) <= z < 20.
-    lrg1pass &= zflux > 10**((22.5-20.0)/2.5)
-    lrg1pass &= zflux <= 10**((22.5-18.0)/2.5)
-
-    # ADM two-pass LRGs are 20 <= z < 20.4.
-    lrg2pass &= zflux > 10**((22.5-20.4)/2.5)
-    lrg2pass &= zflux <= 10**((22.5-20.0)/2.5)
+    # ADM one-pass LRGs are (the BGS limit) <= z < 20
+    lrg1pass &= zmag < 20.
+    # ADM two-pass LRGs are 20 <= z < (the two pass limit)
+    lrg2pass &= zmag >= 20.
 
     return lrg, lrg1pass, lrg2pass
 
@@ -1564,17 +1383,19 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     from desitarget.sv1.sv1_targetmask import desi_mask, bgs_mask, mws_mask
 
     if "LRG" in tcnames:
-        lrg_north, lrg1pass_north, lrg2pass_north = isLRGpass(
-            primary=primary,
-            gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar,
-            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=False
-        )
-
-        lrg_south, lrg1pass_south, lrg2pass_south = isLRGpass(
-            primary=primary,
-            gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar,
-            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=True
-        )
+        lrg_classes = []
+        # ADM run the LRG target types for both north and south.
+        for south in [False, True]:
+            lrg_classes.append(
+                isLRG(
+                    primary=primary, south=south
+                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                    gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr
+                )
+            )
+        lrg_north, lrg1pass_north, lrg2pass_north,  \ 
+        lrg_south, lrg1pass_south, lrg2pass_south = \
+                                                    np.vstack(lrg_classes)
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
         lrg_north, lrg1pass_north, lrg2pass_north = ~primary, ~primary, ~primary
@@ -1686,7 +1507,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked,
                     pmra=pmra, pmdec=pmdec, parallax=parallax,
-                    primary=primary, south=False
+                    primary=primary, south=south
                 )
             )
 
