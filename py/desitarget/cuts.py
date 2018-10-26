@@ -1099,40 +1099,17 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """Definition of BGS target classes. Returns a boolean array.
 
     Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        gnobs, rnobs, znobs: array_like or None
-            Number of observations in g, r, z bands.
-        gfracmasked, rfracmasked, zfracmasked: array_like or None
-            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z.
-        fracflux, rfracflux, zfracflux: array_like or None
-            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z.
-        gfracin, rfracin, zfracin: array_like or None
-            Fraction of a source's flux within the blob in g,r,z.
-        gfluxivar, rfluxivar, zfluxivar: array_like or None
-            inverse variance of FLUX g,r,z.
-        brightstarinblob: boolean array_like or None
-            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-        Grr: array_like or None
-            Gaia G band magnitude minus observational r magnitude.
-        w1snr: array_like or None
-            W1 band signal to noise.
-        gaiagmag: array_like or None
-            Gaia G band magnitude.
-        objtype: array_like or None
-            If given, The TYPE column of the catalogue.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to ``True``
-            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
         targtype: str, optional, defaults to ``faint``
             Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
             or ``faint`` to use colors appropriate to the ``BGS_BRIGHT`` selection
             or ``wise`` to use colors appropriate to the ``BGS_BRIGHT`` selection.
+        see :func:`~desitarget.cuts.set_target_bits` for other parameters.
 
     Returns:
         mask : array_like. True if and only if the object is a BGS target.
+
+    Notes:
+    - Current version (10/24/18) is version 143 on `the wiki`_.
     """
     _check_BGS_targtype(targtype)
 
@@ -2197,7 +2174,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked,
                     pmra=pmra, pmdec=pmdec, parallax=parallax,
-                    primary=primary, south=False
+                    primary=primary, south=south
                 )
             )
 
