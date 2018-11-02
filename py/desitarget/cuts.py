@@ -793,25 +793,25 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-               gaia=None, primary=None, gfracmasked=None, rfracmasked=None,
+               gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
                pmra=None, pmdec=None, parallax=None, obs_rflux=None,
-               gaiagmag=None, gaiabmag=None, gaiarmag=None,
-               gaiaaen=None, gaiadupsource=None, south=True):
-    """Set bits for ``MWS_MAIN`` targets.
+               gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
+               gaiaaen=None, gaiadupsource=None, primary=None, south=True):
+    """Set bits for main ``MWS`` targets.
 
     Args:
         see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns:
         mask1 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN`` target.
+            ``True`` if and only if the object is a ``MWS_BROAD`` target.
         mask2 : array_like.
             ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
         mask3 : array_like.
             ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
 
     Notes:
-        - as of 10/22/18, based on version 143 on `the wiki`_.
+        - as of 11/2/18, based on version 158 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -836,9 +836,9 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w), len(mws), time()-start))
 
-    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked,
-                              rfracmasked=rfracmasked,
-                              gaiadupsource=gaiadupsource, primary=primary)
+    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
+                              gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
+                              rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
 
     # ADM pass the mws that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
@@ -852,7 +852,8 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return mws, red, blue
 
 
-def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
+def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
+                       rfracmasked=None, rnobs=None, rflux=None,
                        gaiadupsource=None, primary=None):
     """Standard set of masking-based cuts used by MWS_MAIN target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
@@ -864,7 +865,8 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
     # ADM apply the mask/logic selection for all MWS-MAIN targets
     # ADM main targets match to a Gaia source
     mws &= gaia
-    mws &= (gfracmasked < 0.5) & (rfracmasked < 0.5)
+    mws &= (gfracmasked < 0.5) & (gflux > 0) & (gnobs > 0)
+    mws &= (rfracmasked < 0.5) & (rflux > 0) & (rnobs > 0)
 
     mws &= ~gaiadupsource
 
@@ -906,13 +908,18 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM MWS-BLUE is g-r < 0.7
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
-    # ADM MWS-RED is g-r >= 0.7 and parallax < 1mas...
-    red &= parallax < 1.
+    # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-    # ADM ...and proper motion < 7.
-    red &= pm < 7.
+    broad = mws.copy()
 
-    return mws, red, blue
+    # ADM MWS-RED also has parallax < 1mas and proper motion < 7.
+    red &= pm < 7.
+    red &= parallax < 1.
+
+    # ADM MWS-BROAD has parallax > 1mas OR proper motion > 7.
+    broad &= (parallax >= 1.) | (pm >= 7.)
+
+    return broad, red, blue
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -2172,14 +2179,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isMWS_main(
                     gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
+                    gnobs=gnobs, rnobs=rnobs,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked,
                     pmra=pmra, pmdec=pmdec, parallax=parallax,
                     primary=primary, south=south
                 )
             )
 
-        mws_n, mws_red_n, mws_blue_n,       \
-            mws_s, mws_red_s, mws_blue_s =  \
+        mws_broad_n, mws_red_n, mws_blue_n,       \
+            mws_broad_s, mws_red_s, mws_blue_s =  \
                                             np.vstack(mws_classes)
 
         mws_nearby = isMWS_nearby(
@@ -2194,8 +2202,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         )
     else:
         # ADM if not running the MWS selection, set everything to arrays of False
-        mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
-        mws_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
+        mws_broad_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
+        mws_broad_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
         mws_nearby, mws_wd = ~primary, ~primary
 
     if "STD" in tcnames:
@@ -2228,7 +2236,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
 
     # ADM combine the north/south MWS bits.
-    mws = (mws_n & photsys_north) | (mws_s & photsys_south)
+    mws_broad = (mws_broad_n & photsys_north) | (mws_broad_s & photsys_south)
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
 
@@ -2278,13 +2286,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_wise * bgs_mask.BGS_WISE
 
     # ADM MWS main, nearby, and WD.
-    mws_target = mws * mws_mask.MWS_MAIN
+    mws_target = mws_broad * mws_mask.MWS_BROAD
     mws_target |= mws_wd * mws_mask.MWS_WD
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY
 
     # ADM MWS main north/south split.
-    mws_target |= mws_n * mws_mask.MWS_MAIN_NORTH
-    mws_target |= mws_s * mws_mask.MWS_MAIN_SOUTH
+    mws_target |= mws_broad_n * mws_mask.MWS_BROAD_NORTH
+    mws_target |= mws_broad_s * mws_mask.MWS_BROAD_SOUTH
 
     # ADM MWS main blue/red split.
     mws_target |= mws_blue * mws_mask.MWS_MAIN_BLUE

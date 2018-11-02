@@ -84,7 +84,7 @@ mws_mask:
     # input catalogues. 
    
     #- Bits 0-3 (7 ids)
-    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
@@ -99,9 +99,9 @@ mws_mask:
     # considered filler but with parallax factored into the subpriority and
     # targeted for reobservation if possible.
     
-    #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    #- 4: MWS_BROAD north/south splits
+    - [MWS_BROAD_NORTH,     4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BROAD_SOUTH,     5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 8: Sub-classes of MWS_MAIN
     - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",         {obsconditions: BRIGHT|GRAY|DARK}]
@@ -216,17 +216,17 @@ priorities:
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
     mws_mask: 
-        MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_BROAD:                    {UNOBS: 1400, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
+        MWS_BROAD_NORTH:              SAME_AS_MWS_BROAD
+        MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD
+        MWS_MAIN_BLUE:                {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_BLUE
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -286,15 +286,15 @@ numobs:
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
     mws_mask: 
-        MWS_MAIN:                     1
+        MWS_BROAD:                    1
         MWS_WD:                       1
         MWS_NEARBY:                   1
-        MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
+        MWS_BROAD_NORTH:              SAME_AS_MWS_BROAD
+        MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD
+        MWS_MAIN_BLUE:                1
+        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_BLUE
 
