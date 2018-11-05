@@ -133,22 +133,80 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg, lrg1pass, lrg2pass
 
 
-def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
-    """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
+def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
+          gfracflux=None, rfracflux=None, zfracflux=None,
+          gfracmasked=None, rfracmasked=None, zfracmasked=None,
+          gnobs=None, rnobs=None, znobs=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
+          gaia=None, astrometricexcessnoise=None, paramssolved=None,
+          pmra=None, pmdec=None, parallax=None, dupsource=None,
+          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False)
+    """Select STD targets using color cuts and photometric quality cuts.
 
     Parameters
     ----------
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
+    bright : :class:`boolean`, defaults to ``False``
+        if ``True`` apply magnitude cuts for "bright" conditions; otherwise,
+        choose "normal" brightness standards. Cut is performed on `gaiagmag`.
+
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
 
     Returns
     -------
-    mask : boolean array, True if the object has colors like a STD star target
+    :class:`array_like`
+        ``True`` if and only if the object is a STD star.
 
     Notes
     -----
-    - Current version (08/01/18) is version 121 on `the wiki`_.
+    - Current version (11/05/18) is version 24 on `the SV wiki`_.
     """
+    if primary is None:
+        primary = np.ones_like(gflux, dtype='?')
+    std = primary.copy()
 
+    # ADM apply type=PSF cut.
+    std &= _psflike(objtype)
+
+    # ADM apply fracflux, S/N cuts and number of observations cuts.
+    fracflux = [gfracflux, rfracflux, zfracflux]
+    fluxivar = [gfluxivar, rfluxivar, zfluxivar]
+    nobs = [gnobs, rnobs, znobs]
+    fracmasked = [gfracmasked, rfracmasked, zfracmasked]
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore') # fracflux can be Inf/NaN
+        for bandint in (0, 1, 2):  # g, r, z
+            std &= fracflux[bandint] < 0.01
+            std &= fluxivar[bandint] > 0
+            std &= nobs[bandint] > 0
+            std &= fracmasked[bandint] < 0.6
+
+    # ADM apply the Legacy Surveys (optical) magnitude and color cuts.
+    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
+
+    # ADM apply the Gaia quality cuts.
+    std &= isSTD_gaia(primary=primary, gaia=gaia, 
+                      astrometricexcessnoise=astrometricexcessnoise, 
+                      pmra=pmra, pmdec=pmdec, parallax=parallax,
+                      dupsource=dupsource, paramssolved=paramssolved,
+                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+    # ADM brightness cuts in Gaia G-band.
+    if bright:
+        gbright, gfaint = 15., 18.
+    else:
+        gbright, gfaint = 16., 19.
+
+    std &= gaiagmag >= gbright
+    std &= gaiagmag < gfaint
+
+    return std
+
+
+def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+                 primary=None):
+    """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
+    see :func:`~desitarget.sv1.sv1_cuts.isSTD` for other details.
+    """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     std = primary.copy()
@@ -174,40 +232,14 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
                dupsource=None, paramssolved=None,
                gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Gaia quality cuts used to define STD star targets
-
-    Args:
-        primary: array_like or None
-          If given, the BRICK_PRIMARY column of the catalogue.
-        gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
-        astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia (as in the Gaia Data Model).
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model).
-        dupsource: array_like or None
-            Whether the source is a duplicate in Gaia (as in the Gaia Data model).
-        paramssolved: array_like or None
-            How many parameters were solved for in Gaia (as in the Gaia Data model).
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            (Extinction-corrected) Gaia-based g-, b- and r-band MAGNITUDES
-            (same units as the Gaia data model).
-
-    Returns:
-        mask : boolean array, True if the object passes Gaia quality cuts.
-
-        Notes:
-        - Current version (08/01/18) is version 121 on `the wiki`_.
-        - Gaia data model is at:
-        https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
+    see :func:`~desitarget.sv1.sv1_cuts.isSTD` for other details.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
     std = primary.copy()
 
     # ADM Bp and Rp are both measured.
-    std &=  ~np.isnan(gaiabmag - gaiarmag)
+    std &= ~np.isnan(gaiabmag - gaiarmag)
     
     # ADM no obvious issues with the astrometry solution.
     std &= astrometricexcessnoise < 1
@@ -238,110 +270,6 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
     # ADM a unique Gaia source.
     std &= ~dupsource
-
-    return std
-
-
-def isSTD(gflux=None, rflux=None, zflux=None, primary=None, 
-          gfracflux=None, rfracflux=None, zfracflux=None,
-          gfracmasked=None, rfracmasked=None, zfracmasked=None,
-          gnobs=None, rnobs=None, znobs=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
-          gaia=None, astrometricexcessnoise=None, paramssolved=None,
-          pmra=None, pmdec=None, parallax=None, dupsource=None, 
-          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False,
-          usegaia=True):
-    """Select STD targets using color cuts and photometric quality cuts (PSF-like
-    and fracflux).  See isSTD_colors() for additional info.
-
-    Args:
-        gflux, rflux, zflux: array_like
-            The flux in nano-maggies of g, r, z bands.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        gfracflux, rfracflux, zfracflux: array_like
-            Profile-weighted fraction of the flux from other sources divided 
-            by the total flux in g, r and z bands.
-        gfracmasked, rfracmasked, zfracmasked: array_like
-            Fraction of masked pixels in the g, r and z bands.
-        gnobs, rnobs, znobs: array_like
-            The number of observations (in the central pixel) in g, r and z.
-        gfluxivar, rfluxivar, zfluxivar: array_like
-            The flux inverse variances in g, r, and z bands.
-        objtype: array_like or None
-            The TYPE column of the catalogue to restrict to point sources.
-        gaia: boolean array_like or None
-            True if there is a match between this object in the Legacy
-            Surveys and in Gaia.
-        astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia (as in the Gaia Data Model).
-        paramssolved: array_like or None
-            How many parameters were solved for in Gaia (as in the Gaia Data model).
-        pmra, pmdec, parallax: array_like or None
-            Gaia-based proper motion in RA and Dec and parallax
-            (same units as the Gaia data model).
-        dupsource: array_like or None
-            Whether the source is a duplicate in Gaia (as in the Gaia Data model).
-        gaiagmag, gaiabmag, gaiarmag: array_like or None
-            Gaia-based g-, b- and r-band MAGNITUDES (same units as Gaia data model).
-        bright: boolean, defaults to ``False`` 
-           if ``True`` apply magnitude cuts for "bright" conditions; otherwise, 
-           choose "normal" brightness standards. Cut is performed on `gaiagmag`.
-        usegaia: boolean, defaults to ``True``
-           if ``True`` then  call :func:`~desitarget.cuts.isSTD_gaia` to set the 
-           logic cuts. If Gaia is not available (perhaps if you're using mocks)
-           then send ``False`` and pass `gaiagmag` as 22.5-2.5*np.log10(`robs`) 
-           where `robs` is `rflux` without a correction.for Galactic extinction.
-
-    Returns:
-        mask : boolean array, True if the object has colors like a STD star
-
-    Notes:
-        - Gaia data model is at:
-            https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-        - Current version (08/01/18) is version 121 on the wiki:
-            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
-    """
-    if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
-    std = primary.copy()
-
-    # ADM apply the Legacy Surveys (optical) magnitude and color cuts.
-    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
-
-    # ADM apply the Gaia quality cuts.
-    if usegaia:
-        std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=astrometricexcessnoise, 
-                          pmra=pmra, pmdec=pmdec, parallax=parallax,
-                          dupsource=dupsource, paramssolved=paramssolved,
-                          gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
-
-    # ADM apply type=PSF cut.
-    std &= _psflike(objtype)
-
-    # ADM apply fracflux, S/N cuts and number of observations cuts.
-    fracflux = [gfracflux, rfracflux, zfracflux]
-    fluxivar = [gfluxivar, rfluxivar, zfluxivar]
-    nobs = [gnobs, rnobs, znobs]
-    fracmasked = [gfracmasked, rfracmasked, zfracmasked]
-    with warnings.catch_warnings():
-        warnings.simplefilter('ignore') # fracflux can be Inf/NaN
-        for bandint in (0, 1, 2):  # g, r, z
-            std &= fracflux[bandint] < 0.01
-            std &= fluxivar[bandint] > 0
-            std &= nobs[bandint] > 0
-            std &= fracmasked[bandint] < 0.6
-
-    # ADM brightness cuts in Gaia G-band.
-    if bright:
-        gbright = 15.
-        gfaint = 18.
-    else:
-        gbright = 16.
-        gfaint = 19.
-
-    std &= gaiagmag >= gbright
-    std &= gaiagmag < gfaint
 
     return std
 
@@ -393,7 +321,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
 def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, south=True):
     """Test if sources have quasar-like colors in a color box.
-    (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isQSO_cuts` for parameters).
+    (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isQSO_cuts`).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -1157,8 +1085,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype=objtype, release=release, south=south
                 )
             )
-        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
-                                                        np.vstack(qso_classes)
+        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south =  \
+                                                            qso_classes
 
     else:
         # ADM if not running the QSO selection, set everything to arrays of False
@@ -1190,10 +1118,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     )
                 )
 
-        bgs_bright_north, bgs_bright_south,      \
-            bgs_faint_north, bgs_faint_south,    \
-            bgs_wise_north, bgs_wise_south =     \
-                                                 bgs_classes
+        bgs_bright_north, bgs_bright_south, \
+        bgs_faint_north, bgs_faint_south,   \
+        bgs_wise_north, bgs_wise_south =    \
+                                        bgs_classes
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
@@ -1240,28 +1168,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         mws_nearby, mws_wd = ~primary, ~primary
 
     if "STD" in tcnames:
+        std_classes = []
+        # ADM run the MWS_MAIN target types for both faint and bright.
         # ADM Make sure to pass all of the needed columns! At one point we stopped
         # ADM passing objtype, which meant no standards were being returned.
-        std_faint = isSTD(
-            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=False
-        )
-        std_bright = isSTD(
-            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-            gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
-            zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=True
-        )
+        for bright in [False, True]:
+            std_classes.append(
+                isSTD(
+                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                    gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                    gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
+                    zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                    gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                    gaia=gaia, astrometricexcessnoise=gaiaaen, paramssolved=gaiaparamssolved,
+                    pmra=pmra, pmdec=pmdec, parallax=parallax, dupsource=gaiadupsource,
+                    gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=bright
+                )
+            )
+        std_faint, std_bright = std_classes
         # ADM the standard WDs are currently identical to the MWS WDs
         std_wd = mws_wd
     else:
