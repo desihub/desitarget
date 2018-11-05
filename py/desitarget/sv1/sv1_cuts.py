@@ -1056,10 +1056,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     qso_optical_cuts : :class:`boolean` defaults to ``False``
         Apply just optical color-cuts when selecting QSOs with
-        ``qso_selection="colorcuts"``.
+        ``qso_selection="colorcuts"``. This has no effect in SV!!!
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are
-        ``'colorcuts'`` and ``'randomforest'``
+        ``'colorcuts'`` and ``'randomforest'``. This has no effect in SV!!!
     brightstarinblob: boolean array_like or None
         ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
     Grr: array_like or None
