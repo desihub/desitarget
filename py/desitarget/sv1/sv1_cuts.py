@@ -1115,7 +1115,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isELG(
                     primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
                     gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                    brightstarinblob=brightstarinblob, south=south)
+                    brightstarinblob=brightstarinblob, south=south
+                )
             )
         elgfdr_north, elgfdrfaint_north, elgrzblue_north, elgrzred_north,  \
         elgfdr_south, elgfdrfaint_south, elgrzblue_south, elgrzred_south = \
@@ -1137,45 +1138,39 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     elgrzred = (elgrzred_north & photsys_north) | (elgrzred_south & photsys_south)
 
     if "QSO" in tcnames:
-        if qso_selection == 'colorcuts':
-            # ADM determine quasar targets in the north and the south separately
-            qso_north = isQSO_cuts(
-                primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux,
-                deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
-                objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
-                optical=qso_optical_cuts, south=False
+        qso_classes = []
+        for south in [False, True]:
+            qso_classes.append(
+                isQSO_cuts(
+                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                    w1flux=w1flux, w2flux=w2flux,
+                    deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                    objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
+                    optical=qso_optical_cuts, south=south
+                )
             )
-            qso_south = isQSO_cuts(
-                primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux,
-                deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
-                objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
-                optical=qso_optical_cuts, south=True
+            qso_classes.append(
+                isQSO_randomforest(
+                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                    w1flux=w1flux, w2flux=w2flux,
+                    deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                    objtype=objtype, release=release, south=south
+                )
             )
-        elif qso_selection == 'randomforest':
-            # ADM determine quasar targets in the north and the south separately
-            qso_north = isQSO_randomforest(
-                primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux,
-                deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
-                objtype=objtype, release=release, south=False
-            )
-            qso_south = isQSO_randomforest(
-                primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                w1flux=w1flux, w2flux=w2flux,
-                deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
-                objtype=objtype, release=release, south=True
-            )
-        else:
-            raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
-                qso_selection, qso_selection_options))
+        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
+                                                        np.vstack(qso_classes)
+
     else:
         # ADM if not running the QSO selection, set everything to arrays of False
-        qso_north, qso_south = ~primary, ~primary
+        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
+                                    ~primary, ~primary, ~primary, ~primary
 
     # ADM combine quasar target bits for a quasar target based on any imaging
+    qso_north = qsocolor_north | qsorf_north
+    qso_south = qsocolor_south | qsorf_south
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
+    qsocolor = (qsocolor_north & photsys_north) | (qsocolor_south & photsys_south)
+    qsorf = (qsorf_north & photsys_north) | (qsorf_south & photsys_south)
 
     # ADM set the BGS bits
     if "BGS" in tcnames:
@@ -1296,29 +1291,38 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM add the per-bit information in the south for LRGs...
     desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
     desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
-    # ADM ...and ELGs.
+    # ADM ...and ELGs...
     desi_target |= elgfdr_south * desi_mask.ELG_FDR_SOUTH
     desi_target |= elgfdrfaint_south * desi_mask.ELG_FDR_FAINT_SOUTH
     desi_target |= elgrzblue_south * desi_mask.ELG_RZ_BLUE_SOUTH
     desi_target |= elgrzred_south * desi_mask.ELG_RZ_RED_SOUTH
+    # ADM ...and QSOs.
+    desi_target |= qsocolor_south * desi_mask.QSO_COLOR_SOUTH
+    desi_target |= qsorf_south * desi_mask.QSO_RF_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
     desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
     desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    # ADM ...and ELGs.
+    # ADM ...and ELGs...
     desi_target |= elgfdr_north * desi_mask.ELG_FDR_NORTH
     desi_target |= elgfdrfaint_north * desi_mask.ELG_FDR_FAINT_NORTH
     desi_target |= elgrzblue_north * desi_mask.ELG_RZ_BLUE_NORTH
     desi_target |= elgrzred_north * desi_mask.ELG_RZ_RED_NORTH
+    # ADM ...and QSOs.
+    desi_target |= qsocolor_north * desi_mask.QSO_COLOR_NORTH
+    desi_target |= qsorf_north * desi_mask.QSO_RF_NORTH
 
     # ADM combined per-bit information for the LRGs...
     desi_target |= lrg1pass * desi_mask.LRG_1PASS
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
-    # ADM ...and ELGs.
+    # ADM ...and ELGs...
     desi_target |= elgfdr * desi_mask.ELG_FDR
     desi_target |= elgfdrfaint * desi_mask.ELG_FDR_FAINT
     desi_target |= elgrzblue * desi_mask.ELG_RZ_BLUE
     desi_target |= elgrzred * desi_mask.ELG_RZ_RED
+    # ADM ...and QSOs.
+    desi_target |= qsocolor * desi_mask.QSO_COLOR
+    desi_target |= qsorf * desi_mask.QSO_RF
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
