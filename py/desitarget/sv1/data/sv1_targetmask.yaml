@@ -35,10 +35,10 @@ sv1_desi_mask:
     - [ELG_RZ_BLUE_NORTH,     22, "ELG red extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
     - [ELG_RZ_RED_NORTH,      23, "ELG blue extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
 
-    - [ELG_FDR_NORTH,         24, "ELG using FDR cuts from DECam", {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_NORTH,   25, "ELG using fainter FDR cuts from DECam", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_NORTH,     26, "ELG red extension in rz color from DECam", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_NORTH,      27, "ELG blue extension in rz color from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_SOUTH,         24, "ELG using FDR cuts from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_SOUTH,   25, "ELG using fainter FDR cuts from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_SOUTH,     26, "ELG red extension in rz color from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_SOUTH,      27, "ELG blue extension in rz color from DECam", {obsconditions: DARK|GRAY}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",

@@ -45,6 +45,10 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         ``True`` if the object is a ONE pass (bright) LRG target.
     :class:`array_like`
         ``True`` if the object is a TWO pass (fainter) LRG target.   
+
+    Notes
+    -----
+    - Current version (11/05/18) is version 24 on `the SV wiki`_.
     """
     # ADM LRG SV targets, pass-based.
     if primary is None:
@@ -70,9 +74,6 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     -------
     :class:`array_like`
         ``True`` if and only if the object is NOT masked for poor quality.
-
-    Notes:
-        - Current version (10/24/18) is version 21 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -88,9 +89,6 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  w2flux=None, south=True, primary=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
-
-    Notes:
-        - Current version (10/24/18) is version 21 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -956,92 +954,95 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gallmask=None, rallmask=None, zallmask=None, brightstarinblob=None,
+          gallmask=None, rallmask=None, zallmask=None,
+          gsnr=None, rsnr=None, zsnr=None,
           south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
 
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        gallmask, rallmask, zallmask: array_like
-            Bitwise mask set if the central pixel from all images
-            satisfy each condition in g, r, z.
-        brightstarinblob: boolean array_like or None
-            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-        south: boolean, defaults to ``True``
-            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
+    Args
+    ----
+    south: boolean, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    Returns:
-        mask : array_like. True if and only if the object is an ELG
-            target.
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
 
-    Notes:
-    - Current version (08/01/18) is version 144 on `the wiki`_.
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is in the ELG FDR box.
+    :class:`array_like`
+        ``True`` if the object is in a faint extension to the ELG FDR box.
+    :class:`array_like`
+        ``True`` if the object passes a blue extension to the ELG box in (r-z).
+    :class:`array_like`
+        ``True`` if the object passes a red extension to the ELG box in (r-z).
+
+    Notes
+    -----
+    - Current version (11/05/18) is version 24 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     elg = primary.copy()
 
     elg &= notinELG_mask(gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                         brightstarinblob=brightstarinblob, primary=primary)
+                         gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, primary=primary)
 
-    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        south=south, primary=primary)
+    # ADM pass the elg that pass cuts as primary, to restrict to the
+    # ADM sources that weren't in a mask/logic cut.        
+    elgfdr, elgfdrfaint, elgrzblue, elgrzred &= isELG_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, south=south, primary=elg
+    )
 
-    return elg
+    return elgfdr, elgfdrfaint, elgrzblue, elgrzred
 
 
 def notinELG_mask(gallmask=None, rallmask=None, zallmask=None, 
-                  brightstarinblob=None, primary=None):
+                  gsnr=None, rsnr=None, zsnr=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes
-    (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
+    (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isELG` for parameters).
     """
     if primary is None:
         primary = np.ones_like(gallmask, dtype='?')
     elg = primary.copy()
 
     elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
-    elg &= ~brightstarinblob
+    elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
 
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, primary=None, south=True):
+def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None, 
+                 south=True):
     """Color cuts for ELG target selection classes
-    (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
+    (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isELG`).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    elg = primary.copy()
+    elgfdr, elgfdrfaint, elgrzblue, elgrzred = \
+            primary.copy(), primary.copy(), primary.copy(), primary.copy()
 
-    # ADM cuts shared by the northern and southern selections.
-    elg &= gflux < 10**((22.5-21.0)/2.5)          # g>21
-    elg &= zflux > rflux * 10**(0.3/2.5)          # (r-z)>0.3
-    elg &= zflux < rflux * 10**(1.6/2.5)          # (r-z)<1.6
+    # ADM determine colors and magnitudes
+    g = 22.5-2.5*np.log10(gflux.clip(1e-16))  # ADM clip is safe as we never target g < 20
+    gr = -2.5*np.log10(gflux/rflux)
+    rz = -2.5*np.log10(rflux/zflux)
 
-    # ADM clip to avoid warnings from negative numbers raised to fractional powers.
-    # ADM make sure to do this after the (r-z) cuts to prevent the recovery of
-    # ADM very bright objects with strange colors.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    elg &= zflux**1.2 < gflux * rflux**0.2 * 10**(1.6/2.5)     # (g-r)<1.6-1.2(r-z)
+    # ADM note that there is currently no north/south split
+    # ADM FDR box
+    elgfdr &= (20.00 <= g < 23.45) & \
+            (0.3 < rz < 1.6) & (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
+    # ADM FDR box faint
+    elgfdrfaint &= (23.45 <= g < 23.65) & \
+            (0.3 < rz < 1.6) & (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
+    # ADM blue rz box extension
+    elgrzblue &= (20.00 <= g < 23.65) & \
+            (0.0 < rz < 0.3) & (gr < 0.2)
+    # ADM red rz box extension
+    elgrzred &= (20.00 <= g <23.65) & \
+            (gr < 1.15*rz-0.15) & (rz > 1.6 | gr > 1.6-1.2*rz) & (gr < 2.5-1.2*rz)
 
-    # ADM cuts that are unique to the north or south.
-    if south:
-        elg &= gflux > 10**((22.5-23.45)/2.5)     # g<23.45
-        # ADM the south has the original FDR cut to remove stars and low-z galaxies.
-        elg &= rflux**2.15 < gflux * zflux**1.15 * 10**(-0.15/2.5) # (g-r)<1.15(r-z)-0.15
-    else:
-        elg &= gflux > 10**((22.5-23.7)/2.5)      # g<23.7
-        elg &= rflux > 10**((22.5-23.3)/2.5)      # r<23.3
-        # ADM the north has a modified FDR cut to remove stars and low-z galaxies.
-        elg &= rflux**2.40 < gflux * zflux**1.40 * 10**(-0.35/2.5) # (g-r)<1.40(r-z)-0.35
-
-    return elg
+    return elgfdr, elgfdrfaint, elgrzblue, elgrzred
 
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1052,7 +1053,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """Set bits for ``MWS_MAIN`` targets.
 
     Args:
-        see :func:`~desitarget.cuts.set_target_bits` for parameters.
+        see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
 
     Returns:
         mask1 : array_like.
@@ -1173,7 +1174,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """Set bits for NEARBY Milky Way Survey targets.
 
     Args:
-        see :func:`~desitarget.cuts.set_target_bits` for parameters.
+        see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
 
     Returns:
         mask : array_like.
@@ -1217,7 +1218,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
     Args:
-        see :func:`~desitarget.cuts.set_target_bits` for parameters.
+        see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
 
     Returns:
         mask : array_like.
@@ -1415,13 +1416,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
                     brightstarinblob=brightstarinblob, south=south)
             )
-        elg_north, elg_south = elg_classes
+        elgfdr_north, elgfdrfaint_north, elgrzblue_north, elgrzred_north,  \
+        elgfdr_south, elgfdrfaint_south, elgrzblue_south, elgrzred_south = \
+                                                            np.vstack(elg_classes)
     else:
         # ADM if not running the ELG selection, set everything to arrays of False.
-        elg_north, elg_south = ~primary, ~primary
+        elgfdr_north, elgfdrfaint_north, elgrzblue_north, elgrzred_north = \
+                                        ~primary, ~primary, ~primary, ~primary
+        elgfdr_south, elgfdrfaint_south, elgrzblue_south, elgrzred_south = \
+                                        ~primary, ~primary, ~primary, ~primary
 
     # ADM combine ELG target bits for an ELG target based on any imaging
+    elg_north = elgfdr_north | elgfdrfaint_north | elgrzblue_north | elgrzred_north
+    elg_south = elgfdr_south | elgfdrfaint_south | elgrzblue_south | elgrzred_south
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
+    elgfdr = (elgfdr_north & photsys_north) | (elgfdr_south & photsys_south)
+    elgfdrfaint = (elgfdrfaint_north & photsys_north) | (elgfdrfaint_south & photsys_south)
+    elgrzblue = (elgrzblue_north & photsys_north) | (elgrzblue_south & photsys_south)
+    elgrzred = (elgrzred_north & photsys_north) | (elgrzred_south & photsys_south)
 
     if "QSO" in tcnames:
         if qso_selection == 'colorcuts':
@@ -1580,15 +1592,32 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
-    # ADM add the per-pass information in the south...
+    # ADM add the per-bit information in the south for LRGs...
     desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
     desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
-    # ADM ...the north...
+    # ADM ...and ELGs.
+    desi_target |= elgfdr_south * desi_mask.ELG_FDR_SOUTH
+    desi_target |= elgfdrfaint_south * desi_mask.ELG_FDR_FAINT_SOUTH
+    desi_target |= elgrzblue_south * desi_mask.ELG_RZ_BLUE_SOUTH
+    desi_target |= elgrzred_south * desi_mask.ELG_RZ_RED_SOUTH
+
+    # ADM add the per-bit information in the north for LRGs...
     desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
     desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    # ADM ...and combined.
+    # ADM ...and ELGs.
+    desi_target |= elgfdr_north * desi_mask.ELG_FDR_NORTH
+    desi_target |= elgfdrfaint_north * desi_mask.ELG_FDR_FAINT_NORTH
+    desi_target |= elgrzblue_north * desi_mask.ELG_RZ_BLUE_NORTH
+    desi_target |= elgrzred_north * desi_mask.ELG_RZ_RED_NORTH
+
+    # ADM combined per-bit information for the LRGs...
     desi_target |= lrg1pass * desi_mask.LRG_1PASS
     desi_target |= lrg2pass * desi_mask.LRG_2PASS
+    # ADM ...and ELGs.
+    desi_target |= elgfdr * desi_mask.ELG_FDR
+    desi_target |= elgfdrfaint * desi_mask.ELG_FDR_FAINT
+    desi_target |= elgrzblue * desi_mask.ELG_RZ_BLUE
+    desi_target |= elgrzred * desi_mask.ELG_RZ_RED
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
