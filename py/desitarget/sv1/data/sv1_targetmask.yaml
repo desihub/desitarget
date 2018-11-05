@@ -8,21 +8,37 @@ sv1_desi_mask:
     - [LRG_1PASS,   3, "LRG observed in 1st pass", {obsconditions: DARK}]
     - [LRG_2PASS,   4, "LRG observed in 2nd pass", {obsconditions: DARK}]
 
-    #- North vs. South selections
-    - [LRG_NORTH,   8, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
-    - [ELG_NORTH,   9, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
-    - [QSO_NORTH,   10, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
+    #- ADM ELG sub-classes
+    - [ELG_FDR,         5, "ELG using FDR cuts", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT,   6, "ELG using fainter FDR cuts", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE,     7, "ELG red extension in rz color", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED,      8, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
 
-    - [LRG_SOUTH,   16, "LRG from DECam data", {obsconditions: DARK}]
-    - [ELG_SOUTH,   17, "ELG from DECam data", {obsconditions: DARK|GRAY}]
-    - [QSO_SOUTH,   18, "QSO from DECam data", {obsconditions: DARK}]
+    #- North vs. South selections
+    - [LRG_NORTH,   9, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
+    - [ELG_NORTH,   10, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
+    - [QSO_NORTH,   11, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
+
+    - [LRG_SOUTH,   12, "LRG from DECam data", {obsconditions: DARK}]
+    - [ELG_SOUTH,   13, "ELG from DECam data", {obsconditions: DARK|GRAY}]
+    - [QSO_SOUTH,   14, "QSO from DECam data", {obsconditions: DARK}]
 
     #- North vs. South selections for different passes
-    - [LRG_1PASS_NORTH,  24, "LRG observed in 1st pass from Bok/Mosaic", {obsconditions: DARK}]
-    - [LRG_2PASS_NORTH,  25, "LRG observed in 2nd pass from Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_1PASS_NORTH,  16, "LRG observed in 1st pass from Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_2PASS_NORTH,  17, "LRG observed in 2nd pass from Bok/Mosaic", {obsconditions: DARK}]
 
-    - [LRG_1PASS_SOUTH,  28, "LRG observed in 1st pass from DECam", {obsconditions: DARK}]
-    - [LRG_2PASS_SOUTH,  29, "LRG observed in 2nd pass from DECam", {obsconditions: DARK}]
+    - [LRG_1PASS_SOUTH,  18, "LRG observed in 1st pass from DECam", {obsconditions: DARK}]
+    - [LRG_2PASS_SOUTH,  19, "LRG observed in 2nd pass from DECam", {obsconditions: DARK}]
+
+    - [ELG_FDR_NORTH,         20, "ELG using FDR cuts from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_NORTH,   21, "ELG using fainter FDR cuts from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     22, "ELG red extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      23, "ELG blue extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+
+    - [ELG_FDR_NORTH,         24, "ELG using FDR cuts from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_NORTH,   25, "ELG using fainter FDR cuts from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     26, "ELG red extension in rz color from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      27, "ELG blue extension in rz color from DECam", {obsconditions: DARK|GRAY}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -139,6 +155,10 @@ priorities:
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG_1PASS: SAME_AS_LRG
         LRG_2PASS: SAME_AS_LRG
+        ELG_FDR:       SAME_AS_ELG
+        ELG_FDR_FAINT: SAME_AS_ELG
+        ELG_RZ_BLUE:   SAME_AS_ELG
+        ELG_RZ_RED:    SAME_AS_ELG
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
@@ -149,6 +169,14 @@ priorities:
         LRG_2PASS_NORTH: SAME_AS_LRG
         LRG_1PASS_SOUTH: SAME_AS_LRG
         LRG_2PASS_SOUTH: SAME_AS_LRG
+        ELG_FDR_NORTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_NORTH: SAME_AS_ELG
+        ELG_RZ_BLUE_NORTH:   SAME_AS_ELG
+        ELG_RZ_RED_NORTH:    SAME_AS_ELG
+        ELG_FDR_SOUTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_SOUTH: SAME_AS_ELG
+        ELG_RZ_BLUE_SOUTH:   SAME_AS_ELG
+        ELG_RZ_RED_SOUTH:    SAME_AS_ELG
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -212,6 +240,10 @@ numobs:
         QSO: 4
         LRG_1PASS: 1
         LRG_2PASS: 2
+        ELG_FDR:       SAME_AS_ELG
+        ELG_FDR_FAINT: SAME_AS_ELG
+        ELG_RZ_BLUE:   SAME_AS_ELG
+        ELG_RZ_RED:    SAME_AS_ELG
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
@@ -222,6 +254,14 @@ numobs:
         LRG_2PASS_NORTH: SAME_AS_LRG_2PASS
         LRG_1PASS_SOUTH: SAME_AS_LRG_1PASS
         LRG_2PASS_SOUTH: SAME_AS_LRG_2PASS
+        ELG_FDR_NORTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_NORTH: SAME_AS_ELG
+        ELG_RZ_BLUE_NORTH:   SAME_AS_ELG
+        ELG_RZ_RED_NORTH:    SAME_AS_ELG
+        ELG_FDR_SOUTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_SOUTH: SAME_AS_ELG
+        ELG_RZ_BLUE_SOUTH:   SAME_AS_ELG
+        ELG_RZ_RED_SOUTH:    SAME_AS_ELG
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
