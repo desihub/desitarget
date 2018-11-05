@@ -418,14 +418,14 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, south=True):
     # ADM the WISE color cut.
     qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2) > -0.4
 
-    # ADM turning MS cuts off as they are not explicit for SV on the wiki.
-    # rflux = rflux.clip(0)
-    # zflux = zflux.clip(0)
-    # ADM Harder cuts on stellar contamination for objects not on Main Sequence
-    # mainseq = rflux > gflux * 10**(0.20/2.5)  # ADM g-r > 0.2
-    # mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    # mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    # mainseq &= w2flux > w1flux * 10**(0.3/2.5)  # ADM W1 - W2 > 0.3
+    # ADM Stricter WISE cuts on stellar contamination for objects on Main Sequence.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    mainseq = rflux > gflux * 10**(0.2/2.5)  # ADM g-r > 0.2
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
+    mainseq &= w2flux > w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
+    qso &= ~mainseq
 
     return qso
 
