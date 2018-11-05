@@ -35,7 +35,11 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
        
     Parameters
     ----------
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
+    south: boolean, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     
     Returns
     -------
@@ -132,18 +136,17 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None):
     """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
 
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
+    Parameters
+    ----------
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
 
-    Returns:
-        mask : boolean array, True if the object has colors like a STD star target
+    Returns
+    -------
+    mask : boolean array, True if the object has colors like a STD star target
 
-    Notes:
-        - Current version (08/01/18) is version 121 on the wiki:
-            https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+    Notes
+    -----
+    - Current version (08/01/18) is version 121 on `the wiki`_.
     """
 
     if primary is None:
@@ -195,8 +198,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
         mask : boolean array, True if the object passes Gaia quality cuts.
 
         Notes:
-        - Current version (08/01/18) is version 121 on the wiki:
-        https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection?version=121#STD
+        - Current version (08/01/18) is version 121 on `the wiki`_.
         - Gaia data model is at:
         https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
     """
@@ -344,221 +346,86 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     return std
 
 
-def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
+def isQSO_cuts(gflux=None, rflux=None, zflux=None, 
+               w1flux=None, w2flux=None, w1snr=None, w2snr=None,
+               dchisq=None, brightstarinblob=None,
+               objtype=None, primary=None, south=True, optical=False):
+    """Definition of QSO target classes from color cuts. Returns a boolean array.
 
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-        south: boolean, defaults to ``True``
-            Call isQSO_colors_north if ``south=False``, otherwise call isQSO_colors_south.
+    Parameters
+    ----------
+    south: boolean, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` for objects that pass the quasar color/morphology/logic cuts.
+
+    Notes
+    -----
+    - Current version (11/05/18) is version 24 on `the SV wiki`_.
     """
-    if south == False:
-        return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, 
-                                  optical=optical)
-    else:
-        return isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, 
-                                  optical=optical)
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    qso = primary.copy()
+
+    # ADM Reject objects flagged inside a bright star blob.
+    qso &= ~brightstarinblob
+    
+    # ADM relaxed morphology cut for SV.
+    morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.01
+    qso &= _psflike(objtype) | morph2
+    
+    # ADM SV cuts are different for WISE SNR.
+    qso &= w1snr > 2.5
+    qso &= w2snr > 1.5
+
+    # ADM perform the color cuts to finish the selection.
+    qso &= isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                        w1flux=w1flux, w2flux=w2flux, south=south)
+
+    return qso
 
 
-def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if sources have quasar-like colors for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
+def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, south=True):
+    """Test if sources have quasar-like colors.
+    (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isQSO_cuts` for parameters).
     """
-    #----- Quasars
-    # Create some composite fluxes.
-    wflux = 0.75* w1flux + 0.25*w2flux
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    qso = primary.copy()
+
+    # ADM Create some composite fluxes.
+    wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
-    qso = np.ones(len(gflux), dtype='?')
-    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
-    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
-    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
+    # ADM perform the magnitude cuts.
+    qso &= rflux > 10**((22.5-23.)/2.5)    # r < 23.0 (different for SV)
+    qso &= grzflux < 10**((22.5-17.)/2.5)    # grz > 17
 
-    if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
+    # ADM the optical color cuts.
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r) < 1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z) > -0.3
+    qso &= zflux < rflux * 10**(3.0/2.5)    # (r-z) < 3.0 (different for SV)
 
-    # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
+    # ADM the WISE-optical color cut.
+    qso &= wflux * gflux > zflux * grzflux * 10**(-1.3/2.5)  # (grz-W) > (g-z)-1.3 (different for SV)
 
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
-    qso &= ~mainseq
+    # ADM the WISE color cut.
+    qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2) > -0.4
 
-    return qso
-
-
-def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if sources have quasar-like colors for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
-    """
-    #----- Quasars
-    # Create some composite fluxes.
-    wflux = 0.75* w1flux + 0.25*w2flux
-    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-
-    qso = np.ones(len(gflux), dtype='?')
-    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
-    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
-    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
-
-    if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5) # (W1-W2)>-0.4
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5) # (grz-W)>(g-z)-1.0
-
-    # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
-    qso &= ~mainseq
-
-    return qso
-
-
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-               deltaChi2, brightstarinblob=None,
-               release=None, objtype=None, primary=None, south=True, optical=False):
-    """Convenience function for backwards-compatability prior to north/south split.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP.
-        brightstarinblob: boolean array_like or None
-            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-        release: array_like[ntargets]
-            `The Legacy Surveys`_ imaging RELEASE.
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to ``True``
-            Call isQSO_cuts_north if ``south=False``, otherwise call isQSO_cuts_south.
-        optical: boolean, defaults to `False`
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
-    """
-    if south == False:
-        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                                deltaChi2, brightstarinblob=brightstarinblob,
-                                release=release, objtype=objtype, primary=primary, optical=optical)
-    else:
-        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                                deltaChi2, brightstarinblob=brightstarinblob,
-                                release=release, objtype=objtype, primary=primary, optical=optical)
-
-
-def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                     deltaChi2, brightstarinblob=None,
-                     release=None, objtype=None, primary=None, optical=False):
-    """Cuts based QSO target selection for the BASS/MzLS photometric system.
-    (see :func:`~desitarget.cuts.isQSO_cuts`).
-
-    Notes:
-        Uses isQSO_colors() to make color cuts first, then applies
-            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-    """
-    qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux, optical=optical)
-
-    qso &= w1snr > 4
-    qso &= w2snr > 2
-
-    # ADM default to RELEASE of 6000 if nothing is passed.
-    if release is None:
-        release = np.zeros_like(gflux, dtype='?')+6000
-
-    qso &= ((deltaChi2>40.) | (release>=5000) )
-
-    if primary is not None:
-        qso &= primary
-
-    if objtype is not None:
-        qso &= _psflike(objtype)
-
-    # CAC Reject objects flagged inside a blob.
-    if brightstarinblob is not None:
-        qso &= ~brightstarinblob
-
-    return qso
-
-
-def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                     deltaChi2, brightstarinblob=None,
-                     release=None, objtype=None, primary=None, optical=False):
-    """Cuts based QSO target selection for the DECaLS photometric system.
-    (see :func:`~desitarget.cuts.isQSO_cuts`).
-
-    Notes:
-        Uses isQSO_colors() to make color cuts first, then applies
-            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-    """
-    qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux, optical=optical)
-
-    qso &= w1snr > 4
-    qso &= w2snr > 2
-
-    # ADM default to RELEASE of 5000 if nothing is passed.                                                                                                                                           
-    if release is None:
-        release = np.zeros_like(gflux, dtype='?')+5000
-
-    qso &= ((deltaChi2>40.) | (release>=5000) )
-
-    if primary is not None:
-        qso &= primary
-
-    if objtype is not None:
-        qso &= _psflike(objtype)
-
-    # CAC Reject objects flagged inside a blob.
-    if brightstarinblob is not None:
-        qso &= ~brightstarinblob
+    # ADM turning MS cuts off as they are not explicit for SV on the wiki.
+    # rflux = rflux.clip(0)
+    # zflux = zflux.clip(0)
+    # ADM Harder cuts on stellar contamination for objects not on Main Sequence
+    # mainseq = rflux > gflux * 10**(0.20/2.5)  # ADM g-r > 0.2
+    # mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+    # mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+    # mainseq &= w2flux > w1flux * 10**(0.3/2.5)  # ADM W1 - W2 > 0.3
 
     return qso
 
@@ -824,43 +691,28 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
           w1snr=None, gaiagmag=None, objtype=None, primary=None, south=True, targtype=None):
-    """Convenience function for backwards-compatability prior to north/south split.
+    """Definition of BGS target classes. Returns a boolean array.
 
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, w1, and w2 bands.
-        gnobs, rnobs, znobs: array_like or None
-            Number of observations in g, r, z bands.
-        gfracmasked, rfracmasked, zfracmasked: array_like or None
-            Profile-weighted fraction of pixels masked from all observations of this object in g,r,z.
-        fracflux, rfracflux, zfracflux: array_like or None
-            Profile-weighted fraction of the flux from other sources divided by the total flux in g,r,z.
-        gfracin, rfracin, zfracin: array_like or None
-            Fraction of a source's flux within the blob in g,r,z.
-        gfluxivar, rfluxivar, zfluxivar: array_like or None
-            inverse variance of FLUX g,r,z.
-        brightstarinblob: boolean array_like or None
-            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-        Grr: array_like or None
-            Gaia G band magnitude minus observational r magnitude.
-        w1snr: array_like or None
-            W1 band signal to noise.
-        gaiagmag: array_like or None
-            Gaia G band magnitude.
-        objtype: array_like or None
-            If given, The TYPE column of the catalogue.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to ``True``
-            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
-        targtype: str, optional, defaults to ``faint``
-            Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
-            or ``faint`` to use colors appropriate to the ``BGS_BRIGHT`` selection
-            or ``wise`` to use colors appropriate to the ``BGS_BRIGHT`` selection.
+    Parameters
+    ----------
+    south : :class:`boolean`, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+    targtype : :class:`str`, optional, defaults to ``faint``
+        Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
+        or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
+        or ``wise`` to use colors appropriate to the ``BGS_WISE`` selection.
 
-    Returns:
-        mask : array_like. True if and only if the object is a BGS target.
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a BGS target of type ``targtype``.
+
+    Notes
+    -----
+    - Current version (11/05/18) is version 24 on `the SV wiki`_.
     """
     _check_BGS_targtype(targtype)
 
@@ -959,9 +811,9 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
 
-    Args
-    ----
-    south: boolean, defaults to ``True``
+    Parameters
+    ----------
+    south : :class:`boolean`, defaults to ``True``
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
@@ -1052,19 +904,26 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                gaiaaen=None, gaiadupsource=None, south=True):
     """Set bits for ``MWS_MAIN`` targets.
 
-    Args:
-        see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
+    Parameters
+    ----------
+    south : :class:`boolean`, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    Returns:
-        mask1 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN`` target.
-        mask2 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
-        mask3 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+
+    Returns
+    -------
+    mask1 : array_like.
+        ``True`` if and only if the object is a ``MWS_MAIN`` target.
+    mask2 : array_like.
+        ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
+    mask3 : array_like.
+        ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
     
-    Notes:
-        - as of 10/22/18, based on version 143 on `the wiki`_.
+    Notes
+    -----
+    - as of 10/22/18, based on version 143 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1173,14 +1032,17 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
 
-    Args:
-        see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
+    Parameters
+    ----------
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
 
-    Returns:
-        mask : array_like.
-            True if and only if the object is a MWS-NEARBY target.
+    Returns
+    -------
+    mask : array_like.
+        True if and only if the object is a MWS-NEARBY target.
 
-    Notes:
+    Notes
+    -----
     - Current version (09/20/18) is version 129 on `the wiki`_.
     """
     if primary is None:
@@ -1217,14 +1079,17 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
              gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
-    Args:
-        see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
+    Parameters
+    ----------
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
 
-    Returns:
-        mask : array_like.
-            True if and only if the object is a MWS-WD target.
+    Returns
+    -------
+    mask : array_like.
+        True if and only if the object is a MWS-WD target.
 
-    Notes:
+    Notes
+    -----
     - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:

@@ -46,7 +46,6 @@ def _gal_coords(ra, dec):
     Returns
     -------
     The Galactic longitude and latitude (l, b)
-
     """
     import astropy.units as u
     from astropy.coordinates import SkyCoord
@@ -880,17 +879,21 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           w1snr=None, gaiagmag=None, objtype=None, primary=None, south=True, targtype=None):
     """Definition of BGS target classes. Returns a boolean array.
 
-    Args:
-        targtype: str, optional, defaults to ``faint``
-            Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
-            or ``faint`` to use colors appropriate to the ``BGS_BRIGHT`` selection
-            or ``wise`` to use colors appropriate to the ``BGS_BRIGHT`` selection.
-        see :func:`~desitarget.cuts.set_target_bits` for other parameters.
+    Args
+    ----
+    targtype: str, optional, defaults to ``faint``
+        Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
+        or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
+        or ``wise`` to use colors appropriate to the ``BGS_WISE`` selection.
+    see :func:`~desitarget.cuts.set_target_bits` for other parameters.
 
-    Returns:
-        mask : array_like. True if and only if the object is a BGS target.
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a BGS target of type ``targtype``.
 
-    Notes:
+    Notes
+    -----
     - Current version (10/24/18) is version 143 on `the wiki`_.
     """
     _check_BGS_targtype(targtype)
@@ -1041,7 +1044,7 @@ def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
     mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
     if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+        mainseq &= w2flux > w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
 
     return qso
