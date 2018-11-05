@@ -1044,7 +1044,7 @@ def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
     mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
     mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
     if not optical:
-        mainseq &= w2flux > w1flux * 10**(0.3/2.5)
+        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
 
     return qso
