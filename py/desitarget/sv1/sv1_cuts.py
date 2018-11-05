@@ -424,7 +424,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, south=True):
     mainseq = rflux > gflux * 10**(0.2/2.5)  # ADM g-r > 0.2
     mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
     mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
-    mainseq &= w2flux > w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
+    mainseq &= w2flux < w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
     qso &= ~mainseq
 
     return qso
