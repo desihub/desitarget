@@ -349,7 +349,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 def isQSO_cuts(gflux=None, rflux=None, zflux=None, 
                w1flux=None, w2flux=None, w1snr=None, w2snr=None,
                dchisq=None, brightstarinblob=None,
-               objtype=None, primary=None, south=True, optical=False):
+               objtype=None, primary=None, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
     Parameters
@@ -431,7 +431,7 @@ def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, south=True):
 
 
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                       objtype=None, release=None, dchisq=None, brightstarinblob=None,
                        primary=None, south=True):
     """Definition of QSO target class using random forest. Returns a boolean array.
 
@@ -1144,16 +1144,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
-                    deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                    dchisq=dchisq, brightstarinblob=brightstarinblob,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
-                    optical=qso_optical_cuts, south=south
+                    south=south
                 )
             )
             qso_classes.append(
                 isQSO_randomforest(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
-                    deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                    dchisq=dchisq, brightstarinblob=brightstarinblob,
                     objtype=objtype, release=release, south=south
                 )
             )
