@@ -166,8 +166,8 @@ priorities:
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
         ELG_RZ_RED:    SAME_AS_ELG
-	QSO_COLOR: SAME_AS_QSO
-	QSO_RF:    SAME_AS_QSO
+        QSO_COLOR: SAME_AS_QSO
+        QSO_RF:    SAME_AS_QSO
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
@@ -186,10 +186,10 @@ priorities:
         ELG_FDR_FAINT_SOUTH: SAME_AS_ELG
         ELG_RZ_BLUE_SOUTH:   SAME_AS_ELG
         ELG_RZ_RED_SOUTH:    SAME_AS_ELG
-	QSO_COLOR_NORTH: SAME_AS_QSO
-	QSO_RF_NORTH:    SAME_AS_QSO
-	QSO_COLOR_SOUTH: SAME_AS_QSO
-	QSO_RF_SOUTH:    SAME_AS_QSO
+        QSO_COLOR_NORTH: SAME_AS_QSO
+        QSO_RF_NORTH:    SAME_AS_QSO
+        QSO_COLOR_SOUTH: SAME_AS_QSO
+        QSO_RF_SOUTH:    SAME_AS_QSO
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -257,8 +257,8 @@ numobs:
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
         ELG_RZ_RED:    SAME_AS_ELG
-	QSO_COLOR: SAME_AS_QSO
-	QSO_RF: SAME_AS_QSO
+        QSO_COLOR: SAME_AS_QSO
+        QSO_RF: SAME_AS_QSO
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
@@ -277,10 +277,10 @@ numobs:
         ELG_FDR_FAINT_SOUTH: SAME_AS_ELG
         ELG_RZ_BLUE_SOUTH:   SAME_AS_ELG
         ELG_RZ_RED_SOUTH:    SAME_AS_ELG
-	QSO_COLOR_NORTH: SAME_AS_QSO
-	QSO_RF_NORTH:    SAME_AS_QSO
-	QSO_COLOR_SOUTH: SAME_AS_QSO
-	QSO_RF_SOUTH:    SAME_AS_QSO
+        QSO_COLOR_NORTH: SAME_AS_QSO
+        QSO_RF_NORTH:    SAME_AS_QSO
+        QSO_COLOR_SOUTH: SAME_AS_QSO
+        QSO_RF_SOUTH:    SAME_AS_QSO
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
