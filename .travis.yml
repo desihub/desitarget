@@ -56,11 +56,11 @@ env:
         # - DESIMODEL_DATA=trunk
         - MAIN_CMD='python setup.py'
         # Additional conda channels to use.
-        - CONDA_CHANNELS="conda-forge"
+        - CONDA_CHANNELS="astropy"
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7 healpy"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
@@ -167,6 +167,7 @@ install:
     # egg_info causes the astropy/ci-helpers script to exit before the pip
     # packages are installed, thus desiutil is not installed in that script.
     - if [[ $SETUP_CMD == test* ]]; then pip install git+https://github.com/dkirkby/speclite.git@${SPECLITE_VERSION}#egg=speclite; fi
+    - if [[ $SETUP_CMD == test* ]]; then pip install --no-binary :all: healpy; fi
     - for p in $DESIHUB_PIP_DEPENDENCIES; do r=$(echo $p | cut -d= -f1); v=$(echo $p | cut -d= -f2); pip install git+https://github.com/desihub/${r}.git@${v}#egg=${r}; done
     - export DESIMODEL=${HOME}/desimodel/${DESIMODEL_VERSION}
     - mkdir -p ${DESIMODEL}
