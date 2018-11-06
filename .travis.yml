@@ -56,16 +56,16 @@ env:
         # - DESIMODEL_DATA=trunk
         - MAIN_CMD='python setup.py'
         # Additional conda channels to use.
-        - CONDA_CHANNELS="astropy"
+        - CONDA_CHANNELS="conda-forge"
         # These packages will always be installed.
         - CONDA_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7 healpy"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
         # - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio"
-        - PIP_ALL_DEPENDENCIES="coveralls fitsio healpy"
+        - PIP_ALL_DEPENDENCIES="coveralls fitsio"
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
         - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION} desimodel=${DESIMODEL_VERSION}"
