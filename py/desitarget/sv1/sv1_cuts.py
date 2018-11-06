@@ -28,11 +28,11 @@ log = get_logger()
 start = time()
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
-       
+
     Parameters
     ----------
     south: boolean, defaults to ``True``
@@ -40,7 +40,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
     see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-    
+
     Returns
     -------
     :class:`array_like`
@@ -48,7 +48,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     :class:`array_like`
         ``True`` if the object is a ONE pass (bright) LRG target.
     :class:`array_like`
-        ``True`` if the object is a TWO pass (fainter) LRG target.   
+        ``True`` if the object is a TWO pass (fainter) LRG target.
 
     Notes
     -----
@@ -63,15 +63,16 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                          rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr)
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
-    # ADM sources that weren't in a mask/logic cut.        
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        south=south, primary=lrg)
+    # ADM sources that weren't in a mask/logic cut.
+    lrg, lrg1pass, lrg2pass = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, 
+                                           w1flux=w1flux, w2flux=w2flux, 
+                                           south=south, primary=lrg)
 
     return lrg, lrg1pass, lrg2pass
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None)
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
     Returns
@@ -85,7 +86,7 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r
     lrg &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z
-    lrg &= (w1flux_snr > 4) & (w1flux >0)  # ADM quality in W1
+    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1
 
     return lrg
 
@@ -108,19 +109,23 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= zmag < 20.8                           # z < 20.8 (two exposure limit)
         lrg &= zmag >= 18.01                         # z > 18.01 (reduce overlap with BGS)
         lrg &= rmag - zmag > 0.65                    # r-z > 0.65 (broad color box)
-        lrg &= ((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2 | 
-                zmag < 19.7 | 
-                (w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2 |
-                (W1 < 19.15 & r-W1 < 1.88)           # Curved sliding optical and IR cuts with low-z extension
+        lrg &= (
+            (((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2) |
+            (zmag < 19.7) |
+            ((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) |
+            ((w1mag < 19.15) & (rmag-w1mag < 1.88))  # Curved sliding optical and IR cuts with low-z extension
+        )
     else:
         lrg &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # Non-stellar cut
-        lrg &= zmag < 20.755                           # z < 20.8 (two exposure limit)
-        lrg &= zmag >= 17.965                          # z > 18.01 (reduce overlap with BGS)
-        lrg &= rmag - zmag > 0.75                      # r-z > 0.65 (broad color box)
-        lrg &= ((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2 | 
-                zmag < 19.655 | 
-                (w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2 |
-                (W1 < 19.139 & r-W1 < 1.833)           # Curved sliding optical and IR cuts with low-z extension
+        lrg &= zmag < 20.755                           # z < 20.755 (two exposure limit)
+        lrg &= zmag >= 17.965                          # z > 17.965 (reduce overlap with BGS)
+        lrg &= rmag - zmag > 0.75                      # r-z > 0.75 (broad color box)
+        lrg &= (
+            (((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2) |
+            (zmag < 19.655) |
+            ((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) |
+            ((w1mag < 19.139) & (rmag-w1mag < 1.833))  # Curved sliding optical and IR cuts with low-z extension
+        )
 
     lrg1pass = lrg.copy()
     lrg2pass = lrg.copy()
@@ -140,7 +145,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
           gaia=None, astrometricexcessnoise=None, paramssolved=None,
           pmra=None, pmdec=None, parallax=None, dupsource=None,
-          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False)
+          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
     """Select STD targets using color cuts and photometric quality cuts.
 
     Parameters
@@ -184,8 +189,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux)
 
     # ADM apply the Gaia quality cuts.
-    std &= isSTD_gaia(primary=primary, gaia=gaia, 
-                      astrometricexcessnoise=astrometricexcessnoise, 
+    std &= isSTD_gaia(primary=primary, gaia=gaia,
+                      astrometricexcessnoise=astrometricexcessnoise,
                       pmra=pmra, pmdec=pmdec, parallax=parallax,
                       dupsource=dupsource, paramssolved=paramssolved,
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
@@ -202,7 +207,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     return std
 
 
-def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  primary=None):
     """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
     see :func:`~desitarget.sv1.sv1_cuts.isSTD` for other details.
@@ -227,7 +232,7 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return std
 
 
-def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None, 
+def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
                pmra=None, pmdec=None, parallax=None,
                dupsource=None, paramssolved=None,
                gaiagmag=None, gaiabmag=None, gaiarmag=None):
@@ -274,7 +279,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     return std
 
 
-def isQSO_cuts(gflux=None, rflux=None, zflux=None, 
+def isQSO_cuts(gflux=None, rflux=None, zflux=None,
                w1flux=None, w2flux=None, w1snr=None, w2snr=None,
                dchisq=None, brightstarinblob=None,
                objtype=None, primary=None, south=True):
@@ -314,12 +319,14 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     # ADM perform the color cuts to finish the selection.
     qso &= isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                        w1flux=w1flux, w2flux=w2flux, south=south)
+                        w1flux=w1flux, w2flux=w2flux, 
+                        primary=primary, south=south)
 
     return qso
 
 
-def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, south=True):
+def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 primary=None, south=True):
     """Test if sources have quasar-like colors in a color box.
     (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isQSO_cuts`).
     """
@@ -450,7 +457,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return qso
 
 
-def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
@@ -569,10 +576,9 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return bgs
 
 
-def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isELG(gflux=None, rflux=None, zflux=None,
           gallmask=None, rallmask=None, zallmask=None,
-          gsnr=None, rsnr=None, zsnr=None,
-          south=True, primary=None):
+          gsnr=None, rsnr=None, zsnr=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
 
     Parameters
@@ -607,14 +613,14 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM pass the elg that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.        
-    elgfdr, elgfdrfaint, elgrzblue, elgrzred &= isELG_colors(
+    elgfdr, elgfdrfaint, elgrzblue, elgrzred = isELG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, south=south, primary=elg
     )
 
     return elgfdr, elgfdrfaint, elgrzblue, elgrzred
 
 
-def notinELG_mask(gallmask=None, rallmask=None, zallmask=None, 
+def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
                   gsnr=None, rsnr=None, zsnr=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes
     (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isELG` for parameters).
@@ -629,7 +635,7 @@ def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None, 
+def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None,
                  south=True):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isELG`).
@@ -646,17 +652,17 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None,
 
     # ADM note that there is currently no north/south split
     # ADM FDR box
-    elgfdr &= (20.00 <= g < 23.45) & \
-            (0.3 < rz < 1.6) & (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
+    elgfdr &= (g >= 20.00) & (g < 23.45) & (rz > 0.3) & (rz < 1.6) & \
+              (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
     # ADM FDR box faint
-    elgfdrfaint &= (23.45 <= g < 23.65) & \
-            (0.3 < rz < 1.6) & (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
+    elgfdrfaint &= (g >= 23.45) & (g < 23.65) & (rz > 0.3) & (rz < 1.6) & \
+                   (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
     # ADM blue rz box extension
-    elgrzblue &= (20.00 <= g < 23.65) & \
-            (0.0 < rz < 0.3) & (gr < 0.2)
+    elgrzblue &= (g >= 20.00) & (g < 23.65) & \
+                 (rz > 0.0) & (rz < 0.3) & (gr < 0.2)
     # ADM red rz box extension
-    elgrzred &= (20.00 <= g <23.65) & \
-            (gr < 1.15*rz-0.15) & (rz > 1.6 | gr > 1.6-1.2*rz) & (gr < 2.5-1.2*rz)
+    elgrzred &= (g >= 20.00) & (g < 23.65) & \
+            (gr < 1.15*rz-0.15) & ((rz > 1.6) | (gr > 1.6-1.2*rz)) & (gr < 2.5-1.2*rz)
 
     return elgfdr, elgfdrfaint, elgrzblue, elgrzred
 
@@ -927,7 +933,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
                     gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
-                    gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
+                    gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2, dchisq,
                     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
@@ -963,6 +969,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         band divided by sigma (flux x sqrt of the inverse variance).
     deltaChi2: :class:`~numpy.ndarray`
         chi2 difference between PSF and SIMP, dchisq_PSF - dchisq_SIMP.
+    dchisq: :class:`~numpy.ndarray`
+        Difference in chi2  between successively more-complex model fits.
+        Columns are model fits, in order, of PSF, REX, EXP, DEV, COMP.
     gaia: :class:`~numpy.ndarray`
         ``True`` if there is a match between this object in
         `the Legacy Surveys`_ and in Gaia.
@@ -1018,12 +1027,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for south in [False, True]:
             lrg_classes.append(
                 isLRG(
-                    primary=primary, south=south
-                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                    primary=primary, south=south,
+                    gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                     gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr
                 )
             )
-        lrg_north, lrg1pass_north, lrg2pass_north,  \ 
+        lrg_north, lrg1pass_north, lrg2pass_north,  \
         lrg_south, lrg1pass_south, lrg2pass_south = \
                                                     np.vstack(lrg_classes)
     else:
@@ -1043,7 +1052,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isELG(
                     primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
                     gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                    brightstarinblob=brightstarinblob, south=south
+                    gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, south=south
                 )
             )
         elgfdr_north, elgfdrfaint_north, elgrzblue_north, elgrzred_north,  \
@@ -1073,7 +1082,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
                     dchisq=dchisq, brightstarinblob=brightstarinblob,
-                    objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
+                    objtype=objtype, w1snr=w1snr, w2snr=w2snr,
                     south=south
                 )
             )
@@ -1082,7 +1091,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
                     dchisq=dchisq, brightstarinblob=brightstarinblob,
-                    objtype=objtype, release=release, south=south
+                    objtype=objtype, south=south
                 )
             )
         qsocolor_north, qsorf_north, qsocolor_south, qsorf_south =  \

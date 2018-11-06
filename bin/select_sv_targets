@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.cuts import select_targets, qso_selection_options
+from desitarget.cuts import select_targets
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
 
@@ -79,6 +79,6 @@ if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
 io.write_targets(ns.dest, targets, indir=ns.src, survey=survey,
-                 qso_selection=ns.qsoselection, nside=nside)
+                 qso_selection=survey, nside=nside)
 
 log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))

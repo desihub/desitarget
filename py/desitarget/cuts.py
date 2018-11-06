@@ -1751,7 +1751,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
                     gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
-                    gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
+                    gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2, dchisq,
                     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
@@ -1787,6 +1787,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         band divided by sigma (flux x sqrt of the inverse variance).
     deltaChi2: :class:`~numpy.ndarray`
         chi2 difference between PSF and SIMP, dchisq_PSF - dchisq_SIMP.
+    dchisq: :class:`~numpy.ndarray`
+        Difference in chi2  between successively more-complex model fits.
+        Columns are model fits, in order, of PSF, REX, EXP, DEV, COMP.
     gaia: :class:`~numpy.ndarray`
         ``True`` if there is a match between this object in
         `the Legacy Surveys`_ and in Gaia.
@@ -2199,7 +2202,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
-        gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2,
+        gsnr, rsnr, zsnr, w1snr, w2snr, deltaChi2, dchisq,
         gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
