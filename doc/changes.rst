@@ -5,6 +5,11 @@ desitarget Change Log
 0.24.1 (unreleased)
 -------------------
 
+* More updates to target classes, mainly for SV [`PR #418`_]. Includes:
+    * First full implementations of `QSO`, `LRG`, `ELG`, and `STD` for SV.
+    * Update and refactor of `MWS` and `BGS` classes for the main survey.
+    * Change name of main survey `MWS_MAIN` class to `MWS_BROAD`.
+    * Augment QA code to handle SV sub-classes such as `ELG_FDR_FAINT`.
 * Updates to several target classes [`PR #408`_]. Includes:
     * Refactor of the `ELG` and `MWS_MAIN` selection algorithms.
     * Update of the `ELG` and `MWS_MAIN` selection cuts.
@@ -31,6 +36,7 @@ desitarget Change Log
 .. _`PR #402`: https://github.com/desihub/desitarget/pull/402
 .. _`PR #407`: https://github.com/desihub/desitarget/pull/407
 .. _`PR #408`: https://github.com/desihub/desitarget/pull/408
+.. _`PR #418`: https://github.com/desihub/desitarget/pull/418
 
 0.24.0 (2018-09-26)
 -------------------
