@@ -30,6 +30,7 @@ from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
+from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
@@ -1533,13 +1534,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     for field in svcolnames:
         svs = field.split('_')[0]
         targs = rfn.rename_fields(targs, {field: "_".join(field.split('_')[1:])})
-    if svs[:2] == 'SV':
-        from desitarget.sv1.sv1_targetmask import desi_mask
 
     # ADM use the commissioning mask bits/names if we have a CMX file.
     # ADM note desi_mask was changed to the SV mask if SV columns exist.
     if cmx:
         main_mask = cmx_mask
+    elif svs == 'SV1':
+        main_mask = sv1_desi_mask
     else:
         main_mask = desi_mask
 
