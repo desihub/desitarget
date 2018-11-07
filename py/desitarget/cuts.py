@@ -212,14 +212,13 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
             otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-        see :func:`~desitarget.cuts.set_target_bits` for other parameters.
-
     Returns:
         mask : array_like. True if and only if the object is an LRG
             target.
 
     Notes:
-        - as of 11/2/18, based on version 158 on `the wiki`_.
+    - as of 11/2/18, based on version 158 on `the wiki`_.
+    - see :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ----- Luminous Red Galaxies
     if primary is None:
@@ -885,7 +884,6 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
         or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
         or ``wise`` to use colors appropriate to the ``BGS_WISE`` selection.
-    see :func:`~desitarget.cuts.set_target_bits` for other parameters.
 
     Returns
     -------
@@ -895,6 +893,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Notes
     -----
     - Current version (10/24/18) is version 143 on `the wiki`_.
+    - see :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
 
