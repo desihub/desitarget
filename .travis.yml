@@ -41,11 +41,12 @@ env:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        # - NUMPY_VERSION=1.10
+        # BAW 2018-11-06:  This is the numpy version we have at NERSC.
+        - NUMPY_VERSION=1.13.3
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=2.0.7
+        - ASTROPY_VERSION=2.0.9
         # - SPHINX_VERSION=1.6.6
-        - DESIUTIL_VERSION=1.9.11
+        - DESIUTIL_VERSION=1.9.14
         # - SPECLITE_VERSION=0.7
         - SPECLITE_VERSION=master
         - DESISPEC_VERSION=0.18.0
@@ -64,7 +65,7 @@ env:
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
         # - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio"
-        - PIP_ALL_DEPENDENCIES="coveralls fitsio healpy"
+        - PIP_ALL_DEPENDENCIES="coveralls fitsio"
         # These pip packages need to be installed in a certain order, so we
         # do that separately from the astropy/ci-helpers scripts.
         - DESIHUB_PIP_DEPENDENCIES="desiutil=${DESIUTIL_VERSION} desispec=${DESISPEC_VERSION} desisim=${DESISIM_VERSION} desimodel=${DESIMODEL_VERSION}"
@@ -101,8 +102,6 @@ matrix:
         # builds, which operate in a much more bare-bones environment
         - os: linux
           env: PYTHON_VERSION=3.5 SETUP_CMD='build_sphinx --warning-is-error'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Coverage test.  Note that installing the coverage software can
         # change the set of packages installed by conda, so we do
@@ -168,6 +167,7 @@ install:
     # egg_info causes the astropy/ci-helpers script to exit before the pip
     # packages are installed, thus desiutil is not installed in that script.
     - if [[ $SETUP_CMD == test* ]]; then pip install git+https://github.com/dkirkby/speclite.git@${SPECLITE_VERSION}#egg=speclite; fi
+    - "if [[ $SETUP_CMD == test* ]]; then pip install --no-binary :all: healpy; fi"
     - for p in $DESIHUB_PIP_DEPENDENCIES; do r=$(echo $p | cut -d= -f1); v=$(echo $p | cut -d= -f2); pip install git+https://github.com/desihub/${r}.git@${v}#egg=${r}; done
     - export DESIMODEL=${HOME}/desimodel/${DESIMODEL_VERSION}
     - mkdir -p ${DESIMODEL}
