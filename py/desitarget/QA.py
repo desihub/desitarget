@@ -1257,7 +1257,7 @@ def _in_desi_footprint(targs):
 
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
-                  imaging_map_file=None, truths=None, tcnames=None, 
+                  imaging_map_file=None, truths=None, tcnames=None,
                   cmx=False, bit_mask=None):
     """Make DESI targeting QA plots given a passed set of targets.
 
@@ -1291,7 +1291,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         Pass as ``True`` to operate on commissioning bits instead of SV or main survey
         bits. Commissioning files have no MWS or BGS columns.
     bit_mask : :class:`~numpy.array`, optional, defaults to ``None``
-        Load the bit names from this passed mask (with zero density constraints) 
+        Load the bit names from this passed mask (with zero density constraints)
         instead of the main survey bits.
 
     Returns
@@ -1737,13 +1737,13 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM make the QA plots, if requested:
     if makeplots:
         if svs == "DESI":
-            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens, 
-                                    max_bin_area=max_bin_area, weight=weight, 
+            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens,
+                                    max_bin_area=max_bin_area, weight=weight,
                                     imaging_map_file=imaging_map_file)
         else:
-            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens, 
-                                    max_bin_area=max_bin_area, weight=weight, 
-                                    imaging_map_file=imaging_map_file, 
+            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens,
+                                    max_bin_area=max_bin_area, weight=weight,
+                                    imaging_map_file=imaging_map_file,
                                     cmx=cmx, bit_mask=main_mask)
 
         # ADM add a correlation matrix recording the overlaps between different target
@@ -1760,7 +1760,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         trunc = 9
         truncform = '{:>'+str(trunc)+'s}'
         headerwrite = [bitname[:trunc] for bitname in headerlist]
-        headerwrite.insert(0," ")
+        headerwrite.insert(0, " ")
         header = " ".join([truncform.format(i) for i in headerwrite])+'\n\n'
         htmlmain.write(header)
         # ADM for each pair of target classes, determine how many targets per unit area

@@ -5,5 +5,4 @@ def test_suite():
     basedir = dirname(dirname(__file__))
     # print(desispec_dir)
     return unittest.defaultTestLoader.discover(basedir,
-        top_level_dir=dirname(basedir))
-
+                                               top_level_dir=dirname(basedir))
