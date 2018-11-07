@@ -271,8 +271,9 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required target
-        # density.  Evenly divide the possible targets into each iteration.
+        # density.  Randomly divide the possible targets into each iteration.
         iterseeds = rand.randint(2**31, size=maxiter)
+        rand.shuffle(indx)
         iterindx = np.array_split(indx, maxiter)
         
         makemore, itercount, ntot = True, 0, 0
@@ -422,7 +423,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         #    ntargetperchunk = np.repeat(np.round(ntarget / nchunk).astype('int'), nchunk)
 
     ntargperchunk = np.array(ntargperchunk)
-    
+
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
