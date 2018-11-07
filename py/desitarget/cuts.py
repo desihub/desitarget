@@ -217,8 +217,8 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             target.
 
     Notes:
-    - as of 11/2/18, based on version 158 on `the wiki`_.
-    - see :func:`~desitarget.cuts.set_target_bits` for other parameters.
+    - As of 11/2/18, based on version 158 on `the wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ----- Luminous Red Galaxies
     if primary is None:
@@ -893,7 +893,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Notes
     -----
     - Current version (10/24/18) is version 143 on `the wiki`_.
-    - see :func:`~desitarget.cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
 
