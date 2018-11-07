@@ -39,8 +39,6 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -53,6 +51,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets, pass-based.
     if primary is None:
@@ -154,8 +153,6 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         if ``True`` apply magnitude cuts for "bright" conditions; otherwise,
         choose "normal" brightness standards. Cut is performed on `gaiagmag`.
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -164,6 +161,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -291,8 +289,6 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -301,6 +297,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -376,8 +373,6 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -386,6 +381,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
     if primary is None:
@@ -474,8 +470,6 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
         or ``wise`` to use colors appropriate to the ``BGS_WISE`` selection.
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -484,6 +478,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
 
@@ -587,8 +582,6 @@ def isELG(gflux=None, rflux=None, zflux=None,
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -603,6 +596,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -680,8 +674,6 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
         otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
-
     Returns
     -------
     mask1 : array_like.
@@ -693,7 +685,8 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - as of 10/22/18, based on version 143 on `the wiki`_.
+    - As of 10/22/18, based on version 143 on `the wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
