@@ -93,7 +93,7 @@ matrix:
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
         - os: linux
           python: 3.5
-          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W503,W504,E121,E123,E126,E133,E226,E241,E242,E501,E704,E731,E741 py/desitarget'
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
     include:
 
@@ -159,7 +159,7 @@ matrix:
         # PEP 8 compliance.
         - os: linux
           python: 3.5
-          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count --ignore=W503,W504,E121,E123,E126,E133,E226,E241,E242,E501,E704,E731,E741 py/desitarget'
+          env: MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git

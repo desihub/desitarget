@@ -30,6 +30,7 @@ from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
+from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
@@ -138,7 +139,7 @@ def _prepare_systematics(data, colname):
     return outdata
 
 
-def _load_targdens(tcnames=None, cmx=False):
+def _load_targdens(tcnames=None, bit_mask=None):
     """Loads the target info dictionary as in :func:`desimodel.io.load_target_info()` and
     extracts the target density information in a format useful for targeting QA plots.
 
@@ -147,9 +148,12 @@ def _load_targdens(tcnames=None, cmx=False):
     tcnames : :class:`list`
         A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
         for those specific bits.
-    cmx : :class:`boolean`, optional, defaults to ``False``
-        If passed, load the commissioning bits (with zero density constraints) instead
-        of the main survey/SV bits.
+    bit_mask : :class:`~numpy.array`, optional, defaults to ``None``
+        If passed, load the bit names from this mask (with no associated expected
+        densities) rather than loading the main survey bits and densities. Must be a
+        desi mask object, e.g., loaded as `from desitarget.targetmask import desi_mask`.
+        Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
+        removed.
 
     Returns
     -------
@@ -157,7 +161,7 @@ def _load_targdens(tcnames=None, cmx=False):
         A dictionary where the keys are the bit names and the values are the densities.
     """
 
-    if cmx is False:
+    if bit_mask is None:
         from desimodel import io
         targdict = io.load_target_info()
 
@@ -182,18 +186,21 @@ def _load_targdens(tcnames=None, cmx=False):
         targdens['BGS_WISE'] = 0.
         # targdens['BGS_WISE'] = targdict['ntarget_bgs_wise']	#uncomment and modify for BGS_WISE bit
 
-        targdens['MWS_MAIN'] = 0.
+        targdens['MWS_BROAD'] = 0.
         targdens['MWS_MAIN_RED'] = 0.
         targdens['MWS_MAIN_BLUE'] = 0.
         targdens['MWS_WD'] = 0.
         targdens['MWS_NEARBY'] = 0.
     else:
-        targdens = {k: 0. for k in cmx_mask.names()}
+        # ADM this is the list of words contained in bits that we don't want to consider for QA.
+        badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY"]
+        names = [name for name in bit_mask.names() if not any(badname in name for badname in badnames)]
+        targdens = {k: 0. for k in names}
 
     if tcnames is None:
         return targdens
     else:
-        # ADM this is a dictionary comprehension
+        # ADM this is a dictionary comprehension.
         return {key: value for key, value in targdens.items() if key in tcnames}
 
 
@@ -1250,7 +1257,8 @@ def _in_desi_footprint(targs):
 
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
-                  imaging_map_file=None, truths=None, tcnames=None, cmx=False):
+                  imaging_map_file=None, truths=None, tcnames=None,
+                  cmx=False, bit_mask=None):
     """Make DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1279,9 +1287,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     tcnames : :class:`list`, defaults to None
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
         for those specific bits. A useful speed-up when testing.
-    cmx : :class:`boolean`, optional, defaults to ``False``
-        If passed, load the commissioning bits (with zero density constraints) instead
-        of the main survey/SV bits.
+    cmx : :class:`boolean`, defaults to ``False``
+        Pass as ``True`` to operate on commissioning bits instead of SV or main survey
+        bits. Commissioning files have no MWS or BGS columns.
+    bit_mask : :class:`~numpy.array`, optional, defaults to ``None``
+        Load the bit names from this passed mask (with zero density constraints)
+        instead of the main survey bits.
 
     Returns
     -------
@@ -1358,20 +1369,20 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     # ADM Current goal target densities for DESI.
     if targdens is None:
-        targdens = _load_targdens(tcnames=tcnames, cmx=cmx)
+        targdens = _load_targdens(tcnames=tcnames, bit_mask=bit_mask)
 
     # ADM clip the target densities at an upper density to improve plot edges
     # ADM by rejecting highly dense outliers.
     upclipdict = {k: 5000. for k in targdens}
-    if cmx:
-        main_mask = cmx_mask
+    if bit_mask is not None:
+        main_mask = bit_mask
     else:
         main_mask = desi_mask
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                       'STD_FAINT': 200, 'STD_BRIGHT': 50,
                       'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                       'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_WISE': 2500, 'BGS_ANY': 5000,
-                      'MWS_ANY': 2000, 'MWS_MAIN': 10000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
+                      'MWS_ANY': 2000, 'MWS_BROAD': 10000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
                       'MWS_MAIN_RED': 4000, 'MWS_MAIN_BLUE': 4000}
 
     for objtype in targdens:
@@ -1518,16 +1529,20 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     svcolnames = colnames[['SV' in name or 'CMX' in name for name in colnames]]
     # ADM set cmx flag to True if 'CMX_TARGET' is a column and rename that column.
     cmx = 'CMX_TARGET' in svcolnames
-    # ADM use the commissioning mask bits/names if we have a CMX file.
-    if cmx:
-        main_mask = cmx_mask
-    else:
-        main_mask = desi_mask
     targs = rfn.rename_fields(targs, {'CMX_TARGET': 'DESI_TARGET'})
     # ADM strip "SVX" off any columns (rfn.rename_fields forgives missing fields).
     for field in svcolnames:
         svs = field.split('_')[0]
         targs = rfn.rename_fields(targs, {field: "_".join(field.split('_')[1:])})
+
+    # ADM use the commissioning mask bits/names if we have a CMX file.
+    # ADM note desi_mask was changed to the SV mask if SV columns exist.
+    if cmx:
+        main_mask = cmx_mask
+    elif svs == 'SV1':
+        main_mask = sv1_desi_mask
+    else:
+        main_mask = desi_mask
 
     # ADM determine the working nside for the passed max_bin_area.
     for n in range(1, 25):
@@ -1556,7 +1571,11 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults).
-    targdens = _load_targdens(tcnames=tcnames, cmx=cmx)
+    if svs == "DESI":
+        targdens = _load_targdens(tcnames=tcnames)
+    # ADM if we aren't looking at the main survey, pass the cmx or SV mask instead.
+    else:
+        targdens = _load_targdens(tcnames=tcnames, bit_mask=main_mask)
 
     # ADM set up the html file and write preamble to it.
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
@@ -1717,34 +1736,45 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM make the QA plots, if requested:
     if makeplots:
-        totarea = make_qa_plots(targs, truths=truths,
-                                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                                weight=weight, imaging_map_file=imaging_map_file, cmx=cmx)
+        if svs == "DESI":
+            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens,
+                                    max_bin_area=max_bin_area, weight=weight,
+                                    imaging_map_file=imaging_map_file)
+        else:
+            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens,
+                                    max_bin_area=max_bin_area, weight=weight,
+                                    imaging_map_file=imaging_map_file,
+                                    cmx=cmx, bit_mask=main_mask)
 
         # ADM add a correlation matrix recording the overlaps between different target
         # ADM classes as a density.
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
         htmlmain.write('<br><h2>Overlaps in target densities (per sq. deg.)</h2>\n')
-        htmlmain.write('<PRE><span class="inner-pre" style="font-size: 16px">\n')
+        htmlmain.write('<PRE><span class="inner-pre" style="font-size: 14px">\n')
         # ADM only retain classes that are actually in the DESI target bit list.
         settargdens = set(main_mask.names()).intersection(set(targdens))
         # ADM write out a list of the target categories.
         headerlist = list(settargdens)
-        headerlist.insert(0, " ")
-        header = " ".join(['{:>11s}'.format(i) for i in headerlist])+'\n\n'
+        headerlist.sort()
+        # ADM truncate the bit names at "trunc" characters to pack them more easily.
+        trunc = 9
+        truncform = '{:>'+str(trunc)+'s}'
+        headerwrite = [bitname[:trunc] for bitname in headerlist]
+        headerwrite.insert(0, " ")
+        header = " ".join([truncform.format(i) for i in headerwrite])+'\n\n'
         htmlmain.write(header)
         # ADM for each pair of target classes, determine how many targets per unit area
         # ADM have the relevant target bit set for both target classes in the pair.
-        for i, objtype1 in enumerate(settargdens):
-            overlaps = [objtype1]
-            for j, objtype2 in enumerate(settargdens):
+        for i, objtype1 in enumerate(headerlist):
+            overlaps = [objtype1[:trunc]]
+            for j, objtype2 in enumerate(headerlist):
                 if j < i:
                     overlaps.append(" ")
                 else:
                     dt = targs["DESI_TARGET"]
                     overlap = np.sum(((dt & main_mask[objtype1]) != 0) & ((dt & main_mask[objtype2]) != 0))/totarea
                     overlaps.append("{:.1f}".format(overlap))
-            htmlmain.write(" ".join(['{:>11s}'.format(i) for i in overlaps])+'\n\n')
+            htmlmain.write(" ".join([truncform.format(i) for i in overlaps])+'\n\n')
         # ADM close the matrix text output.
         htmlmain.write('</span></PRE>\n\n\n')
         log.info('Done with correlation matrix...t = {:.1f}s'.format(time()-start))
