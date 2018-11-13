@@ -5,6 +5,7 @@ desitarget Change Log
 0.26.0 (unreleased)
 -------------------
 
+* Fix `python setup.py install` for cmx and sv1 directories [`PR #421`_].
 * More updates to target classes, mainly for SV [`PR #418`_]. Includes:
     * First full implementations of `QSO`, `LRG`, `ELG`, and `STD` for SV.
     * Update and refactor of `MWS` and `BGS` classes for the main survey.
@@ -12,6 +13,7 @@ desitarget Change Log
     * Augment QA code to handle SV sub-classes such as `ELG_FDR_FAINT`.
 
 .. _`PR #418`: https://github.com/desihub/desitarget/pull/418
+.. _`PR #421`: https://github.com/desihub/desitarget/pull/421
 
 0.25.0 (2018-11-07)
 -------------------
