@@ -62,6 +62,8 @@ setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.f
 # Add internal data directories
 #
 setup_keywords['package_data'] = {'desitarget': ['data/*',],
+                                  'desitarget.cmx': ['data/*',],
+                                  'desitarget.sv1': ['data/*',],
                                   'desitarget.test': ['t/*',],
                                   'desitarget.mock': [os.path.relpath(_,'py/desitarget/mock') for _ in [os.path.join(_[0],'*') for _ in os.walk('py/desitarget/mock/data')]],
                                  }
