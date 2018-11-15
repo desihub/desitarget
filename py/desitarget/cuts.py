@@ -685,7 +685,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-    broad = mws.copy()
+    broad = red.copy()
 
     # ADM MWS-RED also has parallax < 1mas and proper motion < 7.
     red &= pm < 7.
