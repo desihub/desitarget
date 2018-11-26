@@ -5,6 +5,7 @@ desitarget Change Log
 0.26.0 (unreleased)
 -------------------
 
+* Update Random Forests for DR7 quasar selection [`PR #423`_]
 * Fix `python setup.py install` for cmx and sv1 directories [`PR #421`_].
 * More updates to target classes, mainly for SV [`PR #418`_]. Includes:
     * First full implementations of `QSO`, `LRG`, `ELG`, and `STD` for SV.
@@ -14,6 +15,7 @@ desitarget Change Log
 
 .. _`PR #418`: https://github.com/desihub/desitarget/pull/418
 .. _`PR #421`: https://github.com/desihub/desitarget/pull/421
+.. _`PR #423`: https://github.com/desihub/desitarget/pull/423
 
 0.25.0 (2018-11-07)
 -------------------
