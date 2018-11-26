@@ -1143,6 +1143,7 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
         Uses isQSO_colors() to make color cuts first, then applies
             w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
     """
+    gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
     qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
                              w1flux=w1flux, w2flux=w2flux, optical=optical)
 
@@ -1257,14 +1258,15 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         primary = np.ones_like(gflux, dtype=bool)
 
     # RELEASE
-    # ADM default to RELEASE of 5000 if nothing is passed.
+    # ADM default to RELEASE of 6000 if nothing is passed.
     if release is None:
-        release = np.zeros_like(gflux, dtype='?') + 5000
+        release = np.zeros_like(gflux, dtype='?') + 6000
     release = np.atleast_1d(release)
 
     # Build variables for random forest
     nFeatures = 11   # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
+    gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
@@ -1278,7 +1280,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     if deltaChi2 is not None:
         deltaChi2 = np.atleast_1d(deltaChi2)
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
-        # CAC Reject objects flagged inside a blob.
+    # CAC Reject objects flagged inside a blob.
     if brightstarinblob is not None:
         preSelection &= ~brightstarinblob
 
@@ -1300,10 +1302,10 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         pathToRF = resource_filename('desitarget', 'data')
         # rf filenames
         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
+        rf_DR5_fileName = pathToRF + '/rf_model_dr7.npz'
+        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
 
-        tmpReleaseOK = releaseReduced < 5000
+        tmpReleaseOK = releaseReduced < 6000
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
@@ -1319,7 +1321,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
 
-        tmpReleaseOK = releaseReduced >= 5000
+        tmpReleaseOK = releaseReduced >= 6000
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
@@ -1334,12 +1336,9 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            pcut = np.where(tmp_r_Reduced > 20.8,
-                            0.88 - (tmp_r_Reduced - 20.8) * 0.025, 0.88)
-            pcut[tmp_r_Reduced > 21.5] = 0.8625 - 0.05 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
-            pcut[tmp_r_Reduced > 22.3] = 0.8225 - 0.53 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
-            pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
-                                  0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
+            pcut = np.where( tmp_r_Reduced > 20. ,
+                             0.60 - ( tmp_r_Reduced - 20. ) * 0.08 , 0.60 )
+            pcut_HighZ = 0.42
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
@@ -1407,8 +1406,8 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         pathToRF = resource_filename('desitarget', 'data')
         # rf filenames
         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
+        rf_DR5_fileName = pathToRF + '/rf_model_dr7.npz'
+        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1442,9 +1441,9 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = np.where(tmp_r_Reduced > 20.8,
-                            0.88 - (tmp_r_Reduced - 20.8) * 0.025, 0.88)
-            pcut[tmp_r_Reduced > 21.5] = 0.8625 - 0.05 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
-            pcut[tmp_r_Reduced > 22.3] = 0.8225 - 0.53 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+                            0.83 - (tmp_r_Reduced - 20.8) * 0.025, 0.83)
+            pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
             pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
                                   0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
             # Add rf proba test result to "qso" mask
