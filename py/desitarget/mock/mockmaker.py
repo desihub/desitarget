@@ -2472,6 +2472,8 @@ class ReadMWS_WD(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
+        import pdb ; pdb.set_trace()
+
         cols = ['RADIALVELOCITY', 'TEFF', 'LOGG', 'SPECTRALTYPE',
                 'PHOT_G_MEAN_MAG', 'PHOT_BP_MEAN_MAG', 'PHOT_RP_MEAN_MAG',
                 'PMRA', 'PMDEC', 'PARALLAX', 'PARALLAX_ERROR',
@@ -2629,22 +2631,49 @@ class ReadMWS_NEARBY(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        cols = ['RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
+        cols = ['TRUE_RADIAL_VELOCITY', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH', 'TRUE_TYPE',
+                'GAIA_PHOT_G_MEAN_MAG', 'GAIA_PHOT_BP_MEAN_MAG', 'GAIA_PHOT_RP_MEAN_MAG',
+                'PMRA', 'PMDEC', 'PARALLAX']
         data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
-        zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
-        mag = data['MAGG'].astype('f4') # SDSS g-band
-        teff = data['TEFF'].astype('f4')
-        logg = data['LOGG'].astype('f4')
-        feh = data['FEH'].astype('f4')
-        templatesubtype = data['SPECTRALTYPE']
+        zz = (data['TRUE_RADIAL_VELOCITY'] / C_LIGHT).astype('f4')
+        mag = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4') # not quite SDSS g-band but very close 
+        teff = data['TRUE_TEFF'].astype('f4')
+        logg = data['TRUE_LOGG'].astype('f4')
+        feh = data['TRUE_FEH'].astype('f4')
+        templatesubtype = data['TRUE_TYPE']
 
-        # Pack into a basic dictionary.  Is the normalization filter g-band???
+        gaia_g = data['PHOT_G_MEAN_MAG'].astype('f4')
+        gaia_bp = data['PHOT_BP_MEAN_MAG'].astype('f4')
+        gaia_rp = data['PHOT_RP_MEAN_MAG'].astype('f4')
+        gaia_pmra = data['PMRA'].astype('f4')
+        gaia_pmdec = data['PMDEC'].astype('f4')
+        gaia_parallax = data['PARALLAX'].astype('f4')
+        #gaia_parallax_ivar = (1 / data['PARALLAX_ERROR']**2).astype('f4')
+
+        # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
+
+               'REF_ID': mockid,
+               'GAIA_PHOT_G_MEAN_MAG': gaia_g,
+               #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
+               #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_RP_MEAN_MAG': gaia_rp,
+               #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
+               #'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
+               #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'PARALLAX': gaia_parallax,
+               #'PARALLAX_IVAR': gaia_parallax_ivar,
+               'PMRA': gaia_pmra,
+               'PMRA_IVAR': np.ones(nobj).astype('f4'),  # placeholder!
+               'PMDEC': gaia_pmdec,
+               'PMDEC_IVAR': np.ones(nobj).astype('f4'), # placeholder!
+               
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
@@ -4497,7 +4526,7 @@ class MWS_NEARBYMaker(STARMaker):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'mws_100pc':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.3', 'mock_100pc.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.4', 'mock_100pc.fits')
             MockReader = ReadMWS_NEARBY()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -4969,7 +4998,7 @@ class SKYMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'uniformsky':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.1', 'uniformsky-2048-0.1.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.2', 'uniformsky-2048-0.2.fits')
             MockReader = ReadUniformSky()
         elif self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
