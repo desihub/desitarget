@@ -32,7 +32,7 @@ class TestSV(unittest.TestCase):
                     self.assertTrue(col in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets[desicol]))
 
-                # ADM this test should be fine as long as the main survey
+                # ADM this test should be fine as long as the main survey BGS
                 # ADM bits don't get divorced from the SV survey bits.
                 bgs1 = (targets[desicol] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets[bgscol] != 0

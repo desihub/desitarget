@@ -10,7 +10,7 @@ import sys
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from desitarget.targets    import calc_numobs, calc_priority, encode_mtl_targetid
+from desitarget.targets import calc_numobs, calc_priority
 
 
 ############################################################
@@ -47,6 +47,11 @@ def make_mtl(targets, zcat=None, trim=False):
 
     n       = len(targets)
     targets = Table(targets)
+    if 'NUMOBS' in targets.keys():
+        del targets['NUMOBS'] # the relevant information coms from zcat['NUMOBS']
+    if 'PRIORITY' in targets.keys():
+        del targets['PRIORITY'] # the relevant information coms from zcat['NUMOBS']
+
 
     # Create redshift catalog
     if zcat is not None:

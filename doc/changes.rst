@@ -2,18 +2,56 @@
 desitarget Change Log
 =====================
 
-0.24.1 (unreleased)
+0.26.0 (unreleased)
 -------------------
 
+* Fix `python setup.py install` for cmx and sv1 directories [`PR #421`_].
+* More updates to target classes, mainly for SV [`PR #418`_]. Includes:
+    * First full implementations of `QSO`, `LRG`, `ELG`, and `STD` for SV.
+    * Update and refactor of `MWS` and `BGS` classes for the main survey.
+    * Change name of main survey `MWS_MAIN` class to `MWS_BROAD`.
+    * Augment QA code to handle SV sub-classes such as `ELG_FDR_FAINT`.
+
+.. _`PR #418`: https://github.com/desihub/desitarget/pull/418
+.. _`PR #421`: https://github.com/desihub/desitarget/pull/421
+
+0.25.0 (2018-11-07)
+-------------------
+
+* Randomize mock ordering for Dark Sky mocks which aren't random [`PR #416`_].
+* Updates to several target classes [`PR #408`_]. Includes:
+    * Refactor of the `ELG` and `MWS_MAIN` selection algorithms.
+    * Update of the `ELG` and `MWS_MAIN` selection cuts.
+    * Change `MWS_WD` priority to be higher than that of `BGS` target classes.
+    * Set skies to `BAD` only if both g-band and r-band are missing.
+* Refactor of BGS selections to separate masking and color cuts [`PR #407`_].
+* Quicksurvey MTL fix [`PR #405`_].
+* Mocks use QSO color cuts instead of random forest [`PR #403`_].
+* Updates to Bright Galaxy Survey and QSO selections [`PR #402`_]. Includes:
+    * Updates to `BGS_FAINT` and `BGS_BRIGHT` target selections.
+    * New `BGS_WISE` selection and implementation.
+    * New data model columns `BRIGHTSTARINBLOB` and `FRACIN_`.
+    * Add cut on `BRIGHTSTARINBLOB` to QSO selection.
+    * Modify I/O to retain (some) backwards-compatibility between DR6 and DR7.
+    * Updated unit test example files with appropriate columns.
+    * Speed-up of `cuts` unit tests without loss of coverage.
 * Updated mock sky catalog with positions over a larger footprint [`PR #398`_].
 * Major update to `select_mock_targets` to use the latest (v3.0) basis
   templates [`PR #395`_].
+* Propagate per-class truth HDUs into final merged truth file [`PR #393`_].
 * Incorporate simple WISE depth model in `select_mock_targets` which depends on
   ecliptic latitude [`PR #391`_].
 
 .. _`PR #391`: https://github.com/desihub/desitarget/pull/391
+.. _`PR #393`: https://github.com/desihub/desitarget/pull/393
 .. _`PR #395`: https://github.com/desihub/desitarget/pull/395
 .. _`PR #398`: https://github.com/desihub/desitarget/pull/398
+.. _`PR #402`: https://github.com/desihub/desitarget/pull/402
+.. _`PR #403`: https://github.com/desihub/desitarget/pull/403
+.. _`PR #405`: https://github.com/desihub/desitarget/pull/405
+.. _`PR #407`: https://github.com/desihub/desitarget/pull/407
+.. _`PR #408`: https://github.com/desihub/desitarget/pull/408
+.. _`PR #416`: https://github.com/desihub/desitarget/pull/416
 
 0.24.0 (2018-09-26)
 -------------------

@@ -272,8 +272,9 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                 trueflux.append(chunkflux[keep, :])
     else:
         # Generate the spectra iteratively until we achieve the required target
-        # density.  Evenly divide the possible targets into each iteration.
+        # density.  Randomly divide the possible targets into each iteration.
         iterseeds = rand.randint(2**31, size=maxiter)
+        rand.shuffle(indx)
         iterindx = np.array_split(indx, maxiter)
         
         makemore, itercount, ntot = True, 0, 0
