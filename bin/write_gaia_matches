@@ -22,7 +22,7 @@ ap.add_argument("src",
 ap.add_argument("dest", 
                 help="Output directory")
 ap.add_argument("--gaiadir", 
-                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
+                help="Base directory for chunked Gaia files (defaults to ['/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
                 default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),

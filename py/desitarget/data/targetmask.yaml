@@ -62,12 +62,15 @@ desi_mask:
 bgs_mask:    
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
+    - [BGS_WISE,            2, "BGS wise targets", {obsconditions: BRIGHT}]     #GRAY and DARK?
 
     #- BGS North vs. South selections
     - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_WISE_NORTH,      10, "BGS wise targets from Bok/Mosaic", {obsconditions: BRIGHT}]    #GRAY and DARK?
     - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
+    - [BGS_WISE_SOUTH,      18, "BGS wise targets from DECam", {obsconditions: BRIGHT}]    #GRAY and DARK?
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey", {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
@@ -81,7 +84,7 @@ mws_mask:
     # input catalogues. 
    
     #- Bits 0-3 (7 ids)
-    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
@@ -96,9 +99,9 @@ mws_mask:
     # considered filler but with parallax factored into the subpriority and
     # targeted for reobservation if possible.
     
-    #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    #- 4: MWS_BROAD north/south splits
+    - [MWS_BROAD_NORTH,     4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BROAD_SOUTH,     5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 8: Sub-classes of MWS_MAIN
     - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",         {obsconditions: BRIGHT|GRAY|DARK}]
@@ -192,33 +195,38 @@ priorities:
         MWS_ANY: -1
         SECONDARY_ANY: -1
 
-    #- Bright Galaxy Survey: priorities 2000-2999
+    #- Bright Galaxy Survey: priorities 2000-2997
+    # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
     #- reobserving successes has lower priority than MWS
     bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+        BGS_WISE_SOUTH: SAME_AS_BGS_WISE
+        BGS_WISE_NORTH: SAME_AS_BGS_WISE
         BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
+    # ADM WDs should be prioritized above BGS at 2998
     mws_mask: 
-        MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_BROAD:                    {UNOBS: 1400, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
+        MWS_BROAD_NORTH:              SAME_AS_MWS_BROAD
+        MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD
+        MWS_MAIN_BLUE:                {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_BLUE
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -264,10 +272,13 @@ numobs:
     bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
+        BGS_WISE: 1
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+        BGS_WISE_SOUTH: SAME_AS_BGS_WISE
+        BGS_WISE_NORTH: SAME_AS_BGS_WISE
         BGS_KNOWN_ANY: 1
         BGS_KNOWN_COLLIDED: 1
         BGS_KNOWN_SDSS: 1
@@ -275,15 +286,15 @@ numobs:
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
     mws_mask: 
-        MWS_MAIN:                     1
+        MWS_BROAD:                    1
         MWS_WD:                       1
         MWS_NEARBY:                   1
-        MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN
+        MWS_BROAD_NORTH:              SAME_AS_MWS_BROAD
+        MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD
+        MWS_MAIN_BLUE:                1
+        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_BLUE
+        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_BLUE
 

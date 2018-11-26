@@ -4,25 +4,52 @@ sv1_desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
-    #- ADM allow the primary targets to be split by number of passes
+    #- ADM allow the primary LRG targets to be split by number of passes
     - [LRG_1PASS,   3, "LRG observed in 1st pass", {obsconditions: DARK}]
     - [LRG_2PASS,   4, "LRG observed in 2nd pass", {obsconditions: DARK}]
 
-    #- North vs. South selections
-    - [LRG_NORTH,   8, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
-    - [ELG_NORTH,   9, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
-    - [QSO_NORTH,   10, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
+    #- ADM ELG sub-classes
+    - [ELG_FDR,         5, "ELG using FDR cuts", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT,   6, "ELG using fainter FDR cuts", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE,     7, "ELG red extension in rz color", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED,      8, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
 
-    - [LRG_SOUTH,   16, "LRG from DECam data", {obsconditions: DARK}]
-    - [ELG_SOUTH,   17, "ELG from DECam data", {obsconditions: DARK|GRAY}]
-    - [QSO_SOUTH,   18, "QSO from DECam data", {obsconditions: DARK}]
+    #- ADM QSO sub-classes
+    - [QSO_COLOR,   9, "QSO using color cuts", {obsconditions: DARK}]
+    - [QSO_RF,     10, "QSO using random forest", {obsconditions: DARK}]
+
+    #- North vs. South selections
+    - [LRG_NORTH,   11, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
+    - [ELG_NORTH,   12, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
+    - [QSO_NORTH,   13, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
+
+    - [LRG_SOUTH,   14, "LRG from DECam data", {obsconditions: DARK}]
+    - [ELG_SOUTH,   15, "ELG from DECam data", {obsconditions: DARK|GRAY}]
+    - [QSO_SOUTH,   16, "QSO from DECam data", {obsconditions: DARK}]
 
     #- North vs. South selections for different passes
-    - [LRG_1PASS_NORTH,  24, "LRG observed in 1st pass from Bok/Mosaic", {obsconditions: DARK}]
-    - [LRG_2PASS_NORTH,  25, "LRG observed in 2nd pass from Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_1PASS_NORTH,  17, "LRG observed in 1st pass from Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_2PASS_NORTH,  18, "LRG observed in 2nd pass from Bok/Mosaic", {obsconditions: DARK}]
 
-    - [LRG_1PASS_SOUTH,  28, "LRG observed in 1st pass from DECam", {obsconditions: DARK}]
-    - [LRG_2PASS_SOUTH,  29, "LRG observed in 2nd pass from DECam", {obsconditions: DARK}]
+    - [LRG_1PASS_SOUTH,  19, "LRG observed in 1st pass from DECam", {obsconditions: DARK}]
+    - [LRG_2PASS_SOUTH,  20, "LRG observed in 2nd pass from DECam", {obsconditions: DARK}]
+
+    - [ELG_FDR_NORTH,         21, "ELG using FDR cuts from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_NORTH,   22, "ELG using fainter FDR cuts from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     23, "ELG red extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      24, "ELG blue extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+
+    - [ELG_FDR_SOUTH,         25, "ELG using FDR cuts from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_SOUTH,   26, "ELG using fainter FDR cuts from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_SOUTH,     27, "ELG red extension in rz color from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_SOUTH,      28, "ELG blue extension in rz color from DECam", {obsconditions: DARK|GRAY}]
+
+    - [QSO_COLOR_NORTH,  29, "QSO using color cuts from Bok/Mosaic", {obsconditions: DARK}]
+    - [QSO_RF_NORTH,     30, "QSO using random forest from Bok/Mosaic", {obsconditions: DARK}]
+
+    - [QSO_COLOR_SOUTH,  31, "QSO using color cuts from DECam", {obsconditions: DARK}]
+    #- ADM leave 32-36 reserved for calibration targets (to mirror the main survey)
+    - [QSO_RF_SOUTH,     37, "QSO using random forest from DECam", {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -33,10 +60,6 @@ sv1_desi_mask:
         {obsconditions: BRIGHT}]
     - [BAD_SKY,      36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-
-    #- Reserving some bits that we may not use
-    # - [STD_FAINT_BEST,   37, "High quality faint standard stars", {obsconditions: DARK|GRAY}]
-    # - [STD_BRIGHT_BEST,  38, "High quality bright standard stars", {obsconditions: BRIGHT}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,   49, "No known target at this location",
@@ -58,12 +81,15 @@ sv1_desi_mask:
 sv1_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
+    - [BGS_WISE,            2, "BGS wise targets", {obsconditions: BRIGHT}]     #GRAY and DARK?
 
     #- BGS North vs. South selections
     - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_WISE_NORTH,      10, "BGS wise targets from Bok/Mosaic", {obsconditions: BRIGHT}]    #GRAY and DARK
     - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
+    - [BGS_WISE_SOUTH,      18, "BGS wise targets from DECam", {obsconditions: BRIGHT}]    #GRAY and DARK?
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey", {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
@@ -136,6 +162,12 @@ priorities:
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG_1PASS: SAME_AS_LRG
         LRG_2PASS: SAME_AS_LRG
+        ELG_FDR:       SAME_AS_ELG
+        ELG_FDR_FAINT: SAME_AS_ELG
+        ELG_RZ_BLUE:   SAME_AS_ELG
+        ELG_RZ_RED:    SAME_AS_ELG
+        QSO_COLOR: SAME_AS_QSO
+        QSO_RF:    SAME_AS_QSO
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
@@ -146,6 +178,18 @@ priorities:
         LRG_2PASS_NORTH: SAME_AS_LRG
         LRG_1PASS_SOUTH: SAME_AS_LRG
         LRG_2PASS_SOUTH: SAME_AS_LRG
+        ELG_FDR_NORTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_NORTH: SAME_AS_ELG
+        ELG_RZ_BLUE_NORTH:   SAME_AS_ELG
+        ELG_RZ_RED_NORTH:    SAME_AS_ELG
+        ELG_FDR_SOUTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_SOUTH: SAME_AS_ELG
+        ELG_RZ_BLUE_SOUTH:   SAME_AS_ELG
+        ELG_RZ_RED_SOUTH:    SAME_AS_ELG
+        QSO_COLOR_NORTH: SAME_AS_QSO
+        QSO_RF_NORTH:    SAME_AS_QSO
+        QSO_COLOR_SOUTH: SAME_AS_QSO
+        QSO_RF_SOUTH:    SAME_AS_QSO
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -165,24 +209,29 @@ priorities:
         MWS_ANY: -1
         SECONDARY_ANY: -1
 
-    #- Bright Galaxy Survey: priorities 2000-2999
+    #- Bright Galaxy Survey: priorities 2000-2997
+    # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
     #- reobserving successes has lower priority than MWS
     sv1_bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+        BGS_WISE_SOUTH: SAME_AS_BGS_WISE
+        BGS_WISE_NORTH: SAME_AS_BGS_WISE
         BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_BOSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
     #- Milky Way Survey: priorities 1000-1999
+    # ADM WDs should be prioritized above BGS at 2998
     sv1_mws_mask:
         MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD:                       {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_NORTH:               SAME_AS_MWS_MAIN
         MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN
@@ -204,6 +253,12 @@ numobs:
         QSO: 4
         LRG_1PASS: 1
         LRG_2PASS: 2
+        ELG_FDR:       SAME_AS_ELG
+        ELG_FDR_FAINT: SAME_AS_ELG
+        ELG_RZ_BLUE:   SAME_AS_ELG
+        ELG_RZ_RED:    SAME_AS_ELG
+        QSO_COLOR: SAME_AS_QSO
+        QSO_RF: SAME_AS_QSO
         LRG_NORTH: SAME_AS_LRG
         ELG_NORTH: SAME_AS_ELG
         QSO_NORTH: SAME_AS_QSO
@@ -214,6 +269,18 @@ numobs:
         LRG_2PASS_NORTH: SAME_AS_LRG_2PASS
         LRG_1PASS_SOUTH: SAME_AS_LRG_1PASS
         LRG_2PASS_SOUTH: SAME_AS_LRG_2PASS
+        ELG_FDR_NORTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_NORTH: SAME_AS_ELG
+        ELG_RZ_BLUE_NORTH:   SAME_AS_ELG
+        ELG_RZ_RED_NORTH:    SAME_AS_ELG
+        ELG_FDR_SOUTH:       SAME_AS_ELG
+        ELG_FDR_FAINT_SOUTH: SAME_AS_ELG
+        ELG_RZ_BLUE_SOUTH:   SAME_AS_ELG
+        ELG_RZ_RED_SOUTH:    SAME_AS_ELG
+        QSO_COLOR_NORTH: SAME_AS_QSO
+        QSO_RF_NORTH:    SAME_AS_QSO
+        QSO_COLOR_SOUTH: SAME_AS_QSO
+        QSO_RF_SOUTH:    SAME_AS_QSO
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
@@ -237,10 +304,13 @@ numobs:
     sv1_bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
+        BGS_WISE: 1
         BGS_FAINT_SOUTH: SAME_AS_BGS_FAINT
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_BRIGHT
         BGS_BRIGHT_NORTH: SAME_AS_BGS_BRIGHT
+        BGS_WISE_SOUTH: SAME_AS_BGS_WISE
+        BGS_WISE_NORTH: SAME_AS_BGS_WISE
         BGS_KNOWN_ANY: 1
         BGS_KNOWN_COLLIDED: 1
         BGS_KNOWN_SDSS: 1

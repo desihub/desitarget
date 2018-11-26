@@ -25,16 +25,16 @@ from desitarget.internal import sharedmem
 
 import numpy.lib.recfunctions as rfn
 
-#ADM fake the matplotlib display so it doesn't die on allocated nodes
+from . import __version__ as desitarget_version
+
+import healpy as hp
+
+# ADM fake the matplotlib display so it doesn't die on allocated nodes
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Ellipse, Rectangle
 from matplotlib.collections import PatchCollection
-
-from . import __version__ as desitarget_version
-
-import healpy as hp
 
 
 def ellipse_matrix(r, e1, e2):
@@ -51,7 +51,7 @@ def ellipse_matrix(r, e1, e2):
 
     Returns
     -------
-    :class:`~numpy.ndarray` 
+    :class:`~numpy.ndarray`
         A 2x2 matrix to transform points measured in coordinates of the
         effective-half-light-radius to RA/Dec offset coordinates
 
@@ -59,23 +59,23 @@ def ellipse_matrix(r, e1, e2):
     -----
         - If a float is passed then the output shape is (2,2,1)
              otherwise it's (2,2,len(r))
-        - The parametrization is explained at 
+        - The parametrization is explained at
              http://legacysurvey.org/dr4/catalogs/
         - Much of the math is taken from:
              https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
     """
-    
-    #ADM derive the eccentricity from the ellipticity
-    #ADM guarding against the option that floats were passed
+
+    # ADM derive the eccentricity from the ellipticity
+    # ADM guarding against the option that floats were passed
     e = np.atleast_1d(np.hypot(e1, e2))
 
-    #ADM the position angle in radians and its cos/sin
+    # ADM the position angle in radians and its cos/sin
     theta = np.atleast_1d(np.arctan2(e2, e1) / 2.)
     ct = np.cos(theta)
     st = np.sin(theta)
 
-    #ADM ensure there's a maximum ratio of the semi-major
-    #ADM to semi-minor axis, and calculate that ratio
+    # ADM ensure there's a maximum ratio of the semi-major
+    # ADM to semi-minor axis, and calculate that ratio
     maxab = 1000.
     ab = np.zeros(len(e))+maxab
     w = np.where(e < 1)
@@ -83,13 +83,13 @@ def ellipse_matrix(r, e1, e2):
     w = np.where(ab > maxab)
     ab[w] = maxab
 
-    #ADM convert the half-light radius to degrees
+    # ADM convert the half-light radius to degrees
     r_deg = r / 3600.
 
-    #ADM the 2x2 matrix to transform points measured in 
-    #ADM effective-half-light-radius to RA/Dec offsets
+    # ADM the 2x2 matrix to transform points measured in
+    # ADM effective-half-light-radius to RA/Dec offsets
     T = r_deg * np.array([[ct / ab, st], [-st / ab, ct]])
-    
+
     return T
 
 
@@ -121,27 +121,27 @@ def ellipse_boundary(RAcen, DECcen, r, e1, e2, nloc=50):
 
     Notes
     -----
-        - The parametrization is explained at 
+        - The parametrization is explained at
              http://legacysurvey.org/dr4/catalogs/
         - Much of the math is taken from:
              https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
     """
-    #ADM Retrieve the 2x2 matrix to transform points measured in 
-    #ADM effective-half-light-radius to RA/Dec offsets
+    # ADM Retrieve the 2x2 matrix to transform points measured in
+    # ADM effective-half-light-radius to RA/Dec offsets
     T = ellipse_matrix(r, e1, e2)
 
-    #ADM create a circle in effective-half-light-radius
+    # ADM create a circle in effective-half-light-radius
     angle = np.linspace(0, 2.*np.pi, nloc)
-    vv = np.vstack([np.sin(angle),np.cos(angle)])
+    vv = np.vstack([np.sin(angle), np.cos(angle)])
 
-    #ADM transform circle to elliptical boundary
-    dra, ddec = np.dot(T[...,0],vv)
+    # ADM transform circle to elliptical boundary
+    dra, ddec = np.dot(T[..., 0], vv)
 
-    #ADM return the RA, Dec of the boundary, remembering to correct for
-    #ADM spherical projection in Dec
+    # ADM return the RA, Dec of the boundary, remembering to correct for
+    # ADM spherical projection in Dec
     decs = DECcen + ddec
-    #ADM note that this is only true for the small angle approximation
-    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
+    # ADM note that this is only true for the small angle approximation
+    # ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
     ras = RAcen + (dra/np.cos(np.radians(decs)))
 
     return ras, decs
@@ -176,29 +176,29 @@ def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
 
     Notes
     -----
-        - The parametrization is explained at 
+        - The parametrization is explained at
              http://legacysurvey.org/dr4/catalogs/
         - Much of the math is taken from:
              https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
     """
-    
-    #ADM Retrieve the 2x2 matrix to transform points measured in 
-    #ADM effective-half-light-radius to RA/Dec offsets...
-    G = ellipse_matrix(r, e1, e2)
-    #ADM ...and invert it
-    Ginv = np.linalg.inv(G[...,0])
 
-    #ADM remember to correct for the spherical projection in Dec
-    #ADM note that this is only true for the small angle approximation
-    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
+    # ADM Retrieve the 2x2 matrix to transform points measured in
+    # ADM effective-half-light-radius to RA/Dec offsets...
+    G = ellipse_matrix(r, e1, e2)
+    # ADM ...and invert it
+    Ginv = np.linalg.inv(G[..., 0])
+
+    # ADM remember to correct for the spherical projection in Dec
+    # ADM note that this is only true for the small angle approximation
+    # ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
     dra = (ras - RAcen)*np.cos(np.radians(decs))
     ddec = decs - DECcen
 
-    #ADM test whether points are larger than the effective
-    #ADM circle of radius 1 generated in half-light-radius coordinates
-    dx, dy = np.dot(Ginv,[dra,ddec])
+    # ADM test whether points are larger than the effective
+    # ADM circle of radius 1 generated in half-light-radius coordinates
+    dx, dy = np.dot(Ginv, [dra, ddec])
 
-    return np.hypot(dx,dy) < 1
+    return np.hypot(dx, dy) < 1
 
 
 def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
@@ -214,7 +214,7 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
         Right Ascension of the center of the ellipse (DEGREES)
     DECcen : :class:`float`
         Declination of the center of the ellipse (DEGREES)
-    G : :class:`~numpy.ndarray` 
+    G : :class:`~numpy.ndarray`
         A 2x2 matrix to transform points measured in coordinates of the
         effective-half-light-radius to RA/Dec offset coordinates
         as generated by, e.g., :mod:`desitarget.geomask.ellipse_matrix`
@@ -228,27 +228,27 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
 
     Notes
     -----
-        - The parametrization is explained at 
+        - The parametrization is explained at
              http://legacysurvey.org/dr4/catalogs/
         - Much of the math is taken from:
              https://github.com/dstndstn/tractor/blob/master/tractor/ellipses.py
         - G should have a shape of (2,2) (i.e. np.shape(G) gives (2,2)
     """
-    
-    #ADM Invert the transformation matrix
+
+    # ADM Invert the transformation matrix
     Ginv = np.linalg.inv(G)
 
-    #ADM remember to correct for the spherical projection in Dec
-    #ADM note that this is only true for the small angle approximation
-    #ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
+    # ADM remember to correct for the spherical projection in Dec
+    # ADM note that this is only true for the small angle approximation
+    # ADM but that's OK to < 0.3" for a < 3o diameter galaxy at dec < 60o
     dra = (ras - RAcen)*np.cos(np.radians(decs))
     ddec = decs - DECcen
 
-    #ADM test whether points are larger than the effective
-    #ADM circle of radius 1 generated in half-light-radius coordinates
-    dx, dy = np.dot(Ginv,[dra,ddec])
+    # ADM test whether points are larger than the effective
+    # ADM circle of radius 1 generated in half-light-radius coordinates
+    dx, dy = np.dot(Ginv, [dra, ddec])
 
-    return np.hypot(dx,dy) < 1
+    return np.hypot(dx, dy) < 1
 
 
 def is_in_circle(ras, decs, RAcens, DECcens, r):
@@ -275,29 +275,29 @@ def is_in_circle(ras, decs, RAcens, DECcens, r):
         are not in any of the masks
     """
 
-    #ADM initialize an array of all False (nothing is yet in a circular mask)
+    # ADM initialize an array of all False (nothing is yet in a circular mask)
     in_mask = np.zeros(len(ras), dtype=bool)
 
-    #ADM turn the coordinates of the masks and the targets into SkyCoord objects
+    # ADM turn the coordinates of the masks and the targets into SkyCoord objects
     ctargs = SkyCoord(ras*u.degree, decs*u.degree)
     cstars = SkyCoord(RAcens*u.degree, DECcens*u.degree)
 
-    #ADM this is the largest search radius we should need to consider
-    #ADM in the future an obvious speed up is to split on radius
-    #ADM as large radii are rarer but take longer
+    # ADM this is the largest search radius we should need to consider
+    # ADM in the future an obvious speed up is to split on radius
+    # ADM as large radii are rarer but take longer
     maxrad = max(r)*u.arcsec
 
-    #ADM coordinate match the star masks and the targets
-    idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs,maxrad)
+    # ADM coordinate match the star masks and the targets
+    idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs, maxrad)
 
-    #ADM catch the case where nothing fell in a mask
+    # ADM catch the case where nothing fell in a mask
     if len(idstars) == 0:
         return in_mask
 
-    #ADM for a matching star mask, find the angular separations that are less than the mask radius
+    # ADM for a matching star mask, find the angular separations that are less than the mask radius
     w_in = np.where(d2d.arcsec < r[idstars])
 
-    #ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
+    # ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
     in_mask[idtargs[w_in]] = 'True'
 
     return in_mask
@@ -459,7 +459,7 @@ def cap_area(theta):
     ----------
     theta : array_like
         (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
-        
+
     Returns
     -------
     area : array_like
@@ -475,24 +475,24 @@ def cap_area(theta):
           area to ~0.00043 (~0.043%) using np.cos()
     """
 
-    #ADM recast input array as float64
+    # ADM recast input array as float64
     theta = theta.astype('<f8')
-    
-    #ADM factor to convert steradians to sq.deg.
+
+    # ADM factor to convert steradians to sq.deg.
     st2sq = 180.*180./np.pi/np.pi
 
-    #ADM return area
+    # ADM return area
     return st2sq*2*np.pi*(1-(np.cos(np.radians(theta))))
 
 
-def sphere_circle_ra_off(theta,centdec,declocs):
+def sphere_circle_ra_off(theta, centdec, declocs):
     """Offsets in RA needed for given declinations in order to draw a (small) circle on the sphere
 
     Parameters
     ----------
     theta : :class:`float`
         (angular) radius of a circle drawn on the surface of the unit sphere (in DEGREES)
-        
+
     centdec : :class:`float`
         declination of the center of the circle to be drawn on the sphere (in DEGREES)
 
@@ -511,21 +511,21 @@ def sphere_circle_ra_off(theta,centdec,declocs):
           which offsets are to the negative side of the circle, or call this function twice.
     """
 
-    #ADM convert the input angles from degrees to radians
-    #ADM cast theta as float 64 to help deal with the cosine of very small angles
+    # ADM convert the input angles from degrees to radians
+    # ADM cast theta as float 64 to help deal with the cosine of very small angles
     thetar = np.radians(theta).astype('<f8')
     centdecr = np.radians(centdec)
     declocsr = np.radians(declocs)
 
-    #ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g. converting
-    #ADM to Cartesian coordinates and using dot products). The answer is the arccos of the following:
+    # ADM determine the offsets in RA from the small circle equation (easy to derive from, e.g. converting
+    # ADM to Cartesian coordinates and using dot products). The answer is the arccos of the following:
     cosoffrar = (np.cos(thetar) - (np.sin(centdecr)*np.sin(declocsr))) / (np.cos(centdecr)*np.cos(declocsr))
 
-    #ADM catch cases where the offset angle is very close to 0 
-    offrar = np.arccos(np.clip(cosoffrar,-1,1))
+    # ADM catch cases where the offset angle is very close to 0
+    offrar = np.arccos(np.clip(cosoffrar, -1, 1))
 
-    #ADM return the angular offsets in degrees
-    return  np.degrees(offrar)
+    # ADM return the angular offsets in degrees
+    return np.degrees(offrar)
 
 
 def circle_boundaries(RAcens, DECcens, r, nloc):
@@ -535,10 +535,10 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
     ----------
     RAcens : :class:`~numpy.ndarray`
         Right Ascension of the centers of the circles (DEGREES)
-    DECcens : :class:`~numpy.ndarray` 
-        Declination of the centers of the circles (DEGREES) 
+    DECcens : :class:`~numpy.ndarray`
+        Declination of the centers of the circles (DEGREES)
     r : :class:`~numpy.ndarray`
-        radius of the circles (ARCSECONDS) 
+        radius of the circles (ARCSECONDS)
     nloc : :class:`~numpy.ndarray`
         the number of locations to generate, equally spaced around the
         periphery of *each* circle
@@ -546,31 +546,31 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
     Returns
     -------
     ras : :class:`~numpy.ndarray`
-        The Right Ascensions of nloc equally spaced locations on the 
+        The Right Ascensions of nloc equally spaced locations on the
             periphery of the mask
-    dec : array_like. 
-        The Declinations of nloc equally space locations on the periphery 
+    dec : array_like.
+        The Declinations of nloc equally space locations on the periphery
             of the mask
     """
-    
-    #ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
+
+    # ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
     radius = 1.001*r/3600.
 
-    #ADM determine nloc Dec offsets equally spaced around the perimeter for each mask
-    offdec = [ rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(nloc,radius) ]
+    # ADM determine nloc Dec offsets equally spaced around the perimeter for each mask
+    offdec = [rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(nloc, radius)]
 
-    #ADM use offsets to determine DEC positions
+    # ADM use offsets to determine DEC positions
     decs = DECcens + offdec
 
-    #ADM determine the offsets in RA at these Decs given the mask center Dec
-    offrapos =  [ sphere_circle_ra_off(th,cen,declocs) for th,cen,declocs in zip(radius,DECcens,decs) ]
+    # ADM determine the offsets in RA at these Decs given the mask center Dec
+    offrapos = [sphere_circle_ra_off(th, cen, declocs) for th, cen, declocs in zip(radius, DECcens, decs)]
 
-    #ADM determine which of the RA offsets are in the positive direction
-    sign = [ np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in nloc ]
+    # ADM determine which of the RA offsets are in the positive direction
+    sign = [np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in nloc]
 
-    #ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
-    offra = [ o*s for o,s in zip(offrapos,sign) ]
+    # ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
+    offra = [o*s for o, s in zip(offrapos, sign)]
     ras = RAcens + offra
 
-    #ADM have to turn the generated locations into 1-D arrays before returning them
-    return np.hstack(ras), np.hstack(decs) 
+    # ADM have to turn the generated locations into 1-D arrays before returning them
+    return np.hstack(ras), np.hstack(decs)
