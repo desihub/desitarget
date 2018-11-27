@@ -2,7 +2,7 @@
 targets:
     BGS: {
         target_type: BGS,
-        mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/desi_footprint/v0.0.4/BGS.hdf5',
+        mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/full_sky/v0.0.4/BGS_r20.6.hdf5',
         format: durham_mxxl_hdf5,
         magcut: 20.5,
     }
@@ -28,7 +28,7 @@ targets:
     }
     LYA: {
         target_type: QSO,
-        mockfile: '{DESI_ROOT}/mocks/lya_forest/london/v4.0/master.fits',
+        mockfile: '{DESI_ROOT}/mocks/lya_forest/london/v4.2.0/master.fits',
         format: CoLoRe,
         nside_lya: 16,
         zmin_lya: 1.8,
@@ -39,13 +39,13 @@ targets:
     }
     MWS_MAIN: {
         target_type: STAR,
-        mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.5/healpix',
+        mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
         nside_galaxia: 8,
         format: galaxia,
     }
     MWS_NEARBY: {
         target_type: STAR,
-        mockfile: '{DESI_ROOT}/mocks/mws/100pc/v0.0.3/mock_100pc.fits',
+        mockfile: '{DESI_ROOT}/mocks/mws/100pc/v0.0.4/mock_100pc.fits',
         format: mws_100pc,
     }
     WD: {
@@ -55,6 +55,6 @@ targets:
     }
     SKY: {
         target_type: SKY,
-        mockfile: '{DESI_ROOT}/mocks/uniformsky/0.1/uniformsky-2048-0.1.fits',
+        mockfile: '{DESI_ROOT}/mocks/uniformsky/0.2/uniformsky-2048-0.2.fits',
         format: uniformsky,
     }
