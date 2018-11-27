@@ -662,31 +662,25 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None,
 
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-               gaia=None, primary=None, gfracmasked=None, rfracmasked=None,
-               pmra=None, pmdec=None, parallax=None, obs_rflux=None,
-               gaiagmag=None, gaiabmag=None, gaiarmag=None,
-               gaiaaen=None, gaiadupsource=None, south=True):
-    """Set bits for ``MWS_MAIN`` targets.
+               gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
+               pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
+               gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
+               gaiaaen=None, gaiadupsource=None, primary=None, south=True):
+    """Set bits for main ``MWS`` targets.
 
-    Parameters
-    ----------
-    south : :class:`boolean`, defaults to ``True``
-        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+    Args:
+        see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
-    Returns
-    -------
-    mask1 : array_like.
-        ``True`` if and only if the object is a ``MWS_MAIN`` target.
-    mask2 : array_like.
-        ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
-    mask3 : array_like.
-        ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
+    Returns:
+        mask1 : array_like.
+            ``True`` if and only if the object is a ``MWS_BROAD`` target.
+        mask2 : array_like.
+            ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
+        mask3 : array_like.
+            ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
 
-    Notes
-    -----
-    - As of 10/22/18, based on version 143 on `the wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    Notes:
+        - as of 11/2/18, based on version 158 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -711,15 +705,15 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w), len(mws), time()-start))
 
-    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked,
-                              rfracmasked=rfracmasked,
-                              gaiadupsource=gaiadupsource, primary=primary)
+    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
+                              gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
+                              rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
 
     # ADM pass the mws that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
     mws, red, blue = isMWS_main_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux,
+        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
         primary=mws, south=south
     )
@@ -727,9 +721,10 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return mws, red, blue
 
 
-def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
+def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
+                       rfracmasked=None, rnobs=None, rflux=None,
                        gaiadupsource=None, primary=None):
-    """Standard set of masking-based cuts used by MWS_MAIN target selection classes
+    """Standard set of masking-based cuts used by MWS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
     if primary is None:
@@ -739,24 +734,28 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, rfracmasked=None,
     # ADM apply the mask/logic selection for all MWS-MAIN targets
     # ADM main targets match to a Gaia source
     mws &= gaia
-    mws &= (gfracmasked < 0.5) & (rfracmasked < 0.5)
+    mws &= (gfracmasked < 0.5) & (gflux > 0) & (gnobs > 0)
+    mws &= (rfracmasked < 0.5) & (rflux > 0) & (rnobs > 0)
+
     mws &= ~gaiadupsource
 
     return mws
 
 
 def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      pmra=None, pmdec=None, parallax=None, obs_rflux=None,
+                      pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
                       gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
                       primary=None, south=True):
-    """Set of color-based cuts used by MWS_MAIN target selection classes
+    """Set of color-based cuts used by MWS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     mws = primary.copy()
 
-    # ADM main targets are point-like based on GAIA_ASTROMETRIC_NOISE.
+    # ADM main targets are point-like based on DECaLS morphology 
+    # ADM and GAIA_ASTROMETRIC_NOISE.
+    mws &= _psflike(objtype)
     mws &= gaiaaen < 3.0
 
     # ADM main targets are 16 <= r < 19
@@ -780,13 +779,18 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM MWS-BLUE is g-r < 0.7
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
-    # ADM MWS-RED is g-r >= 0.7 and parallax < 1mas...
-    red &= parallax < 1.
+    # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-    # ADM ...and proper motion < 7.
-    red &= pm < 7.
+    broad = red.copy()
 
-    return mws, red, blue
+    # ADM MWS-RED also has parallax < 1mas and proper motion < 7.
+    red &= pm < 7.
+    red &= parallax < 1.
+
+    # ADM MWS-BROAD has parallax > 1mas OR proper motion > 7.
+    broad &= (parallax >= 1.) | (pm >= 7.)
+
+    return broad, red, blue
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1142,7 +1146,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             mws_classes.append(
                 isMWS_main(
                     gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
-                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
+                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
+                    gnobs=gnobs, rnobs=rnobs,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked,
                     pmra=pmra, pmdec=pmdec, parallax=parallax,
                     primary=primary, south=south
