@@ -1706,8 +1706,7 @@ class ReadGalaxia(SelectTargets):
         if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             filetype = 'mock_allsky_galaxia_desi'
         elif target_name.upper() == 'FAINTSTAR':
-            filetype = ('mock_superfaint_allsky_galaxia_desi_b10_cap_north',
-                        'mock_superfaint_allsky_galaxia_desi_b10_cap_south')
+            filetype = 'mock_superfaint_allsky_galaxia_desi_b10'
         else:
             log.warning('Unrecognized target name {}!'.format(target_name))
             raise ValueError
@@ -1753,16 +1752,26 @@ class ReadGalaxia(SelectTargets):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        cols = ['V_HELIO', 'SDSSU_TRUE_NODUST', 'SDSSG_TRUE_NODUST',
-                'SDSSR_TRUE_NODUST', 'SDSSI_TRUE_NODUST', 'SDSSZ_TRUE_NODUST',
-                'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
+        # Only the MWS_MAIN mock has Gaia.
+        cols = ['TRUE_VHELIO', 'TRUE_MAG_R_SDSS_NODUST', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH']
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            cols = cols + ['GAIA_PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC', 'PM_RA_IVAR',
+                           'PM_DEC_IVAR', 'PARALLAX', 'PARALLAX_IVAR']
         data = fitsio.read(galaxiafile, columns=cols, upper=True, ext=1, rows=cut)
-        zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
-        mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
-        mag_obs = data['SDSSR_OBS'].astype('f4')     # SDSS r-band, observed
-        teff = 10**data['TEFF'].astype('f4')         # log10!
-        logg = data['LOGG'].astype('f4')
-        feh = data['FEH'].astype('f4')
+        zz = (data['TRUE_VHELIO'].astype('f4') / C_LIGHT).astype('f4')
+        mag = data['TRUE_MAG_R_SDSS_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
+        teff = 10**data['TRUE_TEFF'].astype('f4')         # log10!
+        logg = data['TRUE_LOGG'].astype('f4')
+        feh = data['TRUE_FEH'].astype('f4')
+
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
+            gaia_pmra = data['PMRA'].astype('f4')
+            gaia_pmdec = data['PMDEC'].astype('f4')
+            gaia_pmra_ivar = data['PM_RA_IVAR'].astype('f4')
+            gaia_pmdec_ivar = data['PM_DEC_IVAR'].astype('f4')
+            gaia_parallax = data['PARALLAX'].astype('f4')
+            gaia_parallax_ivar = data['PARALLAX_IVAR'].astype('f4')
 
         if magcut:
             cut = mag < magcut
@@ -1778,48 +1787,36 @@ class ReadGalaxia(SelectTargets):
                 dec = dec[cut]
                 zz = zz[cut]
                 mag = mag[cut]
-                mag_obs = mag_obs[cut]
                 teff = teff[cut]
                 logg = logg[cut]
                 feh = feh[cut]
+
+                if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+                    gaia_g = gaia_g[cut]
+                    gaia_pmra = gaia_pmra[cut]
+                    gaia_pmdec = gaia_pmdec[cut]
+                    gaia_pmra_ivar = gaia_pmra_ivar[cut]
+                    gaia_pmdec_ivar = gaia_pmdec_ivar[cut]
+                    gaia_parallax = gaia_parallax[cut]
+                    gaia_parallax_ivar = gaia_parallax_ivar[cut]
+                
                 nobj = len(ra)
                 log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
-
-        # Temporary hack to read some Gaia columns from a separate file, but
-        # only for the MWS_MAIN mocks!
-        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
-            gaiafile = galaxiafile.replace('mock_', 'gaia_mock_')
-            if os.path.isfile(gaiafile):
-                cols = ['G_GAIA', 'PM_RA_STAR_GAIA', 'PM_DEC_GAIA', 'PARALLAX_GAIA',
-                        'PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR']
-                gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
-                    
-        elif target_name.upper() == 'FAINTSTAR': # Hack for FAINTSTAR
-            from astropy.table import Table
-            #morecols = ['PM_RA', 'PM_DEC', 'DM']
-            #moredata = fitsio.read(galaxiafile, columns=morecols, upper=True, ext=1, rows=objid)
-            gaia = Table()
-            gaia['G_GAIA'] = mag.astype('f4') # hack!
-            gaia['PM_RA_STAR_GAIA'] = np.zeros(nobj).astype('f4')    # moredata['PM_RA']
-            gaia['PM_DEC_GAIA'] = np.zeros(nobj).astype('f4')        # moredata['PM_DEC']
-            gaia['PARALLAX_GAIA'] = np.zeros(nobj).astype('f4') + 20 # moredata['D_HELIO'] / 206265.
-            gaia['PARALLAX_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
-            gaia['PM_RA_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
-            gaia['PM_DEC_GAIA_ERROR'] = np.zeros(nobj).astype('f4') + 1e8
-        else:
-            pass
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
-               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
+               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
                
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            out.update({
                'REF_ID': mockid,
-               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'],
+               'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
@@ -1827,21 +1824,12 @@ class ReadGalaxia(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
-               'PARALLAX': gaia['PARALLAX_GAIA'],
-               'PARALLAX_IVAR': np.zeros(nobj),
-               'PMRA': gaia['PM_RA_STAR_GAIA'],
-               'PMRA_IVAR': np.zeros(nobj),
-               'PMDEC': gaia['PM_DEC_GAIA'], # no _STAR_!
-               'PMDEC_IVAR': np.zeros(nobj),
-              
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
-
-        # Handle ivars -- again, a temporary hack
-        for outkey, gaiakey in zip( ('PARALLAX_IVAR', 'PMRA_IVAR', 'PMDEC_IVAR'),
-                                     ('PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR') ):
-            good = gaia[gaiakey] > 0
-            if np.sum(good) > 0:
-                out[outkey][good] = (1/gaia[gaiakey]**2).astype('f4')
+               'PARALLAX': gaia_parallax,
+               'PARALLAX_IVAR': gaia_parallax_ivar,
+               'PMRA': gaia_pmra,
+               'PMRA_IVAR': gaia_pmra_ivar,
+               'PMDEC': gaia_pmdec,
+               'PMDEC_IVAR': gaia_pmdec_ivar})
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -2472,8 +2460,6 @@ class ReadMWS_WD(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        import pdb ; pdb.set_trace()
-
         cols = ['RADIALVELOCITY', 'TEFF', 'LOGG', 'SPECTRALTYPE',
                 'PHOT_G_MEAN_MAG', 'PHOT_BP_MEAN_MAG', 'PHOT_RP_MEAN_MAG',
                 'PMRA', 'PMDEC', 'PARALLAX', 'PARALLAX_ERROR',
@@ -2642,9 +2628,9 @@ class ReadMWS_NEARBY(SelectTargets):
         feh = data['TRUE_FEH'].astype('f4')
         templatesubtype = data['TRUE_TYPE']
 
-        gaia_g = data['PHOT_G_MEAN_MAG'].astype('f4')
-        gaia_bp = data['PHOT_BP_MEAN_MAG'].astype('f4')
-        gaia_rp = data['PHOT_RP_MEAN_MAG'].astype('f4')
+        gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
+        gaia_bp = data['GAIA_PHOT_BP_MEAN_MAG'].astype('f4')
+        gaia_rp = data['GAIA_PHOT_RP_MEAN_MAG'].astype('f4')
         gaia_pmra = data['PMRA'].astype('f4')
         gaia_pmdec = data['PMDEC'].astype('f4')
         gaia_parallax = data['PARALLAX'].astype('f4')
@@ -4634,7 +4620,7 @@ class MWS_NEARBYMaker(STARMaker):
             Target selection cuts to apply.
 
         """
-        if False:
+        if True:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         else:
             log.debug('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
@@ -4645,8 +4631,8 @@ class MWS_NEARBYMaker(STARMaker):
             desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
             mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
 
-            targets['DESI_TARGET'] |= desi_target
-            targets['MWS_TARGET'] |= mws_target
+        targets['DESI_TARGET'] |= desi_target
+        targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
