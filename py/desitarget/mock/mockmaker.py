@@ -4248,20 +4248,25 @@ class MWS_MAINMaker(STARMaker):
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
                                                               qso_selection='colorcuts')
 
+        import pdb ; pdb.set_trace()
+        
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
         # respectively.
-        for mwsbit in ('MWS_NEARBY', 'MWS_WD'):
-            these = mws_target & self.mws_mask.mask(mwsbit) != 0
-            if np.sum(these) > 0:
-                mws_target[these] -= self.mws_mask.mask(mwsbit)
-                andthose = mws_target[these] == 0
-                if np.sum(andthose) > 0:
-                    desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
+        for mwsbit in self.mws_mask.names():
+            if 'NEARBY' in mwsbit or 'WD' in mwsbit:
+                these = mws_target & self.mws_mask.mask(mwsbit) != 0
+                if np.sum(these) > 0:
+                    mws_target[these] -= self.mws_mask.mask(mwsbit)
+                    andthose = mws_target[these] == 0
+                    if np.sum(andthose) > 0:
+                        desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
         
         these = desi_target & self.desi_mask.mask('STD_WD') != 0
         if np.sum(these) > 0:
             desi_target[these] -= self.desi_mask.mask('STD_WD')
+
+        import pdb ; pdb.set_trace()
             
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -4420,18 +4425,23 @@ class MWS_NEARBYMaker(STARMaker):
             Target selection cuts to apply.
 
         """
-        if True:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
-        else:
-            log.debug('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
 
-            mws_nearby = np.ones(len(targets)) # select everything!
-            #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
-
-            desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
-            mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
-
+        # Subtract out *all* the MWS targeting bits except MWS_NEARBY since
+        # those are separately handled in the MWS_MAINMaker and WDMaker classes.
+        for mwsbit in self.mws_mask.names():
+            if mwsbit == 'MWS_NEARBY':
+                pass
+            else:
+                these = mws_target & self.mws_mask.mask(mwsbit) != 0
+                if np.sum(these) > 0:
+                    mws_target[these] -= self.mws_mask.mask(mwsbit)
+                    andthose = mws_target[these] == 0
+                    if np.sum(andthose) > 0:
+                        desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
+        
         targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
         targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
