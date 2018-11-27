@@ -567,7 +567,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
-               pmra=None, pmdec=None, parallax=None, obs_rflux=None,
+               pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
                gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiaaen=None, gaiadupsource=None, primary=None, south=True):
     """Set bits for main ``MWS`` targets.
@@ -617,7 +617,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM sources that weren't in a mask/logic cut.
     mws, red, blue = isMWS_main_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux,
+        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
         primary=mws, south=south
     )
@@ -647,7 +647,7 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
 
 
 def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      pmra=None, pmdec=None, parallax=None, obs_rflux=None,
+                      pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
                       gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
                       primary=None, south=True):
     """Set of color-based cuts used by MWS target selection classes
@@ -657,7 +657,9 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         primary = np.ones_like(rflux, dtype='?')
     mws = primary.copy()
 
-    # ADM main targets are point-like based on GAIA_ASTROMETRIC_NOISE.
+    # ADM main targets are point-like based on DECaLS morphology 
+    # ADM and GAIA_ASTROMETRIC_NOISE.
+    mws &= _psflike(objtype)
     mws &= gaiaaen < 3.0
 
     # ADM main targets are 16 <= r < 19
@@ -683,7 +685,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-    broad = mws.copy()
+    broad = red.copy()
 
     # ADM MWS-RED also has parallax < 1mas and proper motion < 7.
     red &= pm < 7.
@@ -1957,7 +1959,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             mws_classes.append(
                 isMWS_main(
                     gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
-                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux,
+                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
                     gnobs=gnobs, rnobs=rnobs,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked,
                     pmra=pmra, pmdec=pmdec, parallax=parallax,
