@@ -3193,7 +3193,12 @@ class LYAMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+        if targetname == 'LYA':
+            tcnames = 'QSO'
+        else:
+            tcnames = targetname
+            
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
                                                               qso_selection='colorcuts')
         
         targets['DESI_TARGET'] |= desi_target
