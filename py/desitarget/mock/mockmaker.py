@@ -3902,17 +3902,6 @@ class STARMaker(SelectTargets):
 
         self.meta = self.template_maker.basemeta
 
-        #nside = 8
-        #stellar_density = dict()
-        #tiles = footprint.load_tiles(onlydesi=True)
-        #tilepix = footprint.tiles2pix(nside, tiles=tiles, per_tile=True)
-        #for pix in np.unique( np.hstack(tilepix) ):
-        #    import pdb ; pdb.set_trace()
-        #    these = pix == tilepix
-        #    stellar_density[pix] = np.mean(tiles['STAR_DENSITY'][these])
-        #    
-        #import pdb ; pdb.set_trace()
-
         # Pre-compute normalized synthetic photometry for the full set of
         # stellar templates.  Move this to the templates themselves!
         if no_spectra and (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
@@ -4223,7 +4212,7 @@ class MWS_MAINMaker(STARMaker):
                                                            
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, targetname=None):
+    def select_targets(self, targets, truth, targetname='MWS_MAIN'):
         """Select various MWS stars and standard stars.  Input tables are modified in
         place.
 
@@ -4237,19 +4226,19 @@ class MWS_MAINMaker(STARMaker):
             Target selection cuts to apply.
 
         """
-        if targetname is None:
+        if targetname == 'MWS_MAIN':
             if self.calib_only:
-                targetname = 'STD'
+                tcnames = 'STD'
             else:
-                targetname = ['MWS', 'STD']
+                tcnames = ['MWS', 'STD']
+        else:
+            tcnames = targetname
 
         # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
         # targets can be used as QSO contaminants.
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
                                                               qso_selection='colorcuts')
 
-        import pdb ; pdb.set_trace()
-        
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
         # respectively.
@@ -4266,8 +4255,6 @@ class MWS_MAINMaker(STARMaker):
         if np.sum(these) > 0:
             desi_target[these] -= self.desi_mask.mask('STD_WD')
 
-        import pdb ; pdb.set_trace()
-            
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
         targets['MWS_TARGET'] |= mws_target
@@ -4716,7 +4703,7 @@ class WDMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, targetname=None):
+    def select_targets(self, targets, truth, targetname='WD'):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
         in place.
 
@@ -4730,13 +4717,18 @@ class WDMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        if targetname is None:
+        if targetname == 'WD':
             if self.calib_only:
-                targetname = 'STD'
+                tcnames = 'STD'
             else:
-                targetname = ['MWS', 'STD']
+                tcnames = ['MWS', 'STD']
+        else:
+            tcnames = targetname
+
+        # Assume that MWS_MAIN and MWS_NEARBY objects are *never* selected from
+        # the WD mock.
         
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
         targets['MWS_TARGET'] |= mws_target
