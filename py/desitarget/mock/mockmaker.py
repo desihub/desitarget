@@ -502,7 +502,7 @@ class SelectTargets(object):
 
             setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
 
-    def sample_GMM(self, nobj, isouth=None, target=None, seed=None,
+    def sample_GMM(self, nobj, isouth=None, target=None, seed=None, morph=None,
                    prior_mag=None, prior_redshift=None):
         """Sample from the GMMs read by self.read_GMM.
 
@@ -527,8 +527,10 @@ class SelectTargets(object):
             colorcuts_function = cuts.isQSO_colors
         else:
             colorcuts_function = None
-            
-        morph = GMM[0]
+
+        # Allow an input morphological type, e.g., to simulate contaminants.
+        if morph is None:
+            morph = GMM[0]
         if isouth is None:
             isouth = np.ones(nobj).astype(bool)
 
@@ -542,10 +544,10 @@ class SelectTargets(object):
 
         # Get the total number of each morphological type, accounting for
         # rounding.
-        frac2d_magbins = np.vstack( [GMM[1][mm].data for mm in morph] )
+        frac2d_magbins = np.vstack( [GMM[1][mm].data for mm in np.atleast_1d(morph)] )
         norm = np.sum(frac2d_magbins, axis=1)
         frac1d_morph = norm / np.sum(norm)
-        nobj_morph = np.round(frac1d_morph*nobj).astype(int)
+        nobj_morph = np.round(frac1d_morph * nobj).astype(int)
         dn = np.sum(nobj_morph) - nobj
         if dn > 0:
             nobj_morph[np.argmax(nobj_morph)] -= dn
@@ -556,8 +558,10 @@ class SelectTargets(object):
         # simplicity we ignore the north-south split here.
         gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
         for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
-                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
-                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
+                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR',
+                    'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
+                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR',
+                    'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
                     'GR', 'RZ', 'ZW1'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
@@ -611,7 +615,7 @@ class SelectTargets(object):
                     
             return samp
         
-        for ii, mm in enumerate(morph):
+        for ii, mm in enumerate(np.atleast_1d(morph)):
             if nobj_morph[ii] > 0:
                 # Should really be using north/south GMMs.
                 cols = GMM[2][ii]
@@ -625,24 +629,6 @@ class SelectTargets(object):
                     samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand,
                                                 colorcuts_function=colorcuts_function)
                     
-                # No iterating
-                #_samp = GMM[3][ii].sample(nobj, rand=rand)
-                #for jj, tt in enumerate(cols):
-                #    samp[tt] = _samp[:, jj]
-
-                ## Check:
-                #from desitarget.cuts import isLRG_colors
-                #zmag = samp['z']
-                #rmag = samp['rz'] + zmag
-                #gmag = samp['gr'] + rmag
-                #w1mag = zmag - samp['zw1']
-                #gflux, rflux, zflux, w1flux = [1e9 * 10**(-0.4*mg) for mg in (gmag, rmag, zmag, w1mag)]
-                #itarg = np.zeros(nobj).astype(bool)
-                #itarg_s = isLRG_colors(gflux=gflux[south], rflux=rflux[south], zflux=zflux[south], w1flux=w1flux[south], south=True)
-                #itarg_n = isLRG_colors(gflux=gflux[north], rflux=rflux[north], zflux=zflux[north], w1flux=w1flux[north], south=False)
-                #itarg[np.where(itarg_n)[0]] = True
-                #itarg[np.where(itarg_s)[0]] = True
-
                 # Choose samples with the appropriate magnitude-dependent
                 # probability, for this morphological type.
                 prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
@@ -1246,7 +1232,7 @@ class ReadGaussianField(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadGaussianField.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadGaussianField.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -1327,6 +1313,172 @@ class ReadGaussianField(SelectTargets):
 
         return out
 
+class ReadBuzzard(SelectTargets):
+    """Read a Buzzard style mock catalog."""
+    cached_pixweight = None
+    
+    def __init__(self, **kwargs):
+        super(ReadBuzzard, self).__init__(**kwargs)
+        
+    def readmock(self, mockfile=None, healpixels=[], nside=[], nside_buzzard=8,
+                 target_name='', magcut=None, only_coords=False, seed=None):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_buzzard : :class:`int`
+            Healpixel nside indicating how the mock on-disk has been organized.
+            Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read (e.g., ELG, LRG).
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            To get some improvement in speed, only read the target coordinates
+            and some other basic info.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary with various keys (to be documented).
+
+        Raises
+        ------
+        IOError
+            If the top-level Galaxia directory is not found.
+        ValueError
+            (1) If either mockfile or nside_galaxia are not defined; (2) if
+            healpixels or nside are not scalar inputs; or (3) if the input
+            target_name is not recognized.
+
+        """
+        from desitarget.targets import encode_targetid
+        from desitarget.mock.io import get_healpix_dir, findfile
+
+        if mockfile is None:
+            log.warning('Mockfile input is required.')
+            raise ValueError
+
+        try:
+            mockfile = mockfile.format(**os.environ)
+        except KeyError as e:
+            log.warning('Environment variable not set for mockfile: {}'.format(e))
+            raise ValueError
+        
+        if nside_buzzard is None:
+            log.warning('Nside_buzzard input is required.')
+            raise ValueError
+        
+        mockfile_nside = os.path.join(mockfile, str(nside_buzzard))
+        if not os.path.isdir(mockfile_nside):
+            log.warning('Buzzard top-level directory {} not found!'.format(mockfile_nside))
+            raise IOError
+
+        # Because of the size of the Buzzard mock, healpixels (and nside) must
+        # be scalars.
+        if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
+            log.warning('Healpixels and nside must be scalar inputs.')
+            raise ValueError
+
+        if self.cached_pixweight is None:
+            pixweight = load_pixweight(nside, pixmap=self.pixmap)
+            ReadBuzzard.cached_pixweight = (pixweight, nside)
+        else:
+            pixweight, cached_nside = ReadBuzzard.cached_pixweight
+            if cached_nside != nside:
+                pixweight = load_pixweight(nside, pixmap=self.pixmap)
+                ReadBuzzard.cached_pixweight = (pixweight, nside)
+            else:
+                log.debug('Using cached pixel weight map.')
+                pixweight, _ = ReadBuzzard.cached_pixweight
+
+        # Get the set of nside_buzzard pixels that belong to the desired
+        # healpixels (which have nside).  This will break if healpixels is a
+        # vector.
+        theta, phi = hp.pix2ang(nside, healpixels, nest=True)
+        pixnum = hp.ang2pix(nside_buzzard, theta, phi, nest=True)
+
+        buzzardfile = findfile(filetype='Buzzard_v1.6_lensed', nside=nside_buzzard, pixnum=pixnum,
+                               basedir=mockfile_nside, ext='fits')
+        if len(buzzardfile) == 0:
+            log.warning('File {} not found!'.format(buzzardfile))
+            raise IOError
+
+        log.info('Reading {}'.format(buzzardfile))
+        radec = fitsio.read(buzzardfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        nobj = len(radec)
+
+        objid = np.arange(nobj)
+        mockid = encode_targetid(objid=objid, brickid=pixnum, mock=1)
+
+        allpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
+
+        fracarea = pixweight[allpix]
+        cut = np.where( np.in1d(allpix, healpixels) * (fracarea > 0) )[0] # force DESI footprint
+        if np.all(cut[1:] >= cut[:-1]) is False:
+            log.fatal('Index cut must be monotonically increasing, otherwise fitsio will resort it!')
+            raise ValueError
+
+        nobj = len(cut)
+        if nobj == 0:
+            log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
+            return dict()
+
+        mockid = mockid[cut]
+        objid = objid[cut]
+        allpix = allpix[cut]
+        weight = 1 / fracarea[cut]
+        ra = radec['RA'][cut].astype('f8') % 360.0 # enforce 0 < ra < 360
+        dec = radec['DEC'][cut].astype('f8')
+        del radec
+
+        cols = ['Z', 'COEFFS', 'TMAG']
+        data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
+        zz = data['Z'].astype('f4')
+        mag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
+
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
+
+        isouth = self.is_south(dec)
+
+        ## Get photometry and morphologies by sampling from the Gaussian
+        ## mixture models.
+        #log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+        #gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+        #                         seed=seed, prior_redshift=zz)
+        gmmout = None
+
+        # Pack into a basic dictionary.
+        out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'buzzard',
+            'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
+            'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+            'BRICKID': self.Bricks.brickid(ra, dec),
+            'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
+
+        # Add MW transmission and the imaging depth.
+        self.mw_transmission(out)
+        self.imaging_depth(out)
+
+        ## Optionally compute the mean mock density.
+        #if mock_density:
+        #    out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+
+        return out
+
 class ReadUniformSky(SelectTargets):
     """Read a uniform sky style mock catalog."""
     cached_radec = None
@@ -1352,8 +1504,7 @@ class ReadUniformSky(SelectTargets):
             Compute and return the median target density in the mock.  Defaults
         only_coords : :class:`bool`, optional
             To get some improvement in speed, only read the target coordinates
-            and some other basic info.
-            to False.
+            and some other basic info.  Defaults to False.
 
         Returns
         -------
@@ -1404,7 +1555,7 @@ class ReadUniformSky(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadUniformSky.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadUniformSky.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -1462,7 +1613,8 @@ class ReadGalaxia(SelectTargets):
         super(ReadGalaxia, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
-                 target_name='MWS_MAIN', magcut=None):
+                 target_name='MWS_MAIN', magcut=None, faintstar_mockfile=None,
+                 faintstar_magcut=None, seed=None):
         """Read the catalog.
 
         Parameters
@@ -1480,7 +1632,15 @@ class ReadGalaxia(SelectTargets):
             Name of the target being read (e.g., MWS_MAIN).
         magcut : :class:`float`
             Magnitude cut (hard-coded to SDSS r-band) to subselect targets
-            brighter than magcut. 
+            brighter than magcut.
+        faintstar_mockfile : :class:`str`, optional
+            Full path to the top-level directory of the Galaxia faint star mock
+            catalog.
+        faintstar_magcut : :class:`float`, optional
+            Magnitude cut (hard-coded to SDSS r-band) to subselect faint star
+            targets brighter than magcut.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -1534,7 +1694,7 @@ class ReadGalaxia(SelectTargets):
                 pixweight = load_pixweight(nside, pixmap=self.pixmap)
                 ReadGalaxia.cached_pixweight = (pixweight, nside)
             else:
-                log.info('Using cached pixel weight map.')
+                log.debug('Using cached pixel weight map.')
                 pixweight, _ = ReadGalaxia.cached_pixweight
 
         # Get the set of nside_galaxia pixels that belong to the desired
@@ -1543,11 +1703,10 @@ class ReadGalaxia(SelectTargets):
         theta, phi = hp.pix2ang(nside, healpixels, nest=True)
         pixnum = hp.ang2pix(nside_galaxia, theta, phi, nest=True)
 
-        if target_name.upper() == 'MWS_MAIN':
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             filetype = 'mock_allsky_galaxia_desi'
         elif target_name.upper() == 'FAINTSTAR':
-            filetype = ('mock_superfaint_allsky_galaxia_desi_b10_cap_north',
-                        'mock_superfaint_allsky_galaxia_desi_b10_cap_south')
+            filetype = 'mock_superfaint_allsky_galaxia_desi_b10'
         else:
             log.warning('Unrecognized target name {}!'.format(target_name))
             raise ValueError
@@ -1582,6 +1741,9 @@ class ReadGalaxia(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
         objid = objid[cut]
         allpix = allpix[cut]
@@ -1590,16 +1752,26 @@ class ReadGalaxia(SelectTargets):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        cols = ['V_HELIO', 'SDSSU_TRUE_NODUST', 'SDSSG_TRUE_NODUST',
-                'SDSSR_TRUE_NODUST', 'SDSSI_TRUE_NODUST', 'SDSSZ_TRUE_NODUST',
-                'SDSSR_OBS', 'TEFF', 'LOGG', 'FEH']
+        # Only the MWS_MAIN mock has Gaia.
+        cols = ['TRUE_VHELIO', 'TRUE_MAG_R_SDSS_NODUST', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH']
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            cols = cols + ['GAIA_PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC', 'PM_RA_IVAR',
+                           'PM_DEC_IVAR', 'PARALLAX', 'PARALLAX_IVAR']
         data = fitsio.read(galaxiafile, columns=cols, upper=True, ext=1, rows=cut)
-        zz = (data['V_HELIO'].astype('f4') / C_LIGHT).astype('f4')
-        mag = data['SDSSR_TRUE_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
-        mag_obs = data['SDSSR_OBS'].astype('f4')     # SDSS r-band, observed
-        teff = 10**data['TEFF'].astype('f4')         # log10!
-        logg = data['LOGG'].astype('f4')
-        feh = data['FEH'].astype('f4')
+        zz = (data['TRUE_VHELIO'].astype('f4') / C_LIGHT).astype('f4')
+        mag = data['TRUE_MAG_R_SDSS_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
+        teff = 10**data['TRUE_TEFF'].astype('f4')         # log10!
+        logg = data['TRUE_LOGG'].astype('f4')
+        feh = data['TRUE_FEH'].astype('f4')
+
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
+            gaia_pmra = data['PMRA'].astype('f4')
+            gaia_pmdec = data['PMDEC'].astype('f4')
+            gaia_pmra_ivar = data['PM_RA_IVAR'].astype('f4')
+            gaia_pmdec_ivar = data['PM_DEC_IVAR'].astype('f4')
+            gaia_parallax = data['PARALLAX'].astype('f4')
+            gaia_parallax_ivar = data['PARALLAX_IVAR'].astype('f4')
 
         if magcut:
             cut = mag < magcut
@@ -1615,50 +1787,36 @@ class ReadGalaxia(SelectTargets):
                 dec = dec[cut]
                 zz = zz[cut]
                 mag = mag[cut]
-                mag_obs = mag_obs[cut]
                 teff = teff[cut]
                 logg = logg[cut]
                 feh = feh[cut]
+
+                if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+                    gaia_g = gaia_g[cut]
+                    gaia_pmra = gaia_pmra[cut]
+                    gaia_pmdec = gaia_pmdec[cut]
+                    gaia_pmra_ivar = gaia_pmra_ivar[cut]
+                    gaia_pmdec_ivar = gaia_pmdec_ivar[cut]
+                    gaia_parallax = gaia_parallax[cut]
+                    gaia_parallax_ivar = gaia_parallax_ivar[cut]
+                
                 nobj = len(ra)
                 log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
 
-        # Temporary hack to read some Gaia columns from a separate file, but
-        # only for the MWS_MAIN mocks!
-        if target_name.upper() == 'MWS_MAIN':
-            gaiafile = galaxiafile.replace('mock_', 'gaia_mock_')
-            if os.path.isfile(gaiafile):
-                cols = ['G_GAIA', 'PM_RA_STAR_GAIA', 'PM_DEC_GAIA', 'PARALLAX_GAIA',
-                        'PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR']
-                gaia = fitsio.read(gaiafile, columns=cols, upper=True, ext=1, rows=cut)
-                    
-        elif target_name.upper() == 'FAINTSTAR': # Hack for FAINTSTAR
-
-            #from astropy.table import Table
-            #morecols = ['PM_RA', 'PM_DEC', 'DM']
-            #moredata = fitsio.read(galaxiafile, columns=morecols, upper=True, ext=1, rows=objid)
-
-            gaia = Table()
-            gaia['G_GAIA'] = mag # hack!
-            gaia['PM_RA_STAR_GAIA'] = np.zeros(nobj)  # moredata['PM_RA']
-            gaia['PM_DEC_GAIA'] = np.zeros(nobj)      # moredata['PM_DEC']
-            gaia['PARALLAX_GAIA'] = np.zeros(nobj)+20 # moredata['D_HELIO'] / 206265.
-            gaia['PARALLAX_GAIA_ERROR'] = np.zeros(nobj)+1e8
-            gaia['PM_RA_GAIA_ERROR'] = np.zeros(nobj)+1e8
-            gaia['PM_DEC_GAIA_ERROR'] = np.zeros(nobj)+1e8
-        else:
-            pass
-        
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
-               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'MAG_OBS': mag_obs,
+               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
                
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            out.update({
                'REF_ID': mockid,
-               'GAIA_PHOT_G_MEAN_MAG': gaia['G_GAIA'].astype('f4'),
+               'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
@@ -1666,25 +1824,34 @@ class ReadGalaxia(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
-               'PARALLAX': gaia['PARALLAX_GAIA'].astype('f4'),
-               'PARALLAX_IVAR': np.zeros(nobj).astype('f4'),
-               'PMRA': gaia['PM_RA_STAR_GAIA'].astype('f4'),
-               'PMRA_IVAR': np.zeros(nobj).astype('f4'),
-               'PMDEC': gaia['PM_DEC_GAIA'].astype('f4'), # no _STAR_!
-               'PMDEC_IVAR': np.zeros(nobj).astype('f4'),
-              
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
-
-        # Handle ivars -- again, a temporary hack
-        for outkey, gaiakey in zip( ('PARALLAX_IVAR', 'PMRA_IVAR', 'PMDEC_IVAR'),
-                                     ('PARALLAX_GAIA_ERROR', 'PM_RA_GAIA_ERROR', 'PM_DEC_GAIA_ERROR') ):
-            good = gaia[gaiakey] > 0
-            if np.sum(good) > 0:
-                out[outkey][good] = (1/gaia[gaiakey]**2).astype('f4')
+               'PARALLAX': gaia_parallax,
+               'PARALLAX_IVAR': gaia_parallax_ivar,
+               'PMRA': gaia_pmra,
+               'PMRA_IVAR': gaia_pmra_ivar,
+               'PMDEC': gaia_pmdec,
+               'PMDEC_IVAR': gaia_pmdec_ivar})
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
         self.imaging_depth(out)
+
+        # Optionally include faint stars.
+        if faintstar_mockfile is not None:
+            log.debug('Supplementing with FAINTSTAR mock targets.')
+            faintdata = ReadGalaxia().readmock(mockfile=faintstar_mockfile, target_name='FAINTSTAR',
+                                               healpixels=healpixels, nside=nside,
+                                               nside_galaxia=nside_galaxia, magcut=faintstar_magcut)
+            
+            # Stack and shuffle so we get a mix of bright and faint stars.
+            rand = np.random.RandomState(seed)
+            newnobj = nobj + len(faintdata['RA'])
+            newindx = rand.choice(newnobj, size=newnobj, replace=False)
+
+            for key in out.keys():
+                if type(out[key]) == np.ndarray:
+                    out[key] = np.hstack( (out[key], faintdata[key]) )[newindx]
+
+            del faintdata
 
         return out
 
@@ -1695,7 +1862,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False):
+                 mock_density=False, only_coords=False):
         """Read the catalog.
 
         Parameters
@@ -1717,6 +1884,9 @@ class ReadLyaCoLoRe(SelectTargets):
         mock_density : :class:`bool`, optional
             Compute and return the median target density in the mock.  Defaults
             to False.
+        only_coords : :class:`bool`, optional
+            Only read the target coordinates and some other basic info.
+            Defaults to False.
 
         Returns
         -------
@@ -1830,6 +2000,11 @@ class ReadLyaCoLoRe(SelectTargets):
             #objid = objid[cut]
             mockpix = mockpix[cut]
             mockid = mockid[cut]
+
+        # Optionally (for a little more speed) only return some basic info. 
+        if only_coords:
+            return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
+                    'WEIGHT': weight, 'NSIDE': nside}
 
         # Build the full filenames.
         lyafiles = []
@@ -1972,7 +2147,7 @@ class ReadMXXL(SelectTargets):
                 ra, dec, zz, rmag, absmag, gr, allpix, pixweight = _read_mockfile(mockfile, nside, self.pixmap)
                 ReadMXXL.cached_radec = (mockfile, nside, ra, dec, zz, rmag, absmag, gr, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, zz, rmag, absmag, gr, allpix, pixweight = ReadMXXL.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2134,7 +2309,7 @@ class ReadGAMA(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadGAMA.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadGAMA.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2260,7 +2435,7 @@ class ReadMWS_WD(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadMWS_WD.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadMWS_WD.cached_radec
 
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2417,7 +2592,7 @@ class ReadMWS_NEARBY(SelectTargets):
                 ra, dec, allpix, pixweight = _get_radec(mockfile, nside, self.pixmap)
                 ReadMWS_NEARBY.cached_radec = (mockfile, nside, ra, dec, allpix, pixweight)
             else:
-                log.info('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
+                log.debug('Using cached coordinates, healpixels, and pixel weights from {}'.format(mockfile))
                 _, _, ra, dec, allpix, pixweight = ReadMWS_NEARBY.cached_radec
         
         mockid = np.arange(len(ra)) # unique ID/row number
@@ -2442,22 +2617,49 @@ class ReadMWS_NEARBY(SelectTargets):
         ra = ra[cut]
         dec = dec[cut]
 
-        cols = ['RADIALVELOCITY', 'MAGG', 'TEFF', 'LOGG', 'FEH', 'SPECTRALTYPE']
+        cols = ['TRUE_RADIAL_VELOCITY', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH', 'TRUE_TYPE',
+                'GAIA_PHOT_G_MEAN_MAG', 'GAIA_PHOT_BP_MEAN_MAG', 'GAIA_PHOT_RP_MEAN_MAG',
+                'PMRA', 'PMDEC', 'PARALLAX']
         data = fitsio.read(mockfile, columns=cols, upper=True, ext=1, rows=cut)
-        zz = (data['RADIALVELOCITY'] / C_LIGHT).astype('f4')
-        mag = data['MAGG'].astype('f4') # SDSS g-band
-        teff = data['TEFF'].astype('f4')
-        logg = data['LOGG'].astype('f4')
-        feh = data['FEH'].astype('f4')
-        templatesubtype = data['SPECTRALTYPE']
+        zz = (data['TRUE_RADIAL_VELOCITY'] / C_LIGHT).astype('f4')
+        mag = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4') # not quite SDSS g-band but very close 
+        teff = data['TRUE_TEFF'].astype('f4')
+        logg = data['TRUE_LOGG'].astype('f4')
+        feh = data['TRUE_FEH'].astype('f4')
+        templatesubtype = data['TRUE_TYPE']
 
-        # Pack into a basic dictionary.  Is the normalization filter g-band???
+        gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
+        gaia_bp = data['GAIA_PHOT_BP_MEAN_MAG'].astype('f4')
+        gaia_rp = data['GAIA_PHOT_RP_MEAN_MAG'].astype('f4')
+        gaia_pmra = data['PMRA'].astype('f4')
+        gaia_pmdec = data['PMDEC'].astype('f4')
+        gaia_parallax = data['PARALLAX'].astype('f4')
+        #gaia_parallax_ivar = (1 / data['PARALLAX_ERROR']**2).astype('f4')
+
+        # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
+
+               'REF_ID': mockid,
+               'GAIA_PHOT_G_MEAN_MAG': gaia_g,
+               #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
+               #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_PHOT_RP_MEAN_MAG': gaia_rp,
+               #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
+               #'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
+               #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'PARALLAX': gaia_parallax,
+               #'PARALLAX_IVAR': gaia_parallax_ivar,
+               'PMRA': gaia_pmra,
+               'PMRA_IVAR': np.ones(nobj).astype('f4'),  # placeholder!
+               'PMDEC': gaia_pmdec,
+               'PMDEC_IVAR': np.ones(nobj).astype('f4'), # placeholder!
+               
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
 
         # Add MW transmission and the imaging depth.
@@ -2653,7 +2855,7 @@ class QSOMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='QSO'):
         """Select QSO targets.  Input tables are modified in place.
 
         Parameters
@@ -2662,14 +2864,16 @@ class QSOMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
         if self.use_simqso:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO',
+            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
                                                                   qso_selection='colorcuts')
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
-                targets, tcnames='QSO', qso_selection='colorcuts',
+                targets, tcnames=targetname, qso_selection='colorcuts',
                 qso_optical_cuts=True)
 
         targets['DESI_TARGET'] |= desi_target
@@ -2721,7 +2925,8 @@ class LYAMaker(SelectTargets):
             LYAMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
 
     def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
-             nside_lya=16, zmin_lya=None, mock_density=False, **kwargs):
+             nside_lya=16, zmin_lya=None, mock_density=False, only_coords=False,
+             **kwargs):
         """Read the catalog.
 
         Parameters
@@ -2742,6 +2947,9 @@ class LYAMaker(SelectTargets):
             QSO mocks.  Defaults to None.
         mock_density : :class:`bool`, optional
             Compute the median target density in the mock.  Defaults to False.
+        only_coords : :class:`bool`, optional
+            Only read the target coordinates and some other basic info.
+            Defaults to False.
 
         Returns
         -------
@@ -2758,7 +2966,7 @@ class LYAMaker(SelectTargets):
         
         if self.mockformat == 'colore':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v2.0', 'master.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v4.0', 'master.fits')
             MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -2770,7 +2978,8 @@ class LYAMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density,
+                                   only_coords=only_coords)
 
         return data
 
@@ -2891,9 +3100,9 @@ class LYAMaker(SelectTargets):
                     skewer_meta[k][these] = tmp_meta[k]
 
             # Check we matched things correctly.
-            assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx]))<0.000001)
-            assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx]))<0.000001)
-            assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx]))<0.000001)
+            assert(np.max(np.abs(skewer_meta['Z']-data['Z'][indx])) < 0.000001)
+            assert(np.max(np.abs(skewer_meta['RA']-data['RA'][indx])) < 0.000001)
+            assert(np.max(np.abs(skewer_meta['DEC']-data['DEC'][indx])) < 0.000001)
 
             # Now generate the QSO spectra simultaneously **at full wavelength
             # resolution**.  We do this because the Lya forest will have changed
@@ -2971,7 +3180,7 @@ class LYAMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='QSO'):
         """Select Lya/QSO targets.  Input tables are modified in place.
 
         Parameters
@@ -2980,9 +3189,16 @@ class LYAMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='QSO',
+        if targetname == 'LYA':
+            tcnames = 'QSO'
+        else:
+            tcnames = targetname
+            
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
                                                               qso_selection='colorcuts')
         
         targets['DESI_TARGET'] |= desi_target
@@ -3091,7 +3307,7 @@ class LRGMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'GaussianRandomField', 'v0.0.8_2LPT', 'LRG.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'lrg_0_inpt.fits')
             MockReader = ReadGaussianField()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3195,7 +3411,7 @@ class LRGMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='LRG'):
         """Select LRG targets.  Input tables are modified in place.
 
         Parameters
@@ -3204,9 +3420,11 @@ class LRGMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='LRG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3412,7 +3630,7 @@ class ELGMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='ELG'):
         """Select ELG targets.  Input tables are modified in place.
 
         Parameters
@@ -3421,9 +3639,11 @@ class ELGMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='ELG')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3637,7 +3857,7 @@ class BGSMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='BGS'):
         """Select BGS targets.  Input tables are modified in place.
 
         Parameters
@@ -3648,7 +3868,7 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames='BGS')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
@@ -3688,20 +3908,27 @@ class STARMaker(SelectTargets):
         self.meta = self.template_maker.basemeta
 
         # Pre-compute normalized synthetic photometry for the full set of
-        # stellar templates.
+        # stellar templates.  Move this to the templates themselves!
         if no_spectra and (self.star_maggies_g_north is None or self.star_maggies_r_north is None or
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             log.info('Caching stellar template photometry.')
-            
-            flux, wave = self.template_maker.baseflux, self.template_maker.basewave
 
-            maggies_north = self.bassmzlswise.get_ab_maggies(flux, wave, mask_invalid=True)
-            maggies_south = self.decamwise.get_ab_maggies(flux, wave, mask_invalid=True)
-
-            # Normalize to both sdss-g and sdss-r
             sdssg = filters.load_filters('sdss2010-g')
             sdssr = filters.load_filters('sdss2010-r')
 
+            flux, wave = self.template_maker.baseflux, self.template_maker.basewave
+            padflux, padwave = sdssr.pad_spectrum(flux, wave, method='edge')
+
+            maggies_north = self.bassmzlswise.get_ab_maggies(padflux, padwave, mask_invalid=True)
+            maggies_south = self.decamwise.get_ab_maggies(padflux, padwave, mask_invalid=True)
+            if 'W1-R' in self.meta.colnames: # >v3.0 templates
+                sdssrnorm = sdssr.get_ab_maggies(padflux, padwave)['sdss2010-r'].data
+                maggies_north['wise2010-W1'] = sdssrnorm * 10**(-0.4 * self.meta['W1-R'].data)
+                maggies_south['wise2010-W1'] = sdssrnorm * 10**(-0.4 * self.meta['W1-R'].data)
+                maggies_north['wise2010-W2'] = sdssrnorm * 10**(-0.4 * self.meta['W2-R'].data)
+                maggies_south['wise2010-W2'] = sdssrnorm * 10**(-0.4 * self.meta['W2-R'].data)
+            
+            # Normalize to both sdss-g and sdss-r
             def _get_maggies(flux, wave, outmaggies, normfilter):
                 normmaggies = normfilter.get_ab_maggies(flux, wave, mask_invalid=True)
                 for filt, flux in zip( outmaggies.colnames, ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
@@ -3853,7 +4080,8 @@ class MWS_MAINMaker(STARMaker):
         self.calib_only = calib_only
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
-             nside=None, nside_galaxia=8, magcut=None, **kwargs):
+             nside=None, nside_galaxia=8, target_name='MWS_MAIN', magcut=None,
+             faintstar_mockfile=None, faintstar_magcut=None, **kwargs):
         """Read the catalog.
 
         Parameters
@@ -3869,6 +4097,17 @@ class MWS_MAINMaker(STARMaker):
         nside_galaxia : :class:`int`
             Healpixel nside indicating how the mock on-disk has been organized.
             Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read.  Defaults to 'MWS_MAIN'.
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut.
+        faintstar_mockfile : :class:`str`, optional
+            Full path to the top-level directory of the Galaxia faint star mock
+            catalog.
+        faintstar_magcut : :class:`float`, optional
+            Magnitude cut (hard-coded to SDSS r-band) to subselect faint star
+            targets brighter than magcut.
 
         Returns
         -------
@@ -3893,9 +4132,12 @@ class MWS_MAINMaker(STARMaker):
         if mockfile is None:
             mockfile = self.default_mockfile
             
-        data = MockReader.readmock(mockfile, target_name='MWS_MAIN',
+        data = MockReader.readmock(mockfile, target_name=target_name,
                                    healpixels=healpixels, nside=nside,
-                                   nside_galaxia=nside_galaxia, magcut=magcut)
+                                   nside_galaxia=nside_galaxia, magcut=magcut,
+                                   faintstar_mockfile=faintstar_mockfile,
+                                   faintstar_magcut=faintstar_magcut,
+                                   seed=self.seed)
 
         return data
     
@@ -3975,7 +4217,7 @@ class MWS_MAINMaker(STARMaker):
                                                            
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth):
+    def select_targets(self, targets, truth, targetname='MWS_MAIN'):
         """Select various MWS stars and standard stars.  Input tables are modified in
         place.
 
@@ -3985,237 +4227,42 @@ class MWS_MAINMaker(STARMaker):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        if self.calib_only:
-            tcnames = 'STD'
+        if targetname == 'MWS_MAIN':
+            if self.calib_only:
+                tcnames = 'STD'
+            else:
+                tcnames = ['MWS', 'STD']
         else:
-            tcnames = ['MWS', 'STD']
-            
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
+            tcnames = targetname
+
+        # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
+        # targets can be used as QSO contaminants.
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
+                                                              qso_selection='colorcuts')
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
         # respectively.
-        for mwsbit in ('MWS_NEARBY', 'MWS_WD'):
-            these = mws_target & self.mws_mask.mask(mwsbit) != 0
-            if np.sum(these) > 0:
-                mws_target[these] -= self.mws_mask.mask(mwsbit)
-                andthose = mws_target[these] == 0
-                if np.sum(andthose) > 0:
-                    desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
+        for mwsbit in self.mws_mask.names():
+            if 'NEARBY' in mwsbit or 'WD' in mwsbit:
+                these = mws_target & self.mws_mask.mask(mwsbit) != 0
+                if np.sum(these) > 0:
+                    mws_target[these] -= self.mws_mask.mask(mwsbit)
+                    andthose = mws_target[these] == 0
+                    if np.sum(andthose) > 0:
+                        desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
         
         these = desi_target & self.desi_mask.mask('STD_WD') != 0
         if np.sum(these) > 0:
             desi_target[these] -= self.desi_mask.mask('STD_WD')
-            
-        targets['DESI_TARGET'] |= targets['DESI_TARGET'] | desi_target
-        targets['BGS_TARGET'] |= targets['BGS_TARGET'] | bgs_target
-        targets['MWS_TARGET'] |= targets['MWS_TARGET'] | mws_target
 
-        # Select bright stellar contaminants for the extragalactic targets.
-        log.debug('Temporarily turning off contaminants.')
-        if False:
-            self.select_contaminants(targets, truth)
-
-class FAINTSTARMaker(STARMaker):
-    """Read FAINTSTAR mocks, generate spectra, and select targets.
-
-    Parameters
-    ----------
-    seed : :class:`int`, optional
-        Seed for reproducibility and random number generation.
-    calib_only : :class:`bool`, optional
-        Use FAINTSTAR stars as calibration (standard star) targets and
-        contaminants, only.  Defaults to True.
-    no_spectra : :class:`bool`, optional
-        Do not initialize template photometry.  Defaults to False.
-
-    """
-    def __init__(self, seed=None, calib_only=True, no_spectra=False, **kwargs):
-        super(FAINTSTARMaker, self).__init__(seed=seed, no_spectra=no_spectra)
-
-    def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
-             nside=None, nside_galaxia=8, magcut=None, **kwargs):
-        """Read the catalog.
-
-        Parameters
-        ----------
-        mockfile : :class:`str`
-            Full path to the mock catalog to read.
-        mockformat : :class:`str`
-            Mock catalog format.  Defaults to 'galaxia'.
-        healpixels : :class:`int`
-            Healpixel number to read.
-        nside : :class:`int`
-            Healpixel nside corresponding to healpixels.
-        nside_galaxia : :class:`int`
-            Healpixel nside indicating how the mock on-disk has been organized.
-            Defaults to 8.
-
-        Returns
-        -------
-        :class:`dict`
-            Dictionary of target properties with various keys (to be documented). 
-
-        Raises
-        ------
-        ValueError
-            If mockformat is not recognized.
-
-        """
-        self.mockformat = mockformat.lower()
-        if self.mockformat == 'galaxia':
-            self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'mws', 'galaxia', 'alpha', '0.0.5_superfaint', 'healpix')
-            MockReader = ReadGalaxia()
-        else:
-            log.warning('Unrecognized mockformat {}!'.format(mockformat))
-            raise ValueError
-
-        if mockfile is None:
-            mockfile = self.default_mockfile
-            
-        data = MockReader.readmock(mockfile, target_name='FAINTSTAR',
-                                   healpixels=healpixels, nside=nside,
-                                   nside_galaxia=nside_galaxia, magcut=magcut)
-
-        return data
-    
-    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
-        """Generate FAINTSTAR stellar spectra.
-
-        Note: These (numerous!) objects are only used as contaminants, so we use
-        the templates themselves for the spectra rather than generating them
-        on-the-fly.
-
-        Parameters
-        ----------
-        data : :class:`dict`
-            Dictionary of source properties.
-        indx : :class:`numpy.ndarray`, optional
-            Generate spectra for a subset of the objects in the data dictionary,
-            as specified using their zero-indexed indices.
-        seed : :class:`int`, optional
-            Seed for reproducibility and random number generation.
-        no_spectra : :class:`bool`, optional
-            Do not generate spectra.  Defaults to False.
-
-        Returns
-        -------
-        flux : :class:`numpy.ndarray`
-            Target spectra.
-        wave : :class:`numpy.ndarray`
-            Corresponding wavelength array.
-        meta : :class:`astropy.table.Table`
-            Spectral metadata table.
-        targets : :class:`astropy.table.Table`
-            Target catalog.
-        truth : :class:`astropy.table.Table`
-            Corresponding truth table.
-        objtruth : :class:`astropy.table.Table`
-            Corresponding objtype-specific truth table (if applicable).
-
-        """
-        if indx is None:
-            indx = np.arange(len(data['RA']))
-        nobj = len(indx)
-
-        if seed is None:
-            seed = self.seed
-        rand = np.random.RandomState(seed)
-
-        objseeds = rand.randint(2**31, size=nobj)
-
-        if self.mockformat == 'galaxia':
-            templateid = self.KDTree_query(
-                np.vstack((np.log10(data['TEFF'][indx]),
-                           data['LOGG'][indx],
-                           data['FEH'][indx])).T)
-
-        # Initialize dummy targets and truth tables.
-        _targets = empty_targets_table(nobj)
-        _truth = empty_truth_table(nobj)
-        
-        # Pack the noiseless stellar photometry in the truth table, generate
-        # noisy photometry, and then select targets.
-        normmag = 1e9 * 10**(-0.4 * data['MAG'][indx]) # nanomaggies
-
-        if data['MAGFILTER'][0] == 'sdss2010-r':
-            star_maggies = self.star_maggies_r
-        elif data['MAGFILTER'][0] == 'sdss2010-g':
-            star_maggies = self.star_maggies_g
-        else:
-            log.warning('Unrecognized normalization filter!')
-            raise ValueError
-        
-        for key in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
-            _truth[key][:] = star_maggies[key][templateid] * normmag
-
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
-            for prefix in ('MW_TRANSMISSION', 'PSFDEPTH'):
-                key = '{}_{}'.format(prefix, band)
-                _targets[key][:] = data[key][indx]
-
-        self.scatter_photometry(data, _truth, _targets, indx=indx, psf=True, qaplot=False)
-
-        self.select_targets(_targets, _truth)
-
-        keep = np.where(_targets['DESI_TARGET'] != 0)[0]
-        log.debug('Pre-selected {} FAINTSTAR targets.'.format(len(keep)))
-
-        if len(keep) > 0:
-            input_meta, objmeta = empty_metatable(nmodel=len(keep), objtype=self.objtype)
-            input_meta['SEED'][:] = objseeds[keep]
-            input_meta['REDSHIFT'][:] = data['Z'][indx][keep]
-            input_meta['MAG'][:] = data['MAG'][indx][keep]
-            
-            objmeta['TEFF'][:] = data['TEFF'][indx][keep]
-            objmeta['LOGG'][:] = data['LOGG'][indx][keep]
-            objmeta['FEH'][:] = data['FEH'][indx][keep]
-
-            if no_spectra:
-                flux = []
-                meta = input_meta
-                targets, truth = self.populate_targets_truth(
-                    data, meta, objmeta, indx=indx[keep], psf=True,
-                    seed=seed, truespectype='STAR', templatetype='STAR')
-            else:
-                input_meta['TEMPLATEID'][:] = templateid[keep]
-
-                # Note! No colorcuts.
-                flux, _, meta, objmeta = self.template_maker.make_templates(input_meta=input_meta)
-
-                # Force consistency in the noisy photometry so we select the same targets. 
-                targets, truth, objtruth = self.populate_targets_truth(
-                    data, meta, objmeta, indx=indx[keep], psf=True,
-                    seed=seed, truespectype='STAR', templatetype='STAR')
-                
-                for filt in ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'):
-                    targets[filt][:] = _targets[filt][keep]
-
-            self.select_targets(targets, truth)
-
-            return flux, self.wave, targets, truth, objtruth
-
-        else:
-            return [], self.wave, None, [], [], []
-                                                           
-    def select_targets(self, targets, truth):
-        """Select faint stellar contaminants for the extragalactic targets.  Input
-        tables are modified in place.
-
-        Parameters
-        ----------
-        targets : :class:`astropy.table.Table`
-            Input target catalog.
-        truth : :class:`astropy.table.Table`
-            Corresponding truth table.
-
-        """
-        log.info('Temporarily turning off contaminants.')
-        if False:
-            self.select_contaminants(targets, truth)
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class MWS_NEARBYMaker(STARMaker):
     """Read MWS_NEARBY mocks, generate spectra, and select targets.
@@ -4262,7 +4309,7 @@ class MWS_NEARBYMaker(STARMaker):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'mws_100pc':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.3', 'mock_100pc.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'mws', '100pc', 'v0.0.4', 'mock_100pc.fits')
             MockReader = ReadMWS_NEARBY()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -4354,7 +4401,7 @@ class MWS_NEARBYMaker(STARMaker):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='MWS'):
         """Select MWS_NEARBY targets.  Input tables are modified in place.
 
         Note: The selection here eventually will be done with Gaia (I think) so
@@ -4366,21 +4413,28 @@ class MWS_NEARBYMaker(STARMaker):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        if False:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
-        else:
-            log.debug('Applying ad hoc selection of MWS_NEARBY targets (no Gaia in mocks).')
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
 
-            mws_nearby = np.ones(len(targets)) # select everything!
-            #mws_nearby = (truth['MAG'] <= 20.0) * 1 # SDSS g-band!
-
-            desi_target = (mws_nearby != 0) * self.desi_mask.MWS_ANY
-            mws_target = (mws_nearby != 0) * self.mws_mask.mask('MWS_NEARBY')
-
-            targets['DESI_TARGET'] |= desi_target
-            targets['MWS_TARGET'] |= mws_target
+        # Subtract out *all* the MWS targeting bits except MWS_NEARBY since
+        # those are separately handled in the MWS_MAINMaker and WDMaker classes.
+        for mwsbit in self.mws_mask.names():
+            if mwsbit == 'MWS_NEARBY':
+                pass
+            else:
+                these = mws_target & self.mws_mask.mask(mwsbit) != 0
+                if np.sum(these) > 0:
+                    mws_target[these] -= self.mws_mask.mask(mwsbit)
+                    andthose = mws_target[these] == 0
+                    if np.sum(andthose) > 0:
+                        desi_target[these][andthose] -= self.desi_mask.mask('MWS_ANY')
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
@@ -4654,7 +4708,7 @@ class WDMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='WD'):
         """Select MWS_WD targets and STD_WD standard stars.  Input tables are modified
         in place.
 
@@ -4664,15 +4718,25 @@ class WDMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        if not self.calib_only:
-            desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['MWS'])
-            targets['DESI_TARGET'] |= desi_target
-            targets['MWS_TARGET'] |= mws_target
+        if targetname == 'WD':
+            if self.calib_only:
+                tcnames = 'STD'
+            else:
+                tcnames = ['MWS', 'STD']
+        else:
+            tcnames = targetname
 
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=['STD'])
+        # Assume that MWS_MAIN and MWS_NEARBY objects are *never* selected from
+        # the WD mock.
+        
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
         targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -4727,7 +4791,7 @@ class SKYMaker(SelectTargets):
         self.mockformat = mockformat.lower()
         if self.mockformat == 'uniformsky':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.1', 'uniformsky-2048-0.1.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'uniformsky', '0.2', 'uniformsky-2048-0.2.fits')
             MockReader = ReadUniformSky()
         elif self.mockformat == 'gaussianfield':
             self.default_mockfile = os.path.join(
@@ -4795,7 +4859,7 @@ class SKYMaker(SelectTargets):
 
         return flux, self.wave, targets, truth, objtruth
 
-    def select_targets(self, targets, truth, **kwargs):
+    def select_targets(self, targets, truth, targetname='SKY'):
         """Select SKY targets (i.e., everything).  Input tables are modified in place.
 
         Parameters
@@ -4804,6 +4868,85 @@ class SKYMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        targets['DESI_TARGET'] |= self.desi_mask.mask('SKY')
+        targets['DESI_TARGET'] |= self.desi_mask.mask(targetname)
+
+class BuzzardMaker(SelectTargets):
+    """Read Buzzard mocks, generate spectra, and select targets.
+
+    Parameters
+    ----------
+    seed : :class:`int`, optional
+        Seed for reproducibility and random number generation.
+
+    """
+    wave = None
+    
+    def __init__(self, seed=None, **kwargs):
+        super(BuzzardMaker, self).__init__()
+
+        self.seed = seed
+        #self.objtype = 'SKY'
+
+        if self.wave is None:
+            BuzzardMaker.wave = _default_wave()
+        
+    def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
+             nside=None, nside_buzzard=8, target_name='', magcut=None,
+             only_coords=False, **kwargs):
+        """Read the catalog.
+
+        Parameters
+        ----------
+        mockfile : :class:`str`
+            Full path to the mock catalog to read.
+        mockformat : :class:`str`
+            Mock catalog format.  Defaults to 'buzzard'.
+        healpixels : :class:`int`
+            Healpixel number to read.
+        nside : :class:`int`
+            Healpixel nside corresponding to healpixels.
+        nside_buzzard : :class:`int`
+            Healpixel nside indicating how the mock on-disk has been organized.
+            Defaults to 8.
+        target_name : :class:`str`
+            Name of the target being read.  Defaults to ''.
+        magcut : :class:`float`
+            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            brighter than magcut. 
+        only_coords : :class:`bool`, optional
+            For various applications, only read the target coordinates.
+
+        Returns
+        -------
+        :class:`dict`
+            Dictionary of target properties with various keys (to be documented). 
+
+        Raises
+        ------
+        ValueError
+            If mockformat is not recognized.
+
+        """
+        self.mockformat = mockformat.lower()
+        if self.mockformat == 'buzzard':
+            self.default_mockfile = os.path.join(
+                os.getenv('DESI_ROOT'), 'mocks', 'buzzard', 'buzzard_v1.6_desicut')
+            MockReader = ReadBuzzard()
+        else:
+            log.warning('Unrecognized mockformat {}!'.format(mockformat))
+            raise ValueError
+
+        if mockfile is None:
+            mockfile = self.default_mockfile
+
+        data = MockReader.readmock(mockfile, target_name=target_name, 
+                                   healpixels=healpixels, nside=nside,
+                                   nside_buzzard=nside_buzzard,
+                                   only_coords=only_coords,
+                                   magcut=magcut)
+
+        return data

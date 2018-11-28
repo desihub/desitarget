@@ -5,6 +5,7 @@ desitarget Change Log
 0.26.0 (unreleased)
 -------------------
 
+* Update default mock catalogs used by `select_mock_targets` [`PR #424`_]
 * Update Random Forests for DR7 quasar selection [`PR #423`_]
 * Fix bugs in main MWS selections [`PR #422`_].
 * Fix `python setup.py install` for cmx and sv1 directories [`PR #421`_].
@@ -18,6 +19,7 @@ desitarget Change Log
 .. _`PR #421`: https://github.com/desihub/desitarget/pull/421
 .. _`PR #422`: https://github.com/desihub/desitarget/pull/422
 .. _`PR #423`: https://github.com/desihub/desitarget/pull/423
+.. _`PR #424`: https://github.com/desihub/desitarget/pull/424
 
 0.25.0 (2018-11-07)
 -------------------
