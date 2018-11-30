@@ -287,9 +287,6 @@ class SelectTargets(object):
         data : :class:`dict`
             Input dictionary of sources with RA, Dec coordinates, modified on output
             to contain reddening and the MW transmission in various bands.
-        params : :class:`dict`
-            Dictionary summary of the input configuration file, restricted to a
-            particular source_name (e.g., 'QSO').
 
         Raises
         ------
@@ -300,6 +297,22 @@ class SelectTargets(object):
 
         for band in ('G', 'R', 'Z', 'W1', 'W2'):
             data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
+
+    def mw_dust_extinction(self, Rv=3.1):
+        """Cache the spectroscopic Galactic extinction curve for later use.
+
+        Parameters
+        ----------
+        Rv : :class:`float`
+            Total-to-selective extinction factor.  Defaults to 3.1.
+
+        Raises
+        ------
+
+        """
+        from desiutil.dust import ext_odonnell
+        extinction = Rv * ext_odonnell(self.wave, Rv=Rv)
+        return extinction
 
     def imaging_depth(self, data):
         """Add the imaging depth to the data dictionary.
@@ -911,9 +924,9 @@ class SelectTargets(object):
 
         return fiberfraction_g, fiberfraction_r, fiberfraction_z
 
-    def populate_targets_truth(self, data, meta, objmeta, indx=None, seed=None, psf=True,
-                               use_simqso=True, truespectype='', templatetype='',
-                               templatesubtype=''):
+    def populate_targets_truth(self, flux, data, meta, objmeta, indx=None,
+                               seed=None, psf=True, use_simqso=True, truespectype='',
+                               templatetype='', templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
         source properties and a spectral metadata table.  
 
@@ -1028,6 +1041,10 @@ class SelectTargets(object):
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
+
+        # Attenuate the spectra for extinction, too.
+        if len(flux) > 0:
+            flux *= 10**( -0.4 * data['EBV'][indx, np.newaxis] * self.extinction )
 
         # Finally compute the (simulated, observed) flux within the fiber.
         for these, issouth in zip( (north, south), (False, True) ):
@@ -2699,6 +2716,7 @@ class QSOMaker(SelectTargets):
 
         if self.wave is None:
             QSOMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
 
         if self.template_maker is None:
             if self.use_simqso:
@@ -2850,7 +2868,7 @@ class QSOMaker(SelectTargets):
                         flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=True, use_simqso=self.use_simqso,
+            flux, data, meta, objmeta, indx=indx, psf=True, use_simqso=self.use_simqso,
             seed=seed, truespectype='QSO', templatetype='QSO')
 
         return flux, self.wave, targets, truth, objtruth
@@ -2913,6 +2931,7 @@ class LYAMaker(SelectTargets):
 
         if self.wave is None:
             LYAMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
             
         if self.template_maker is None:
             if self.use_simqso:
@@ -3175,8 +3194,8 @@ class LYAMaker(SelectTargets):
                     flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :], extrapolate=True)
 
         targets, truth, objtruth = self.populate_targets_truth(
-                data, meta, objmeta, indx=indx, psf=True, seed=seed,
-                truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
+            flux, data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
 
         return flux, self.wave, targets, truth, objtruth
 
@@ -3232,6 +3251,8 @@ class LRGMaker(SelectTargets):
 
         if self.wave is None:
             LRGMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
+
         if self.template_maker is None:
             LRGMaker.template_maker = LRG(wave=self.wave)
             
@@ -3406,7 +3427,7 @@ class LRGMaker(SelectTargets):
                     flux[these, :] = flux1
                     
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='LRG')
 
         return flux, self.wave, targets, truth, objtruth
@@ -3457,6 +3478,8 @@ class ELGMaker(SelectTargets):
 
         if self.wave is None:
             ELGMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
+
         if self.template_maker is None:
             ELGMaker.template_maker = ELG(wave=self.wave)
             
@@ -3473,6 +3496,8 @@ class ELGMaker(SelectTargets):
         self.param_min_south = ( zobj.min(), gr_south.min(), rz_south.min() )
         self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north) )
         self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south) )
+
+        import pdb ; pdb.set_trace()
         
         if self.KDTree_north is None:
             ELGMaker.KDTree_north = self.KDTree_build(
@@ -3625,7 +3650,7 @@ class ELGMaker(SelectTargets):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='ELG')
 
         return flux, self.wave, targets, truth, objtruth
@@ -3676,6 +3701,8 @@ class BGSMaker(SelectTargets):
 
         if self.wave is None:
             BGSMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
+
         if self.template_maker is None:
             BGSMaker.template_maker = BGS(wave=self.wave)
             
@@ -3852,7 +3879,7 @@ class BGSMaker(SelectTargets):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
 
         return flux, self.wave, targets, truth, objtruth
@@ -3902,6 +3929,8 @@ class STARMaker(SelectTargets):
 
         if self.wave is None:
             STARMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
+
         if self.template_maker is None:
             STARMaker.template_maker = STAR(wave=self.wave)
 
@@ -3913,7 +3942,7 @@ class STARMaker(SelectTargets):
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             log.info('Caching stellar template photometry.')
 
-            if False and 'SDSS2010_R' in self.meta.colnames: # from DESI-COLORS HDU (basis templates >=v3.1)
+            if 'SDSS2010_R' in self.meta.colnames: # from DESI-COLORS HDU (basis templates >=v3.1)
 
                 # Get the WISE colors from the SDSS r minus W1, W2 precomputed colors
                 maggies_north = self.meta[['BASS_G', 'BASS_R', 'MZLS_Z']]
@@ -4235,8 +4264,8 @@ class MWS_MAINMaker(STARMaker):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=True, seed=seed,
-            truespectype='STAR', templatetype='STAR')
+            flux, data, meta, objmeta, indx=indx, psf=True,
+            seed=seed, truespectype='STAR', templatetype='STAR')
                                                            
         return flux, self.wave, targets, truth, objtruth
 
@@ -4418,8 +4447,8 @@ class MWS_NEARBYMaker(STARMaker):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=True, seed=seed,
-            truespectype='STAR', templatetype='STAR',
+            flux, data, meta, objmeta, indx=indx, psf=True, 
+            seed=seed, truespectype='STAR', templatetype='STAR',
             templatesubtype=data['TEMPLATESUBTYPE'][indx])
 
         return flux, self.wave, targets, truth, objtruth
@@ -4489,6 +4518,7 @@ class WDMaker(SelectTargets):
 
         if self.wave is None:
             WDMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
             
         if self.da_template_maker is None:
             WDMaker.da_template_maker = WD(wave=self.wave, subtype='DA')
@@ -4743,8 +4773,8 @@ class WDMaker(SelectTargets):
                                 flux[match[these], :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=True, seed=seed,
-            truespectype='WD', templatetype='WD',
+            flux, data, meta, objmeta, indx=indx, psf=True, 
+            seed=seed, truespectype='WD', templatetype='WD',
             templatesubtype=allsubtype)
 
         return flux, self.wave, targets, truth, objtruth
@@ -4798,6 +4828,7 @@ class SKYMaker(SelectTargets):
 
         if self.wave is None:
             SKYMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
         
     def read(self, mockfile=None, mockformat='uniformsky', healpixels=None,
              nside=None, only_coords=False, mock_density=False, **kwargs):
@@ -4895,7 +4926,7 @@ class SKYMaker(SelectTargets):
         
         flux = np.zeros((nobj, len(self.wave)), dtype='i1')
         targets, truth, objtruth = self.populate_targets_truth(
-            data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='SKY', templatetype='SKY')
 
         return flux, self.wave, targets, truth, objtruth
@@ -4934,6 +4965,7 @@ class BuzzardMaker(SelectTargets):
 
         if self.wave is None:
             BuzzardMaker.wave = _default_wave()
+        self.extinction = self.mw_dust_extinction()
         
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
              nside=None, nside_buzzard=8, target_name='', magcut=None,
