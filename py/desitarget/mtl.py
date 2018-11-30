@@ -79,11 +79,8 @@ def make_mtl(targets, zcat=None, trim=False):
     # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
     ztargets['NUMOBS_MORE'] = np.maximum(0, targets[zmatcher]['NUMOBS_INIT'] - ztargets['NUMOBS'])
 
-    # Create MTL
-    mtl = ztargets.copy()
-
-    # Assign priorities
-    mtl['PRIORITY'] = calc_priority(ztargets)
+    # ADM assign priorities, note that only things in the zcat can have changed priorities.
+    priority = calc_priority_no_table(targets[zmatcher], ztargets)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
