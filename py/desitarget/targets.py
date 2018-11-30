@@ -497,6 +497,108 @@ def calc_priority(targets):
     return priority
 
 ############################################################
+def calc_priority_no_table(targets, zcat):
+    """
+    :func:`~desitarget.targets.calc_priority` without table copies, to save memory.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.ndarray`
+        numpy structured array or astropy Table of targets. Must include columns
+        `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` and `NUMOBS_INIT`.
+    zcat : :class:`~numpy.ndarray`
+        numpy structured array or Table of redshift information. Must include
+        `NUMOBS`, `Z` and `ZWARN` and be the same length as `targets`.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        integer array of priorities.
+
+    Notes
+    -----
+        - If a target passes more than one selection, the highest priority wins.
+    """
+    # ADM set up default DESI logger.
+    from desiutil.log import get_logger
+    log = get_logger()
+
+    # ADM check the input arrays are the same length.
+    assert len(targets) == len(zcat)
+
+    # Default is 0 priority, i.e. do not observe.
+    priority = np.zeros(len(targets), dtype='i8')
+
+    # Determine which targets have been observed.
+    # TODO: this doesn't distinguish between really unobserved vs not yet
+    # processed.
+    unobs = (zcat["NUMOBS"] == 0)
+    log.debug('calc_priority has %d unobserved targets'%(np.sum(unobs)))
+    if np.all(unobs):
+        done  = np.zeros(len(targets), dtype=bool)
+        zgood = np.zeros(len(targets), dtype=bool)
+        zwarn = np.zeros(len(targets), dtype=bool)
+    else:
+        nmore = np.maximum(0, targets["NUMOBS_INIT"] - zcat["NUMOBS"])
+        assert np.all(nmore >= 0)
+        done  = ~unobs & (nmore == 0)
+        zgood = ~unobs & (nmore > 0) & (zcat['ZWARN'] == 0)
+        zwarn = ~unobs & (nmore > 0) & (zcat['ZWARN'] != 0)
+
+    # zgood, zwarn, done, and unobs should be mutually exclusive and cover all
+    # targets.
+    assert not np.any(unobs & zgood)
+    assert not np.any(unobs & zwarn)
+    assert not np.any(unobs & done)
+    assert not np.any(zgood & zwarn)
+    assert not np.any(zgood & done)
+    assert not np.any(zwarn & done)
+    assert np.all(unobs | done | zgood | zwarn)
+
+    # DESI dark time targets.
+    if 'DESI_TARGET' in targets.colnames:
+        for name in ('ELG', 'LRG'):
+            ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+            priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+            priority[ii & done]  = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
+            priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+
+        # QSO could be Lyman-alpha or Tracer.
+        name = 'QSO'
+        ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+        good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
+        priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+        priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
+        priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
+        priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
+        priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+
+    # BGS targets.
+    if 'BGS_TARGET' in targets.colnames:
+        for name in bgs_mask.names():
+            ii = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
+            priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
+            priority[ii & done] = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
+            priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
+
+    # MWS targets.
+    if 'MWS_TARGET' in targets.colnames:
+        for name in mws_mask.names():
+            ii = (targets['MWS_TARGET'] & mws_mask[name]) != 0
+            priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
+            priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
+            priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
+
+    # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
+    ii = (targets['DESI_TARGET'] & desi_mask.IN_BRIGHT_OBJECT) != 0
+    priority[ii] = -1
+
+    return priority
+
+############################################################
 def calc_numobs(targets):
     """
     Calculates the requested number of observations needed for each target
