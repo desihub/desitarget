@@ -3942,16 +3942,16 @@ class STARMaker(SelectTargets):
             self.star_maggies_g_south is None or self.star_maggies_r_south is None):
             log.info('Caching stellar template photometry.')
 
-            if 'SDSS2010_R' in self.meta.colnames: # from DESI-COLORS HDU (basis templates >=v3.1)
+            if 'SYNTH_SDSS2010_R' in self.meta.colnames: # from DESI-COLORS HDU (basis templates >=v3.1)
 
                 # Get the WISE colors from the SDSS r minus W1, W2 precomputed colors
-                maggies_north = self.meta[['BASS_G', 'BASS_R', 'MZLS_Z']]
-                maggies_south = self.meta[['DECAM2014_G', 'DECAM2014_R', 'DECAM2014_Z']]
+                maggies_north = self.meta[['SYNTH_BASS_G', 'SYNTH_BASS_R', 'SYNTH_MZLS_Z']]
+                maggies_south = self.meta[['SYNTH_DECAM2014_G', 'SYNTH_DECAM2014_R', 'SYNTH_DECAM2014_Z']]
 
-                maggies_north['WISE2010_W1'] = self.meta['SDSS2010_R'] * 10**(-0.4 * self.meta['W1-R'].data)
-                maggies_south['WISE2010_W1'] = self.meta['SDSS2010_R'] * 10**(-0.4 * self.meta['W1-R'].data)
-                maggies_north['WISE2010_W2'] = self.meta['SDSS2010_R'] * 10**(-0.4 * self.meta['W2-R'].data)
-                maggies_south['WISE2010_W2'] = self.meta['SDSS2010_R'] * 10**(-0.4 * self.meta['W2-R'].data)
+                maggies_north['SYNTH_WISE2010_W1'] = self.meta['SYNTH_SDSS2010_R'] * 10**(-0.4 * self.meta['W1-R'].data)
+                maggies_south['SYNTH_WISE2010_W1'] = self.meta['SYNTH_SDSS2010_R'] * 10**(-0.4 * self.meta['W1-R'].data)
+                maggies_north['SYNTH_WISE2010_W2'] = self.meta['SYNTH_SDSS2010_R'] * 10**(-0.4 * self.meta['W2-R'].data)
+                maggies_south['SYNTH_WISE2010_W2'] = self.meta['SYNTH_SDSS2010_R'] * 10**(-0.4 * self.meta['W2-R'].data)
 
                 # Normalize to both sdss-g and sdss-r
                 def _get_maggies(outmaggies, normmaggies):
@@ -3960,10 +3960,10 @@ class STARMaker(SelectTargets):
                         outmaggies.rename_column(filt, flux)
                     return outmaggies
 
-                STARMaker.star_maggies_g_north = _get_maggies(maggies_north.copy(), self.meta['SDSS2010_G'])
-                STARMaker.star_maggies_r_north = _get_maggies(maggies_north.copy(), self.meta['SDSS2010_R'])
-                STARMaker.star_maggies_g_south = _get_maggies(maggies_south.copy(), self.meta['SDSS2010_G'])
-                STARMaker.star_maggies_r_south = _get_maggies(maggies_south.copy(), self.meta['SDSS2010_R'])
+                STARMaker.star_maggies_g_north = _get_maggies(maggies_north.copy(), self.meta['SYNTH_SDSS2010_G'])
+                STARMaker.star_maggies_r_north = _get_maggies(maggies_north.copy(), self.meta['SYNTH_SDSS2010_R'])
+                STARMaker.star_maggies_g_south = _get_maggies(maggies_south.copy(), self.meta['SYNTH_SDSS2010_G'])
+                STARMaker.star_maggies_r_south = _get_maggies(maggies_south.copy(), self.meta['SYNTH_SDSS2010_R'])
             else:
                 sdssg = filters.load_filters('sdss2010-g')
                 sdssr = filters.load_filters('sdss2010-r')
@@ -4535,11 +4535,15 @@ class WDMaker(SelectTargets):
             self.wd_maggies_db_north is None or self.wd_maggies_db_south is None):
             log.info('Caching WD template photometry.')
 
-            if 'SDSS2010_G' in self.meta_da.colnames: # from DESI-COLORS HDU (basis templates >=v3.1)
-                maggies_da_north = self.meta_da[['BASS_G', 'BASS_R', 'MZLS_Z', 'WISE2010_W1', 'WISE2010_W2']]
-                maggies_db_north = self.meta_db[['BASS_G', 'BASS_R', 'MZLS_Z', 'WISE2010_W1', 'WISE2010_W2']]
-                maggies_da_south = self.meta_da[['DECAM2014_G', 'DECAM2014_R', 'DECAM2014_Z', 'WISE2010_W1', 'WISE2010_W2']]
-                maggies_db_south = self.meta_db[['DECAM2014_G', 'DECAM2014_R', 'DECAM2014_Z', 'WISE2010_W1', 'WISE2010_W2']]
+            if 'SYNTH_SDSS2010_G' in self.meta_da.colnames: # from DESI-COLORS HDU (basis templates >=v3.1)
+                maggies_da_north = self.meta_da[['SYNTH_BASS_G', 'SYNTH_BASS_R', 'SYNTH_MZLS_Z',
+                                                 'SYNTH_WISE2010_W1', 'SYNTH_WISE2010_W2']]
+                maggies_db_north = self.meta_db[['SYNTH_BASS_G', 'SYNTH_BASS_R', 'SYNTH_MZLS_Z',
+                                                 'SYNTH_WISE2010_W1', 'SYNTH_WISE2010_W2']]
+                maggies_da_south = self.meta_da[['SYNTH_DECAM2014_G', 'SYNTH_DECAM2014_R', 'SYNTH_DECAM2014_Z',
+                                                 'SYNTH_WISE2010_W1', 'SYNTH_WISE2010_W2']]
+                maggies_db_south = self.meta_db[['SYNTH_DECAM2014_G', 'SYNTH_DECAM2014_R', 'SYNTH_DECAM2014_Z',
+                                                 'SYNTH_WISE2010_W1', 'SYNTH_WISE2010_W2']]
 
                 # Normalize to sdss-g
                 def _get_maggies(outmaggies, normmaggies):
@@ -4548,10 +4552,10 @@ class WDMaker(SelectTargets):
                         outmaggies.rename_column(filt, flux)
                     return outmaggies
                     
-                WDMaker.wd_maggies_da_north = _get_maggies(maggies_da_north.copy(), self.meta_da['SDSS2010_G'])
-                WDMaker.wd_maggies_da_south = _get_maggies(maggies_da_south.copy(), self.meta_da['SDSS2010_G'])
-                WDMaker.wd_maggies_db_north = _get_maggies(maggies_db_north.copy(), self.meta_db['SDSS2010_G'])
-                WDMaker.wd_maggies_db_south = _get_maggies(maggies_db_south.copy(), self.meta_db['SDSS2010_G'])
+                WDMaker.wd_maggies_da_north = _get_maggies(maggies_da_north.copy(), self.meta_da['SYNTH_SDSS2010_G'])
+                WDMaker.wd_maggies_da_south = _get_maggies(maggies_da_south.copy(), self.meta_da['SYNTH_SDSS2010_G'])
+                WDMaker.wd_maggies_db_north = _get_maggies(maggies_db_north.copy(), self.meta_db['SYNTH_SDSS2010_G'])
+                WDMaker.wd_maggies_db_south = _get_maggies(maggies_db_south.copy(), self.meta_db['SYNTH_SDSS2010_G'])
             else:
                 wave = self.da_template_maker.basewave
                 flux_da, flux_db = self.da_template_maker.baseflux, self.db_template_maker.baseflux
