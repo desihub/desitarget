@@ -14,13 +14,14 @@ from desitarget.targets import calc_numobs, calc_priority
 
 
 ############################################################
+@profile
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
     ----------
-    targets : :class:`~astropy.table.Table`
-        A table with columns ``TARGETID``, ``DESI_TARGET``.
+    targets : :class:`~numpy.array`
+        A numpy rec array with at least columns ``TARGETID``, ``DESI_TARGET``.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
@@ -31,33 +32,31 @@ def make_mtl(targets, zcat=None, trim=False):
     Returns
     -------
     :class:`~astropy.table.Table`
-        MTL Table with targets columns plus
+        MTL Table with targets columns plus:
 
         * NUMOBS_MORE    - number of additional observations requested
         * PRIORITY       - target priority (larger number = higher priority)
         * OBSCONDITIONS  - replaces old GRAYLAYER
-
-    Notes
-    -----
-        TODO: Check if input targets is ever altered (it shouldn't...).
     """
-    #ADM set up the default logger
+    # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
 
-    n       = len(targets)
-    targets = Table(targets)
-    if 'NUMOBS' in targets.keys():
-        del targets['NUMOBS'] # the relevant information coms from zcat['NUMOBS']
-    if 'PRIORITY' in targets.keys():
-        del targets['PRIORITY'] # the relevant information coms from zcat['NUMOBS']
+    n = len(targets)
+    # ADM if the input target columns were incorrectly called NUMOBS or priority
+    # ADM rename them to NUMOBS_INIT or PRIORITY_INIT.
+    for name in ['NUMOBS', 'PRIORITY']:
+        targets.dtype.names = [name+'_INIT' if col==name else col for col in targets.dtype.names]
 
-
-    # Create redshift catalog
+    # ADM if a redshift catalog was passed, order it to match the input targets
+    # ADM catalog on 'TARGETID'.
     if zcat is not None:
-
-        ztargets = join(targets, zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'],
-                            keys='TARGETID', join_type='outer')
+        # ADM there might be a quicker way to do this?
+        # ADM set up a dictionary of the indexes of each target id.
+        d = dict(tuple(zip(targets["TARGETID"],np.arange(n))))
+        # ADM loop through the zcat and look-up the index in the dictionary.
+        zmatcher = np.array([d[tid] for tid in zcat["TARGETID"]])
+        ztargets = zcat
         if ztargets.masked:
             unobs = ztargets['NUMOBS'].mask
             ztargets['NUMOBS'][unobs] = 0
@@ -66,14 +65,19 @@ def make_mtl(targets, zcat=None, trim=False):
             unobszw = ztargets['ZWARN'].mask
             ztargets['ZWARN'][unobszw] = -1
 
-
     else:
-        ztargets           = targets.copy()
+        ztargets = Table()
+        ztargets['TARGETID'] = targets['TARGETID']
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
         ztargets['Z']      = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN']  = -1 * np.ones(n, dtype=np.int32)
+        # ADM if zcat wasn't passed, there is a one-to-one correspondence
+        # ADM between the targets and the zcat.
+        zmatcher = np.arange(n)
 
-    ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
+    # ADM use passed value of NUMOBS_INIT instead of calling the memory-heavy calc_numobs.
+    # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
+    ztargets['NUMOBS_MORE'] = np.maximum(0, targets[zmatcher]['NUMOBS_INIT'] - ztargets['NUMOBS'])
 
     # Create MTL
     mtl = ztargets.copy()
@@ -122,3 +126,16 @@ def make_mtl(targets, zcat=None, trim=False):
 
 
     return mtl
+
+
+if __name__ == "__main__":
+
+    import fitsio
+    objs = fitsio.read("/project/projectdirs/desi/target/catalogs/dr7.1/PR372/targets-dr7.1-PR372.fits")
+    print(len(objs))
+    objs = objs[:10000000]
+    print(len(objs))
+    make_mtl(objs)
+
+
+
