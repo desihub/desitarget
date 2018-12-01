@@ -70,7 +70,7 @@ class TestMTL(unittest.TestCase):
 
         # ADM make a joined table of the targets and zcat and populate NUMOBS_MORE.
         targs = self.targets[zmatcher]
-        ztable = join(targs, self.zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'], 
+        ztable = join(targs, self.zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'],
                       keys='TARGETID', join_type='outer')
         ztable['NUMOBS_MORE'] = np.maximum(0, targs['NUMOBS_INIT'] - ztable['NUMOBS'])
         znotable = self.zcat.copy()
@@ -78,7 +78,7 @@ class TestMTL(unittest.TestCase):
 
         # ADM as the join sorts on the key, we'll need to resort the non-joined targets.
         psort = np.argsort(targs["TARGETID"])
-        
+
         # ADM check the priorities are the same regardless of the table/no-table function.
         priotable = calc_priority(ztable)
         priono = calc_priority_no_table(targs,znotable)[psort]
