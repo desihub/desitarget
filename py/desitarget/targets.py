@@ -747,16 +747,16 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # ADM add new columns, which are different depending on SV/cmx/main survey.
     if survey == 'main':
         targets = rfn.append_fields(targets,
-            ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY', 'SUBPRIORITY', 'NUMOBS'],
+            ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT'],
             [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False)
     elif survey == 'cmx':
         targets = rfn.append_fields(targets,
-            ['TARGETID', 'CMX_TARGET', 'PRIORITY', 'SUBPRIORITY', 'NUMOBS'],
+            ['TARGETID', 'CMX_TARGET', 'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT'],
             [targetid, desi_target, nodata, subpriority, nodata], usemask=False)
     elif survey[0:2] == 'sv':
         dt, bt, mt = ["{}_{}_TARGET".format(survey.upper(),tc) for tc in ["DESI", "BGS", "MWS"]]
         targets = rfn.append_fields(targets,
-            ['TARGETID', dt, bt, mt, 'PRIORITY', 'SUBPRIORITY', 'NUMOBS'],
+            ['TARGETID', dt, bt, mt, 'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT'],
             [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False)
     else:
         msg = "survey must be either 'main', 'cmx' or begin with 'sv', not {}!!!".format(survey)
