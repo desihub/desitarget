@@ -1,8 +1,8 @@
 """
-desispec.mtl
-============
+desitarget.mtl
+==============
 
-Merged target lists?
+Merged target lists.
 """
 
 import numpy as np
@@ -10,11 +10,11 @@ import sys
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from desitarget.targets import calc_numobs, calc_priority
+from desitarget.targets import calc_numobs, calc_priority_no_table
 
 
 ############################################################
-@profile
+#@profile
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
@@ -64,7 +64,6 @@ def make_mtl(targets, zcat=None, trim=False):
             ztargets['Z'][unobsz] = -1
             unobszw = ztargets['ZWARN'].mask
             ztargets['ZWARN'][unobszw] = -1
-
     else:
         ztargets = Table()
         ztargets['TARGETID'] = targets['TARGETID']
@@ -78,49 +77,57 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM use passed value of NUMOBS_INIT instead of calling the memory-heavy calc_numobs.
     # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
     ztargets['NUMOBS_MORE'] = np.maximum(0, targets[zmatcher]['NUMOBS_INIT'] - ztargets['NUMOBS'])
+    # ADM we need a minor hack to ensure that BGS targets are observed once (and only once)
+    # ADM every time, regardless of how many times they've previously been observed.
+    ii = targets[zmatcher]["DESI_TARGET"] & desi_mask.BGS_ANY > 0
+    ztargets['NUMOBS_MORE'][ii] = 1
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
+    # ADM anything else will be assigned PRIORITY_INIT, below.
     priority = calc_priority_no_table(targets[zmatcher], ztargets)
 
-    # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0
+    # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0.
     ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
-    ii = (mtl['PRIORITY'] <= 2)
-    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),len(mtl)))
-
-    mtl['NUMOBS_MORE'][ii] = 0
-
-    # Remove extra zcat columns from join(targets, zcat) that are not needed
-    # for final MTL output
-    for name in ['NUMOBS', 'Z', 'ZWARN']:
-        mtl.remove_column(name)
+    ii = (priority <= 2)
+    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),n))
+    ztargets['NUMOBS_MORE'][ii] = 0
 
     #- Set the OBSCONDITIONS mask for each target bit
-    mtl['OBSCONDITIONS'] = np.zeros(n, dtype='i4')
-
+    obscon = np.zeros(n, dtype='i4')
     for mask, xxx_target in [
         (desi_mask, 'DESI_TARGET'),
         (mws_mask, 'MWS_TARGET'),
         (bgs_mask, 'BGS_TARGET') ]:
         for name in mask.names():
             #- which targets have this bit for this mask set?
-            ii = (mtl[xxx_target] & mask[name]) != 0
+            ii = (targets[xxx_target] & mask[name]) != 0
             #- under what conditions can that bit be observed?
             if np.any(ii):
-                mtl['OBSCONDITIONS'][ii] |= obsconditions.mask(mask[name].obsconditions)
+                obscon[ii] |= obsconditions.mask(mask[name].obsconditions)
+
+    # ADM set up the output mtl table.
+    mtl = Table(targets)
+    # ADM any target that wasn't matched to the ZCAT should retain its
+    # ADM original (INIT) value of PRIORITY and NUMOBS.
+    mtl['NUMOBS_MORE'] = mtl['NUMOBS_INIT']
+    mtl['PRIORITY'] = mtl['PRIORITY_INIT']
+    # ADM now populate the new mtl columns with the updated information.
+    mtl['OBSCONDITIONS'] = obscon
+    mtl['PRIORITY'][zmatcher] = priority
+    mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
 
     # Filter out any targets marked as done.
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
-        log.info('{:d} of {:d} targets are done, trimming these'.format(len(mtl) - np.sum(notdone),
-                                                                     len(mtl)))
-        mtl     = mtl[notdone]
-
+        log.info('{:d} of {:d} targets are done, trimming these'.format(
+            len(mtl) - np.sum(notdone),len(mtl))
+        )
+        mtl = mtl[notdone]
 
     # Filtering can reset the fill_value, which is just wrong wrong wrong
     # See https://github.com/astropy/astropy/issues/4707
     # and https://github.com/astropy/astropy/issues/4708
     mtl['NUMOBS_MORE'].fill_value = -1
-
 
     return mtl
 
@@ -133,6 +140,3 @@ if __name__ == "__main__":
     objs = objs[:10000000]
     print(len(objs))
     make_mtl(objs)
-
-
-

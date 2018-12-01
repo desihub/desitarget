@@ -507,8 +507,8 @@ def calc_priority_no_table(targets, zcat):
         numpy structured array or astropy Table of targets. Must include columns
         `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` and `NUMOBS_INIT`.
     zcat : :class:`~numpy.ndarray`
-        numpy structured array or Table of redshift information. Must include
-        `NUMOBS`, `Z` and `ZWARN` and be the same length as `targets`.
+        numpy structured array or Table of redshift information. Must include 'Z',
+        `ZWARN`, `NUMOBS`, `NUMOBS_MORE` and be the same length as `targets`.
 
     Returns
     -------
@@ -539,7 +539,7 @@ def calc_priority_no_table(targets, zcat):
         zgood = np.zeros(len(targets), dtype=bool)
         zwarn = np.zeros(len(targets), dtype=bool)
     else:
-        nmore = np.maximum(0, targets["NUMOBS_INIT"] - zcat["NUMOBS"])
+        nmore = zcat["NUMOBS_MORE"]
         assert np.all(nmore >= 0)
         done  = ~unobs & (nmore == 0)
         zgood = ~unobs & (nmore > 0) & (zcat['ZWARN'] == 0)
@@ -556,7 +556,7 @@ def calc_priority_no_table(targets, zcat):
     assert np.all(unobs | done | zgood | zwarn)
 
     # DESI dark time targets.
-    if 'DESI_TARGET' in targets.colnames:
+    if 'DESI_TARGET' in targets.dtype.names:
         for name in ('ELG', 'LRG'):
             ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
@@ -575,7 +575,7 @@ def calc_priority_no_table(targets, zcat):
         priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
     # BGS targets.
-    if 'BGS_TARGET' in targets.colnames:
+    if 'BGS_TARGET' in targets.dtype.names:
         for name in bgs_mask.names():
             ii = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
@@ -584,7 +584,7 @@ def calc_priority_no_table(targets, zcat):
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
 
     # MWS targets.
-    if 'MWS_TARGET' in targets.colnames:
+    if 'MWS_TARGET' in targets.dtype.names:
         for name in mws_mask.names():
             ii = (targets['MWS_TARGET'] & mws_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
