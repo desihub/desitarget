@@ -10,6 +10,7 @@ from astropy.table import Table
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
+from desitarget.targets import initial_priority_numobs
 
 class TestMTL(unittest.TestCase):
     
@@ -18,15 +19,19 @@ class TestMTL(unittest.TestCase):
         self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'ELG'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
         self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
-        self.post_prio[0] = 2 #ELG
-        self.post_prio[2] = 2 #lowz QSO
+        self.post_prio[0] = 2 #  ELG
+        self.post_prio[2] = 2 #  lowz QSO
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
         self.targets['BGS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
         self.targets['MWS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
-        
+        # ADM determine the initial PRIORITY and NUMOBS.
+        pinit, ninit = initial_priority_numobs(self.targets, survey='main')
+        self.targets["PRIORITY_INIT"] = pinit
+        self.targets["NUMOBS_INIT"] = ninit
+
         #- reverse the order for zcat to make sure joins work
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][-2::-1]
