@@ -52,7 +52,7 @@ def target_bitmask_to_string(target_class,mask):
     Where multiple bits are set, joins the names of each contributing bit with
     '+'.
     """
-    #ADM set up the default logger
+    # ADM set up the default logger
     from desiutil.log import get_logger
     log = get_logger()
 
@@ -77,7 +77,7 @@ def encode_mtl_targetid(targets):
     Allows rows in final MTL (and hence fibre map) to be mapped to input
     sources.
     """
-    #ADM set up the default logger
+    # ADM set up the default logger
     from desiutil.log import get_logger
     log = get_logger()
 
@@ -171,15 +171,15 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
 
         - See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
-    #ADM set up the default logger
+    # ADM set up the default logger
     from desiutil.log import get_logger
     log = get_logger()
 
-    #ADM a flag that tracks whether the main inputs were integers
+    # ADM a flag that tracks whether the main inputs were integers
     intpassed = True
 
-    #ADM determine the length of whichever value was passed that wasn't None
-    #ADM default to an integer (length 1)
+    # ADM determine the length of whichever value was passed that wasn't None
+    # ADM default to an integer (length 1)
     nobjs = 1
     inputs = [objid, brickid, release, sky, mock]
     goodpar = [ input is not None for input in inputs ]
@@ -188,8 +188,8 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
         nobjs = len(inputs[firstgoodpar])
         intpassed = False
 
-    #ADM set parameters that weren't passed to zerod arrays
-    #ADM set integers that were passed to at least 1D arrays
+    # ADM set parameters that weren't passed to zerod arrays
+    # ADM set integers that were passed to at least 1D arrays
     if objid is None:
         objid = np.zeros(nobjs,dtype='int64')
     else:
@@ -211,7 +211,7 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     else:
         sky = np.atleast_1d(sky)
 
-    #ADM check none of the passed parameters exceed their bit-allowance
+    # ADM check none of the passed parameters exceed their bit-allowance
     if not np.all(objid <= 2**targetid_mask.OBJID.nbits):
         log.error('Invalid range when creating targetid: OBJID cannot exceed {}'
                  .format(2**targetid_mask.OBJID.nbits))
@@ -228,17 +228,17 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
         log.error('Invalid range when creating targetid: SKY cannot exceed {}'
                   .format(2**targetid_mask.SKY.nbits))
 
-    #ADM set up targetid as an array of 64-bit integers
+    # ADM set up targetid as an array of 64-bit integers
     targetid = np.zeros(nobjs,('int64'))
-    #ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
-    #ADM remember to shift to type integer 64 to avoid casting
+    # ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
+    # ADM remember to shift to type integer 64 to avoid casting
     targetid |= objid.astype('int64') << targetid_mask.OBJID.bitnum
     targetid |= brickid.astype('int64') << targetid_mask.BRICKID.bitnum
     targetid |= release.astype('int64') << targetid_mask.RELEASE.bitnum
     targetid |= mock.astype('int64') << targetid_mask.MOCK.bitnum
     targetid |= sky.astype('int64') << targetid_mask.SKY.bitnum
 
-    #ADM if the main inputs were integers, return an integer
+    # ADM if the main inputs were integers, return an integer
     if intpassed:
         return targetid[0]
     return targetid
@@ -274,8 +274,8 @@ def decode_targetid(targetid):
         - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
     """
 
-    #ADM retrieve each constituent value by left-shifting by the number of bits that comprise
-    #ADM the value, to the left-end of the value, and then right-shifting to the right-end
+    # ADM retrieve each constituent value by left-shifting by the number of bits that comprise
+    # ADM the value, to the left-end of the value, and then right-shifting to the right-end
     objid = (targetid & (2**targetid_mask.OBJID.nbits - 1 
                          << targetid_mask.OBJID.bitnum)) >> targetid_mask.OBJID.bitnum
     brickid = (targetid & (2**targetid_mask.BRICKID.nbits - 1 
@@ -342,12 +342,12 @@ def initial_priority_numobs(targets, survey='main'):
         log.critical("survey must be either 'main', 'cmx' or 'sv', not {}!!!"
                      .format(survey))
 
-    #ADM set up the output arrays
+    # ADM set up the output arrays
     outpriority = np.zeros(len(targets), dtype='int')
     outnumobs = np.zeros(len(targets), dtype='int')
 
     for colname, mask in zip(colnames,masks):
-        #ADM first determine which bits actually have priorities
+        # ADM first determine which bits actually have priorities
         bitnames = []
         for name in mask.names():
             try:
@@ -356,18 +356,22 @@ def initial_priority_numobs(targets, survey='main'):
             except:
                 pass
 
-        #ADM loop through the relevant bits updating with the highest priority
-        #ADM and storing the corresponding NUMOBS
+        # ADM loop through the relevant bits updating with the highest priority
+        # ADM and the largest value of NUMOBS.
         for name in bitnames:
-            #ADM indexes in the DESI/MWS/BGS_TARGET column that have this bit set
+            # ADM indexes in the DESI/MWS/BGS_TARGET column that have this bit set
             istarget = (targets[colname] & mask[name]) != 0
-            #ADM for each index, determine where this bit is set and the priority
-            #ADM for this bit is larger than the currently stored priority
-            w = np.where( (mask[name].priorities['UNOBS'] > outpriority ) & istarget)[0]
-            #ADM where a larger priority trumps the stored priority, update the priority
-            #ADM and the corresponding NUMOBS
+            # ADM for each index, determine where this bit is set and the priority
+            # ADM for this bit is > than the currently stored priority.
+            w = np.where( (mask[name].priorities['UNOBS'] >= outpriority ) & istarget)[0]
+            # ADM where a larger priority trumps the stored priority, update the priority
             if len(w) > 0:
                 outpriority[w] = mask[name].priorities['UNOBS']
+            # ADM for each index, determine where this bit is set and whether NUMOBS
+            # ADM for this bit is > than the currently stored NUMOBS.
+            w = np.where( (mask[name].numobs >= outnumobs ) & istarget)[0]
+            # ADM where a larger NUMOBS trumps the stored NUMOBS, update NUMOBS.
+            if len(w) > 0:
                 outnumobs[w] = mask[name].numobs
 
     return outpriority, outnumobs
@@ -408,7 +412,7 @@ def calc_priority(targets):
     Notes:
         If a target passes more than one selection, the highest priority wins.
     """
-    #ADM set up default DESI logger
+    # ADM set up default DESI logger
     from desiutil.log import get_logger
     log = get_logger()
 
@@ -615,7 +619,7 @@ def calc_numobs(targets):
             it does *not* take redshift into consideration (which is relevant
             for interpreting low-z vs high-z QSOs)
     """
-    #ADM set up the default logger
+    # ADM set up the default logger
     from desiutil.log import get_logger
     log = get_logger()
 
@@ -626,7 +630,7 @@ def calc_numobs(targets):
     # Normally these would have already been removed, but just in case...
     no_target_class = np.ones(len(targets), dtype=bool)
     if 'DESI_TARGET' in targets.dtype.names:
-        no_target_class &=  targets['DESI_TARGET'] == 0
+        no_target_class &= targets['DESI_TARGET'] == 0
     if 'BGS_TARGET' in targets.dtype.names:
         no_target_class &= targets['BGS_TARGET']  == 0
     if 'MWS_TARGET' in targets.dtype.names:
@@ -637,12 +641,12 @@ def calc_numobs(targets):
         raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
 
     #- LRGs get 1, 2, or (perhaps) 3 observations depending upon magnitude
-    #ADM set this using the LRG_1PASS/2PASS and maybe even 3PASS bits
+    # ADM set this using the LRG_1PASS/2PASS and maybe even 3PASS bits
     islrg = (targets['DESI_TARGET'] & desi_mask.LRG) != 0
-    #ADM default to 2 passes for LRGs
+    # ADM default to 2 passes for LRGs
     nobs[islrg] = 2
-    #ADM for redundancy in case the defaults change, explicitly set
-    #ADM NOBS for 1PASS and 2PASS LRGs
+    # ADM for redundancy in case the defaults change, explicitly set
+    # ADM NOBS for 1PASS and 2PASS LRGs
     try:
         lrg1 = (targets['DESI_TARGET'] & desi_mask.LRG_1PASS) != 0
         lrg2 = (targets['DESI_TARGET'] & desi_mask.LRG_2PASS) != 0
@@ -650,7 +654,7 @@ def calc_numobs(targets):
         nobs[lrg2] = 2
     except AttributeError:
         log.error('per-pass LRG bits not set in {}'.format(desi_mask))
-    #ADM also reserve a setting for LRG_3PASS, but fail gracefully for now
+    # ADM also reserve a setting for LRG_3PASS, but fail gracefully for now
     try:
         lrg3 = (targets['DESI_TARGET'] & desi_mask.LRG_3PASS) != 0
         nobs[lrg3] = 3
@@ -763,7 +767,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         log.critical(msg)
         raise ValueError(msg)
 
-    #ADM determine the initial priority and number of observations.
+    # ADM determine the initial priority and number of observations.
     targets["PRIORITY_INIT"], targets["NUMOBS_INIT"] = initial_priority_numobs(targets, survey=survey)
 
     return targets
