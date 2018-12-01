@@ -245,12 +245,11 @@ priorities:
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
 # ADM -1 means that the concept of NUMOBS doesn't apply to this bit
-# ADM set LRG to 1 as the highest NUMOBS wins (so LRG_2PASS will overrule LRG).
 numobs:
     # ADM initial number of observations for targets in the main (dark time) survey
     sv1_desi_mask:
         ELG: 1
-        LRG: 1
+        LRG: 2
         QSO: 4
         LRG_1PASS: 1
         LRG_2PASS: 2

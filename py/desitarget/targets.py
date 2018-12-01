@@ -291,7 +291,7 @@ def decode_targetid(targetid):
 
 ############################################################
 def initial_priority_numobs(targets, survey='main'):
-    """highest initial priority and corresponding numobs for an array of target bits
+    """highest initial priority and numobs for an array of target bits
 
     Parameters
     ----------
@@ -341,6 +341,15 @@ def initial_priority_numobs(targets, survey='main'):
     else:
         log.critical("survey must be either 'main', 'cmx' or 'sv', not {}!!!"
                      .format(survey))
+
+    # ADM much of the code is set up to expect NUMOBS==2 for "just" an LRG
+    # ADM but we need NUMOBS==2 for a 1-PASS LRG. The easiest way to deal
+    # ADM with this is just to unset the LRG bit if the LRG sub-bits are set.
+    if survey == 'main' or survey[0:2] == 'sv':
+        col, Mx = colnames[0], masks[0]
+        lrgset = targets[col] & Mx.LRG != 0
+        lrg1pset = targets[col] & Mx.LRG_1PASS != 0
+        targets[col][lrgset & lrg1pset] = targets[col][lrgset & lrg1pset] - Mx.LRG
 
     # ADM set up the output arrays
     outpriority = np.zeros(len(targets), dtype='int')

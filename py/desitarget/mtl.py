@@ -43,7 +43,7 @@ def make_mtl(targets, zcat=None, trim=False):
     log = get_logger()
 
     n = len(targets)
-    # ADM if the input target columns were incorrectly called NUMOBS or priority
+    # ADM if the input target columns were incorrectly called NUMOBS or PRIORITY
     # ADM rename them to NUMOBS_INIT or PRIORITY_INIT.
     for name in ['NUMOBS', 'PRIORITY']:
         targets.dtype.names = [name+'_INIT' if col==name else col for col in targets.dtype.names]
@@ -77,6 +77,7 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM use passed value of NUMOBS_INIT instead of calling the memory-heavy calc_numobs.
     # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
     ztargets['NUMOBS_MORE'] = np.maximum(0, targets[zmatcher]['NUMOBS_INIT'] - ztargets['NUMOBS'])
+
     # ADM we need a minor hack to ensure that BGS targets are observed once (and only once)
     # ADM every time, regardless of how many times they've previously been observed.
     ii = targets[zmatcher]["DESI_TARGET"] & desi_mask.BGS_ANY > 0
