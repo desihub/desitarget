@@ -343,8 +343,8 @@ def initial_priority_numobs(targets, survey='main'):
                      .format(survey))
 
     #ADM set up the output arrays
-    outpriority = np.zeros(len(targets), dtype='int')-1
-    outnumobs = np.zeros(len(targets), dtype='int')-1
+    outpriority = np.zeros(len(targets), dtype='int')
+    outnumobs = np.zeros(len(targets), dtype='int')
 
     for colname, mask in zip(colnames,masks):
         #ADM first determine which bits actually have priorities
@@ -744,7 +744,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     nodata = np.zeros(ntargets, dtype='int')-1
     subpriority = np.zeros(ntargets, dtype='float')
 
-    # ADM add new columns, which are different depending on SV/cmx/main survey
+    # ADM add new columns, which are different depending on SV/cmx/main survey.
     if survey == 'main':
         targets = rfn.append_fields(targets,
             ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY', 'SUBPRIORITY', 'NUMOBS'],
@@ -763,7 +763,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         log.critical(msg)
         raise ValueError(msg)
 
-    #ADM determine the initial priority and number of observations
-    targets["PRIORITY"], targets["NUMOBS"] = initial_priority_numobs(targets, survey=survey)
+    #ADM determine the initial priority and number of observations.
+    targets["PRIORITY_INIT"], targets["NUMOBS_INIT"] = initial_priority_numobs(targets, survey=survey)
 
     return targets
