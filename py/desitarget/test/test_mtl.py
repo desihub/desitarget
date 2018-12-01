@@ -5,12 +5,13 @@
 import os
 import unittest
 import numpy as np
-from astropy.table import Table
+from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
 from desitarget.targets import initial_priority_numobs
+from desitarget.targets import calc_priority_no_table, calc_priority
 
 class TestMTL(unittest.TestCase):
     
@@ -40,12 +41,16 @@ class TestMTL(unittest.TestCase):
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
             
     def test_mtl(self):
+        """Test output from MTL has the correct column names.
+        """
         mtl = make_mtl(self.targets)
         goodkeys = sorted(set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
         mtlkeys = sorted(mtl.dtype.names)
         self.assertEqual(mtlkeys, goodkeys)
                     
     def test_numobs(self):
+        """Test priorities, numobs and obsconditions are set correctly with no zcat.
+        """
         mtl = make_mtl(self.targets)
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
@@ -55,7 +60,33 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all((mtl['OBSCONDITIONS'][iselg] & obsconditions.GRAY) != 0))
         self.assertTrue(np.all((mtl['OBSCONDITIONS'][~iselg] & obsconditions.GRAY) == 0))
 
+    def test_priorities(self):
+        """Test table and no-table versions of priorities produce the same results.
+        """
+        # ADM set up a dictionary of the indexes of each target id.
+        d = dict(tuple(zip(self.targets["TARGETID"],np.arange(len(self.targets)))))
+        # ADM loop through the zcat and look-up the index in the dictionary.
+        zmatcher = np.array([d[tid] for tid in self.zcat["TARGETID"]])
+
+        # ADM make a joined table of the targets and zcat and populate NUMOBS_MORE.
+        targs = self.targets[zmatcher]
+        ztable = join(targs, self.zcat['TARGETID', 'NUMOBS', 'Z', 'ZWARN'], 
+                      keys='TARGETID', join_type='outer')
+        ztable['NUMOBS_MORE'] = np.maximum(0, targs['NUMOBS_INIT'] - ztable['NUMOBS'])
+        znotable = self.zcat.copy()
+        znotable['NUMOBS_MORE'] = np.maximum(0, targs['NUMOBS_INIT'] - znotable['NUMOBS'])
+
+        # ADM as the join sorts on the key, we'll need to resort the non-joined targets.
+        psort = np.argsort(targs["TARGETID"])
+        
+        # ADM check the priorities are the same regardless of the table/no-table function.
+        priotable = calc_priority(ztable)
+        priono = calc_priority_no_table(targs,znotable)[psort]
+        self.assertTrue(np.all(priotable == priono))
+
     def test_zcat(self):
+        """Test priorities, numobs and obsconditions are set correctly after zcat.
+        """
         mtl = make_mtl(self.targets, self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
@@ -68,6 +99,8 @@ class TestMTL(unittest.TestCase):
         self.assertEqual(mtl['PRIORITY'][0], 0)
  
     def test_mtl_io(self):
+        """Test MTL correctly handles masked NUMOBS quantities.
+        """
         mtl = make_mtl(self.targets, self.zcat, trim=True)
         testfile = 'test-aszqweladfqwezceas.fits'
         mtl.write(testfile, overwrite=True)
