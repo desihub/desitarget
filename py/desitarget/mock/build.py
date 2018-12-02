@@ -559,7 +559,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     return targets, truth, objtruth, trueflux
 
-def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
+def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                               nside_chunk, targets, truth, objtruth, trueflux,
                               ContamStarsMock=None, ContamGalaxiesMock=None,
                               no_spectra=False):
@@ -567,29 +567,35 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
 
     Parameters
     ----------
-    data : :class:`dict`
-        Data on the input mock targets (to be documented).
-    MakeMock : :class:`desitarget.mock.mockmaker` object
-        Object to assign spectra to each target class.
+    params : :class:`dict`
+        Dictionary defining the type and number of contaminants.
+    healpix : : :class:`int`
+        Healpixel number.
+    nside : :class:`int`
+        Nside corresponding to healpix.
+    seed : :class:`int`, optional
+        Seed for the random number generation.
+    nproc : :class:`int`, optional
+        Number of parallel processes to use.
     log : :class:`desiutil.logger`
        Logger object.
-    nside : :class:`int`
-        Healpix resolution corresponding to healpixels.
     nside_chunk : :class:`int`
         Healpix resolution for chunking the sample to avoid memory problems.
-    seed: :class:`int`, optional
-        Seed for the random number generator.  Defaults to None.
-    nproc : :class:`int`, optional
-        Number of parallel processes to use.  Defaults to 1.
-    sky : :class:`bool`
-        Processing sky targets (which are a special case).  Defaults to False.
+    targets : :class:`astropy.table.Table`
+        Target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table.
+    objtruth : :class:`astropy.table.Table`
+        Corresponding objtype-specific truth table (if applicable).
+    trueflux : :class:`numpy.ndarray`
+        Array [npixel, ntarget] of observed-frame spectra.  Only computed
+        and returned for non-sky targets and if no_spectra=False.
+    ContamStarsMock : :class:`desitarget.mock.mockmaker` object
+        Maker Class for generating stellar contaminants.
+    ContamGalaxiesMock : :class:`desitarget.mock.mockmaker` object
+        Maker Class for generating extragalactic contaminants.
     no_spectra : :class:`bool`, optional
         Do not generate spectra, e.g., for use with quicksurvey.  Defaults to False.
-    calib_only : :class:`bool`, optional
-        Use targets as calibration (standard star) targets, only. Defaults to False.
-    contaminants : :class:`bool`, optional
-        Generate spectra for contaminants (mostly affects the log
-        messages). Defaults to False.
 
     Returns
     -------
@@ -621,7 +627,7 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                                          nside_galaxia=star_params['nside_galaxia'],
                                          faintstar_mockfile=faintstar_mockfile,
                                          faintstar_magcut=faintstar_magcut,
-                                         target_name='CONTAM_STAR', seed=healseed)
+                                         target_name='CONTAM_STAR', seed=seed)
         nobj = len(star_data['RA'])
         star_data['MAXITER'] = 5
         star_data['CONTAM_FACTOR'] = 0.0
@@ -646,18 +652,20 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                 if ntarg > 0:
                     star_data['TARGET_NAME'] = target_type
                     star_data['CONTAM_NAME'] = 'CONTAM_STAR'
+
+                    # ToDo: Modulate the contamination with Galactic latitude...
                     star_data['CONTAM_FACTOR'] = cparams['stars'] * ntarg / len(star_data['RA'])
 
                     # Sample from the appropriate Gaussian mixture model and
                     # then generate the spectra.
                     gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                         isouth=star_data['SOUTH'],
-                                                        seed=healseed, prior_mag=star_data['MAG'])
+                                                        seed=seed, prior_mag=star_data['MAG'])
                     star_data.update(gmmout)
 
                     contamtargets, contamtruth, contamobjtruth, contamtrueflux = get_spectra(
                         star_data, ContamStarsMock, log, nside=nside, nside_chunk=nside_chunk,
-                        seed=healseed, nproc=nproc, no_spectra=no_spectra, contaminants=True)
+                        seed=seed, nproc=nproc, no_spectra=no_spectra, contaminants=True)
 
                     if len(contamtargets) > 0:
                         targets = vstack( (targets, contamtargets) )
