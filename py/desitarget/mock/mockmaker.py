@@ -4901,7 +4901,7 @@ class SKYMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, indx=None, seed=None, **kwargs):
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
         """Generate SKY spectra.
 
         Parameters
@@ -4913,6 +4913,8 @@ class SKYMaker(SelectTargets):
             as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
 
         Returns
         -------
@@ -4938,11 +4940,15 @@ class SKYMaker(SelectTargets):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
+        if no_spectra:
+            flux = []
+        else:
+            flux = np.zeros((nobj, len(self.wave)), dtype='f4')
+            
         meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
         meta['SEED'][:] = rand.randint(2**31, size=nobj)
         meta['REDSHIFT'][:] = data['Z'][indx]
         
-        flux = np.zeros((nobj, len(self.wave)), dtype='f4')
         targets, truth, objtruth = self.populate_targets_truth(
             flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='SKY', templatetype='SKY')
