@@ -1696,6 +1696,8 @@ class ReadGalaxia(SelectTargets):
             log.warning('Galaxia top-level directory {} not found!'.format(mockfile_nside))
             raise IOError
 
+        rand = np.random.RandomState(seed)
+        
         # Because of the size of the Galaxia mock, healpixels (and nside) must
         # be scalars.
         if len(np.atleast_1d(healpixels)) != 1 and len(np.atleast_1d(nside)) != 1:
@@ -1769,19 +1771,24 @@ class ReadGalaxia(SelectTargets):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        # Only the MWS_MAIN mock has Gaia.
-        cols = ['TRUE_VHELIO', 'TRUE_MAG_R_SDSS_NODUST', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH']
+        # Only the MWS_MAIN mock has Gaia and TRUE_VHELIO.
+        cols = ['TRUE_MAG_R_SDSS_NODUST', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH']
         if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
-            cols = cols + ['GAIA_PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC', 'PM_RA_IVAR',
+            cols = cols + ['TRUE_VHELIO', 'GAIA_PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC', 'PM_RA_IVAR',
                            'PM_DEC_IVAR', 'PARALLAX', 'PARALLAX_IVAR']
         data = fitsio.read(galaxiafile, columns=cols, upper=True, ext=1, rows=cut)
-        zz = (data['TRUE_VHELIO'].astype('f4') / C_LIGHT).astype('f4')
         mag = data['TRUE_MAG_R_SDSS_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
         teff = 10**data['TRUE_TEFF'].astype('f4')         # log10!
         logg = data['TRUE_LOGG'].astype('f4')
         feh = data['TRUE_FEH'].astype('f4')
 
         if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            zz = (data['TRUE_VHELIO'].astype('f4') / C_LIGHT).astype('f4')
+        else:
+            zz = (rand.normal(loc=0.0, scale=200.0, size=len(data)) / C_LIGHT).astype('f4') # Hack!
+
+        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
+            ref_id = mockid
             gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
             gaia_pmra = data['PMRA'].astype('f4')
             gaia_pmdec = data['PMDEC'].astype('f4')
@@ -1789,6 +1796,15 @@ class ReadGalaxia(SelectTargets):
             gaia_pmdec_ivar = data['PM_DEC_IVAR'].astype('f4')
             gaia_parallax = data['PARALLAX'].astype('f4')
             gaia_parallax_ivar = data['PARALLAX_IVAR'].astype('f4')
+        else:
+            ref_id = np.zeros(nobj).astype('f4')-1 # no data is -1
+            gaia_g = np.zeros(nobj).astype('f4')
+            gaia_pmra = np.zeros(nobj).astype('f4')
+            gaia_pmdec = np.zeros(nobj).astype('f4')
+            gaia_pmra_ivar = np.ones(nobj).astype('f4')  # default is unity
+            gaia_pmdec_ivar = np.ones(nobj).astype('f4') # default is unity
+            gaia_parallax = np.zeros(nobj).astype('f4')
+            gaia_parallax_ivar = np.ones(nobj).astype('f4') # default is unity
 
         if magcut:
             cut = mag < magcut
@@ -1808,14 +1824,14 @@ class ReadGalaxia(SelectTargets):
                 logg = logg[cut]
                 feh = feh[cut]
 
-                if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
-                    gaia_g = gaia_g[cut]
-                    gaia_pmra = gaia_pmra[cut]
-                    gaia_pmdec = gaia_pmdec[cut]
-                    gaia_pmra_ivar = gaia_pmra_ivar[cut]
-                    gaia_pmdec_ivar = gaia_pmdec_ivar[cut]
-                    gaia_parallax = gaia_parallax[cut]
-                    gaia_parallax_ivar = gaia_parallax_ivar[cut]
+                ref_id = ref_id[cut]
+                gaia_g = gaia_g[cut]
+                gaia_pmra = gaia_pmra[cut]
+                gaia_pmdec = gaia_pmdec[cut]
+                gaia_pmra_ivar = gaia_pmra_ivar[cut]
+                gaia_pmdec_ivar = gaia_pmdec_ivar[cut]
+                gaia_parallax = gaia_parallax[cut]
+                gaia_parallax_ivar = gaia_parallax_ivar[cut]
                 
                 nobj = len(ra)
                 log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
@@ -1828,11 +1844,9 @@ class ReadGalaxia(SelectTargets):
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-r', nobj),
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
-               
-        if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
-            out.update({
-               'REF_ID': mockid,
+               'SOUTH': self.is_south(dec), 'TYPE': 'PSF',
+
+               'REF_ID': ref_id,
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
@@ -1846,7 +1860,7 @@ class ReadGalaxia(SelectTargets):
                'PMRA': gaia_pmra,
                'PMRA_IVAR': gaia_pmra_ivar,
                'PMDEC': gaia_pmdec,
-               'PMDEC_IVAR': gaia_pmdec_ivar})
+               'PMDEC_IVAR': gaia_pmdec_ivar}
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -1857,7 +1871,8 @@ class ReadGalaxia(SelectTargets):
             log.debug('Supplementing with FAINTSTAR mock targets.')
             faintdata = ReadGalaxia().readmock(mockfile=faintstar_mockfile, target_name='FAINTSTAR',
                                                healpixels=healpixels, nside=nside,
-                                               nside_galaxia=nside_galaxia, magcut=faintstar_magcut)
+                                               nside_galaxia=nside_galaxia, magcut=faintstar_magcut,
+                                               seed=seed)
             
             # Stack and shuffle so we get a mix of bright and faint stars.
             rand = np.random.RandomState(seed)
@@ -4127,6 +4142,7 @@ class MWS_MAINMaker(STARMaker):
     def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
         super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra)
 
+        self.seed = seed
         self.calib_only = calib_only
 
     def read(self, mockfile=None, mockformat='galaxia', healpixels=None,
