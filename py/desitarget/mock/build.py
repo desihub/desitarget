@@ -286,7 +286,8 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
             keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
             if 'CONTAM_NAME' in data.keys():
-                import pdb ; pdb.set_trace()
+                #import pdb ; pdb.set_trace()
+                pass
 
             nkeep = len(keep)
             if nkeep > 0:
@@ -642,7 +643,7 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                                          nside_galaxia=star_params['nside_galaxia'],
                                          faintstar_mockfile=faintstar_mockfile,
                                          faintstar_magcut=faintstar_magcut,
-                                         target_name='CONTAM_STAR')
+                                         target_name='CONTAM_STAR', seed=healseed)
         nobj = len(star_data['RA'])
         star_data['MAXITER'] = 5
         star_data['CONTAM_FACTOR'] = 0.0
@@ -948,6 +949,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         # Rename TYPE --> MORPHTYPE
         targets.rename_column('TYPE', 'MORPHTYPE')
 
+        assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
+
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = healpix
         skytargets['BRICK_OBJID'][:] = objid[nobj:]
@@ -961,8 +964,6 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         # Rename TYPE --> MORPHTYPE
         skytargets.rename_column('TYPE', 'MORPHTYPE')
 
-    assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
-        
     return targets, truth, objtruth, skytargets, skytruth
 
 def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,
