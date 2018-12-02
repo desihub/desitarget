@@ -250,82 +250,60 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if ntarget == 0:
         return [targets, truth, objtruth, trueflux]
 
-    # Faintstar targets are a special case.
-    if targname.lower() == 'faintstar':
+    # Generate the spectra iteratively until we achieve the required target
+    # density.  Randomly divide the possible targets into each iteration.
+    iterseeds = rand.randint(2**31, size=maxiter)
+    rand.shuffle(indx)
+    iterindx = np.array_split(indx, maxiter)
+
+    makemore, itercount, ntot = True, 0, 0
+    while makemore:
         chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-            data, indx=indx)
-        
-        if len(chunktargets) > 0:
-            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-            nkeep = len(keep)
-        else:
-            nkeep = 0
+            data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
 
-        log.debug('Selected {} / {} {} targets'.format(nkeep, ntarget, targname))
+        MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
 
+        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+        #if 'CONTAM_NAME' in data.keys():
+        #    import pdb ; pdb.set_trace()
+
+        nkeep = len(keep)
         if nkeep > 0:
+            ntot += nkeep
+            log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
+                nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
+
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
             if len(chunkobjtruth) > 0: # skies have no objtruth
                 objtruth.append(chunkobjtruth[keep])
             if not no_spectra:
                 trueflux.append(chunkflux[keep, :])
-    else:
-        # Generate the spectra iteratively until we achieve the required target
-        # density.  Randomly divide the possible targets into each iteration.
-        iterseeds = rand.randint(2**31, size=maxiter)
-        rand.shuffle(indx)
-        iterindx = np.array_split(indx, maxiter)
-        
-        makemore, itercount, ntot = True, 0, 0
-        while makemore:
-            chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-                data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
 
-            MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
+        itercount += 1
+        if itercount == maxiter or ntot >= ntarget:
+            if maxiter > 1:
+                log.debug('Generated {} / {} {} targets after {} iterations.'.format(
+                    ntot, ntarget, targname, itercount))
+            makemore = False
+        else:
+            need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
 
-            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-            if 'CONTAM_NAME' in data.keys():
-                #import pdb ; pdb.set_trace()
-                pass
+            #import matplotlib.pyplot as plt
+            #noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+            #gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
+            #rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
+            #plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
+            #plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
+            #plt.legend(loc='upper left')
+            #plt.show()
 
-            nkeep = len(keep)
-            if nkeep > 0:
-                ntot += nkeep
-                log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
-                    nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
-
-                targets.append(chunktargets[keep])
-                truth.append(chunktruth[keep])
-                if len(chunkobjtruth) > 0: # skies have no objtruth
-                    objtruth.append(chunkobjtruth[keep])
-                if not no_spectra:
-                    trueflux.append(chunkflux[keep, :])
-
-            itercount += 1
-            if itercount == maxiter or ntot >= ntarget:
-                if maxiter > 1:
-                    log.debug('Generated {} / {} {} targets after {} iterations.'.format(
-                        ntot, ntarget, targname, itercount))
-                makemore = False
-            else:
-                need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
-                
-                #import matplotlib.pyplot as plt
-                #noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-                #gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
-                #rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
-                #plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
-                #plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
-                #plt.legend(loc='upper left')
-                #plt.show()
-                
-                if len(need) > 0:
-                    # Distribute the objects that didn't pass target selection
-                    # to the remaining iterations.
-                    iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
-                    for ii in range(maxiter - itercount):
-                        iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
+            if len(need) > 0:
+                # Distribute the objects that didn't pass target selection
+                # to the remaining iterations.
+                iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
+                for ii in range(maxiter - itercount):
+                    iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
 
     if len(targets) > 0:
         targets = vstack(targets)
