@@ -948,6 +948,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         # Rename TYPE --> MORPHTYPE
         targets.rename_column('TYPE', 'MORPHTYPE')
 
+        assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
+
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = healpix
         skytargets['BRICK_OBJID'][:] = objid[nobj:]
@@ -961,8 +963,6 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         # Rename TYPE --> MORPHTYPE
         skytargets.rename_column('TYPE', 'MORPHTYPE')
 
-    assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
-        
     return targets, truth, objtruth, skytargets, skytruth
 
 def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,

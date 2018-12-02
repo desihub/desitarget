@@ -1043,7 +1043,7 @@ class SelectTargets(object):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
 
         # Attenuate the spectra for extinction, too.
-        if len(flux) > 0:
+        if len(flux) > 0 and 'EBV' in data.keys():
             flux *= 10**( -0.4 * data['EBV'][indx, np.newaxis] * self.extinction )
 
         # Finally compute the (simulated, observed) flux within the fiber.
@@ -4926,7 +4926,7 @@ class SKYMaker(SelectTargets):
         meta['SEED'][:] = rand.randint(2**31, size=nobj)
         meta['REDSHIFT'][:] = data['Z'][indx]
         
-        flux = np.zeros((nobj, len(self.wave)), dtype='i1')
+        flux = np.zeros((nobj, len(self.wave)), dtype='f4')
         targets, truth, objtruth = self.populate_targets_truth(
             flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='SKY', templatetype='SKY')
