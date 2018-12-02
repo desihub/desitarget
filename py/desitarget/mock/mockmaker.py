@@ -3497,8 +3497,6 @@ class ELGMaker(SelectTargets):
         self.param_range_north = ( np.ptp(zobj), np.ptp(gr_north), np.ptp(rz_north) )
         self.param_range_south = ( np.ptp(zobj), np.ptp(gr_south), np.ptp(rz_south) )
 
-        import pdb ; pdb.set_trace()
-        
         if self.KDTree_north is None:
             ELGMaker.KDTree_north = self.KDTree_build(
                 np.vstack((
