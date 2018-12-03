@@ -5,6 +5,11 @@ desitarget Change Log
 0.26.0 (unreleased)
 -------------------
 
+* Refactor of MTL and MTL-related enhancements [`PR #429`_]. Includes:
+    * Use targets file `NUMOBS_INIT` not :func:`targets.calc_numobs`.
+    * Use targets file `PRIORITY_INIT` not :func:`targets.calc_priority`.
+    * Remove table copies from :func:`desitarget.mtl` to use less memory.
+    * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
 * Update default mock catalogs used by `select_mock_targets` [`PR #424`_]
 * Update Random Forests for DR7 quasar selection [`PR #423`_]
 * Fix bugs in main MWS selections [`PR #422`_].
@@ -20,6 +25,7 @@ desitarget Change Log
 .. _`PR #422`: https://github.com/desihub/desitarget/pull/422
 .. _`PR #423`: https://github.com/desihub/desitarget/pull/423
 .. _`PR #424`: https://github.com/desihub/desitarget/pull/424
+.. _`PR #429`: https://github.com/desihub/desitarget/pull/429
 
 0.25.0 (2018-11-07)
 -------------------
