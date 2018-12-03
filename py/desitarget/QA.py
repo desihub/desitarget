@@ -1420,6 +1420,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 w = np.where(targs["DESI_TARGET"] & main_mask[objtype])[0]
 
         if len(w) > 0:
+            print('hack!!')
+            print(objtype, len(w))
+            #import pdb ; pdb.set_trace()
+
             # ADM make RA/Dec skymaps.
             qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype],
                      weights=weights[w], max_bin_area=max_bin_area)

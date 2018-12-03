@@ -2025,12 +2025,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
-    desi_target |= qso_south * desi_mask.QSO_SOUTH
+    desi_target |= (qso_south & photsys_south) * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
-    desi_target |= qso_north * desi_mask.QSO_NORTH
+    desi_target |= (qso_north & photsys_north)  * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
