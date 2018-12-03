@@ -278,14 +278,10 @@ def read_data(targfile, mocks=False):
     dc = os.path.basename(dcdir)
 
     # ADM read in the targets catalog and return it.
-        if isinstance(targs, str):
-            targs = fitsio.read(targs)
-            log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-            truths, objtruths = None, None
-    
     targs = fitsio.read(targfile)
-    log.info('Read in targets catalog...t = {:.1f}s'.format(time()-start))
-
+    log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+    truths, objtruths = None, None
+    
     if mocks:
         truthfile = '{}/truth.fits'.format(targdir)
 
@@ -307,7 +303,7 @@ def read_data(targfile, mocks=False):
 
         return targs, truths, objtruths
     else:
-        return targs, None, None
+        return targs
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
@@ -1335,7 +1331,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             if mockdata == 0:
                 mocks = False
             else:
-                 = mockdata
+                pass# = mockdata
         else:
             log.warning('To make mock-related plots, targs must be a directory+file-location string...')
             log.warning('...will proceed by only producing the non-mock plots...')
@@ -1473,7 +1469,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
 
-
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
                  clip2foot=False, weight=True, imaging_map_file=None,
                  tcnames=None, systematics=True):
@@ -1533,12 +1528,10 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         if mocks:
             targs, truths, objtruths = read_data(targs, mocks=mocks)
         else:
-            log.warning('Unable to read truth.fits file since targs was passed.')
-            
-            
-
+            targs = read_data(targs, mocks=mocks)
     else:
-        # ADM if a filename was passed, read in the targets from that file.
+        if mocks:
+            log.warning('Please pass the filename to the targeting catalog so the "mock" QA plots can be generated.')
 
     # ADM automatically detect whether we're running this for the main survey
     # ADM or SV, etc. and change the column names accordingly.
