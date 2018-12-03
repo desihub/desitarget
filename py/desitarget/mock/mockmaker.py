@@ -3703,7 +3703,6 @@ class BGSMaker(SelectTargets):
     GMM_BGS, GMM_nospectra = None, None
     
     def __init__(self, seed=None, nside_chunk=128, **kwargs):
-        from desisim.templates import BGS
         from desiutil.sklearn import GaussianMixtureModel
 
         super(BGSMaker, self).__init__()
@@ -3717,6 +3716,7 @@ class BGSMaker(SelectTargets):
         self.extinction = self.mw_dust_extinction()
 
         if self.template_maker is None:
+            from desisim.templates import BGS
             BGSMaker.template_maker = BGS(wave=self.wave)
             
         self.meta = self.template_maker.basemeta
@@ -4979,17 +4979,25 @@ class BuzzardMaker(SelectTargets):
         Seed for reproducibility and random number generation.
 
     """
-    wave = None
+    wave, template_maker = None, None
+    GMM_Buzzard, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, **kwargs):
         super(BuzzardMaker, self).__init__()
 
         self.seed = seed
         #self.objtype = 'SKY'
+        self.nside_chunk = nside_chunk
 
         if self.wave is None:
             BuzzardMaker.wave = _default_wave()
         self.extinction = self.mw_dust_extinction()
+
+        if self.template_maker is None:
+            from desisim.templates import BGS
+            BuzzardMaker.template_maker = BGS(wave=self.wave)
+
+        self.meta = self.template_maker.basemeta
         
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
              nside=None, nside_buzzard=8, target_name='', magcut=None,
@@ -5047,3 +5055,121 @@ class BuzzardMaker(SelectTargets):
                                    magcut=magcut)
 
         return data
+
+    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
+        """Generate BGS spectra.
+
+        Parameters
+        ----------
+        data : :class:`dict`
+            Dictionary of source properties.
+        indx : :class:`numpy.ndarray`, optional
+            Generate spectra for a subset of the objects in the data dictionary,
+            as specified using their zero-indexed indices.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
+        no_spectra : :class:`bool`, optional
+            Do not generate spectra.  Defaults to False.
+
+        Returns
+        -------
+        flux : :class:`numpy.ndarray`
+            Target spectra.
+        wave : :class:`numpy.ndarray`
+            Corresponding wavelength array.
+        meta : :class:`astropy.table.Table`
+            Spectral metadata table.
+        targets : :class:`astropy.table.Table`
+            Target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+        objtruth : :class:`astropy.table.Table`
+            Corresponding objtype-specific truth table (if applicable).
+        
+        """
+        if seed is None:
+            seed = self.seed
+        rand = np.random.RandomState(seed)
+
+        if indx is None:
+            indx = np.arange(len(data['RA']))
+        nobj = len(indx)
+
+        if no_spectra:
+            flux = []
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            meta['REDSHIFT'][:] = data['Z'][indx]
+            self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
+        else:
+            input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
+            input_meta['REDSHIFT'][:] = data['Z'][indx]
+            
+            vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
+                                       sigma=0.15, seed=seed, nside=self.nside_chunk)
+
+            if self.mockformat == 'durham_mxxl_hdf5':
+                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
+                    data['Z'][indx],
+                    data['SDSS_absmag_r01'][indx],
+                    data['SDSS_01gr'][indx])).T )
+
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+
+            elif self.mockformat == 'bgs-gama':
+                # Could conceivably use other colors here--
+                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
+                    data['Z'][indx],
+                    data['RMABS_01'][indx],
+                    data['GR_01'][indx])).T )
+
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+
+            elif self.mockformat == 'gaussianfield':
+                # This is not quite right, but choose a template with equal probability.
+                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+                
+            # Build north/south spectra separately.
+            south = np.where( data['SOUTH'][indx] == True )[0]
+            north = np.where( data['SOUTH'][indx] == False )[0]
+
+            meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
+            flux = np.zeros([nobj, len(self.wave)], dtype='f4')
+
+            for these, issouth in zip( (north, south), (False, True) ):
+                if len(these) > 0:
+                    flux1, _, meta1, objmeta1 = self.template_maker.make_templates(
+                        input_meta=input_meta[these], vdisp=vdisp[these], south=issouth,
+                        nocolorcuts=True)
+
+                    meta[these] = meta1
+                    objmeta[these] = objmeta1
+                    flux[these, :] = flux1
+
+        targets, truth, objtruth = self.populate_targets_truth(
+            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            truespectype='GALAXY', templatetype='BGS')
+
+        return flux, self.wave, targets, truth, objtruth
+
+    def select_targets(self, targets, truth, targetname='BGS'):
+        """Select BGS targets.  Input tables are modified in place.
+
+        Parameters
+        ----------
+        targets : :class:`astropy.table.Table`
+            Input target catalog.
+        truth : :class:`astropy.table.Table`
+            Corresponding truth table.
+
+        """
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        
+        targets['DESI_TARGET'] |= desi_target
+        targets['BGS_TARGET'] |= bgs_target
+        targets['MWS_TARGET'] |= mws_target
