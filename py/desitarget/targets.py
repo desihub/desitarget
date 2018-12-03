@@ -362,10 +362,9 @@ def initial_priority_numobs(targets, survey='main'):
             try:
                 _ = mask[name].priorities["UNOBS"]
                 bitnames.append(name)
-            except:
+            except KeyError:
                 pass
 
-        print(bitnames)
         # ADM loop through the relevant bits updating with the highest priority
         # ADM and the largest value of NUMOBS.
         for name in bitnames:
