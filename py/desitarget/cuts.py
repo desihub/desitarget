@@ -2469,4 +2469,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     targets = np.concatenate(targets)
 
+    # ADM check that each target has a unique ID.
+    if len(targets["TARGETID"]) != len(set(targets["TARGETID"])):
+        msg = 'TARGETIDs are not unique'
+        log.critical(msg)
+        raise AssertionError(msg)
+
     return targets
