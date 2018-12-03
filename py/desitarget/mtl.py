@@ -12,6 +12,7 @@ from astropy.table import Table, join
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from desitarget.targets import calc_numobs, calc_priority_no_table
 
+
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
@@ -128,20 +129,3 @@ def make_mtl(targets, zcat=None, trim=False):
     mtl['NUMOBS_MORE'].fill_value = -1
 
     return mtl
-
-
-if __name__ == "__main__":
-
-    import fitsio
-    targets = fitsio.read("/project/projectdirs/desi/target/catalogs/dr7.1/PR372/targets-dr7.1-PR372.fits")
-    print(len(targets))
-    targets = targets[:30000000]
-    print(len(targets))
-    zcat = Table()
-    a = np.random.choice(len(targets), len(targets), replace=False)
-    zcat['TARGETID'] = targets['TARGETID'][a]
-    zcat['Z'] = np.random.random(len(zcat))*3
-    zcat['NUMOBS'] = np.asarray(np.random.random(len(zcat))*3, dtype='int')
-    zcat['ZWARN'] = np.asarray(np.random.random(len(zcat))*0, dtype='int')
-
-    blat = make_mtl(targets, zcat=zcat)
