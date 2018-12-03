@@ -684,6 +684,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                 100*cparams['galaxies'], target_type))
 
 
+
     return targets, truth, objtruth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',

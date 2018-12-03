@@ -180,7 +180,6 @@ def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
     truth = Table()
     truth.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
-    truth.add_column(Column(name='CONTAM_TARGET', length=nobj, dtype='i8'))
 
     truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
     truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
@@ -253,12 +252,10 @@ class SelectTargets(object):
         from desiutil.brick import Bricks
         from specsim.fastfiberacceptance import FastFiberAcceptance
         from ..targetmask import desi_mask, bgs_mask, mws_mask
-        from ..contammask import contam_mask
         
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
-        self.contam_mask = contam_mask
 
         self.Bricks = Bricks(bricksize=bricksize)
         self.SFDMap = SFDMap()
