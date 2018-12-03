@@ -13,15 +13,16 @@ from desitarget.mtl import make_mtl
 from desitarget.targets import initial_priority_numobs
 from desitarget.targets import calc_priority_no_table, calc_priority
 
+
 class TestMTL(unittest.TestCase):
-    
+
     def setUp(self):
         self.targets = Table()
         self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'ELG'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
         self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
-        self.post_prio[0] = 2 #  ELG
-        self.post_prio[2] = 2 #  lowz QSO
+        self.post_prio[0] = 2  # ELG
+        self.post_prio[2] = 2  # lowz QSO
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
         self.targets['BGS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
         self.targets['MWS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
@@ -33,13 +34,13 @@ class TestMTL(unittest.TestCase):
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
-        #- reverse the order for zcat to make sure joins work
+        # - reverse the order for zcat to make sure joins work
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][-2::-1]
         self.zcat['Z'] = [2.5, 1.0, 0.5, 1.0]
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
-            
+
     def test_mtl(self):
         """Test output from MTL has the correct column names.
         """
@@ -47,7 +48,7 @@ class TestMTL(unittest.TestCase):
         goodkeys = sorted(set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
         mtlkeys = sorted(mtl.dtype.names)
         self.assertEqual(mtlkeys, goodkeys)
-                    
+
     def test_numobs(self):
         """Test priorities, numobs and obsconditions are set correctly with no zcat.
         """
@@ -55,7 +56,7 @@ class TestMTL(unittest.TestCase):
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
-        #- Check that ELGs can be observed in gray conditions but not others
+        # - Check that ELGs can be observed in gray conditions but not others
         iselg = (self.types == 'ELG')
         self.assertTrue(np.all((mtl['OBSCONDITIONS'][iselg] & obsconditions.GRAY) != 0))
         self.assertTrue(np.all((mtl['OBSCONDITIONS'][~iselg] & obsconditions.GRAY) == 0))
@@ -64,7 +65,7 @@ class TestMTL(unittest.TestCase):
         """Test table and no-table versions of priorities produce the same results.
         """
         # ADM set up a dictionary of the indexes of each target id.
-        d = dict(tuple(zip(self.targets["TARGETID"],np.arange(len(self.targets)))))
+        d = dict(tuple(zip(self.targets["TARGETID"], np.arange(len(self.targets)))))
         # ADM loop through the zcat and look-up the index in the dictionary.
         zmatcher = np.array([d[tid] for tid in self.zcat["TARGETID"]])
 
@@ -81,7 +82,7 @@ class TestMTL(unittest.TestCase):
 
         # ADM check the priorities are the same regardless of the table/no-table function.
         priotable = calc_priority(ztable)
-        priono = calc_priority_no_table(targs,znotable)[psort]
+        priono = calc_priority_no_table(targs, znotable)[psort]
         self.assertTrue(np.all(priotable == priono))
 
     def test_zcat(self):
@@ -92,12 +93,12 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3, 1]))
 
-        #- change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
+        # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
         self.targets['DESI_TARGET'][0] = Mx.BAD_SKY
         mtl = make_mtl(self.targets, self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
         self.assertEqual(mtl['PRIORITY'][0], 0)
- 
+
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
         """
@@ -112,6 +113,7 @@ class TestMTL(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:
