@@ -682,8 +682,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
         if target_type in params['targets'] and 'galaxies' in cparams.keys():
             log.info('Generating {}% extragalactic contaminants for target class {}.'.format(
                 100*cparams['galaxies'], target_type))
-
-
+            log.warning('Not yet implemented.')
 
     return targets, truth, objtruth, trueflux
 
@@ -894,7 +893,9 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     
     nobj = len(targets)
     nsky = len(skytargets)
-    log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
+    area = hp.nside2pixarea(nside, degrees=True)
+    log.info('Summary: ntargets = {} ({:.2f} targets/deg2), nsky = {} ({:.2f} targets/deg2) in pixel {}.'.format(
+        nobj, nobj / area, nsky, nsky / area, healpix))
 
     # Assign TARGETID using the healpixel number, not BRICKID, otherwise we'll
     # end up with duplicate TARGETID values.

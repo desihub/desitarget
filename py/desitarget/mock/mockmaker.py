@@ -643,7 +643,10 @@ class SelectTargets(object):
                 # probability, for this morphological type.
                 prob = np.interp(samp[cols[0]], magbins, frac2d_magbins[ii, :])
                 prob /= np.sum(prob)
-                these = rand.choice(nobj, size=nobj_morph[ii], p=prob, replace=False)
+                if np.count_nonzero(prob) < nobj_morph[ii]:
+                    these = rand.choice(nobj, size=nobj_morph[ii], replace=False)
+                else:
+                    these = rand.choice(nobj, size=nobj_morph[ii], p=prob, replace=False)
 
                 gthese = np.arange(nobj_morph[ii]) + np.sum(nobj_morph[:ii])
 
