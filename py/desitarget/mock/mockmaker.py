@@ -1058,7 +1058,7 @@ class SelectTargets(object):
 
         return targets, truth, objtruth
 
-    def mock_density(self, mockfile=None, nside=64, density_per_pixel=False):
+    def mock_density(self, mockfile=None, nside=64, density_per_pixel=False, zmax_qso=None):
         """Compute the median density of targets in the full mock. 
 
         Parameters
@@ -1070,6 +1070,9 @@ class SelectTargets(object):
         density_per_pixel : :class:`bool`, optional
             Return the density per healpixel rather than just the median
             density, which may be useful for statistical purposes.
+        zmax_qso : :class:`float`
+            Maximum redshift of tracer QSOs to read, to ensure no
+            double-counting with Lya mocks.  Defaults to None.
 
         Returns
         -------
@@ -1095,7 +1098,15 @@ class SelectTargets(object):
         
         areaperpix = hp.nside2pixarea(nside, degrees=True)
 
-        radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+        if zmax_qso is not None:
+            radec = fitsio.read(mockfile, columns=['RA', 'DEC', 'Z_COSMO', 'DZ_RSD'],
+                                upper=True, ext=1)
+            zz = (radec['Z_COSMO'].astype('f8') + radec['DZ_RSD'].astype('f8')).astype('f4')
+            cut = np.where( zz < zmax_qso )[0]
+            radec = radec[cut]
+        else:
+            radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
+
         healpix = footprint.radec2pix(nside, radec['RA'], radec['DEC'])
 
         # Get the weight per pixel, protecting against divide-by-zero.
@@ -1106,7 +1117,7 @@ class SelectTargets(object):
 
         mock_density = np.bincount(healpix, weights=weight) / areaperpix # [targets/deg]
         mock_density = mock_density[np.flatnonzero(mock_density)]
-
+        
         if density_per_pixel:
             return mock_density
         else:
@@ -1326,7 +1337,7 @@ class ReadGaussianField(SelectTargets):
 
         # Optionally compute the mean mock density.
         if mock_density:
-            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile, zmax_qso=zmax_qso)
 
         return out
 
