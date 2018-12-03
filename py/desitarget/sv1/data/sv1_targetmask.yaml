@@ -153,7 +153,6 @@ sv1_obsmask:
 #- Every target bit must define priority for "UNOBS"
 #- Default priority for "MORE_ZGOOD" is same as "UNOBS"
 #- Other states are default 1 unless specified here
-#- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
     sv1_desi_mask:
@@ -169,28 +168,28 @@ priorities:
         QSO_COLOR: SAME_AS_QSO
         QSO_RF:    SAME_AS_QSO
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        LRG_NORTH: -1
-        ELG_NORTH: -1
-        QSO_NORTH: -1
-        LRG_SOUTH: -1
-        ELG_SOUTH: -1
-        QSO_SOUTH: -1
-        LRG_1PASS_NORTH: -1
-        LRG_2PASS_NORTH: -1
-        LRG_1PASS_SOUTH: -1
-        LRG_2PASS_SOUTH: -1
-        ELG_FDR_NORTH:       -1
-        ELG_FDR_FAINT_NORTH: -1
-        ELG_RZ_BLUE_NORTH:   -1
-        ELG_RZ_RED_NORTH:    -1
-        ELG_FDR_SOUTH:       -1
-        ELG_FDR_FAINT_SOUTH: -1
-        ELG_RZ_BLUE_SOUTH:   -1
-        ELG_RZ_RED_SOUTH:    -1
-        QSO_COLOR_NORTH: -1
-        QSO_RF_NORTH:    -1
-        QSO_COLOR_SOUTH: -1
-        QSO_RF_SOUTH:    -1
+        LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        ELG_NORTH: SAME_AS_LRG_NORTH
+        QSO_NORTH: SAME_AS_LRG_NORTH
+        LRG_SOUTH: SAME_AS_LRG_NORTH
+        ELG_SOUTH: SAME_AS_LRG_NORTH
+        QSO_SOUTH: SAME_AS_LRG_NORTH
+        LRG_1PASS_NORTH: SAME_AS_LRG_NORTH
+        LRG_2PASS_NORTH: SAME_AS_LRG_NORTH
+        LRG_1PASS_SOUTH: SAME_AS_LRG_NORTH
+        LRG_2PASS_SOUTH: SAME_AS_LRG_NORTH
+        ELG_FDR_NORTH: SAME_AS_LRG_NORTH
+        ELG_FDR_FAINT_NORTH: SAME_AS_LRG_NORTH
+        ELG_RZ_BLUE_NORTH: SAME_AS_LRG_NORTH
+        ELG_RZ_RED_NORTH: SAME_AS_LRG_NORTH
+        ELG_FDR_SOUTH: SAME_AS_LRG_NORTH
+        ELG_FDR_FAINT_SOUTH: SAME_AS_LRG_NORTH
+        ELG_RZ_BLUE_SOUTH: SAME_AS_LRG_NORTH
+        ELG_RZ_RED_SOUTH: SAME_AS_LRG_NORTH
+        QSO_COLOR_NORTH: SAME_AS_LRG_NORTH
+        QSO_RF_NORTH: SAME_AS_LRG_NORTH
+        QSO_COLOR_SOUTH: SAME_AS_LRG_NORTH
+        QSO_RF_SOUTH: SAME_AS_LRG_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -218,12 +217,12 @@ priorities:
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        BGS_FAINT_SOUTH: -1
-        BGS_FAINT_NORTH: -1
-        BGS_BRIGHT_SOUTH: -1
-        BGS_BRIGHT_NORTH: -1
-        BGS_WISE_SOUTH: -1
-        BGS_WISE_NORTH: -1
+        BGS_FAINT_SOUTH: {UNOBS: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        BGS_FAINT_NORTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_BRIGHT_SOUTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_BRIGHT_NORTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_WISE_SOUTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_WISE_NORTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -236,14 +235,14 @@ priorities:
         MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        MWS_MAIN_NORTH:               -1
-        MWS_MAIN_SOUTH:               -1
+        MWS_MAIN_NORTH:               {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN_NORTH
         MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          -1
-        MWS_MAIN_BLUE_SOUTH:          -1
+        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_NORTH
+        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_NORTH
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           -1
-        MWS_MAIN_RED_SOUTH:           -1
+        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_NORTH
+        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_NORTH
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX

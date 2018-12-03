@@ -12,7 +12,6 @@ from astropy.table import Table, join
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from desitarget.targets import calc_numobs, calc_priority_no_table
 
-@profile
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
