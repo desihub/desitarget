@@ -12,9 +12,7 @@ from astropy.table import Table, join
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from desitarget.targets import calc_numobs, calc_priority_no_table
 
-
-############################################################
-#@profile
+@profile
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
@@ -46,14 +44,14 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM if the input target columns were incorrectly called NUMOBS or PRIORITY
     # ADM rename them to NUMOBS_INIT or PRIORITY_INIT.
     for name in ['NUMOBS', 'PRIORITY']:
-        targets.dtype.names = [name+'_INIT' if col==name else col for col in targets.dtype.names]
+        targets.dtype.names = [name+'_INIT' if col == name else col for col in targets.dtype.names]
 
     # ADM if a redshift catalog was passed, order it to match the input targets
     # ADM catalog on 'TARGETID'.
     if zcat is not None:
         # ADM there might be a quicker way to do this?
         # ADM set up a dictionary of the indexes of each target id.
-        d = dict(tuple(zip(targets["TARGETID"],np.arange(n))))
+        d = dict(tuple(zip(targets["TARGETID"], np.arange(n))))
         # ADM loop through the zcat and look-up the index in the dictionary.
         zmatcher = np.array([d[tid] for tid in zcat["TARGETID"]])
         ztargets = zcat
@@ -68,8 +66,8 @@ def make_mtl(targets, zcat=None, trim=False):
         ztargets = Table()
         ztargets['TARGETID'] = targets['TARGETID']
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
-        ztargets['Z']      = -1 * np.ones(n, dtype=np.float32)
-        ztargets['ZWARN']  = -1 * np.ones(n, dtype=np.int32)
+        ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
+        ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
@@ -88,21 +86,21 @@ def make_mtl(targets, zcat=None, trim=False):
     priority = calc_priority_no_table(targets[zmatcher], ztargets)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0.
-    ### mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
+    # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (priority <= 2)
-    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii),n))
+    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii), n))
     ztargets['NUMOBS_MORE'][ii] = 0
 
-    #- Set the OBSCONDITIONS mask for each target bit
+    # - Set the OBSCONDITIONS mask for each target bit.
     obscon = np.zeros(n, dtype='i4')
     for mask, xxx_target in [
-        (desi_mask, 'DESI_TARGET'),
-        (mws_mask, 'MWS_TARGET'),
-        (bgs_mask, 'BGS_TARGET') ]:
+            (desi_mask, 'DESI_TARGET'),
+            (mws_mask, 'MWS_TARGET'),
+            (bgs_mask, 'BGS_TARGET')]:
         for name in mask.names():
-            #- which targets have this bit for this mask set?
+            # - which targets have this bit for this mask set?
             ii = (targets[xxx_target] & mask[name]) != 0
-            #- under what conditions can that bit be observed?
+            # - under what conditions can that bit be observed?
             if np.any(ii):
                 obscon[ii] |= obsconditions.mask(mask[name].obsconditions)
 
@@ -121,7 +119,7 @@ def make_mtl(targets, zcat=None, trim=False):
     if trim:
         notdone = mtl['NUMOBS_MORE'] > 0
         log.info('{:d} of {:d} targets are done, trimming these'.format(
-            len(mtl) - np.sum(notdone),len(mtl))
+            len(mtl) - np.sum(notdone), len(mtl))
         )
         mtl = mtl[notdone]
 
@@ -136,8 +134,15 @@ def make_mtl(targets, zcat=None, trim=False):
 if __name__ == "__main__":
 
     import fitsio
-    objs = fitsio.read("/project/projectdirs/desi/target/catalogs/dr7.1/PR372/targets-dr7.1-PR372.fits")
-    print(len(objs))
-    objs = objs[:10000000]
-    print(len(objs))
-    make_mtl(objs)
+    targets = fitsio.read("/project/projectdirs/desi/target/catalogs/dr7.1/PR372/targets-dr7.1-PR372.fits")
+    print(len(targets))
+    targets = targets[:30000000]
+    print(len(targets))
+    zcat = Table()
+    a = np.random.choice(len(targets), len(targets), replace=False)
+    zcat['TARGETID'] = targets['TARGETID'][a]
+    zcat['Z'] = np.random.random(len(zcat))*3
+    zcat['NUMOBS'] = np.asarray(np.random.random(len(zcat))*3, dtype='int')
+    zcat['ZWARN'] = np.asarray(np.random.random(len(zcat))*0, dtype='int')
+
+    blat = make_mtl(targets, zcat=zcat)

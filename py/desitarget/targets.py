@@ -29,24 +29,24 @@ from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask
 # fibreassign anyway, so this is just a toy example.
 
 # Number of bits allocated to each section
-USER_END   = 52 # Free to use
-SOURCE_END = 60 # Source class
-SURVEY_END = 64 # Survey
+USER_END = 52    # Free to use
+SOURCE_END = 60  # Source class
+SURVEY_END = 64  # Survey
 
 # Bitmasks
-ENCODE_MTL_USER_MASK   = 2**USER_END   - 2**0           # 0x000fffffffffffff
+ENCODE_MTL_USER_MASK = 2**USER_END - 2**0               # 0x000fffffffffffff
 ENCODE_MTL_SOURCE_MASK = 2**SOURCE_END - 2**USER_END    # 0x0ff0000000000000
 ENCODE_MTL_SURVEY_MASK = 2**SURVEY_END - 2**SOURCE_END  # 0xf000000000000000
 
 # Maximum number of unique values
-USER_MAX   = ENCODE_MTL_USER_MASK                  # 4503599627370495
+USER_MAX = ENCODE_MTL_USER_MASK                    # 4503599627370495
 SOURCE_MAX = ENCODE_MTL_SOURCE_MASK >> USER_END    # 255
 SURVEY_MAX = ENCODE_MTL_SURVEY_MASK >> SOURCE_END  # 15
 
-TARGETID_SURVEY_INDEX = {'desi': 0, 'bgs':  1, 'mws':  2}
+TARGETID_SURVEY_INDEX = {'desi': 0, 'bgs': 1, 'mws': 2}
 
-############################################################
-def target_bitmask_to_string(target_class,mask):
+
+def target_bitmask_to_string(target_class, mask):
     """Converts integer values of target bitmasks to strings.
 
     Where multiple bits are set, joins the names of each contributing bit with
@@ -56,7 +56,7 @@ def target_bitmask_to_string(target_class,mask):
     from desiutil.log import get_logger
     log = get_logger()
 
-    target_class_names = np.zeros(len(target_class),dtype=np.object)
+    target_class_names = np.zeros(len(target_class), dtype=np.object)
     unique_target_classes = np.unique(target_class)
     for tc in unique_target_classes:
         # tc is the encoded integer value of the target bitmask
@@ -64,11 +64,11 @@ def target_bitmask_to_string(target_class,mask):
 
         tc_name = '+'.join(mask.names(tc))
         target_class_names[has_this_target_class] = tc_name
-        log.info('Target class %s (%d): %d'%(tc_name,tc,len(has_this_target_class)))
+        log.info('Target class %s (%d): %d' % (tc_name, tc, len(has_this_target_class)))
 
     return target_class_names
 
-############################################################
+
 def encode_mtl_targetid(targets):
     """
     Sets targetid used in MTL, which encode both the target class and
@@ -86,50 +86,50 @@ def encode_mtl_targetid(targets):
     # Validate incoming target ids
     if not np.all(encoded_targetid <= ENCODE_MTL_USER_MASK):
         log.error('Invalid range of user-specfied targetid: cannot exceed {}'
-                    .format(ENCODE_MTL_USER_MASK))
+                  .format(ENCODE_MTL_USER_MASK))
 
     desi_target = targets['DESI_TARGET'] != 0
-    bgs_target  = targets['BGS_TARGET']  != 0
-    mws_target  = targets['MWS_TARGET']  != 0
+    bgs_target = targets['BGS_TARGET'] != 0
+    mws_target = targets['MWS_TARGET'] != 0
 
     # Assumes surveys are mutually exclusive.
-    assert(np.max(np.sum([desi_target,bgs_target,mws_target],axis=0)) == 1)
+    assert(np.max(np.sum([desi_target, bgs_target, mws_target], axis=0)) == 1)
 
     # Set the survey bits
-    #encoded_targetid[desi_target] += TARGETID_SURVEY_INDEX['desi'] << SOURCE_END
-    #encoded_targetid[bgs_target ] += TARGETID_SURVEY_INDEX['bgs']  << SOURCE_END
-    #encoded_targetid[mws_target]  += TARGETID_SURVEY_INDEX['mws']  << SOURCE_END
+    # encoded_targetid[desi_target] += TARGETID_SURVEY_INDEX['desi'] << SOURCE_END
+    # encoded_targetid[bgs_target ] += TARGETID_SURVEY_INDEX['bgs']  << SOURCE_END
+    # encoded_targetid[mws_target]  += TARGETID_SURVEY_INDEX['mws']  << SOURCE_END
 
-    encoded_targetid[desi_target] += encode_survey_source(TARGETID_SURVEY_INDEX['desi'],0,0)
-    encoded_targetid[bgs_target ] += encode_survey_source(TARGETID_SURVEY_INDEX['bgs'],0,0)
-    encoded_targetid[mws_target]  += encode_survey_source(TARGETID_SURVEY_INDEX['mws'],0,0)
+    encoded_targetid[desi_target] += encode_survey_source(TARGETID_SURVEY_INDEX['desi'], 0, 0)
+    encoded_targetid[bgs_target] += encode_survey_source(TARGETID_SURVEY_INDEX['bgs'], 0, 0)
+    encoded_targetid[mws_target] += encode_survey_source(TARGETID_SURVEY_INDEX['mws'], 0, 0)
 
     # Set the source bits. Will be different for each survey.
-    desi_sources = ['ELG','LRG','QSO']
-    bgs_sources  = ['BGS_FAINT','BGS_BRIGHT','BGS_WISE']
-    mws_sources  = ['MWS_MAIN','MWS_WD','MWS_NEARBY']
+    desi_sources = ['ELG', 'LRG', 'QSO']
+    bgs_sources = ['BGS_FAINT', 'BGS_BRIGHT', 'BGS_WISE']
+    mws_sources = ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']
 
     for name in desi_sources:
-        ii  = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+        ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
         assert(desi_mask[name] <= SOURCE_MAX)
-        encoded_targetid[ii] += encode_survey_source(0,desi_mask[name],0)
+        encoded_targetid[ii] += encode_survey_source(0, desi_mask[name], 0)
 
     for name in bgs_sources:
-        ii  = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
+        ii = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
         assert(bgs_mask[name] <= SOURCE_MAX)
-        encoded_targetid[ii] += encode_survey_source(0,bgs_mask[name],0)
+        encoded_targetid[ii] += encode_survey_source(0, bgs_mask[name], 0)
 
     for name in mws_sources:
-        ii  = (targets['MWS_TARGET'] & mws_mask[name]) != 0
+        ii = (targets['MWS_TARGET'] & mws_mask[name]) != 0
         assert(mws_mask[name] <= SOURCE_MAX)
-        encoded_targetid[ii] += encode_survey_source(0,mws_mask[name],0)
+        encoded_targetid[ii] += encode_survey_source(0, mws_mask[name], 0)
 
     # FIXME (APC): expensive...
     assert(len(np.unique(encoded_targetid)) == len(encoded_targetid))
     return encoded_targetid
 
-############################################################
-def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
+
+def encode_targetid(objid=None, brickid=None, release=None, mock=None, sky=None):
     """Create the DESI TARGETID from input source and imaging information
 
     Parameters
@@ -141,22 +141,22 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     release : :class:`int` or :class:`~numpy.ndarray`, optional
         The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
     mock : :class:`int` or :class:`~numpy.ndarray`, optional
-        1 if this object is a mock object (generated from 
+        1 if this object is a mock object (generated from
         mocks, not from real survey data), 0 otherwise
     sky : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a blank sky object, 0 otherwise
 
     Returns
     -------
-    :class:`int` or `~numpy.ndarray` 
+    :class:`int` or `~numpy.ndarray`
         The TARGETID for DESI, encoded according to the bits listed in
         :meth:`desitarget.targetid_mask`. If an integer is passed, then an
         integer is returned, otherwise an array is returned
 
     Notes
     -----
-        - This is set up with maximum flexibility so that mixes of integers 
-          and arrays can be passed, in case some value like BRICKID or SKY 
+        - This is set up with maximum flexibility so that mixes of integers
+          and arrays can be passed, in case some value like BRICKID or SKY
           is the same for a set of objects. Consider, e.g.:
 
               print(
@@ -182,42 +182,42 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
     # ADM default to an integer (length 1)
     nobjs = 1
     inputs = [objid, brickid, release, sky, mock]
-    goodpar = [ input is not None for input in inputs ]
+    goodpar = [input is not None for input in inputs]
     firstgoodpar = np.where(goodpar)[0][0]
-    if isinstance(inputs[firstgoodpar],np.ndarray):
+    if isinstance(inputs[firstgoodpar], np.ndarray):
         nobjs = len(inputs[firstgoodpar])
         intpassed = False
 
     # ADM set parameters that weren't passed to zerod arrays
     # ADM set integers that were passed to at least 1D arrays
     if objid is None:
-        objid = np.zeros(nobjs,dtype='int64')
+        objid = np.zeros(nobjs, dtype='int64')
     else:
         objid = np.atleast_1d(objid)
     if brickid is None:
-        brickid = np.zeros(nobjs,dtype='int64')
+        brickid = np.zeros(nobjs, dtype='int64')
     else:
         brickid = np.atleast_1d(brickid)
     if release is None:
-        release = np.zeros(nobjs,dtype='int64')
+        release = np.zeros(nobjs, dtype='int64')
     else:
         release = np.atleast_1d(release)
     if mock is None:
-        mock = np.zeros(nobjs,dtype='int64')
+        mock = np.zeros(nobjs, dtype='int64')
     else:
         mock = np.atleast_1d(mock)
     if sky is None:
-        sky = np.zeros(nobjs,dtype='int64')
+        sky = np.zeros(nobjs, dtype='int64')
     else:
         sky = np.atleast_1d(sky)
 
     # ADM check none of the passed parameters exceed their bit-allowance
     if not np.all(objid <= 2**targetid_mask.OBJID.nbits):
         log.error('Invalid range when creating targetid: OBJID cannot exceed {}'
-                 .format(2**targetid_mask.OBJID.nbits))
+                  .format(2**targetid_mask.OBJID.nbits))
     if not np.all(brickid <= 2**targetid_mask.BRICKID.nbits):
         log.error('Invalid range when creating targetid: BRICKID cannot exceed {}'
-                 .format(2**targetid_mask.BRICKID.nbits))
+                  .format(2**targetid_mask.BRICKID.nbits))
     if not np.all(release <= 2**targetid_mask.RELEASE.nbits):
         log.error('Invalid range when creating targetid: RELEASE cannot exceed {}'
                   .format(2**targetid_mask.RELEASE.nbits))
@@ -229,7 +229,7 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
                   .format(2**targetid_mask.SKY.nbits))
 
     # ADM set up targetid as an array of 64-bit integers
-    targetid = np.zeros(nobjs,('int64'))
+    targetid = np.zeros(nobjs, ('int64'))
     # ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
     # ADM remember to shift to type integer 64 to avoid casting
     targetid |= objid.astype('int64') << targetid_mask.OBJID.bitnum
@@ -243,15 +243,15 @@ def encode_targetid(objid=None,brickid=None,release=None,mock=None,sky=None):
         return targetid[0]
     return targetid
 
-############################################################
+
 def decode_targetid(targetid):
     """break a DESI TARGETID into its constituent parts
 
     Parameters
     ----------
-    :class:`int` or :class:`~numpy.ndarray` 
+    :class:`int` or :class:`~numpy.ndarray`
         The TARGETID for DESI, encoded according to the bits listed in
-        :meth:`desitarget.targetid_mask`        
+        :meth:`desitarget.targetid_mask`
 
     Returns
     -------
@@ -262,7 +262,7 @@ def decode_targetid(targetid):
     release : :class:`int` or `~numpy.ndarray`
         The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
     mock : :class:`int` or `~numpy.ndarray`
-        1 if this object is a mock object (generated from 
+        1 if this object is a mock object (generated from
         mocks, not from real survey data), 0 otherwise
     sky : :class:`int` or `~numpy.ndarray`
         1 if this object is a blank sky object, 0 otherwise
@@ -276,20 +276,20 @@ def decode_targetid(targetid):
 
     # ADM retrieve each constituent value by left-shifting by the number of bits that comprise
     # ADM the value, to the left-end of the value, and then right-shifting to the right-end
-    objid = (targetid & (2**targetid_mask.OBJID.nbits - 1 
+    objid = (targetid & (2**targetid_mask.OBJID.nbits - 1
                          << targetid_mask.OBJID.bitnum)) >> targetid_mask.OBJID.bitnum
-    brickid = (targetid & (2**targetid_mask.BRICKID.nbits - 1 
+    brickid = (targetid & (2**targetid_mask.BRICKID.nbits - 1
                            << targetid_mask.BRICKID.bitnum)) >> targetid_mask.BRICKID.bitnum
-    release = (targetid & (2**targetid_mask.RELEASE.nbits - 1 
+    release = (targetid & (2**targetid_mask.RELEASE.nbits - 1
                            << targetid_mask.RELEASE.bitnum)) >> targetid_mask.RELEASE.bitnum
-    mock = (targetid & (2**targetid_mask.MOCK.nbits - 1 
+    mock = (targetid & (2**targetid_mask.MOCK.nbits - 1
                         << targetid_mask.MOCK.bitnum)) >> targetid_mask.MOCK.bitnum
-    sky = (targetid & (2**targetid_mask.SKY.nbits - 1 
+    sky = (targetid & (2**targetid_mask.SKY.nbits - 1
                        << targetid_mask.SKY.bitnum)) >> targetid_mask.SKY.bitnum
 
     return objid, brickid, release, mock, sky
 
-############################################################
+
 def initial_priority_numobs(targets, survey='main'):
     """highest initial priority and numobs for an array of target bits
 
@@ -336,7 +336,7 @@ def initial_priority_numobs(targets, survey='main'):
             import desitarget.sv1.sv1_targetmask as targmask
         if survey == 'sv2':
             import desitarget.sv2.sv2_targetmask as targmask
-        colnames = ["{}_{}_TARGET".format(survey.upper(),tc) for tc in ["DESI", "BGS", "MWS"]]
+        colnames = ["{}_{}_TARGET".format(survey.upper(), tc) for tc in ["DESI", "BGS", "MWS"]]
         masks = [targmask.desi_mask, targmask.bgs_mask, targmask.mws_mask]
     else:
         log.critical("survey must be either 'main', 'cmx' or 'sv', not {}!!!"
@@ -355,7 +355,7 @@ def initial_priority_numobs(targets, survey='main'):
     outpriority = np.zeros(len(targets), dtype='int')
     outnumobs = np.zeros(len(targets), dtype='int')
 
-    for colname, mask in zip(colnames,masks):
+    for colname, mask in zip(colnames, masks):
         # ADM first determine which bits actually have priorities
         bitnames = []
         for name in mask.names():
@@ -372,33 +372,33 @@ def initial_priority_numobs(targets, survey='main'):
             istarget = (targets[colname] & mask[name]) != 0
             # ADM for each index, determine where this bit is set and the priority
             # ADM for this bit is > than the currently stored priority.
-            w = np.where( (mask[name].priorities['UNOBS'] >= outpriority ) & istarget)[0]
+            w = np.where((mask[name].priorities['UNOBS'] >= outpriority) & istarget)[0]
             # ADM where a larger priority trumps the stored priority, update the priority
             if len(w) > 0:
                 outpriority[w] = mask[name].priorities['UNOBS']
             # ADM for each index, determine where this bit is set and whether NUMOBS
             # ADM for this bit is > than the currently stored NUMOBS.
-            w = np.where( (mask[name].numobs >= outnumobs ) & istarget)[0]
+            w = np.where((mask[name].numobs >= outnumobs) & istarget)[0]
             # ADM where a larger NUMOBS trumps the stored NUMOBS, update NUMOBS.
             if len(w) > 0:
                 outnumobs[w] = mask[name].numobs
 
     return outpriority, outnumobs
 
-############################################################
-def encode_survey_source(survey,source,original_targetid):
+
+def encode_survey_source(survey, source, original_targetid):
     """
     """
     return (survey << SOURCE_END) + (source << USER_END) + original_targetid
 
-############################################################
+
 def decode_survey_source(encoded_values):
     """
     Returns
     -------
         survey[:], source[:], original_targetid[:]
     """
-    _encoded_values = np.asarray(np.atleast_1d(encoded_values),dtype=np.uint64)
+    _encoded_values = np.asarray(np.atleast_1d(encoded_values), dtype=np.uint64)
     survey = (_encoded_values & ENCODE_MTL_SURVEY_MASK) >> SOURCE_END
     source = (_encoded_values & ENCODE_MTL_SOURCE_MASK) >> USER_END
 
@@ -406,7 +406,7 @@ def decode_survey_source(encoded_values):
 
     return survey, source, original_targetid
 
-############################################################
+
 def calc_priority(targets):
     """
     Calculate target priorities given observation state and target masks
@@ -444,15 +444,15 @@ def calc_priority(targets):
     # TODO: this doesn't distinguish between really unobserved vs not yet
     # processed.
     unobs = (targets['NUMOBS'] == 0)
-    log.debug('calc_priority has %d unobserved targets'%(np.sum(unobs)))
+    log.debug('calc_priority has %d unobserved targets' % (np.sum(unobs)))
     if np.all(unobs):
-        done  = np.zeros(len(targets), dtype=bool)
+        done = np.zeros(len(targets), dtype=bool)
         zgood = np.zeros(len(targets), dtype=bool)
         zwarn = np.zeros(len(targets), dtype=bool)
     else:
         nmore = np.maximum(0, calc_numobs(targets) - targets['NUMOBS'])
         assert np.all(nmore >= 0)
-        done  = ~unobs & (nmore == 0)
+        done = ~unobs & (nmore == 0)
         zgood = ~unobs & (nmore > 0) & (targets['ZWARN'] == 0)
         zwarn = ~unobs & (nmore > 0) & (targets['ZWARN'] != 0)
 
@@ -469,37 +469,37 @@ def calc_priority(targets):
     # DESI dark time targets
     if 'DESI_TARGET' in targets.colnames:
         for name in ('ELG', 'LRG'):
-            ii                   = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+            ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-            priority[ii & done]  = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
+            priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
             priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
         # QSO could be Lyman-alpha or Tracer
         name = 'QSO'
-        ii                       = (targets['DESI_TARGET'] & desi_mask[name]) != 0
-        good_hiz                 = zgood & (targets['Z'] >= 2.15) & (targets['ZWARN'] == 0)
-        priority[ii & unobs]     = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-        priority[ii & done]      = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
-        priority[ii & good_hiz]  = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
+        ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
+        good_hiz = zgood & (targets['Z'] >= 2.15) & (targets['ZWARN'] == 0)
+        priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+        priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
+        priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
         priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
-        priority[ii & zwarn]     = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+        priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
     # BGS targets
     if 'BGS_TARGET' in targets.colnames:
         for name in bgs_mask.names():
-            ii                   = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
+            ii = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
-            priority[ii & done]  = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
+            priority[ii & done] = np.maximum(priority[ii & done], bgs_mask[name].priorities['DONE'])
             priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
 
     # MWS targets
     if 'MWS_TARGET' in targets.colnames:
         for name in mws_mask.names():
-            ii                   = (targets['MWS_TARGET'] & mws_mask[name]) != 0
+            ii = (targets['MWS_TARGET'] & mws_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
-            priority[ii & done]  = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
+            priority[ii & done] = np.maximum(priority[ii & done], mws_mask[name].priorities['DONE'])
             priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
 
@@ -509,7 +509,7 @@ def calc_priority(targets):
 
     return priority
 
-############################################################
+
 def calc_priority_no_table(targets, zcat):
     """
     :func:`~desitarget.targets.calc_priority` without table copies, to save memory.
@@ -546,15 +546,15 @@ def calc_priority_no_table(targets, zcat):
     # TODO: this doesn't distinguish between really unobserved vs not yet
     # processed.
     unobs = (zcat["NUMOBS"] == 0)
-    log.debug('calc_priority has %d unobserved targets'%(np.sum(unobs)))
+    log.debug('calc_priority has %d unobserved targets' % (np.sum(unobs)))
     if np.all(unobs):
-        done  = np.zeros(len(targets), dtype=bool)
+        done = np.zeros(len(targets), dtype=bool)
         zgood = np.zeros(len(targets), dtype=bool)
         zwarn = np.zeros(len(targets), dtype=bool)
     else:
         nmore = zcat["NUMOBS_MORE"]
         assert np.all(nmore >= 0)
-        done  = ~unobs & (nmore == 0)
+        done = ~unobs & (nmore == 0)
         zgood = ~unobs & (nmore > 0) & (zcat['ZWARN'] == 0)
         zwarn = ~unobs & (nmore > 0) & (zcat['ZWARN'] != 0)
 
@@ -573,7 +573,7 @@ def calc_priority_no_table(targets, zcat):
         for name in ('ELG', 'LRG'):
             ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-            priority[ii & done]  = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
+            priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
             priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
@@ -611,7 +611,7 @@ def calc_priority_no_table(targets, zcat):
 
     return priority
 
-############################################################
+
 def calc_numobs(targets):
     """
     Calculates the requested number of observations needed for each target
@@ -641,15 +641,15 @@ def calc_numobs(targets):
     if 'DESI_TARGET' in targets.dtype.names:
         no_target_class &= targets['DESI_TARGET'] == 0
     if 'BGS_TARGET' in targets.dtype.names:
-        no_target_class &= targets['BGS_TARGET']  == 0
+        no_target_class &= targets['BGS_TARGET'] == 0
     if 'MWS_TARGET' in targets.dtype.names:
-        no_target_class &= targets['MWS_TARGET']  == 0
+        no_target_class &= targets['MWS_TARGET'] == 0
 
     n_no_target_class = np.sum(no_target_class)
     if n_no_target_class > 0:
         raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
 
-    #- LRGs get 1, 2, or (perhaps) 3 observations depending upon magnitude
+    # - LRGs get 1, 2, or (perhaps) 3 observations depending upon magnitude
     # ADM set this using the LRG_1PASS/2PASS and maybe even 3PASS bits
     islrg = (targets['DESI_TARGET'] & desi_mask.LRG) != 0
     # ADM default to 2 passes for LRGs
@@ -670,8 +670,8 @@ def calc_numobs(targets):
     except AttributeError:
         pass
 
-    #- TBD: flag QSOs for 4 obs ahead of time, or only after confirming
-    #- that they are redshift>2.15 (i.e. good for Lyman-alpha)?
+    # - TBD: flag QSOs for 4 obs ahead of time, or only after confirming
+    # - that they are redshift>2.15 (i.e. good for Lyman-alpha)?
     isqso = (targets['DESI_TARGET'] & desi_mask.QSO) != 0
     nobs[isqso] = 4
 
@@ -681,23 +681,23 @@ def calc_numobs(targets):
     # Priorities for MORE_ZWARN and MORE_ZGOOD are set in targetmask.yaml such
     # that targets are reobserved at the same priority until they have a good
     # redshift. Targets with good redshifts are still observed on subsequent
-    # epochs but with a priority below all other BGS and MWS targets. 
+    # epochs but with a priority below all other BGS and MWS targets.
 
     if 'BGS_TARGET' in targets.dtype.names:
         # This forces the calculation of nmore in targets.calc_priority (and
         # ztargets['NOBS_MORE'] in mtl.make_mtl) to give nmore = 1 regardless
         # of targets['NUMOBS']
-        ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
+        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
         nobs[ii] = targets['NUMOBS'][ii]+1
-        ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_BRIGHT) != 0
+        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_BRIGHT) != 0
         nobs[ii] = targets['NUMOBS'][ii]+1
-        ii       = (targets['BGS_TARGET'] & bgs_mask.BGS_WISE) != 0
+        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_WISE) != 0
         nobs[ii] = targets['NUMOBS'][ii]+1
 
     return nobs
 
-############################################################
-def finalize(targets, desi_target, bgs_target, mws_target, 
+
+def finalize(targets, desi_target, bgs_target, mws_target,
              sky=0, survey='main'):
     """Return new targets array with added/renamed columns
 
@@ -714,7 +714,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     sky : :class:`int`, defaults to 0
         Pass `1` to indicate these are blank sky targets, `0` otherwise.
     survey : :class:`str`, defaults to `main`
-        Specifies which target masks yaml file to use. Options are `main`, 
+        Specifies which target masks yaml file to use. Options are `main`,
         `cmx` and `svX` (where X = 1, 2, 3 etc.) for the main survey,
         commissioning and an iteration of SV.
 
@@ -745,10 +745,10 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     assert ntargets == len(bgs_target)
     assert ntargets == len(mws_target)
 
-    #- OBJID in tractor files is only unique within the brick; rename and
-    #- create a new unique TARGETID
-    targets = rfn.rename_fields(targets, 
-                        {'OBJID':'BRICK_OBJID', 'TYPE':'MORPHTYPE'})
+    # - OBJID in tractor files is only unique within the brick; rename and
+    # - create a new unique TARGETID
+    targets = rfn.rename_fields(targets,
+                                {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'],
                                release=targets['RELEASE'],
@@ -759,18 +759,24 @@ def finalize(targets, desi_target, bgs_target, mws_target,
 
     # ADM add new columns, which are different depending on SV/cmx/main survey.
     if survey == 'main':
-        targets = rfn.append_fields(targets,
+        targets = rfn.append_fields(
+            targets,
             ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', 'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT'],
-            [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False)
+            [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False
+        )
     elif survey == 'cmx':
-        targets = rfn.append_fields(targets,
+        targets = rfn.append_fields(
+            targets,
             ['TARGETID', 'CMX_TARGET', 'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT'],
-            [targetid, desi_target, nodata, subpriority, nodata], usemask=False)
+            [targetid, desi_target, nodata, subpriority, nodata], usemask=False
+        )
     elif survey[0:2] == 'sv':
-        dt, bt, mt = ["{}_{}_TARGET".format(survey.upper(),tc) for tc in ["DESI", "BGS", "MWS"]]
-        targets = rfn.append_fields(targets,
+        dt, bt, mt = ["{}_{}_TARGET".format(survey.upper(), tc) for tc in ["DESI", "BGS", "MWS"]]
+        targets = rfn.append_fields(
+            targets,
             ['TARGETID', dt, bt, mt, 'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT'],
-            [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False)
+            [targetid, desi_target, bgs_target, mws_target, nodata, subpriority, nodata], usemask=False
+        )
     else:
         msg = "survey must be either 'main', 'cmx' or begin with 'sv', not {}!!!".format(survey)
         log.critical(msg)
