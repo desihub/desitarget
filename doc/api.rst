@@ -14,9 +14,6 @@ desitarget API
 .. automodule:: desitarget.cmx.cmx_targetmask
     :members:
 
-.. automodule:: desitarget.contammask
-    :members:
-
 .. automodule:: desitarget.cuts
     :members:
 
