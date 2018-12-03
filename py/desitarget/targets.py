@@ -365,6 +365,7 @@ def initial_priority_numobs(targets, survey='main'):
             except:
                 pass
 
+        print(bitnames)
         # ADM loop through the relevant bits updating with the highest priority
         # ADM and the largest value of NUMOBS.
         for name in bitnames:
