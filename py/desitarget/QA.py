@@ -242,29 +242,27 @@ def _javastring():
 
     return js
 
-
-def collect_mock_data(targfile):
-    """Given a full path to a mock target file, read in all relevant mock data.
+def read_data(targfile, mocks=False):
+    """Read in the data, including any mock data (if present).
 
     Parameters
     ----------
-    targs : :class:`str`
+    targfile : :class:`str`
         The full path to a mock target file in the DESI X per cent survey directory structure
         e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/.
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, read in mock data.
 
     Returns
     -------
-    :class:`~numpy.array`
-        A rec array containing the mock targets.
-    :class:`~numpy.array`
-        A rec array containing the mock truth objects used to generate the mock targets.
+    targs : :class:`~numpy.array`
+        A rec array containing the targets catalog.
+    truths : :class:`~numpy.array`
+        A rec array containing the targets catalog (if present and `mocks=True`).
+    objtruths : :class:`dict`
+        Object type-specific truth metadata (if present and `mocks=True`).
 
-    Notes
-    -----
-        - Will return 0 if the file structure is incorrect (i.e. if the "truths" can't be
-          found based on the "targs").
     """
-
     start = time()
 
     # ADM set up the default logger from desiutil.
@@ -279,22 +277,37 @@ def collect_mock_data(targfile):
     dcdir = os.path.dirname(targdir)
     dc = os.path.basename(dcdir)
 
-    # ADM the file containing truth.
-    truthfile = '{}/truth.fits'.format(targdir)
-
-    # ADM check that the truth file exists.
-    if not os.path.exists(truthfile):
-        log.warning("Directory structure to truth file is not as expected")
-        return 0
-
-    # ADM read in the relevant mock data and return it.
+    # ADM read in the targets catalog and return it.
+        if isinstance(targs, str):
+            targs = fitsio.read(targs)
+            log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+            truths, objtruths = None, None
+    
     targs = fitsio.read(targfile)
-    log.info('Read in mock targets...t = {:.1f}s'.format(time()-start))
-    truths = fitsio.read(truthfile)
-    log.info('Read in mock truth objects...t = {:.1f}s'.format(time()-start))
+    log.info('Read in targets catalog...t = {:.1f}s'.format(time()-start))
 
-    return targs, truths
+    if mocks:
+        truthfile = '{}/truth.fits'.format(targdir)
 
+        # ADM check that the truth file exists.
+        if not os.path.exists(truthfile):
+            log.warning("Directory structure to truth file is not as expected")
+            return targs, None, None
+
+        truthinfo = fitsio.FITS(truthfile)
+        truths = truthinfo['TRUTH'].read()
+        log.info('Read in truth catalog...t = {:.1f}s'.format(time()-start))
+
+        objtruths = dict()
+        for objtype in set(truths['TEMPLATETYPE']):
+            oo = objtype.decode('utf-8').strip().upper()
+            extname = 'TRUTH_{}'.format(oo)
+            if extname in truthinfo:
+                objtruths[oo] = truthinfo[extname].read()
+
+        return targs, truths, objtruths
+    else:
+        return targs, None, None
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
@@ -1257,8 +1270,8 @@ def _in_desi_footprint(targs):
 
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
-                  imaging_map_file=None, truths=None, tcnames=None,
-                  cmx=False, bit_mask=None):
+                  imaging_map_file=None, truths=None, objtruths=None, tcnames=None,
+                  cmx=False, bit_mask=None, mocks=False):
     """Make DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1284,6 +1297,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     truths : :class:`~numpy.array` or `str`
         The truth objects from which the targs were derived in the DESI data model format.
         If a string is passed then read from that file (supply the full directory path).
+    objtruths : :class:`dict`
+        Object type-specific truth metadata.
     tcnames : :class:`list`, defaults to None
         A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
         for those specific bits. A useful speed-up when testing.
@@ -1293,6 +1308,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     bit_mask : :class:`~numpy.array`, optional, defaults to ``None``
         Load the bit names from this passed mask (with zero density constraints)
         instead of the main survey bits.
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
 
     Returns
     -------
@@ -1312,14 +1329,24 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     start = time()
     log.info('Start making targeting QA plots...t = {:.1f}s'.format(time()-start))
 
-    # ADM if a filename was passed, read in the targets from that file.
-    if isinstance(targs, str):
-        targs = fitsio.read(targs)
-        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
-    if truths is not None:
-        if isinstance(truths, str):
-            truths = fitsio.read(truths)
-            log.info('Read in truth...t = {:.1f}s'.format(time()-start))
+    if mocks and targs is None and truths is None and objtruths is None:
+        if isinstance(targs, str):
+            targs, truths, objtruths = collect_mock_data(targs)
+            if mockdata == 0:
+                mocks = False
+            else:
+                 = mockdata
+        else:
+            log.warning('To make mock-related plots, targs must be a directory+file-location string...')
+            log.warning('...will proceed by only producing the non-mock plots...')
+
+    else:
+        # ADM if a filename was passed, read in the targets from that file.
+        if isinstance(targs, str):
+            targs = fitsio.read(targs)
+            log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+            truths, objtruths = None, None
+
 
     # ADM determine the nside for the passed max_bin_area.
     for n in range(1, 25):
@@ -1438,7 +1465,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
 
             # ADM make Gaia-based plots if we have Gaia columns
-            if "PARALLAX" in targs.dtype.names:
+            if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
                 qagaia(targs[w], objtype, qadir=qadir, fileprefix="gaia")
                 log.info('Made Gaia-based plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
@@ -1502,25 +1529,16 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
-    # ADM if mocks was passed, build the full set of relevant data.
-    if mocks:
-        if isinstance(targs, str):
-            mockdata = collect_mock_data(targs)
-            if mockdata == 0:
-                mocks = False
-            else:
-                targs, truths = mockdata
-        else:
-            log.warning('To make mock-related plots, targs must be a directory+file-location string...')
-            log.warning('...will proceed by only producing the non-mock plots...')
-            mocks = False
-    else:
-        truths = None
-
-    # ADM if a filename was passed, read in the targets from that file.
     if isinstance(targs, str):
-        targs = fitsio.read(targs)
-        log.info('Read in targets...t = {:.1f}s'.format(time()-start))
+        if mocks:
+            targs, truths, objtruths = read_data(targs, mocks=mocks)
+        else:
+            log.warning('Unable to read truth.fits file since targs was passed.')
+            
+            
+
+    else:
+        # ADM if a filename was passed, read in the targets from that file.
 
     # ADM automatically detect whether we're running this for the main survey
     # ADM or SV, etc. and change the column names accordingly.
@@ -1646,7 +1664,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</table>\n')
 
         # ADM parallax and proper motion plots, if we have that information.
-        if "PARALLAX" in targs.dtype.names:
+        if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
             html.write('<h2>Gaia based plots</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
@@ -1737,14 +1755,14 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM make the QA plots, if requested:
     if makeplots:
         if svs == "DESI":
-            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens,
-                                    max_bin_area=max_bin_area, weight=weight,
-                                    imaging_map_file=imaging_map_file)
+            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths,
+                                    qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                                    weight=weight, imaging_map_file=imaging_map_file, mocks=mocks)
         else:
-            totarea = make_qa_plots(targs, truths=truths, qadir=qadir, targdens=targdens,
-                                    max_bin_area=max_bin_area, weight=weight,
-                                    imaging_map_file=imaging_map_file,
-                                    cmx=cmx, bit_mask=main_mask)
+            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths,
+                                    qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                                    weight=weight, imaging_map_file=imaging_map_file,
+                                    cmx=cmx, bit_mask=main_mask, mocks=mocks)
 
         # ADM add a correlation matrix recording the overlaps between different target
         # ADM classes as a density.
