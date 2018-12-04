@@ -677,6 +677,10 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                             objtruth['STAR'] = contamobjtruth
                         trueflux = np.vstack( (trueflux, contamtrueflux) )
 
+        if len(stars_targets) > 0:
+            stars_targets = vstack(stars_targets)
+            stars_truth = vstack(stars_truth)
+
     # Galaxies--
     galaxies_targets, galaxies_truth = list(), list()
     if ContamGalaxiesMock is not None:
@@ -722,32 +726,28 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                         galaxy_data, ContamGalaxiesMock, log, nside=nside, nside_chunk=nside_chunk,
                         seed=seed, nproc=nproc, no_spectra=no_spectra, contaminants=True)
 
-                    import pdb ; pdb.set_trace()
-                    
                     if len(contamtargets) > 0:
                         galaxies_targets.append(contamtargets)
                         galaxies_truth.append(contamtruth)
-                        
-                        if 'STAR' in objtruth.keys():
-                            objtruth['STAR'] = vstack( (objtruth['STAR'], contamobjtruth) )
+                        # We use BGS spectral templates as contaminants.
+                        if 'BGS' in objtruth.keys():
+                            objtruth['BGS'] = vstack( (objtruth['BGS'], contamobjtruth) )
                         else:
-                            objtruth['STAR'] = contamobjtruth
+                            objtruth['BGS'] = contamobjtruth
                         trueflux = np.vstack( (trueflux, contamtrueflux) )
 
-        #if target_type in params['targets'] and 'galaxies' in cparams.keys():
-        #    log.info('Generating {}% extragalactic contaminants for target class {}.'.format(
-        #        100*cparams['galaxies'], target_type))
-        #    log.warning('Not yet implemented.')
+        if len(galaxies_targets) > 0:
+            galaxies_targets = vstack(galaxies_targets)
+            galaxies_truth = vstack(galaxies_truth)
 
-    if len(contamtargets) > 0:
-        targets = vstack( (targets, contamtargets) )
-        truth = vstack( (truth, contamtruth) )
-        if 'STAR' in objtruth.keys():
-            objtruth['STAR'] = vstack( (objtruth['STAR'], contamobjtruth) )
-        else:
-            objtruth['STAR'] = contamobjtruth
-        trueflux = np.vstack( (trueflux, contamtrueflux) )
-
+    # Now merge all the contaminants into the output targets catalog.
+    if len(stars_targets) > 0:
+        targets = vstack( (targets, stars_targets) )
+        truth = vstack( (truth, stars_truth) )
+        
+    if len(galaxies_targets) > 0:
+        targets = vstack( (targets, galaxies_targets) )
+        truth = vstack( (truth, galaxies_truth) )
 
     return targets, truth, objtruth, trueflux
 
