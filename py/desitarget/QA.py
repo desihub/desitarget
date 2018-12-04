@@ -303,7 +303,7 @@ def read_data(targfile, mocks=False):
 
         return targs, truths, objtruths
     else:
-        return targs
+        return targs, None, None
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
@@ -1420,10 +1420,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 w = np.where(targs["DESI_TARGET"] & main_mask[objtype])[0]
 
         if len(w) > 0:
-            print('hack!!')
-            print(objtype, len(w))
-            #import pdb ; pdb.set_trace()
-
             # ADM make RA/Dec skymaps.
             qaskymap(targs[w], objtype, qadir=qadir, upclip=upclipdict[objtype],
                      weights=weights[w], max_bin_area=max_bin_area)
@@ -1529,13 +1525,11 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
     if isinstance(targs, str):
-        if mocks:
-            targs, truths, objtruths = read_data(targs, mocks=mocks)
-        else:
-            targs = read_data(targs, mocks=mocks)
+        targs, truths, objtruths = read_data(targs, mocks=mocks)
     else:
         if mocks:
             log.warning('Please pass the filename to the targeting catalog so the "mock" QA plots can be generated.')
+        truths, objtruths = None, None
 
     # ADM automatically detect whether we're running this for the main survey
     # ADM or SV, etc. and change the column names accordingly.
