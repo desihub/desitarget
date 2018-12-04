@@ -1493,7 +1493,9 @@ class ReadBuzzard(SelectTargets):
             'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
             'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
             'BRICKID': self.Bricks.brickid(ra, dec),
-            'RA': ra, 'DEC': dec, 'Z': zz, 'SOUTH': isouth}
+            'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag,
+            'MAGFILTER': np.repeat('decam2014-r', nobj),
+            'SOUTH': isouth}
         if gmmout is not None:
             out.update(gmmout)
 
@@ -3866,24 +3868,19 @@ class BGSMaker(SelectTargets):
                     data['SDSS_absmag_r01'][indx],
                     data['SDSS_01gr'][indx])).T )
 
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
-
             elif self.mockformat == 'bgs-gama':
                 # Could conceivably use other colors here--
                 input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
                     data['Z'][indx],
                     data['RMABS_01'][indx],
                     data['GR_01'][indx])).T )
-
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
-
+                
             elif self.mockformat == 'gaussianfield':
                 # This is not quite right, but choose a template with equal probability.
                 input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+                
+            input_meta['MAG'][:] = data['MAG'][indx]
+            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
                 
             # Build north/south spectra separately.
             south = np.where( data['SOUTH'][indx] == True )[0]
@@ -4997,7 +4994,7 @@ class BuzzardMaker(SelectTargets):
         super(BuzzardMaker, self).__init__()
 
         self.seed = seed
-        #self.objtype = 'SKY'
+        self.objtype = 'BGS'
         self.nside_chunk = nside_chunk
 
         if self.wave is None:
@@ -5009,6 +5006,10 @@ class BuzzardMaker(SelectTargets):
             BuzzardMaker.template_maker = BGS(wave=self.wave)
 
         self.meta = self.template_maker.basemeta
+
+        #if self.GMM_nospectra is None:
+        #    gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_bgs.fits')
+        #    BGSMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
         
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
              nside=None, nside_buzzard=8, target_name='', magcut=None,
@@ -5111,6 +5112,9 @@ class BuzzardMaker(SelectTargets):
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
             meta['SEED'][:] = rand.randint(2**31, size=nobj)
             meta['REDSHIFT'][:] = data['Z'][indx]
+            
+            import pdb ; pdb.set_trace()
+            
             self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
         else:
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
@@ -5120,30 +5124,10 @@ class BuzzardMaker(SelectTargets):
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
-            if self.mockformat == 'durham_mxxl_hdf5':
-                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
-                    data['Z'][indx],
-                    data['SDSS_absmag_r01'][indx],
-                    data['SDSS_01gr'][indx])).T )
-
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
-
-            elif self.mockformat == 'bgs-gama':
-                # Could conceivably use other colors here--
-                input_meta['TEMPLATEID'][:] = self.KDTree_query( np.vstack((
-                    data['Z'][indx],
-                    data['RMABS_01'][indx],
-                    data['GR_01'][indx])).T )
-
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
-
-            elif self.mockformat == 'gaussianfield':
-                # This is not quite right, but choose a template with equal probability.
-                input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
-                input_meta['MAG'][:] = data['MAG'][indx]
-                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+            # This is not right, but choose a template with equal probability.
+            input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
+            input_meta['MAG'][:] = data['MAG'][indx]
+            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
                 
             # Build north/south spectra separately.
             south = np.where( data['SOUTH'][indx] == True )[0]
