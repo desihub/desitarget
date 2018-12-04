@@ -896,7 +896,6 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
 
     return
 
-
 def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
     """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH.
 
@@ -927,35 +926,49 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     # ADM the number of passed objects.
     nobjs = len(cat)
 
-    # ADM plot the redshift histogram.
+    truez = cat["TRUEZ"]
+    if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
+        truez *= 2.99e5 # [km/s]
+        zlabel = 'True Radial Velocity (km/s)'
+    else:
+        zlabel = r'True Redshift $z$'
 
-    # Get the unique combination of template types and subtypes.
+    zmin, zmax, dz = truez.min()*0.9, truez.max()*1.1, 0.04
+    zbins = np.arange(zmin, zmax, dz) # bin left edges
+    if len(zbins) < 10:
+        dz = (zmax - zmin) / 10
+        zbins = np.arange(zmin, zmax, dz)
+    nzbins = len(zbins)
+
+    # Get the unique combination of template types, subtypes, and true spectral
+    # types.
     templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
     templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
+    truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
 
-    truez = cat["TRUEZ"]
-    binsz = 0.04
+    # Special case for Lya QSOs
+    islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
+    if len(islya) > 0:
+        truespectypes[islya] = np.array(['{}-LYA'.format(tt) for tt in truespectypes[islya]])
+
+    # Plot the histogram in the reverse order of the number of objects.
+    nthese = np.zeros(len(np.unique(truespectypes)))
+    for ii, truespectype in enumerate(np.unique(truespectypes)):
+        nthese[ii] = np.sum(truespectype == truespectypes)
+    srt = np.argsort(nthese)[::-1]
 
     # ADM set up and make the plot.
     plt.clf()
-    plt.xlabel('True Redshift z')
+    plt.xlabel(zlabel)
     plt.ylabel('N(z)')
-    for templatetype in sorted(set(templatetypes)):
-        for templatesubtype in set(templatesubtypes):
-            these = np.where((templatetype == templatetypes) * (templatesubtype == templatesubtypes))[0]
-            if len(these) > 0:
-                if templatesubtype == '':
-                    label = '{} is {}'.format(objtype, templatetype)
-                else:
-                    label = '{} is {}-{}'.format(objtype, templatetype, templatesubtype)
 
-                nbin = np.max((np.rint(np.ptp(truez[these]) / binsz).astype(int), 1))
-
-                nn, bins = np.histogram(truez[these], bins=nbin,
-                                        range=(truez[these].min(), truez[these].max()))
-                cbins = (bins[:-1] + bins[1:]) / 2.0
-                plt.bar(cbins, nn, align='center', alpha=0.75, label=label,
-                        width=binsz, linewidth=0)
+    for truespectype in np.unique(truespectypes)[srt]:
+        these = np.where(truespectype == truespectypes)[0]
+        if len(these) > 0:
+            label = '{} is {}'.format(objtype, truespectype)
+            nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
+            cbins = (bins[:-1] + bins[1:]) / 2.0
+            plt.bar(cbins, nn, align='center', alpha=0.75, label=label, width=dz)#, linewidth=0)
 
     plt.legend(loc='upper right', frameon=True)
 
@@ -966,37 +979,34 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     # ADM plot the z vs. mag scatter plot.
     plt.clf()
     plt.ylabel('Normalization magnitude')
-    plt.xlabel('True Redshift z')
+    plt.xlabel(zlabel)
     plt.set_cmap('inferno')
 
-    zlim = (-0.05, cat["TRUEZ"].max()*1.05)
-    maglim = (cat["MAG"].min(), cat["MAG"].max()+0.75)
+    mag = 22.5 - 2.5 * np.log10(cat['FLUX_R'])
+    magbright, magfaint = mag.min()-0.75, mag.max()+0.75
 
     # ADM make a contour plot if we have lots of points...
     if nobjs > 1000:
         # plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
         # plt.colorbar()
-        hb = plt.hexbin(cat["TRUEZ"], cat["MAG"], mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
-                        bins='log', extent=(*zlim, *maglim), gridsize=60)
+        hb = plt.hexbin(truez, mag, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                        bins='log', extent=((zmin, zmax), (magbright, magfaint)),
+                        gridsize=60)
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Targets)')
 
     # ADM...otherwise make a scatter plot.
     else:
-        for templatetype in sorted(set(templatetypes)):
-            for templatesubtype in set(templatesubtypes):
-                these = np.where((templatetype == templatetypes) * (templatesubtype == templatesubtypes))[0]
-                if len(these) > 0:
-                    if templatesubtype == '':
-                        label = '{} is {}'.format(objtype, templatetype)
-                    else:
-                        label = '{} is {}-{}'.format(objtype, templatetype, templatesubtype)
-                    plt.scatter(cat["TRUEZ"][these], cat["MAG"][these], alpha=0.6, label=label)
+        for truespectype in np.unique(truespectypes)[srt]:
+            these = np.where(truespectype == truespectypes)[0]
+            if len(these) > 0:
+                label = '{} is {}'.format(objtype, truespectype)
+                plt.scatter(truez[these], mag[these], alpha=0.6, label=label)
 
         # plt.plot(cat["TRUEZ"],cat["MAG"],'bo', alpha=0.6)
-        plt.xlim(zlim)
-        plt.ylim(maglim)
-        plt.legend(loc='upper right', frameon=True, ncol=3)
+        plt.xlim((zmin, zmax))
+        plt.ylim((magbright, magfaint))
+        plt.legend(loc='lower left', frameon=True, ncol=3)
 
     # ADM create the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag, objtype))
