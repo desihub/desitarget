@@ -10,6 +10,10 @@ desitarget Change Log
     * Use targets file `PRIORITY_INIT` not :func:`targets.calc_priority`.
     * Remove table copies from :func:`desitarget.mtl` to use less memory.
     * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
+* Minor updates to `select_mock_targets` [`PR #425`_].  
+    * Use pre-computed template photometry (requires `v3.1` basis templates). 
+    * Include MW dust extinction in the spectra.
+    * Randomly assign a radial velocity to superfaint mock targets.
 * Update default mock catalogs used by `select_mock_targets` [`PR #424`_]
 * Update Random Forests for DR7 quasar selection [`PR #423`_]
 * Fix bugs in main MWS selections [`PR #422`_].
@@ -25,6 +29,7 @@ desitarget Change Log
 .. _`PR #422`: https://github.com/desihub/desitarget/pull/422
 .. _`PR #423`: https://github.com/desihub/desitarget/pull/423
 .. _`PR #424`: https://github.com/desihub/desitarget/pull/424
+.. _`PR #425`: https://github.com/desihub/desitarget/pull/425
 .. _`PR #429`: https://github.com/desihub/desitarget/pull/429
 
 0.25.0 (2018-11-07)
