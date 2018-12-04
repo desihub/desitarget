@@ -8,7 +8,7 @@ desitarget Change Log
 * Refactor of MTL and MTL-related enhancements [`PR #429`_]. Includes:
     * Use targets file `NUMOBS_INIT` not :func:`targets.calc_numobs`.
     * Use targets file `PRIORITY_INIT` not :func:`targets.calc_priority`.
-    * Remove table copies from :func:`desitarget.mtl` to use less memory.
+    * Remove table copies from :mod:`desitarget.mtl` to use less memory.
     * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
 * Minor updates to `select_mock_targets` [`PR #425`_].  
     * Use pre-computed template photometry (requires `v3.1` basis templates). 
