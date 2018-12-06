@@ -154,6 +154,8 @@ def _load_targdens(tcnames=None, bit_mask=None):
         desi mask object, e.g., loaded as `from desitarget.targetmask import desi_mask`.
         Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
         removed.
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, also read the expected redshift distributions for each target class. 
 
     Returns
     -------
@@ -203,6 +205,49 @@ def _load_targdens(tcnames=None, bit_mask=None):
         # ADM this is a dictionary comprehension.
         return {key: value for key, value in targdens.items() if key in tcnames}
 
+def _load_dndz(tcnames=None):
+    """Load the predicted redshift distributions for each target class. 
+
+    Parameters
+    ----------
+    tcnames : :class:`list`
+        A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
+        for those specific bits.
+
+    Returns
+    -------
+    :class:`dictionary`
+        A dictionary where the keys are the bit names and the values are the
+        dndz as a function of redshift (as another dictionary with keys 'z', and
+        'dndz', respectively.
+
+    """
+    import astropy.io
+    import desimodel.io
+
+    log = get_logger()
+
+    alltarg = ('ELG', 'LRG', 'QSO', 'BGS_ANY')
+    if tcnames is None:
+        tcnames = alltarg
+
+    out = dict()
+    for targ, suffix in zip( alltarg, ('elg', 'lrg', 'qso', 'BG') ):
+        dndzfile = os.path.join(desimodel.io.datadir(), 'targets', 'nz_{}.dat'.format(suffix))
+        if not os.path.isfile(dndzfile):
+            log.warning('Redshift distribution file {} not found!'.format(dndzfile))
+        else:
+            if targ in tcnames or 'ALL' in tcnames:
+                if targ == 'LRG':
+                    names = ('zmin', 'zmax', 'dndz', 'dndz_boss')
+                else:
+                    names = ('zmin', 'zmax', 'dndz')
+                dat = astropy.io.ascii.read(dndzfile, names=names, format='basic',
+                                            comment='#', delimiter=' ', guess=False)
+                zz = (dat['zmin'] + (dat['zmax'] - dat['zmin']) / 2).data
+                out[targ] = {'z': zz, 'dndz': dat['dndz'].data}
+     
+    return out
 
 def _javastring():
     """Return a string that embeds a date in a webpage
@@ -896,8 +941,8 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
 
     return
 
-def mock_qanz(cat, objtype, qadir='.', area=1.0, fileprefixz="mock-nz",
-              fileprefixzmag="mock-zvmag"):
+def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
+              fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
     """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH.
 
     Parameters
@@ -911,6 +956,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, fileprefixz="mock-nz",
         The output directory to which to write produced plots.
     area : :class:`float`
         Total area in deg2.
+    dndz : :class:`dict`
+        Dictionary output of `_load_dndz`    
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
         String to be added to the front of the output N(z) plot file name.
     fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
@@ -984,6 +1031,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, fileprefixz="mock-nz",
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
             plt.bar(cbins, nn / area, align='center', alpha=0.75, label=label, width=dz)
+
+    if dndz is not None and objtype in dndz.keys():
+        plt.plot(dndz[objtype]['z'], dndz[objtype]['dndz'], alpha=0.5, color='k')
 
     plt.legend(loc='upper right', frameon=True)
 
@@ -1416,7 +1466,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     # ADM Current goal target densities for DESI.
     if targdens is None:
-        targdens = _load_targdens(tcnames=tcnames, bit_mask=bit_mask)
+        targdens = _load_targdens(tcnames=tcnames, bit_mask=bit_mask, mocks=mocks)
+
+    if mocks:
+        dndz = _load_dndz()
 
     # ADM clip the target densities at an upper density to improve plot edges
     # ADM by rejecting highly dense outliers.
@@ -1475,7 +1528,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                          .format(objtype, time()-start))
 
                 # ADM make N(z) plots
-                mock_qanz(truths[w], objtype, qadir=qadir, area=totarea,
+                mock_qanz(truths[w], objtype, qadir=qadir, area=totarea, dndz=dndz,
                           fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
                 log.info('Made (mock) redshift plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
