@@ -976,9 +976,6 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     # ADM the number of passed objects.
     nobjs = len(cat)
 
-    print('!!!!!!!!!!!!!!!')
-    print('convert the redshift histogram to surface density and overlay the nominal distribution from desimodel!')
-
     truez = cat["TRUEZ"]
     if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
         truez *= 2.99e5 # [km/s]
@@ -1003,12 +1000,11 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     nzbins = len(zbins)
 
     # Get the unique combination of template types, subtypes, and true spectral
-    # types.
+    # types.  Lya QSOs are a special case.
     templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
     templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
     truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
 
-    # Special case for Lya QSOs
     islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
     if len(islya) > 0:
         truespectypes[islya] = np.array(['{}-LYA'.format(tt) for tt in truespectypes[islya]])
@@ -1033,7 +1029,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
             plt.bar(cbins, nn / area, align='center', alpha=0.75, label=label, width=dz)
 
     if dndz is not None and objtype in dndz.keys():
-        plt.plot(dndz[objtype]['z'], dndz[objtype]['dndz'], alpha=0.5, color='k')
+        plt.plot(dndz[objtype]['z'], dndz[objtype]['dndz'], alpha=0.5, color='k',
+                 lw=2, label='Expected dn/dz')
 
     plt.legend(loc='upper right', frameon=True)
 
@@ -1070,7 +1067,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
 
         plt.xlim((zmin, zmax))
         plt.ylim((magbright, magfaint))
-        plt.legend(loc='lower left', frameon=True, ncol=3)
+        plt.legend(loc='lower right', frameon=True, ncol=2)
 
     # ADM create the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag, objtype))
@@ -1080,7 +1077,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     return
 
 
-def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False):
+def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False,
+            mocks=False):
     """Make color-based DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1099,6 +1097,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         String to be added to the front of the output file name.
     nodustcorr : :class:`boolean`, optional, defaults to False
         Do not correct for dust extinction.
+    mocks : :class:`boolean`, optional, default=False
+        If ``True``, input catalog is a "truths" catalog.
 
     Returns
     -------
@@ -1185,26 +1185,58 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     else:
         grlim = (-0.5, 1.6)
         rzlim = (-0.5, 1.5)
-        rW1lim = (-1.0, 3.0)
+        rW1lim = (-1.0, 3.5)
 
     W1W2lim = (-1.0, 1.0)
+
+    if mocks:
+        # Get the unique combination of template types, subtypes, and true spectral
+        # types.  Lya QSOs are a special case.
+        templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
+        templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
+        truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
+
+        islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
+        if len(islya) > 0:
+            truespectypes[islya] = np.array(['{}-LYA'.format(tt) for tt in truespectypes[islya]])
+
+        # Plot the histogram in the reverse order of the number of objects.
+        nthese = np.zeros(len(np.unique(truespectypes)))
+        for ii, truespectype in enumerate(np.unique(truespectypes)):
+            nthese[ii] = np.sum(truespectype == truespectypes)
+        srt = np.argsort(nthese)[::-1]    
 
     # -------------------------------------------------------
     # ADM set up the r-z, g-r plot.
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$g - r$')
-    # ADM make a contour plot if we have lots of points...
-    if nobjs > 1000:
-        hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
-                        bins='log', extent=(*grlim, *rzlim), gridsize=60)
-        cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-
-    # ADM...otherwise make a scatter plot.
+    if mocks:
+        for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
+            these = np.where(truespectype == truespectypes)[0]
+            if len(these) > 0:
+                label = '{} is {}'.format(objtype, truespectype)
+                if len(these) > 1000:
+                    hb = plt.hexbin(r[these]-z[these], g[these]-r[these], mincnt=1,
+                                    cmap=plt.cm.get_cmap('RdYlBu'), label=label,
+                                    bins='log', extent=(*grlim, *rzlim), gridsize=60)
+                    if ii == 0:
+                        cb = plt.colorbar(hb)
+                        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+                else:
+                    plt.scatter(r[these]-z[these], g[these]-r[these], alpha=0.6, label=label)
+        plt.legend(loc='upper right', frameon=True)
     else:
-        plt.scatter(r-z, g-r, alpha=0.6)
+        # ADM make a contour plot if we have lots of points...
+        if nobjs > 1000:
+            hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                            bins='log', extent=(*grlim, *rzlim), gridsize=60)
+            cb = plt.colorbar(hb)
+            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
 
+        # ADM...otherwise make a scatter plot.
+        else:
+            plt.scatter(r-z, g-r, alpha=0.6)
     plt.xlim(rzlim)
     plt.ylim(grlim)
 
@@ -1223,23 +1255,31 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$r - W_1$')
-    # ADM make a contour plot if we have lots of points...
-    if nobjs > 1000:
-        hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
-                        bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
-        cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-
-        # plt.set_cmap('inferno')
-        # counts, xedges, yedges, image = \
-        #     plt.hist2d(r-z,r-W1,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        # if np.sum(counts) > 0:
-        #     plt.colorbar()
-        # else:
-        #     nobjs = 0
-    # ADM...otherwise make a scatter plot.
+    if mocks:
+        for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
+            these = np.where(truespectype == truespectypes)[0]
+            if len(these) > 0:
+                label = '{} is {}'.format(objtype, truespectype)
+                if len(these) > 1000:
+                    hb = plt.hexbin(r[these]-z[these], r[these]-W1[these], mincnt=1,
+                                    cmap=plt.cm.get_cmap('RdYlBu'), label=label,
+                                    bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+                    if ii == 0:
+                        cb = plt.colorbar(hb)
+                        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+                else:
+                    plt.scatter(r[these]-z[these], r[these]-W1[these], alpha=0.6, label=label)
+        plt.legend(loc='lower right', frameon=True)
     else:
-        plt.scatter(r-z, r-W1, alpha=0.6)
+        # ADM make a contour plot if we have lots of points...
+        if nobjs > 1000:
+            hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                            bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+            cb = plt.colorbar(hb)
+            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        # ADM...otherwise make a scatter plot.
+        else:
+            plt.scatter(r-z, r-W1, alpha=0.6)
 
     plt.xlim(rzlim)
     plt.ylim(rW1lim)
@@ -1265,23 +1305,32 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$W_1 - W_2$')
-    # ADM make a contour plot if we have lots of points...
-    if nobjs > 1000:
-        hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
-                        bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
-        cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
 
-        # plt.set_cmap('inferno')
-        # counts, xedges, yedges, image = \
-        #     plt.hist2d(r-z,W1-W2,bins=100,range=[[-1,3],[-1,3]],norm=LogNorm())
-        # if np.sum(counts) > 0:
-        #     plt.colorbar()
-        # else:
-        #     nobjs = 0
-    # ADM...otherwise make a scatter plot.
+    if mocks:
+        for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
+            these = np.where(truespectype == truespectypes)[0]
+            if len(these) > 0:
+                label = '{} is {}'.format(objtype, truespectype)
+                if len(these) > 1000:
+                    hb = plt.hexbin(r[these]-z[these], W1[these]-W2[these], mincnt=1,
+                                    cmap=plt.cm.get_cmap('RdYlBu'), label=label,
+                                    bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
+                    if ii == 0:
+                        cb = plt.colorbar(hb)
+                        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+                else:
+                    plt.scatter(r[these]-z[these], W1[these]-W2[these], alpha=0.6, label=label)
+        plt.legend(loc='upper right', frameon=True)
     else:
-        plt.scatter(r-z, W1-W2, alpha=0.6)
+        # ADM make a contour plot if we have lots of points...
+        if nobjs > 1000:
+            hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                            bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
+            cb = plt.colorbar(hb)
+            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+        # ADM...otherwise make a scatter plot.
+        else:
+            plt.scatter(r-z, W1-W2, alpha=0.6)
 
     plt.xlim(rzlim)
     plt.ylim(W1W2lim)
@@ -1522,7 +1571,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
             if truths is not None:
                 # ADM make noiseless color-color plots
-                qacolor(truths[w], objtype, targs[w], qadir=qadir,
+                qacolor(truths[w], objtype, targs[w], qadir=qadir, mocks=True,
                         fileprefix="mock-color", nodustcorr=True)
                 log.info('Made (mock) color-color plot for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
@@ -1534,8 +1583,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                          .format(objtype, time()-start))
 
                 # # ADM plot what fraction of each selected object is actually a contaminant
-                # mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
-                # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
+                #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
+                #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
 
             # ADM make Gaia-based plots if we have Gaia columns
             if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
@@ -1677,7 +1726,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM links to each collection of plots for each object type.
     htmlmain.write('<b><h2>Jump to a target class:</h2></b>\n')
     htmlmain.write('<ul>\n')
-    for objtype in targdens.keys():
+    for objtype in sorted(targdens.keys()):
         htmlmain.write('<li><A HREF="{}.html"><b>{}</b></A>\n'.format(objtype, objtype))
     htmlmain.write('</ul>\n')
 
