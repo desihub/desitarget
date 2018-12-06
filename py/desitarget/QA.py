@@ -202,9 +202,16 @@ def _load_targdens(tcnames=None, bit_mask=None):
     if tcnames is None:
         return targdens
     else:
-        # ADM this is a dictionary comprehension.
-        return {key: value for key, value in targdens.items() if key in tcnames}
-
+        out = {}
+        for key, value in targdens.items():
+            if key in tcnames:
+                out.update({key: value})
+            elif 'MWS' in key and 'MWS' in tcnames:
+                out.update({key: value})
+            elif 'BGS' in key and 'BGS' in tcnames:
+                out.update({key: value})
+        return out
+            
 def _load_dndz(tcnames=None):
     """Load the predicted redshift distributions for each target class. 
 
@@ -1045,37 +1052,33 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     plt.set_cmap('inferno')
 
     mag = 22.5 - 2.5 * np.log10(cat['FLUX_R'])
+    import pdb ; pdb.set_trace()
     magbright, magfaint = mag.min()-0.75, mag.max()+0.75
 
-    # ADM make a contour plot if we have lots of points...
-    if nobjs > 1000:
-        # plt.hist2d(cat["TRUEZ"], cat["MAG"], bins=100, norm=LogNorm())
-        # plt.colorbar()
-        hb = plt.hexbin(truez, mag, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
-                        bins='log', extent=((zmin, zmax), (magbright, magfaint)),
-                        gridsize=60)
-        cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Targets)')
-
-    # ADM...otherwise make a scatter plot.
-    else:
-        for truespectype in np.unique(truespectypes)[srt]:
-            these = np.where(truespectype == truespectypes)[0]
-            if len(these) > 0:
-                label = '{} is {}'.format(objtype, truespectype)
+    for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
+        these = np.where(truespectype == truespectypes)[0]
+        if len(these) > 0:
+            label = '{} is {}'.format(objtype, truespectype)
+            # ADM make a contour plot if we have lots of points...
+            if len(these) > 1000:
+                hb = plt.hexbin(truez, mag, mincnt=1, cmap=plt.cm.get_cmap('RdYlBu'),
+                                bins='log', extent=(zmin, zmax, magbright, magfaint),
+                                gridsize=60, label=label)
+                if ii == 0:
+                    cb = plt.colorbar(hb)
+                    cb.set_label(r'$\log_{10}$ (Number of Targets)')
+            else:
+                # ADM...otherwise make a scatter plot.
                 plt.scatter(truez[these], mag[these], alpha=0.6, label=label)
+    #plt.legend(loc='lower right', frameon=True, ncol=2)
 
-        plt.xlim((zmin, zmax))
-        plt.ylim((magbright, magfaint))
-        plt.legend(loc='lower right', frameon=True, ncol=2)
+    plt.xlim((zmin, zmax))
+    plt.ylim((magbright, magfaint))
 
     # ADM create the plot
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixzmag, objtype))
     plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
-
-    return
-
 
 def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False,
             mocks=False):
@@ -1225,7 +1228,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
                         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                 else:
                     plt.scatter(r[these]-z[these], g[these]-r[these], alpha=0.6, label=label)
-        plt.legend(loc='upper right', frameon=True)
+        #plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
         if nobjs > 1000:
@@ -1269,7 +1272,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
                         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                 else:
                     plt.scatter(r[these]-z[these], r[these]-W1[these], alpha=0.6, label=label)
-        plt.legend(loc='lower right', frameon=True)
+        #plt.legend(loc='lower right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
         if nobjs > 1000:
@@ -1320,7 +1323,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
                         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                 else:
                     plt.scatter(r[these]-z[these], W1[these]-W2[these], alpha=0.6, label=label)
-        plt.legend(loc='upper right', frameon=True)
+        #plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
         if nobjs > 1000:
