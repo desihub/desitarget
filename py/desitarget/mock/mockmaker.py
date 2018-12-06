@@ -1181,6 +1181,35 @@ class SelectTargets(object):
         """
         return dec <= 32.125
 
+    def remove_north_south_bits(self, desi_target, bgs_target, mws_target):
+        """Remove all the "north" and "south" targeting bits.  See the discussion here
+        for details: https://github.com/desihub/desitarget/pull/426
+
+        Parameters
+        ----------
+        desi_target : :class:`int64`
+            Dark-time targeting bit from targetmask.yaml.
+        bgs_target : :class:`int64`
+            BGS targeting bit from targetmask.yaml.
+        mws_target : :class:`int64`
+            MWS targeting bit from targetmask.yaml.
+
+        """
+        for category, target, mask in zip( ('MWS', 'BGS', 'DESI'),
+                                           (mws_target, bgs_target, desi_target), 
+                                           (self.mws_mask, self.bgs_mask, self.desi_mask) ):
+            for bitname in mask.names():
+                if 'SOUTH' in bitname or 'NORTH' in bitname:
+                    these = target & mask.mask(bitname) != 0
+                    if np.sum(these) > 0:
+                        target[these] -= mask.mask(bitname) # subtract that bit
+                        # For MWS and BGS, if we subtracted out the last bit
+                        # then we also have to unset MWS_ANY and BGS_ANY, respectively.
+                        if category == 'MWS' or category == 'BGS':
+                            andthose = target[these] == 0
+                            if np.sum(andthose) > 0:
+                                desi_target[these][andthose] -= self.desi_mask.mask('{}_ANY'.format(category))
+
 class ReadGaussianField(SelectTargets):
     """Read a Gaussian random field style mock catalog."""
     cached_radec = None
@@ -2927,6 +2956,8 @@ class QSOMaker(SelectTargets):
                 targets, tcnames=targetname, qso_selection='colorcuts',
                 qso_optical_cuts=True)
 
+        self.remove_north_south_bits(desi_target, bgs_target, mws_target)
+
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
         targets['MWS_TARGET'] |= mws_target
@@ -3252,6 +3283,8 @@ class LYAMaker(SelectTargets):
             
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
                                                               qso_selection='colorcuts')
+        
+        self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target

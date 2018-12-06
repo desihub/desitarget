@@ -926,6 +926,9 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     # ADM the number of passed objects.
     nobjs = len(cat)
 
+    print('!!!!!!!!!!!!!!!')
+    print('convert the redshift histogram to surface density and overlay the nominal distribution from desimodel!')
+
     truez = cat["TRUEZ"]
     if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
         truez *= 2.99e5 # [km/s]
@@ -933,7 +936,16 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     else:
         zlabel = r'True Redshift $z$'
 
-    zmin, zmax, dz = truez.min()*0.9, truez.max()*1.1, 0.04
+    zmin, zmax, dz = truez.min(), truez.max(), 0.04
+    if zmin > 0:
+        zmin *= 0.9
+    else:
+        zmin /= 1.1
+    if zmax > 0:
+        zmax *= 1.1
+    else:
+        zmax /= 0.9
+        
     zbins = np.arange(zmin, zmax, dz) # bin left edges
     if len(zbins) < 10:
         dz = (zmax - zmin) / 10
@@ -1003,7 +1015,6 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
                 label = '{} is {}'.format(objtype, truespectype)
                 plt.scatter(truez[these], mag[these], alpha=0.6, label=label)
 
-        # plt.plot(cat["TRUEZ"],cat["MAG"],'bo', alpha=0.6)
         plt.xlim((zmin, zmax))
         plt.ylim((magbright, magfaint))
         plt.legend(loc='lower left', frameon=True, ncol=3)
