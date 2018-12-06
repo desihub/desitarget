@@ -844,17 +844,6 @@ class SelectTargets(object):
 
         return meta
 
-    def deredden(self, targets):
-        """Correct photometry for Galactic extinction."""
-
-        unredflux = list()
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
-            unredflux.append(targets['FLUX_{}'.format(band)] /
-                             targets['MW_TRANSMISSION_{}'.format(band)])
-        gflux, rflux, zflux, w1flux, w2flux = unredflux
-
-        return gflux, rflux, zflux, w1flux, w2flux
-
     def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
         """Estimate the fraction of the integrated flux that enters the fiber.
 
@@ -4119,57 +4108,6 @@ class STARMaker(SelectTargets):
 
         return meta, objmeta
  
-    def select_contaminants(self, targets, truth):
-        """Select stellar (faint and bright) contaminants for the extragalactic targets.
-        Input tables are modified in place.
-
-        Parameters
-        ----------
-        targets : :class:`astropy.table.Table`
-            Input target catalog.
-        truth : :class:`astropy.table.Table`
-            Corresponding truth table.
-
-        """ 
-        from desitarget.cuts import isBGS_faint, isELG, isLRG_colors, isQSO_colors
-
-        gflux, rflux, zflux, w1flux, w2flux = self.deredden(targets)
-
-        # Select stellar contaminants for BGS_FAINT targets.
-        bgs_faint = isBGS_faint(rflux=rflux)
-        targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT
-        targets['BGS_TARGET'] |= (bgs_faint != 0) * self.bgs_mask.BGS_FAINT_SOUTH
-        targets['DESI_TARGET'] |= (bgs_faint != 0) * self.desi_mask.BGS_ANY
-        
-        truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_IS_STAR
-        truth['CONTAM_TARGET'] |= (bgs_faint != 0) * self.contam_mask.BGS_CONTAM
-
-        # Select stellar contaminants for ELG targets.
-        elg = isELG(gflux=gflux, rflux=rflux, zflux=zflux)
-        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG
-        targets['DESI_TARGET'] |= (elg != 0) * self.desi_mask.ELG_SOUTH
-        
-        truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_IS_STAR
-        truth['CONTAM_TARGET'] |= (elg != 0) * self.contam_mask.ELG_CONTAM
-
-        # Select stellar contaminants for LRG targets.
-        lrg = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                           w1flux=w1flux, w2flux=w2flux)
-        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG
-        targets['DESI_TARGET'] |= (lrg != 0) * self.desi_mask.LRG_SOUTH
-
-        truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_IS_STAR
-        truth['CONTAM_TARGET'] |= (lrg != 0) * self.contam_mask.LRG_CONTAM
-
-        # Select stellar contaminants for QSO targets.
-        qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
-                           w2flux=w2flux)
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO
-        targets['DESI_TARGET'] |= (qso != 0) * self.desi_mask.QSO_SOUTH
-
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_IS_STAR
-        truth['CONTAM_TARGET'] |= (qso != 0) * self.contam_mask.QSO_CONTAM
-
 class MWS_MAINMaker(STARMaker):
     """Read MWS_MAIN mocks, generate spectra, and select targets.
 
