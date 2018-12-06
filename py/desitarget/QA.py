@@ -896,7 +896,8 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
 
     return
 
-def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
+def mock_qanz(cat, objtype, qadir='.', area=1.0, fileprefixz="mock-nz",
+              fileprefixzmag="mock-zvmag"):
     """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH.
 
     Parameters
@@ -908,6 +909,8 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
         The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
+    area : :class:`float`
+        Total area in deg2.
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
         String to be added to the front of the output N(z) plot file name.
     fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
@@ -972,7 +975,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
     # ADM set up and make the plot.
     plt.clf()
     plt.xlabel(zlabel)
-    plt.ylabel('N(z)')
+    plt.ylabel('dN / dz (targets deg$^{-2}$)')
 
     for truespectype in np.unique(truespectypes)[srt]:
         these = np.where(truespectype == truespectypes)[0]
@@ -980,7 +983,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
             label = '{} is {}'.format(objtype, truespectype)
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
-            plt.bar(cbins, nn, align='center', alpha=0.75, label=label, width=dz)#, linewidth=0)
+            plt.bar(cbins, nn / area, align='center', alpha=0.75, label=label, width=dz)
 
     plt.legend(loc='upper right', frameon=True)
 
@@ -990,7 +993,7 @@ def mock_qanz(cat, objtype, qadir='.', fileprefixz="mock-nz", fileprefixzmag="mo
 
     # ADM plot the z vs. mag scatter plot.
     plt.clf()
-    plt.ylabel('Normalization magnitude')
+    plt.ylabel('r (AB mag)')
     plt.xlabel(zlabel)
     plt.set_cmap('inferno')
 
@@ -1472,8 +1475,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                          .format(objtype, time()-start))
 
                 # ADM make N(z) plots
-                mock_qanz(truths[w], objtype, qadir=qadir, fileprefixz="mock-nz",
-                          fileprefixzmag="mock-zvmag")
+                mock_qanz(truths[w], objtype, qadir=qadir, area=totarea,
+                          fileprefixz="mock-nz", fileprefixzmag="mock-zvmag")
                 log.info('Made (mock) redshift plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
 
@@ -1694,7 +1697,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('<h1>DESI Mock QA\n')
 
             # ADM redshift plots.
-            html.write('<h2>True Redshift plots</h2>\n')
+            html.write('<h2>True redshift distributions</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
@@ -1706,7 +1709,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('</table>\n')
 
             # ADM color-color plots.
-            html.write('<h2>(Truth) color-color plots (corrected for Galactic extinction)</h2>\n')
+            html.write('<h2>True color-color plots (corrected for Galactic extinction)</h2>\n')
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
