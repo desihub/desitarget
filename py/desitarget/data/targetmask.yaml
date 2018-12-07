@@ -238,7 +238,8 @@ numobs:
     # ADM initial number of observations for targets in the main (dark time) survey
     desi_mask:
         ELG: 1
-        LRG: 2
+        # ADM the LRG numobs should always be superseded by LRG_1PASS/2PASS
+        LRG: 0
         QSO: 4
         LRG_1PASS: 1
         LRG_2PASS: 2
