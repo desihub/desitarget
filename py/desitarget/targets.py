@@ -342,15 +342,6 @@ def initial_priority_numobs(targets, survey='main'):
         log.critical("survey must be either 'main', 'cmx' or 'sv', not {}!!!"
                      .format(survey))
 
-    # ADM much of the code is set up to expect NUMOBS==2 for "just" an LRG
-    # ADM but we need NUMOBS==2 for a 1-PASS LRG. The easiest way to deal
-    # ADM with this is just to unset the LRG bit if the LRG sub-bits are set.
-    if survey == 'main' or survey[0:2] == 'sv':
-        col, Mx = colnames[0], masks[0]
-        lrgset = targets[col] & Mx.LRG != 0
-        lrg1pset = targets[col] & Mx.LRG_1PASS != 0
-        targets[col][lrgset & lrg1pset] = targets[col][lrgset & lrg1pset] - Mx.LRG
-
     # ADM set up the output arrays
     outpriority = np.zeros(len(targets), dtype='int')
     outnumobs = np.zeros(len(targets), dtype='int')
@@ -784,5 +775,22 @@ def finalize(targets, desi_target, bgs_target, mws_target,
 
     # ADM determine the initial priority and number of observations.
     targets["PRIORITY_INIT"], targets["NUMOBS_INIT"] = initial_priority_numobs(targets, survey=survey)
+
+    # ADM some final checks that the targets conform to expectations...
+    # ADM check that each target has a unique ID.
+    if len(targets["TARGETID"]) != len(set(targets["TARGETID"])):
+        msg = 'TARGETIDs are not unique!'
+        log.critical(msg)
+        raise AssertionError(msg)
+
+    # ADM check that we have no LRG targets that don't have LRG_1PASS/2PASS set.
+    if survey == 'main':
+        lrgset = targets["DESI_TARGET"] & desi_mask.LRG != 0
+        pass1lrgset = targets["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
+        pass2lrgset = targets["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
+        if not np.all(lrgset == pass1lrgset | pass2lrgset):
+            msg = 'Some LRG targets do not have 1PASS/2PASS set!'
+            log.critical(msg)
+            raise AssertionError(msg)
 
     return targets
