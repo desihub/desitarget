@@ -986,168 +986,36 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return bgs
 
 
-def isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
+def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
+               w1snr=None, w2snr=None, deltaChi2=None, brightstarinblob=None, 
+               release=None, objtype=None, primary=None, optical=False, south=True):
+    """Definition of QSO target classes from color cuts. Returns a boolean array.
 
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-        south: boolean, defaults to ``True``
-            Call isQSO_colors_north if ``south=False``, otherwise call isQSO_colors_south.
+    Parameters
+    ----------
+    optical : :class:`boolean`, defaults to ``False``
+        Apply just optical color-cuts.
+    south : :class:`boolean`, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` for objects that pass the quasar color/morphology/logic cuts.
+
+    Notes
+    -----
+    - Current version (12/07/18) is version 159 on `the wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-    if south is False:
-        return isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux,
-                                  optical=optical)
-    else:
-        return isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux,
-                                  optical=optical)
 
+    if not south:
+        gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
 
-def isQSO_colors_north(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if sources have quasar-like colors for the BASS/MzLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
-    """
-    # ----- Quasars
-    # Create some composite fluxes.
-    wflux = 0.75*w1flux + 0.25*w2flux
-    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-
-    qso = np.ones_like(gflux, dtype='?')
-    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
-    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
-    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
-
-    if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5)                   # (W1-W2)>-0.4
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
-
-    # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
-    qso &= ~mainseq
-
-    return qso
-
-
-def isQSO_colors_south(gflux, rflux, zflux, w1flux, w2flux, optical=False):
-    """Tests if sources have quasar-like colors for the DECaLS photometric system.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        optical: boolean, defaults to False
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if the object has QSO-like colors.
-    """
-    # ----- Quasars
-    # Create some composite fluxes.
-    wflux = 0.75*w1flux + 0.25*w2flux
-    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-
-    qso = np.ones_like(gflux, dtype='?')
-    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
-    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
-    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
-
-    if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5)                   # (W1-W2)>-0.4
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
-
-    # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
-
-    # Clip to avoid warnings from negative numbers raised to fractional powers.
-    rflux = rflux.clip(0)
-    zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
-    if not optical:
-        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
-    qso &= ~mainseq
-
-    return qso
-
-
-def isQSO_cuts(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-               deltaChi2, brightstarinblob=None,
-               release=None, objtype=None, primary=None, south=True, optical=False):
-    """Convenience function for backwards-compatability prior to north/south split.
-
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        w1snr: array_like[ntargets]
-            S/N in the W1 band.
-        w2snr: array_like[ntargets]
-            S/N in the W2 band.
-        deltaChi2: array_like[ntargets]
-            chi2 difference between PSF and SIMP models,  dchisq_PSF - dchisq_SIMP.
-        brightstarinblob: boolean array_like or None
-            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-        release: array_like[ntargets]
-            `The Legacy Surveys`_ imaging RELEASE.
-        objtype (optional): array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        primary (optional): array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to ``True``
-            Call isQSO_cuts_north if ``south=False``, otherwise call isQSO_cuts_south.
-        optical: boolean, defaults to `False`
-            Just apply optical color-cuts
-
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
-    """
-    if south is False:
-        return isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                                deltaChi2, brightstarinblob=brightstarinblob,
-                                release=release, objtype=objtype, primary=primary, optical=optical)
-    else:
-        return isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                                deltaChi2, brightstarinblob=brightstarinblob,
-                                release=release, objtype=objtype, primary=primary, optical=optical)
-
-
-def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                     deltaChi2, brightstarinblob=None,
-                     release=None, objtype=None, primary=None, optical=False):
-    """Cuts based QSO target selection for the BASS/MzLS photometric system.
-    (see :func:`~desitarget.cuts.isQSO_cuts`).
-
-    Notes:
-        Uses isQSO_colors() to make color cuts first, then applies
-            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
-    """
-    gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
-    qso = isQSO_colors_north(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux, optical=optical)
+    qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                       w1flux=w1flux, w2flux=w2flux, 
+                       optical=optical, south=south)
 
     qso &= w1snr > 4
     qso &= w2snr > 2
@@ -1171,37 +1039,39 @@ def isQSO_cuts_north(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
     return qso
 
 
-def isQSO_cuts_south(gflux, rflux, zflux, w1flux, w2flux, w1snr, w2snr,
-                     deltaChi2, brightstarinblob=None,
-                     release=None, objtype=None, primary=None, optical=False):
-    """Cuts based QSO target selection for the DECaLS photometric system.
-    (see :func:`~desitarget.cuts.isQSO_cuts`).
-
-    Notes:
-        Uses isQSO_colors() to make color cuts first, then applies
-            w1snr, w2snr, deltaChi2, and optionally primary and objtype cuts
+def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 optical=False, south=True):
+    """Tests if sources have quasar-like colors in a color box.
+    (see, e.g., :func:`~desitarget.cuts.isQSO_cuts`).
     """
-    qso = isQSO_colors_south(gflux=gflux, rflux=rflux, zflux=zflux,
-                             w1flux=w1flux, w2flux=w2flux, optical=optical)
+    # ----- Quasars
+    # Create some composite fluxes.
+    wflux = 0.75*w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
-    qso &= w1snr > 4
-    qso &= w2snr > 2
+    qso = np.ones_like(gflux, dtype='?')
+#    qso &= rflux < 10**((22.5-17.5)/2.5)    # r>17.5
+    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
+    qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
 
-    # ADM default to RELEASE of 5000 if nothing is passed.
-    if release is None:
-        release = np.zeros_like(gflux, dtype='?')+5000
+    if not optical:
+        qso &= w2flux > w1flux * 10**(-0.4/2.5)                   # (W1-W2)>-0.4
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
 
-    qso &= ((deltaChi2 > 40.) | (release >= 5000))
+    # Harder cut on stellar contamination
+    mainseq = rflux > gflux * 10**(0.20/2.5)
 
-    if primary is not None:
-        qso &= primary
-
-    if objtype is not None:
-        qso &= _psflike(objtype)
-
-    # CAC Reject objects flagged inside a blob.
-    if brightstarinblob is not None:
-        qso &= ~brightstarinblob
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
+    rflux = rflux.clip(0)
+    zflux = zflux.clip(0)
+    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+    if not optical:
+        mainseq &= w2flux < w1flux * 10**(0.3/2.5)
+    qso &= ~mainseq
 
     return qso
 
