@@ -18,7 +18,7 @@ class TestMTL(unittest.TestCase):
 
     def setUp(self):
         self.targets = Table()
-        self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'ELG'])
+        self.types = np.array(['ELG', 'LRG_2PASS', 'QSO', 'QSO', 'ELG'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
         self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
         self.post_prio[0] = 2  # ELG
