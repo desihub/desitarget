@@ -5,6 +5,7 @@ desitarget Change Log
 0.26.0 (unreleased)
 -------------------
 
+* Refactor QSO color cuts and add hard r > 17.5 limit [`PR #432`_].
 * Minor updates to `select_mock_targets` [`PR #425`_].  
     * Use pre-computed template photometry (requires `v3.1` basis templates). 
     * Include MW dust extinction in the spectra.
@@ -25,6 +26,7 @@ desitarget Change Log
 .. _`PR #423`: https://github.com/desihub/desitarget/pull/423
 .. _`PR #424`: https://github.com/desihub/desitarget/pull/424
 .. _`PR #425`: https://github.com/desihub/desitarget/pull/425
+.. _`PR #432`: https://github.com/desihub/desitarget/pull/432
 
 0.25.0 (2018-11-07)
 -------------------
