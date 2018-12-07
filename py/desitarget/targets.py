@@ -459,7 +459,7 @@ def calc_priority(targets):
 
     # DESI dark time targets
     if 'DESI_TARGET' in targets.colnames:
-        for name in ('ELG', 'LRG'):
+        for name in ('ELG', 'LRG_1PASS', 'LRG_2PASS'):
             ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
             priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
@@ -561,7 +561,7 @@ def calc_priority_no_table(targets, zcat):
 
     # DESI dark time targets.
     if 'DESI_TARGET' in targets.dtype.names:
-        for name in ('ELG', 'LRG'):
+        for name in ('ELG', 'LRG_1PASS', 'LRG_2PASS'):
             ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
             priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
