@@ -210,6 +210,8 @@ def _load_targdens(tcnames=None, bit_mask=None):
                 out.update({key: value})
             elif 'MWS' in key and 'MWS' in tcnames:
                 out.update({key: value})
+            elif 'STD' in key and 'STD' in tcnames:
+                out.update({key: value})
             elif 'BGS' in key and 'BGS' in tcnames:
                 out.update({key: value})
         return out
@@ -993,6 +995,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     nobjs = len(cat)
 
     truez = cat["TRUEZ"]
+    zmax = truez.max()
+    
     if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
         truez *= 2.99e5 # [km/s]
         zlabel = 'True Radial Velocity (km/s)'
@@ -1003,18 +1007,16 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
         dz = 0.05
         zmin = -0.05
     elif 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
-        dz = 100
-        zmin = -500
+        if objtype == 'MWS_WD':
+            dz = 1
+            zmin, zmax = -50, 50
+        else:
+            dz = 10
+            zmin, zmax = -300, 300
     else:
         dz = 0.02
         zmin = -0.1
 
-    zmax = truez.max()
-    if zmax > 0:
-        zmax *= 1.1
-    else:
-        zmax /= 0.9
-        
     zbins = np.arange(zmin, zmax, dz) # bin left edges
     if len(zbins) < 10:
         dz = (zmax - zmin) / 10
@@ -1022,7 +1024,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     nzbins = len(zbins)
 
     # Get the unique combination of template types, subtypes, and true spectral
-    # types.  Lya QSOs are a special case.
+    # types.  Lya QSOs and galaxies contaminating ELGs are a special case.
     templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
     templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
     truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
@@ -1030,6 +1032,11 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
     if len(islya) > 0:
         truespectypes[islya] = np.array(['{}-LYA'.format(tt) for tt in truespectypes[islya]])
+
+    if objtype == 'ELG':
+        elgcontam = np.where(templatetypes == 'BGS')[0]
+        if len(elgcontam) > 0:
+            truespectypes[elgcontam] = 'Not ELG'
 
     # Plot the histogram in the reverse order of the number of objects.
     nthese = np.zeros(len(np.unique(truespectypes)))
@@ -1051,7 +1058,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
                 label = '{} is {} (N={})'.format(objtype, truespectype, len(these))
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
-            plt.bar(cbins, nn / area, align='center', alpha=0.75, label=label, width=dz)
+            plt.bar(cbins, nn / area, align='center', alpha=0.9, label=label, width=dz)
 
     if dndz is not None and objtype in dndz.keys():
         plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'],
@@ -1067,22 +1074,30 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
 
     # ADM plot the z vs. mag scatter plot.
     plt.clf()
-    plt.ylabel('r (AB mag)')
     plt.xlabel(zlabel)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
     if 'LRG' in objtype:
         flux = cat['FLUX_Z'].clip(1e-16)
+        plt.ylabel('z (AB mag)')
     else:
         flux = cat['FLUX_R'].clip(1e-16)
+        plt.ylabel('r (AB mag)')
+        
     mag = 22.5 - 2.5 * np.log10(flux)
 
-    if 'BGS' in objtype or 'MWS' in objtype:
-        magfaint = 20.5
+    if 'BGS' in objtype or 'MWS' in objtype or 'STD' in objtype:
+        magbright, magfaint = 14, 20.5
     else:
-        magfaint = 23.5
-    magbright = np.nanmin(mag)-0.75
+        if 'LRG' in objtype:
+            magbright, magfaint = 17.5, 21
+        elif 'ELG' in objtype:
+            magbright, magfaint = 19.5, 24
+        else:
+            magbright, magfaint = 17, 24
+            
+    #magbright = np.nanmin(mag)-0.75
     #magbright, magfaint = np.nanmin(mag)-0.75, np.nanmax(mag)+0.75
     #magbright, magfaint = 15, 24
 
