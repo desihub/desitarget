@@ -5,51 +5,51 @@ sv1_desi_mask:
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
     #- ADM allow the primary LRG targets to be split by number of passes
-    - [LRG_1PASS,   3, "LRG observed in 1st pass", {obsconditions: DARK}]
-    - [LRG_2PASS,   4, "LRG observed in 2nd pass", {obsconditions: DARK}]
+    - [LRG_1PASS,   3, "LRG to be observed once",   {obsconditions: DARK}]
+    - [LRG_2PASS,   4, "LRG to be observed twice",  {obsconditions: DARK}]
 
     #- ADM ELG sub-classes
-    - [ELG_FDR,         5, "ELG using FDR cuts", {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT,   6, "ELG using fainter FDR cuts", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE,     7, "ELG red extension in rz color", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR,         5, "ELG using FDR cuts",             {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT,   6, "ELG using fainter FDR cuts",     {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE,     7, "ELG red extension in rz color",  {obsconditions: DARK|GRAY}]
     - [ELG_RZ_RED,      8, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
 
     #- ADM QSO sub-classes
-    - [QSO_COLOR,   9, "QSO using color cuts", {obsconditions: DARK}]
+    - [QSO_COLOR,   9, "QSO using color cuts",    {obsconditions: DARK}]
     - [QSO_RF,     10, "QSO using random forest", {obsconditions: DARK}]
 
     #- North vs. South selections
-    - [LRG_NORTH,   11, "LRG from Bok/Mosaic data", {obsconditions: DARK}]
-    - [ELG_NORTH,   12, "ELG from Bok/Mosaic data", {obsconditions: DARK|GRAY}]
-    - [QSO_NORTH,   13, "QSO from Bok/Mosaic data", {obsconditions: DARK}]
+    - [LRG_NORTH,   11, "LRG cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
+    - [ELG_NORTH,   12, "ELG cuts tuned for Bok/Mosaic data", {obsconditions: DARK|GRAY}]
+    - [QSO_NORTH,   13, "QSO cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
 
-    - [LRG_SOUTH,   14, "LRG from DECam data", {obsconditions: DARK}]
-    - [ELG_SOUTH,   15, "ELG from DECam data", {obsconditions: DARK|GRAY}]
-    - [QSO_SOUTH,   16, "QSO from DECam data", {obsconditions: DARK}]
+    - [LRG_SOUTH,   14, "LRG cuts tuned for DECam data", {obsconditions: DARK}]
+    - [ELG_SOUTH,   15, "ELG cuts tuned for DECam data", {obsconditions: DARK|GRAY}]
+    - [QSO_SOUTH,   16, "QSO cuts tuned for DECam data", {obsconditions: DARK}]
 
     #- North vs. South selections for different passes
-    - [LRG_1PASS_NORTH,  17, "LRG observed in 1st pass from Bok/Mosaic", {obsconditions: DARK}]
-    - [LRG_2PASS_NORTH,  18, "LRG observed in 2nd pass from Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_1PASS_NORTH,  17, "LRG to be observed once tuned for Bok/Mosaic",  {obsconditions: DARK}]
+    - [LRG_2PASS_NORTH,  18, "LRG to be observed twice tuned for Bok/Mosaic", {obsconditions: DARK}]
 
-    - [LRG_1PASS_SOUTH,  19, "LRG observed in 1st pass from DECam", {obsconditions: DARK}]
-    - [LRG_2PASS_SOUTH,  20, "LRG observed in 2nd pass from DECam", {obsconditions: DARK}]
+    - [LRG_1PASS_SOUTH,  19, "LRG to be observed once tuned for DECam",       {obsconditions: DARK}]
+    - [LRG_2PASS_SOUTH,  20, "LRG to be observed twice tuned for DECam",      {obsconditions: DARK}]
 
-    - [ELG_FDR_NORTH,         21, "ELG using FDR cuts from Bok/Mosaic", {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_NORTH,   22, "ELG using fainter FDR cuts from Bok/Mosaic", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_NORTH,     23, "ELG red extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_NORTH,      24, "ELG blue extension in rz color from Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_NORTH,         21, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_NORTH,   22, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     23, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      24, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
 
-    - [ELG_FDR_SOUTH,         25, "ELG using FDR cuts from DECam", {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_SOUTH,   26, "ELG using fainter FDR cuts from DECam", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_SOUTH,     27, "ELG red extension in rz color from DECam", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_SOUTH,      28, "ELG blue extension in rz color from DECam", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_SOUTH,         25, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_SOUTH,   26, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_SOUTH,     27, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_SOUTH,      28, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
 
-    - [QSO_COLOR_NORTH,  29, "QSO using color cuts from Bok/Mosaic", {obsconditions: DARK}]
-    - [QSO_RF_NORTH,     30, "QSO using random forest from Bok/Mosaic", {obsconditions: DARK}]
+    - [QSO_COLOR_NORTH,  29, "QSO using color cuts tuned for Bok/Mosaic",            {obsconditions: DARK}]
+    - [QSO_RF_NORTH,     30, "QSO using random forest tuned for Bok/Mosaic",         {obsconditions: DARK}]
 
-    - [QSO_COLOR_SOUTH,  31, "QSO using color cuts from DECam", {obsconditions: DARK}]
+    - [QSO_COLOR_SOUTH,  31, "QSO using color cuts tuned for DECam",                 {obsconditions: DARK}]
     #- ADM leave 32-36 reserved for calibration targets (to mirror the main survey)
-    - [QSO_RF_SOUTH,     37, "QSO using random forest from DECam", {obsconditions: DARK}]
+    - [QSO_RF_SOUTH,     37, "QSO using random forest tuned for DECam",              {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -66,35 +66,35 @@ sv1_desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Related to bright object masking
-    - [BRIGHT_OBJECT,       50, "Known bright object to avoid", {obsconditions: APOCALYPSE}]
+    - [BRIGHT_OBJECT,       50, "Known bright object to avoid",             {obsconditions: APOCALYPSE}]
     - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE", {obsconditions: APOCALYPSE}]
     - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
             {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- A bit for another survey is set
-    - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
-    - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
+    - [BGS_ANY,             60, "Any BGS bit is set",  {obsconditions: BRIGHT}]
+    - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
     - [SECONDARY_ANY,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
-    - [BGS_FAINT,           0, "BGS faint targets", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
-    - [BGS_WISE,            2, "BGS wise targets", {obsconditions: BRIGHT}]     #GRAY and DARK?
+    - [BGS_FAINT,           0, "BGS faint targets",    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT,          1, "BGS bright targets",   {obsconditions: BRIGHT}]
+    - [BGS_WISE,            2, "BGS wise targets",     {obsconditions: BRIGHT}]     #GRAY and DARK?
 
     #- BGS North vs. South selections
-    - [BGS_FAINT_NORTH,     8, "BGS faint targets from Bok/Mosaic", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT_NORTH,    9, "BGS bright targets from Bok/Mosaic", {obsconditions: BRIGHT}]
-    - [BGS_WISE_NORTH,      10, "BGS wise targets from Bok/Mosaic", {obsconditions: BRIGHT}]    #GRAY and DARK
-    - [BGS_FAINT_SOUTH,     16, "BGS faint targets from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT_SOUTH,    17, "BGS bright targets from DECam", {obsconditions: BRIGHT}]
-    - [BGS_WISE_SOUTH,      18, "BGS wise targets from DECam", {obsconditions: BRIGHT}]    #GRAY and DARK?
+    - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_WISE_NORTH,      10, "BGS wise cuts tuned for Bok/Mosaic",  {obsconditions: BRIGHT}]    #GRAY and DARK
+    - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",     {obsconditions: BRIGHT}]
+    - [BGS_WISE_SOUTH,      18, "BGS wise cuts tuned for DECam",       {obsconditions: BRIGHT}]    #GRAY and DARK?
 
-    - [BGS_KNOWN_ANY,       40, "Known target from another survey", {obsconditions: BRIGHT}]
-    - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided", {obsconditions: BRIGHT}]
-    - [BGS_KNOWN_SDSS,      42, "BGS known SDSS targets", {obsconditions: BRIGHT}]
-    - [BGS_KNOWN_BOSS,      43, "BGS known BOSS targets", {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_ANY,       40, "Known target from another survey",    {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided",  {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_SDSS,      42, "BGS known SDSS targets",              {obsconditions: BRIGHT}]
+    - [BGS_KNOWN_BOSS,      43, "BGS known BOSS targets",              {obsconditions: BRIGHT}]
 
 #- Milky Way Survey SV targets
 sv1_mws_mask:
@@ -119,16 +119,16 @@ sv1_mws_mask:
     # targeted for reobservation if possible.
     
     #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_NORTH,      4, "Milky Way Survey cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey cuts tuned for DECam",                   {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 8: Sub-classes of MWS_MAIN
-    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample from Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample from DECam",          {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample from Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample from DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",          {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",          {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
