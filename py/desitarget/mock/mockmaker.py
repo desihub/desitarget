@@ -4980,7 +4980,11 @@ class BuzzardMaker(SelectTargets):
             from desisim.templates import BGS
             BuzzardMaker.template_maker = BGS(wave=self.wave)
 
+        # Store the metadata table and then pre-select extragalactic
+        # contaminants (templates), which will add columns to self.meta in
+        # place.
         self.meta = self.template_maker.basemeta
+        self.extragalactic_contaminants(seed)
 
         # Since this mock is used for contaminants, cache all the Gaussian
         # mixture models.
@@ -4990,7 +4994,77 @@ class BuzzardMaker(SelectTargets):
             for target_type in ('bgs', 'elg', 'lrg', 'qso'):
                 gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_{}.fits'.format(target_type.lower()))
                 BuzzardMaker.GMM_nospectra[target_type.upper()] = GaussianMixtureModel.load(gmmfile)
+
+    def extragalactic_contaminants(self, seed, nmonte=100):
+        """Pre-select Buzzard/BGS templates that could be photometric contaminants.
+
+        """
+        from astropy.table import Column
+        from desisim.io import find_basis_template
+        from desitarget.cuts import isELG_colors, isQSO_colors
+
+        rand = np.random.RandomState(seed)
+
+        # Average grzW1W2 imaging depth
+        psfdepth_sigma = 10**(-0.4 * (np.array((24.65, 23.61, 22.84)) - 22.5)) / 5 # 1-sigma, nanomaggies
+        wisedepth_sigma = 10**(-0.4 * (np.array((22.3, 21.8)) - 22.5))             # 1-sigma, nanomaggies
+        depth_sigma = np.hstack( (psfdepth_sigma, wisedepth_sigma) )
+
+        # Unpack the metadata table.
+        templatefile = find_basis_template('BGS')
+        hdr = fitsio.read_header(templatefile, ext='DESI-COLORS')
+        zgrid = hdr['DZ'] * np.arange(hdr['NZ']) + hdr['ZMIN']
+        nz, nt = len(zgrid), len(self.meta)
+
+        bigzgrid = np.tile(zgrid, (nt, 1)).reshape(nt, nz).flatten()
+        bigtemplateid = np.tile(self.meta['TEMPLATEID'].data, (1, nz)).reshape(nz, nt).T.flatten()
+
+        # ELG contaminants will be (most likely) lower-redshift (z<0.7)
+        # interlopers, so focus on that redshift range, extract the fluxes, and
+        # scale to g=22 (to satisfy the bright cut).
+        elgzcut = bigzgrid < 0.75
+        elgscale = (10**(-0.4 * (22 - 22.5) ) / self.meta['SYNTH_DECAM2014_G'].data).flatten()[elgzcut]
+
+        gflux  = elgscale * self.meta['SYNTH_DECAM2014_G'].data.flatten()[elgzcut]
+        rflux  = elgscale * self.meta['SYNTH_DECAM2014_R'].data.flatten()[elgzcut]
+        zflux  = elgscale * self.meta['SYNTH_DECAM2014_Z'].data.flatten()[elgzcut]
+        w1flux = elgscale * self.meta['SYNTH_WISE2010_W1'].data.flatten()[elgzcut]
+        w2flux = elgscale * self.meta['SYNTH_WISE2010_W2'].data.flatten()[elgzcut]
+
+        gflux_err  = rand.normal(loc=0, scale=depth_sigma[0], size=nmonte)
+        rflux_err  = rand.normal(loc=0, scale=depth_sigma[1], size=nmonte)
+        zflux_err  = rand.normal(loc=0, scale=depth_sigma[2], size=nmonte)
+        w1flux_err = rand.normal(loc=0, scale=depth_sigma[3], size=nmonte)
+        w2flux_err = rand.normal(loc=0, scale=depth_sigma[4], size=nmonte)
+
+        # Monte Carlo the colors and take the union of all the templates that
+        # scatter into the ELG color-box.
+        iselg = np.zeros(len(gflux)).astype(bool)
+        for ii in range(nmonte):
+            iselg = np.logical_or( (iselg), (isELG_colors(
+                south = True,
+                gflux = gflux + gflux_err[ii],
+                rflux = rflux + rflux_err[ii],
+                zflux = zflux + zflux_err[ii],
+                w1flux= w1flux + w1flux_err[ii],
+                w2flux= w2flux + w2flux_err[ii])) )
+
+        these = np.unique(bigtemplateid[elgzcut][iselg])
+        contam_elg = np.zeros(nt).astype(bool)
+        contam_elg[these] = True
         
+        self.meta.add_column(Column(name='CONTAM_ELG', data=contam_elg))
+        #log.debug('Found {} / {} templates that scatter into the ELG color box with z < 0.75.'.format(len(these), nt))
+
+        #import pdb ; pdb.set_trace()
+        #import matplotlib.pyplot as plt
+        #
+        #gr = -2.5 * np.log10(gflux / rflux)
+        #rz = -2.5 * np.log10(rflux / zflux)
+        #plt.scatter(rz[iselg], gr[iselg], s=1)
+        #plt.scatter(rz[~iselg], gr[~iselg], s=1)
+        #plt.xlim(-0.5,1.5) ; plt.ylim(-0.5, 1) ; plt.show()
+                
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
              nside=None, nside_buzzard=8, target_name='', magcut=None,
              only_coords=False, **kwargs):
@@ -5102,7 +5176,12 @@ class BuzzardMaker(SelectTargets):
             vdisp = self._sample_vdisp(data['RA'][indx], data['DEC'][indx], mean=1.9,
                                        sigma=0.15, seed=seed, nside=self.nside_chunk)
 
+            # Choose a template (with equal probability) depending on what type
+            # of contaminant we're simulating.
+
             # This is not right, but choose a template with equal probability.
+            import pdb ; pdb.set_trace()
+            
             input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
             input_meta['MAG'][:] = data['MAG'][indx]
             input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
