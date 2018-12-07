@@ -72,18 +72,21 @@ def make_mtl(targets, zcat=None, trim=False):
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
 
+    # ADM extract just the targets that match the input zcat.
+    targets_zmatcher = targets[zmatcher]
+
     # ADM use passed value of NUMOBS_INIT instead of calling the memory-heavy calc_numobs.
     # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
-    ztargets['NUMOBS_MORE'] = np.maximum(0, targets[zmatcher]['NUMOBS_INIT'] - ztargets['NUMOBS'])
+    ztargets['NUMOBS_MORE'] = np.maximum(0, targets_zmatcher['NUMOBS_INIT'] - ztargets['NUMOBS'])
 
     # ADM we need a minor hack to ensure that BGS targets are observed once (and only once)
     # ADM every time, regardless of how many times they've previously been observed.
-    ii = targets[zmatcher]["DESI_TARGET"] & desi_mask.BGS_ANY > 0
+    ii = targets_zmatcher["DESI_TARGET"] & desi_mask.BGS_ANY > 0
     ztargets['NUMOBS_MORE'][ii] = 1
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
-    priority = calc_priority_no_table(targets[zmatcher], ztargets)
+    priority = calc_priority_no_table(targets_zmatcher, ztargets)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0.
     # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
