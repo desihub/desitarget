@@ -27,10 +27,12 @@ class TestPriorities(unittest.TestCase):
         #- No targeting bits set is priority=0
         self.assertTrue(np.all(calc_priority(t) == 0))
 
-        #- test QSO > LRG > ELG
+        #- test QSO > (LRG_1PASS | LRG_2PASS) > ELG
         t['DESI_TARGET'] = desi_mask.ELG
         self.assertTrue(np.all(calc_priority(t) == desi_mask.ELG.priorities['UNOBS']))
-        t['DESI_TARGET'] |= desi_mask.LRG
+        t['DESI_TARGET'] |= desi_mask.LRG_1PASS
+        self.assertTrue(np.all(calc_priority(t) == desi_mask.LRG.priorities['UNOBS']))
+        t['DESI_TARGET'] |= desi_mask.LRG_2PASS
         self.assertTrue(np.all(calc_priority(t) == desi_mask.LRG.priorities['UNOBS']))
         t['DESI_TARGET'] |= desi_mask.QSO
         self.assertTrue(np.all(calc_priority(t) == desi_mask.QSO.priorities['UNOBS']))

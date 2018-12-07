@@ -11,6 +11,7 @@ desitarget Change Log
     * Remove table copies from :mod:`desitarget.mtl` to use less memory.
     * New function :func:`targets.calc_priority_no_table` to use less memory.
     * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
+    * Set priorities using `LRG_1PASS/2PASS` bits rather than on `LRG`.
 * Minor updates to `select_mock_targets` [`PR #425`_].  
     * Use pre-computed template photometry (requires `v3.1` basis templates). 
     * Include MW dust extinction in the spectra.
