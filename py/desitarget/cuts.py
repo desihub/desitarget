@@ -1050,7 +1050,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
     qso = np.ones_like(gflux, dtype='?')
-#    qso &= rflux < 10**((22.5-17.5)/2.5)    # r>17.5
+    qso &= rflux < 10**((22.5-17.5)/2.5)    # r>17.5
     qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
