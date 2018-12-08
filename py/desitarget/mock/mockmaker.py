@@ -572,7 +572,7 @@ class SelectTargets(object):
                     'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
                     'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR',
                     'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
-                    'GR', 'RZ', 'ZW1'):
+                    'GR', 'RZ', 'ZW1', 'W1W2'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
         def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5,
@@ -842,6 +842,43 @@ class SelectTargets(object):
         meta['FLUX_W1'][:] = 1e9 * 10**(-0.4 * W1mag)
         meta['FLUX_W2'][:] = 1e9 * 10**(-0.4 * W2mag)
 
+        return meta
+
+    def _nospectra_photometry(self, rand, meta, data, indx):
+        """Populate the photometry in meta in no-spectra mode."""
+
+        nobj = len(indx)
+
+        if '-r' in data['MAGFILTER'][indx][0]: # ELG, BGS: assume they're all the same...
+            rmag = data['MAG'][indx]
+            zmag = rmag - data['RZ'][indx]
+            gmag = data['GR'][indx] + rmag
+            normmag = rmag
+        elif '-z' in data['MAGFILTER'][indx][0]: # LRG
+            zmag = data['MAG'][indx]
+            rmag = data['RZ'][indx] + zmag
+            gmag = data['GR'][indx] + rmag
+            normmag = zmag
+        elif '-g' in data['MAGFILTER'][indx][0]: # QSO, LYA
+            gmag = data['g'][indx]
+            rmag = gmag - data['GR'][indx]
+            zmag = rmag - data['RZ'][indx]
+            normmag = gmag
+            
+        W1mag = zmag - data['ZW1'][indx]
+        W2mag = W1mag - data['W1W2'][indx]
+        
+        meta['SEED'][:] = rand.randint(2**31, size=nobj)
+        meta['REDSHIFT'][:] = data['Z'][indx]
+
+        meta['MAG'][:] = normmag
+        meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+        meta['FLUX_G'][:] = 1e9 * 10**(-0.4 * gmag)
+        meta['FLUX_R'][:] = 1e9 * 10**(-0.4 * rmag)
+        meta['FLUX_Z'][:] = 1e9 * 10**(-0.4 * zmag)
+        meta['FLUX_W1'][:] = 1e9 * 10**(-0.4 * W1mag)
+        meta['FLUX_W2'][:] = 1e9 * 10**(-0.4 * W2mag)
+        
         return meta
 
     def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
@@ -3958,7 +3995,7 @@ class STARMaker(SelectTargets):
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
-        Do not initialize template photometry.  Defaults to False.
+        Initialize and cache template photometry.  Defaults to False.
 
     """
     wave, template_maker, KDTree = None, None, None
@@ -4119,7 +4156,7 @@ class MWS_MAINMaker(STARMaker):
         Use MWS_MAIN stars as calibration (standard star) targets, only.
         Defaults to False.
     no_spectra : :class:`bool`, optional
-        Do not initialize template photometry.  Defaults to False.
+        Initialize and cache template photometry.  Defaults to False.
 
     """
     def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
@@ -4960,12 +4997,14 @@ class BuzzardMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    no_spectra : :class:`bool`, optional
+        Do not pre-select extragalactic contaminants.  Defaults to False.
 
     """
     wave, template_maker = None, None
-    GMM_Buzzard, GMM_nospectra = None, None
+    #GMM_Buzzard, GMM_nospectra = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, no_spectra=False, **kwargs):
         super(BuzzardMaker, self).__init__()
 
         self.seed = seed
@@ -4981,19 +5020,20 @@ class BuzzardMaker(SelectTargets):
             BuzzardMaker.template_maker = BGS(wave=self.wave)
 
         # Store the metadata table and then pre-select extragalactic
-        # contaminants (templates), which will add columns to self.meta in
-        # place.
+        # contaminants/templates, which will add columns to self.meta in place
+        # (unless no_spectra=True, in which case skip it).
         self.meta = self.template_maker.basemeta
-        self.extragalactic_contaminants(seed)
+        if not no_spectra:
+            self.extragalactic_contaminants(seed)
 
-        # Since this mock is used for contaminants, cache all the Gaussian
-        # mixture models.
-        if self.GMM_nospectra is None:
-            from desiutil.sklearn import GaussianMixtureModel
-            BuzzardMaker.GMM_nospectra = dict()
-            for target_type in ('bgs', 'elg', 'lrg', 'qso'):
-                gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_{}.fits'.format(target_type.lower()))
-                BuzzardMaker.GMM_nospectra[target_type.upper()] = GaussianMixtureModel.load(gmmfile)
+        ## Since this mock is used for contaminants, cache all the Gaussian
+        ## mixture models.
+        #if self.GMM_nospectra is None:
+        #    from desiutil.sklearn import GaussianMixtureModel
+        #    BuzzardMaker.GMM_nospectra = dict()
+        #    for target_type in ('bgs', 'elg', 'lrg', 'qso'):
+        #        gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_{}.fits'.format(target_type.lower()))
+        #        BuzzardMaker.GMM_nospectra[target_type.upper()] = GaussianMixtureModel.load(gmmfile)
 
     def extragalactic_contaminants(self, seed, nmonte=100):
         """Pre-select Buzzard/BGS templates that could be photometric contaminants.
@@ -5005,10 +5045,16 @@ class BuzzardMaker(SelectTargets):
 
         rand = np.random.RandomState(seed)
 
-        # Average grzW1W2 imaging depth
+        # Average grzW1W2 imaging depth and scattered photometry
         psfdepth_sigma = 10**(-0.4 * (np.array((24.65, 23.61, 22.84)) - 22.5)) / 5 # 1-sigma, nanomaggies
         wisedepth_sigma = 10**(-0.4 * (np.array((22.3, 21.8)) - 22.5))             # 1-sigma, nanomaggies
         depth_sigma = np.hstack( (psfdepth_sigma, wisedepth_sigma) )
+
+        gflux_err  = rand.normal(loc=0, scale=depth_sigma[0], size=nmonte)
+        rflux_err  = rand.normal(loc=0, scale=depth_sigma[1], size=nmonte)
+        zflux_err  = rand.normal(loc=0, scale=depth_sigma[2], size=nmonte)
+        w1flux_err = rand.normal(loc=0, scale=depth_sigma[3], size=nmonte)
+        w2flux_err = rand.normal(loc=0, scale=depth_sigma[4], size=nmonte)
 
         # Unpack the metadata table.
         templatefile = find_basis_template('BGS')
@@ -5018,6 +5064,8 @@ class BuzzardMaker(SelectTargets):
 
         bigzgrid = np.tile(zgrid, (nt, 1)).reshape(nt, nz).flatten()
         bigtemplateid = np.tile(self.meta['TEMPLATEID'].data, (1, nz)).reshape(nz, nt).T.flatten()
+
+        # First ELGs--
 
         # ELG contaminants will be (most likely) lower-redshift (z<0.7)
         # interlopers, so focus on that redshift range, extract the fluxes, and
@@ -5030,12 +5078,6 @@ class BuzzardMaker(SelectTargets):
         zflux  = elgscale * self.meta['SYNTH_DECAM2014_Z'].data.flatten()[elgzcut]
         w1flux = elgscale * self.meta['SYNTH_WISE2010_W1'].data.flatten()[elgzcut]
         w2flux = elgscale * self.meta['SYNTH_WISE2010_W2'].data.flatten()[elgzcut]
-
-        gflux_err  = rand.normal(loc=0, scale=depth_sigma[0], size=nmonte)
-        rflux_err  = rand.normal(loc=0, scale=depth_sigma[1], size=nmonte)
-        zflux_err  = rand.normal(loc=0, scale=depth_sigma[2], size=nmonte)
-        w1flux_err = rand.normal(loc=0, scale=depth_sigma[3], size=nmonte)
-        w2flux_err = rand.normal(loc=0, scale=depth_sigma[4], size=nmonte)
 
         # Monte Carlo the colors and take the union of all the templates that
         # scatter into the ELG color-box.
@@ -5056,14 +5098,42 @@ class BuzzardMaker(SelectTargets):
         self.meta.add_column(Column(name='CONTAM_ELG', data=contam_elg))
         #log.debug('Found {} / {} templates that scatter into the ELG color box with z < 0.75.'.format(len(these), nt))
 
-        #import pdb ; pdb.set_trace()
+        # Now QSOs--
+
+        # I'm not sure what the redshift distribution of QSO contaminants will be...
+        qsozcut = bigzgrid < 1.5
+
+        gflux  = self.meta['SYNTH_DECAM2014_G'].data.flatten()[qsozcut]
+        rflux  = self.meta['SYNTH_DECAM2014_R'].data.flatten()[qsozcut]
+        zflux  = self.meta['SYNTH_DECAM2014_Z'].data.flatten()[qsozcut]
+        w1flux = self.meta['SYNTH_WISE2010_W1'].data.flatten()[qsozcut]
+        w2flux = self.meta['SYNTH_WISE2010_W2'].data.flatten()[qsozcut]
+
+        # Monte Carlo the colors and take the union of all the templates that
+        # scatter into the QSO color-box.
+        isqso = np.zeros(len(gflux)).astype(bool)
+        for ii in range(nmonte):
+            isqso = np.logical_or( (isqso), (isQSO_colors(
+                south = True, 
+                gflux = gflux + gflux_err[ii],
+                rflux = rflux + rflux_err[ii],
+                zflux = zflux + zflux_err[ii],
+                w1flux= w1flux + w1flux_err[ii],
+                w2flux= w2flux + w2flux_err[ii])) )
+
+        these = np.unique(bigtemplateid[qsozcut][isqso])
+        contam_qso = np.zeros(nt).astype(bool)
+        contam_qso[these] = True
+        
+        self.meta.add_column(Column(name='CONTAM_QSO', data=contam_qso))
+
         #import matplotlib.pyplot as plt
-        #
         #gr = -2.5 * np.log10(gflux / rflux)
         #rz = -2.5 * np.log10(rflux / zflux)
-        #plt.scatter(rz[iselg], gr[iselg], s=1)
-        #plt.scatter(rz[~iselg], gr[~iselg], s=1)
+        #plt.scatter(rz[isqso], gr[isqso], s=1)
+        #plt.scatter(rz[~isqso], gr[~isqso], s=1)
         #plt.xlim(-0.5,1.5) ; plt.ylim(-0.5, 1) ; plt.show()
+        #import pdb ; pdb.set_trace()
                 
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
              nside=None, nside_buzzard=8, target_name='', magcut=None,
@@ -5114,6 +5184,7 @@ class BuzzardMaker(SelectTargets):
         if mockfile is None:
             mockfile = self.default_mockfile
 
+        print('NEED MAGFILTER FOR QSOS TO BE G-BAND!')
         data = MockReader.readmock(mockfile, target_name=target_name, 
                                    healpixels=healpixels, nside=nside,
                                    nside_buzzard=nside_buzzard,
@@ -5164,10 +5235,9 @@ class BuzzardMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'][:] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'][:] = data['Z'][indx]
+            meta = self._nospectra_photometry(rand, meta, data, indx)
             # noiseless photometry from pre-computed GMMs
-            self.sample_gmm_nospectra(meta, rand=rand, target=data['TARGET_NAME'].upper())
+            # self.sample_gmm_nospectra(meta, rand=rand, target=data['TARGET_NAME'].upper())
         else:
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
