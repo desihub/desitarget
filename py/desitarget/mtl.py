@@ -7,7 +7,7 @@ Merged target lists.
 
 import numpy as np
 import sys
-from astropy.table import Table, join
+from astropy.table import Table
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from desitarget.targets import calc_numobs, calc_priority_no_table
@@ -40,6 +40,14 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
+
+    # Trim targets from zcat that aren't in original targets table
+    ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
+    num_extra = np.count_nonzero(~ok)
+    if num_extra > 0:
+        log.warning("Ignoring {} zcat entries that aren't "
+                    "in the input target list".format(num_extra))
+        zcat = zcat[ok]
 
     n = len(targets)
     # ADM if the input target columns were incorrectly called NUMOBS or PRIORITY
@@ -117,6 +125,7 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # ADM set up the output mtl table.
     mtl = Table(targets)
+    mtl.meta['EXTNAME'] = 'MTL'
     # ADM any target that wasn't matched to the ZCAT should retain its
     # ADM original (INIT) value of PRIORITY and NUMOBS.
     mtl['NUMOBS_MORE'] = mtl['NUMOBS_INIT']
