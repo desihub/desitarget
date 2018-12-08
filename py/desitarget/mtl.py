@@ -18,8 +18,9 @@ def make_mtl(targets, zcat=None, trim=False):
 
     Parameters
     ----------
-    targets : :class:`~numpy.array`
-        A numpy rec array with at least columns ``TARGETID``, ``DESI_TARGET``.
+    targets : :class:`~numpy.array` or `~astropy.table.Table`
+        A numpy rec array or astropy Table with at least the columns 
+        ``TARGETID``, ``DESI_TARGET``.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
@@ -43,8 +44,15 @@ def make_mtl(targets, zcat=None, trim=False):
     n = len(targets)
     # ADM if the input target columns were incorrectly called NUMOBS or PRIORITY
     # ADM rename them to NUMOBS_INIT or PRIORITY_INIT.
+    # ADM Note that the syntax is slightly different for a Table.
     for name in ['NUMOBS', 'PRIORITY']:
-        targets.dtype.names = [name+'_INIT' if col == name else col for col in targets.dtype.names]
+        if isinstance(targets, Table):
+            try:
+                targets.rename_column(name, name+'_INIT')
+            except KeyError:
+                pass
+        else:
+            targets.dtype.names = [name+'_INIT' if col == name else col for col in targets.dtype.names]
 
     # ADM if a redshift catalog was passed, order it to match the input targets
     # ADM catalog on 'TARGETID'.
