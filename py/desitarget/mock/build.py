@@ -378,11 +378,13 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     #ntarget = len(data['RA'])
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
 
-    if 'CONTAM_FACTOR' in data.keys():
-        # density model here!
-        density_factor = data.get('CONTAM_FACTOR')
-    else:
-        density_factor = data.get('DENSITY_FACTOR')
+    #if 'CONTAM_FACTOR' in data.keys():
+    #    # density model here!
+    #    density_factor = data.get('CONTAM_FACTOR')
+    #else:
+    #    density_factor = data.get('DENSITY_FACTOR')
+
+    density_factor = data.get('DENSITY_FACTOR')        
 
     indxperchunk, ntargperchunk = list(), list()
     for pixchunk in set(healpix_chunk):
@@ -390,15 +392,18 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         # Subsample the targets on this mini healpixel.
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
-        ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
-        indxthispix = allindxthispix
+        if 'CONTAM_NUMBER' in data.keys():
+            ntargthispix = np.round( 2 * data['CONTAM_NUMBER'] ).astype('int')
+            indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
+        else:
+            ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
+            indxthispix = allindxthispix
         #indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
 
         indxperchunk.append(indxthispix)
         ntargperchunk.append(ntargthispix)
 
         #print(pixchunk, ntargthispix, ntargthispix / areaperchunk)
-
         #if coeff:
         #    # Number of targets in this chunk, based on the fluctuations model.
         #    denschunk = density * 10**( np.polyval(coeff[:2], data['EBV'][indx]) - np.polyval(coeff[:2], 0) +
@@ -414,7 +419,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     # Special case when the number of targets is very small.
     if np.sum(ntargperchunk) == 0:
         ntargperchunk[0] = np.round( len(data['RA']) * density_factor ).astype('int')
-    
+        
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
@@ -694,7 +699,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                                               target_name='CONTAM_GALAXY', seed=seed)
         nobj = len(galaxy_data['RA'])
         galaxy_data['MAXITER'] = 5
-        galaxy_data['CONTAM_FACTOR'] = 0.0
+        galaxy_data['CONTAM_FACTOR'] = 0.0 # fraction of candidate contaminants to keep
 
         # Now iterate over every target class.
         for target_type in params['contaminants']['targets']:
@@ -713,13 +718,21 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                     galaxy_data['CONTAM_NAME'] = 'CONTAM_GALAXY'
 
                     # ToDo: Modulate the contamination fraction...
+                    galaxy_data['CONTAM_NUMBER'] = np.round( cparams['galaxies'] * ntarg ).astype(int)
                     galaxy_data['CONTAM_FACTOR'] = cparams['galaxies'] * ntarg / len(galaxy_data['RA'])
 
                     # Sample from the appropriate Gaussian mixture model and
                     # then generate the spectra.
+                    if target_type == 'QSO':
+                        mag = galaxy_data['GMAG']
+                    elif target_type == 'ELG':
+                        mag = galaxy_data['RMAG']
+                    elif target_type == 'LRG':
+                        mag = galaxy_data['ZMAG']
+                    
                     gmmout = ContamGalaxiesMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                            isouth=galaxy_data['SOUTH'],
-                                                           seed=seed, prior_mag=galaxy_data['MAG'])
+                                                           seed=seed, prior_mag=mag)
                     galaxy_data.update(gmmout)
 
                     contamtargets, contamtruth, contamobjtruth, contamtrueflux = get_spectra(

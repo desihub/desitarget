@@ -1520,6 +1520,9 @@ class ReadBuzzard(SelectTargets):
             log.warning('No {}s in healpixels {}!'.format(target_name, healpixels))
             return dict()
 
+        log.info('Trimmed to {} {}s in {} healpixel(s)'.format(
+            nobj, target_name, len(np.atleast_1d(healpixels))))
+
         mockid = mockid[cut]
         objid = objid[cut]
         allpix = allpix[cut]
@@ -1531,8 +1534,7 @@ class ReadBuzzard(SelectTargets):
         cols = ['Z', 'COEFFS', 'TMAG']
         data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
         zz = data['Z'].astype('f4')
-        mag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
-
+        
         # Optionally (for a little more speed) only return some basic info. 
         if only_coords:
             return {'MOCKID': mockid, 'RA': ra, 'DEC': dec, 'Z': zz,
@@ -1545,18 +1547,24 @@ class ReadBuzzard(SelectTargets):
         #log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         #gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
         #                         seed=seed, prior_redshift=zz)
-        gmmout = None
+        #gmmout = None
+
+        gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
+        rmag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
+        zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'buzzard',
             'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
             'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
             'BRICKID': self.Bricks.brickid(ra, dec),
-            'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag,
-            'MAGFILTER': np.repeat('decam2014-r', nobj),
+            'RA': ra, 'DEC': dec, 'Z': zz,
+            'GMAG': gmag, 'RMAG': rmag, 'ZMAG': zmag, 
+            #'MAGFILTER': np.repeat('decam2014-r', nobj),
             'SOUTH': isouth}
-        if gmmout is not None:
-            out.update(gmmout)
+            
+        #if gmmout is not None:
+        #    out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -5184,7 +5192,6 @@ class BuzzardMaker(SelectTargets):
         if mockfile is None:
             mockfile = self.default_mockfile
 
-        print('NEED MAGFILTER FOR QSOS TO BE G-BAND!')
         data = MockReader.readmock(mockfile, target_name=target_name, 
                                    healpixels=healpixels, nside=nside,
                                    nside_buzzard=nside_buzzard,
@@ -5248,13 +5255,21 @@ class BuzzardMaker(SelectTargets):
 
             # Choose a template (with equal probability) depending on what type
             # of contaminant we're simulating.
-
-            # This is not right, but choose a template with equal probability.
-            import pdb ; pdb.set_trace()
+            if data['TARGET_NAME'].upper() == 'QSO':
+                input_meta['MAG'][:] = data['GMAG'][indx]
+                input_meta['MAGFILTER'][:] = 'decam2014-g'
+                subset = self.meta['CONTAM_QSO']
+            elif data['TARGET_NAME'].upper() == 'ELG':
+                input_meta['MAG'][:] = data['RMAG'][indx]
+                input_meta['MAGFILTER'][:] = 'decam2014-r'
+                subset = self.meta['CONTAM_ELG']
+            else:
+                log.warning('Need to pre-select more classes of contaminants!')
+                subset = np.ones(len(self.meta)).astype(bool) # equal probability: not right (too slow)
+                
+            input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'][subset], nobj)
             
-            input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'], nobj)
-            input_meta['MAG'][:] = data['MAG'][indx]
-            input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+            #input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
                 
             # Build north/south spectra separately.
             south = np.where( data['SOUTH'][indx] == True )[0]
@@ -5273,9 +5288,11 @@ class BuzzardMaker(SelectTargets):
                     objmeta[these] = objmeta1
                     flux[these, :] = flux1
 
+        import pdb ; pdb.set_trace()
         targets, truth, objtruth = self.populate_targets_truth(
             flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
+        import pdb ; pdb.set_trace()
 
         return flux, self.wave, targets, truth, objtruth
 
