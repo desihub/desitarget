@@ -42,12 +42,13 @@ def make_mtl(targets, zcat=None, trim=False):
     log = get_logger()
 
     # Trim targets from zcat that aren't in original targets table
-    ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
-    num_extra = np.count_nonzero(~ok)
-    if num_extra > 0:
-        log.warning("Ignoring {} zcat entries that aren't "
-                    "in the input target list".format(num_extra))
-        zcat = zcat[ok]
+    if zcat is not None:
+        ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
+        num_extra = np.count_nonzero(~ok)
+        if num_extra > 0:
+            log.warning("Ignoring {} zcat entries that aren't "
+                        "in the input target list".format(num_extra))
+            zcat = zcat[ok]
 
     n = len(targets)
     # ADM if the input target columns were incorrectly called NUMOBS or PRIORITY
