@@ -9,7 +9,7 @@ Build truth and targets catalogs, including spectra, for the mocks.
 """
 from __future__ import absolute_import, division, print_function
 
-import os
+import os, time
 import numpy as np
 import healpy as hp
 
@@ -262,7 +262,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
 
         MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
-
+        
         keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
         #if 'CONTAM_NAME' in data.keys():
         #    import pdb ; pdb.set_trace()
@@ -393,8 +393,8 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
         if 'CONTAM_NUMBER' in data.keys():
-            ntargthispix = np.round( 2 * data['CONTAM_NUMBER'] ).astype('int')
-            indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
+            ntargthispix = np.round( data['CONTAM_NUMBER'] ).astype('int')
+            indxthispix = rand.choice(allindxthispix, size=5 * ntargthispix, replace=False) # fudge factor!
         else:
             ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
             indxthispix = allindxthispix
