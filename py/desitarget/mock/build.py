@@ -393,7 +393,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
         if 'CONTAM_NUMBER' in data.keys():
-            ntargthispix = np.round( data['CONTAM_NUMBER'] ).astype('int')
+            ntargthispix = np.round( data['CONTAM_NUMBER'] / nchunk ).astype(int)
             indxthispix = rand.choice(allindxthispix, size=5 * ntargthispix, replace=False) # fudge factor!
         else:
             ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
@@ -660,13 +660,21 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                     star_data['CONTAM_NAME'] = 'CONTAM_STAR'
 
                     # ToDo: Modulate the contamination with Galactic latitude...
+                    star_data['CONTAM_NUMBER'] = np.round( cparams['stars'] * ntarg ).astype(int)
                     star_data['CONTAM_FACTOR'] = cparams['stars'] * ntarg / len(star_data['RA'])
 
                     # Sample from the appropriate Gaussian mixture model and
                     # then generate the spectra.
+                    if target_type == 'ELG' or target_type == 'BGS':
+                        mag = star_data['MAG']
+                    elif target_type == 'QSO':
+                        mag = star_data['GMAG']
+                    elif target_type == 'LRG':
+                        mag = star_data['ZMAG']
+                    
                     gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                         isouth=star_data['SOUTH'],
-                                                        seed=seed, prior_mag=star_data['MAG'])
+                                                        seed=seed, prior_mag=mag)
                     star_data.update(gmmout)
 
                     contamtargets, contamtruth, contamobjtruth, contamtrueflux = get_spectra(
