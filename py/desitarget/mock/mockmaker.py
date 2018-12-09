@@ -844,27 +844,51 @@ class SelectTargets(object):
 
         return meta
 
-    def _nospectra_photometry(self, rand, meta, data, indx):
+    def _nospectra_photometry(self, meta, rand, data, indx, target_name, contaminants=False):
         """Populate the photometry in meta in no-spectra mode."""
 
         nobj = len(indx)
 
-        if '-r' in data['MAGFILTER'][indx][0]: # ELG, BGS: assume they're all the same...
-            rmag = data['MAG'][indx]
-            zmag = rmag - data['RZ'][indx]
-            gmag = data['GR'][indx] + rmag
-            normmag = rmag
-        elif '-z' in data['MAGFILTER'][indx][0]: # LRG
-            zmag = data['MAG'][indx]
-            rmag = data['RZ'][indx] + zmag
-            gmag = data['GR'][indx] + rmag
-            normmag = zmag
-        elif '-g' in data['MAGFILTER'][indx][0]: # QSO, LYA
-            gmag = data['g'][indx]
-            rmag = gmag - data['GR'][indx]
-            zmag = rmag - data['RZ'][indx]
-            normmag = gmag
+        def _g_and_z(rmag, gr, rz):
+            zmag = rmag - rz
+            gmag = gr + rmag
+            return gmag, zmag
+        
+        def _r_and_z(gmag, gr, rz):
+            rmag = gmag - gr
+            zmag = rmag - rz
+            return rmag, zmag
+
+        def _g_and_r(zmag, gr, rz):
+            rmag = rz + zmag
+            gmag = gr + rmag
+            return gmag, rmag
+
+        gr, rz = data['GR'][indx], data['RZ'][indx]
+
+        if target_name == 'QSO':
+            if contaminants:
+                gmag = normmag = data['GMAG'][indx]
+                magfilter = data['MAGFILTER-G'][indx]
+            else:
+                gmag = normmag = data['MAG'][indx]
+                magfilter = data['MAGFILTER'][indx]
+            rmag, zmag = _r_and_z(gmag, gr, rz)
             
+        elif target_name == 'LRG':
+            if contaminants:
+                zmag = normmag = data['ZMAG'][indx]
+                magfilter = data['MAGFILTER-Z'][indx]
+            else:
+                zmag = normmag = data['MAG'][indx]
+                magfilter = data['MAGFILTER'][indx]
+            gmag, rmag = _g_and_r(zmag, gr, rz)
+            
+        else:
+            rmag = normmag = data['MAG'][indx]
+            magfilter = data['MAGFILTER'][indx]
+            gmag, zmag = _g_and_z(rmag, gr, rz)
+
         W1mag = zmag - data['ZW1'][indx]
         W2mag = W1mag - data['W1W2'][indx]
         
@@ -872,15 +896,13 @@ class SelectTargets(object):
         meta['REDSHIFT'][:] = data['Z'][indx]
 
         meta['MAG'][:] = normmag
-        meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
+        meta['MAGFILTER'][:] = magfilter
         meta['FLUX_G'][:] = 1e9 * 10**(-0.4 * gmag)
         meta['FLUX_R'][:] = 1e9 * 10**(-0.4 * rmag)
         meta['FLUX_Z'][:] = 1e9 * 10**(-0.4 * zmag)
         meta['FLUX_W1'][:] = 1e9 * 10**(-0.4 * W1mag)
         meta['FLUX_W2'][:] = 1e9 * 10**(-0.4 * W2mag)
         
-        return meta
-
     def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
         """Estimate the fraction of the integrated flux that enters the fiber.
 
@@ -1559,8 +1581,9 @@ class ReadBuzzard(SelectTargets):
             'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
             'BRICKID': self.Bricks.brickid(ra, dec),
             'RA': ra, 'DEC': dec, 'Z': zz,
-            'GMAG': gmag, 'RMAG': rmag, 'ZMAG': zmag, 
-            #'MAGFILTER': np.repeat('decam2014-r', nobj),
+            'MAG': rmag, 'MAGFILTER': np.repeat('decam2014-r', nobj),
+            'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
+            'ZMAG': zmag, 'MAGFILTER-Z': np.repeat('decam2014-z', nobj),
             'SOUTH': isouth}
             
         #if gmmout is not None:
@@ -1981,7 +2004,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False, only_coords=False):
+                 mock_density=False, only_coords=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -2006,6 +2029,8 @@ class ReadLyaCoLoRe(SelectTargets):
         only_coords : :class:`bool`, optional
             Only read the target coordinates and some other basic info.
             Defaults to False.
+        seed : :class:`int`, optional
+            Seed for reproducibility and random number generation.
 
         Returns
         -------
@@ -2131,8 +2156,15 @@ class ReadLyaCoLoRe(SelectTargets):
             lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
 
+        isouth = self.is_south(dec)
+        
         # ToDo: draw magnitudes from an appropriate luminosity function!
-        # 
+
+        # Get photometry and morphologies by sampling from the Gaussian
+        # mixture models.
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+        gmmout = self.sample_GMM(nobj, target='QSO', isouth=isouth,
+                                 seed=seed, prior_redshift=zz)
             
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
@@ -2142,7 +2174,9 @@ class ReadLyaCoLoRe(SelectTargets):
                'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
+               'SOUTH': isouth}
+        if gmmout is not None:
+            out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -2829,10 +2863,10 @@ class QSOMaker(SelectTargets):
         if self.GMM_QSO is None:
             self.read_GMM(target='QSO')
 
-        if self.GMM_nospectra is None:
-            from desiutil.sklearn import GaussianMixtureModel
-            gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
-            QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
+        #if self.GMM_nospectra is None:
+        #    from desiutil.sklearn import GaussianMixtureModel
+        #    gmmfile = resource_filename('desitarget', 'mock/data/quicksurvey_gmm_qso.fits')
+        #    QSOMaker.GMM_nospectra = GaussianMixtureModel.load(gmmfile)
             
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
              nside=None, zmax_qso=None, only_coords=False, mock_density=False,
@@ -2883,7 +2917,7 @@ class QSOMaker(SelectTargets):
             
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   only_coords=only_coords,
+                                   only_coords=only_coords, seed=self.seed,
                                    zmax_qso=zmax_qso, mock_density=mock_density)
 
         return data
@@ -2930,9 +2964,7 @@ class QSOMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'][:] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'][:] = data['Z'][indx]
-            self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
+            self._nospectra_photometry(meta, rand, data, indx, data['TARGET_NAME'])
         else:
             # Sample from the north/south GMMs
             south = np.where( data['SOUTH'][indx] == True )[0]
@@ -3103,7 +3135,7 @@ class LYAMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
                                    mock_density=mock_density,
-                                   only_coords=only_coords)
+                                   only_coords=only_coords, seed=self.seed)
 
         return data
 
@@ -3158,9 +3190,7 @@ class LYAMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta['SEED'][:] = rand.randint(2**31, size=nobj)
-            meta['REDSHIFT'][:] = data['Z'][indx]
-            self.sample_gmm_nospectra(meta, rand=rand) # noiseless photometry from pre-computed GMMs
+            self._nospectra_photometry(meta, rand, data, indx, data['TARGET_NAME'])
         else:
             # Handle north/south photometry.
             south = np.where( data['SOUTH'][indx] == True )[0]
@@ -5269,9 +5299,7 @@ class BuzzardMaker(SelectTargets):
         if no_spectra:
             flux = []
             meta, objmeta = empty_metatable(nmodel=nobj, objtype=self.objtype)
-            meta = self._nospectra_photometry(rand, meta, data, indx)
-            # noiseless photometry from pre-computed GMMs
-            # self.sample_gmm_nospectra(meta, rand=rand, target=data['TARGET_NAME'].upper())
+            self._nospectra_photometry(meta, rand, data, indx, data['TARGET_NAME'], contaminants=True)
         else:
             input_meta, _ = empty_metatable(nmodel=nobj, objtype=self.objtype)
             input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
@@ -5284,7 +5312,7 @@ class BuzzardMaker(SelectTargets):
             # of contaminant we're simulating.
             if data['TARGET_NAME'].upper() == 'QSO':
                 input_meta['MAG'][:] = data['GMAG'][indx]
-                input_meta['MAGFILTER'][:] = 'decam2014-g'
+                input_meta['MAGFILTER'][:] = data['MAGFILTER-G'][indx]
 
                 # Choose a template from the right redshift bin of contaminants.
                 contamid  = np.digitize(input_meta['REDSHIFT'], self.contam_zgrid)
@@ -5295,7 +5323,7 @@ class BuzzardMaker(SelectTargets):
 
             elif data['TARGET_NAME'].upper() == 'ELG':
                 input_meta['MAG'][:] = data['RMAG'][indx]
-                input_meta['MAGFILTER'][:] = 'decam2014-r'
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
 
                 contamid  = np.digitize(input_meta['REDSHIFT'], self.contam_zgrid)
                 templateid = []
