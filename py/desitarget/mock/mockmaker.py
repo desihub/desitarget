@@ -5099,17 +5099,26 @@ class BuzzardMaker(SelectTargets):
                 w1flux= w1flux + w1flux_err[ii],
                 w2flux= w2flux + w2flux_err[ii])) )
 
-        these = np.unique(bigtemplateid[elgzcut][iselg])
-        contam_elg = np.zeros(nt).astype(bool)
-        contam_elg[these] = True
+        # Determine which templates scatter into the ELG color-box **in each
+        # redshift bin.***
+        idelg  = np.digitize(bigzgrid[elgzcut][iselg], zgrid)
+        contam_elg = []
+        for ii in range(len(zgrid)):
+            these = np.where(idelg == ii)[0]
+            #print(bigzgrid[elgzcut][iselg][these], len(these))
+            contam_elg.append( bigtemplateid[elgzcut][iselg][these] )
+            
+        #these = np.unique(bigtemplateid[elgzcut][iselg])
+        #contam_elg = np.zeros(nt).astype(bool)
+        #contam_elg[these] = True
+        #self.meta.add_column(Column(name='CONTAM_ELG', data=contam_elg))
         
-        self.meta.add_column(Column(name='CONTAM_ELG', data=contam_elg))
         #log.debug('Found {} / {} templates that scatter into the ELG color box with z < 0.75.'.format(len(these), nt))
 
         # Now QSOs--
 
         # I'm not sure what the redshift distribution of QSO contaminants will be...
-        qsozcut = bigzgrid < 1.5
+        qsozcut = bigzgrid < 2.5
 
         gflux  = self.meta['SYNTH_DECAM2014_G'].data.flatten()[qsozcut]
         rflux  = self.meta['SYNTH_DECAM2014_R'].data.flatten()[qsozcut]
@@ -5129,11 +5138,22 @@ class BuzzardMaker(SelectTargets):
                 w1flux= w1flux + w1flux_err[ii],
                 w2flux= w2flux + w2flux_err[ii])) )
 
-        these = np.unique(bigtemplateid[qsozcut][isqso])
-        contam_qso = np.zeros(nt).astype(bool)
-        contam_qso[these] = True
-        
-        self.meta.add_column(Column(name='CONTAM_QSO', data=contam_qso))
+        idqso  = np.digitize(bigzgrid[qsozcut][isqso], zgrid)
+        contam_qso = []
+        for ii in range(len(zgrid)):
+            these = np.where(idqso == ii)[0]
+            #print(bigzgrid[qsozcut][isqso][these], len(these))
+            contam_qso.append( bigtemplateid[qsozcut][isqso][these] )
+
+        #these = np.unique(bigtemplateid[qsozcut][isqso])
+        #contam_qso = np.zeros(nt).astype(bool)
+        #contam_qso[these] = True
+        #self.meta.add_column(Column(name='CONTAM_QSO', data=contam_qso))
+
+        # Keep the results.
+        self.contam_zgrid = zgrid
+        self.contam_elg = contam_elg
+        self.contam_qso = contam_qso
 
         #import matplotlib.pyplot as plt
         #gr = -2.5 * np.log10(gflux / rflux)
@@ -5258,17 +5278,31 @@ class BuzzardMaker(SelectTargets):
             if data['TARGET_NAME'].upper() == 'QSO':
                 input_meta['MAG'][:] = data['GMAG'][indx]
                 input_meta['MAGFILTER'][:] = 'decam2014-g'
-                subset = self.meta['CONTAM_QSO']
+
+                # Choose a template from the right redshift bin of contaminants.
+                contamid  = np.digitize(input_meta['REDSHIFT'], self.contam_zgrid)
+                templateid = []
+                for cid in np.unique(contamid):
+                    templateid.append( rand.choice(self.contam_qso[cid], np.count_nonzero(cid == contamid)) )
+                templateid = np.hstack(templateid)
+
             elif data['TARGET_NAME'].upper() == 'ELG':
                 input_meta['MAG'][:] = data['RMAG'][indx]
                 input_meta['MAGFILTER'][:] = 'decam2014-r'
-                subset = self.meta['CONTAM_ELG']
+
+                contamid  = np.digitize(input_meta['REDSHIFT'], self.contam_zgrid)
+                templateid = []
+                for cid in np.unique(contamid):
+                    templateid.append( rand.choice(self.contam_elg[cid], np.count_nonzero(cid == contamid)) )
+                templateid = np.hstack(templateid)
+
             else:
                 log.warning('Need to pre-select more classes of contaminants!')
-                subset = np.ones(len(self.meta)).astype(bool) # equal probability: not right (too slow)
+                templateid = rand.choice(self.meta['TEMPLATEID'], nobj)
+                #subset = np.ones(len(self.meta)).astype(bool) # equal probability: not right (too slow)
                 
-            input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'][subset], nobj)
-            
+            input_meta['TEMPLATEID'][:] = templateid
+            #input_meta['TEMPLATEID'][:] = rand.choice(self.meta['TEMPLATEID'][subset], nobj)
             #input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
                 
             # Build north/south spectra separately.
@@ -5288,16 +5322,14 @@ class BuzzardMaker(SelectTargets):
                     objmeta[these] = objmeta1
                     flux[these, :] = flux1
 
-        import pdb ; pdb.set_trace()
         targets, truth, objtruth = self.populate_targets_truth(
             flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
-        import pdb ; pdb.set_trace()
 
         return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, targetname='BGS'):
-        """Select BGS targets.  Input tables are modified in place.
+        """Select extragalactic contaminants.  Input tables are modified in place.
 
         Parameters
         ----------
@@ -5305,9 +5337,16 @@ class BuzzardMaker(SelectTargets):
             Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
+        targetname : :class:`str`
+            Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        #if targetname == 'QSO' and self.use_simqso is False:
+        
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              qso_selection='colorcuts')
+
+        self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
         targets['DESI_TARGET'] |= desi_target
         targets['BGS_TARGET'] |= bgs_target
