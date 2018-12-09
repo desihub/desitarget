@@ -1852,13 +1852,16 @@ class ReadGalaxia(SelectTargets):
         del radec
 
         # Only the MWS_MAIN mock has Gaia and TRUE_VHELIO.
-        cols = ['TRUE_MAG_R_SDSS_NODUST', 'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH']
+        cols = ['TRUE_MAG_R_SDSS_NODUST', 'TRUE_MAG_G_SDSS_NODUST', 'TRUE_MAG_Z_SDSS_NODUST',
+                'TRUE_TEFF', 'TRUE_LOGG', 'TRUE_FEH']
         if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             cols = cols + ['TRUE_VHELIO', 'GAIA_PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC', 'PM_RA_IVAR',
                            'PM_DEC_IVAR', 'PARALLAX', 'PARALLAX_IVAR']
         data = fitsio.read(galaxiafile, columns=cols, upper=True, ext=1, rows=cut)
-        mag = data['TRUE_MAG_R_SDSS_NODUST'].astype('f4') # SDSS r-band, extinction-corrected
-        teff = 10**data['TRUE_TEFF'].astype('f4')         # log10!
+        mag = data['TRUE_MAG_R_SDSS_NODUST'].astype('f4')  # SDSS r-band, extinction-corrected
+        gmag = data['TRUE_MAG_G_SDSS_NODUST'].astype('f4') # SDSS g-band, extinction-corrected
+        zmag = data['TRUE_MAG_Z_SDSS_NODUST'].astype('f4') # SDSS z-band, extinction-corrected
+        teff = 10**data['TRUE_TEFF'].astype('f4')          # log10!
         logg = data['TRUE_LOGG'].astype('f4')
         feh = data['TRUE_FEH'].astype('f4')
 
@@ -1900,6 +1903,8 @@ class ReadGalaxia(SelectTargets):
                 dec = dec[cut]
                 zz = zz[cut]
                 mag = mag[cut]
+                gmag = gmag[cut]
+                zmag = zmag[cut]
                 teff = teff[cut]
                 logg = logg[cut]
                 feh = feh[cut]
@@ -1921,9 +1926,11 @@ class ReadGalaxia(SelectTargets):
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
-               'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 
+               'RA': ra, 'DEC': dec, 'Z': zz,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
-               'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               'MAG': mag, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
+               'GMAG': gmag, 'ZMAG': zmag,
+               
                'SOUTH': self.is_south(dec), 'TYPE': 'PSF',
 
                'REF_ID': ref_id,
@@ -4308,6 +4315,9 @@ class MWS_MAINMaker(STARMaker):
         targets, truth, objtruth = self.populate_targets_truth(
             flux, data, meta, objmeta, indx=indx, psf=True,
             seed=seed, truespectype='STAR', templatetype='STAR')
+        
+        if np.sum(np.isnan(truth['FLUX_R'])) > 0:
+            import pdb ; pdb.set_trace()
                                                            
         return flux, self.wave, targets, truth, objtruth
 
