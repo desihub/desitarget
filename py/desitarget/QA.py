@@ -36,7 +36,6 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt   # noqa: E402
 
-
 def _parse_tcnames(tcstring=None, add_all=True):
     """Turn a comma-separated string of target class names into a list.
 
@@ -793,7 +792,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     return
 
 
-def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
+def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
     """Make Gaia-based DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -807,7 +806,10 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
         The output directory to which to write produced plots.
     fileprefix : :class:`str`, optional, defaults to ``"gaia"``
         String to be added to the front of the output file name.
-
+    nobjscut : :class:`int`, optional, defaults to ``1000``
+        Make a hexbin plot when the number of objects is greater than
+        ``nobjscut``, otherwise make a scatterplot.
+    
     Returns
     -------
     Nothing
@@ -816,6 +818,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
                  ``{qadir}/{fileprefix}-{parallax}-{objtype}.png``.
            The file containing proper motion information is called:
                  ``{qadir}/{fileprefix}-{pm}-{objtype}.png``.
+
     """
 
     # ADM change the parallaxes (which are in mas) to distances in parsecs.
@@ -858,7 +861,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia"):
     nobjs = len(cat)
 
     # ADM make a contour plot if we have lots of points...
-    if nobjs > 1000:
+    if nobjs > nobjscut:
         hb = plt.hexbin(cat["PMRA"], cat["PMDEC"],
                         mincnt=1, cmap=cmap,
                         bins='log', extent=(*ralim, *declim), gridsize=60)
@@ -959,7 +962,7 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
 
     return
 
-def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
+def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
               fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
     """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH.
 
@@ -976,6 +979,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
         Total area in deg2.
     dndz : :class:`dict`
         Dictionary output of `_load_dndz`    
+    nobjscut : :class:`int`, optional, defaults to ``1000``
+        Make a hexbin plot when the number of objects is greater than
+        ``nobjscut``, otherwise make a scatterplot.
     fileprefixz : :class:`str`, optional, defaults to ``"color"`` for
         String to be added to the front of the output N(z) plot file name.
     fileprefixzmag : :class:`str`, optional, defaults to ``"color"`` for
@@ -1047,24 +1053,25 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     # ADM set up and make the plot.
     plt.clf()
     plt.xlabel(zlabel)
-    plt.ylabel('dN / dz (targets deg$^{-2}$)')
+    plt.ylabel(r'dN / dz (targets deg$^{-2}$)')
 
     for truespectype in np.unique(truespectypes)[srt]:
         these = np.where(truespectype == truespectypes)[0]
         if len(these) > 0:
             if 'QSO' in objtype:
-                label = '{} is {} (N={})'.format(objtype, truespectype, len(these))
+                label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$)'.format(
+                    objtype, truespectype, len(these), len(these) / area)
             else:
-                label = '{} is {} (N={})'.format(objtype, truespectype, len(these))
+                label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$))'.format(
+                    objtype, truespectype, len(these), len(these) / area)
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
             plt.bar(cbins, nn / area, align='center', alpha=0.9, label=label, width=dz)
 
     if dndz is not None and objtype in dndz.keys():
         plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'],
-                 alpha=0.5, color='k', lw=2, label='Expected dn/dz')
-
-    #import pdb ; pdb.set_trace()
+                 alpha=0.5, color='k', lw=2, label=r'Expected dn/dz ({:.0f} deg$^{{-2}}$)'.format(
+                     np.sum(dndz[objtype]['dndz'])))
         
     plt.legend(loc='upper right', frameon=True)
 
@@ -1081,6 +1088,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     if 'LRG' in objtype:
         flux = cat['FLUX_Z'].clip(1e-16)
         plt.ylabel('z (AB mag)')
+    elif 'QSO' in objtype:
+        flux = cat['FLUX_G'].clip(1e-16)
+        plt.ylabel('g (AB mag)')
     else:
         flux = cat['FLUX_R'].clip(1e-16)
         plt.ylabel('r (AB mag)')
@@ -1107,7 +1117,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
         if len(these) > 0:
             label = '{} is {}'.format(objtype, truespectype)
             # ADM make a contour plot if we have lots of points...
-            if len(these) > 1000:
+            if len(these) > nobjscut:
                 dolegend = False
                 hb = plt.hexbin(truez, mag, mincnt=1, bins='log', cmap=cmap,
                                 extent=(zmin, zmax, magbright, magfaint),
@@ -1130,8 +1140,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None,
     plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
-def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=False,
-            mocks=False):
+def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
+            nodustcorr=False, mocks=False, nobjscut=1000):
     """Make color-based DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1152,6 +1162,9 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
         Do not correct for dust extinction.
     mocks : :class:`boolean`, optional, default=False
         If ``True``, input catalog is a "truths" catalog.
+    nobjscut : :class:`int`, optional, defaults to ``1000``
+        Make a hexbin plot when the number of objects is greater than
+        ``nobjscut``, otherwise make a scatterplot.
 
     Returns
     -------
@@ -1272,7 +1285,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             these = np.where(truespectype == truespectypes)[0]
             if len(these) > 0:
                 label = '{} is {}'.format(objtype, truespectype)
-                if len(these) > 1000:
+                if len(these) > nobjscut:
                     dolegend = False
                     hb = plt.hexbin(r[these]-z[these], g[these]-r[these], mincnt=1,
                                     cmap=cmap, label=label,
@@ -1286,7 +1299,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
-        if nobjs > 1000:
+        if nobjs > nobjscut:
             hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=cmap, 
                             bins='log', extent=(*grlim, *rzlim), gridsize=60)
             cb = plt.colorbar(hb)
@@ -1319,7 +1332,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             these = np.where(truespectype == truespectypes)[0]
             if len(these) > 0:
                 label = '{} is {}'.format(objtype, truespectype)
-                if len(these) > 1000:
+                if len(these) > nobjscut:
                     dolegend = False
                     hb = plt.hexbin(r[these]-z[these], r[these]-W1[these], mincnt=1,
                                     cmap=cmap, label=label,
@@ -1333,7 +1346,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
-        if nobjs > 1000:
+        if nobjs > nobjscut:
             hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=cmap, 
                             bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
             cb = plt.colorbar(hb)
@@ -1373,7 +1386,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             these = np.where(truespectype == truespectypes)[0]
             if len(these) > 0:
                 label = '{} is {}'.format(objtype, truespectype)
-                if len(these) > 1000:
+                if len(these) > nobjscut:
                     dolegend = False
                     hb = plt.hexbin(r[these]-z[these], W1[these]-W2[these], mincnt=1,
                                     cmap=cmap, label=label,
@@ -1387,7 +1400,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color", nodustcorr=
             plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
-        if nobjs > 1000:
+        if nobjs > nobjscut:
             hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=cmap, 
                             bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
             cb = plt.colorbar(hb)
