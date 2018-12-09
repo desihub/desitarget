@@ -4316,9 +4316,6 @@ class MWS_MAINMaker(STARMaker):
             flux, data, meta, objmeta, indx=indx, psf=True,
             seed=seed, truespectype='STAR', templatetype='STAR')
         
-        if np.sum(np.isnan(truth['FLUX_R'])) > 0:
-            import pdb ; pdb.set_trace()
-                                                           
         return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, targetname='MWS_MAIN'):
