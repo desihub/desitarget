@@ -639,40 +639,57 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     counts = np.bincount(pixels, weights=weights, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
 
-    label = '{} (targets/deg$^2$)'.format(objtype)
+    label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
 
-    # ADM clip the targets to avoid high densities, if requested.
+    densmin, densmax = dens.min(), dens.max()
+    ddens = 0.05 * (densmax - densmin)
+
     if upclip:
-        dens = np.clip(dens, 1, upclip)
+        xmin, xmax = 1, upclip
+    else:
+        xmin, xmax = densmin, densmax
+    
+    if ddens == 0: # small number of pixels
+        nbins = 5
+        ddens = 0.05 * (xmax - xmin)        
+    else:
+        dbins = np.arange(densmin, densmax, ddens) # bin left edges
+        if len(dbins) < 10:
+            ddens = (densmax - densmin) / 10
+            dbins = np.arange(densmin, densmax, ddens)
+        nbins = len(dbins)
 
-    #densmin, densmax = dens.min(), dens.max()
-    #ddens = 0.05 * (densmax - densmin)
-    #import pdb ; pdb.set_trace()
+    ## ADM clip the targets to avoid high densities, if requested.
 
-    # ADM set the number of bins for the histogram (determined from trial and error).
-    nbins = 80
-    # ADM low density objects (QSOs and standard stars) look better with fewer bins.
-    if np.max(dens) < 500:
-        nbins = 40
+    ## ADM set the number of bins for the histogram (determined from trial and error).
+    #nbins = 80
+    ## ADM low density objects (QSOs and standard stars) look better with fewer bins.
+    #if np.max(dens) < 500:
+    #    nbins = 40
+        
     # ADM the density value of the peak histogram bin.
-    h, b = np.histogram(dens, bins=nbins)
+    h, b = np.histogram(dens, bins=nbins, range=(densmin, densmax))
     peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
     ypeak = np.max(h)
 
     # ADM set up and make the plot.
     plt.clf()
     # ADM only plot to just less than upclip, to prevent displaying pile-ups in that bin.
-    plt.xlim((0, 0.95*upclip))
+    plt.xlim((0, 0.95*xmax))
     # ADM give a little space for labels on the y-axis.
     plt.ylim((0, ypeak*1.2))
     plt.xlabel(label)
     plt.ylabel('Number of HEALPixels')
 
-    plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6,
-             label='Observed {} Density (Peak={:.0f} per sq. deg.)'.format(objtype, peak))
+    label = r'Observed {} Density (Peak={:.0f} deg$^{{-2}}$)'.format(objtype, peak)
+    nn, bins = np.histogram(dens, bins=nbins, range=(densmin, densmax))
+    cbins = (bins[:-1] + bins[1:]) / 2.0
+    plt.bar(cbins, nn, align='center', alpha=0.6, label=label, width=ddens)
+    #plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, label=label)
+    
     if objtype in targdens.keys():
         plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
-                    label='Goal {} Density (Goal={:.0f} per sq. deg.)'.format(objtype, targdens[objtype]))
+                    label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(objtype, targdens[objtype]))
     plt.legend(loc='upper left', frameon=False)
 
     # ADM add some metric conditions which are considered a failure for this
@@ -697,9 +714,6 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         plt.savefig(pngfile, bbox_inches='tight', facecolor='yellow')
 
     plt.close()
-
-    return
-
 
 def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     """Make magnitude-based DESI targeting QA plots given a passed set of targets.
@@ -1774,7 +1788,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM make a DR string based on the RELEASE column.
     # ADM potentially there are multiple DRs in a file.
     if mocks:
-        DRs = 'DR Mock'
+        DRs = 'Mock Targets'
     else:
         if 'RELEASE' in targs.dtype.names:
             DRs = ", ".join(["DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000])
