@@ -237,6 +237,8 @@ def _load_dndz(tcnames=None):
 
     log = get_logger()
 
+    densities = desimodel.io.load_target_info()
+
     alltarg = ('ELG', 'LRG', 'QSO', 'BGS_ANY', 'BGS_BRIGHT', 'BGS_FAINT')
     if tcnames is None:
         tcnames = alltarg
@@ -254,9 +256,17 @@ def _load_dndz(tcnames=None):
                     names = ('zmin', 'zmax', 'dndz')
                 dat = astropy.io.ascii.read(dndzfile, names=names, format='basic',
                                             comment='#', delimiter=' ', guess=False)
+
+                # Renormalize dn/dz to match the expected target densities.
+                denskey = 'ntarget_{}'.format(targ.lower())
+                if denskey in densities.keys():
+                    norm = np.sum(dat['dndz'].data) / densities[denskey]
+                else:
+                    norm = 1.0
+
                 dz = (dat['zmax'] - dat['zmin']).data
                 zz = dat['zmin'].data + dz / 2
-                out[targ] = {'z': zz, 'dndz': dat['dndz'].data, 'dz': dz}
+                out[targ] = {'z': zz, 'dndz': dat['dndz'].data / norm, 'dz': dz}
      
     return out
 
@@ -704,7 +714,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     plt.close()
 
-def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
+def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
     """Make magnitude-based DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -718,6 +728,8 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
         The output directory to which to write produced plots.
     fileprefix : :class:`str`, optional, defaults to ``"nmag"`` for
         String to be added to the front of the output file name.
+    area : :class:`float`
+        Total area in deg2.
 
     Returns
     -------
@@ -735,6 +747,12 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
     # ADM value of flux to clip at for plotting purposes.
     loclip = 1e-16
 
+    brightmag, faintmag, deltam = 14, 24, 0.5
+    magbins = np.arange(brightmag, faintmag, deltam) # bin left edges
+    
+    deltam_out = 0.1 # for output file
+    magbins_out = np.arange(brightmag, faintmag, deltam_out) # bin left edges
+    
     # ADM magnitudes for which to plot histograms.
     filters = ['G', 'R', 'Z', 'W1']
     magnames = ['FLUX_' + filter for filter in filters]
@@ -752,31 +770,26 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
         if filtername[0] == 'w':
             filtername = filtername.upper()
 
-        # ADM plot the magnitude histogram.
-        # ADM set the number of bins for the redshift histogram to run in
-        # ADM 0.5 intervals from 14 to 14 + 0.5*bins.
-        nbins, binsize, binstart = 24, 0.5, 14
-        bins = np.arange(nbins)*binsize+binstart
-        # ADM insert a 0 bin and a 100 bin to catch the edges.
-        bins = np.insert(bins, 0, 0.)
-        bins = np.insert(bins, len(bins), 100.)
+        dndm, dndmbins = np.histogram(mag, bins=magbins, range=(brightmag, faintmag))
+        cdndmbins = (dndmbins[:-1] + dndmbins[1:]) / 2.0
 
-        # ADM the density value of the peak redshift histogram bin.
-        h, b = np.histogram(mag, bins=bins)
-        peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
-        ypeak = np.max(h)
+        # ADM the density value of the peak.
+        peak = np.mean( dndmbins[np.argmax(dndm):np.argmax(dndm)+2] )
+        ypeak = np.max(dndm) / area
 
         # ADM set up and make the plot.
         plt.clf()
         # ADM restrict the magnitude limits.
-        plt.xlim(14, 25)
+        plt.xlim(brightmag, faintmag+0.5)
         # ADM give a little space for labels on the y-axis.
-        plt.ylim((0, ypeak*1.2))
+        plt.ylim((0, ypeak * 1.2))
         plt.xlabel(filtername)
-        plt.ylabel('N('+filtername+')')
-        plt.hist(mag, bins=bins, histtype='stepfilled', alpha=0.6,
-                 label='Observed {} {}-mag Distribution (Peak {}={:.0f})'
-                 .format(objtype, filtername, filtername, peak))
+        plt.ylabel('dn / dm (targets deg$^{{-2}}$)'.format(filtername))
+
+        label = 'Observed {} {}-mag dn/dm (Peak {}={:.0f})'.format(
+            objtype, filtername, filtername, peak)
+
+        plt.bar(cdndmbins, dndm / area, align='center', alpha=0.9, label=label, width=deltam)
         plt.legend(loc='upper left', frameon=False)
 
         pngfile = os.path.join(qadir, '{}-{}-{}.png'
@@ -784,16 +797,12 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag"):
         plt.savefig(pngfile, bbox_inches='tight')
         plt.close()
 
-        # ADM create an ASCII file binned 0.1 mags.
-        nbins, binmin, binmax = 100, 14, 24
-        h, b = np.histogram(mag, bins=nbins, range=(binmin, binmax))
-        bincent = ((np.roll(b, 1)+b)/2)[1:]
+        ## ADM create an ASCII file binned 0.1 mags.
+        dndm_out, dndmbins_out = np.histogram(mag, bins=magbins_out, range=(brightmag, faintmag))
+        cdndmbins_out = (dndmbins_out[:-1] + dndmbins_out[1:]) / 2.0
         datfile = pngfile.replace("png", "dat")
-        np.savetxt(datfile, np.vstack((bincent, h)).T,
-                   fmt='%.2f', header='{}   N({})'.format(filtername, filtername))
-
-    return
-
+        np.savetxt(datfile, np.vstack((cdndmbins_out, dndm_out / area)).T,
+                   fmt=('%.2f', '%.3f'), header='{} dn/dm (number per deg2 per 0.1 mag)'.format(filtername))
 
 def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
     """Make Gaia-based DESI targeting QA plots given a passed set of targets.
@@ -1056,7 +1065,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     # ADM set up and make the plot.
     plt.clf()
     plt.xlabel(zlabel)
-    plt.ylabel(r'dN / dz (targets deg$^{-2}$)')
+    plt.ylabel(r'dn / dz (targets deg$^{-2}$)')
 
     for truespectype in np.unique(truespectypes)[srt]:
         these = np.where(truespectype == truespectypes)[0]
@@ -1072,11 +1081,11 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
             plt.bar(cbins, nn / area, align='center', alpha=0.9, label=label, width=dz)
 
     if dndz is not None and objtype in dndz.keys():
-        plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'],
-                 alpha=0.5, color='k', lw=2, label=r'Expected dn/dz ({:.0f} deg$^{{-2}}$)'.format(
-                     np.sum(dndz[objtype]['dndz'])))
-        
-    plt.legend(loc='upper right', frameon=True)
+        plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'], #width=dndz[objtype]['dz'],
+                 alpha=0.5, color='k', lw=2, label=r'Expected {} dn/dz ({:.0f} deg$^{{-2}}$)'.format(
+                     objtype, np.sum(dndz[objtype]['dndz'])))
+
+    plt.legend(loc='upper right', frameon=True, fontsize=10, handletextpad=0.5, labelspacing=0)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz, objtype))
     plt.savefig(pngfile, bbox_inches='tight')
@@ -1133,7 +1142,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
                 plt.scatter(truez[these], mag[these], alpha=0.6, label=label)
     # Legend fails when mixing hexbin and scatterplot
     if dolegend:
-        plt.legend(loc='lower right', frameon=True, ncol=2)
+        plt.legend(loc='lower right', frameon=True, ncol=2, fontsize=10)
 
     plt.xlim((zmin, zmax))
     plt.ylim((magbright, magfaint))
@@ -1180,13 +1189,13 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     from matplotlib.ticker import MultipleLocator, MaxNLocator
     from matplotlib.patches import Polygon
 
-    def elg_colorbox(ax, plottype='gr-rz', verts=None):
+    def elg_colorbox(ax, plottype='grz', verts=None):
         """Draw the ELG selection box."""
 
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
 
-        if plottype == 'gr-rz':
+        if plottype == 'grz':
             coeff0, coeff1 = (1.15, -0.15), (-1.2, 1.6)
             rzmin, rzpivot = 0.3, (coeff1[1] - coeff0[1]) / (coeff0[0] - coeff1[0])
             verts = [(rzmin, ylim[0]),
@@ -1197,13 +1206,13 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         if verts:
             ax.add_patch(Polygon(verts, fill=False, ls='--', lw=3, color='k'))
 
-    def qso_colorbox(ax, plottype='gr-rz', verts=None):
+    def qso_colorbox(ax, plottype='grz', verts=None):
         """Draw the QSO selection boxes."""
 
         xlim = ax.get_xlim()
         ylim = ax.get_ylim()
 
-        if plottype == 'gr-rz':
+        if plottype == 'grz':
             verts = [(-0.3, 1.3),
                      (1.1, 1.3),
                      (1.1, ylim[0]-0.05),
@@ -1268,202 +1277,100 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
-    if mocks:
-        # Get the unique combination of template types, subtypes, and true spectral
-        # types.  Lya QSOs are a special case.
-        templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
-        templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
-        truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
-
-        islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
-        if len(islya) > 0:
-            truespectypes[islya] = np.array(['{}-LYA'.format(tt) for tt in truespectypes[islya]])
-
-        # Plot the histogram in the reverse order of the number of objects.
-        nthese = np.zeros(len(np.unique(truespectypes)))
-        for ii, truespectype in enumerate(np.unique(truespectypes)):
-            nthese[ii] = np.sum(truespectype == truespectypes)
-        srt = np.argsort(nthese)[::-1]    
-
-    # -------------------------------------------------------
-    # ADM set up the g-r vs r-z plot.
-    plt.clf()
-    plt.xlabel(r'$r - z$')
-    plt.ylabel(r'$g - r$')
-    if mocks:
-        dolegend = True
-        for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
-            these = np.where(truespectype == truespectypes)[0]
-            if len(these) > 0:
-                label = '{} is {}'.format(objtype, truespectype)
-                if len(these) > nobjscut:
-                    dolegend = False
-                    hb = plt.hexbin(r[these]-z[these], g[these]-r[these], mincnt=1,
-                                    cmap=cmap, label=label,
-                                    bins='log', extent=(*grlim, *rzlim), gridsize=60)
-                    if ii == 0:
-                        cb = plt.colorbar(hb)
-                        cb.locator = MaxNLocator(nbins=5)
-                        cb.update_ticks()
-                        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-                else:
-                    plt.scatter(r[these]-z[these], g[these]-r[these], alpha=0.6, label=label)
-        if dolegend:
-            plt.legend(loc='upper right', frameon=True)
-    else:
-        # ADM make a contour plot if we have lots of points...
-        if nobjs > nobjscut:
-            hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=cmap, 
-                            bins='log', extent=(*grlim, *rzlim), gridsize=60)
-            cb = plt.colorbar(hb)
-            cb.locator = MaxNLocator(nbins=5)
-            cb.update_ticks()
-            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-
-        # ADM...otherwise make a scatter plot.
+    # Make the plots!
+    for plotnumber in range(3):
+        if plotnumber == 0:
+            plottype = 'grz'
+            xlabel, ylabel = r'$r - z$', r'$g - r$'
+            xlim, ylim = rzlim, grlim
+            xlocator, ylocator = 0.5, 0.5
+            xdata, ydata = r - z, g - r
+        elif plotnumber == 1:
+            plottype = 'rzW1'
+            xlabel, ylabel = r'$z - W_{1}$', r'$r - z$'
+            xlim, ylim = zW1lim, rzlim
+            xlocator, ylocator = 1.0, 0.5
+            xdata, ydata = z - W1, r - z
+        elif plotnumber == 2:
+            plottype = 'rzW1W2'
+            xlabel, ylabel = r'$W_{1} - W_{2}$', r'$r - z$'
+            xlim, ylim = W1W2lim, rzlim
+            xlocator, ylocator = 0.5, 0.5
+            xdata, ydata = W1 - W2, r - z
         else:
-            plt.scatter(r-z, g-r, alpha=0.6)
+            log.error('Unrecognized plot number {}!'.format(plotnumber))
+            raise ValueError
+
+        if mocks:
+            # Get the unique combination of template types, subtypes, and true spectral
+            # types.  Lya QSOs are a special case.
+            templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
+            templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
+            truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
+
+            islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
+            if len(islya) > 0:
+                truespectypes[islya] = np.array(['{}-LYA'.format(tt) for tt in truespectypes[islya]])
+
+            # Plot the histogram in the reverse order of the number of objects.
+            nthese = np.zeros(len(np.unique(truespectypes)))
+            for ii, truespectype in enumerate(np.unique(truespectypes)):
+                nthese[ii] = np.sum(truespectype == truespectypes)
+            srt = np.argsort(nthese)[::-1]    
+
+        plt.clf()
+        plt.xlabel(xlabel)
+        plt.ylabel(ylabel)
+        if mocks:
+            dolegend = True
+            for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
+                these = np.where(truespectype == truespectypes)[0]
+                if len(these) > 0:
+                    label = '{} is {}'.format(objtype, truespectype)
+                    if len(these) > nobjscut:
+                        dolegend = False
+                        hb = plt.hexbin(xdata[these], ydata[these], mincnt=1,
+                                        cmap=cmap, label=label, bins='log',
+                                        extent=(*xlim, *ylim), gridsize=80)
+                        if ii == 0:
+                            cb = plt.colorbar(hb)
+                            #cb.locator = MaxNLocator(nbins=5)
+                            #cb.update_ticks()
+                            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+                    else:
+                        plt.scatter(xdata[these], ydata[these], alpha=0.6, label=label)
+            if dolegend:
+                plt.legend(loc='upper right', frameon=True)
+        else:
+            if nobjs > nobjscut:
+                hb = plt.hexbin(xdata, ydata, mincnt=1,
+                                cmap=cmap, bins='log',
+                                extent=(*xlim, *ylim), gridsize=80)
+                cb = plt.colorbar(hb)
+                #cb.locator = MaxNLocator(nbins=5)
+                #cb.update_ticks()
+                cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+            else:
+                plt.scatter(xdata, ydata, alpha=0.6)
+
+        plt.xlim(xlim)
+        plt.ylim(ylim)
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(MultipleLocator(xlocator))
+        ax.yaxis.set_major_locator(MultipleLocator(ylocator))
+
+        if objtype == 'ELG':
+            elg_colorbox(plt.gca(), plottype=plottype)
             
-    plt.xlim(rzlim)
-    plt.ylim(grlim)
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(MultipleLocator(0.5))
-    ax.yaxis.set_major_locator(MultipleLocator(0.5))
+        if objtype == 'QSO':
+            qso_colorbox(plt.gca(), plottype=plottype)
+            if plottype == 'rzW1W2':
+                plt.axvline(x=-0.4, lw=3, ls='--', color='k')
 
-    if objtype == 'ELG':
-        elg_colorbox(plt.gca(), plottype='gr-rz')
-    if objtype == 'QSO':
-        qso_colorbox(plt.gca(), plottype='gr-rz')
-
-    # ADM make the plot.
-    pngfile = os.path.join(qadir, '{}-grz-{}.png'.format(fileprefix, objtype))
-    plt.savefig(pngfile, bbox_inches='tight')
-    plt.close()
-
-    # -------------------------------------------------------
-    # ADM set up the r-z vs z-W1 plot.
-    plt.clf()
-    plt.xlabel(r'$z - W_1$')
-    plt.ylabel(r'$r - z$')
-    if mocks:
-        dolegend = True
-        for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
-            these = np.where(truespectype == truespectypes)[0]
-            if len(these) > 0:
-                label = '{} is {}'.format(objtype, truespectype)
-                if len(these) > nobjscut:
-                    dolegend = False
-                    hb = plt.hexbin(z[these]-W1[these], r[these]-z[these], mincnt=1,
-                                    cmap=cmap, label=label,
-                                    bins='log', extent=(*zW1lim, *rzlim), gridsize=60)
-                    if ii == 0:
-                        cb = plt.colorbar(hb)
-                        cb.locator = MaxNLocator(nbins=5)
-                        cb.update_ticks()
-                        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-                else:
-                    plt.scatter(z[these]-W1[these], r[these]-z[these], alpha=0.6, label=label)
-        if dolegend:
-            plt.legend(loc='upper right', frameon=True)
-    else:
-        # ADM make a contour plot if we have lots of points...
-        if nobjs > nobjscut:
-            hb = plt.hexbin(z-W1, r-z, mincnt=1, cmap=cmap, 
-                            bins='log', extent=(*zW1lim, *rzlim), gridsize=60)
-            cb = plt.colorbar(hb)
-            cb.locator = MaxNLocator(nbins=5)
-            cb.update_ticks()
-            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-        # ADM...otherwise make a scatter plot.
-        else:
-            plt.scatter(z-W1, r-z, alpha=0.6)
-
-    plt.xlim(zW1lim)
-    plt.ylim(rzlim)
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(MultipleLocator(1.0))
-    ax.yaxis.set_major_locator(MultipleLocator(0.5))
-
-    # ADM...or we might not have any WISE data.
-    # if nobjs == 0:
-    #     log = get_logger()
-    #     log.warning('No data within r-W1 vs. r-z ranges')
-    #     plt.clf()
-    #     plt.xlabel('r - z')
-    #     plt.ylabel('r - W1')
-    #     plt.xlim(rzlim)
-    #     plt.ylim(rW1lim)
-    #     plt.text(1.,1.,'NO DATA')
-
-    # ADM save the plot.
-    pngfile = os.path.join(qadir, '{}-rzW1-{}.png'.format(fileprefix, objtype))
-    plt.savefig(pngfile, bbox_inches='tight')
-    plt.close()
-
-    # -------------------------------------------------------
-    # ADM set up the r-z vs W1-W2 plot.
-    plt.clf()
-    plt.xlabel(r'$W_1 - W_2$')
-    plt.ylabel(r'$r - z$')
-
-    if mocks:
-        dolegend = True
-        for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
-            these = np.where(truespectype == truespectypes)[0]
-            if len(these) > 0:
-                label = '{} is {}'.format(objtype, truespectype)
-                if len(these) > nobjscut:
-                    dolegend = False
-                    hb = plt.hexbin(W1[these]-W2[these], r[these]-z[these], mincnt=1,
-                                    cmap=cmap, label=label,
-                                    bins='log', extent=(*W1W2lim, *rzlim), gridsize=60)
-                    if ii == 0:
-                        cb = plt.colorbar(hb)
-                        cb.locator = MaxNLocator(nbins=5)
-                        cb.update_ticks()
-                        cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-                else:
-                    plt.scatter(W1[these]-W2[these], r[these]-z[these], alpha=0.6, label=label)
-        if dolegend:
-            plt.legend(loc='upper right', frameon=True)
-    else:
-        # ADM make a contour plot if we have lots of points...
-        if nobjs > nobjscut:
-            hb = plt.hexbin(W1-W2, r-z, mincnt=1, cmap=cmap, 
-                            bins='log', extent=(*W1W2lim, *rzlim), gridsize=60)
-            cb = plt.colorbar(hb)
-            cb.locator = MaxNLocator(nbins=5)
-            cb.update_ticks()
-            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
-        # ADM...otherwise make a scatter plot.
-        else:
-            plt.scatter(W1-W2, r-z, alpha=0.6)
-
-    plt.xlim(W1W2lim)
-    plt.ylim(rzlim)
-    ax = plt.gca()
-    ax.xaxis.set_major_locator(MultipleLocator(0.5))
-    ax.yaxis.set_major_locator(MultipleLocator(0.5))
-
-    if objtype == 'QSO':
-        plt.axvline(x=-0.4, lw=3, ls='--', color='k')
-        
-    # # ADM...or we might not have any WISE data
-    # if nobjs == 0:
-    #     log = get_logger()
-    #     log.warning('No data within r-W1 vs. r-z ranges')
-    #     plt.clf()
-    #     plt.xlabel('r - z')
-    #     plt.ylabel('W1 - W2')
-    #     plt.xlim([-1,3])
-    #     plt.ylim([-1,3])
-    #     plt.text(1.,1.,'NO DATA')
-
-    # ADM save the plot
-    pngfile = os.path.join(qadir, '{}-rzW1W2-{}.png'.format(fileprefix, objtype))
-    plt.savefig(pngfile, bbox_inches='tight')
-    plt.close()
-
+        # ADM make the plot.
+        pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix, plottype, objtype))
+        plt.savefig(pngfile, bbox_inches='tight')
+        plt.close()
 
 def _in_desi_footprint(targs):
     """Convenience function for using is_point_in_desi to find which targets are in the footprint.
@@ -1678,7 +1585,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                      .format(objtype, time()-start))
 
             # ADM make magnitude histograms
-            qamag(targs[w], objtype, qadir=qadir, fileprefix="nmag")
+            qamag(targs[w], objtype, qadir=qadir, fileprefix="nmag", area=totarea)
             log.info('Made magnitude histogram plot for {}...t = {:.1f}s'
                      .format(objtype, time()-start))
 
@@ -1862,7 +1769,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('<h1>DESI Targeting QA pages - {} ({})</h1>\n'.format(objtype, DRs))
 
         # ADM Target Densities.
-        html.write('<h2>Target density plots</h2>\n')
+        html.write('<h2>Target density</h2>\n')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
@@ -1874,7 +1781,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</table>\n')
 
         # ADM color-color plots.
-        html.write('<h2>Target color-color plots (corrected for Galactic extinction)</h2>\n')
+        html.write('<h2>Color-color diagrams (corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=3 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
@@ -1885,7 +1792,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</table>\n')
 
         # ADM magnitude plots.
-        html.write('<h2>Magnitude histograms (NOT corrected for Galactic extinction)</h2>\n')
+        html.write('<h2>Magnitude distributions (NOT corrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=4 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots .
@@ -1903,7 +1810,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         # ADM parallax and proper motion plots, if we have that information.
         if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
-            html.write('<h2>Gaia based plots</h2>\n')
+            html.write('<h2>Gaia diagnostics</h2>\n')
             html.write('<table COLS=2 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
@@ -1917,7 +1824,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         # ADM add special plots if we have mock data.
         if mocks:
             html.write('<hr>\n')
-            html.write('<h1>Mock QA\n')
+            #html.write('<h1>Mock QA\n')
 
             # ADM redshift plots.
             html.write('<h2>True redshift distributions</h2>\n')
@@ -1932,7 +1839,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('</table>\n')
 
             # ADM color-color plots.
-            html.write('<h2>True color-color plots (corrected for Galactic extinction)</h2>\n')
+            html.write('<h2>True color-color diagrams (corrected for Galactic extinction)</h2>\n')
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
