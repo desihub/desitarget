@@ -392,7 +392,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.
         But a .png plot of target densities is written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{objtype}.png``.
     """
-    label = '{} (targets/deg$^2$)'.format(objtype)
+    label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
 
@@ -571,9 +571,6 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
 
     plt.close()
 
-    return
-
-
 def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, max_bin_area=1.0,
             fileprefix="histo", catispix=False):
     """Visualize the target density with a histogram of densities. First version taken
@@ -659,14 +656,6 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
             dbins = np.arange(densmin, densmax, ddens)
         nbins = len(dbins)
 
-    ## ADM clip the targets to avoid high densities, if requested.
-
-    ## ADM set the number of bins for the histogram (determined from trial and error).
-    #nbins = 80
-    ## ADM low density objects (QSOs and standard stars) look better with fewer bins.
-    #if np.max(dens) < 500:
-    #    nbins = 40
-        
     # ADM the density value of the peak histogram bin.
     h, b = np.histogram(dens, bins=nbins, range=(densmin, densmax))
     peak = np.mean(b[np.argmax(h):np.argmax(h)+2])
@@ -688,9 +677,9 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     #plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, label=label)
     
     if objtype in targdens.keys():
-        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
+        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k', 
                     label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(objtype, targdens[objtype]))
-    plt.legend(loc='upper left', frameon=False)
+    plt.legend(loc='upper left', frameon=False, fontsize=11)
 
     # ADM add some metric conditions which are considered a failure for this
     # ADM target class...only for classes that have an expected target density.
@@ -1186,7 +1175,9 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         But .png plots of target colors are written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{bands}-{objtype}.png``
         where bands might be, e.g., ``grz``.
+    
     """
+    from matplotlib.ticker import MultipleLocator, MaxNLocator
     from matplotlib.patches import Polygon
 
     def elg_colorbox(ax, plottype='gr-rz', verts=None):
@@ -1257,17 +1248,23 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
     W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
 
+    # For QSOs only--
+    W = 0.75 * W1 + 0.25 * W2
+    grz = (g + 0.8*r + 0.5*z) / 2.3
+
     # Some color ranges -- need to be smarter here.
     if objtype == 'LRG':
         grlim = (0.5, 3)
         rzlim = (0.5, 3)
         rW1lim = (1.5, 5.0)
+        zW1lim = (1.5, 5.0)
     else:
         grlim = (-0.5, 1.6)
         rzlim = (-0.5, 1.5)
         rW1lim = (-1.0, 3.5)
+        zW1lim = (-1.0, 3.5)
 
-    W1W2lim = (-1.0, 1.0)
+    W1W2lim = (-1.0, 1.2)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
@@ -1289,7 +1286,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         srt = np.argsort(nthese)[::-1]    
 
     # -------------------------------------------------------
-    # ADM set up the r-z, g-r plot.
+    # ADM set up the g-r vs r-z plot.
     plt.clf()
     plt.xlabel(r'$r - z$')
     plt.ylabel(r'$g - r$')
@@ -1306,6 +1303,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                                     bins='log', extent=(*grlim, *rzlim), gridsize=60)
                     if ii == 0:
                         cb = plt.colorbar(hb)
+                        cb.locator = MaxNLocator(nbins=5)
+                        cb.update_ticks()
                         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                 else:
                     plt.scatter(r[these]-z[these], g[these]-r[these], alpha=0.6, label=label)
@@ -1317,13 +1316,19 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
             hb = plt.hexbin(r-z, g-r, mincnt=1, cmap=cmap, 
                             bins='log', extent=(*grlim, *rzlim), gridsize=60)
             cb = plt.colorbar(hb)
+            cb.locator = MaxNLocator(nbins=5)
+            cb.update_ticks()
             cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
 
         # ADM...otherwise make a scatter plot.
         else:
             plt.scatter(r-z, g-r, alpha=0.6)
+            
     plt.xlim(rzlim)
     plt.ylim(grlim)
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MultipleLocator(0.5))
+    ax.yaxis.set_major_locator(MultipleLocator(0.5))
 
     if objtype == 'ELG':
         elg_colorbox(plt.gca(), plottype='gr-rz')
@@ -1336,10 +1341,10 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     plt.close()
 
     # -------------------------------------------------------
-    # ADM set up the r-z, r-W1 plot.
+    # ADM set up the r-z vs z-W1 plot.
     plt.clf()
-    plt.xlabel(r'$r - z$')
-    plt.ylabel(r'$r - W_1$')
+    plt.xlabel(r'$z - W_1$')
+    plt.ylabel(r'$r - z$')
     if mocks:
         dolegend = True
         for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
@@ -1348,29 +1353,36 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 label = '{} is {}'.format(objtype, truespectype)
                 if len(these) > nobjscut:
                     dolegend = False
-                    hb = plt.hexbin(r[these]-z[these], r[these]-W1[these], mincnt=1,
+                    hb = plt.hexbin(z[these]-W1[these], r[these]-z[these], mincnt=1,
                                     cmap=cmap, label=label,
-                                    bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+                                    bins='log', extent=(*zW1lim, *rzlim), gridsize=60)
                     if ii == 0:
                         cb = plt.colorbar(hb)
+                        cb.locator = MaxNLocator(nbins=5)
+                        cb.update_ticks()
                         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                 else:
-                    plt.scatter(r[these]-z[these], r[these]-W1[these], alpha=0.6, label=label)
+                    plt.scatter(z[these]-W1[these], r[these]-z[these], alpha=0.6, label=label)
         if dolegend:
             plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
         if nobjs > nobjscut:
-            hb = plt.hexbin(r-z, r-W1, mincnt=1, cmap=cmap, 
-                            bins='log', extent=(*rzlim, *rW1lim), gridsize=60)
+            hb = plt.hexbin(z-W1, r-z, mincnt=1, cmap=cmap, 
+                            bins='log', extent=(*zW1lim, *rzlim), gridsize=60)
             cb = plt.colorbar(hb)
+            cb.locator = MaxNLocator(nbins=5)
+            cb.update_ticks()
             cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
         # ADM...otherwise make a scatter plot.
         else:
-            plt.scatter(r-z, r-W1, alpha=0.6)
+            plt.scatter(z-W1, r-z, alpha=0.6)
 
-    plt.xlim(rzlim)
-    plt.ylim(rW1lim)
+    plt.xlim(zW1lim)
+    plt.ylim(rzlim)
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MultipleLocator(1.0))
+    ax.yaxis.set_major_locator(MultipleLocator(0.5))
 
     # ADM...or we might not have any WISE data.
     # if nobjs == 0:
@@ -1389,10 +1401,10 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     plt.close()
 
     # -------------------------------------------------------
-    # ADM set up the r-z, W1-W2 plot.
+    # ADM set up the r-z vs W1-W2 plot.
     plt.clf()
-    plt.xlabel(r'$r - z$')
-    plt.ylabel(r'$W_1 - W_2$')
+    plt.xlabel(r'$W_1 - W_2$')
+    plt.ylabel(r'$r - z$')
 
     if mocks:
         dolegend = True
@@ -1402,30 +1414,40 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 label = '{} is {}'.format(objtype, truespectype)
                 if len(these) > nobjscut:
                     dolegend = False
-                    hb = plt.hexbin(r[these]-z[these], W1[these]-W2[these], mincnt=1,
+                    hb = plt.hexbin(W1[these]-W2[these], r[these]-z[these], mincnt=1,
                                     cmap=cmap, label=label,
-                                    bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
+                                    bins='log', extent=(*W1W2lim, *rzlim), gridsize=60)
                     if ii == 0:
                         cb = plt.colorbar(hb)
+                        cb.locator = MaxNLocator(nbins=5)
+                        cb.update_ticks()
                         cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                 else:
-                    plt.scatter(r[these]-z[these], W1[these]-W2[these], alpha=0.6, label=label)
+                    plt.scatter(W1[these]-W2[these], r[these]-z[these], alpha=0.6, label=label)
         if dolegend:
             plt.legend(loc='upper right', frameon=True)
     else:
         # ADM make a contour plot if we have lots of points...
         if nobjs > nobjscut:
-            hb = plt.hexbin(r-z, W1-W2, mincnt=1, cmap=cmap, 
-                            bins='log', extent=(*rzlim, *W1W2lim), gridsize=60)
+            hb = plt.hexbin(W1-W2, r-z, mincnt=1, cmap=cmap, 
+                            bins='log', extent=(*W1W2lim, *rzlim), gridsize=60)
             cb = plt.colorbar(hb)
+            cb.locator = MaxNLocator(nbins=5)
+            cb.update_ticks()
             cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
         # ADM...otherwise make a scatter plot.
         else:
-            plt.scatter(r-z, W1-W2, alpha=0.6)
+            plt.scatter(W1-W2, r-z, alpha=0.6)
 
-    plt.xlim(rzlim)
-    plt.ylim(W1W2lim)
+    plt.xlim(W1W2lim)
+    plt.ylim(rzlim)
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MultipleLocator(0.5))
+    ax.yaxis.set_major_locator(MultipleLocator(0.5))
 
+    if objtype == 'QSO':
+        plt.axvline(x=-0.4, lw=3, ls='--', color='k')
+        
     # # ADM...or we might not have any WISE data
     # if nobjs == 0:
     #     log = get_logger()
@@ -1732,7 +1754,15 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     -----
     If making plots, then the ``DESIMODEL`` environment variable must be set to find
     the file of HEALPixels that overlap the DESI footprint.
+
     """
+    import matplotlib as mpl
+
+    mpl.rcParams['xtick.major.width'] = 2
+    mpl.rcParams['ytick.major.width'] = 2
+    mpl.rcParams['xtick.minor.width'] = 2
+    mpl.rcParams['ytick.minor.width'] = 2
+    mpl.rcParams['font.size'] = 13
 
     from desispec.io.util import makepath
     # ADM set up the default logger from desiutil.
@@ -1812,7 +1842,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM html preamble.
     htmlmain = open(htmlfile, 'w')
     htmlmain.write('<html><body>\n')
-    htmlmain.write('<h1>{} Targeting QA pages ({})</h1>\n'.format(svs, DRs))
+    htmlmain.write('<h1>{} Targeting QA ({})</h1>\n'.format(svs, DRs))
 
     # ADM links to each collection of plots for each object type.
     htmlmain.write('<b><h2>Jump to a target class:</h2></b>\n')
