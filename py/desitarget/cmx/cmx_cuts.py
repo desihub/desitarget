@@ -670,7 +670,7 @@ def select_targets(infiles, numproc=4, cmxdir=None):
         targets = finalize(objects, cmx_target, cmx_target, cmx_target,
                            survey='cmx')
         # ADM shift the priorities of targets with functional priorities.
-        targets["PRIORITY"] += priority_shift
+        targets["PRIORITY_INIT"] += priority_shift
 
         return targets
 

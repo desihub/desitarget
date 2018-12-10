@@ -27,10 +27,12 @@ class TestPriorities(unittest.TestCase):
         #- No targeting bits set is priority=0
         self.assertTrue(np.all(calc_priority(t) == 0))
 
-        #- test QSO > LRG > ELG
+        #- test QSO > (LRG_1PASS | LRG_2PASS) > ELG
         t['DESI_TARGET'] = desi_mask.ELG
         self.assertTrue(np.all(calc_priority(t) == desi_mask.ELG.priorities['UNOBS']))
-        t['DESI_TARGET'] |= desi_mask.LRG
+        t['DESI_TARGET'] |= desi_mask.LRG_1PASS
+        self.assertTrue(np.all(calc_priority(t) == desi_mask.LRG.priorities['UNOBS']))
+        t['DESI_TARGET'] |= desi_mask.LRG_2PASS
         self.assertTrue(np.all(calc_priority(t) == desi_mask.LRG.priorities['UNOBS']))
         t['DESI_TARGET'] |= desi_mask.QSO
         self.assertTrue(np.all(calc_priority(t) == desi_mask.QSO.priorities['UNOBS']))
@@ -84,11 +86,16 @@ class TestPriorities(unittest.TestCase):
 
         # BGS ZGOOD targets always have lower priority than MWS targets that
         # are not DONE.
-        lowest_bgs_priority_zgood = min([bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_mask.names()])
+        # ADM first discard N/S informational bits from bitmask as these
+        # ADM should never trump the other bits.
+        bgs_names = [name for name in bgs_mask.names() if 'NORTH' not in name and 'SOUTH' not in name]
+        mws_names = [name for name in mws_mask.names() if 'NORTH' not in name and 'SOUTH' not in name]
 
-        lowest_mws_priority_unobs = min([mws_mask[n].priorities['UNOBS'] for n in mws_mask.names()])
-        lowest_mws_priority_zwarn = min([mws_mask[n].priorities['MORE_ZWARN'] for n in mws_mask.names()])
-        lowest_mws_priority_zgood = min([mws_mask[n].priorities['MORE_ZGOOD'] for n in mws_mask.names()])
+        lowest_bgs_priority_zgood = min([bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])
+
+        lowest_mws_priority_unobs = min([mws_mask[n].priorities['UNOBS'] for n in mws_names])
+        lowest_mws_priority_zwarn = min([mws_mask[n].priorities['MORE_ZWARN'] for n in mws_names])
+        lowest_mws_priority_zgood = min([mws_mask[n].priorities['MORE_ZGOOD'] for n in mws_names])
 
         lowest_mws_priority = min(lowest_mws_priority_unobs,
                                   lowest_mws_priority_zwarn,
