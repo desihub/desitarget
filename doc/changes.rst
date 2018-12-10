@@ -12,6 +12,7 @@ desitarget Change Log
     * New function :func:`targets.calc_priority_no_table` to use less memory.
     * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
     * Set priorities using `LRG_1PASS/2PASS` bits rather than on `LRG`.
+* Refactor QSO color cuts and add hard r > 17.5 limit [`PR #433`_].
 * Minor updates to `select_mock_targets` [`PR #425`_].  
     * Use pre-computed template photometry (requires `v3.1` basis templates). 
     * Include MW dust extinction in the spectra.
@@ -33,6 +34,7 @@ desitarget Change Log
 .. _`PR #424`: https://github.com/desihub/desitarget/pull/424
 .. _`PR #425`: https://github.com/desihub/desitarget/pull/425
 .. _`PR #429`: https://github.com/desihub/desitarget/pull/429
+.. _`PR #433`: https://github.com/desihub/desitarget/pull/433
 
 0.25.0 (2018-11-07)
 -------------------
