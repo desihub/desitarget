@@ -1447,7 +1447,7 @@ class ReadBuzzard(SelectTargets):
         target_name : :class:`str`
             Name of the target being read (e.g., ELG, LRG).
         magcut : :class:`float`
-            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            Magnitude cut (hard-coded to DECam r-band) to subselect targets
             brighter than magcut. 
         only_coords : :class:`bool`, optional
             To get some improvement in speed, only read the target coordinates
@@ -1553,9 +1553,29 @@ class ReadBuzzard(SelectTargets):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        cols = ['Z', 'COEFFS', 'TMAG']
+        cols = ['Z', 'TMAG']
+        #cols = ['Z', 'COEFFS', 'TMAG']
         data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
         zz = data['Z'].astype('f4')
+        tmag = data['TMAG'].astype('f4')
+
+        if magcut:
+            cut = tmag[:, 2] < magcut # r-band
+            if np.count_nonzero(cut) == 0:
+                log.warning('No objects with r < {}!'.format(magcut))
+                return dict()
+            else:
+                mockid = mockid[cut]
+                objid = objid[cut]
+                allpix = allpix[cut]
+                weight = weight[cut]
+                ra = ra[cut]
+                dec = dec[cut]
+                zz = zz[cut]
+                tmag = tmag[np.where(cut)[0], :]
+
+                nobj = len(ra)
+                log.info('Trimmed to {} {}s with r < {}.'.format(nobj, target_name, magcut))
         
         # Optionally (for a little more speed) only return some basic info. 
         if only_coords:
@@ -5221,7 +5241,7 @@ class BuzzardMaker(SelectTargets):
         target_name : :class:`str`
             Name of the target being read.  Defaults to ''.
         magcut : :class:`float`
-            Magnitude cut (hard-coded to SDSS r-band) to subselect targets
+            Magnitude cut (hard-coded to DECam r-band) to subselect targets
             brighter than magcut. 
         only_coords : :class:`bool`, optional
             For various applications, only read the target coordinates.
