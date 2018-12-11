@@ -39,7 +39,8 @@ import matplotlib.pyplot as plt   # noqa: E402
 # ADM set up the default logger from desiutil
 log = get_logger()
 
-_type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green', 'WD': 'purple'}
+_type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green',
+               'WD': 'purple', 'NOT ELG': 'gray'}
 
 def _parse_tcnames(tcstring=None, add_all=True):
     """Turn a comma-separated string of target class names into a list.
@@ -894,9 +895,6 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
     plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
-    return
-
-
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets.
 
@@ -1062,7 +1060,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     if objtype == 'ELG':
         elgcontam = np.where(templatetypes == 'BGS')[0]
         if len(elgcontam) > 0:
-            truespectypes[elgcontam] = 'Not ELG'
+            truespectypes[elgcontam] = 'NOT ELG'
 
     # Plot the histogram in the reverse order of the number of objects.
     nthese = np.zeros(len(np.unique(truespectypes)))
@@ -1320,8 +1318,12 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         grlim = (-0.5, 1.5)
         rzlim = (-0.5, 1.5)
 
-    zW1lim = (-1.0, 3.5)
-    W1W2lim = (-1.0, 1.2)
+    if 'ELG' in objtype:
+        zW1lim = (-3, 2.5)
+        W1W2lim = (-3, 2.5)
+    else:
+        zW1lim = (-1.0, 3.5)
+        W1W2lim = (-1.0, 1.2)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
