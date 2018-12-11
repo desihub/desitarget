@@ -39,7 +39,7 @@ import matplotlib.pyplot as plt   # noqa: E402
 # ADM set up the default logger from desiutil
 log = get_logger()
 
-_type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green'}
+_type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green', 'WD': 'purple'}
 
 def _parse_tcnames(tcstring=None, add_all=True):
     """Turn a comma-separated string of target class names into a list.
@@ -749,7 +749,11 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
     # ADM value of flux to clip at for plotting purposes.
     loclip = 1e-16
 
-    brightmag, faintmag, deltam = 14, 24, 0.5
+    if 'NEARBY' in objtype:
+        brightmag, faintmag, deltam = 6, 18, 0.5
+    else:
+        brightmag, faintmag, deltam = 14, 24, 0.5
+        
     magbins = np.arange(brightmag, faintmag, deltam) # bin left edges
     
     deltam_out = 0.1 # for output file
@@ -1026,9 +1030,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         dz = 0.05
         zmin = -0.05
     elif 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
-        if objtype == 'MWS_WD':
-            dz = 1
-            zmin, zmax = -50, 50
+        if 'WD' in objtype or 'NEARBY' in objtype:
+            dz = 5
+            zmin, zmax = -100, 100
         else:
             dz = 10
             zmin, zmax = -300, 300
@@ -1099,8 +1103,6 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
                 col = type2color[truespectype]
             plt.bar(cbins, nn / area, align='center', alpha=0.6, label=label, width=dz, color=col)
 
-    #import pdb ; pdb.set_trace()
-
     if dndz is not None and objtype in dndz.keys():
         newdndz = np.interp(zbins, dndz[objtype]['z'], dndz[objtype]['dndz'], left=0, right=0)
         newdndz *= np.sum(dndz[objtype]['dndz']) / np.sum(newdndz)
@@ -1140,7 +1142,10 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     mag = 22.5 - 2.5 * np.log10(flux)
 
     if 'BGS' in objtype or 'MWS' in objtype or 'STD' in objtype:
-        magbright, magfaint = 14, 21
+        if 'NEARBY' in objtype:
+            magbright, magfaint = 6, 18
+        else:
+            magbright, magfaint = 14, 21
     else:
         if 'LRG' in objtype:
             magbright, magfaint = 17.5, 21
@@ -1301,13 +1306,20 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     if 'LRG' in objtype:
         grlim = (0.5, 2.5)
         rzlim = (0.5, 2.5)
+    elif 'MWS' in objtype:
+        if 'WD' in objtype:
+            grlim = (-1.5, 1.0)
+            rzlim = (-1.5, 1.0)
+        else:
+            grlim = (-0.5, 2.0)
+            rzlim = (-0.5, 3.0)
     elif 'BGS' in objtype:
         grlim = (-0.5, 2.5)
         rzlim = (-0.5, 2.5)
     else:
         grlim = (-0.5, 1.5)
         rzlim = (-0.5, 1.5)
-        
+
     zW1lim = (-1.0, 3.5)
     W1W2lim = (-1.0, 1.2)
 
@@ -1599,11 +1611,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     else:
         main_mask = desi_mask
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
-                      'STD_FAINT': 200, 'STD_BRIGHT': 50,
+                      'STD_FAINT': 300, 'STD_BRIGHT': 300,
+                      #'STD_FAINT': 200, 'STD_BRIGHT': 50,
                       'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                       'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_WISE': 2500, 'BGS_ANY': 5000,
-                      'MWS_ANY': 2000, 'MWS_BROAD': 10000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
-                      'MWS_MAIN_RED': 4000, 'MWS_MAIN_BLUE': 4000}
+                      'MWS_ANY': 2000, 'MWS_BROAD': 2000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
+                      'MWS_MAIN_RED': 2000, 'MWS_MAIN_BLUE': 2000}
 
     for objtype in targdens:
         if 'ALL' in objtype:
