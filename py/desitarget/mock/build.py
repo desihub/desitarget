@@ -665,12 +665,10 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
 
                     # Sample from the appropriate Gaussian mixture model and
                     # then generate the spectra.
-                    if target_type == 'ELG' or target_type == 'BGS':
-                        mag = star_data['MAG']
-                    elif target_type == 'QSO':
-                        mag = star_data['GMAG']
-                    elif target_type == 'LRG':
+                    if target_type == 'LRG':
                         mag = star_data['ZMAG']
+                    else:
+                        mag = star_data['MAG']
                     
                     gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                         isouth=star_data['SOUTH'],
@@ -731,12 +729,10 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
 
                     # Sample from the appropriate Gaussian mixture model and
                     # then generate the spectra.
-                    if target_type == 'QSO':
-                        mag = galaxy_data['GMAG']
-                    elif target_type == 'ELG':
-                        mag = galaxy_data['RMAG']
-                    elif target_type == 'LRG':
+                    if target_type == 'LRG':
                         mag = galaxy_data['ZMAG']
+                    else:
+                        mag = galaxy_data['MAG']
                     
                     gmmout = ContamGalaxiesMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                            isouth=galaxy_data['SOUTH'],
