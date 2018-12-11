@@ -1014,7 +1014,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     nobjs = len(cat)
 
     truez = cat["TRUEZ"]
-    zmax = truez.max()
+    zmax = truez.max()*1.1
     
     if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
         truez *= 2.99e5 # [km/s]
@@ -1042,7 +1042,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         zbins = np.arange(zmin, zmax, dz)
     nzbins = len(zbins)
 
-    objcolor = {objtype: 'blue'}
+    objcolor = {'ALL': 'black', objtype: 'blue'}
     type2color = {**_type2color, **objcolor}
     
     # Get the unique combination of template types, subtypes, and true spectral
@@ -1066,6 +1066,11 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         nthese[ii] = np.sum(truespectype == truespectypes)
     srt = np.argsort(nthese)[::-1]
 
+    if len(np.unique(truespectypes)) > 2:
+        ncol = 2
+    else:
+        ncol = 1
+
     # ADM set up and make the plot.
     plt.clf()
     plt.xlabel(zlabel)
@@ -1075,11 +1080,15 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         these = np.where(truespectype == truespectypes)[0]
         if len(these) > 0:
             if 'QSO' in objtype:
-                label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$)'.format(
-                    objtype, truespectype, len(these), len(these) / area)
+                label = r'{} is {} ({:.0f} deg$^{{-2}}$)'.format(
+                    objtype, truespectype, len(these) / area)
+                #label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$)'.format(
+                #    objtype, truespectype, len(these), len(these) / area)
             else:
-                label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$))'.format(
-                    objtype, truespectype, len(these), len(these) / area)
+                label = r'{} is {} ({:.0f} deg$^{{-2}}$))'.format(
+                    objtype, truespectype, len(these) / area)
+                #label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$))'.format(
+                #    objtype, truespectype, len(these), len(these) / area)
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
 
@@ -1090,12 +1099,24 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
                 col = type2color[truespectype]
             plt.bar(cbins, nn / area, align='center', alpha=0.6, label=label, width=dz, color=col)
 
-    if dndz is not None and objtype in dndz.keys():
-        plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'], #width=dndz[objtype]['dz'],
-                 alpha=0.5, color='k', lw=2, label=r'Expected {} dn/dz ({:.0f} deg$^{{-2}}$)'.format(
-                     objtype, np.sum(dndz[objtype]['dndz'])))
+    #import pdb ; pdb.set_trace()
 
-    plt.legend(loc='upper right', frameon=True, fontsize=10, handletextpad=0.5, labelspacing=0)
+    if dndz is not None and objtype in dndz.keys():
+        newdndz = np.interp(zbins, dndz[objtype]['z'], dndz[objtype]['dndz'], left=0, right=0)
+        newdndz *= np.sum(dndz[objtype]['dndz']) / np.sum(newdndz)
+        plt.step(zbins, newdndz, alpha=0.5, color='k', lw=2,
+                 label=r'Expected {} dn/dz ({:.0f} deg$^{{-2}}$)'.format(
+                     objtype, np.sum(dndz[objtype]['dndz'])))
+        #plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'], #width=dndz[objtype]['dz'],
+        #         alpha=0.5, color='k', lw=2, label=r'Expected {} dn/dz ({:.0f} deg$^{{-2}}$)'.format(
+        #             objtype, np.sum(dndz[objtype]['dndz'])))
+
+    if 'LRG' in objtype:
+        loc = 'upper left'
+    else:
+        loc = 'upper right'
+    plt.legend(loc=loc, frameon=True, fontsize=10,
+               handletextpad=0.5, labelspacing=0)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz, objtype))
     plt.savefig(pngfile, bbox_inches='tight')
@@ -1110,9 +1131,6 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     if 'LRG' in objtype:
         band = 'z'
         flux = cat['FLUX_Z'].clip(1e-16)
-    elif 'QSO' in objtype:
-        band = 'g'
-        flux = cat['FLUX_G'].clip(1e-16)
     else:
         band = 'r'
         flux = cat['FLUX_R'].clip(1e-16)
@@ -1122,7 +1140,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     mag = 22.5 - 2.5 * np.log10(flux)
 
     if 'BGS' in objtype or 'MWS' in objtype or 'STD' in objtype:
-        magbright, magfaint = 14, 20.5
+        magbright, magfaint = 14, 21
     else:
         if 'LRG' in objtype:
             magbright, magfaint = 17.5, 21
@@ -1159,7 +1177,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
                 plt.scatter(truez[these], mag[these], alpha=0.6, label=label, color=col)
     # Legend fails when mixing hexbin and scatterplot
     if dolegend:
-        plt.legend(loc='lower right', frameon=True, ncol=2, fontsize=10, handletextpad=0.5, labelspacing=0)
+        plt.legend(loc='upper right', frameon=True, ncol=ncol, fontsize=10,
+                   handletextpad=0.5, labelspacing=0)
 
     plt.xlim((zmin, zmax))
     plt.ylim((magbright, magfaint))
@@ -1279,22 +1298,22 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     grz = (g + 0.8*r + 0.5*z) / 2.3
 
     # Some color ranges -- need to be smarter here.
-    if objtype == 'LRG':
-        grlim = (0.5, 3)
-        rzlim = (0.5, 3)
-        rW1lim = (1.5, 5.0)
-        zW1lim = (1.5, 5.0)
+    if 'LRG' in objtype:
+        grlim = (0.5, 2.5)
+        rzlim = (0.5, 2.5)
+    elif 'BGS' in objtype:
+        grlim = (-0.5, 2.5)
+        rzlim = (-0.5, 2.5)
     else:
-        grlim = (-0.5, 1.6)
+        grlim = (-0.5, 1.5)
         rzlim = (-0.5, 1.5)
-        rW1lim = (-1.0, 3.5)
-        zW1lim = (-1.0, 3.5)
-
+        
+    zW1lim = (-1.0, 3.5)
     W1W2lim = (-1.0, 1.2)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
-    objcolor = {objtype: 'blue'}
+    objcolor = {'ALL': 'black', objtype: 'blue'}
     type2color = {**_type2color, **objcolor}
     
     # Make the plots!
@@ -1338,6 +1357,11 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 nthese[ii] = np.sum(truespectype == truespectypes)
             srt = np.argsort(nthese)[::-1]    
 
+            if len(np.unique(truespectypes)) > 2:
+                ncol = 2
+            else:
+                ncol = 1
+
         plt.clf()
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
@@ -1367,7 +1391,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                     else:
                         plt.scatter(xdata[these], ydata[these], alpha=0.6, label=label, color=col)
             if dolegend:
-                plt.legend(loc='upper right', frameon=True, ncol=2, fontsize=10, handletextpad=0.5, labelspacing=0)
+                plt.legend(loc='upper right', frameon=True, ncol=ncol, fontsize=10,
+                           handletextpad=0.5, labelspacing=0)
         else:
             if nobjs > nobjscut:
                 hb = plt.hexbin(xdata, ydata, mincnt=1, cmap=cmap, bins='log',
@@ -1851,7 +1876,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         if mocks:
             html.write('<hr>\n')
             html.write('<h1>Mock QA</h1>\n')
-            html.write('<h4>No Galactic extinction and no photometric scatter.</h4>\n')
+            html.write('<h4>No Galactic extinction or photometric scatter.</h4>\n')
 
             # ADM redshift plots.
             html.write('<h2>True redshift distributions</h2>\n')
