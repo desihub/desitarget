@@ -2211,13 +2211,15 @@ class ReadLyaCoLoRe(SelectTargets):
         for these, issouth in zip( (north, south), (False, True) ):
             if len(these) > 0:
                 if issouth:
-                    qsometa = generateQlfPoints(qlf, magrange, zrange, zin=zz, kcorr=kcorr_south,
-                                                qlfseed=seed, gridseed=seed)
+                    qsometa = generateQlfPoints(qlf, magrange, zrange, zin=zz[these],
+                                                kcorr=kcorr_south, qlfseed=seed,
+                                                gridseed=seed)
                     mag[these] = qsometa.data['appMag']
                     magfilter[these] = normfilter_north
                 else:
-                    qsometa = generateQlfPoints(qlf, magrange, zrange, zin=zz, kcorr=kcorr_north,
-                                                qlfseed=seed, gridseed=seed)
+                    qsometa = generateQlfPoints(qlf, magrange, zrange, zin=zz[these],
+                                                kcorr=kcorr_north, qlfseed=seed,
+                                                gridseed=seed)
                     mag[these] = qsometa.data['appMag']
                     magfilter[these] = normfilter_south
             
