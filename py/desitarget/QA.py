@@ -36,6 +36,11 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt   # noqa: E402
 
+# ADM set up the default logger from desiutil
+log = get_logger()
+
+_type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green'}
+
 def _parse_tcnames(tcstring=None, add_all=True):
     """Turn a comma-separated string of target class names into a list.
 
@@ -57,9 +62,6 @@ def _parse_tcnames(tcstring=None, add_all=True):
         - One use of this function is to check for valid target class
           strings. An IOError is raised if a string is invalid.
     """
-    # ADM set up the default logger from desiutil
-    log = get_logger()
-
     tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"]
     if add_all:
         tcdefault = ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "ALL"]
@@ -874,15 +876,14 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
 
     # ADM make a contour plot if we have lots of points...
     if nobjs > nobjscut:
-        hb = plt.hexbin(cat["PMRA"], cat["PMDEC"],
-                        mincnt=1, cmap=cmap,
+        hb = plt.hexbin(cat["PMRA"], cat["PMDEC"], mincnt=1, cmap=cmap,
                         bins='log', extent=(*ralim, *declim), gridsize=60)
         cb = plt.colorbar(hb)
         cb.set_label(r'$\log_{10}$ (Number of Sources)')
 
     # ADM...otherwise make a scatter plot.
     else:
-        plt.scatter(cat["PMRA"], cat["PMDEC"], alpha=0.6)
+        plt.scatter(cat["PMRA"], cat["PMDEC"], alpha=0.6, color='blue')
 
     # ADM save the plot.
     pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix, 'pm', objtype))
@@ -1041,6 +1042,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         zbins = np.arange(zmin, zmax, dz)
     nzbins = len(zbins)
 
+    objcolor = {objtype: 'blue'}
+    type2color = {**_type2color, **objcolor}
+    
     # Get the unique combination of template types, subtypes, and true spectral
     # types.  Lya QSOs and galaxies contaminating ELGs are a special case.
     templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
@@ -1078,7 +1082,13 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
                     objtype, truespectype, len(these), len(these) / area)
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
-            plt.bar(cbins, nn / area, align='center', alpha=0.9, label=label, width=dz)
+
+            if truespectype not in type2color.keys():
+                log.warning('Missing color for spectral type {}!'.format(truespectype))
+                col = 'black'
+            else:
+                col = type2color[truespectype]
+            plt.bar(cbins, nn / area, align='center', alpha=0.6, label=label, width=dz, color=col)
 
     if dndz is not None and objtype in dndz.keys():
         plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'], #width=dndz[objtype]['dz'],
@@ -1098,14 +1108,16 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     cmap = plt.cm.get_cmap('RdYlBu')
 
     if 'LRG' in objtype:
+        band = 'z'
         flux = cat['FLUX_Z'].clip(1e-16)
-        plt.ylabel('z (AB mag)')
     elif 'QSO' in objtype:
+        band = 'g'
         flux = cat['FLUX_G'].clip(1e-16)
-        plt.ylabel('g (AB mag)')
     else:
+        band = 'r'
         flux = cat['FLUX_R'].clip(1e-16)
-        plt.ylabel('r (AB mag)')
+        
+    plt.ylabel('{} (AB mag)'.format(band))
         
     mag = 22.5 - 2.5 * np.log10(flux)
 
@@ -1126,6 +1138,11 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     dolegend = True
     for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
         these = np.where(truespectype == truespectypes)[0]
+        if truespectype not in type2color.keys():
+            log.warning('Missing color for spectral type {}!'.format(truespectype))
+            col = 'black'
+        else:
+            col = type2color[truespectype]
         if len(these) > 0:
             label = '{} is {}'.format(objtype, truespectype)
             # ADM make a contour plot if we have lots of points...
@@ -1139,10 +1156,10 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
                     cb.set_label(r'$\log_{10}$ (Number of Targets)')
             else:
                 # ADM...otherwise make a scatter plot.
-                plt.scatter(truez[these], mag[these], alpha=0.6, label=label)
+                plt.scatter(truez[these], mag[these], alpha=0.6, label=label, color=col)
     # Legend fails when mixing hexbin and scatterplot
     if dolegend:
-        plt.legend(loc='lower right', frameon=True, ncol=2, fontsize=10)
+        plt.legend(loc='lower right', frameon=True, ncol=2, fontsize=10, handletextpad=0.5, labelspacing=0)
 
     plt.xlim((zmin, zmax))
     plt.ylim((magbright, magfaint))
@@ -1277,6 +1294,9 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
+    objcolor = {objtype: 'blue'}
+    type2color = {**_type2color, **objcolor}
+    
     # Make the plots!
     for plotnumber in range(3):
         if plotnumber == 0:
@@ -1325,33 +1345,39 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
             dolegend = True
             for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
                 these = np.where(truespectype == truespectypes)[0]
+
+                if truespectype not in type2color.keys():
+                    log.warning('Missing color for spectral type {}!'.format(truespectype))
+                    col = 'black'
+                else:
+                    col = type2color[truespectype]
+                    
                 if len(these) > 0:
                     label = '{} is {}'.format(objtype, truespectype)
                     if len(these) > nobjscut:
                         dolegend = False
                         hb = plt.hexbin(xdata[these], ydata[these], mincnt=1,
                                         cmap=cmap, label=label, bins='log',
-                                        extent=(*xlim, *ylim), gridsize=80)
+                                        extent=(*xlim, *ylim), gridsize=60)
                         if ii == 0:
                             cb = plt.colorbar(hb)
                             #cb.locator = MaxNLocator(nbins=5)
                             #cb.update_ticks()
                             cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
                     else:
-                        plt.scatter(xdata[these], ydata[these], alpha=0.6, label=label)
+                        plt.scatter(xdata[these], ydata[these], alpha=0.6, label=label, color=col)
             if dolegend:
-                plt.legend(loc='upper right', frameon=True)
+                plt.legend(loc='upper right', frameon=True, ncol=2, fontsize=10, handletextpad=0.5, labelspacing=0)
         else:
             if nobjs > nobjscut:
-                hb = plt.hexbin(xdata, ydata, mincnt=1,
-                                cmap=cmap, bins='log',
-                                extent=(*xlim, *ylim), gridsize=80)
+                hb = plt.hexbin(xdata, ydata, mincnt=1, cmap=cmap, bins='log',
+                                extent=(*xlim, *ylim), gridsize=60)
                 cb = plt.colorbar(hb)
                 #cb.locator = MaxNLocator(nbins=5)
                 #cb.update_ticks()
                 cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
             else:
-                plt.scatter(xdata, ydata, alpha=0.6)
+                plt.scatter(xdata, ydata, alpha=0.6, color=objcolor[objtype])
 
         plt.xlim(xlim)
         plt.ylim(ylim)
@@ -1792,7 +1818,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</table>\n')
 
         # ADM magnitude plots.
-        html.write('<h2>Magnitude distributions (NOT corrected for Galactic extinction)</h2>\n')
+        html.write('<h2>Magnitude distributions (uncorrected for Galactic extinction)</h2>\n')
         html.write('<table COLS=4 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots .
@@ -1824,7 +1850,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         # ADM add special plots if we have mock data.
         if mocks:
             html.write('<hr>\n')
-            #html.write('<h1>Mock QA\n')
+            html.write('<h1>Mock QA</h1>\n')
+            html.write('<h4>No Galactic extinction and no photometric scatter.</h4>\n')
 
             # ADM redshift plots.
             html.write('<h2>True redshift distributions</h2>\n')
@@ -1839,7 +1866,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('</table>\n')
 
             # ADM color-color plots.
-            html.write('<h2>True color-color diagrams (corrected for Galactic extinction)</h2>\n')
+            html.write('<h2>True color-color diagrams</h2>\n')
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...

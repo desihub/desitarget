@@ -622,7 +622,7 @@ class SelectTargets(object):
                 if nneed == 0 or itercount == maxiter:
                     makemore = False
                 itercount += 1
-                    
+
             return samp
         
         for ii, mm in enumerate(np.atleast_1d(morph)):
@@ -656,6 +656,8 @@ class SelectTargets(object):
                     gmmout['MAG'][gthese] = samp['r'][these]
                 if 'zw1' in samp.dtype.names:
                     gmmout['ZW1'][gthese] = samp['zw1'][these]
+                if 'w1w2' in samp.dtype.names:
+                    gmmout['W1W2'][gthese] = samp['w1w2'][these]
                 
                 gmmout['GR'][gthese] = samp['gr'][these]
                 gmmout['RZ'][gthese] = samp['rz'][these]
@@ -866,16 +868,16 @@ class SelectTargets(object):
 
         gr, rz = data['GR'][indx], data['RZ'][indx]
 
-        if target_name == 'QSO':
-            if contaminants:
-                gmag = normmag = data['GMAG'][indx]
-                magfilter = data['MAGFILTER-G'][indx]
-            else:
-                gmag = normmag = data['MAG'][indx]
-                magfilter = data['MAGFILTER'][indx]
-            rmag, zmag = _r_and_z(gmag, gr, rz)
+        #if target_name == 'QSO':
+        #    if contaminants:
+        #        gmag = normmag = data['GMAG'][indx]
+        #        magfilter = data['MAGFILTER-G'][indx]
+        #    else:
+        #        gmag = normmag = data['MAG'][indx]
+        #        magfilter = data['MAGFILTER'][indx]
+        #    rmag, zmag = _r_and_z(gmag, gr, rz)
             
-        elif target_name == 'LRG':
+        if target_name == 'LRG':
             if contaminants:
                 zmag = normmag = data['ZMAG'][indx]
                 magfilter = data['MAGFILTER-Z'][indx]
@@ -883,7 +885,6 @@ class SelectTargets(object):
                 zmag = normmag = data['MAG'][indx]
                 magfilter = data['MAGFILTER'][indx]
             gmag, rmag = _g_and_r(zmag, gr, rz)
-            
         else:
             rmag = normmag = data['MAG'][indx]
             magfilter = data['MAGFILTER'][indx]
@@ -2065,6 +2066,17 @@ class ReadLyaCoLoRe(SelectTargets):
             If mockfile, nside, or nside_lya are not defined.
 
         """
+        from astropy import cosmology
+
+        try:
+            from simqso.sqbase import ContinuumKCorr
+            from simqso.sqmodels import BOSS_DR9_PLEpivot
+            from simqso.sqgrids import generateQlfPoints
+        except ImportError:
+            message = 'Please install https://github.com/imcgreer/simqso'
+            log.error(message)
+            raise(ImportError(message))
+            
         if mockfile is None:
             log.warning('Mockfile input is required.')
             raise ValueError
@@ -2177,15 +2189,48 @@ class ReadLyaCoLoRe(SelectTargets):
                 mockdir, mpix//100, mpix, nside_lya, mpix))
 
         isouth = self.is_south(dec)
-        
-        # ToDo: draw magnitudes from an appropriate luminosity function!
 
+        # Draw apparent magnitudes from an BOSS/DR9 QSO luminosity function
+        # (code taken from also desisim.templates.SIMQSO).
+        #
+        #   from speclite import filters
+        #   print(filters.load_filters('BASS-r').effective_wavelengths.value,
+        #         filters.load_filters('decam2014-r').effective_wavelengths.value)
+
+        magrange = (17.5, 22.7)
+        zrange = (np.min(zz), np.max(zz))
+        
+        normfilter_north, normfilter_south = 'BASS-r', 'DECam-r'
+        weff_normfilter_north, weff_normfilter_south = 6437.79282937, 6469.62203811
+        
+        kcorr_north = ContinuumKCorr(normfilter_north, 1450, effWaveBand=weff_normfilter_north)
+        kcorr_south = ContinuumKCorr(normfilter_south, 1450, effWaveBand=weff_normfilter_south)
+        qlf = BOSS_DR9_PLEpivot(cosmo=cosmology.core.FlatLambdaCDM(70.0, 0.3))
+
+        mag = np.zeros(nobj).astype('f4')
+        magfilter = np.zeros(nobj).astype('U15')
+
+        south = np.where(isouth)[0]
+        north = np.where(~isouth)[0]
+        for these, issouth in zip( (north, south), (False, True) ):
+            if len(these) > 0:
+                if issouth:
+                    qsometa = generateQlfPoints(qlf, magrange, zrange, zin=zz, kcorr=kcorr_south,
+                                                qlfseed=seed, gridseed=seed)
+                    mag[these] = qsometa.data['appMag']
+                    magfilter[these] = normfilter_north
+                else:
+                    qsometa = generateQlfPoints(qlf, magrange, zrange, zin=zz, kcorr=kcorr_north,
+                                                qlfseed=seed, gridseed=seed)
+                    mag[these] = qsometa.data['appMag']
+                    magfilter[these] = normfilter_south
+            
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.
         log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
         gmmout = self.sample_GMM(nobj, target='QSO', isouth=isouth,
-                                 seed=seed, prior_redshift=zz)
-            
+                                 seed=seed, prior_redshift=zz, prior_mag=mag)
+
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'CoLoRe',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
@@ -2194,6 +2239,7 @@ class ReadLyaCoLoRe(SelectTargets):
                'BRICKNAME': self.Bricks.brickname(ra, dec),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
+               'MAG': mag, 'MAGFILTER': magfilter,
                'SOUTH': isouth}
         if gmmout is not None:
             out.update(gmmout)
@@ -3215,19 +3261,13 @@ class LYAMaker(SelectTargets):
             # Handle north/south photometry.
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
-            
+
             if not self.use_simqso:
-                input_meta = empty_metatable(nmodel=nobj, objtype=self.objtype, input_meta=True)
+                input_meta = empty_metatable(nmodel=nobj, objtype='QSO', subtype='LYA', input_meta=True)
                 input_meta['SEED'][:] = rand.randint(2**31, size=nobj)
                 input_meta['REDSHIFT'][:] = data['Z'][indx]
-
-                # These magnitudes are a total hack!
-                if len(north) > 0:
-                    input_meta['MAG'][north] = rand.uniform(20, 22.5, len(north)).astype('f4')
-                    input_meta['MAGFILTER'][north] = 'BASS-r'
-                if len(south) > 0:
-                    input_meta['MAG'][south] = rand.uniform(20, 22.5, len(south)).astype('f4')
-                    input_meta['MAGFILTER'][south] = 'decam2014-r'
+                input_meta['MAG'][:] = data['MAG'][indx]
+                input_meta['MAGFILTER'][:] = data['MAGFILTER'][indx]
                                 
             # Read skewers.
             skewer_wave = None
