@@ -17,7 +17,7 @@ contaminants:
         }
     targets:
         BGS: {
-            stars: 0.05,
+            stars: 0.05, # Fraction
         }
         ELG: {
             stars: 0.05,
@@ -27,13 +27,13 @@ contaminants:
             stars: 0.04,
         }
         QSO: {
-            stars: 0.25,
-            galaxies: 0.1,
+            stars: 0.525,    # = 37% of 170/deg2 = 67/deg2
+            galaxies: 0.225, # = 16% of 170/deg2 = 23/deg2
         }
 targets:
     BGS: {
         target_type: BGS,
-        mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/desi_footprint/v0.0.4/BGS.hdf5',
+        mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/full_sky/v0.0.4/BGS_r20.6.hdf5',
         format: durham_mxxl_hdf5,
         magcut: 20.3,
     }
@@ -41,7 +41,7 @@ targets:
         target_type: ELG,
         mockfile: '{DESI_ROOT}/mocks/DarkSky/v1.0.1/elg_0_inpt.fits',
         format: gaussianfield,
-        density: 2400,
+        density: 2200,
     }
     LRG: {
         target_type: LRG,
@@ -70,7 +70,7 @@ targets:
     }
     MWS_MAIN: {
         target_type: STAR,
-        mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.5/healpix',
+        mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
         nside_galaxia: 8,
         format: galaxia,
     }
