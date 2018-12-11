@@ -363,7 +363,7 @@ class SelectTargets(object):
             wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
             data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
 
-    def scatter_photometry(self, data, truth, targets, indx=None, psf=True,
+    def scatter_photometry(self, data, truth, targets, indx=None, 
                            seed=None, qaplot=False):
         """Add noise to the input (noiseless) photometry based on the depth (as well as
         the inverse variance fluxes in GRZW1W2).
@@ -381,9 +381,6 @@ class SelectTargets(object):
         indx : :class:`numpy.ndarray`, optional
             Scatter the photometry of a subset of the objects in the data
             dictionary, as specified using their zero-indexed indices.
-        psf : :class:`bool`, optional
-            For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
-            otherwise use GALDEPTH.  Defaults to True.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
         qaplot : :class:`bool`, optional
@@ -398,23 +395,25 @@ class SelectTargets(object):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        if psf:
-            depthprefix = 'PSF'
-        else:
-            depthprefix = 'GAL'
-
-        factor = 5 # -- should this be 1 or 5???
-
         for band in ('G', 'R', 'Z'):
             fluxkey = 'FLUX_{}'.format(band)
             ivarkey = 'FLUX_IVAR_{}'.format(band)
-            depthkey = '{}DEPTH_{}'.format(depthprefix, band)
 
-            sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
-            targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
+            for depthprefix in ('PSF', 'GAL'):
+                if depthprefix == 'PSF':
+                    these = np.where( data['TYPE'][indx] == 'PSF' )[0] # point sources
+                else:
+                    these = np.where( data['TYPE'][indx] != 'PSF' )[0] # galaxies
+                    
+                if len(these) > 0:
+                    depthkey = '{}DEPTH_{}'.format(depthprefix, band)
 
-            targets[ivarkey][:] = 1 / sigma**2
+                    sigma = 1 / np.sqrt(data[depthkey][indx][these]) / 5 # nanomaggies, 1-sigma
+                    targets[fluxkey][these] = truth[fluxkey][these] + rand.normal(scale=sigma)
 
+                    targets[ivarkey][these] = 1 / sigma**2
+
+        # WISE sources are all point sources
         for band in ('W1', 'W2'):
             fluxkey = 'FLUX_{}'.format(band)
             ivarkey = 'FLUX_IVAR_{}'.format(band)
@@ -978,7 +977,7 @@ class SelectTargets(object):
         return fiberfraction_g, fiberfraction_r, fiberfraction_z
 
     def populate_targets_truth(self, flux, data, meta, objmeta, indx=None,
-                               seed=None, psf=True, use_simqso=True, truespectype='',
+                               seed=None, use_simqso=True, truespectype='',
                                templatetype='', templatesubtype=''):
         """Initialize and populate the targets and truth tables given a dictionary of
         source properties and a spectral metadata table.  
@@ -994,9 +993,6 @@ class SelectTargets(object):
             dictionary, as specified using their zero-indexed indices.
         seed : :class:`int`, optional
             Seed for reproducibility and random number generation.
-        psf : :class:`bool`, optional
-            For point sources (e.g., QSO, STAR) use the PSFDEPTH values,
-            otherwise use GALDEPTH.  Defaults to True.
         use_simqso : :class:`bool`, optional
             Initialize a SIMQSO-style objtruth table. Defaults to True.
         truespectype : :class:`str` or :class:`numpy.array`, optional
@@ -1089,7 +1085,7 @@ class SelectTargets(object):
             
         # Scatter the observed photometry based on the depth and then attenuate
         # for Galactic extinction.
-        self.scatter_photometry(data, truth, targets, indx=indx, psf=psf, seed=seed)
+        self.scatter_photometry(data, truth, targets, indx=indx, seed=seed)
 
         for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
                               ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
@@ -3069,7 +3065,7 @@ class QSOMaker(SelectTargets):
                         flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=True, use_simqso=self.use_simqso,
+            flux, data, meta, objmeta, indx=indx, use_simqso=self.use_simqso,
             seed=seed, truespectype='QSO', templatetype='QSO')
 
         return flux, self.wave, targets, truth, objtruth
@@ -3389,7 +3385,7 @@ class LYAMaker(SelectTargets):
                     flux[ii, :] = resample_flux(self.wave, qso_wave, _flux[ii, :], extrapolate=True)
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=True, seed=seed,
+            flux, data, meta, objmeta, indx=indx, seed=seed,
             truespectype='QSO', templatetype='QSO', templatesubtype='LYA')
 
         return flux, self.wave, targets, truth, objtruth
@@ -3624,7 +3620,7 @@ class LRGMaker(SelectTargets):
                     flux[these, :] = flux1
                     
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, seed=seed,
             truespectype='GALAXY', templatetype='LRG')
 
         return flux, self.wave, targets, truth, objtruth
@@ -3845,7 +3841,7 @@ class ELGMaker(SelectTargets):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, seed=seed,
             truespectype='GALAXY', templatetype='ELG')
 
         return flux, self.wave, targets, truth, objtruth
@@ -4068,7 +4064,7 @@ class BGSMaker(SelectTargets):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
 
         return flux, self.wave, targets, truth, objtruth
@@ -4403,7 +4399,7 @@ class MWS_MAINMaker(STARMaker):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=True,
+            flux, data, meta, objmeta, indx=indx, 
             seed=seed, truespectype='STAR', templatetype='STAR')
         
         return flux, self.wave, targets, truth, objtruth
@@ -4586,7 +4582,7 @@ class MWS_NEARBYMaker(STARMaker):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=True, 
+            flux, data, meta, objmeta, indx=indx, 
             seed=seed, truespectype='STAR', templatetype='STAR',
             templatesubtype=data['TEMPLATESUBTYPE'][indx])
 
@@ -4916,7 +4912,7 @@ class WDMaker(SelectTargets):
                                 flux[match[these], :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=True, 
+            flux, data, meta, objmeta, indx=indx, 
             seed=seed, truespectype='WD', templatetype='WD',
             templatesubtype=allsubtype)
 
@@ -5075,7 +5071,7 @@ class SKYMaker(SelectTargets):
         meta['REDSHIFT'][:] = data['Z'][indx]
         
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, seed=seed,
             truespectype='SKY', templatetype='SKY')
 
         return flux, self.wave, targets, truth, objtruth
@@ -5418,7 +5414,7 @@ class BuzzardMaker(SelectTargets):
                     flux[these, :] = flux1
 
         targets, truth, objtruth = self.populate_targets_truth(
-            flux, data, meta, objmeta, indx=indx, psf=False, seed=seed,
+            flux, data, meta, objmeta, indx=indx, seed=seed,
             truespectype='GALAXY', templatetype='BGS')
 
         return flux, self.wave, targets, truth, objtruth
