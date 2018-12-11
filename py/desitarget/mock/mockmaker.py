@@ -1971,7 +1971,7 @@ class ReadGalaxia(SelectTargets):
                'MAG': mag, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
                'GMAG': gmag, 'ZMAG': zmag,
                
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF',
+               'SOUTH': self.is_south(dec), 'TYPE': np.repeat('PSF', nobj),
 
                'REF_ID': ref_id,
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
@@ -2723,7 +2723,7 @@ class ReadMWS_WD(SelectTargets):
                'PMDEC': gaia_pmdec,
                'PMDEC_IVAR': np.ones(nobj).astype('f4'), # placeholder!
                
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
+               'SOUTH': self.is_south(dec), 'TYPE': np.repeat('PSF', nobj)}
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -2877,7 +2877,7 @@ class ReadMWS_NEARBY(SelectTargets):
                'PMDEC': gaia_pmdec,
                'PMDEC_IVAR': np.ones(nobj).astype('f4'), # placeholder!
                
-               'SOUTH': self.is_south(dec), 'TYPE': 'PSF'}
+               'SOUTH': self.is_south(dec), 'TYPE': np.repeat('PSF', nobj)}
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
