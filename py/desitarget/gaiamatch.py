@@ -11,6 +11,7 @@ import os
 import sys
 import numpy as np
 import fitsio
+import requests
 from time import time
 import healpy as hp
 from desitarget.io import check_fitsio_version
@@ -33,7 +34,7 @@ ingaiadatamodel = np.array([], dtype=[
             ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DUPLICATED_SOURCE', '?'),
             ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
             ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
-            ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'),
+            ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
                                    ])
 
 # ADM the current data model for Gaia columns for WRITING to target files
@@ -45,8 +46,89 @@ gaiadatamodel = np.array([], dtype=[
             ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('GAIA_DUPLICATED_SOURCE', '?'),
             ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
             ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
-            ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
+            ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4')
                                    ])
+
+
+def _get_gaia_dir():
+    """Convenience function to grab the Gaia environment variable.
+
+    Returns
+    -------
+    :class:`str`
+        The directory stored in the $GAIA_DIR environment variable.
+    """
+    # ADM check that the GAIA_DIR is set, or fail.
+    gaiadir = os.environ.get('GAIA_DIR')
+    if gaiadir is None:
+        msg = "Set $GAIA_DIR environment variable!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return gaiadir
+
+
+def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", test=False):
+    """Retrieve the bulk CSV files released by the Gaia collaboration.
+
+    Parameters
+    ----------
+    url : :class:`str`
+        The wb directory that hosts the archived Gaia CSV files.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then just retrieve the first ten files for testing.
+
+    Returns
+    -------
+    Nothing
+        But the archived Gaia CSV files are written to $GAIA_DIR/csv.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+    """
+    # ADM check that the GAIA_DIR is set.
+    gaiadir = _get_gaia_dir()
+
+    # ADM construct the directory to which to write files.
+    csvdir = os.path.join(gaiadir, 'csv')
+    # ADM the directory better be empty for the wget!
+    if os.path.exists(csvdir):
+        if len(os.listdir(csvdir)) > 0:
+            msg = "{} should be empty to wget Gaia csv files!".format(csvdir)
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM make the directory, if needed.
+    else:
+        log.info('Making Gaia directory for storing CSV files')
+        os.makedirs(csvdir)
+
+    # ADM pull back the index.html from the url.
+    index = requests.get(url)
+
+    # ADM retrieve any file name that starts with GaiaSource.
+    # ADM the [1::2] pulls back just the odd lines from the split list.
+    filelist = index.text.split("GaiaSource")[1::2]
+    # ADM if test was passed, just work with 2 files.
+    if test:
+        filelist = filelist[:10]
+    nfiles = len(filelist)
+
+    # ADM loop through the filelist.
+    t0 = time()
+    for nfile, fileinfo in enumerate(filelist):
+        # ADM make the wget command to retrieve the file and issue it.
+        cmd = 'wget -q {}/GaiaSource{} -P {}'.format(url, fileinfo[:-2], csvdir)
+        os.system(cmd)
+        if nfile % 100 == 0 or test:
+            elapsed = time() - t0
+            rate = nfile / elapsed
+            log.info(
+                '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                .format(nfile+1, nfiles, rate, elapsed/60.)
+            )
+
+    return
 
 
 def pop_gaia_coords(inarr):
