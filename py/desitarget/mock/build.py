@@ -865,7 +865,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data and ithere are no targets, keep going.
-            log.info('Working on target class: {}'.format(target_name))
+            log.info('Working on target class {} on healpixel {}'.format(target_name, healpix))
             data, MakeMock = read_mock(params['targets'][target_name], log, target_name,
                                        seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,

@@ -4894,8 +4894,8 @@ class WDMaker(SelectTargets):
                                 meta1, objmeta1 = self.wd_template_photometry(
                                     data, indx[match][these], rand, subtype,
                                     south=issouth)
-                                meta[match][these] = meta1
-                                objmeta[match][these] = objmeta1
+                                meta[match[these]] = meta1
+                                objmeta[match[these]] = objmeta1
                             else:
                                 # Note: no "nocolorcuts" argument!
                                 template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
@@ -4910,7 +4910,7 @@ class WDMaker(SelectTargets):
             flux, data, meta, objmeta, indx=indx, 
             seed=seed, truespectype='WD', templatetype='WD',
             templatesubtype=allsubtype)
-
+        
         return flux, self.wave, targets, truth, objtruth
 
     def select_targets(self, targets, truth, targetname='WD'):
@@ -5226,24 +5226,11 @@ class BuzzardMaker(SelectTargets):
             #print(bigzgrid[qsozcut][isqso][these], len(these))
             contam_qso.append( bigtemplateid[qsozcut][isqso][these] )
 
-        #these = np.unique(bigtemplateid[qsozcut][isqso])
-        #contam_qso = np.zeros(nt).astype(bool)
-        #contam_qso[these] = True
-        #self.meta.add_column(Column(name='CONTAM_QSO', data=contam_qso))
-
         # Keep the results.
         self.contam_zgrid = zgrid
         self.contam_elg = contam_elg
         self.contam_qso = contam_qso
 
-        #import matplotlib.pyplot as plt
-        #gr = -2.5 * np.log10(gflux / rflux)
-        #rz = -2.5 * np.log10(rflux / zflux)
-        #plt.scatter(rz[isqso], gr[isqso], s=1)
-        #plt.scatter(rz[~isqso], gr[~isqso], s=1)
-        #plt.xlim(-0.5,1.5) ; plt.ylim(-0.5, 1) ; plt.show()
-        #import pdb ; pdb.set_trace()
-                
     def read(self, mockfile=None, mockformat='buzzard', healpixels=None,
              nside=None, nside_buzzard=8, target_name='', magcut=None,
              only_coords=False, **kwargs):
