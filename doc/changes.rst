@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.26.0 (unreleased)
+0.26.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.26.0 (2018-12-11)
 -------------------
 
 * Refactor of MTL and MTL-related enhancements [`PR #429`_]. Includes:
