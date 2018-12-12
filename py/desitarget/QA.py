@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt   # noqa: E402
 log = get_logger()
 
 _type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green',
-               'WD': 'purple', 'NOT ELG': 'gray'}
+               'WD': 'purple', 'NOT ELG': 'gray'}#, 'QSO': }
 
 def _parse_tcnames(tcstring=None, add_all=True):
     """Turn a comma-separated string of target class names into a list.
@@ -884,7 +884,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
         hb = plt.hexbin(cat["PMRA"], cat["PMDEC"], mincnt=1, cmap=cmap,
                         bins='log', extent=(*ralim, *declim), gridsize=60)
         cb = plt.colorbar(hb)
-        cb.set_label(r'$\log_{10}$ (Number of Sources)')
+        cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(objtype))
 
     # ADM...otherwise make a scatter plot.
     else:
@@ -1152,11 +1152,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         else:
             magbright, magfaint = 17, 24
             
-    #magbright = np.nanmin(mag)-0.75
-    #magbright, magfaint = np.nanmin(mag)-0.75, np.nanmax(mag)+0.75
-    #magbright, magfaint = 15, 24
-
-    dolegend = True
+    dolegend = False
     for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
         these = np.where(truespectype == truespectypes)[0]
         if truespectype not in type2color.keys():
@@ -1168,17 +1164,17 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
             label = '{} is {}'.format(objtype, truespectype)
             # ADM make a contour plot if we have lots of points...
             if len(these) > nobjscut:
-                dolegend = False
                 hb = plt.hexbin(truez, mag, mincnt=1, bins='log', cmap=cmap,
                                 extent=(zmin, zmax, magbright, magfaint),
-                                gridsize=60, label=label)
+                                gridsize=60)
                 if ii == 0:
                     cb = plt.colorbar(hb)
-                    cb.set_label(r'$\log_{10}$ (Number of Targets)')
+                    cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(label))
             else:
                 # ADM...otherwise make a scatter plot.
+                dolegend = True
                 plt.scatter(truez[these], mag[these], alpha=0.6, label=label, color=col)
-    # Legend fails when mixing hexbin and scatterplot
+
     if dolegend:
         plt.legend(loc='upper right', frameon=True, ncol=ncol, fontsize=10,
                    handletextpad=0.5, labelspacing=0)
@@ -1329,7 +1325,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
 
     objcolor = {'ALL': 'black', objtype: 'blue'}
     type2color = {**_type2color, **objcolor}
-    
+
     # Make the plots!
     for plotnumber in range(3):
         if plotnumber == 0:
@@ -1380,7 +1376,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         plt.xlabel(xlabel)
         plt.ylabel(ylabel)
         if mocks:
-            dolegend = True
+            dolegend = False
             for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
                 these = np.where(truespectype == truespectypes)[0]
 
@@ -1393,17 +1389,18 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 if len(these) > 0:
                     label = '{} is {}'.format(objtype, truespectype)
                     if len(these) > nobjscut:
-                        dolegend = False
                         hb = plt.hexbin(xdata[these], ydata[these], mincnt=1,
-                                        cmap=cmap, label=label, bins='log',
+                                        cmap=cmap, bins='log',
                                         extent=(*xlim, *ylim), gridsize=60)
                         if ii == 0:
                             cb = plt.colorbar(hb)
                             #cb.locator = MaxNLocator(nbins=5)
                             #cb.update_ticks()
-                            cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+                            cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(label))
                     else:
+                        dolegend = True
                         plt.scatter(xdata[these], ydata[these], alpha=0.6, label=label, color=col)
+                        
             if dolegend:
                 plt.legend(loc='upper right', frameon=True, ncol=ncol, fontsize=10,
                            handletextpad=0.5, labelspacing=0)
@@ -1414,7 +1411,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 cb = plt.colorbar(hb)
                 #cb.locator = MaxNLocator(nbins=5)
                 #cb.update_ticks()
-                cb.set_label(r'$\log_{10}$ (Number of Galaxies)')
+                cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(objtype))
             else:
                 plt.scatter(xdata, ydata, alpha=0.6, color=objcolor[objtype])
 
