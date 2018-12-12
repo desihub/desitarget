@@ -1404,6 +1404,8 @@ class ReadGaussianField(SelectTargets):
             oiiflux = np.polyval(oiicoeff_median, gmmout['MAG'] - rmagpivot)
             oiiflux_sigma = np.polyval(oiicoeff_scatter, gmmout['MAG'] - rmagpivot)
             for ii, sigma in enumerate(oiiflux_sigma):
+                if sigma < 0: # edge case
+                    sigma = np.polyval(oiicoeff_scatter, 0) 
                 oiiflux[ii] += rand.normal(loc=0, scale=sigma)
 
             gmmout.update({'OIIFLUX': 1e-17 * oiiflux})
@@ -4900,7 +4902,7 @@ class WDMaker(SelectTargets):
                                 # Note: no "nocolorcuts" argument!
                                 template_maker = getattr(self, '{}_template_maker'.format(subtype.lower()))
                                 flux1, _, meta1, objmeta1 = template_maker.make_templates(
-                                    input_meta=input_meta[match][these], south=issouth)
+                                    input_meta=input_meta[match[these]], south=issouth)
 
                                 meta[match[these]] = meta1
                                 objmeta[match[these]] = objmeta1
