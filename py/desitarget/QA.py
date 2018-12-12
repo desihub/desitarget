@@ -811,7 +811,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
         np.savetxt(datfile, np.vstack((cdndmbins_out, dndm_out / area)).T,
                    fmt=('%.2f', '%.3f'), header='{} dn/dm (number per deg2 per 0.1 mag)'.format(filtername))
 
-def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
+def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000, seed=None):
     """Make Gaia-based DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -828,6 +828,8 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
     nobjscut : :class:`int`, optional, defaults to ``1000``
         Make a hexbin plot when the number of objects is greater than
         ``nobjscut``, otherwise make a scatterplot.
+    seed : :class:`int`, optional
+        Seed to reproduce random points plotted on hexbin plots.
     
     Returns
     -------
@@ -839,12 +841,15 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
                  ``{qadir}/{fileprefix}-{pm}-{objtype}.png``.
 
     """
+    rand = np.random.RandomState(seed)
 
     # ADM change the parallaxes (which are in mas) to distances in parsecs.
     # ADM clip at very small parallaxes to avoid divide-by-zero.
     r = 1000./np.clip(cat["PARALLAX"], 1e-16, 1e16)
     # ADM set the angle element of the plot to RA.
     theta = np.radians(cat["RA"])
+
+    objcolor = {'ALL': 'black', objtype: 'blue'}
 
     # ADM set up the plot in polar projection.
     ax = plt.subplot(111, projection='polar')
@@ -884,6 +889,8 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000):
         hb = plt.hexbin(cat["PMRA"], cat["PMDEC"], mincnt=1, cmap=cmap,
                         bins='log', extent=(*ralim, *declim), gridsize=60)
         cb = plt.colorbar(hb)
+        irand = rand.choice(nobjs, size=nobjscut, replace=False)
+        plt.scatter(cat["PMRA"][irand], cat["PMDEC"][irand], alpha=0.6, color=objcolor[objtype], s=5)
         cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(objtype))
 
     # ADM...otherwise make a scatter plot.
@@ -1036,7 +1043,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
             zmin, zmax = -300, 300
     else:
         dz = 0.02
-        zmin = -0.1
+        zmin = -0.15
 
     zbins = np.arange(zmin, zmax, dz) # bin left edges
     if len(zbins) < 10:
@@ -1107,9 +1114,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         plt.step(zbins, newdndz, alpha=0.5, color='k', lw=2,
                  label=r'Expected {} dn/dz ({:.0f} deg$^{{-2}}$)'.format(
                      objtype, np.sum(dndz[objtype]['dndz'])))
-        #plt.step(dndz[objtype]['z'], dndz[objtype]['dndz'], #width=dndz[objtype]['dz'],
-        #         alpha=0.5, color='k', lw=2, label=r'Expected {} dn/dz ({:.0f} deg$^{{-2}}$)'.format(
-        #             objtype, np.sum(dndz[objtype]['dndz'])))
+        plt.ylim(0, np.max(newdndz) * 1.5)
 
     if 'LRG' in objtype:
         loc = 'upper left'
@@ -1117,6 +1122,8 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         loc = 'upper right'
     plt.legend(loc=loc, frameon=True, fontsize=10,
                handletextpad=0.5, labelspacing=0)
+
+    #plt.xlim(zmin, zmax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz, objtype))
     plt.savefig(pngfile, bbox_inches='tight')
@@ -1188,7 +1195,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     plt.close()
 
 def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
-            nodustcorr=False, mocks=False, nobjscut=1000):
+            nodustcorr=False, mocks=False, nobjscut=1000, seed=None):
     """Make color-based DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1212,6 +1219,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     nobjscut : :class:`int`, optional, defaults to ``1000``
         Make a hexbin plot when the number of objects is greater than
         ``nobjscut``, otherwise make a scatterplot.
+    seed : :class:`int`, optional
+        Seed to reproduce random points plotted on hexbin plots.
 
     Returns
     -------
@@ -1223,6 +1232,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     """
     from matplotlib.ticker import MultipleLocator, MaxNLocator
     from matplotlib.patches import Polygon
+
+    rand = np.random.RandomState(seed)
 
     def elg_colorbox(ax, plottype='grz', verts=None):
         """Draw the ELG selection box."""
@@ -1314,12 +1325,12 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         grlim = (-0.5, 1.5)
         rzlim = (-0.5, 1.5)
 
-    if 'ELG' in objtype:
-        zW1lim = (-3, 2.5)
-        W1W2lim = (-3, 2.5)
-    else:
-        zW1lim = (-1.0, 3.5)
-        W1W2lim = (-1.0, 1.2)
+    #if 'ELG' in objtype:
+    #    zW1lim = (-3, 2.5)
+    #    W1W2lim = (-3, 2.5)
+    #else:
+    zW1lim = (-1.0, 3.5)
+    W1W2lim = (-1.0, 1.2)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
@@ -1409,6 +1420,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 hb = plt.hexbin(xdata, ydata, mincnt=1, cmap=cmap, bins='log',
                                 extent=(*xlim, *ylim), gridsize=60)
                 cb = plt.colorbar(hb)
+                irand = rand.choice(nobjs, size=nobjscut, replace=False)
+                plt.scatter(xdata[irand], ydata[irand], alpha=0.6, color=objcolor[objtype], s=5)
                 #cb.locator = MaxNLocator(nbins=5)
                 #cb.update_ticks()
                 cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(objtype))
