@@ -10,6 +10,8 @@ desitarget Change Log
 0.26.0 (2018-12-11)
 -------------------
 
+* Significant enhancement and refactor of `select_mock_targets` to include
+  stellar and extragalactic contaminants [`PR #427`_].
 * Refactor of MTL and MTL-related enhancements [`PR #429`_]. Includes:
     * Use targets file `NUMOBS_INIT` not :func:`targets.calc_numobs`.
     * Use targets file `PRIORITY_INIT` not :func:`targets.calc_priority`.
@@ -38,6 +40,7 @@ desitarget Change Log
 .. _`PR #423`: https://github.com/desihub/desitarget/pull/423
 .. _`PR #424`: https://github.com/desihub/desitarget/pull/424
 .. _`PR #425`: https://github.com/desihub/desitarget/pull/425
+.. _`PR #427`: https://github.com/desihub/desitarget/pull/427
 .. _`PR #429`: https://github.com/desihub/desitarget/pull/429
 .. _`PR #433`: https://github.com/desihub/desitarget/pull/433
 

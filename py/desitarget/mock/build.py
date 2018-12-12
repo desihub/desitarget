@@ -9,7 +9,7 @@ Build truth and targets catalogs, including spectra, for the mocks.
 """
 from __future__ import absolute_import, division, print_function
 
-import os
+import os, time
 import numpy as np
 import healpy as hp
 
@@ -250,82 +250,60 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     if ntarget == 0:
         return [targets, truth, objtruth, trueflux]
 
-    # Faintstar targets are a special case.
-    if targname.lower() == 'faintstar':
+    # Generate the spectra iteratively until we achieve the required target
+    # density.  Randomly divide the possible targets into each iteration.
+    iterseeds = rand.randint(2**31, size=maxiter)
+    rand.shuffle(indx)
+    iterindx = np.array_split(indx, maxiter)
+
+    makemore, itercount, ntot = True, 0, 0
+    while makemore:
         chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-            data, indx=indx)
+            data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
+
+        MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
         
-        if len(chunktargets) > 0:
-            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-            nkeep = len(keep)
-        else:
-            nkeep = 0
+        keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+        #if 'CONTAM_NAME' in data.keys():
+        #    import pdb ; pdb.set_trace()
 
-        log.debug('Selected {} / {} {} targets'.format(nkeep, ntarget, targname))
-
+        nkeep = len(keep)
         if nkeep > 0:
+            ntot += nkeep
+            log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
+                nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
+
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
             if len(chunkobjtruth) > 0: # skies have no objtruth
                 objtruth.append(chunkobjtruth[keep])
             if not no_spectra:
                 trueflux.append(chunkflux[keep, :])
-    else:
-        # Generate the spectra iteratively until we achieve the required target
-        # density.  Randomly divide the possible targets into each iteration.
-        iterseeds = rand.randint(2**31, size=maxiter)
-        rand.shuffle(indx)
-        iterindx = np.array_split(indx, maxiter)
-        
-        makemore, itercount, ntot = True, 0, 0
-        while makemore:
-            chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
-                data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
 
-            MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
+        itercount += 1
+        if itercount == maxiter or ntot >= ntarget:
+            if maxiter > 1:
+                log.debug('Generated {} / {} {} targets after {} iterations.'.format(
+                    ntot, ntarget, targname, itercount))
+            makemore = False
+        else:
+            need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
 
-            keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-            if 'CONTAM_NAME' in data.keys():
-                #import pdb ; pdb.set_trace()
-                pass
+            #import matplotlib.pyplot as plt
+            #noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
+            #gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
+            #rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
+            #plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
+            #plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
+            #plt.legend(loc='upper left')
+            #plt.show()
 
-            nkeep = len(keep)
-            if nkeep > 0:
-                ntot += nkeep
-                log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
-                    nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
-
-                targets.append(chunktargets[keep])
-                truth.append(chunktruth[keep])
-                if len(chunkobjtruth) > 0: # skies have no objtruth
-                    objtruth.append(chunkobjtruth[keep])
-                if not no_spectra:
-                    trueflux.append(chunkflux[keep, :])
-
-            itercount += 1
-            if itercount == maxiter or ntot >= ntarget:
-                if maxiter > 1:
-                    log.debug('Generated {} / {} {} targets after {} iterations.'.format(
-                        ntot, ntarget, targname, itercount))
-                makemore = False
-            else:
-                need = np.where(chunktargets['DESI_TARGET'] == 0)[0]
-                
-                #import matplotlib.pyplot as plt
-                #noneed = np.where(chunktargets['DESI_TARGET'] != 0)[0]
-                #gr = -2.5 * np.log10( chunktargets['FLUX_G'] / chunktargets['FLUX_R'] )
-                #rz = -2.5 * np.log10( chunktargets['FLUX_R'] / chunktargets['FLUX_Z'] )
-                #plt.scatter(rz[noneed], gr[noneed], color='red', alpha=0.5, edgecolor='none', label='Made Cuts')
-                #plt.scatter(rz[need], gr[need], alpha=0.5, color='green', edgecolor='none', label='Failed Cuts')
-                #plt.legend(loc='upper left')
-                #plt.show()
-                
-                if len(need) > 0:
-                    # Distribute the objects that didn't pass target selection
-                    # to the remaining iterations.
-                    iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
-                    for ii in range(maxiter - itercount):
-                        iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
+            if len(need) > 0:
+                # Distribute the objects that didn't pass target selection
+                # to the remaining iterations.
+                iterneed = np.array_split(iterindx[itercount - 1][need], maxiter - itercount)
+                for ii in range(maxiter - itercount):
+                    iterindx[ii + itercount] = np.hstack( (iterindx[itercount:][ii], iterneed[ii]) )
 
     if len(targets) > 0:
         targets = vstack(targets)
@@ -400,11 +378,13 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     #ntarget = len(data['RA'])
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
 
-    if 'CONTAM_FACTOR' in data.keys():
-        # density model here!
-        density_factor = data.get('CONTAM_FACTOR')
-    else:
-        density_factor = data.get('DENSITY_FACTOR')
+    #if 'CONTAM_FACTOR' in data.keys():
+    #    # density model here!
+    #    density_factor = data.get('CONTAM_FACTOR')
+    #else:
+    #    density_factor = data.get('DENSITY_FACTOR')
+
+    density_factor = data.get('DENSITY_FACTOR')        
 
     indxperchunk, ntargperchunk = list(), list()
     for pixchunk in set(healpix_chunk):
@@ -412,15 +392,18 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         # Subsample the targets on this mini healpixel.
         allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
-        ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
-        indxthispix = allindxthispix
+        if 'CONTAM_NUMBER' in data.keys():
+            ntargthispix = np.round( data['CONTAM_NUMBER'] / nchunk ).astype(int)
+            indxthispix = rand.choice(allindxthispix, size=5 * ntargthispix, replace=False) # fudge factor!
+        else:
+            ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
+            indxthispix = allindxthispix
         #indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
 
         indxperchunk.append(indxthispix)
         ntargperchunk.append(ntargthispix)
 
         #print(pixchunk, ntargthispix, ntargthispix / areaperchunk)
-
         #if coeff:
         #    # Number of targets in this chunk, based on the fluctuations model.
         #    denschunk = density * 10**( np.polyval(coeff[:2], data['EBV'][indx]) - np.polyval(coeff[:2], 0) +
@@ -436,7 +419,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     # Special case when the number of targets is very small.
     if np.sum(ntargperchunk) == 0:
         ntargperchunk[0] = np.round( len(data['RA']) * density_factor ).astype('int')
-    
+        
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
@@ -581,7 +564,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     return targets, truth, objtruth, trueflux
 
-def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
+def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                               nside_chunk, targets, truth, objtruth, trueflux,
                               ContamStarsMock=None, ContamGalaxiesMock=None,
                               no_spectra=False):
@@ -589,29 +572,35 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
 
     Parameters
     ----------
-    data : :class:`dict`
-        Data on the input mock targets (to be documented).
-    MakeMock : :class:`desitarget.mock.mockmaker` object
-        Object to assign spectra to each target class.
+    params : :class:`dict`
+        Dictionary defining the type and number of contaminants.
+    healpix : : :class:`int`
+        Healpixel number.
+    nside : :class:`int`
+        Nside corresponding to healpix.
+    seed : :class:`int`, optional
+        Seed for the random number generation.
+    nproc : :class:`int`, optional
+        Number of parallel processes to use.
     log : :class:`desiutil.logger`
        Logger object.
-    nside : :class:`int`
-        Healpix resolution corresponding to healpixels.
     nside_chunk : :class:`int`
         Healpix resolution for chunking the sample to avoid memory problems.
-    seed: :class:`int`, optional
-        Seed for the random number generator.  Defaults to None.
-    nproc : :class:`int`, optional
-        Number of parallel processes to use.  Defaults to 1.
-    sky : :class:`bool`
-        Processing sky targets (which are a special case).  Defaults to False.
+    targets : :class:`astropy.table.Table`
+        Target catalog.
+    truth : :class:`astropy.table.Table`
+        Corresponding truth table.
+    objtruth : :class:`astropy.table.Table`
+        Corresponding objtype-specific truth table (if applicable).
+    trueflux : :class:`numpy.ndarray`
+        Array [npixel, ntarget] of observed-frame spectra.  Only computed
+        and returned for non-sky targets and if no_spectra=False.
+    ContamStarsMock : :class:`desitarget.mock.mockmaker` object
+        Maker Class for generating stellar contaminants.
+    ContamGalaxiesMock : :class:`desitarget.mock.mockmaker` object
+        Maker Class for generating extragalactic contaminants.
     no_spectra : :class:`bool`, optional
         Do not generate spectra, e.g., for use with quicksurvey.  Defaults to False.
-    calib_only : :class:`bool`, optional
-        Use targets as calibration (standard star) targets, only. Defaults to False.
-    contaminants : :class:`bool`, optional
-        Generate spectra for contaminants (mostly affects the log
-        messages). Defaults to False.
 
     Returns
     -------
@@ -626,6 +615,7 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
 
     """
     # Stars--
+    stars_targets, stars_truth = list(), list()
     if ContamStarsMock is not None:
         _, star_params = list(params['contaminants']['stars'].items())[0]
 
@@ -643,7 +633,7 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                                          nside_galaxia=star_params['nside_galaxia'],
                                          faintstar_mockfile=faintstar_mockfile,
                                          faintstar_magcut=faintstar_magcut,
-                                         target_name='CONTAM_STAR', seed=healseed)
+                                         target_name='CONTAM_STAR', seed=seed)
         nobj = len(star_data['RA'])
         star_data['MAXITER'] = 5
         star_data['CONTAM_FACTOR'] = 0.0
@@ -652,11 +642,11 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
         for target_type in params['contaminants']['targets']:
             cparams = params['contaminants']['targets'][target_type]
 
-            # Stars--
             if target_type in params['targets'] and 'stars' in cparams.keys():
                 log.info('Generating {:.1f}% stellar contaminants for target class {}.'.format(
                     100*cparams['stars'], target_type))
 
+                # BGS have TYPE!=PSF so make the stellar contaminants TYPE=REX
                 if target_type == 'BGS':
                     morph = 'REX'
                     mask_type = 'BGS_ANY'
@@ -668,35 +658,113 @@ def get_contaminants_onepixel(params, healpix, nside, healseed, nproc, log,
                 if ntarg > 0:
                     star_data['TARGET_NAME'] = target_type
                     star_data['CONTAM_NAME'] = 'CONTAM_STAR'
+
+                    # ToDo: Modulate the contamination with Galactic latitude...
+                    star_data['CONTAM_NUMBER'] = np.round( cparams['stars'] * ntarg ).astype(int)
                     star_data['CONTAM_FACTOR'] = cparams['stars'] * ntarg / len(star_data['RA'])
 
                     # Sample from the appropriate Gaussian mixture model and
                     # then generate the spectra.
+                    if target_type == 'LRG':
+                        mag = star_data['ZMAG']
+                    else:
+                        mag = star_data['MAG']
+                    
                     gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                         isouth=star_data['SOUTH'],
-                                                        seed=healseed, prior_mag=star_data['MAG'])
+                                                        seed=seed, prior_mag=mag)
                     star_data.update(gmmout)
 
                     contamtargets, contamtruth, contamobjtruth, contamtrueflux = get_spectra(
                         star_data, ContamStarsMock, log, nside=nside, nside_chunk=nside_chunk,
-                        seed=healseed, nproc=nproc, no_spectra=no_spectra, contaminants=True)
+                        seed=seed, nproc=nproc, no_spectra=no_spectra, contaminants=True)
 
                     if len(contamtargets) > 0:
-                        targets = vstack( (targets, contamtargets) )
-                        truth = vstack( (truth, contamtruth) )
+                        stars_targets.append(contamtargets)
+                        stars_truth.append(contamtruth)
                         if 'STAR' in objtruth.keys():
                             objtruth['STAR'] = vstack( (objtruth['STAR'], contamobjtruth) )
                         else:
                             objtruth['STAR'] = contamobjtruth
                         trueflux = np.vstack( (trueflux, contamtrueflux) )
 
+        if len(stars_targets) > 0:
+            stars_targets = vstack(stars_targets)
+            stars_truth = vstack(stars_truth)
+
     # Galaxies--
+    galaxies_targets, galaxies_truth = list(), list()
     if ContamGalaxiesMock is not None:
+        _, galaxy_params = list(params['contaminants']['galaxies'].items())[0]
 
-        if target_type in params['targets'] and 'galaxies' in cparams.keys():
-            log.info('Generating {}% extragalactic contaminants for target class {}.'.format(
-                100*cparams['galaxies'], target_type))
+        galaxy_data = ContamGalaxiesMock.read(mockfile=galaxy_params['mockfile'],
+                                              mockformat=galaxy_params['format'],
+                                              healpixels=healpix, nside=nside,
+                                              magcut=galaxy_params.get('magcut', None),
+                                              nside_galaxia=galaxy_params['nside_buzzard'],
+                                              target_name='CONTAM_GALAXY', seed=seed)
+        nobj = len(galaxy_data['RA'])
+        galaxy_data['MAXITER'] = 5
+        galaxy_data['CONTAM_FACTOR'] = 0.0 # fraction of candidate contaminants to keep
 
+        # Now iterate over every target class.
+        for target_type in params['contaminants']['targets']:
+            cparams = params['contaminants']['targets'][target_type]
+
+            if target_type in params['targets'] and 'galaxies' in cparams.keys():
+                log.info('Generating {:.1f}% extragalactic contaminants for target class {}.'.format(
+                    100*cparams['galaxies'], target_type))
+
+                morph = None
+                mask_type = target_type
+                ntarg = np.sum(targets['DESI_TARGET'] & ContamGalaxiesMock.desi_mask.mask(mask_type) != 0)
+
+                if ntarg > 0:
+                    galaxy_data['TARGET_NAME'] = target_type
+                    galaxy_data['CONTAM_NAME'] = 'CONTAM_GALAXY'
+
+                    # ToDo: Modulate the contamination fraction...
+                    galaxy_data['CONTAM_NUMBER'] = np.round( cparams['galaxies'] * ntarg ).astype(int)
+                    galaxy_data['CONTAM_FACTOR'] = cparams['galaxies'] * ntarg / len(galaxy_data['RA'])
+
+                    # Sample from the appropriate Gaussian mixture model and
+                    # then generate the spectra.
+                    if target_type == 'LRG':
+                        mag = galaxy_data['ZMAG']
+                    else:
+                        mag = galaxy_data['MAG']
+                    
+                    gmmout = ContamGalaxiesMock.sample_GMM(nobj, target=target_type, morph=morph,
+                                                           isouth=galaxy_data['SOUTH'],
+                                                           seed=seed, prior_mag=mag)
+                    galaxy_data.update(gmmout)
+
+                    contamtargets, contamtruth, contamobjtruth, contamtrueflux = get_spectra(
+                        galaxy_data, ContamGalaxiesMock, log, nside=nside, nside_chunk=nside_chunk,
+                        seed=seed, nproc=nproc, no_spectra=no_spectra, contaminants=True)
+
+                    if len(contamtargets) > 0:
+                        galaxies_targets.append(contamtargets)
+                        galaxies_truth.append(contamtruth)
+                        # We use BGS spectral templates as contaminants.
+                        if 'BGS' in objtruth.keys():
+                            objtruth['BGS'] = vstack( (objtruth['BGS'], contamobjtruth) )
+                        else:
+                            objtruth['BGS'] = contamobjtruth
+                        trueflux = np.vstack( (trueflux, contamtrueflux) )
+
+        if len(galaxies_targets) > 0:
+            galaxies_targets = vstack(galaxies_targets)
+            galaxies_truth = vstack(galaxies_truth)
+
+    # Now merge all the contaminants into the output targets catalog.
+    if len(stars_targets) > 0:
+        targets = vstack( (targets, stars_targets) )
+        truth = vstack( (truth, stars_truth) )
+        
+    if len(galaxies_targets) > 0:
+        targets = vstack( (targets, galaxies_targets) )
+        truth = vstack( (truth, galaxies_truth) )
 
     return targets, truth, objtruth, trueflux
 
@@ -797,7 +865,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             targets, truth, skytargets, skytruth = [], [], [], []
 
             # Read the data and ithere are no targets, keep going.
-            log.info('Working on target class: {}'.format(target_name))
+            log.info('Working on target class {} on healpixel {}'.format(target_name, healpix))
             data, MakeMock = read_mock(params['targets'][target_name], log, target_name,
                                        seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
@@ -907,7 +975,9 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     
     nobj = len(targets)
     nsky = len(skytargets)
-    log.info('Summary: ntargets = {}, nsky = {} in pixel {}.'.format(nobj, nsky, healpix))
+    area = hp.nside2pixarea(nside, degrees=True)
+    log.info('Summary: ntargets = {} ({:.2f} targets/deg2), nsky = {} ({:.2f} targets/deg2) in pixel {}.'.format(
+        nobj, nobj / area, nsky, nsky / area, healpix))
 
     # Assign TARGETID using the healpixel number, not BRICKID, otherwise we'll
     # end up with duplicate TARGETID values.
