@@ -395,23 +395,24 @@ class SelectTargets(object):
             indx = np.arange(len(data['RA']))
         nobj = len(indx)
 
-        for band in ('G', 'R', 'Z'):
-            fluxkey = 'FLUX_{}'.format(band)
-            ivarkey = 'FLUX_IVAR_{}'.format(band)
+        if 'TYPE' in data.keys():
+            for band in ('G', 'R', 'Z'):
+                fluxkey = 'FLUX_{}'.format(band)
+                ivarkey = 'FLUX_IVAR_{}'.format(band)
 
-            for depthprefix in ('PSF', 'GAL'):
-                if depthprefix == 'PSF':
-                    these = np.where( data['TYPE'][indx] == 'PSF' )[0] # point sources
-                else:
-                    these = np.where( data['TYPE'][indx] != 'PSF' )[0] # galaxies
-                    
-                if len(these) > 0:
-                    depthkey = '{}DEPTH_{}'.format(depthprefix, band)
+                for depthprefix in ('PSF', 'GAL'):
+                    if depthprefix == 'PSF':
+                        these = np.where( data['TYPE'][indx] == 'PSF' )[0] # point sources
+                    else:
+                        these = np.where( data['TYPE'][indx] != 'PSF' )[0] # galaxies
 
-                    sigma = 1 / np.sqrt(data[depthkey][indx][these]) / 5 # nanomaggies, 1-sigma
-                    targets[fluxkey][these] = truth[fluxkey][these] + rand.normal(scale=sigma)
+                    if len(these) > 0:
+                        depthkey = '{}DEPTH_{}'.format(depthprefix, band)
 
-                    targets[ivarkey][these] = 1 / sigma**2
+                        sigma = 1 / np.sqrt(data[depthkey][indx][these]) / 5 # nanomaggies, 1-sigma
+                        targets[fluxkey][these] = truth[fluxkey][these] + rand.normal(scale=sigma)
+
+                        targets[ivarkey][these] = 1 / sigma**2
 
         # WISE sources are all point sources
         for band in ('W1', 'W2'):
@@ -5360,18 +5361,26 @@ class BuzzardMaker(SelectTargets):
                 contamid  = np.digitize(input_meta['REDSHIFT'], self.contam_zgrid)
                 templateid = []
                 for cid in np.unique(contamid):
-                    templateid.append( rand.choice(self.contam_qso[cid], np.count_nonzero(cid == contamid)) )
+                    if len(self.contam_qso[cid]) > 0:
+                        templateid.append( rand.choice(self.contam_qso[cid], np.count_nonzero(cid == contamid)) )
+                    else:
+                        # throw-away templates
+                        templateid.append( rand.choice(self.meta['TEMPLATEID'].data, np.count_nonzero(cid == contamid)) )
                 templateid = np.hstack(templateid)
             elif data['TARGET_NAME'].upper() == 'ELG':
                 contamid  = np.digitize(input_meta['REDSHIFT'], self.contam_zgrid)
                 templateid = []
                 for cid in np.unique(contamid):
-                    templateid.append( rand.choice(self.contam_elg[cid], np.count_nonzero(cid == contamid)) )
+                    if len(self.contam_elg[cid]) > 0:
+                        templateid.append( rand.choice(self.contam_elg[cid], np.count_nonzero(cid == contamid)) )
+                    else:
+                        # throw-away templates
+                        templateid.append( rand.choice(self.meta['TEMPLATEID'].data, np.count_nonzero(cid == contamid)) )
                 templateid = np.hstack(templateid)
             else:
                 log.warning('Need to pre-select more classes of contaminants!')
                 templateid = rand.choice(self.meta['TEMPLATEID'], nobj)
-                
+
             input_meta['TEMPLATEID'][:] = templateid
                 
             # Build north/south spectra separately.
