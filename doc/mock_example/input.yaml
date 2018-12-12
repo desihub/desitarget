@@ -1,16 +1,47 @@
-# mock target configuration file
+contaminants:
+    galaxies:
+        Buzzard: {
+            mockfile: '{DESI_ROOT}/mocks/buzzard/buzzard_v1.6_desicut',
+            nside_buzzard: 8,
+            format: buzzard,
+        }
+    stars:
+        MWS_MAIN: {
+            mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
+            nside_galaxia: 8,
+            format: galaxia,
+            FAINTSTAR: {
+                mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6_superfaint/healpix',
+                magcut: 23.5,
+            }
+        }
+    targets:
+        BGS: {
+            stars: 0.05, # Fraction
+        }
+        ELG: {
+            stars: 0.05,
+            galaxies: 0.1,
+        }
+        LRG: {
+            stars: 0.04,
+        }
+        QSO: {
+            stars: 0.525,    # = 37% of 170/deg2 = 67/deg2
+            galaxies: 0.225, # = 16% of 170/deg2 = 23/deg2
+        }
 targets:
     BGS: {
         target_type: BGS,
         mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/full_sky/v0.0.4/BGS_r20.6.hdf5',
         format: durham_mxxl_hdf5,
-        magcut: 20.5,
+        magcut: 20.3,
     }
     ELG: {
         target_type: ELG,
         mockfile: '{DESI_ROOT}/mocks/DarkSky/v1.0.1/elg_0_inpt.fits',
         format: gaussianfield,
-        density: 2400,
+        density: 2200,
     }
     LRG: {
         target_type: LRG,
@@ -35,7 +66,7 @@ targets:
         density: 50,
         use_simqso: True,
         balprob: 0.0,
-        add_dla: True,
+        add_dla: False,
     }
     MWS_MAIN: {
         target_type: STAR,
