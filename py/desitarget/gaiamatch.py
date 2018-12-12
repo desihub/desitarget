@@ -12,6 +12,7 @@ import sys
 import numpy as np
 import fitsio
 import requests
+import pickle
 from glob import glob
 from time import time
 import healpy as hp
@@ -19,6 +20,7 @@ from os.path import basename
 from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
+from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.io import ascii
@@ -154,13 +156,19 @@ def gaia_csv_to_fits(numproc=4):
     Nothing
         But the archived Gaia CSV files in $GAIA_DIR/csv are
         converted to FITS files in the directory $GAIA_DIR/fits.
+        Also, a look-up table is written to $GAIA_DIR/fits/hpx-to-files.pickle
+        for which each index is an nside=32, nested scheme HEALPixel and each
+        entry is a list of the FITS files that touch that HEAPixel.
 
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in about 1 hour with numproc=32 for 60,000 Gaia files.
+        - Runs in 1-3 hours (depending on node) with numproc=32 for 60,000 files.
     """
+    # ADM the resolution at which the Gaia HEALPix files should be stored.
+    nside = 32
+
     # ADM check that the GAIA_DIR is set.
     gaiadir = _get_gaia_dir()
     log.info("running on {} processors".format(numproc))
@@ -184,7 +192,7 @@ def gaia_csv_to_fits(numproc=4):
     infiles = glob("{}/*csv*".format(csvdir))
     nfiles = len(infiles)
 
-    # ADM the critical function to run on every file
+    # ADM the critical function to run on every file.
     def _write_gaia_fits(infile):
         """read an input name for a csv file and write it to FITS"""
         outbase = os.path.basename(infile)
@@ -192,7 +200,9 @@ def gaia_csv_to_fits(numproc=4):
         outfile = os.path.join(fitsdir, outfilename)
         fitstable = ascii.read(infile)
         fitstable.write(outfile)
-        return True
+        # ADM return the HEALPixels that this file touches.
+        pix = set(radec2pix(nside, fitstable["ra"], fitstable["dec"]))
+        return [pix, os.path.basename(outfile)]
 
     # ADM this is just to count processed files in _update_status.
     nfile = np.zeros((), dtype='i8')
@@ -215,15 +225,79 @@ def gaia_csv_to_fits(numproc=4):
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            _ = pool.map(_write_gaia_fits, infiles, reduce=_update_status)
+            pixinfile = pool.map(_write_gaia_fits, infiles, reduce=_update_status)
     # ADM ...or run in serial.
     else:
+        pixinfile = list()
         for file in infiles:
-            _ = _update_status(_write_gaia_fits(file))
+            pixinfile.append(_update_status(_write_gaia_fits(file)))
+
+    # ADM create a list for which each index is a HEALPixel and each
+    # ADM entry is a list of files that touch that HEALPixel.
+    npix = hp.nside2npix(nside)
+    pixlist = [[] for i in range(npix)]
+    for pixels, file in pixinfile:
+        for pix in pixels:
+            pixlist[pix].append(file)
+
+    # ADM write out the HEALPixel->files look-up table.
+    outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
+    outfile = open(outfilename, "wb")
+    pickle.dump(pixlist, outfile)
+    outfile.close()
 
     log.info('Done...t={:.1f}s'.format(time()-t0))
 
     return
+
+
+def gaia_fits_to_healpix(numproc=4):
+    """Convert files in $GAIA_DIR/fits to files in $GAIA_DIR/healpix.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+
+    Notes
+    -----
+        - 
+    """
+    # ADM the resolution at which the Gaia HEALPix files should be stored.
+    nside = 32
+
+    # ADM check that the GAIA_DIR is set.
+    gaiadir = _get_gaia_dir()
+
+    # ADM construct the directories for reading/writing files.
+    fitsdir = os.path.join(gaiadir, 'fits')
+    hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM make sure the output directory is empty.
+    if os.path.exists(hpxdir):
+        if len(os.listdir(hpxdir)) > 0:
+            msg = "{} should be empty to make Gaia HEALPix files!".format(hpxdir)
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM make the output directory, if needed.
+    else:
+        log.info('Making Gaia directory for storing HEALPix files')
+        os.makedirs(hpxdir)
+
+    # ADM read the pixel-> file look-up table.
+    infilename = "/project/projectdirs/desi/target/gaia_dr2/fits/hpx-to-files.pickle"
+    infile = open(infilename,"rb")
+    pixlist = pickle.load(infile)
+
+    # ADM loop through each pixel...
+    for pixnum, files in enumerate(pixlist):
+        # ADM ...and read in files that touch a pixel.
+        for file in files:
+            filename = os.path.join(fitsdir, file)
+            objs = fitsio.read(filename)
+            
+
 
 
 def pop_gaia_coords(inarr):
@@ -330,7 +404,7 @@ def find_gaia_files(objs, neighbors=True,
         A list of all Gaia files that need to be read in to account for objects
         at the passed locations.
     """
-    # ADM the resolution at which the chunks files are stored
+    # ADM the resolution at which the Gaia HEALPix files are stored
     nside = 32
 
     # ADM convert RA/Dec to co-latitude and longitude in radians; note that the
