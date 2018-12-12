@@ -12,11 +12,16 @@ import sys
 import numpy as np
 import fitsio
 import requests
+from glob import glob
 from time import time
 import healpy as hp
+from os.path import basename
+from desitarget import io
 from desitarget.io import check_fitsio_version
+from desitarget.internal import sharedmem
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.io import ascii
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -68,15 +73,15 @@ def _get_gaia_dir():
     return gaiadir
 
 
-def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", test=False):
+def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nfiletest=None):
     """Retrieve the bulk CSV files released by the Gaia collaboration.
 
     Parameters
     ----------
     url : :class:`str`
-        The wb directory that hosts the archived Gaia CSV files.
-    test : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then just retrieve the first ten files for testing.
+        The web directory that hosts the archived Gaia CSV files.
+    nfiletest : :class:`int`, optional, defaults to ``None``
+        If an integer is sent, only retrieve this number of files, for testing.
 
     Returns
     -------
@@ -86,6 +91,7 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", te
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
+        - Runs in about 26 hours for 60,000 Gaia files.
     """
     # ADM check that the GAIA_DIR is set.
     gaiadir = _get_gaia_dir()
@@ -109,9 +115,11 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", te
     # ADM retrieve any file name that starts with GaiaSource.
     # ADM the [1::2] pulls back just the odd lines from the split list.
     filelist = index.text.split("GaiaSource")[1::2]
-    # ADM if test was passed, just work with 2 files.
+
+    # ADM if nfiletest was passed, just work with that number of files.
+    test = nfiletest is not None
     if test:
-        filelist = filelist[:10]
+        filelist = filelist[:nfiletest]
     nfiles = len(filelist)
 
     # ADM loop through the filelist.
@@ -127,6 +135,93 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", te
                 '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
                 .format(nfile+1, nfiles, rate, elapsed/60.)
             )
+
+    log.info('Done...t={:.1f}s'.format(time()-t0))
+
+    return
+
+
+def gaia_csv_to_fits(numproc=4):
+    """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 8
+        The number of parallel processes to use.
+
+    Returns
+    -------
+    Nothing
+        But the archived Gaia CSV files in $GAIA_DIR/csv are
+        converted to FITS files in the directory $GAIA_DIR/fits.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - if numproc==1, use the serial code instead of the parallel code.
+        - Runs in about 1 hour with numproc=32 for 60,000 Gaia files.
+    """
+    # ADM check that the GAIA_DIR is set.
+    gaiadir = _get_gaia_dir()
+    log.info("running on {} processors".format(numproc))
+
+    # ADM construct the directories for reading/writing files.
+    csvdir = os.path.join(gaiadir, 'csv')
+    fitsdir = os.path.join(gaiadir, 'fits')
+
+    # ADM make sure the output directory is empty.
+    if os.path.exists(fitsdir):
+        if len(os.listdir(fitsdir)) > 0:
+            msg = "{} should be empty to make Gaia FITS files!".format(fitsdir)
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM make the output directory, if needed.
+    else:
+        log.info('Making Gaia directory for storing FITS files')
+        os.makedirs(fitsdir)
+
+    # ADM construct the list of input files.
+    infiles = glob("{}/*csv*".format(csvdir))
+    nfiles = len(infiles)
+
+    # ADM the critical function to run on every file
+    def _write_gaia_fits(infile):
+        """read an input name for a csv file and write it to FITS"""
+        outbase = os.path.basename(infile)
+        outfilename = "{}.fits".format(outbase.split(".")[0])
+        outfile = os.path.join(fitsdir, outfilename)
+        fitstable = ascii.read(infile)
+        fitstable.write(outfile)
+        return True
+
+    # ADM this is just to count processed files in _update_status.
+    nfile = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if nfile % 100 == 0 and nfile > 0:
+            rate = nfile / (time() - t0)
+            elapsed = time() - t0
+            log.info(
+                '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                .format(nfile, nfiles, rate, elapsed/60.)
+            )
+        nfile[...] += 1    # this is an in-place modification
+        return result
+
+    # - Parallel process input files...
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            _ = pool.map(_write_gaia_fits, infiles, reduce=_update_status)
+    # ADM ...or run in serial.
+    else:
+        for file in infiles:
+            _ = _update_status(_write_gaia_fits(file))
+
+    log.info('Done...t={:.1f}s'.format(time()-t0))
 
     return
 
@@ -537,10 +632,6 @@ def write_gaia_matches(infiles, numproc=4, outdir=".",
     -----
         - if numproc==1, use the serial code instead of the parallel code.
     """
-    from os.path import basename
-    from desitarget import io
-    from desitarget.internal import sharedmem
-
     # ADM convert a single file, if passed to a list of files
     if isinstance(infiles, str):
         infiles = [infiles, ]
@@ -564,7 +655,7 @@ def write_gaia_matches(infiles, numproc=4, outdir=".",
     def _get_gaia_matches(fnwdir):
         '''wrapper on match_gaia_to_primary() given a file name'''
         # ADM extract the output file name
-        fn = basename(fnwdir)
+        fn = os.path.basename(fnwdir)
         outfile = '{}/{}'.format(outdir, fn.replace(".fits", ender))
 
         # ADM read in the objects

@@ -29,12 +29,12 @@ from . import __version__ as desitarget_version
 
 import healpy as hp
 
-# ADM fake the matplotlib display so it doesn't die on allocated nodes
+# ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Ellipse, Rectangle
-from matplotlib.collections import PatchCollection
+import matplotlib.pyplot as plt   # noqa: E402
+from matplotlib.patches import Circle, Ellipse, Rectangle  # noqa: E402
+from matplotlib.collections import PatchCollection  # noqa: E402
 
 
 def ellipse_matrix(r, e1, e2):
