@@ -69,7 +69,7 @@ def _get_gaia_dir():
     :class:`str`
         The directory stored in the $GAIA_DIR environment variable.
     """
-    # ADM check that the GAIA_DIR is set, or fail.
+    # ADM check that the $GAIA_DIR environment variable is set.
     gaiadir = os.environ.get('GAIA_DIR')
     if gaiadir is None:
         msg = "Set $GAIA_DIR environment variable!"
@@ -861,6 +861,7 @@ def write_gaia_matches(infiles, numproc=4, outdir=".")
     Notes
     -----
         - if numproc==1, use the serial code instead of the parallel code.
+        - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = _get_gaia_dir()
