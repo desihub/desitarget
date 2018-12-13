@@ -34,11 +34,13 @@ start = time()
 
 # ADM the current data model for Gaia columns for READING from Gaia files
 ingaiadatamodel = np.array([], dtype=[
-            ('SOURCE_ID', '>i8'), ('RA', '>f8'), ('DEC', '>f8'),
+            ('SOURCE_ID', '>i8'), ('REF_CAT', 'U2'), ('RA', '>f8'), ('DEC', '>f8'),
             ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
             ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DUPLICATED_SOURCE', '?'),
+            ('ASTROMETRIC_SIGMA5D_MAX', '>f4'), ('ASTROMETRIC_PARAMS_SOLVED', '>i1'),
             ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
             ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
             ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
@@ -46,11 +48,13 @@ ingaiadatamodel = np.array([], dtype=[
 
 # ADM the current data model for Gaia columns for WRITING to target files
 gaiadatamodel = np.array([], dtype=[
-            ('REF_ID', '>i8'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
+            ('REF_ID', '>i8'), ('REF_CAT', 'U2'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
             ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+            ('GAIA_PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
             ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('GAIA_DUPLICATED_SOURCE', '?'),
+            ('GAIA_ASTROMETRIC_SIGMA5D_MAX', '>f4'), ('GAIA_ASTROMETRIC_PARAMS_SOLVED', '>i1'),
             ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
             ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
             ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4')
@@ -189,7 +193,7 @@ def gaia_csv_to_fits(numproc=4):
         os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
-    infiles = glob("{}/*csv*".format(csvdir))
+    infiles = glob("{}/*csv*".format(csvdir))[0:1000]
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -199,12 +203,23 @@ def gaia_csv_to_fits(numproc=4):
         outfilename = "{}.fits".format(outbase.split(".")[0])
         outfile = os.path.join(fitsdir, outfilename)
         fitstable = ascii.read(infile, format='csv')
+
         # ADM need to convert 5-string values to boolean.
         cols = np.array(fitstable.dtype.names)
         boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
         for col in boolcols:
             fitstable[col] =  fitstable[col] == 'true'
-        fitstable.write(outfile)
+
+        # ADM only write out the columns we need for targeting.
+        nobjs = len(fitstable)
+        done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
+        for col in done.dtype.names:
+            if col == 'REF_CAT':
+                done[col] = 'G2'
+            else:
+                done[col] = fitstable[col.lower()]
+        fitsio.write(outfile, done, extname='GAIAFITS')
+
         # ADM return the HEALPixels that this file touches.
         pix = set(radec2pix(nside, fitstable["ra"], fitstable["dec"]))
         return [pix, os.path.basename(outfile)]
@@ -290,7 +305,7 @@ def gaia_fits_to_healpix(numproc=4):
         log.info('Making Gaia directory for storing HEALPix files')
         os.makedirs(hpxdir)
 
-    # ADM read the pixel-> file look-up table.
+    # ADM read the pixel -> file look-up table.
     infilename = "/project/projectdirs/desi/target/gaia_dr2/fits/hpx-to-files.pickle"
     infile = open(infilename,"rb")
     pixlist = pickle.load(infile)
@@ -327,7 +342,7 @@ def gaia_fits_to_healpix(numproc=4):
         hdr = fitsio.FITSHDR()
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
-        fitsio.write(outfile, done, extname='HPXGAIA', header=hdr)
+        fitsio.write(outfile, done, extname='GAIAHPX', header=hdr)
 
     return
 
