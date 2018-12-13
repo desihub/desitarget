@@ -112,7 +112,7 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nf
         - The environment variable $GAIA_DIR must be set.
         - Runs in about 26 hours for 60,000 Gaia files.
     """
-    # ADM check that the GAIA_DIR is set.
+    # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = _get_gaia_dir()
 
     # ADM construct the directory to which to write files.
@@ -206,7 +206,7 @@ def gaia_csv_to_fits(numproc=4):
         os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
-    infiles = glob("{}/*csv*".format(csvdir))[:1000]
+    infiles = glob("{}/*csv*".format(csvdir))
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -540,9 +540,8 @@ def read_gaia_file(filename, header=False):
         return outdata
 
 
-def find_gaia_files(objs, neighbors=True,
-                    gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Find full paths to all relevant Gaia "chunks" files for an object array
+def find_gaia_files(objs, neighbors=True):
+    """Find full paths to all relevant Gaia healpix files for an object array.
 
     Parameters
     ----------
@@ -552,32 +551,38 @@ def find_gaia_files(objs, neighbors=True,
         Return all of the pixels that touch the Gaia files of interest
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
         away from a primary source and so in an adjacent pixel)
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
     :class:`list`
         A list of all Gaia files that need to be read in to account for objects
         at the passed locations.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
     """
-    # ADM the resolution at which the Gaia HEALPix files are stored
+    # ADM the resolution at which the Gaia HEALPix files are stored.
     nside = _get_gaia_nside()
 
-    # ADM convert RA/Dec to co-latitude and longitude in radians; note that the
-    # ADM Legacy Surveys do NOT use the NESTED scheme for storing Gaia files
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM convert RA/Dec to co-latitude and longitude in radians.
     theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
 
-    # ADM retrieve the pixels in which the locations lie
-    pixnum = hp.ang2pix(nside, theta, phi)
+    # ADM retrieve the pixels in which the locations lie.
+    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
-        pixnum = np.hstack([pixnum,
-                            np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi))])
+        pixnum = np.hstack(
+            [pixnum, np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi, nest=True))]
+        )
 
     # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
-    # ADM one pixel was produced, so guard against pixnum being non-iterable
+    # ADM one pixel was produced, so guard against pixnum being non-iterable.
     if not isinstance(pixnum, np.integer):
         pixnum = list(set(pixnum))
     else:
@@ -587,15 +592,14 @@ def find_gaia_files(objs, neighbors=True,
     if -1 in pixnum:
         pixnum.remove(-1)
 
-    # ADM reformat in the Gaia chunked format used by the Legacy Surveys
-    gaiafiles = ['{}/chunk-{:05d}.fits'.format(gaiadir, pn) for pn in pixnum]
+    # ADM reformat in the Gaia healpix format used by desitarget.
+    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
 
     return gaiafiles
 
 
-def find_gaia_files_box(gaiabounds, neighbors=True,
-                        gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Find full paths to all relevant gaia "chunks" files for an object array
+def find_gaia_files_box(gaiabounds, neighbors=True):
+    """Find full paths to all relevant Gaia healpix files in an RA/Dec box.
 
     Parameters
     ----------
@@ -605,8 +609,6 @@ def find_gaia_files_box(gaiabounds, neighbors=True,
     neighbors : :class:`bool`, optional, defaults to ``True``
         Return all of the pixels that touch the pixels in the box in
         order to guard against edge effects
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
@@ -620,9 +622,14 @@ def find_gaia_files_box(gaiabounds, neighbors=True,
           warnings about returning different pixel sets at different values
           of `fact` apply. See:
           https://healpy.readthedocs.io/en/latest/generated/healpy.query_polygon.html
+        - The environment variable $GAIA_DIR must be set.
     """
     # ADM the resolution at which the healpix files are stored.
     nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM retrive the RA/Dec bounds from the passed list
     ramin, ramax, decmin, decmax = gaiabounds
@@ -636,16 +643,17 @@ def find_gaia_files_box(gaiabounds, neighbors=True,
     # ADM transpose to pass the array to query_polygon in the correct order
     vecs = hp.dir2vec(thetapairs, phipairs).T
 
-    # ADM determine the pixels that touch the box; note that the Legacy
-    # ADM Surveys do NOT use the NESTED scheme for storing Gaia files
-    pixnum = hp.query_polygon(nside, vecs, inclusive=True, fact=4)
+    # ADM determine the pixels that touch the box.
+    pixnum = hp.query_polygon(nside, vecs, inclusive=True, fact=4, nest=True)
 
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
-        # ADM first convert back to theta/phi to retrieve neighbors
-        theta, phi = hp.pix2ang(nside, pixnum)
-        pixnum = np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi))
+        # ADM first convert back to theta/phi to retrieve neighbors.
+        theta, phi = hp.pix2ang(nside, pixnum, nest=True)
+        pixnum = np.hstack(
+            hp.pixelfunc.get_all_neighbours(nside, theta, phi, nest=True)
+        )
 
     # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
     # ADM one pixel was produced, so guard against pixnum being non-iterable
@@ -658,15 +666,14 @@ def find_gaia_files_box(gaiabounds, neighbors=True,
     if -1 in pixnum:
         pixnum.remove(-1)
 
-    # ADM format in the gaia chunked format used by the Legacy Surveys
-    gaiafiles = ['{}/chunk-{:05d}.fits'.format(gaiadir, pn) for pn in pixnum]
+    # ADM reformat in the Gaia healpix format used by desitarget.
+    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
 
     return gaiafiles
 
 
 def match_gaia_to_primary(objs, matchrad=1.,
-                          retaingaia=False, gaiabounds=[0., 360., -90., 90.],
-                          gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+                          retaingaia=False, gaiabounds=[0., 360., -90., 90.])
     """Match a set of objects to Gaia "chunks" files and return the Gaia information
 
     Parameters
@@ -685,8 +692,6 @@ def match_gaia_to_primary(objs, matchrad=1.,
         Used in conjunction with `retaingaia` to determine over what area to
         retrieve Gaia objects that don't match a sweeps object. Pass a 4-entry
         list to represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
@@ -710,35 +715,35 @@ def match_gaia_to_primary(objs, matchrad=1.,
     # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
     import warnings
 
-    # ADM if retaingaia is True, retain all Gaia objects in a sweeps-like box
+    # ADM if retaingaia is True, retain all Gaia objects in a sweeps-like box.
     if retaingaia:
         ramin, ramax, decmin, decmax = gaiabounds
 
-    # ADM convert the coordinates of the input objects to a SkyCoord object
+    # ADM convert the coordinates of the input objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     nobjs = cobjs.size
 
-    # ADM deal with the special case that only a single object was passed
+    # ADM deal with the special case that only a single object was passed.
     if nobjs == 1:
-        return match_gaia_to_primary_single(objs, matchrad=matchrad, gaiadir=gaiadir)
+        return match_gaia_to_primary_single(objs, matchrad=matchrad)
 
-    # ADM set up a zerod array of Gaia information for the passed objects
+    # ADM set up a zerod array of Gaia information for the passed objects.
     gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
     # ADM a supplemental (zero-length) array to hold Gaia objects that don't
-    # ADM match a sweeps object, in case retaingaia was set
+    # ADM match a sweeps object, in case retaingaia was set.
     suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
 
-    # ADM objects without matches should have REF_ID of -1
+    # ADM objects without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
 
-    # ADM determine which Gaia files need to be considered
+    # ADM determine which Gaia files need to be considered.
     if retaingaia:
-        gaiafiles = find_gaia_files_box(gaiabounds, gaiadir=gaiadir)
+        gaiafiles = find_gaia_files_box(gaiabounds)
     else:
-        gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
+        gaiafiles = find_gaia_files(objs)
 
-    # ADM loop through the Gaia files and match to the passed objects
+    # ADM loop through the Gaia files and match to the passed objects.
     for file in gaiafiles:
         gaia = read_gaia_file(file)
         cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
@@ -746,23 +751,23 @@ def match_gaia_to_primary(objs, matchrad=1.,
             warnings.simplefilter("ignore")
             # ADM ****here's where the warning occurs...
             idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
-        # ADM assign the Gaia info to the array that corresponds to the passed objects
+        # ADM assign the Gaia info to the array that corresponds to the passed objects.
         gaiainfo[idobjs] = gaia[idgaia]
 
         # ADM if retaingaia was set, also build an array of Gaia objects that
-        # ADM don't have sweeps matches, but are within the RA/Dec bounds
+        # ADM don't have sweeps matches, but are within the RA/Dec bounds.
         if retaingaia:
-            # ADM find the Gaia IDs that didn't match the passed objects
+            # ADM find the Gaia IDs that didn't match the passed objects.
             nomatch = set(np.arange(len(gaia)))-set(idgaia)
             noidgaia = np.array(list(nomatch))
-            # ADM which Gaia objects with these IDs are within the bounds
+            # ADM which Gaia objects with these IDs are within the bounds.
             if len(noidgaia) > 0:
                 suppg = gaia[noidgaia]
                 winbounds = np.where(
                     (suppg["GAIA_RA"] >= ramin) & (suppg["GAIA_RA"] < ramax)
                     & (suppg["GAIA_DEC"] >= decmin) & (suppg["GAIA_DEC"] < decmax)
                 )[0]
-                # ADM Append those Gaia objects to the suppgaiainfo array
+                # ADM Append those Gaia objects to the suppgaiainfo array.
                 if len(winbounds) > 0:
                     suppgaiainfo = np.hstack([suppgaiainfo, suppg[winbounds]])
 
@@ -772,9 +777,8 @@ def match_gaia_to_primary(objs, matchrad=1.,
     return gaiainfo
 
 
-def match_gaia_to_primary_single(objs, matchrad=1.,
-                                 gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Match ONE object to Gaia "chunks" files and return the Gaia information
+def match_gaia_to_primary_single(objs, matchrad=1.)
+    """Match ONE object to Gaia "chunks" files and return the Gaia information.
 
     Parameters
     ----------
@@ -782,8 +786,6 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
         Must contain at least "RA" and "DEC". MUST BE A SINGLE ROW.
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
@@ -803,22 +805,22 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
     # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
     import warnings
 
-    # ADM convert the coordinates of the input objects to a SkyCoord object
+    # ADM convert the coordinates of the input objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     nobjs = cobjs.size
     if nobjs > 1:
         log.error("Only matches one row but {} rows were sent".format(nobjs))
 
-    # ADM set up a zerod array of Gaia information for the passed object
+    # ADM set up a zerod array of Gaia information for the passed object.
     gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
-    # ADM an object without matches should have REF_ID of -1
+    # ADM an object without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
 
-    # ADM determine which Gaia files need to be considered
-    gaiafiles = find_gaia_files(objs, gaiadir=gaiadir)
+    # ADM determine which Gaia files need to be considered.
+    gaiafiles = find_gaia_files(objs)
 
-    # ADM loop through the Gaia files and match to the passed object
+    # ADM loop through the Gaia files and match to the passed object.
     for file in gaiafiles:
         gaia = read_gaia_file(file)
         cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
@@ -827,15 +829,14 @@ def match_gaia_to_primary_single(objs, matchrad=1.,
             # ADM ****here's where the warning occurs...
             sep = cobjs.separation(cgaia)
             idgaia = np.where(sep < matchrad*u.arcsec)[0]
-        # ADM assign the Gaia info to the array that corresponds to the passed object
+        # ADM assign the Gaia info to the array that corresponds to the passed object.
         if len(idgaia) > 0:
             gaiainfo = gaia[idgaia]
 
     return gaiainfo
 
 
-def write_gaia_matches(infiles, numproc=4, outdir=".",
-                       gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+def write_gaia_matches(infiles, numproc=4, outdir=".")
     """Match sweeps files to Gaia and rewrite with the Gaia columns added
 
     Parameters
@@ -847,8 +848,6 @@ def write_gaia_matches(infiles, numproc=4, outdir=".",
         The number of parallel processes to use.
     outdir : :class:`str`, optional, default to the current directory
         The directory to write the files.
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
@@ -857,58 +856,61 @@ def write_gaia_matches(infiles, numproc=4, outdir=".",
         added (except for the columns `GAIA_RA` and `GAIA_DEC`) are
         written to file. The filename is the same as the input
         filename with the ".fits" replaced by "-gaia$DRmatch.fits"
-        where $DR is extracted from the passed gaiadir.
+        where $DR is extracted from the $GAIA_DIR environment variable.
 
     Notes
     -----
         - if numproc==1, use the serial code instead of the parallel code.
     """
-    # ADM convert a single file, if passed to a list of files
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+
+    # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
 
-    # ADM check that files exist before proceeding
+    # ADM check that files exist before proceeding.
     for filename in infiles:
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
     nfiles = len(infiles)
 
-    # ADM extract a reasonable name for output files from the Gaia directory
+    # ADM extract a reasonable name for output files from the Gaia directory.
     drloc = gaiadir.find("dr")
-    # ADM if we didn't find the substring "dr" go generic
+    # ADM if we didn't find the substring "dr" go generic.
     if drloc == -1:
         ender = '-gaiamatch.fits'
     else:
         ender = '-gaia{}match.fits'.format(gaiadir[drloc:drloc+3])
 
-    # ADM the critical function to run on every file
+    # ADM the critical function to run on every file.
     def _get_gaia_matches(fnwdir):
         '''wrapper on match_gaia_to_primary() given a file name'''
-        # ADM extract the output file name
+        # ADM extract the output file name.
         fn = os.path.basename(fnwdir)
         outfile = '{}/{}'.format(outdir, fn.replace(".fits", ender))
 
-        # ADM read in the objects
+        # ADM read in the objects.
         objs, hdr = io.read_tractor(fnwdir, header=True)
 
-        # ADM match to Gaia sources
-        gaiainfo = match_gaia_to_primary(objs, gaiadir=gaiadir)
+        # ADM match to Gaia sources.
+        gaiainfo = match_gaia_to_primary(objs)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objs), time()-start))
 
         # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        # ADM in the imaging surveys data model
+        # ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
 
-        # ADM add the Gaia column information to the sweeps array
+        # ADM add the Gaia column information to the sweeps array.
         for col in gaiainfo.dtype.names:
             objs[col] = gaiainfo[col]
 
         fitsio.write(outfile, objs, extname='SWEEP', header=hdr, clobber=True)
         return True
 
-    # ADM this is just to count sweeps files in _update_status
+    # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
 
     t0 = time()
@@ -919,10 +921,10 @@ def write_gaia_matches(infiles, numproc=4, outdir=".",
         if nfile % 50 == 0 and nfile > 0:
             rate = nfile / (time() - t0)
             log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
-        nfile[...] += 1    # this is an in-place modification
+        nfile[...] += 1    # this is an in-place modification.
         return result
 
-    # - Parallel process input files
+    # - Parallel process input files.
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
