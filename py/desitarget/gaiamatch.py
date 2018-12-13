@@ -221,7 +221,7 @@ def gaia_csv_to_fits(numproc=4):
         cols = np.array(fitstable.dtype.names)
         boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
         for col in boolcols:
-            fitstable[col] =  fitstable[col] == 'true'
+            fitstable[col] = fitstable[col] == 'true'
 
         # ADM only write out the columns we need for targeting.
         nobjs = len(fitstable)
@@ -334,17 +334,17 @@ def gaia_fits_to_healpix(numproc=4):
     pixlist = pickle.load(infile)
     npixels = len(pixlist)
     # ADM include the pixel number explicitly in the look-up table.
-    pixlist = list(zip(np.arange(npixels),pixlist))
+    pixlist = list(zip(np.arange(npixels), pixlist))
 
     # ADM the critical function to run on every file.
     def _write_hpx_fits(pixlist):
         """from files that touch a pixel, write out objects in each pixel"""
         pixnum, files = pixlist
-        # ADM only proceed if some files touch a pixel
+        # ADM only proceed if some files touch a pixel.
         if len(files) > 0:
             # ADM track if it's our first time through the files loop.
             first = True
-            # ADM Read in files that touch a pixel.        
+            # ADM Read in files that touch a pixel.
             for file in files:
                 filename = os.path.join(fitsdir, file)
                 objs = fitsio.read(filename)
@@ -364,7 +364,7 @@ def gaia_fits_to_healpix(numproc=4):
             hdr['HPXNEST'] = True
             fitsio.write(outfile, done, extname='GAIAHPX', header=hdr)
 
-        return 
+        return
 
     # ADM this is just to count processed files in _update_status.
     npix = np.zeros((), dtype='i8')
@@ -433,7 +433,7 @@ def make_gaia_files(numproc=4, download=False):
     # ADM check that the GAIA_DIR is set.
     gaiadir = _get_gaia_dir()
 
-    # ADM a quick check that the fits and healpix directories are empty 
+    # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
     fitsdir = os.path.join(gaiadir, 'fits')
     hpxdir = os.path.join(gaiadir, 'healpix')
@@ -455,6 +455,7 @@ def make_gaia_files(numproc=4, download=False):
     log.info('Rearranged FITS files by HEALPixel...t={:.1f}s'.format(time()-t0))
 
     return
+
 
 def pop_gaia_coords(inarr):
     """Convenience function to pop GAIA_RA and GAIA_DEC columns off an array
