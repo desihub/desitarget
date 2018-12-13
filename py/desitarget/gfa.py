@@ -214,8 +214,7 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
 
 
 def gaia_gfas_from_sweep(objects, maglim=18.,
-                         gaiamatch=False, gaiabounds=[0., 360., -90., 90.],
-                         gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+                         gaiamatch=False, gaiabounds=[0., 360., -90., 90.]):
     """Create a set of GFAs from Gaia-matching for one sweep file or sweep objects
 
     Parameters
@@ -231,8 +230,6 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     gaiabounds : :class:`list`, optional, defaults to the whole sky
         The area over which to retrieve Gaia objects that don't match a sweeps object.
         Pass a 4-entry list to form a box bounded by [RAmin, RAmax, DECmin, DECmax].
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
@@ -276,7 +273,7 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     if gaiamatch:
         # ADM match with a fairly discriminating radius (0.1 arcsec) to just
         # ADM get the best sweeps-Gaia correspondence
-        gaiainfo = match_gaia_to_primary(objects, matchrad=0.1, gaiadir=gaiadir,
+        gaiainfo = match_gaia_to_primary(objects, matchrad=0.1,
                                          retaingaia=True, gaiabounds=gaiabounds)
         log.info('Done with Gaia match...t = {:.1f}s'.format(time()-start))
         # ADM add the Gaia column information to the primary array
@@ -387,8 +384,7 @@ def decode_sweep_name(sweepname):
     return [ramin, ramax, decmin, decmax]
 
 
-def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False,
-                gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     """Create a set of GFA locations using Gaia
 
     Parameters
@@ -402,8 +398,6 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False,
     gaiamatch : defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate
         Gaia columns, otherwise assume those columns already exist
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
 
     Returns
     -------
@@ -434,8 +428,7 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False,
         bounds = decode_sweep_name(fn)
 
         return gaia_gfas_from_sweep(
-            fn, maglim=maglim,
-            gaiamatch=gaiamatch, gaiadir=gaiadir, gaiabounds=bounds
+            fn, maglim=maglim, gaiamatch=gaiamatch, gaiabounds=bounds
         )
 
     # ADM this is just to count sweeps files in _update_status

@@ -672,9 +672,9 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     return gaiafiles
 
 
-def match_gaia_to_primary(objs, matchrad=1.,
-                          retaingaia=False, gaiabounds=[0., 360., -90., 90.])
-    """Match a set of objects to Gaia "chunks" files and return the Gaia information
+def match_gaia_to_primary(objs, matchrad=1., retaingaia=False, 
+                          gaiabounds=[0., 360., -90., 90.]):
+    """Match a set of objects to Gaia healpix files and return the Gaia information.
 
     Parameters
     ----------
@@ -777,7 +777,7 @@ def match_gaia_to_primary(objs, matchrad=1.,
     return gaiainfo
 
 
-def match_gaia_to_primary_single(objs, matchrad=1.)
+def match_gaia_to_primary_single(objs, matchrad=1.):
     """Match ONE object to Gaia "chunks" files and return the Gaia information.
 
     Parameters
@@ -836,7 +836,7 @@ def match_gaia_to_primary_single(objs, matchrad=1.)
     return gaiainfo
 
 
-def write_gaia_matches(infiles, numproc=4, outdir=".")
+def write_gaia_matches(infiles, numproc=4, outdir="."):
     """Match sweeps files to Gaia and rewrite with the Gaia columns added
 
     Parameters
