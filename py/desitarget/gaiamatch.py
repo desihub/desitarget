@@ -34,7 +34,7 @@ start = time()
 
 # ADM the current data model for Gaia columns for READING from Gaia files
 ingaiadatamodel = np.array([], dtype=[
-            ('SOURCE_ID', '>i8'), ('REF_CAT', 'U2'), ('RA', '>f8'), ('DEC', '>f8'),
+            ('SOURCE_ID', '>i8'), ('REF_CAT', 'S2'), ('RA', '>f8'), ('DEC', '>f8'),
             ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
@@ -48,7 +48,7 @@ ingaiadatamodel = np.array([], dtype=[
 
 # ADM the current data model for Gaia columns for WRITING to target files
 gaiadatamodel = np.array([], dtype=[
-            ('REF_ID', '>i8'), ('REF_CAT', 'U2'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
+            ('REF_ID', '>i8'), ('REF_CAT', 'S2'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
             ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
             ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
@@ -77,6 +77,19 @@ def _get_gaia_dir():
         raise ValueError(msg)
 
     return gaiadir
+
+
+def _get_gaia_nside():
+    """Grab the HEALPixel nside to be used throughout this module.
+
+    Returns
+    -------
+    :class:`int`
+        The HEALPixel nside number for Gaia file creation and retrieval.
+    """
+    nside = 32
+
+    return nside
 
 
 def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nfiletest=None):
@@ -152,26 +165,26 @@ def gaia_csv_to_fits(numproc=4):
 
     Parameters
     ----------
-    numproc : :class:`int`, optional, defaults to 8
+    numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
 
     Returns
     -------
     Nothing
-        But the archived Gaia CSV files in $GAIA_DIR/csv are
-        converted to FITS files in the directory $GAIA_DIR/fits.
-        Also, a look-up table is written to $GAIA_DIR/fits/hpx-to-files.pickle
-        for which each index is an nside=32, nested scheme HEALPixel and each
-        entry is a list of the FITS files that touch that HEAPixel.
+        But the archived Gaia CSV files in $GAIA_DIR/csv are converted
+        to FITS files in the directory $GAIA_DIR/fits. Also, a look-up
+        table is written to $GAIA_DIR/fits/hpx-to-files.pickle for which
+        each index is an nside=_get_gaia_nside(), nested scheme HEALPixel
+        and each entry is a list of the FITS files that touch that HEAPixel.
 
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in 1-2 hours (depending on node) with numproc=32 for 60,000 files.
+        - Runs in 1-3 hours (depending on node) with numproc=32 for 60,000 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
-    nside = 32
+    nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
     gaiadir = _get_gaia_dir()
@@ -193,7 +206,7 @@ def gaia_csv_to_fits(numproc=4):
         os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
-    infiles = glob("{}/*csv*".format(csvdir))[0:1000]
+    infiles = glob("{}/*csv*".format(csvdir))[:1000]
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -276,16 +289,26 @@ def gaia_fits_to_healpix(numproc=4):
 
     Parameters
     ----------
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
 
     Returns
     -------
+    Nothing
+        But the archived Gaia FITS files in $GAIA_DIR/fits are
+        rearranged by HEALPixel in the directory $GAIA_DIR/healpix.
+        The HEALPixel sense is nested with nside=_get_gaia_nside(), and
+        each file in $GAIA_DIR/healpix is called healpy-xxxxx.fits,
+        where xxxxx corresponds to the HEALPixel number.
 
     Notes
     -----
-        - 
+        - The environment variable $GAIA_DIR must be set.
+        - if numproc==1, use the serial code instead of the parallel code.
+        - Runs in about 1-3 hours with numproc=32 for 60,000 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
-    nside = 32
+    nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
     gaiadir = _get_gaia_dir()
@@ -306,46 +329,132 @@ def gaia_fits_to_healpix(numproc=4):
         os.makedirs(hpxdir)
 
     # ADM read the pixel -> file look-up table.
-    infilename = "/project/projectdirs/desi/target/gaia_dr2/fits/hpx-to-files.pickle"
-    infile = open(infilename,"rb")
+    infilename = os.path.join(fitsdir, "hpx-to-files.pickle")
+    infile = open(infilename, "rb")
     pixlist = pickle.load(infile)
+    npixels = len(pixlist)
+    # ADM include the pixel number explicitly in the look-up table.
+    pixlist = list(zip(np.arange(npixels),pixlist))
 
-    # ADM loop through each pixel...
-    for pixnum, files in enumerate(pixlist):
-        # ADM so we can stack results if it's not our first time through.
-        first = True
-        # ADM ...and read in files that touch a pixel.
-        for file in files:
-            filename = os.path.join(fitsdir, file)
-            fx = fitsio.FITS(filename, upper=True)
-            fxcolnames = fx[1].get_colnames()
-            # ADM the default list of columns.
-            readcolumns = list(ingaiadatamodel.dtype.names)
-            # ADM read 'em in.
-            objs = fx[1].read(columns=readcolumns)
-            # ADM only retain objects in the correct pixel.
-            pix = radec2pix(nside, objs["RA"], objs["DEC"])
-            if first:
-                allobjs = objs[pix == pixnum]
-                first = False
-            else:
-                allobjs = np.hstack(allobjs, objs[pix == pixnum])
-        # ADM rearrange the columns to match the data model.
-        nobjs = len(allobjs)
-        done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
-        for col in done.dtype.names:
-            done[col] = allobjs[col]
-        # ADM construct the name of the output file.
-        outfilename = 'healpix-{:05d}.fits'.format(pixnum)
-        outfile = os.path.join(hpxdir, outfilename)
-        # ADM write out the file.
-        hdr = fitsio.FITSHDR()
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
-        fitsio.write(outfile, done, extname='GAIAHPX', header=hdr)
+    # ADM the critical function to run on every file.
+    def _write_hpx_fits(pixlist):
+        """from files that touch a pixel, write out objects in each pixel"""
+        pixnum, files = pixlist
+        # ADM only proceed if some files touch a pixel
+        if len(files) > 0:
+            # ADM track if it's our first time through the files loop.
+            first = True
+            # ADM Read in files that touch a pixel.        
+            for file in files:
+                filename = os.path.join(fitsdir, file)
+                objs = fitsio.read(filename)
+                # ADM only retain objects in the correct pixel.
+                pix = radec2pix(nside, objs["RA"], objs["DEC"])
+                if first:
+                    done = objs[pix == pixnum]
+                    first = False
+                else:
+                    done = np.hstack([done, objs[pix == pixnum]])
+            # ADM construct the name of the output file.
+            outfilename = 'healpix-{:05d}.fits'.format(pixnum)
+            outfile = os.path.join(hpxdir, outfilename)
+            # ADM write out the file.
+            hdr = fitsio.FITSHDR()
+            hdr['HPXNSIDE'] = nside
+            hdr['HPXNEST'] = True
+            fitsio.write(outfile, done, extname='GAIAHPX', header=hdr)
+
+        return 
+
+    # ADM this is just to count processed files in _update_status.
+    npix = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if npix % 100 == 0 and npix > 0:
+            rate = npix / (time() - t0)
+            elapsed = time() - t0
+            log.info(
+                '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                .format(npix, npixels, rate, elapsed/60.)
+            )
+        npix[...] += 1    # this is an in-place modification
+        return result
+
+    # - Parallel process input files...
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            _ = pool.map(_write_hpx_fits, pixlist, reduce=_update_status)
+    # ADM ...or run in serial.
+    else:
+        for pix in pixlist:
+            _update_status(_write_hpx_fits(pix))
+
+    log.info('Done...t={:.1f}s'.format(time()-t0))
 
     return
 
+
+def make_gaia_files(numproc=4, download=False):
+    """Make the HEALPix-split Gaia DR2 files used by desitarget.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+    download : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then wget the Gaia DR2 csv files from ESA.
+
+    Returns
+    -------
+    Nothing
+        But produces:
+        - Full Gaia DR2 CSV files in $GAIA_DIR/csv.
+        - FITS files with columns from `ingaiadatamodel` in $GAIA_DIR/fits.
+        - FITS files reorganized by HEALPixel in $GAIA_DIR/healpix.
+
+        The HEALPixel sense is nested with nside=_get_gaia_nside(), and
+        each file in $GAIA_DIR/healpix is called healpy-xxxxx.fits,
+        where xxxxx corresponds to the HEALPixel number.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - if numproc==1, use the serial code instead of the parallel code.
+        - Runs in about 26 hours if download is ``True``.
+        - Runs in 1-3 hours with numproc=32 if download is ``False``.
+    """
+    t0 = time()
+    log.info('Begin making Gaia files...t={:.1f}s'.format(time()-t0))
+
+    # ADM check that the GAIA_DIR is set.
+    gaiadir = _get_gaia_dir()
+
+    # ADM a quick check that the fits and healpix directories are empty 
+    # ADM before embarking on the slower parts of the code.
+    fitsdir = os.path.join(gaiadir, 'fits')
+    hpxdir = os.path.join(gaiadir, 'healpix')
+    for direc in [fitsdir, hpxdir]:
+        if os.path.exists(direc):
+            if len(os.listdir(direc)) > 0:
+                msg = "{} should be empty to make Gaia files!".format(direc)
+                log.critical(msg)
+                raise ValueError(msg)
+
+    if download:
+        scrape_gaia()
+        log.info('Retrieved Gaia files from ESA...t={:.1f}s'.format(time()-t0))
+
+    gaia_csv_to_fits(numproc=numproc)
+    log.info('Converted CSV files to FITS...t={:.1f}s'.format(time()-t0))
+
+    gaia_fits_to_healpix(numproc=numproc)
+    log.info('Rearranged FITS files by HEALPixel...t={:.1f}s'.format(time()-t0))
+
+    return
 
 def pop_gaia_coords(inarr):
     """Convenience function to pop GAIA_RA and GAIA_DEC columns off an array
@@ -452,7 +561,7 @@ def find_gaia_files(objs, neighbors=True,
         at the passed locations.
     """
     # ADM the resolution at which the Gaia HEALPix files are stored
-    nside = 32
+    nside = _get_gaia_nside()
 
     # ADM convert RA/Dec to co-latitude and longitude in radians; note that the
     # ADM Legacy Surveys do NOT use the NESTED scheme for storing Gaia files
@@ -511,8 +620,8 @@ def find_gaia_files_box(gaiabounds, neighbors=True,
           of `fact` apply. See:
           https://healpy.readthedocs.io/en/latest/generated/healpy.query_polygon.html
     """
-    # ADM the resolution at which the chunks files are stored
-    nside = 32
+    # ADM the resolution at which the healpix files are stored.
+    nside = _get_gaia_nside()
 
     # ADM retrive the RA/Dec bounds from the passed list
     ramin, ramax, decmin, decmax = gaiabounds
