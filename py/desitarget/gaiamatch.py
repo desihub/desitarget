@@ -292,12 +292,39 @@ def gaia_fits_to_healpix(numproc=4):
 
     # ADM loop through each pixel...
     for pixnum, files in enumerate(pixlist):
+        # ADM so we can stack results if it's not our first time through.
+        first = True
         # ADM ...and read in files that touch a pixel.
         for file in files:
             filename = os.path.join(fitsdir, file)
-            objs = fitsio.read(filename)
-            
+            fx = fitsio.FITS(filename, upper=True)
+            fxcolnames = fx[1].get_colnames()
+            # ADM the default list of columns.
+            readcolumns = list(ingaiadatamodel.dtype.names)
+            # ADM read 'em in.
+            objs = fx[1].read(columns=readcolumns)
+            # ADM only retain objects in the correct pixel.
+            pix = radec2pix(nside, objs["RA"], objs["DEC"])
+            if first:
+                allobjs = objs[pix == pixnum]
+                first = False
+            else:
+                allobjs = np.hstack(allobjs, objs[pix == pixnum])
+        # ADM rearrange the columns to match the data model.
+        nobjs = len(allobjs)
+        done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
+        for col in done.dtype.names:
+            done[col] = allobjs[col]
+        # ADM construct the name of the output file.
+        outfilename = 'healpix-{:05d}.fits'.format(pixnum)
+        outfile = os.path.join(hpxdir, outfilename)
+        # ADM write out the file.
+        hdr = fitsio.FITSHDR()
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+        fitsio.write(outfile, done, extname='HPXGAIA', header=hdr)
 
+    return
 
 
 def pop_gaia_coords(inarr):
@@ -347,7 +374,7 @@ def read_gaia_file(filename, header=False):
     -------
     :class:`numpy.ndarray`
         Gaia data translated to targeting format (upper-case etc.) with the
-        columns corresponding to `desitarget.secondary.gaiadatamodel`
+        columns corresponding to `desitarget.gaiamatch.gaiadatamodel`
 
     Notes
     -----
