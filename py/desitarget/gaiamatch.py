@@ -164,7 +164,7 @@ def gaia_csv_to_fits(numproc=4):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in 1-3 hours (depending on node) with numproc=32 for 60,000 files.
+        - Runs in 1-2 hours (depending on node) with numproc=32 for 60,000 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = 32
@@ -198,7 +198,12 @@ def gaia_csv_to_fits(numproc=4):
         outbase = os.path.basename(infile)
         outfilename = "{}.fits".format(outbase.split(".")[0])
         outfile = os.path.join(fitsdir, outfilename)
-        fitstable = ascii.read(infile)
+        fitstable = ascii.read(infile, format='csv')
+        # ADM need to convert 5-string values to boolean.
+        cols = np.array(fitstable.dtype.names)
+        boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
+        for col in boolcols:
+            fitstable[col] =  fitstable[col] == 'true'
         fitstable.write(outfile)
         # ADM return the HEALPixels that this file touches.
         pix = set(radec2pix(nside, fitstable["ra"], fitstable["dec"]))
