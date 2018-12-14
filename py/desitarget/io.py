@@ -578,6 +578,9 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
     from desiutil.log import get_logger
     log = get_logger()
 
+    # ADM rename 'TYPE' to 'MORPHTYPE'.
+    data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
+
     # ADM create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
