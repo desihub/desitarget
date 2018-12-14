@@ -316,8 +316,8 @@ def read_tractor(filename, header=False, columns=None):
             # ADM the DR7 sweeps don't contain these columns, but DR8 should.
             if 'REF_CAT' not in fxcolnames:
                 gaiadatamodel = pop_gaia_columns(
-                    gaiadatamodel, 
-                    ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR', 
+                    gaiadatamodel,
+                    ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
                      'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
                 )
             gaiacols = gaiadatamodel.dtype.names

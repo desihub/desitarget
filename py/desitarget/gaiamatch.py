@@ -520,7 +520,7 @@ def pop_gaia_columns(inarr, cols):
 
 
 def read_gaia_file(filename, header=False):
-    """Read in a Gaia "chunks" file in the appropriate format for desitarget
+    """Read in a Gaia healpix file in the appropriate format for desitarget.
 
     Parameters
     ----------
