@@ -1013,7 +1013,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                 log.warning('Mismatching TARGETIDs!')
                 raise ValueError                
                     
-        targets['PRIORITY'], targets['NUMOBS'] = initial_priority_numobs(
+        targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = initial_priority_numobs(
             targets, survey=survey)
 
         # Rename TYPE --> MORPHTYPE
@@ -1028,7 +1028,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
         skytruth['TARGETID'][:] = targetid[nobj:]
 
-        skytargets['PRIORITY'], skytargets['NUMOBS'] = initial_priority_numobs(
+        skytargets['PRIORITY_INIT'], skytargets['NUMOBS_INIT'] = initial_priority_numobs(
             skytargets, survey=survey)
 
         # Rename TYPE --> MORPHTYPE
