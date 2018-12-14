@@ -25,7 +25,8 @@ from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
+from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
 
 # ADM set up the DESI default logger
@@ -2018,6 +2019,13 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
         # ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
+        # ADM if we need to match to Gaia, stick to the first Gaia data model
+        # ADM that we adopted for DR7.
+        gaiainfo = pop_gaia_columns(
+            gaiainfo,
+            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+            'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
+        )
         # ADM add the Gaia column information to the primary array.
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
