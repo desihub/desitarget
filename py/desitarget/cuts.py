@@ -25,7 +25,8 @@ from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary, pop_gaia_coords
+from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
 
 # ADM set up the DESI default logger
@@ -1963,7 +1964,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-               gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
                qso_optical_cuts=False, survey='main'):
     """Perform target selection on objects, returning target mask arrays.
 
@@ -1982,8 +1982,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-    gaiadir : :class:`str`, optional, defaults to the Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
     qso_optical_cuts : :class:`boolean` defaults to ``False``
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``.
@@ -2015,12 +2013,19 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
         log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
                  .format(len(objects), time()-start))
-        gaiainfo = match_gaia_to_primary(objects, gaiadir=gaiadir)
+        gaiainfo = match_gaia_to_primary(objects)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objects), time()-start))
         # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
         # ADM in the imaging surveys data model.
         gaiainfo = pop_gaia_coords(gaiainfo)
+        # ADM if we need to match to Gaia, stick to the first Gaia data model
+        # ADM that we adopted for DR7.
+        gaiainfo = pop_gaia_columns(
+            gaiainfo,
+            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+            'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
+        )
         # ADM add the Gaia column information to the primary array.
         for col in gaiainfo.dtype.names:
             objects[col] = gaiainfo[col]
@@ -2205,7 +2210,6 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-                   gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom',
                    survey='main'):
     """Process input files in parallel to select targets.
 
@@ -2233,8 +2237,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by `the Legacy Surveys`_.
     survey : :class:`str`, defaults to ``'main'``
         Specifies which target masks yaml file and target selection cuts
         to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
@@ -2288,7 +2290,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = apply_cuts(
             objects, qso_selection=qso_selection, gaiamatch=gaiamatch,
-            tcnames=tcnames, gaiadir=gaiadir, survey=survey
+            tcnames=tcnames, survey=survey
         )
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)

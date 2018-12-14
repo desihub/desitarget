@@ -14,6 +14,8 @@ from astropy.wcs import WCS
 from time import time
 import healpy as hp
 import fitsio
+from glob import glob
+from desitarget.gaiamatch import _get_gaia_dir
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
@@ -528,52 +530,56 @@ def pixweight(randoms, density, nobsgrz=[0,0,0], nside=256, outplot=None, outare
     return pix_weight
 
 
-def stellar_density(nside=256,
-            gaiadir='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
-    """Make a HEALPixel map of stellar density based on Gaia
+def stellar_density(nside=256):
+    """Make a HEALPixel map of stellar density based on Gaia.
 
     Parameters
     ----------
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel NESTED nside number) at which to build the map.
-    gaiadir : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        Root directory of a Gaia Data Release as used by the Legacy Surveys.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
     """
-    #ADM the number of pixels and the pixel area at the passed nside
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    fitsdir = os.path.join(gaiadir, 'fits')
+
+    # ADM the number of pixels and the pixel area at the passed nside.
     npix = hp.nside2npix(nside)
-    pixarea = hp.nside2pixarea(nside,degrees=True)
+    pixarea = hp.nside2pixarea(nside, degrees=True)
 
-    #ADM an output array to populate containing all possible HEALPixels at the passed nside
-    pixout = np.zeros(npix,dtype='int32')
+    # ADM an output array to populate containing all possible HEALPixels at the passed nside.
+    pixout = np.zeros(npix, dtype='int32')
 
-    #ADM find all of the Gaia files
-    from glob import glob
-    filenames = glob(gaiadir+'/*fits')
-    
-    #ADM read in each file, restricting to the criteria for point sources
-    #ADM and storing in a HEALPixel map at resolution nside
+    # ADM find all of the Gaia files.
+    filenames = glob(fitsdir+'/*fits')
+
+    # ADM read in each file, restricting to the criteria for point sources
+    # ADM and storing in a HEALPixel map at resolution nside.
     for filename in filenames:
-        #ADM save memory and speed up by only reading in a subset of columns
+        # ADM save memory and speed up by only reading in a subset of columns.
         gobjs = fitsio.read(filename,
-                            columns=['ra','dec','phot_g_mean_mag','astrometric_excess_noise'])
+                            columns=['RA','DEC','PHOT_G_MEAN_MAG','ASTROMETRIC_EXCESS_NOISE'])
 
-        #ADM restrict to subset of sources using point source definition
-        ra, dec = gobjs["ra"], gobjs["dec"]
-        gmag, excess = gobjs["phot_g_mean_mag"], gobjs["astrometric_excess_noise"]
+        # ADM restrict to subset of sources using point source definition.
+        ra, dec = gobjs["RA"], gobjs["DEC"]
+        gmag, excess = gobjs["PHOT_G_MEAN_MAG"], gobjs["ASTROMETRIC_EXCESS_NOISE"]
         point = (excess==0.) | (np.log10(excess) < 0.3*gmag-5.3)
         grange = (gmag >= 12) & (gmag < 17)
         w = np.where( point & grange )
 
-        #ADM calculate the HEALPixels for the point sources
+        # ADM calculate the HEALPixels for the point sources.
         theta, phi = np.radians(90-dec[w]), np.radians(ra[w])
         pixnums = hp.ang2pix(nside, theta, phi, nest=True)
 
-        #ADM return the counts in each pixelnumber...
-        pixnum, pixcnt = np.unique(pixnums,return_counts=True)
-        #ADM...and populate the output array with the counts
+        # ADM return the counts in each pixel number...
+        pixnum, pixcnt = np.unique(pixnums, return_counts=True)
+        # ADM...and populate the output array with the counts.
         pixout[pixnum] += pixcnt
 
-    #ADM return the density
+    # ADM return the density
     return pixout/pixarea
         
 
@@ -635,8 +641,7 @@ def get_targ_dens(targets,nside=256):
     return targdens
 
 
-def pixmap(randoms, targets, rand_density, nside=256,
-           gaialoc='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'):
+def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     """A HEALPixel map of useful quantities for analyzing a Legacy Surveys Data Release
 
     Parameters
@@ -652,10 +657,11 @@ def pixmap(randoms, targets, rand_density, nside=256,
         generated (see also :func:`select_randoms()`).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map (NESTED scheme).
-    gaialoc : :class:`str`, optional, defaults to Gaia DR2 path at NERSC
-        If this is a directory, it is assumed to be the root directory of a Gaia Data 
-        Release as used by the Legacy Surveys. If it is a FILE it is assumed to be a FITST 
-        file that already contains the column "STARDENS", which is simply read in.
+    gaialoc : :class:`str`, optional, defaults to ``None``
+        If a file is passed it is assumed to be a FITS file that already contains the 
+        column "STARDENS", which is simply read in. Otherwise, the stellar density is
+        constructed from the files stored in the default location indicated by the
+        $GAIA_DIR environment variable.
 
     Returns
     -------
@@ -674,6 +680,9 @@ def pixmap(randoms, targets, rand_density, nside=256,
                                 the median of GALDEPTH values in the passed random catalog.
             - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
               Each column contains the density of targets in pixels at the passed `nside`
+    Notes
+    -----
+        - If `gaialoc` is ``None`` then the environment variable $GAIA_DIR must be set.
     """
     #ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
@@ -709,16 +718,16 @@ def pixmap(randoms, targets, rand_density, nside=256,
     for col in targdens.dtype.names:
         hpxinfo[col] = targdens[col]
 
-    #ADM build the stellar density, or if gaialoc was passed as a file, just read it in
-    if os.path.isdir(gaialoc):
-        log.info('Calculating stellar density using Gaia files at {}...t = {:.1f}s'
-                 .format(gaialoc,time()-start))    
-        sd = stellar_density(nside=nside,gaiadir=gaialoc)
+    #ADM build the stellar density, or if gaialoc was passed as a file, just read it in.
+    if gaialoc is None:
+        log.info('Calculating stellar density using Gaia files in $GAIA_DIR...t = {:.1f}s'
+                 .format(time()-start))
+        sd = stellar_density(nside=nside)
     else:
         sd = fitsio.read(gaialoc,columns=["STARDENS"])
         if len(sd) != len(hpxinfo):
             log.critical('Stellar density map in {} was not calculated at NSIDE={}'
-                         .format(gaialoc,nside))
+                         .format(gaialoc, nside))
     hpxinfo["STARDENS"] = sd
 
     #ADM add the median values of all of the other systematics 
