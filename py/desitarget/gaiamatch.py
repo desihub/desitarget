@@ -474,7 +474,7 @@ def pop_gaia_coords(inarr):
     names = list(inarr.dtype.names)
 
     # ADM pop off any instances of GAIA_RA, GAIA_DEC be forgiving if they
-    # ADM aren't in the array
+    # ADM aren't in the array.
     try:
         names.remove("GAIA_RA")
     except ValueError:
@@ -484,6 +484,36 @@ def pop_gaia_coords(inarr):
         names.remove("GAIA_DEC")
     except ValueError:
         pass
+
+    # ADM return the array without GAIA_RA, GAIA_DEC
+    return inarr[names]
+
+
+def pop_gaia_columns(inarr, cols):
+    """Convenience function to pop columns of an input array.
+
+    Parameters
+    ----------
+    inarr : :class:`numpy.ndarray`
+        Structured array with various column names.
+    cols : :class:`list`
+        List of columns to remove from the input array.
+
+    Returns
+    -------
+    :class:`numpy.ndarray`
+        Input array with columns in cols removed.
+    """
+    # ADM list of the column names of the passed array
+    names = list(inarr.dtype.names)
+
+    # ADM pop off any instances of GAIA_RA, GAIA_DEC be forgiving if they
+    # ADM aren't in the array.
+    for col in cols:
+        try:
+            names.remove(col)
+        except ValueError:
+            pass
 
     # ADM return the array without GAIA_RA, GAIA_DEC
     return inarr[names]
@@ -672,7 +702,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     return gaiafiles
 
 
-def match_gaia_to_primary(objs, matchrad=1., retaingaia=False, 
+def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
                           gaiabounds=[0., 360., -90., 90.]):
     """Match a set of objects to Gaia healpix files and return the Gaia information.
 

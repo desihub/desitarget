@@ -63,9 +63,16 @@ class TestIO(unittest.TestCase):
 
     def test_tractor_columns(self):
         # ADM Gaia columns that get added on input.
-        from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+        from desitarget.gaiamatch import gaiadatamodel
+        from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
         # ADM have to remove the GAIA_RA, GAIA_DEC columns used for matching.
         gaiadatamodel = pop_gaia_coords(gaiadatamodel)
+        # ADM prior to DR8, we're also missing some other Gaia columns.
+        gaiadatamodel = pop_gaia_columns(
+            gaiadatamodel,
+            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+             'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
+        )
         # ADM BRICK_PRIMARY, PHOTSYS get added on input.
         tscolumns = list(io.tsdatamodel.dtype.names)      \
                     + ['BRICK_PRIMARY','PHOTSYS']         \

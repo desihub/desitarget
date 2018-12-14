@@ -1,9 +1,9 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-==================
+=============
 desitarget.io
-==================
+=============
 
 This file knows how to write a TS catalogue.
 """
@@ -164,11 +164,9 @@ def add_gaia_columns(indata):
         - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
           but with "GAIA_RA" and "GAIA_DEC" removed.
     """
-    # ADM import the Gaia data model from gaiamatch.
-    from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
-
     # ADM remove the Gaia coordinates from the Gaia data model as they aren't
     # ADM in the imaging surveys data model.
+    from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
     gaiadatamodel = pop_gaia_coords(gaiadatamodel)
 
     # ADM create the combined data model.
@@ -312,9 +310,16 @@ def read_tractor(filename, header=False, columns=None):
     # ADM if Gaia information was passed, add it to the columns to read.
     if (columns is None):
         if (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
-            from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
             # ADM remove the Gaia coordinates as they aren't in the imaging data model.
+            from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords, pop_gaia_columns
             gaiadatamodel = pop_gaia_coords(gaiadatamodel)
+            # ADM the DR7 sweeps don't contain these columns, but DR8 should.
+            if 'REF_CAT' not in fxcolnames:
+                gaiadatamodel = pop_gaia_columns(
+                    gaiadatamodel, 
+                    ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR', 
+                     'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
+                )
             gaiacols = gaiadatamodel.dtype.names
             readcolumns += gaiacols
         
@@ -322,7 +327,7 @@ def read_tractor(filename, header=False, columns=None):
        (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         # ADM Rewrite the data completely to correspond to the DR4+ data model.
         # ADM we default to writing RELEASE = 3000 ("DR3, or before, data")
-        data = convert_from_old_data_model(fx,columns=readcolumns)
+        data = convert_from_old_data_model(fx, columns=readcolumns)
     else:
         data = fx[1].read(columns=readcolumns)
 
