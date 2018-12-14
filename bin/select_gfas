@@ -21,9 +21,6 @@ ap.add_argument("surveydir",
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC)")
 ap.add_argument("dest", 
                 help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
-ap.add_argument('-g', '--gaiadir',
-                help="Base directory for chunked Gaia files (defaults to ['project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom'] for NERSC)",
-                default='/project/projectdirs/cosmo/work/gaia/chunks-gaia-dr2-astrom')
 ap.add_argument('-m', '--maglim', type=float, 
                 help='Magnitude limit on GFA targets in Gaia G-band (defaults to [18])',
                 default=18)
@@ -44,10 +41,8 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, 
-                   gaiamatch=ns.gaiamatch, gaiadir=ns.gaiadir)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiamatch=ns.gaiamatch)
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside)
 
 log.info('{} GFAs written to {}...t={:.1f}mins'.format(len(gfas), ns.dest, (time()-time0)/60.))
-

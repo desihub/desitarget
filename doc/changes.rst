@@ -16,6 +16,13 @@ desitarget Change Log
 0.26.0 (2018-12-11)
 -------------------
 
+* Remove reliance on Legacy Surveys for Gaia data [`PR #438`_]. Includes:
+    * Use ``$GAIA_DIR`` environment variable instead of passing a directory.
+    * Functions to wget Gaia DR2 CSV files and convert them to FITS.
+    * Function to reorganize Gaia FITS files into (NESTED) HEALPixels.
+    * Use the NESTED HEALPix scheme for Gaia files throughout desitarget.
+    * Change output column ``TYPE`` to ``MORPHTYPE`` for GFAs.
+* Refactor QSO color cuts and add hard r > 17.5 limit [`PR #433`_].
 * Refactor of MTL and MTL-related enhancements [`PR #429`_]. Includes:
     * Use targets file `NUMOBS_INIT` not :func:`targets.calc_numobs`.
     * Use targets file `PRIORITY_INIT` not :func:`targets.calc_priority`.
@@ -23,7 +30,6 @@ desitarget Change Log
     * New function :func:`targets.calc_priority_no_table` to use less memory.
     * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
     * Set priorities using `LRG_1PASS/2PASS` bits rather than on `LRG`.
-* Refactor QSO color cuts and add hard r > 17.5 limit [`PR #433`_].
 * Minor updates to `select_mock_targets` [`PR #425`_].  
     * Use pre-computed template photometry (requires `v3.1` basis templates). 
     * Include MW dust extinction in the spectra.
@@ -46,6 +52,7 @@ desitarget Change Log
 .. _`PR #425`: https://github.com/desihub/desitarget/pull/425
 .. _`PR #429`: https://github.com/desihub/desitarget/pull/429
 .. _`PR #433`: https://github.com/desihub/desitarget/pull/433
+.. _`PR #438`: https://github.com/desihub/desitarget/pull/438
 
 0.25.0 (2018-11-07)
 -------------------
