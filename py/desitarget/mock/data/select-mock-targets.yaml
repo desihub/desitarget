@@ -1,35 +1,4 @@
-contaminants:
-    galaxies:
-        Buzzard: {
-            mockfile: '{DESI_ROOT}/mocks/buzzard/buzzard_v1.6_desicut',
-            nside_buzzard: 8,
-            format: buzzard,
-        }
-    stars:
-        MWS_MAIN: {
-            mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
-            nside_galaxia: 8,
-            format: galaxia,
-            FAINTSTAR: {
-                mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6_superfaint/healpix',
-                magcut: 23.5,
-            }
-        }
-    targets:
-        BGS: {
-            stars: 0.05, # Fraction
-        }
-        ELG: {
-            stars: 0.05,
-            galaxies: 0.1,
-        }
-        LRG: {
-            stars: 0.04,
-        }
-        QSO: {
-            stars: 0.525,    # = 37% of 170/deg2 = 67/deg2
-            galaxies: 0.225, # = 16% of 170/deg2 = 23/deg2
-        }
+# Parameter file for desitarget/bin/select_mock_targets, including contaminants.
 targets:
     BGS: {
         target_type: BGS,
@@ -89,3 +58,35 @@ targets:
         mockfile: '{DESI_ROOT}/mocks/uniformsky/0.2/uniformsky-2048-0.2.fits',
         format: uniformsky,
     }
+contaminants:
+    galaxies:
+        Buzzard: {
+            mockfile: '{DESI_ROOT}/mocks/buzzard/buzzard_v1.6_desicut',
+            nside_buzzard: 8,
+            format: buzzard,
+        }
+    stars:
+        MWS_MAIN: {
+            mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
+            nside_galaxia: 8,
+            format: galaxia,
+            FAINTSTAR: {
+                mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6_superfaint/healpix',
+                magcut: 23.5,
+            }
+        }
+    targets:
+        BGS: {
+            stars: 0.05, # Fraction
+        }
+        ELG: {
+            stars: 0.05,
+            galaxies: 0.1,
+        }
+        LRG: {
+            stars: 0.04,
+        }
+        QSO: {
+            stars: 0.525,    # = 37% of 170/deg2 = 67/deg2
+            galaxies: 0.225, # = 16% of 170/deg2 = 23/deg2
+        }
