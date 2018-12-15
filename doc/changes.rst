@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.27.0 (unreleased)
+0.27.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.27.0 (2018-12-14)
 -------------------
 
 * Move `select-mock-targets.yaml` configuration file to an installable location
