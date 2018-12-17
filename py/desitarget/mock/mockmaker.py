@@ -1050,7 +1050,8 @@ class SelectTargets(object):
 
         return targets, truth, objtruth
 
-    def mock_density(self, mockfile=None, nside=64, density_per_pixel=False, zmax_qso=None):
+    def mock_density(self, mockfile=None, nside=64, density_per_pixel=False,
+                     zmax_qso=None, zmin_lya=None):
         """Compute the median density of targets in the full mock. 
 
         Parameters
@@ -1065,6 +1066,9 @@ class SelectTargets(object):
         zmax_qso : :class:`float`
             Maximum redshift of tracer QSOs to read, to ensure no
             double-counting with Lya mocks.  Defaults to None.
+        zmin_lya : :class:`float`
+            Minimum redshift of Lya skewers, to ensure no double-counting with
+            QSO mocks.  Defaults to None.
 
         Returns
         -------
@@ -1090,11 +1094,19 @@ class SelectTargets(object):
         
         areaperpix = hp.nside2pixarea(nside, degrees=True)
 
+        # This is a little fragile because it makes assumptions about the data
+        # model.
         if zmax_qso is not None:
             radec = fitsio.read(mockfile, columns=['RA', 'DEC', 'Z_COSMO', 'DZ_RSD'],
                                 upper=True, ext=1)
             zz = (radec['Z_COSMO'].astype('f8') + radec['DZ_RSD'].astype('f8')).astype('f4')
             cut = np.where( zz < zmax_qso )[0]
+            radec = radec[cut]
+        elif zmin_lya is not None:
+            radec = fitsio.read(mockfile, columns=['RA', 'DEC', 'Z_QSO_RSD'],
+                                upper=True, ext=1)
+            zz = radec['Z_QSO_RSD'].astype('f4')
+            cut = np.where( zz >= zmin_lya )[0]
             radec = radec[cut]
         else:
             radec = fitsio.read(mockfile, columns=['RA', 'DEC'], upper=True, ext=1)
@@ -2260,7 +2272,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
         # Optionally compute the mean mock density.
         if mock_density:
-            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+            out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile, zmin_lya=zmin_lya)
 
         return out
 
