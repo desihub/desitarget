@@ -19,7 +19,7 @@ def make_mtl(targets, zcat=None, trim=False):
     Parameters
     ----------
     targets : :class:`~numpy.array` or `~astropy.table.Table`
-        A numpy rec array or astropy Table with at least the columns 
+        A numpy rec array or astropy Table with at least the columns
         ``TARGETID``, ``DESI_TARGET``.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
