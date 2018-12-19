@@ -40,7 +40,8 @@ import matplotlib.pyplot as plt   # noqa: E402
 log = get_logger()
 
 _type2color = {'STAR': 'orange', 'GALAXY': 'red', 'QSO-LYA': 'green',
-               'WD': 'purple', 'NOT ELG': 'gray'}#, 'QSO': }
+               'WD': 'purple', 'NOT ELG': 'gray'}   # , 'QSO': }
+
 
 def _parse_tcnames(tcstring=None, add_all=True):
     """Turn a comma-separated string of target class names into a list.
@@ -157,7 +158,7 @@ def _load_targdens(tcnames=None, bit_mask=None):
         Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
         removed.
     mocks : :class:`boolean`, optional, default=False
-        If ``True``, also read the expected redshift distributions for each target class. 
+        If ``True``, also read the expected redshift distributions for each target class.
 
     Returns
     -------
@@ -217,9 +218,10 @@ def _load_targdens(tcnames=None, bit_mask=None):
             elif 'BGS' in key and 'BGS' in tcnames:
                 out.update({key: value})
         return out
-            
+
+
 def _load_dndz(tcnames=None):
-    """Load the predicted redshift distributions for each target class. 
+    """Load the predicted redshift distributions for each target class.
 
     Parameters
     ----------
@@ -247,7 +249,7 @@ def _load_dndz(tcnames=None):
         tcnames = alltarg
 
     out = dict()
-    for targ, suffix in zip( alltarg, ('elg', 'lrg', 'qso', 'bgs', 'bgs_bright', 'bgs_faint') ):
+    for targ, suffix in zip(alltarg, ('elg', 'lrg', 'qso', 'bgs', 'bgs_bright', 'bgs_faint')):
         dndzfile = os.path.join(desimodel.io.datadir(), 'targets', 'nz_{}.dat'.format(suffix))
         if not os.path.isfile(dndzfile):
             log.warning('Redshift distribution file {} not found!'.format(dndzfile))
@@ -270,8 +272,9 @@ def _load_dndz(tcnames=None):
                 dz = (dat['zmax'] - dat['zmin']).data
                 zz = dat['zmin'].data + dz / 2
                 out[targ] = {'z': zz, 'dndz': dat['dndz'].data / norm, 'dz': dz}
-     
+
     return out
+
 
 def _javastring():
     """Return a string that embeds a date in a webpage
@@ -310,6 +313,7 @@ def _javastring():
     """)
 
     return js
+
 
 def read_data(targfile, mocks=False):
     """Read in the data, including any mock data (if present).
@@ -350,7 +354,7 @@ def read_data(targfile, mocks=False):
     targs = fitsio.read(targfile)
     log.info('Read in targets...t = {:.1f}s'.format(time()-start))
     truths, objtruths = None, None
-    
+
     if mocks:
         truthfile = '{}/truth.fits'.format(targdir)
 
@@ -373,6 +377,7 @@ def read_data(targfile, mocks=False):
         return targs, truths, objtruths
     else:
         return targs, None, None
+
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
@@ -584,6 +589,7 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
 
     plt.close()
 
+
 def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, max_bin_area=1.0,
             fileprefix="histo", catispix=False):
     """Visualize the target density with a histogram of densities. First version taken
@@ -658,12 +664,12 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         xmin, xmax = 1, upclip
     else:
         xmin, xmax = densmin, densmax
-    
-    if ddens == 0: # small number of pixels
+
+    if ddens == 0:  # small number of pixels
         nbins = 5
-        ddens = 0.05 * (xmax - xmin)        
+        ddens = 0.05 * (xmax - xmin)
     else:
-        dbins = np.arange(densmin, densmax, ddens) # bin left edges
+        dbins = np.arange(densmin, densmax, ddens)  # bin left edges
         if len(dbins) < 10:
             ddens = (densmax - densmin) / 10
             dbins = np.arange(densmin, densmax, ddens)
@@ -687,10 +693,10 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     nn, bins = np.histogram(dens, bins=nbins, range=(densmin, densmax))
     cbins = (bins[:-1] + bins[1:]) / 2.0
     plt.bar(cbins, nn, align='center', alpha=0.6, label=label, width=ddens)
-    #plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, label=label)
-    
+    # plt.hist(dens, bins=nbins, histtype='stepfilled', alpha=0.6, label=label)
+
     if objtype in targdens.keys():
-        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k', 
+        plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
                     label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(objtype, targdens[objtype]))
     plt.legend(loc='upper left', frameon=False, fontsize=11)
 
@@ -716,6 +722,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         plt.savefig(pngfile, bbox_inches='tight', facecolor='yellow')
 
     plt.close()
+
 
 def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
     """Make magnitude-based DESI targeting QA plots given a passed set of targets.
@@ -754,12 +761,12 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
         brightmag, faintmag, deltam = 6, 18, 0.5
     else:
         brightmag, faintmag, deltam = 14, 24, 0.5
-        
-    magbins = np.arange(brightmag, faintmag, deltam) # bin left edges
-    
-    deltam_out = 0.1 # for output file
-    magbins_out = np.arange(brightmag, faintmag, deltam_out) # bin left edges
-    
+
+    magbins = np.arange(brightmag, faintmag, deltam)  # bin left edges
+
+    deltam_out = 0.1  # for output file
+    magbins_out = np.arange(brightmag, faintmag, deltam_out)  # bin left edges
+
     # ADM magnitudes for which to plot histograms.
     filters = ['G', 'R', 'Z', 'W1']
     magnames = ['FLUX_' + filter for filter in filters]
@@ -781,7 +788,7 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
         cdndmbins = (dndmbins[:-1] + dndmbins[1:]) / 2.0
 
         # ADM the density value of the peak.
-        peak = np.mean( dndmbins[np.argmax(dndm):np.argmax(dndm)+2] )
+        peak = np.mean(dndmbins[np.argmax(dndm):np.argmax(dndm)+2])
         ypeak = np.max(dndm) / area
 
         # ADM set up and make the plot.
@@ -804,12 +811,13 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
         plt.savefig(pngfile, bbox_inches='tight')
         plt.close()
 
-        ## ADM create an ASCII file binned 0.1 mags.
+        # ADM create an ASCII file binned 0.1 mags.
         dndm_out, dndmbins_out = np.histogram(mag, bins=magbins_out, range=(brightmag, faintmag))
         cdndmbins_out = (dndmbins_out[:-1] + dndmbins_out[1:]) / 2.0
         datfile = pngfile.replace("png", "dat")
         np.savetxt(datfile, np.vstack((cdndmbins_out, dndm_out / area)).T,
                    fmt=('%.2f', '%.3f'), header='{} dn/dm (number per deg2 per 0.1 mag)'.format(filtername))
+
 
 def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000, seed=None):
     """Make Gaia-based DESI targeting QA plots given a passed set of targets.
@@ -830,7 +838,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000, seed=None)
         ``nobjscut``, otherwise make a scatterplot.
     seed : :class:`int`, optional
         Seed to reproduce random points plotted on hexbin plots.
-    
+
     Returns
     -------
     Nothing
@@ -901,6 +909,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000, seed=None)
     pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix, 'pm', objtype))
     plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
+
 
 def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
     """Targeting QA Bar plot of the fraction of each classification type assigned to (mock) targets.
@@ -984,6 +993,7 @@ def mock_qafractype(cat, objtype, qadir='.', fileprefix="mock-fractype"):
 
     return
 
+
 def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
               fileprefixz="mock-nz", fileprefixzmag="mock-zvmag"):
     """Make N(z) and z vs. mag DESI QA plots given a passed set of MOCK TRUTH.
@@ -1000,7 +1010,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     area : :class:`float`
         Total area in deg2.
     dndz : :class:`dict`
-        Dictionary output of `_load_dndz`    
+        Dictionary output of `_load_dndz`
     nobjscut : :class:`int`, optional, defaults to ``1000``
         Make a hexbin plot when the number of objects is greater than
         ``nobjscut``, otherwise make a scatterplot.
@@ -1024,9 +1034,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
 
     truez = cat["TRUEZ"]
     zmax = truez.max()*1.1
-    
+
     if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
-        truez *= 2.99e5 # [km/s]
+        truez *= 2.99e5  # [km/s]
         zlabel = 'True Radial Velocity (km/s)'
     else:
         zlabel = r'True Redshift $z$'
@@ -1045,7 +1055,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         dz = 0.02
         zmin = -0.15
 
-    zbins = np.arange(zmin, zmax, dz) # bin left edges
+    zbins = np.arange(zmin, zmax, dz)  # bin left edges
     if len(zbins) < 10:
         dz = (zmax - zmin) / 10
         zbins = np.arange(zmin, zmax, dz)
@@ -1053,7 +1063,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
 
     objcolor = {'ALL': 'black', objtype: 'blue'}
     type2color = {**_type2color, **objcolor}
-    
+
     # Get the unique combination of template types, subtypes, and true spectral
     # types.  Lya QSOs and galaxies contaminating ELGs are a special case.
     templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
@@ -1091,12 +1101,12 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
             if 'QSO' in objtype:
                 label = r'{} is {} ({:.0f} deg$^{{-2}}$)'.format(
                     objtype, truespectype, len(these) / area)
-                #label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$)'.format(
+                # label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$)'.format(
                 #    objtype, truespectype, len(these), len(these) / area)
             else:
                 label = r'{} is {} ({:.0f} deg$^{{-2}}$))'.format(
                     objtype, truespectype, len(these) / area)
-                #label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$))'.format(
+                # label = r'{} is {} (N={}, {:.0f} deg$^{{-2}}$))'.format(
                 #    objtype, truespectype, len(these), len(these) / area)
             nn, bins = np.histogram(truez[these], bins=nzbins, range=(zmin, zmax))
             cbins = (bins[:-1] + bins[1:]) / 2.0
@@ -1123,7 +1133,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     plt.legend(loc=loc, frameon=True, fontsize=10,
                handletextpad=0.5, labelspacing=0)
 
-    #plt.xlim(zmin, zmax)
+    # plt.xlim(zmin, zmax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefixz, objtype))
     plt.savefig(pngfile, bbox_inches='tight')
@@ -1141,9 +1151,9 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     else:
         band = 'r'
         flux = cat['FLUX_R'].clip(1e-16)
-        
+
     plt.ylabel('{} (AB mag)'.format(band))
-        
+
     mag = 22.5 - 2.5 * np.log10(flux)
 
     if 'BGS' in objtype or 'MWS' in objtype or 'STD' in objtype:
@@ -1158,7 +1168,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
             magbright, magfaint = 19.5, 24
         else:
             magbright, magfaint = 17, 24
-            
+
     dolegend = False
     for ii, truespectype in enumerate(np.unique(truespectypes)[srt]):
         these = np.where(truespectype == truespectypes)[0]
@@ -1194,6 +1204,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     plt.savefig(pngfile, bbox_inches='tight')
     plt.close()
 
+
 def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
             nodustcorr=False, mocks=False, nobjscut=1000, seed=None):
     """Make color-based DESI targeting QA plots given a passed set of targets.
@@ -1228,7 +1239,6 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         But .png plots of target colors are written to ``qadir``. The file is called:
         ``{qadir}/{fileprefix}-{bands}-{objtype}.png``
         where bands might be, e.g., ``grz``.
-    
     """
     from matplotlib.ticker import MultipleLocator, MaxNLocator
     from matplotlib.patches import Polygon
@@ -1325,10 +1335,10 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         grlim = (-0.5, 1.5)
         rzlim = (-0.5, 1.5)
 
-    #if 'ELG' in objtype:
-    #    zW1lim = (-3, 2.5)
-    #    W1W2lim = (-3, 2.5)
-    #else:
+    # if 'ELG' in objtype:
+    #     zW1lim = (-3, 2.5)
+    #     W1W2lim = (-3, 2.5)
+    # else:
     zW1lim = (-1.0, 3.5)
     W1W2lim = (-1.0, 1.2)
 
@@ -1337,7 +1347,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     objcolor = {'ALL': 'black', objtype: 'blue'}
     type2color = {**_type2color, **objcolor}
 
-    # Make the plots!
+    #  Make the plots!
     for plotnumber in range(3):
         if plotnumber == 0:
             plottype = 'grz'
@@ -1376,7 +1386,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
             nthese = np.zeros(len(np.unique(truespectypes)))
             for ii, truespectype in enumerate(np.unique(truespectypes)):
                 nthese[ii] = np.sum(truespectype == truespectypes)
-            srt = np.argsort(nthese)[::-1]    
+            srt = np.argsort(nthese)[::-1]
 
             if len(np.unique(truespectypes)) > 2:
                 ncol = 2
@@ -1396,7 +1406,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                     col = 'black'
                 else:
                     col = type2color[truespectype]
-                    
+
                 if len(these) > 0:
                     label = '{} is {}'.format(objtype, truespectype)
                     if len(these) > nobjscut:
@@ -1405,13 +1415,13 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                                         extent=(*xlim, *ylim), gridsize=60)
                         if ii == 0:
                             cb = plt.colorbar(hb)
-                            #cb.locator = MaxNLocator(nbins=5)
-                            #cb.update_ticks()
+                            # cb.locator = MaxNLocator(nbins=5)
+                            # cb.update_ticks()
                             cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(label))
                     else:
                         dolegend = True
                         plt.scatter(xdata[these], ydata[these], alpha=0.6, label=label, color=col)
-                        
+
             if dolegend:
                 plt.legend(loc='upper right', frameon=True, ncol=ncol, fontsize=10,
                            handletextpad=0.5, labelspacing=0)
@@ -1422,8 +1432,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 cb = plt.colorbar(hb)
                 irand = rand.choice(nobjs, size=nobjscut, replace=False)
                 plt.scatter(xdata[irand], ydata[irand], alpha=0.6, color=objcolor[objtype], s=5)
-                #cb.locator = MaxNLocator(nbins=5)
-                #cb.update_ticks()
+                # cb.locator = MaxNLocator(nbins=5)
+                # cb.update_ticks()
                 cb.set_label(r'$\log_{{10}}$ (Number of {})'.format(objtype))
             else:
                 plt.scatter(xdata, ydata, alpha=0.6, color=objcolor[objtype])
@@ -1436,7 +1446,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
 
         if objtype == 'ELG':
             elg_colorbox(plt.gca(), plottype=plottype)
-            
+
         if objtype == 'QSO':
             qso_colorbox(plt.gca(), plottype=plottype)
             if plottype == 'rzW1W2':
@@ -1446,6 +1456,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         pngfile = os.path.join(qadir, '{}-{}-{}.png'.format(fileprefix, plottype, objtype))
         plt.savefig(pngfile, bbox_inches='tight')
         plt.close()
+
 
 def _in_desi_footprint(targs):
     """Convenience function for using is_point_in_desi to find which targets are in the footprint.
@@ -1549,7 +1560,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             if mockdata == 0:
                 mocks = False
             else:
-                pass# = mockdata
+                pass  # = mockdata
         else:
             log.warning('To make mock-related plots, targs must be a directory+file-location string...')
             log.warning('...will proceed by only producing the non-mock plots...')
@@ -1560,7 +1571,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             targs = fitsio.read(targs)
             log.info('Read in targets...t = {:.1f}s'.format(time()-start))
             truths, objtruths = None, None
-
 
     # ADM determine the nside for the passed max_bin_area.
     for n in range(1, 25):
@@ -1624,7 +1634,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         main_mask = desi_mask
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                       'STD_FAINT': 300, 'STD_BRIGHT': 300,
-                      #'STD_FAINT': 200, 'STD_BRIGHT': 50,
+                      # 'STD_FAINT': 200, 'STD_BRIGHT': 50,
                       'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                       'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_WISE': 2500, 'BGS_ANY': 5000,
                       'MWS_ANY': 2000, 'MWS_BROAD': 2000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
@@ -1679,8 +1689,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                          .format(objtype, time()-start))
 
                 # # ADM plot what fraction of each selected object is actually a contaminant
-                #mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
-                #log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
+                # mock_qafractype(truths[w], objtype, qadir=qadir, fileprefix="mock-fractype")
+                # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
 
             # ADM make Gaia-based plots if we have Gaia columns
             if "PARALLAX" in targs.dtype.names and np.sum(targs['PARALLAX'] != 0) > 0:
@@ -1690,6 +1700,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
+
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
                  clip2foot=False, weight=True, imaging_map_file=None,
