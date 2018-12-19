@@ -5,7 +5,9 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Code style clean up to better conform to PEP 8 [`PR #446`_].
+
+.. _`PR #446`: https://github.com/desihub/desitarget/pull/446
 
 0.27.0 (2018-12-14)
 -------------------
