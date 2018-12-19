@@ -36,6 +36,7 @@ log = get_logger()
 # ADM start the clock
 start = time()
 
+
 def _gal_coords(ra, dec):
     """Shift RA, Dec to Galactic coordinates.
 
@@ -138,7 +139,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         b_lim, f_lim = 18.01, 20.41       # bright/faint limits
         cbox_lo, cbox_hi = 0.75, 2.45     # broad color box
         # ADM cut limits are -ve, e.g. -17.18, -15.11 on the wiki for
-        # (z-17.18)/2 < r-z < (z-15.11)/2 
+        # (z-17.18)/2 < r-z < (z-15.11)/2
         osc_lo, osc_hi = 17.18, 15.11     # optical sliding cut
         osc_div = 2.                      # denominator in optical sliding cut
         elbow_rz, elbow_gr = 1.15, 1.65   # cut redshifts < 0.4, keep elbow at 0.4-0.5
@@ -156,9 +157,9 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (zflux < 10**(0.4*cbox_hi)*rflux)  # r-z < 2.45 (south)
     lrg &= (zflux > 10**(0.4*cbox_lo)*rflux)  # r-z > 0.75 (south)
 
-    # ADM code can overflow, since float32 arrays have a max of 3e38. 
+    # ADM code can overflow, since float32 arrays have a max of 3e38.
     with np.errstate(over='ignore'):
-        # ADM non-stellar cut. e.g., in the south: 
+        # ADM non-stellar cut. e.g., in the south:
         # (z-W1) > 0.8*(r-z) - 0.6  ->  0.8r + W1 < 1.8z + 0.6
         lrg &= ((w1flux*rflux**complex(nsc_rzmult)).real >
                 ((zflux**complex(1+nsc_rzmult))*10**(-0.4*nsc_inter)).real)
@@ -171,8 +172,8 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= (zflux**(1.+osc_div) < 10**(0.4*(22.5-osc_hi))*rflux**osc_div)
 
         # ADM redshift cut with elbow, e.g. in the south:
-        # (r-z > 1.15) OR (g-r > 1.65 and FLUX_IVAR_G > 0) 
-        lrg &= np.logical_or((zflux > 10**(0.4*elbow_rz)*rflux), 
+        # (r-z > 1.15) OR (g-r > 1.65 and FLUX_IVAR_G > 0)
+        lrg &= np.logical_or((zflux > 10**(0.4*elbow_rz)*rflux),
                              (ggood & (rflux > 10**(0.4*elbow_gr)*gflux)))
 
     return lrg
@@ -658,7 +659,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         primary = np.ones_like(rflux, dtype='?')
     mws = primary.copy()
 
-    # ADM main targets are point-like based on DECaLS morphology 
+    # ADM main targets are point-like based on DECaLS morphology
     # ADM and GAIA_ASTROMETRIC_NOISE.
     mws &= _psflike(objtype)
     mws &= gaiaaen < 3.0
@@ -987,8 +988,8 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return bgs
 
 
-def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, 
-               w1snr=None, w2snr=None, deltaChi2=None, brightstarinblob=None, 
+def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+               w1snr=None, w2snr=None, deltaChi2=None, brightstarinblob=None,
                release=None, objtype=None, primary=None, optical=False, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
@@ -1015,7 +1016,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
 
     qso = isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                       w1flux=w1flux, w2flux=w2flux, 
+                       w1flux=w1flux, w2flux=w2flux,
                        optical=optical, south=south)
 
     qso &= w1snr > 4
@@ -1209,13 +1210,12 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
             tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            pcut = np.where( tmp_r_Reduced > 20. ,
-                             0.60 - ( tmp_r_Reduced - 20. ) * 0.08 , 0.60 )
+            pcut = np.where(tmp_r_Reduced > 20.,
+                            0.60 - (tmp_r_Reduced - 20.) * 0.08, 0.60)
             pcut_HighZ = 0.42
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
-
 
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "numpy.ndarray"
@@ -1812,7 +1812,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         bgs_bright_north, bgs_bright_south,      \
             bgs_faint_north, bgs_faint_south,    \
             bgs_wise_north, bgs_wise_south =     \
-                                                 bgs_classes
+            bgs_classes
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
@@ -1841,7 +1841,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
         mws_broad_n, mws_red_n, mws_blue_n,       \
             mws_broad_s, mws_red_s, mws_blue_s =  \
-                                            np.vstack(mws_classes)
+            np.vstack(mws_classes)
 
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
@@ -2024,7 +2024,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiainfo = pop_gaia_columns(
             gaiainfo,
             ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
-            'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
+             'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
         )
         # ADM add the Gaia column information to the primary array.
         for col in gaiainfo.dtype.names:
@@ -2046,7 +2046,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gfracmasked, rfracmasked, zfracmasked,                                 \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
-                                        _prepare_optical_wise(objects, colnames=colnames)
+        _prepare_optical_wise(objects, colnames=colnames)
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
@@ -2137,10 +2137,10 @@ def check_input_files(infiles, numproc=4):
         # ADM columns that shouldn't have zero values
         cols = [
             'BRICKID',
-#            'RA_IVAR', 'DEC_IVAR',
+            # 'RA_IVAR', 'DEC_IVAR',
             'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
-#            'WISE_FLUX',
-#            'WISE_MW_TRANSMISSION','DCHISQ'
+            #  'WISE_FLUX',
+            #  'WISE_MW_TRANSMISSION','DCHISQ'
             ]
         # ADM for each of these columnes that shouldn't have zero values,
         # ADM loop through and look for zero values
