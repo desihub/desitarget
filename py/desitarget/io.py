@@ -11,7 +11,8 @@ from __future__ import (absolute_import, division)
 #
 import numpy as np
 import fitsio
-import os, re
+import os
+import re
 from . import __version__ as desitarget_version
 import numpy.lib.recfunctions as rfn
 import healpy as hp
@@ -77,7 +78,8 @@ def desitarget_nside():
     nside = 64
     return nside
 
-def convert_from_old_data_model(fx,columns=None):
+
+def convert_from_old_data_model(fx, columns=None):
     """Read data from open Tractor/sweeps file and convert to DR4+ data model.
 
     Parameters
@@ -125,19 +127,19 @@ def convert_from_old_data_model(fx,columns=None):
         outdata[col] = indata[col]
 
     # ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model.
-    decamcols = ['FLUX','MW_TRANSMISSION','FRACFLUX','FLUX_IVAR','NOBS','GALDEPTH']
+    decamcols = ['FLUX', 'MW_TRANSMISSION', 'FRACFLUX', 'FLUX_IVAR', 'NOBS', 'GALDEPTH']
     decambands = 'UGRIZ'
-    for bandnum in [1,2,4]:
+    for bandnum in [1, 2, 4]:
         for colstring in decamcols:
-            outdata[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:,bandnum]
+            outdata[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:, bandnum]
         # ADM treat DECAM_DEPTH separately as the syntax is slightly different.
-        outdata["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:,bandnum]
+        outdata["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:, bandnum]
 
     # ADM change the WISE columns from the old (2-D array) to new (named 1-D array) data model.
-    wisecols = ['FLUX','MW_TRANSMISSION','FLUX_IVAR']
-    for bandnum in [1,2,3,4]:
+    wisecols = ['FLUX', 'MW_TRANSMISSION', 'FLUX_IVAR']
+    for bandnum in [1, 2, 3, 4]:
         for colstring in wisecols:
-            outdata[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:,bandnum-1]
+            outdata[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:, bandnum-1]
 
     # ADM we also need to include the RELEASE, which we'll always assume is DR3
     # ADM (deprecating anything from before DR3).
@@ -161,7 +163,7 @@ def add_gaia_columns(indata):
 
     Notes
     -----
-        - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch` 
+        - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch`
           but with "GAIA_RA" and "GAIA_DEC" removed.
     """
     # ADM remove the Gaia coordinates from the Gaia data model as they aren't
@@ -182,7 +184,7 @@ def add_gaia_columns(indata):
 
     # ADM set REF_ID to -1 to indicate nothing has a Gaia match (yet).
     outdata['REF_ID'] = -1
-    
+
     return outdata
 
 
@@ -214,7 +216,7 @@ def add_dr7_columns(indata):
     # ADM ...and populate them with the passed columns of data.
     for col in indata.dtype.names:
         outdata[col] = indata[col]
-    
+
     return outdata
 
 
@@ -239,7 +241,7 @@ def add_photsys(indata):
     # ADM only add the PHOTSYS column if RELEASE exists.
     if 'RELEASE' in indata.dtype.names:
         # ADM add PHOTSYS to the data model.
-        pdt = [('PHOTSYS','|S1')]
+        pdt = [('PHOTSYS', '|S1')]
         dt = indata.dtype.descr + pdt
 
         # ADM create a new numpy array with the fields from the new data model...
@@ -295,7 +297,7 @@ def read_tractor(filename, header=False, columns=None):
     else:
         readcolumns = list(columns)
 
-    #- tractor files have BRICK_PRIMARY; sweep files don't
+    # - tractor files have BRICK_PRIMARY; sweep files don't
     if (columns is None) and \
        (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
         readcolumns.append('BRICK_PRIMARY')
@@ -322,7 +324,7 @@ def read_tractor(filename, header=False, columns=None):
                 )
             gaiacols = gaiadatamodel.dtype.names
             readcolumns += gaiacols
-        
+
     if (columns is None) and \
        (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
         # ADM Rewrite the data completely to correspond to the DR4+ data model.
@@ -453,7 +455,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         drint = np.max(data['RELEASE']//1000)
         drstring = 'dr'+str(drint)
 
-    #- Create header to include versions, etc.
+    # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
@@ -488,7 +490,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
-def write_skies(filename, data, indir=None, apertures_arcsec=None, 
+def write_skies(filename, data, indir=None, apertures_arcsec=None,
                 badskyflux=None, nside=None):
     """Write a target catalogue of sky locations.
 
@@ -496,7 +498,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     ----------
     filename : :class:`str`
         Output target selection file name
-    data  : :class:`~numpy.ndarray` 
+    data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
@@ -508,7 +510,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         list of aperture radii in arcsecondsm write each aperture as an
         individual line in the header, if passed (and if not None).
     nside: :class:`int`
-        If passed, add a column to the skies array popluated with HEALPixels 
+        If passed, add a column to the skies array popluated with HEALPixels
         at resolution `nside`.
     """
     # ADM set up the default logger.
@@ -519,7 +521,7 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     # ADM (see https://github.com/desihub/desitarget/pull/313).
     data["OBSCONDITIONS"] = 2**16-1
 
-    #- Create header to include versions, etc.
+    # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
@@ -533,13 +535,13 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         depend.setdep(hdr, 'photcat', drstring)
 
     if apertures_arcsec is not None:
-        for i,ap in enumerate(apertures_arcsec):
+        for i, ap in enumerate(apertures_arcsec):
             apname = "AP{}".format(i)
             apsize = "{:.2f}".format(ap)
             hdr[apname] = apsize
 
     if badskyflux is not None:
-        for i,bs in enumerate(badskyflux):
+        for i, bs in enumerate(badskyflux):
             bsname = "BADFLUX{}".format(i)
             bssize = "{:.2f}".format(bs)
             hdr[bsname] = bssize
@@ -562,13 +564,13 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
     ----------
     filename : :class:`str`
         Output file name.
-    data  : :class:`~numpy.ndarray` 
+    data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir : :class:`str`, optional, defaults to None.
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
     nside: :class:`int`, defaults to None.
-        If passed, add a column to the GFAs array popluated with HEALPixels 
+        If passed, add a column to the GFAs array popluated with HEALPixels
         at resolution `nside`.
     gaiaepoch: :class:`float`, defaults to None
         Gaia proper motion reference epoch. If not None, write to header of
@@ -602,13 +604,14 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    hdr['REFEPOCH'] =  {'name': 'REFEPOCH',
-                        'value': 2015.5,
-                        'comment': "Gaia Proper Motion Reference Epoch"}
+    hdr['REFEPOCH'] = {'name': 'REFEPOCH',
+                       'value': 2015.5,
+                       'comment': "Gaia Proper Motion Reference Epoch"}
     if gaiaepoch is not None:
         hdr['REFEPOCH'] = gaiaepoch
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
+
 
 def write_randoms(filename, data, indir=None, nside=None, density=None):
     """Write a catalogue of randoms and associated pixel-level information.
@@ -617,13 +620,13 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
     ----------
     filename : :class:`str`
         Output file name.
-    data  : :class:`~numpy.ndarray` 
+    data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
     nside: :class:`int`
-        If passed, add a column to the randoms array popluated with HEALPixels 
+        If passed, add a column to the randoms array popluated with HEALPixels
         at resolution `nside`.
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
@@ -655,10 +658,10 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
             fn = next(files)
             mbhdr = fitsio.read_header(fn)
             # ADM extract the keys that include the string 'BITNM'.
-            bncols = [ key for key in mbhdr.keys() if 'BITNM' in key ]
+            bncols = [key for key in mbhdr.keys() if 'BITNM' in key]
             for col in bncols:
-                hdr[col] = {'name':col, 
-                            'value':mbhdr[col], 
+                hdr[col] = {'name': col,
+                            'value': mbhdr[col],
                             'comment': mbhdr.get_comment(col)}
         except StopIteration:
             pass
@@ -781,7 +784,8 @@ def brickname_from_filename(filename):
         raise ValueError("Invalid tractor brick file: {}!".format(filename))
     return match.group(1)
 
-def brickname_from_filename_with_prefix(filename,prefix=''):
+
+def brickname_from_filename_with_prefix(filename, prefix=''):
     """Parse `filename` to check if this is a brick file with a given prefix.
 
     Parameters
@@ -814,6 +818,7 @@ def brickname_from_filename_with_prefix(filename,prefix=''):
         raise ValueError("Invalid galaxia mock brick file: {}!".format(filename))
     return match.group(1)
 
+
 def check_fitsio_version(version='0.9.8'):
     """fitsio_ prior to 0.9.8rc1 has a bug parsing boolean columns.
 
@@ -834,10 +839,13 @@ def check_fitsio_version(version='0.9.8'):
     #
     # LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx.
     #
-    if (LooseVersion(fitsio.__version__) < LooseVersion(version) and
-        not fitsio.__version__.startswith(version)):
+    if (
+        LooseVersion(fitsio.__version__) < LooseVersion(version) and
+        not fitsio.__version__.startswith(version)
+    ):
         raise ImportError(('ERROR: fitsio >{0}rc1 required ' +
                            '(not {1})!').format(version, fitsio.__version__))
+
 
 def whitespace_fits_read(filename, **kwargs):
     """Use fitsio_ to read in a file and strip whitespace from all string columns.
@@ -900,16 +908,16 @@ def load_pixweight(inmapfile, nside, pixmap=None):
             log.fatal('Input directory does not exist: {}'.format(inmapfile))
             raise ValueError
         pixmap = fitsio.read(inmapfile)
-            
+
     # ADM determine the file's nside, and flag a warning if the passed nside exceeds it.
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
-                  .format(nside,inmapfile,truenside))
+                    .format(nside, inmapfile, truenside))
 
     # ADM resample the map.
-    return hp.pixelfunc.ud_grade(pixmap,nside,order_in='NESTED',order_out='NESTED')
+    return hp.pixelfunc.ud_grade(pixmap, nside, order_in='NESTED', order_out='NESTED')
 
 
 def load_pixweight_recarray(inmapfile, nside, pixmap=None):
@@ -949,13 +957,13 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
             log.fatal('Input directory does not exist: {}'.format(inmapfile))
             raise ValueError
         pixmap = fitsio.read(inmapfile)
-            
+
     # ADM determine the file's nside, and flag a warning if the passed nside exceeds it.
     npix = len(pixmap)
     truenside = hp.npix2nside(len(pixmap))
     if truenside < nside:
         log.warning("downsampling is fuzzy...Passed nside={}, but file {} is stored at nside={}"
-                  .format(nside,inmapfile,truenside))
+                    .format(nside, inmapfile, truenside))
 
     # ADM set up an output array.
     nrows = hp.nside2npix(nside)
@@ -963,13 +971,14 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
 
     # ADM resample the map for each column.
     for col in pixmap.dtype.names:
-        outdata[col] = hp.pixelfunc.ud_grade(pixmap[col],nside,order_in='NESTED',order_out='NESTED')
+        outdata[col] = hp.pixelfunc.ud_grade(pixmap[col], nside, order_in='NESTED', order_out='NESTED')
 
     # ADM if one column was the HEALPixel number, recalculate for the new resolution.
     if 'HPXPIXEL' in pixmap.dtype.names:
         outdata["HPXPIXEL"] = np.arange(nrows)
 
     return outdata
+
 
 def gitversion():
     """Returns `git describe --tags --dirty --always`,
@@ -986,12 +995,13 @@ def gitversion():
     os.chdir(origdir)
     out = p.communicate()[0]
     if p.returncode == 0:
-        #- avoid py3 bytes and py3 unicode; get native str in both cases
+        # - avoid py3 bytes and py3 unicode; get native str in both cases
         return str(out.rstrip().decode('ascii'))
     else:
         return 'unknown'
 
-def read_external_file(filename, header=False, columns=["RA","DEC"]):
+
+def read_external_file(filename, header=False, columns=["RA", "DEC"]):
     """Read FITS file with loose requirements on upper-case columns and EXTNAME.
 
     Parameters
@@ -1000,7 +1010,7 @@ def read_external_file(filename, header=False, columns=["RA","DEC"]):
         File name with full directory path included.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return (data, header) instead of just data.
-    columns: :class:`list`, optional, defaults to ["RA","DEC"]
+    columns: :class:`list`, optional, defaults to ["RA", "DEC"]
         Specify the desired columns to read.
 
     Returns
@@ -1030,7 +1040,7 @@ def read_external_file(filename, header=False, columns=["RA","DEC"]):
         raise ValueError(msg)
 
     # ADM read in the RA/DEC columns.
-    outdata = fx[1].read(columns=["RA","DEC"])
+    outdata = fx[1].read(columns=["RA", "DEC"])
 
     # ADM return data read in from file, with the header if requested.
     fx.close()
