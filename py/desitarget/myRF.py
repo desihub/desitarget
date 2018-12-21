@@ -55,12 +55,12 @@ class myRF(object):
 #            return
 
         if nodeInfo[0] == -1:
-           if self.version == 1:
-               self.proba[indices] = self.treeAnswer[nodeId, 0, 1]*1./(self.treeAnswer[nodeId, 0, 0]+self.treeAnswer[nodeId, 0, 1])
-           else:
-               self.proba[indices] = nodeInfo[4]
+            if self.version == 1:
+                self.proba[indices] = self.treeAnswer[nodeId, 0, 1]*1./(self.treeAnswer[nodeId, 0, 0]+self.treeAnswer[nodeId, 0, 1])
+            else:
+                self.proba[indices] = nodeInfo[4]
 
-           return
+            return
 
         leftChildId = nodeInfo[0]
         rightChildId = nodeInfo[1]
