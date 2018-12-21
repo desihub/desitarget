@@ -123,7 +123,7 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
 
 
 def randoms_in_a_brick_from_name(brickname, density=100000,
-                       drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
+                                 drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"):
     """For a given brick name, return random (RA/Dec) positions in the brick
 
     Parameters
@@ -430,8 +430,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, density=1
                             ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                             ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
-                            ('MASKBITS', 'i2'), ('EBV', 'f4')
-                        ])
+                            ('MASKBITS', 'i2'), ('EBV', 'f4')])
     # ADM store each quantity of interest in the structured array
     # ADM remembering that the dictionary keys are in lower case text
     cols = qdict.keys()
@@ -1009,6 +1008,7 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None,
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
+
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
