@@ -8,6 +8,7 @@ from desiutil.bitmask import BitMask
 import yaml
 from pkg_resources import resource_filename
 
+
 def load_mask_bits(prefix=""):
     """Load bit definitions from yaml file.
     """
