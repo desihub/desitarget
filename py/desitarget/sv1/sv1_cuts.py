@@ -443,7 +443,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
                               0.40 - (r_Reduced - 20.5) * 0.025, 0.40)
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = \
-                                  (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
 
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "numpy.ndarray"
@@ -637,7 +637,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     elgfdr, elgfdrfaint, elgrzblue, elgrzred = \
-            primary.copy(), primary.copy(), primary.copy(), primary.copy()
+        primary.copy(), primary.copy(), primary.copy(), primary.copy()
 
     # ADM determine colors and magnitudes
     g = 22.5-2.5*np.log10(gflux.clip(1e-16))  # ADM clip is safe as we never target g < 20
@@ -753,7 +753,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         primary = np.ones_like(rflux, dtype='?')
     mws = primary.copy()
 
-    # ADM main targets are point-like based on DECaLS morphology 
+    # ADM main targets are point-like based on DECaLS morphology
     # ADM and GAIA_ASTROMETRIC_NOISE.
     mws &= _psflike(objtype)
     mws &= gaiaaen < 3.0
@@ -1030,8 +1030,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             )
         lrg_north, lrg1pass_north, lrg2pass_north,  \
-        lrg_south, lrg1pass_south, lrg2pass_south = \
-                                                    np.vstack(lrg_classes)
+            lrg_south, lrg1pass_south, lrg2pass_south = \
+            np.vstack(lrg_classes)
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
         lrg_north, lrg1pass_north, lrg2pass_north = ~primary, ~primary, ~primary
@@ -1053,14 +1053,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             )
         elgfdr_north, elgfdrfaint_north, elgrzblue_north, elgrzred_north,  \
-        elgfdr_south, elgfdrfaint_south, elgrzblue_south, elgrzred_south = \
-                                                                           np.vstack(elg_classes)
+            elgfdr_south, elgfdrfaint_south, elgrzblue_south, elgrzred_south = \
+            np.vstack(elg_classes)
     else:
         # ADM if not running the ELG selection, set everything to arrays of False.
         elgfdr_north, elgfdrfaint_north, elgrzblue_north, elgrzred_north = \
-                                        ~primary, ~primary, ~primary, ~primary
+            ~primary, ~primary, ~primary, ~primary
         elgfdr_south, elgfdrfaint_south, elgrzblue_south, elgrzred_south = \
-                                        ~primary, ~primary, ~primary, ~primary
+            ~primary, ~primary, ~primary, ~primary
 
     # ADM combine ELG target bits for an ELG target based on any imaging
     elg_north = elgfdr_north | elgfdrfaint_north | elgrzblue_north | elgrzred_north
@@ -1092,7 +1092,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             )
         qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
-                                                                   qso_classes
+            qso_classes
 
     else:
         # ADM if not running the QSO selection, set everything to arrays of False
@@ -1125,9 +1125,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
 
         bgs_bright_north, bgs_bright_south, \
-        bgs_faint_north, bgs_faint_south,   \
-        bgs_wise_north, bgs_wise_south =    \
-                                        bgs_classes
+            bgs_faint_north, bgs_faint_south,   \
+            bgs_wise_north, bgs_wise_south =    \
+            bgs_classes
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
@@ -1155,8 +1155,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             )
 
         mws_n, mws_red_n, mws_blue_n,   \
-        mws_s, mws_red_s, mws_blue_s =  \
-                                        np.vstack(mws_classes)
+            mws_s, mws_red_s, mws_blue_s =  \
+            np.vstack(mws_classes)
 
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
