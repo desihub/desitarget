@@ -10,24 +10,25 @@ from astropy.table import Table
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
 from desitarget.targets import calc_priority
 
+
 class TestPriorities(unittest.TestCase):
 
     def setUp(self):
         dtype = [
-            ('DESI_TARGET',np.int64),
-            ('BGS_TARGET',np.int64),
-            ('MWS_TARGET',np.int64),
-            ('Z',np.float32),
-            ('ZWARN',np.float32),
+            ('DESI_TARGET', np.int64),
+            ('BGS_TARGET', np.int64),
+            ('MWS_TARGET', np.int64),
+            ('Z', np.float32),
+            ('ZWARN', np.float32),
         ]
         self.targets = Table(np.zeros(3, dtype=dtype))
 
     def test_priorities(self):
         t = self.targets
-        #- No targeting bits set is priority=0
+        # - No targeting bits set is priority=0
         self.assertTrue(np.all(calc_priority(t) == 0))
 
-        #- test QSO > (LRG_1PASS | LRG_2PASS) > ELG
+        # - test QSO > (LRG_1PASS | LRG_2PASS) > ELG
         t['DESI_TARGET'] = desi_mask.ELG
         self.assertTrue(np.all(calc_priority(t) == desi_mask.ELG.priorities['UNOBS']))
         t['DESI_TARGET'] |= desi_mask.LRG_1PASS
@@ -37,47 +38,47 @@ class TestPriorities(unittest.TestCase):
         t['DESI_TARGET'] |= desi_mask.QSO
         self.assertTrue(np.all(calc_priority(t) == desi_mask.QSO.priorities['UNOBS']))
 
-        #- different states -> different priorities
+        # - different states -> different priorities
 
-        #- Done is Done, regardless of ZWARN.
+        # - Done is Done, regardless of ZWARN.
         t['DESI_TARGET'] = desi_mask.ELG
         t['NUMOBS'] = [0, 1, 1]
-        t['ZWARN']  = [1, 1, 0]
+        t['ZWARN'] = [1, 1, 0]
         p = calc_priority(t)
 
         self.assertEqual(p[0], desi_mask.ELG.priorities['UNOBS'])
         self.assertEqual(p[1], desi_mask.ELG.priorities['DONE'])
         self.assertEqual(p[2], desi_mask.ELG.priorities['DONE'])
 
-        #- BGS FAINT targets are never DONE, only MORE_ZGOOD.
+        # - BGS FAINT targets are never DONE, only MORE_ZGOOD.
         t['DESI_TARGET'] = desi_mask.BGS_ANY
-        t['BGS_TARGET']  = bgs_mask.BGS_FAINT
+        t['BGS_TARGET'] = bgs_mask.BGS_FAINT
         t['NUMOBS'] = [0, 1, 1]
-        t['ZWARN']  = [1, 1, 0]
+        t['ZWARN'] = [1, 1, 0]
         p = calc_priority(t)
 
         self.assertEqual(p[0], bgs_mask.BGS_FAINT.priorities['UNOBS'])
         self.assertEqual(p[1], bgs_mask.BGS_FAINT.priorities['MORE_ZWARN'])
         self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['MORE_ZGOOD'])
-        ### BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        # BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
-        #- BGS BRIGHT targets are never DONE, only MORE_ZGOOD.
-        t['DESI_TARGET']  = desi_mask.BGS_ANY
-        t['BGS_TARGET']   = bgs_mask.BGS_BRIGHT
+        # - BGS BRIGHT targets are never DONE, only MORE_ZGOOD.
+        t['DESI_TARGET'] = desi_mask.BGS_ANY
+        t['BGS_TARGET'] = bgs_mask.BGS_BRIGHT
         t['NUMOBS'] = [0, 1, 1]
-        t['ZWARN']  = [1, 1, 0]
+        t['ZWARN'] = [1, 1, 0]
         p = calc_priority(t)
 
         self.assertEqual(p[0], bgs_mask.BGS_BRIGHT.priorities['UNOBS'])
         self.assertEqual(p[1], bgs_mask.BGS_BRIGHT.priorities['MORE_ZWARN'])
         self.assertEqual(p[2], bgs_mask.BGS_BRIGHT.priorities['MORE_ZGOOD'])
-        ### BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        # BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
         # BGS targets are NEVER done even after 100 observations
         t['DESI_TARGET'] = desi_mask.BGS_ANY
-        t['BGS_TARGET']  = bgs_mask.BGS_BRIGHT
+        t['BGS_TARGET'] = bgs_mask.BGS_BRIGHT
         t['NUMOBS'] = [0, 100, 100]
-        t['ZWARN']  = [1,   1,   0]
+        t['ZWARN'] = [1,   1,   0]
         p = calc_priority(t)
 
         self.assertEqual(p[0], bgs_mask.BGS_BRIGHT.priorities['UNOBS'])
@@ -101,7 +102,7 @@ class TestPriorities(unittest.TestCase):
                                   lowest_mws_priority_zwarn,
                                   lowest_mws_priority_zgood)
 
-        self.assertLess(lowest_bgs_priority_zgood,lowest_mws_priority)
+        self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 
     def test_bright_mask(self):
         t = self.targets
@@ -116,16 +117,18 @@ class TestPriorities(unittest.TestCase):
         for mask in [desi_mask, bgs_mask, mws_mask]:
             for name in mask.names():
                 if name.startswith('STD') or name in ['BGS_ANY', 'MWS_ANY', 'SECONDARY_ANY',
-                                'IN_BRIGHT_OBJECT', 'NEAR_BRIGHT_OBJECT',
-                                'BRIGHT_OBJECT', 'SKY', 'SV', 'NO_TARGET']:
+                                                      'IN_BRIGHT_OBJECT', 'NEAR_BRIGHT_OBJECT',
+                                                      'BRIGHT_OBJECT', 'SKY', 'SV', 'NO_TARGET']:
                     self.assertEqual(mask[name].priorities, {}, 'mask.{} has priorities?'.format(name))
                 else:
                     for state in obsmask.names():
                         self.assertIn(state, mask[name].priorities,
-                            '{} not in mask.{}.priorities'.format(state, name))
+                                      '{} not in mask.{}.priorities'.format(state, name))
+
 
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:
