@@ -16,6 +16,7 @@ import numpy as np
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
 
+
 class TestCuts(unittest.TestCase):
 
     @classmethod
@@ -58,15 +59,15 @@ class TestCuts(unittest.TestCase):
     def test_cuts_noprimary(self):
         """Test cuts work with or without "primary"
         """
-        #- BRICK_PRIMARY was removed from the sweeps in dr3 (@moustakas).
+        # - BRICK_PRIMARY was removed from the sweeps in dr3 (@moustakas).
         targets = Table.read(self.sweepfiles[0])
         if 'BRICK_PRIMARY' in targets.colnames:
             desi1, bgs1, mws1 = cuts.apply_cuts(targets)
             targets.remove_column('BRICK_PRIMARY')
             desi2, bgs2, mws2 = cuts.apply_cuts(targets)
-            self.assertTrue(np.all(desi1==desi2))
-            self.assertTrue(np.all(bgs1==bgs2))
-            self.assertTrue(np.all(mws1==mws2))
+            self.assertTrue(np.all(desi1 == desi2))
+            self.assertTrue(np.all(bgs1 == bgs2))
+            self.assertTrue(np.all(mws1 == mws2))
 
     def test_single_cuts(self):
         """Test cuts of individual target classes
@@ -90,7 +91,7 @@ class TestCuts(unittest.TestCase):
         w2snr = targets['FLUX_W2'] * np.sqrt(targets['FLUX_IVAR_W2'])
 
         dchisq = targets['DCHISQ']
-        deltaChi2 = dchisq[...,0] - dchisq[...,1]
+        deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
 
         gnobs, rnobs, znobs = targets['NOBS_G'], targets['NOBS_R'], targets['NOBS_Z']
         gallmask = targets['ALLMASK_G']
@@ -116,17 +117,17 @@ class TestCuts(unittest.TestCase):
             primary = np.ones_like(gflux, dtype='?')
 
         lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                    gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+                          gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
         lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                    gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
-        self.assertTrue(np.all(lrg1==lrg2))
+                          gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+        self.assertTrue(np.all(lrg1 == lrg2))
         # ADM also check that the color selections alone work. This tripped us up once
         # ADM with the mocks part of the code calling a non-existent LRG colors function.
-        lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, 
+        lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
                                  w1flux=w1flux, w2flux=w2flux)
-        lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, 
+        lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
                                  w1flux=w1flux, w2flux=w2flux)
-        self.assertTrue(np.all(lrg1==lrg2))
+        self.assertTrue(np.all(lrg1 == lrg2))
 
         elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
                           gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
@@ -134,49 +135,49 @@ class TestCuts(unittest.TestCase):
         elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
                           gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
                           brightstarinblob=brightstarinblob, primary=None)
-        self.assertTrue(np.all(elg1==elg2))
+        self.assertTrue(np.all(elg1 == elg2))
 
         elg1 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
         elg2 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
-        self.assertTrue(np.all(elg1==elg2))
+        self.assertTrue(np.all(elg1 == elg2))
 
         for targtype in ["bright", "faint", "wise"]:
             bgs = []
             for primary in [primary, None]:
                 bgs.append(
                     cuts.isBGS(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                        gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                        gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
-                        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
-                        primary=primary, targtype=targtype)
+                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                               gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                               gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                               gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                               gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                               brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                               primary=primary, targtype=targtype)
                 )
-            self.assertTrue(np.all(bgs[0]==bgs[1]))
+            self.assertTrue(np.all(bgs[0] == bgs[1]))
 
         # ADM need to include RELEASE for quasar cuts, at least.
         release = targets['RELEASE']
-        #- Test that objtype and primary are optional
+        # - Test that objtype and primary are optional
         psftype = targets['TYPE']
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
-                          w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
-                          release=release)
+                               deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                               w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
+                               release=release)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                          deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
-                          w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
-                          release=release)
-        self.assertTrue(np.all(qso1==qso2))
+                               deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                               w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
+                               release=release)
+        self.assertTrue(np.all(qso1 == qso2))
         # ADM also check that the color selections alone work. This tripped us up once
         # ADM with the mocks part of the code calling a non-existent LRG colors function.
         qso1 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=False)
         qso2 = cuts.isQSO_colors(gflux, rflux, zflux, w1flux, w2flux, optical=None)
-        self.assertTrue(np.all(qso1==qso2))
+        self.assertTrue(np.all(qso1 == qso2))
 
         fstd1 = cuts.isSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
         fstd2 = cuts.isSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
-        self.assertTrue(np.all(fstd1==fstd2))
+        self.assertTrue(np.all(fstd1 == fstd2))
 
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
@@ -230,10 +231,10 @@ class TestCuts(unittest.TestCase):
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
-                except TypeError:  #- can't check string columns for NaN
+                except TypeError:  # - can't check string columns for NaN
                     notNaN = np.ones(len(t1), dtype=bool)
 
-                self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
+                self.assertTrue(np.all(t1[col][notNaN] == t2[col][notNaN]))
 
     @unittest.skip("The sandbox isn't used much, we will probably deprecate it.")
     def test_select_targets_sandbox(self):
@@ -247,7 +248,7 @@ class TestCuts(unittest.TestCase):
             if 'BRICK_PRIMARY' in objects.colnames:
                 objects.remove_column('BRICK_PRIMARY')
             desi_target, bgs_target, mws_target = \
-                    sandbox.cuts.apply_sandbox_cuts(objects)
+                sandbox.cuts.apply_sandbox_cuts(objects)
             n = np.count_nonzero(desi_target) + \
                 np.count_nonzero(bgs_target) + \
                 np.count_nonzero(mws_target)
@@ -261,7 +262,7 @@ class TestCuts(unittest.TestCase):
         for filelist in self.tractorfiles:
             nbadfiles = cuts.check_input_files(filelist, numproc=1)
 
-            self.assertTrue(nbadfiles==0)
+            self.assertTrue(nbadfiles == 0)
 
     def test_qso_selection_options(self):
         """Test the QSO selection options are passed correctly
@@ -271,11 +272,11 @@ class TestCuts(unittest.TestCase):
         targetfile = self.tractorfiles[0]
         for qso_selection in cuts.qso_selection_options:
             results = cuts.select_targets(targetfile,
-                                    tcnames=tc, qso_selection=qso_selection)
-            
+                                          tcnames=tc, qso_selection=qso_selection)
+
         with self.assertRaises(ValueError):
             results = cuts.select_targets(targetfile, numproc=1,
-                                    tcnames=tc, qso_selection='blatfoo')
+                                          tcnames=tc, qso_selection='blatfoo')
 
     def test_bgs_target_types(self):
         """Test that incorrect BGS target types are caught
@@ -290,7 +291,7 @@ class TestCuts(unittest.TestCase):
         """Test the code will die gracefully if input files are missing
         """
         with self.assertRaises(ValueError):
-            targets = cuts.select_targets(['blat.foo1234',], numproc=1)
+            targets = cuts.select_targets(['blat.foo1234', ], numproc=1)
 
     def test_parallel_select(self):
         """Test multiprocessing parallelization works
@@ -299,9 +300,9 @@ class TestCuts(unittest.TestCase):
         # ADM full run through all classes in test_cuts_basic.
         tc = ["ELG", "BGS"]
 
-        for nproc in [1,2]:
+        for nproc in [1, 2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
-                targets = cuts.select_targets(filelist, 
+                targets = cuts.select_targets(filelist,
                                               numproc=nproc, tcnames=tc)
                 self.assertTrue('DESI_TARGET' in targets.dtype.names)
                 self.assertTrue('BGS_TARGET' in targets.dtype.names)
@@ -312,8 +313,10 @@ class TestCuts(unittest.TestCase):
                 bgs2 = targets['BGS_TARGET'] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
 
+
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:

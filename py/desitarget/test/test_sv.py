@@ -9,6 +9,7 @@ from pkg_resources import resource_filename
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
 
+
 class TestSV(unittest.TestCase):
 
     @classmethod
@@ -23,10 +24,10 @@ class TestSV(unittest.TestCase):
         for filelist in [self.tractorfiles, self.sweepfiles]:
             # ADM increase maxsv as we add more iterations of SV!!!
             maxsv = 1
-            svlist = [ 'sv{}'.format(i) for i in range(1,maxsv+1) ]
+            svlist = ['sv{}'.format(i) for i in range(1, maxsv+1)]
             for survey in svlist:
-                desicol, bgscol, mwscol = [ "{}_{}_TARGET".format(survey.upper(),tc) 
-                           for tc in ["DESI", "BGS", "MWS"] ]
+                desicol, bgscol, mwscol = ["{}_{}_TARGET".format(survey.upper(), tc)
+                                           for tc in ["DESI", "BGS", "MWS"]]
                 targets = cuts.select_targets(filelist, survey=survey)
                 for col in desicol, bgscol, mwscol:
                     self.assertTrue(col in targets.dtype.names)
@@ -41,6 +42,7 @@ class TestSV(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:
