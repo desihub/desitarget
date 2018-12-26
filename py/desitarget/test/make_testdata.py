@@ -82,13 +82,13 @@ cmx_targets = finalize(data[keep], desi_target[keep],
 # ADM remove some columns from the target file that aren't needed for
 # ADM testing. It's a big file.
 needtargs = np.empty(
-    len(many), dtype= [('RA', '>f8'), ('DEC', '>f8'),
-                       ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
-                       ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('MW_TRANSMISSION_G', '>f4'),
-                       ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'),
-                       ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
-                       ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
-                       ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'), ('MWS_TARGET', '<i8')]
+    len(many), dtype=[('RA', '>f8'), ('DEC', '>f8'),
+                      ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
+                      ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('MW_TRANSMISSION_G', '>f4'),
+                      ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'),
+                      ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
+                      ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+                      ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'), ('MWS_TARGET', '<i8')]
 )
 for col in needtargs.dtype.names:
     needtargs[col] = targets[col]
@@ -96,7 +96,7 @@ fitsio.write('t/targets.fits', needtargs, header=hdr, clobber=True)
 fitsio.write('t/cmx-targets.fits', cmx_targets, header=hdr, clobber=True)
 
 # ADM as of DR7, ignore the Gaia files
-# ADM adding Gaia files to which to match 
+# ADM adding Gaia files to which to match
 # for brick in ['3301m002', '3301m007', '3303p000']:
 #    filepath = '{}/tractor-{}.fits'.format(tractordir, brick)
 #    data = fitsio.read('t/'+basename(filepath))

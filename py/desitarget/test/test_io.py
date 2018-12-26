@@ -12,6 +12,7 @@ import fitsio
 
 from desitarget import io
 
+
 class TestIO(unittest.TestCase):
 
     @classmethod
@@ -42,13 +43,13 @@ class TestIO(unittest.TestCase):
     def test_iter(self):
         for x in io.iter_files(self.datadir, prefix='tractor', ext='fits'):
             pass
-        #- io.iter_files should also work with a file, not just a directory
+        # - io.iter_files should also work with a file, not just a directory
         for y in io.iter_files(x, prefix='tractor', ext='fits'):
             self.assertEqual(x, y)
 
     def test_fix_dr1(self):
         '''test the DR1 TYPE dype fix (make everything S4)'''
-        #- First, break it
+        # - First, break it
         files = io.list_sweepfiles(self.datadir)
         objects = io.read_tractor(files[0])
         dt = objects.dtype.descr
@@ -74,10 +75,10 @@ class TestIO(unittest.TestCase):
              'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
         )
         # ADM BRICK_PRIMARY, PHOTSYS get added on input.
-        tscolumns = list(io.tsdatamodel.dtype.names)      \
-                    + ['BRICK_PRIMARY','PHOTSYS']         \
-                    + list(gaiadatamodel.dtype.names)     \
-                    + list(io.dr7datamodel.dtype.names)
+        tscolumns = list(io.tsdatamodel.dtype.names)     \
+            + ['BRICK_PRIMARY', 'PHOTSYS']               \
+            + list(gaiadatamodel.dtype.names)            \
+            + list(io.dr7datamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
@@ -92,11 +93,11 @@ class TestIO(unittest.TestCase):
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         sweepfile = io.list_sweepfiles(self.datadir)[0]
         data = io.read_tractor(sweepfile)
-        self.assertEqual(len(data), 6)  #- test data has 6 objects per file
+        self.assertEqual(len(data), 6)  # - test data has 6 objects per file
         data = io.read_tractor(tractorfile)
-        self.assertEqual(len(data), 6)  #- test data has 6 objects per file
+        self.assertEqual(len(data), 6)  # - test data has 6 objects per file
         data, hdr = io.read_tractor(tractorfile, header=True)
-        self.assertEqual(len(data), 6)  #- test data has 6 objects per file
+        self.assertEqual(len(data), 6)  # - test data has 6 objects per file
 
         # ADM check that input and output columns are the same.
         io.write_targets(self.testfile, data, indir=self.datadir)
@@ -118,8 +119,10 @@ class TestIO(unittest.TestCase):
         self.assertEqual(io.brickname_from_filename('tractor-3301p002.fits'), '3301p002')
         self.assertEqual(io.brickname_from_filename('/a/b/tractor-3301p002.fits'), '3301p002')
 
+
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:

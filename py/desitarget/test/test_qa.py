@@ -13,14 +13,15 @@ from desitarget.QA import make_qa_page, _load_systematics
 from desitarget.QA import _parse_tcnames, _in_desi_footprint
 from glob import glob
 
+
 class TestQA(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.datadir = resource_filename('desitarget.test', 't/')
-        cls.targfile = os.path.join(cls.datadir,'targets.fits')
-        cls.cmxfile = os.path.join(cls.datadir,'cmx-targets.fits')
-        cls.pixmapfile = os.path.join(cls.datadir,'pixweight.fits')
+        cls.targfile = os.path.join(cls.datadir, 'targets.fits')
+        cls.cmxfile = os.path.join(cls.datadir, 'cmx-targets.fits')
+        cls.pixmapfile = os.path.join(cls.datadir, 'pixweight.fits')
         cls.origdir = os.getcwd()
         cls.testdir = tempfile.mkdtemp()
         print("working in {}...".format(cls.testdir))
@@ -28,7 +29,7 @@ class TestQA(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        #- Remove all test input and output files.
+        # - Remove all test input and output files.
         os.chdir(cls.origdir)
         if os.path.exists(cls.testdir):
             shutil.rmtree(cls.testdir)
@@ -49,7 +50,7 @@ class TestQA(unittest.TestCase):
         """
         # ADM note that these might not all be in the test files
         # ADM but this also tests passing via tcnames.
-        tcnames = ["ALL","BGS_FAINT"]
+        tcnames = ["ALL", "BGS_FAINT"]
 
         # ADM the large max_bin_area helps speed the tests.
         make_qa_page(self.targfile, qadir=self.testdir, max_bin_area=99.,
@@ -105,18 +106,20 @@ class TestQA(unittest.TestCase):
         """Test target class strings are parsed into lists.
         """
         # ADM a location that's definitely in DESI (38.5,7.5).
-        targs = np.zeros(1,dtype=[('RA', '>f8'), ('DEC', '>f8')])
+        targs = np.zeros(1, dtype=[('RA', '>f8'), ('DEC', '>f8')])
         targs["RA"], targs["DEC"] = 38.5, 7.5
         tin = _in_desi_footprint(targs)
         # ADM shift to a location definitely out of DESI (38.5,-60).
         targs["DEC"] = -60.
         tout = _in_desi_footprint(targs)
 
-        self.assertEqual(len(tin[0]),1)
-        self.assertEqual(len(tout[0]),0)
+        self.assertEqual(len(tin[0]), 1)
+        self.assertEqual(len(tout[0]), 0)
+
 
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:
