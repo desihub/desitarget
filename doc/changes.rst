@@ -5,10 +5,11 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
-* Code style changes to better conform to PEP 8 [`PR #446`_], [`PR #447`_].
+* Style changes to conform to PEP 8 [`PR #446`_], [`PR #447`_], [`PR #448`_].
 
 .. _`PR #446`: https://github.com/desihub/desitarget/pull/446
 .. _`PR #447`: https://github.com/desihub/desitarget/pull/447
+.. _`PR #448`: https://github.com/desihub/desitarget/pull/448
 
 0.27.0 (2018-12-14)
 -------------------
