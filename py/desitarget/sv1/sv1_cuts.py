@@ -19,6 +19,7 @@ from time import time
 from pkg_resources import resource_filename
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype
+from desitarget.cuts import shift_photo_north
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -448,7 +449,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
                             0.60 - (r_Reduced - 20.0) * 0.10, 0.60)
             pcut[r_Reduced > 22.0] = 0.40 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
         pcut_HighZ = 0.40
-            
+
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = \
             (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
