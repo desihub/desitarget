@@ -339,8 +339,7 @@ def hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, density=100
     return hpxinfo
 
 
-def get_dust(ras, decs, scaling=1,
-             dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
+def get_dust(ras, decs, scaling=1, dustdir=None):
     """Get SFD E(B-V) values at a set of RA/Dec locations
 
     Parameters
@@ -352,8 +351,9 @@ def get_dust(ras, decs, scaling=1,
     scaling : :class:`float`
         Pass 1 for the SFD98 dust maps. A scaling of 0.86 corresponds
         to the recalibration from Schlafly & Finkbeiner (2011).
-    dustdir : :class:`str`, optional, defaults to the NERSC dust map location
-        The root directory pointing to SFD dust maps
+    dustdir : :class:`str`, optional, defaults to $DUST_DIR+'/maps'
+        The root directory pointing to SFD dust maps. If not
+        sent the code will try to use $DUST_DIR+'/maps' before failing.
 
     Returns
     -------
@@ -366,7 +366,7 @@ def get_dust(ras, decs, scaling=1,
 
 def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, density=100000,
                               drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/",
-                              dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
+                              dustdir=None):
     """NOBS, DEPTHS etc. (per-band) for random points in a brick of the Legacy Surveys
 
     Parameters
@@ -387,8 +387,9 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, density=1
     drdir : :class:`str`, optional, defaults to the DR4 root directory at NERSC
         The root directory pointing to a Data Release of the Legacy Surveys, e.g.:
         "/global/project/projectdirs/cosmo/data/legacysurvey/dr4/"
-    dustdir : :class:`str`, optional, defaults to the NERSC dust map location
-        The root directory pointing to SFD dust maps
+    dustdir : :class:`str`, optional, defaults to $DUST_DIR+'/maps'
+        The root directory pointing to SFD dust maps. If not
+        sent the code will try to use $DUST_DIR+'/maps' before failing.
 
     Returns
     -------
@@ -894,7 +895,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=2.5,
 def select_randoms(density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
                    drdir="/global/project/projectdirs/cosmo/data/legacysurvey/dr4/",
-                   dustdir="/project/projectdirs/desi/software/edison/dust/v0_1/maps"):
+                   dustdir=None):
     """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
 
     Parameters
@@ -925,8 +926,10 @@ def select_randoms(density=100000, numproc=32, nside=4, pixlist=None,
         to estimate time to completion when parallelizing across pixels.
     drdir : :class:`str`, optional, defaults to dr4 root directory on NERSC
        The root directory pointing to a Data Release from the Legacy Surveys.
-    dustdir : :class:`str`, optional, defaults to the NERSC dust map location
-        The root directory pointing to SFD dust maps.
+    dustdir : :class:`str`, optional, defaults to $DUST_DIR+'maps'
+        The root directory pointing to SFD dust maps. If not
+        sent the code will try to use $DUST_DIR+'maps')
+        before failing.
 
     Returns
     -------
