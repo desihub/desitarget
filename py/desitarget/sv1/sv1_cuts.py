@@ -380,7 +380,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - Current version (11/05/18) is version 29 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -390,6 +390,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # Build variables for random forest.
     nFeatures = 11  # Number of attributes describing each object to be classified by the rf.
     nbEntries = rflux.size
+    # ADM shift the northern photometry to the southern system.
+    if not south:
+        gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+
     # ADM photOK here should ensure (g > 0.) & (r > 0.) & (z > 0.) & (W1 > 0.) & (W2 > 0.)
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
@@ -421,26 +425,30 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
         # Path to random forest files
         pathToRF = resource_filename('desitarget', 'data')
-        # rf filenames
-        rf_DR5_fileName = pathToRF + '/rf_model_dr5.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr5_HighZ.npz'
+        # ADM Use RF trained over DR7
+        rf_fileName = pathToRF + '/rf_model_dr7.npz'
+        rf_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
 
         # rf initialization - colors data duplicated within "myRF"
-        rf_DR5 = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
-        rf_DR5_HighZ = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
+        rf = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
+        rf_HighZ = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
         # rf loading
-        rf_DR5.loadForest(rf_DR5_fileName)
-        rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
+        rf.loadForest(rf_fileName)
+        rf_HighZ.loadForest(rf_HighZ_fileName)
         # Compute rf probabilities
-        tmp_rf_proba = rf_DR5.predict_proba()
-        tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
+        tmp_rf_proba = rf.predict_proba()
+        tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
         # Compute optimized proba cut (all different for SV)
-        pcut = np.where(r_Reduced > 20.8,
-                        0.75 - (r_Reduced - 20.8) * 0.025, 0.75)
-        pcut[r_Reduced > 21.5] = 0.7325 - 0.05 * (r_Reduced[r_Reduced > 21.5] - 21.5)
-        pcut[r_Reduced > 22.3] = 0.6925 - 0.53 * (r_Reduced[r_Reduced > 22.3] - 22.3)
-        pcut_HighZ = np.where(r_Reduced > 20.5,
-                              0.40 - (r_Reduced - 20.5) * 0.025, 0.40)
+        # ADM the probabilities are different for the north and the south.
+        if south:
+            pcut = np.where(r_Reduced > 20.0,
+                            0.45 - (r_Reduced - 20.0) * 0.10, 0.45)
+        else:
+            pcut = np.where(r_Reduced > 20.0,
+                            0.60 - (r_Reduced - 20.0) * 0.10, 0.60)
+            pcut[r_Reduced > 22.0] = 0.40 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
+        pcut_HighZ = 0.40
+            
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = \
             (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
