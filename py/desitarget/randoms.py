@@ -96,6 +96,10 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
     :class:`~numpy.array`
         Declinations of random points in brick
     """
+    # ADM create a unique random seed on the basis of the brick.
+    uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
+    np.random.seed(uniqseed)
+
     # ADM generate random points within the brick at the requested density
     # ADM guard against potential wraparound bugs (assuming bricks are typical
     # ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that
@@ -159,6 +163,9 @@ def randoms_in_a_brick_from_name(brickname, density=100000,
 
     brick = brickinfo[wbrick][0]
     ramin, ramax, decmin, decmax = brick['ra1'], brick['ra2'], brick['dec1'], brick['dec2']
+    # ADM create a unique random seed on the basis of the brick.
+    uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
+    np.random.seed(uniqseed)
 
     # ADM generate random points within the brick at the requested density
     # ADM guard against potential wraparound bugs
