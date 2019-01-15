@@ -97,6 +97,8 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
         Declinations of random points in brick
     """
     # ADM create a unique random seed on the basis of the brick.
+    # ADM note this is only unique for bricksize=0.25 for bricks
+    # ADM that are more than 0.25 degrees from the poles.
     uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
     np.random.seed(uniqseed)
 
@@ -163,7 +165,10 @@ def randoms_in_a_brick_from_name(brickname, density=100000,
 
     brick = brickinfo[wbrick][0]
     ramin, ramax, decmin, decmax = brick['ra1'], brick['ra2'], brick['dec1'], brick['dec2']
+
     # ADM create a unique random seed on the basis of the brick.
+    # ADM note this is only unique for bricksize=0.25 for bricks
+    # ADM that are more than 0.25 degrees from the poles.
     uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
     np.random.seed(uniqseed)
 
