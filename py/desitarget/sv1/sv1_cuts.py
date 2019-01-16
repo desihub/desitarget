@@ -297,9 +297,12 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - Current version (11/05/18) is version 29 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
+    if not south:
+        gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
@@ -443,11 +446,11 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         # ADM the probabilities are different for the north and the south.
         if south:
             pcut = np.where(r_Reduced > 20.0,
-                            0.45 - (r_Reduced - 20.0) * 0.10, 0.45)
-        else:
-            pcut = np.where(r_Reduced > 20.0,
                             0.60 - (r_Reduced - 20.0) * 0.10, 0.60)
             pcut[r_Reduced > 22.0] = 0.40 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
+        else:
+            pcut = np.where(r_Reduced > 20.0,
+                            0.45 - (r_Reduced - 20.0) * 0.10, 0.45)
         pcut_HighZ = 0.40
 
         # Add rf proba test result to "qso" mask
