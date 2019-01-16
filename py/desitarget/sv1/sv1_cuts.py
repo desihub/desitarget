@@ -297,7 +297,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (11/05/18) is version 29 on `the SV wiki`_.
+    - Current version (11/05/18) is version 33 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -384,7 +384,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (11/05/18) is version 29 on `the SV wiki`_.
+    - Current version (11/05/18) is version 33 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
