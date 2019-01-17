@@ -5,25 +5,27 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
+* Update SV QSO selections, add seed and DUST_DIR for randoms [`PR #449`_].
 * Style changes to conform to PEP 8 [`PR #446`_], [`PR #447`_], [`PR #448`_].
 
 .. _`PR #446`: https://github.com/desihub/desitarget/pull/446
 .. _`PR #447`: https://github.com/desihub/desitarget/pull/447
 .. _`PR #448`: https://github.com/desihub/desitarget/pull/448
+.. _`PR #449`: https://github.com/desihub/desitarget/pull/449
 
 0.27.0 (2018-12-14)
 -------------------
 
-* Move `select-mock-targets.yaml` configuration file to an installable location
-  for use by `desitest` [`PR #436`_].
-* Significant enhancement and refactor of `select_mock_targets` to include
-  stellar and extragalactic contaminants [`PR #427`_].
 * Remove reliance on Legacy Surveys for Gaia data [`PR #438`_]. Includes:
     * Use ``$GAIA_DIR`` environment variable instead of passing a directory.
     * Functions to wget Gaia DR2 CSV files and convert them to FITS.
     * Function to reorganize Gaia FITS files into (NESTED) HEALPixels.
     * Use the NESTED HEALPix scheme for Gaia files throughout desitarget.
     * Change output column ``TYPE`` to ``MORPHTYPE`` for GFAs.
+* Move `select-mock-targets.yaml` configuration file to an installable location
+  for use by `desitest` [`PR #436`_].
+* Significant enhancement and refactor of `select_mock_targets` to include
+  stellar and extragalactic contaminants [`PR #427`_].
 
 .. _`PR #427`: https://github.com/desihub/desitarget/pull/427
 .. _`PR #436`: https://github.com/desihub/desitarget/pull/436
