@@ -20,7 +20,7 @@ def make_mtl(targets, zcat=None, trim=False):
     ----------
     targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
-        ``TARGETID``, ``DESI_TARGET``.
+        ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
