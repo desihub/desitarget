@@ -20,7 +20,6 @@ class TestPriorities(unittest.TestCase):
             ('DESI_TARGET', np.int64),
             ('BGS_TARGET', np.int64),
             ('MWS_TARGET', np.int64),
-            ('TARGETID', np.int64),
             ('PRIORITY_INIT', np.int64),
             ('NUMOBS_INIT', np.int64)
         ]
