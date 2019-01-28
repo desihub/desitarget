@@ -406,10 +406,11 @@ def calc_priority(targets, zcat):
     ----------
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include columns
-        `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` and `NUMOBS_INIT`.
+        `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`.
     zcat : :class:`~numpy.ndarray`
         numpy structured array or Table of redshift information. Must include 'Z',
-        `ZWARN`, `NUMOBS`, `NUMOBS_MORE` and be the same length as `targets`.
+        `ZWARN`, `NUMOBS` and be the same length as `targets`. May also contain
+        `NUMOBS_MORE` if this isn't the first time through MTL and `NUMOBS > 0`.
 
     Returns
     -------
