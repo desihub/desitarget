@@ -5,7 +5,7 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
-* Deprecate :func:`targets.calc_priority` that had table copy [`PR #451`_].
+* Deprecate :func:`targets.calc_priority` that had table copy [`PR #452`_].
 * Update SV QSO selections, add seed and DUST_DIR for randoms [`PR #449`_].
 * Style changes to conform to PEP 8 [`PR #446`_], [`PR #447`_], [`PR #448`_].
 
@@ -13,7 +13,7 @@ desitarget Change Log
 .. _`PR #447`: https://github.com/desihub/desitarget/pull/447
 .. _`PR #448`: https://github.com/desihub/desitarget/pull/448
 .. _`PR #449`: https://github.com/desihub/desitarget/pull/449
-.. _`PR #451`: https://github.com/desihub/desitarget/pull/451
+.. _`PR #452`: https://github.com/desihub/desitarget/pull/452
 
 0.27.0 (2018-12-14)
 -------------------
