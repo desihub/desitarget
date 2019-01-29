@@ -10,7 +10,7 @@ import sys
 from astropy.table import Table
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from desitarget.targets import calc_numobs, calc_priority_no_table
+from desitarget.targets import calc_numobs, calc_priority
 
 
 def make_mtl(targets, zcat=None, trim=False):
@@ -20,7 +20,7 @@ def make_mtl(targets, zcat=None, trim=False):
     ----------
     targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
-        ``TARGETID``, ``DESI_TARGET``.
+        ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
@@ -103,7 +103,7 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
-    priority = calc_priority_no_table(targets_zmatcher, ztargets)
+    priority = calc_priority(targets_zmatcher, ztargets)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0.
     # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
