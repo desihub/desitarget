@@ -875,6 +875,18 @@ def _check_BGS_targtype(targtype):
         raise ValueError(msg)
 
 
+def _check_BGS_targtype_sv(targtype):
+    """Fail if `targtype` is not one of the strings 'bright', 'faint', 'faint_ext', 'lowq' or 'fibmag'.
+    """
+    targposs = ['faint', 'bright', 'faint_ext', 'lowq', 'fibmag']
+
+    if targtype not in targposs:
+        msg = 'targtype must be one of {} not {}'.format(targposs, targtype)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
+
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,

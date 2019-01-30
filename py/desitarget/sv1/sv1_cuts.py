@@ -1,5 +1,4 @@
 """
-THIS IS THE NEW BRANCH!
 
 desitarget.sv1.sv1_cuts
 =======================
@@ -20,7 +19,7 @@ import warnings
 from time import time
 from pkg_resources import resource_filename
 
-from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype
+from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
 
 # ADM set up the DESI default logger
@@ -482,7 +481,9 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
     targtype : :class:`str`, optional, defaults to ``faint``
         Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
         or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
-        or ``wise`` to use colors appropriate to the ``BGS_WISE`` selection.
+        or ``faint_ext`` to use colors appropriate to the ``BGS_FAINT_EXTENDED`` selection
+	or ``lowq`` to use colors appropriate to the ``BGS_LOW_QUALITY`` selection
+	or ``fibmag`` to use colors appropriate to the ``BGS_FIBER_MAGNITUDE`` selection.
 
     Returns
     -------
@@ -494,37 +495,26 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
-    _check_BGS_targtype(targtype)
+    _check_BGS_targtype_sv(targtype)
 
     # ------ Bright Galaxy Survey
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
-    bgs_failQCs = primary.copy()
 
     bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
                          gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype='standard')
-
-    bgs_failQCs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
-                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
-                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
-                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype='failQCs')
+                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
 
 
-    bgs_bright, bgs_faint, bgs_faint_ext, bgs_fibmag = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
-                        south=south, targtype=None, primary=bgs)
-
-    bgs_low = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
-                        south=south, targtype='failQCs', primary=bgs_failQCs)
+    bgs = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
+                        south=south, targtype=targtype, primary=primary)
 
 
-    return bgs_bright, bgs_faint, bgs_faint_ext, bgs_low, bgs_fibmag
+    return bgs 
 
 
 def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
@@ -536,7 +526,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS_faint` for parameters).
     """
-    _check_BGS_targtype(targtype)
+    _check_BGS_targtype_sv(targtype)
 
     if primary is None:
         primary = np.ones_like(gnobs, dtype='?')
@@ -551,10 +541,10 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
     bgs_qcs &= ~brightstarinblob
 
-    if targtype == 'standard':
-        bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (bgs_qcs))
-    else targtype == 'failQCs':
+    if targtype == 'lowq':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (~bgs_qcs)
+    else:
+        bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (bgs_qcs))
 
     return bgs
 
@@ -567,7 +557,8 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
+    bgs = primary.copy()
+	
     #color box
     bgs_gr_rz = primary.copy()
     bgs_gr_rz &= rflux > gflux * 10**(-1.0/2.5)
@@ -576,34 +567,28 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     bgs_gr_rz &= zflux < rflux * 10**(4.0/2.5)
 
 
-    if targtype == 'failQCs':
-	bgs_low = primary.copy()
-
-	bgs_low &= flux > 10**((22.5-20.1)/2.5)
-	bgs_low &= ~bgs_gr_rz
-	
-	return bgs_low
-
+    if targtype == 'lowq':
+	bgs &= flux > 10**((22.5-20.1)/2.5)
+	bgs &= ~bgs_gr_rz
+    elif targtype == 'bright':
+	bgs &= rflux > 10**((22.5-19.5)/2.5)
+	bgs &= bgs_gr_rz
+    elif targtype == 'faint':
+	bgs &= rflux > 10**((22.5-20.1)/2.5)
+        bgs &= rflux <= 10**((22.5-19.5)/2.5)
+	bgs &= bgs_gr_rz
+    elif targtype == 'faint_ext':
+	bgs &= rflux > 10**((22.5-20.5)/2.5)
+        bgs &= rflux <= 10**((22.5-20.1)/2.5)
+	bgs &= bgs_gr_rz
+    elif targtype == 'fibmag':
+        bgs &= rflux <= 10**((22.5-20.1)/2.5)
+        bgs &= rfiberflux > 10**((22.5-21.0511)/2.5)
+	bgs &= bgs_gr_rz
     else:
-        bgs_bright, bgs_faint, bgs_faint_ext, bgs_fibmag = \
-            primary.copy(), primary.copy(), primary.copy(), primary.copy()
-	#BGS BRIGHT
-	bgs_bright &= rflux > 10**((22.5-19.5)/2.5)
-	bgs_bright &= bgs_gr_rz
-	#BGS FAINT
-	bgs_faint &= rflux > 10**((22.5-20.0)/2.5)
-        bgs_faint &= rflux <= 10**((22.5-19.5)/2.5)
-	bgs_faint &= bgs_gr_rz
-	#BGS EXTENDED FAINT	
-	bgs_faint_ext &= rflux > 10**((22.5-20.5)/2.5)
-        bgs_faint_ext &= rflux <= 10**((22.5-20.1)/2.5)
-	bgs_faint_ext &= bgs_gr_rz
-	#BGS FIBRE MAGNITUDE
-        bgs_fibmag &= rflux <= 10**((22.5-20.1)/2.5)
-        bgs_fibmag &= rfiberflux > 10**((22.5-21.0511)/2.5)
-	bgs_fibmag &= bgs_gr_rz
+	_check_BGS_targtype_sv(targtype)
 	
-	return bgs_bright, bgs_faint, bgs_faint_ext, bgs_fibmag
+	return bgs 
 
 
 
@@ -1145,12 +1130,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM set the BGS bits
     if "BGS" in tcnames:
         bgs_classes = []
-        for targtype in ["bright", "faint", "wise"]:
+        for targtype in ["bright", "faint", "faint_ext", "lowq", "fibmag"]:
             for south in [False, True]:
                 bgs_classes.append(
                     isBGS(
                         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        rfiberflux=rfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
@@ -1162,18 +1147,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
         bgs_bright_north, bgs_bright_south, \
             bgs_faint_north, bgs_faint_south,   \
-            bgs_wise_north, bgs_wise_south =    \
+            bgs_faint_ext_north, bgs_faint_ext_south,   \
+            bgs_lowq_north, bgs_lowq_south,   \
+            bgs_fibmag_north, bgs_fibmag_south =    \
             bgs_classes
     else:
         # ADM if not running the BGS selection, set everything to arrays of False
         bgs_bright_north, bgs_bright_south = ~primary, ~primary
         bgs_faint_north, bgs_faint_south = ~primary, ~primary
-        bgs_wise_north, bgs_wise_south = ~primary, ~primary
+        bgs_faint_ext_north, bgs_faint_ext_south = ~primary, ~primary
+        bgs_lowq_north, bgs_lowq_south = ~primary, ~primary
+        bgs_fibmag_north, bgs_fibmag_south = ~primary, ~primary
 
     # ADM combine BGS targeting bits for a BGS selected in any imaging
     bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
-    bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
+    bgs_faint_ext = (bgs_faint_ext_north & photsys_north) | (bgs_faint_ext_south & photsys_south)
+    bgs_lowq = (bgs_lowq_north & photsys_north) | (bgs_lowq_south & photsys_south)
+    bgs_fibmag = (bgs_fibmag_north & photsys_north) | (bgs_fibmag_south & photsys_south)
 
     if "MWS" in tcnames:
         mws_classes = []
@@ -1299,17 +1290,23 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # BGS bright and faint, south.
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
-    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    bgs_target |= bgs_faint_ext_south * bgs_mask.BGS_FAINT_EXT_SOUTH
+    bgs_target |= bgs_lowq_south * bgs_mask.BGS_LOWQ_SOUTH
+    bgs_target |= bgs_fibmag_south * bgs_mask.BGS_FIBMAG_SOUTH
 
     # BGS bright and faint, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
-    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    bgs_target |= bgs_faint_ext_north * bgs_mask.BGS_FAINT_EXT_NORTH
+    bgs_target |= bgs_lowq_north * bgs_mask.BGS_LOWQ_NORTH
+    bgs_target |= bgs_fibmag_north * bgs_mask.BGS_FIBMAG_NORTH
 
     # BGS combined, bright and faint
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
-    bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    bgs_target |= bgs_faint_ext * bgs_mask.BGS_FAINT_EXT
+    bgs_target |= bgs_lowq * bgs_mask.BGS_LOWQ
+    bgs_target |= bgs_fibmag * bgs_mask.BGS_FIBMAG
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws * mws_mask.MWS_MAIN
