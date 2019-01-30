@@ -1,4 +1,5 @@
 """
+
 desitarget.sv1.sv1_cuts
 =======================
 
@@ -465,7 +466,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return qso
 
 
-def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberflux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
@@ -498,18 +499,31 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+    bgs_failQCs = primary.copy()
 
     bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
                          gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
+                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype='standard')
 
-    bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        south=south, targtype=targtype, primary=primary)
+    bgs_failQCs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
+                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
+                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
+                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype='failQCs')
 
-    return bgs
+
+    bgs_bright, bgs_faint, bgs_faint_ext, bgs_fibmag = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
+                        south=south, targtype=None, primary=bgs)
+
+    bgs_low = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
+                        south=south, targtype='failQCs', primary=bgs_failQCs)
+
+
+    return bgs_bright, bgs_faint, bgs_faint_ext, bgs_low, bgs_fibmag
 
 
 def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
@@ -525,62 +539,71 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
 
     if primary is None:
         primary = np.ones_like(gnobs, dtype='?')
+    bgs_qcs = primary.copy()
     bgs = primary.copy()
 
-    bgs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
-    bgs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
-    bgs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
-    bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
-    bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
+    # quality cuts definitions
+    bgs_qcs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
+    bgs_qcs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
+    bgs_qcs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
+    bgs_qcs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
+    bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
+    bgs_qcs &= ~brightstarinblob
 
-    bgs &= ~brightstarinblob
-
-    if targtype == 'bright':
-        bgs &= ((Grr > 0.6) | (gaiagmag == 0))
-    elif targtype == 'faint':
-        bgs &= ((Grr > 0.6) | (gaiagmag == 0))
-    elif targtype == 'wise':
-        bgs &= Grr < 0.4
-        bgs &= Grr > -1
-        bgs &= w1snr > 5
-    else:
-        _check_BGS_targtype(targtype)
+    if targtype == 'standard':
+        bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (bgs_qcs))
+    else targtype == 'failQCs':
+        bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (~bgs_qcs)
 
     return bgs
 
 
 def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 south=True, targtype=None, primary=None):
+                 rfiberflux=None, south=True, targtype=None, primary=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
-    _check_BGS_targtype(targtype)
 
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    bgs = primary.copy()
 
-    if targtype == 'bright':
-        bgs &= rflux > 10**((22.5-19.5)/2.5)
-    elif targtype == 'faint':
-        bgs &= rflux > 10**((22.5-20.0)/2.5)
-        bgs &= rflux <= 10**((22.5-19.5)/2.5)
-    elif targtype == 'wise':
-        bgs &= rflux > 10**((22.5-20.0)/2.5)
-        bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
+    #color box
+    bgs_gr_rz = primary.copy()
+    bgs_gr_rz &= rflux > gflux * 10**(-1.0/2.5)
+    bgs_gr_rz &= rflux < gflux * 10**(4.0/2.5)
+    bgs_gr_rz &= zflux > rflux * 10**(-1.0/2.5)
+    bgs_gr_rz &= zflux < rflux * 10**(4.0/2.5)
 
-    if south:
-        bgs &= rflux > gflux * 10**(-1.0/2.5)
-        bgs &= rflux < gflux * 10**(4.0/2.5)
-        bgs &= zflux > rflux * 10**(-1.0/2.5)
-        bgs &= zflux < rflux * 10**(4.0/2.5)
+
+    if targtype == 'failQCs':
+	bgs_low = primary.copy()
+
+	bgs_low &= flux > 10**((22.5-20.1)/2.5)
+	bgs_low &= ~bgs_gr_rz
+	
+	return bgs_low
+
     else:
-        bgs &= rflux > gflux * 10**(-1.0/2.5)
-        bgs &= rflux < gflux * 10**(4.0/2.5)
-        bgs &= zflux > rflux * 10**(-1.0/2.5)
-        bgs &= zflux < rflux * 10**(4.0/2.5)
+        bgs_bright, bgs_faint, bgs_faint_ext, bgs_fibmag = \
+            primary.copy(), primary.copy(), primary.copy(), primary.copy()
+	#BGS BRIGHT
+	bgs_bright &= rflux > 10**((22.5-19.5)/2.5)
+	bgs_bright &= bgs_gr_rz
+	#BGS FAINT
+	bgs_faint &= rflux > 10**((22.5-20.0)/2.5)
+        bgs_faint &= rflux <= 10**((22.5-19.5)/2.5)
+	bgs_faint &= bgs_gr_rz
+	#BGS EXTENDED FAINT	
+	bgs_faint_ext &= rflux > 10**((22.5-20.5)/2.5)
+        bgs_faint_ext &= rflux <= 10**((22.5-20.1)/2.5)
+	bgs_faint_ext &= bgs_gr_rz
+	#BGS FIBRE MAGNITUDE
+        bgs_fibmag &= rflux <= 10**((22.5-20.1)/2.5)
+        bgs_fibmag &= rfiberflux > 10**((22.5-21.0511)/2.5)
+	bgs_fibmag &= bgs_gr_rz
+	
+	return bgs_bright, bgs_faint, bgs_faint_ext, bgs_fibmag
 
-    return bgs
 
 
 def isELG(gflux=None, rflux=None, zflux=None,

@@ -1463,6 +1463,7 @@ def _prepare_optical_wise(objects, colnames=None):
     zflux = flux['ZFLUX']
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
+    rfiberflux = flux['RFIBERFLUX']
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
@@ -1510,7 +1511,7 @@ def _prepare_optical_wise(objects, colnames=None):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
+            w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1599,7 +1600,7 @@ def unextinct_fluxes(objects):
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX', 'f4'), ('W2FLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'), ('RFIBERFLUX', 'f4')]]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -1610,6 +1611,7 @@ def unextinct_fluxes(objects):
     result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
     result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
     result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
+    result['RFIBERFLUX'] = objects['FIBERFLUX_R'] / objects['MW_TRANSMISSION_R']
 
     if isinstance(objects, Table):
         return Table(result)
