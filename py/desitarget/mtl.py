@@ -11,7 +11,10 @@ from astropy.table import Table
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
 from desitarget.targets import calc_numobs, calc_priority
-
+from desitarget.cmx.cmx_targetmask import cmx_mask
+from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
+from desitarget.sv1.sv1_targetmask import bgs_mask as sv1_bgs_mask
+from desitarget.sv1.sv1_targetmask import mws_mask as sv1_mws_mask
 
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
@@ -21,6 +24,7 @@ def make_mtl(targets, zcat=None, trim=False):
     targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
         ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
+        or the corresponding columns for SV or commissioning.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
@@ -40,6 +44,15 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
+
+    # ADM from the input target column names, determine whether the file
+    # ADM corresponds to the main survey, commissioning or SV...
+    survey = 'main'
+    colnames = targets.dtype.names
+    maincheck = ['SV' in name or 'CMX' in name for name in colnames]
+    # ADM and extract the appropriate column names.
+    if np.any(maincheck):
+        
 
     # Trim targets from zcat that aren't in original targets table
     if zcat is not None:
