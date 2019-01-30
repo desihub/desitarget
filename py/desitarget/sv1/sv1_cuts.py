@@ -465,7 +465,6 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     return qso
 
-
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberflux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
@@ -508,13 +507,17 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
                          gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
+    
+    if targtype == 'lowq':
+        
+        bgs = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
+                        Grr=Grr, gaiagmag=gaiagmag, south=south, targtype=targtype, primary=bgs)
+    else:
 
-
-    bgs = isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
+        bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, rfiberflux=rfiberflux,
                         south=south, targtype=targtype, primary=primary)
-
-
-    return bgs 
+        
+    return bgs
 
 
 def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
@@ -542,15 +545,17 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs_qcs &= ~brightstarinblob
 
     if targtype == 'lowq':
-        bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (~bgs_qcs)
+        bgs &= (Grr > 0.6) | (gaiagmag == 0)
+        bgs &= ~bgs_qcs
     else:
-        bgs &= ((Grr > 0.6) | (gaiagmag == 0) & (bgs_qcs))
+        bgs &= (Grr > 0.6) | (gaiagmag == 0)
+        bgs &= bgs_qcs
 
     return bgs
 
 
 def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 rfiberflux=None, south=True, targtype=None, primary=None):
+                 rfiberflux=None, Grr=None, gaiagmag=None, south=True, targtype=None, primary=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -558,38 +563,38 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
-	
+
     #color box
-    bgs_gr_rz = primary.copy()
+    bgs_gr_rz = np.ones_like(rflux, dtype='?')
+    
     bgs_gr_rz &= rflux > gflux * 10**(-1.0/2.5)
     bgs_gr_rz &= rflux < gflux * 10**(4.0/2.5)
     bgs_gr_rz &= zflux > rflux * 10**(-1.0/2.5)
     bgs_gr_rz &= zflux < rflux * 10**(4.0/2.5)
 
-
     if targtype == 'lowq':
-	bgs &= flux > 10**((22.5-20.1)/2.5)
-	bgs &= ~bgs_gr_rz
+        bgs |= ~bgs_gr_rz
+        bgs &= (Grr > 0.6) | (gaiagmag == 0)
+        bgs &= rflux > 10**((22.5-20.1)/2.5)
     elif targtype == 'bright':
-	bgs &= rflux > 10**((22.5-19.5)/2.5)
-	bgs &= bgs_gr_rz
+        bgs &= rflux > 10**((22.5-19.5)/2.5)
+        bgs &= bgs_gr_rz
     elif targtype == 'faint':
-	bgs &= rflux > 10**((22.5-20.1)/2.5)
+        bgs &= rflux > 10**((22.5-20.1)/2.5)
         bgs &= rflux <= 10**((22.5-19.5)/2.5)
-	bgs &= bgs_gr_rz
+        bgs &= bgs_gr_rz
     elif targtype == 'faint_ext':
-	bgs &= rflux > 10**((22.5-20.5)/2.5)
+        bgs &= rflux > 10**((22.5-20.5)/2.5)
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
-	bgs &= bgs_gr_rz
+        bgs &= bgs_gr_rz
     elif targtype == 'fibmag':
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
         bgs &= rfiberflux > 10**((22.5-21.0511)/2.5)
-	bgs &= bgs_gr_rz
+        bgs &= bgs_gr_rz
     else:
-	_check_BGS_targtype_sv(targtype)
-	
-	return bgs 
+        _check_BGS_targtype_sv(targtype)
 
+    return bgs 
 
 
 def isELG(gflux=None, rflux=None, zflux=None,
@@ -946,7 +951,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
-                    gflux, rflux, zflux, w1flux, w2flux,
+                    gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
