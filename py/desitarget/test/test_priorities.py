@@ -8,7 +8,7 @@ import numpy as np
 from astropy.table import Table
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
-from desitarget.targets import calc_priority
+from desitarget.targets import calc_priority, main_cmx_or_sv
 from desitarget.targets import initial_priority_numobs
 from desitarget.mtl import make_mtl
 
@@ -145,6 +145,54 @@ class TestPriorities(unittest.TestCase):
                         self.assertIn(state, mask[name].priorities,
                                       '{} not in mask.{}.priorities'.format(state, name))
 
+    def test_cmx_priorities(self):
+        """Test that priority calculation can handle commissioning files.
+        """
+        t = self.targets.copy()
+        z = self.zcat
+
+        # ADM restructure the file to look like a commissioning file.
+        t.rename_column('DESI_TARGET','CMX_TARGET')
+        t.remove_column('BGS_TARGET')
+        t.remove_column('MWS_TARGET')
+
+        # - No targeting bits set is priority=0
+        self.assertTrue(np.all(calc_priority(t, z) == 0))
+
+        # ADM retrieve the cmx_mask.
+        colnames, masks, _ = main_cmx_or_sv(t)
+        cmx_mask = masks[0]
+
+        # ADM test handling of unobserved SV0_BGS and SV0_MWS.
+        for name in ["SV0_BGS", "SV0_MWS"]:
+            t['CMX_TARGET'] = cmx_mask[name]
+            self.assertTrue(np.all(calc_priority(t, z) == cmx_mask[name].priorities['UNOBS']))
+
+        # ADM done is Done, regardless of ZWARN.
+        for name in ["SV0_BGS", "SV0_MWS"]:
+            t['CMX_TARGET'] = cmx_mask[name]
+            t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
+            z['NUMOBS'] = [0, 1, 1]
+            z['ZWARN'] = [1, 1, 0]
+            p = make_mtl(t, z)["PRIORITY"]
+
+            self.assertEqual(p[0], cmx_mask[name].priorities['UNOBS'])
+            self.assertEqual(p[1], cmx_mask[name].priorities['DONE'])
+            self.assertEqual(p[2], cmx_mask[name].priorities['DONE'])
+
+        # BGS ZGOOD targets always have lower priority than MWS targets that
+        # are not DONE.
+        lowest_bgs_priority_zgood = cmx_mask['SV0_BGS'].priorities['MORE_ZGOOD']
+
+        lowest_mws_priority_unobs = cmx_mask['SV0_MWS'].priorities['UNOBS']
+        lowest_mws_priority_zwarn = cmx_mask['SV0_MWS'].priorities['MORE_ZWARN']
+        lowest_mws_priority_zgood = cmx_mask['SV0_MWS'].priorities['MORE_ZGOOD']
+
+        lowest_mws_priority = min(lowest_mws_priority_unobs,
+                                  lowest_mws_priority_zwarn,
+                                  lowest_mws_priority_zgood)
+
+        self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 
 if __name__ == '__main__':
     unittest.main()
