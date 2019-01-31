@@ -57,7 +57,7 @@ class TestPriorities(unittest.TestCase):
 
         # - Done is Done, regardless of ZWARN.
         t['DESI_TARGET'] = desi_mask.ELG
-        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t, survey='main')
+        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
         z['NUMOBS'] = [0, 1, 1]
         z['ZWARN'] = [1, 1, 0]
         p = make_mtl(t, z)["PRIORITY"]
@@ -69,7 +69,7 @@ class TestPriorities(unittest.TestCase):
         # - BGS FAINT targets are never DONE, only MORE_ZGOOD.
         t['DESI_TARGET'] = desi_mask.BGS_ANY
         t['BGS_TARGET'] = bgs_mask.BGS_FAINT
-        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t, survey='main')
+        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
         z['NUMOBS'] = [0, 1, 1]
         z['ZWARN'] = [1, 1, 0]
         p = make_mtl(t, z)["PRIORITY"]
@@ -82,7 +82,7 @@ class TestPriorities(unittest.TestCase):
         # - BGS BRIGHT targets are never DONE, only MORE_ZGOOD.
         t['DESI_TARGET'] = desi_mask.BGS_ANY
         t['BGS_TARGET'] = bgs_mask.BGS_BRIGHT
-        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t, survey='main')
+        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
         z['NUMOBS'] = [0, 1, 1]
         z['ZWARN'] = [1, 1, 0]
         p = make_mtl(t, z)["PRIORITY"]
@@ -95,7 +95,7 @@ class TestPriorities(unittest.TestCase):
         # BGS targets are NEVER done even after 100 observations
         t['DESI_TARGET'] = desi_mask.BGS_ANY
         t['BGS_TARGET'] = bgs_mask.BGS_BRIGHT
-        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t, survey='main')
+        t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
         z['NUMOBS'] = [0, 100, 100]
         z['ZWARN'] = [1,   1,   0]
         p = calc_priority(t, z)

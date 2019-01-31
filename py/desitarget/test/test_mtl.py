@@ -29,7 +29,7 @@ class TestMTL(unittest.TestCase):
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
         # ADM determine the initial PRIORITY and NUMOBS.
-        pinit, ninit = initial_priority_numobs(self.targets, survey='main')
+        pinit, ninit = initial_priority_numobs(self.targets)
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
