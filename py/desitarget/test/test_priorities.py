@@ -165,7 +165,7 @@ class TestPriorities(unittest.TestCase):
         t = self.targets.copy()
         z = self.zcat
 
-        # ADM restructure the file to look like a commissioning file.
+        # ADM restructure the table to look like a commissioning table.
         t.rename_column('DESI_TARGET', 'CMX_TARGET')
         t.remove_column('BGS_TARGET')
         t.remove_column('MWS_TARGET')
