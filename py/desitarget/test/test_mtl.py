@@ -42,10 +42,10 @@ class TestMTL(unittest.TestCase):
 
     def rename_target_cols(self, prefix):
         """Retrieve test table with TARGET columns renamed by adding a prefix"""
-       
+
         t = self.targets.copy()
         main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
-        
+
         if prefix == 'CMX':
             # ADM restructure the table to look like a commissioning table.
             t.rename_column('DESI_TARGET', 'CMX_TARGET')
