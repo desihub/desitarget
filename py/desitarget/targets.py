@@ -453,7 +453,7 @@ def calc_priority(targets, zcat):
         desi_target, bgs_target, mws_target = colnames
         desi_mask, bgs_mask, mws_mask = masks
     else:
-        cmx_mask = masks
+        cmx_mask = masks[0]
 
     # Default is 0 priority, i.e. do not observe.
     priority = np.zeros(len(targets), dtype='i8')
@@ -485,41 +485,46 @@ def calc_priority(targets, zcat):
     assert np.all(unobs | done | zgood | zwarn)
 
     # DESI dark time targets.
-    if desi_target in targets.dtype.names:
-        for name in ('ELG', 'LRG_1PASS', 'LRG_2PASS'):
+    if survey != 'cmx':
+        if desi_target in targets.dtype.names:
+            for name in ('ELG', 'LRG_1PASS', 'LRG_2PASS'):
+                ii = (targets[desi_target] & desi_mask[name]) != 0
+                priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+                priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
+                priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
+                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+
+            # QSO could be Lyman-alpha or Tracer.
+            name = 'QSO'
             ii = (targets[desi_target] & desi_mask[name]) != 0
+            good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
             priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-            priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
-            priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
+            priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
+            priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
-        # QSO could be Lyman-alpha or Tracer.
-        name = 'QSO'
-        ii = (targets[desi_target] & desi_mask[name]) != 0
-        good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
-        priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-        priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
-        priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
-        priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
-        priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+        # BGS targets.
+        if bgs_target in targets.dtype.names:
+            for name in bgs_mask.names():
+                ii = (targets[bgs_target] & bgs_mask[name]) != 0
+                priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
+                priority[ii & done] = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
+                priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
+                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
 
-    # BGS targets.
-    if bgs_target in targets.dtype.names:
-        for name in bgs_mask.names():
-            ii = (targets[bgs_target] & bgs_mask[name]) != 0
-            priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
-            priority[ii & done] = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
-            priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
-            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
+        # MWS targets.
+        if mws_target in targets.dtype.names:
+            for name in mws_mask.names():
+                ii = (targets[mws_target] & mws_mask[name]) != 0
+                priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
+                priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
+                priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
+                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
 
-    # MWS targets.
-    if mws_target in targets.dtype.names:
-        for name in mws_mask.names():
-            ii = (targets[mws_target] & mws_mask[name]) != 0
-            priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
-            priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
-            priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
-            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
+        # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
+        ii = (targets[desi_target] & desi_mask.IN_BRIGHT_OBJECT) != 0
+        priority[ii] = -1
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
@@ -529,10 +534,6 @@ def calc_priority(targets, zcat):
             priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
             priority[ii & zgood] = np.maximum(priority[ii & zgood], cmx_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], cmx_mask[name].priorities['MORE_ZWARN'])
-
-    # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
-    ii = (targets['DESI_TARGET'] & desi_mask.IN_BRIGHT_OBJECT) != 0
-    priority[ii] = -1
 
     return priority
 
