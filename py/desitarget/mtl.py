@@ -105,7 +105,7 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM every time, regardless of how many times they've previously been observed.
     # ADM I've turned this off for commissioning. Not sure if we'll keep it in general.
     if survey != 'cmx':
-        ii = targets_zmatcher[desitarget] & desi_mask.BGS_ANY > 0
+        ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
         ztargets['NUMOBS_MORE'][ii] = 1
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
