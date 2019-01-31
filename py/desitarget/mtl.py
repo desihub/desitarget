@@ -9,12 +9,8 @@ import numpy as np
 import sys
 from astropy.table import Table
 
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from desitarget.targets import calc_numobs, calc_priority
-from desitarget.cmx.cmx_targetmask import cmx_mask
-from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
-from desitarget.sv1.sv1_targetmask import bgs_mask as sv1_bgs_mask
-from desitarget.sv1.sv1_targetmask import mws_mask as sv1_mws_mask
+from desitarget.targetmask import obsmask, obsconditions
+from desitarget.targets import calc_numobs, calc_priority, main_cmx_or_sv
 
 def make_mtl(targets, zcat=None, trim=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
@@ -45,14 +41,8 @@ def make_mtl(targets, zcat=None, trim=False):
     from desiutil.log import get_logger
     log = get_logger()
 
-    # ADM from the input target column names, determine whether the file
-    # ADM corresponds to the main survey, commissioning or SV...
-    survey = 'main'
-    colnames = targets.dtype.names
-    maincheck = ['SV' in name or 'CMX' in name for name in colnames]
-    # ADM and extract the appropriate column names.
-    if np.any(maincheck):
-        
+    # ADM determine whether the input targets are main survey, cmx or SV.
+    colnames, masks, _ = main_cmx_or_sv(targets)
 
     # Trim targets from zcat that aren't in original targets table
     if zcat is not None:
@@ -126,10 +116,7 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # - Set the OBSCONDITIONS mask for each target bit.
     obscon = np.zeros(n, dtype='i4')
-    for mask, xxx_target in [
-            (desi_mask, 'DESI_TARGET'),
-            (mws_mask, 'MWS_TARGET'),
-            (bgs_mask, 'BGS_TARGET')]:
+    for mask, xxx_target in zip(masks, colnames):
         for name in mask.names():
             # - which targets have this bit for this mask set?
             ii = (targets[xxx_target] & mask[name]) != 0
