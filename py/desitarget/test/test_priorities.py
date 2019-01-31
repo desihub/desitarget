@@ -208,6 +208,7 @@ class TestPriorities(unittest.TestCase):
 
         self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 
+
 if __name__ == '__main__':
     unittest.main()
 

@@ -281,6 +281,7 @@ def decode_targetid(targetid):
 
     return objid, brickid, release, mock, sky
 
+
 def main_cmx_or_sv(targets):
     """determine whether a target array is main survey, commissioning, or SV
 
@@ -440,7 +441,7 @@ def calc_priority(targets, zcat):
     Notes
     -----
         - If a target passes more than one selection, the highest priority wins.
-        - Will automatically detect if the passed targets are main survey, 
+        - Will automatically detect if the passed targets are main survey,
           commissioning or SV and behave accordingly.
     """
     # ADM check the input arrays are the same length.
