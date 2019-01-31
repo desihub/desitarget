@@ -886,7 +886,6 @@ def _check_BGS_targtype_sv(targtype):
         raise ValueError(msg)
 
 
-
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
