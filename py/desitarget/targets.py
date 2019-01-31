@@ -327,6 +327,7 @@ def main_cmx_or_sv(targets):
             import desitarget.sv1.sv1_targetmask as targmask
         if survey == 'sv2':
             import desitarget.sv2.sv2_targetmask as targmask
+        masks = [targmask.desi_mask, targmask.bgs_mask, targmask.mws_mask]
     elif survey != 'main':
         msg = "input target file must be 'main', 'cmx' or 'sv', not {}!!!".format(survey)
         log.critical(msg)
