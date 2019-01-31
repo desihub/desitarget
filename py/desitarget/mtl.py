@@ -42,7 +42,9 @@ def make_mtl(targets, zcat=None, trim=False):
     log = get_logger()
 
     # ADM determine whether the input targets are main survey, cmx or SV.
-    colnames, masks, _ = main_cmx_or_sv(targets)
+    colnames, masks, survey = main_cmx_or_sv(targets)
+    # ADM set the first column to be the "desitarget" column
+    desi_target, desi_mask = colnames[0], masks[0]
 
     # Trim targets from zcat that aren't in original targets table
     if zcat is not None:
@@ -101,8 +103,10 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # ADM we need a minor hack to ensure that BGS targets are observed once (and only once)
     # ADM every time, regardless of how many times they've previously been observed.
-    ii = targets_zmatcher["DESI_TARGET"] & desi_mask.BGS_ANY > 0
-    ztargets['NUMOBS_MORE'][ii] = 1
+    # ADM I've turned this off for commissioning. Not sure if we'll keep it in general.
+    if survey != 'cmx':
+        ii = targets_zmatcher[desitarget] & desi_mask.BGS_ANY > 0
+        ztargets['NUMOBS_MORE'][ii] = 1
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
