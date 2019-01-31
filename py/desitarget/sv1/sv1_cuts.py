@@ -1,5 +1,4 @@
 """
-
 desitarget.sv1.sv1_cuts
 =======================
 
@@ -465,6 +464,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     return qso
 
+
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberflux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
@@ -481,8 +481,8 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
         Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
         or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
         or ``faint_ext`` to use colors appropriate to the ``BGS_FAINT_EXTENDED`` selection
-	or ``lowq`` to use colors appropriate to the ``BGS_LOW_QUALITY`` selection
-	or ``fibmag`` to use colors appropriate to the ``BGS_FIBER_MAGNITUDE`` selection.
+        or ``lowq`` to use colors appropriate to the ``BGS_LOW_QUALITY`` selection
+        or ``fibmag`` to use colors appropriate to the ``BGS_FIBER_MAGNITUDE`` selection.
 
     Returns
     -------
@@ -507,10 +507,9 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
                          gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, objtype=objtype, targtype=targtype)
-    
 
     bgs &= isBGS_colors(rflux=rflux, rfiberflux=rfiberflux, south=south, targtype=targtype, primary=primary)
-        
+
     return bgs
 
 
@@ -542,7 +541,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
     bgs_qcs &= rflux < gflux * 10**(4.0/2.5)
     bgs_qcs &= zflux > rflux * 10**(-1.0/2.5)
     bgs_qcs &= zflux < rflux * 10**(4.0/2.5)
-    
+
     if targtype == 'lowq':
         bgs &= Grr > 0.6
         bgs |= gaiagmag == 0
@@ -582,7 +581,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
     else:
         _check_BGS_targtype_sv(targtype)
 
-    return bgs 
+    return bgs
 
 
 def isELG(gflux=None, rflux=None, zflux=None,
