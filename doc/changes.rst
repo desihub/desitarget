@@ -5,7 +5,7 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
-* Update the SV selections for BGS [`PR #457`_]
+* Update the SV selections for BGS [`PR #457`_].
 * Deprecate :func:`targets.calc_priority` that had table copy [`PR #452`_].
 * Update SV QSO selections, add seed and DUST_DIR for randoms [`PR #449`_].
 * Style changes to conform to PEP 8 [`PR #446`_], [`PR #447`_], [`PR #448`_].
