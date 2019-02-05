@@ -5,7 +5,7 @@
 desitarget.io
 =============
 
-This file knows how to write a TS catalogue.
+Functions for reading, writing and manipulating files related to targeting.
 """
 from __future__ import (absolute_import, division)
 #
@@ -1055,3 +1055,34 @@ def read_external_file(filename, header=False, columns=["RA", "DEC"]):
         return outdata, hdr
     else:
         return outdata
+
+
+def decode_sweep_name(sweepname):
+    """Retrieve RA/Dec edges from a full directory path to a sweep file
+
+    Parameters
+    ----------
+    sweepname : :class:`str`
+        Full path to a sweep file, e.g., /a/b/c/sweep-350m005-360p005.fits
+
+    Returns
+    -------
+    :class:`list`
+        A 4-entry list of the edges of the region covered by the sweeps file
+        in the form [RAmin, RAmax, DECmin, DECmax]
+        For the above example this would be [350., 360., -5., 5.]
+    """
+    # ADM extract just the file part of the name
+    sweepname = os.path.basename(sweepname)
+
+    # ADM the RA/Dec edges
+    ramin, ramax = float(sweepname[6:9]), float(sweepname[14:17])
+    decmin, decmax = float(sweepname[10:13]), float(sweepname[18:21])
+
+    # ADM flip the signs on the DECs, if needed
+    if sweepname[9] == 'm':
+        decmin *= -1
+    if sweepname[17] == 'm':
+        decmax *= -1
+
+    return [ramin, ramax, decmin, decmax]
