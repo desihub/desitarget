@@ -9,8 +9,8 @@ import numpy as np
 import sys
 from astropy.table import Table
 
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask, obsconditions
-from desitarget.targets import calc_numobs, calc_priority
+from desitarget.targetmask import obsmask, obsconditions
+from desitarget.targets import calc_numobs, calc_priority, main_cmx_or_sv
 
 
 def make_mtl(targets, zcat=None, trim=False):
@@ -21,6 +21,7 @@ def make_mtl(targets, zcat=None, trim=False):
     targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
         ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
+        or the corresponding columns for SV or commissioning.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
@@ -40,6 +41,11 @@ def make_mtl(targets, zcat=None, trim=False):
     # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
+
+    # ADM determine whether the input targets are main survey, cmx or SV.
+    colnames, masks, survey = main_cmx_or_sv(targets)
+    # ADM set the first column to be the "desitarget" column
+    desi_target, desi_mask = colnames[0], masks[0]
 
     # Trim targets from zcat that aren't in original targets table
     if zcat is not None:
@@ -98,8 +104,10 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # ADM we need a minor hack to ensure that BGS targets are observed once (and only once)
     # ADM every time, regardless of how many times they've previously been observed.
-    ii = targets_zmatcher["DESI_TARGET"] & desi_mask.BGS_ANY > 0
-    ztargets['NUMOBS_MORE'][ii] = 1
+    # ADM I've turned this off for commissioning. Not sure if we'll keep it in general.
+    if survey != 'cmx':
+        ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
+        ztargets['NUMOBS_MORE'][ii] = 1
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
@@ -113,10 +121,7 @@ def make_mtl(targets, zcat=None, trim=False):
 
     # - Set the OBSCONDITIONS mask for each target bit.
     obscon = np.zeros(n, dtype='i4')
-    for mask, xxx_target in [
-            (desi_mask, 'DESI_TARGET'),
-            (mws_mask, 'MWS_TARGET'),
-            (bgs_mask, 'BGS_TARGET')]:
+    for mask, xxx_target in zip(masks, colnames):
         for name in mask.names():
             # - which targets have this bit for this mask set?
             ii = (targets[xxx_target] & mask[name]) != 0

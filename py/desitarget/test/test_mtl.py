@@ -10,7 +10,7 @@ from astropy.table import Table, join
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
-from desitarget.targets import initial_priority_numobs
+from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
 
 
 class TestMTL(unittest.TestCase):
@@ -29,7 +29,7 @@ class TestMTL(unittest.TestCase):
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
         # ADM determine the initial PRIORITY and NUMOBS.
-        pinit, ninit = initial_priority_numobs(self.targets, survey='main')
+        pinit, ninit = initial_priority_numobs(self.targets)
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
@@ -40,50 +40,78 @@ class TestMTL(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
+    def rename_target_cols(self, prefix):
+        """Retrieve test table with TARGET columns renamed by adding a prefix"""
+
+        t = self.targets.copy()
+        main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
+
+        if prefix == 'CMX':
+            # ADM restructure the table to look like a commissioning table.
+            t.rename_column('DESI_TARGET', 'CMX_TARGET')
+            t.remove_column('BGS_TARGET')
+            t.remove_column('MWS_TARGET')
+        else:
+            for name in main_names:
+                t.rename_column(name, prefix+name)
+
+        return t
+
     def test_mtl(self):
         """Test output from MTL has the correct column names.
         """
-        mtl = make_mtl(self.targets)
-        goodkeys = sorted(set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
-        mtlkeys = sorted(mtl.dtype.names)
-        self.assertEqual(mtlkeys, goodkeys)
+        # ADM loop through once each for the main survey, commissioning and SV.
+        for prefix in ["", "CMX_", "SV1_"]:
+            t = self.rename_target_cols(prefix)
+            mtl = make_mtl(t)
+            goodkeys = sorted(set(t.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
+            mtlkeys = sorted(mtl.dtype.names)
+            self.assertEqual(mtlkeys, goodkeys)
 
     def test_numobs(self):
         """Test priorities, numobs and obsconditions are set correctly with no zcat.
         """
-        mtl = make_mtl(self.targets)
-        mtl.sort(keys='TARGETID')
-        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
-        self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
-        # - Check that ELGs can be observed in gray conditions but not others
-        iselg = (self.types == 'ELG')
-        self.assertTrue(np.all((mtl['OBSCONDITIONS'][iselg] & obsconditions.GRAY) != 0))
-        self.assertTrue(np.all((mtl['OBSCONDITIONS'][~iselg] & obsconditions.GRAY) == 0))
+        # ADM loop through once for SV and once for the main survey.
+        for prefix in ["", "SV1_"]:
+            t = self.rename_target_cols(prefix)
+            mtl = make_mtl(t)
+            mtl.sort(keys='TARGETID')
+            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
+            self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
+            # - Check that ELGs can be observed in gray conditions but not others
+            iselg = (self.types == 'ELG')
+            self.assertTrue(np.all((mtl['OBSCONDITIONS'][iselg] & obsconditions.GRAY) != 0))
+            self.assertTrue(np.all((mtl['OBSCONDITIONS'][~iselg] & obsconditions.GRAY) == 0))
 
     def test_zcat(self):
         """Test priorities, numobs and obsconditions are set correctly after zcat.
         """
-        mtl = make_mtl(self.targets, self.zcat, trim=False)
-        mtl.sort(keys='TARGETID')
-        self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
-        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3, 1]))
-
-        # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
-        self.targets['DESI_TARGET'][0] = Mx.BAD_SKY
-        mtl = make_mtl(self.targets, self.zcat, trim=False)
-        mtl.sort(keys='TARGETID')
-        self.assertEqual(mtl['PRIORITY'][0], 0)
+        # ADM loop through once for SV and once for the main survey.
+        for prefix in ["", "SV1_"]:
+            t = self.rename_target_cols(prefix)
+            mtl = make_mtl(t, self.zcat, trim=False)
+            mtl.sort(keys='TARGETID')
+            self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
+            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3, 1]))
+            # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
+            t[prefix+'DESI_TARGET'][0] = Mx.BAD_SKY
+            mtl = make_mtl(t, self.zcat, trim=False)
+            mtl.sort(keys='TARGETID')
+            self.assertEqual(mtl['PRIORITY'][0], 0)
 
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
         """
-        mtl = make_mtl(self.targets, self.zcat, trim=True)
-        testfile = 'test-aszqweladfqwezceas.fits'
-        mtl.write(testfile, overwrite=True)
-        x = mtl.read(testfile)
-        os.remove(testfile)
-        if x.masked:
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'].mask == x['NUMOBS_MORE'].mask))
+        # ADM loop through once for SV and once for the main survey.
+        for prefix in ["", "SV1_"]:
+            t = self.rename_target_cols(prefix)
+            mtl = make_mtl(t, self.zcat, trim=True)
+            testfile = 'test-aszqweladfqwezceas.fits'
+            mtl.write(testfile, overwrite=True)
+            x = mtl.read(testfile)
+            os.remove(testfile)
+            if x.masked:
+                self.assertTrue(np.all(mtl['NUMOBS_MORE'].mask == x['NUMOBS_MORE'].mask))
 
 
 if __name__ == '__main__':
