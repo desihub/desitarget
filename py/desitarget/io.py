@@ -517,6 +517,8 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     from desiutil.log import get_logger
     log = get_logger()
 
+    nskies = len(data)
+
     # ADM force OBSCONDITIONS to be 65535
     # ADM (see https://github.com/desihub/desitarget/pull/313).
     data["OBSCONDITIONS"] = 2**16-1
@@ -553,6 +555,11 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
+
+    # ADM populate SUBPRIORITY with a reproducible random float.
+    if "SUBPRIORITY" in data.dtype.names:
+        np.random.seed(616)
+        data["SUBPRIORITY"] = np.random.random(nskies)
 
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
