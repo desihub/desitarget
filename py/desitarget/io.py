@@ -1057,32 +1057,57 @@ def read_external_file(filename, header=False, columns=["RA", "DEC"]):
         return outdata
 
 
-def decode_sweep_name(sweepname):
+def decode_sweep_name(sweepname, nside=None, inclusive=True, fact=4):
     """Retrieve RA/Dec edges from a full directory path to a sweep file
 
     Parameters
     ----------
     sweepname : :class:`str`
         Full path to a sweep file, e.g., /a/b/c/sweep-350m005-360p005.fits
-
+    nside : :class:`int`, optional, defaults to None
+        (NESTED) HEALPixel nside
+    inclusive : :class:`book`, optional, defaults to ``True``
+        see documentation for `healpy.query_polygon()`
+    fact : :class:`int`, optional defaults to 4
+        see documentation for `healpy.query_polygon()`
+    
     Returns
     -------
-    :class:`list`
+    :class:`list` (if nside is None)
         A 4-entry list of the edges of the region covered by the sweeps file
         in the form [RAmin, RAmax, DECmin, DECmax]
         For the above example this would be [350., 360., -5., 5.]
+    :class:`list` (if nside is not None)
+        A list of HEALPixels that touch the  files at the passed `nside`
+        For the above example this would be [16, 17, 18, 19]
     """
-    # ADM extract just the file part of the name
+    # ADM extract just the file part of the name.
     sweepname = os.path.basename(sweepname)
 
-    # ADM the RA/Dec edges
+    # ADM the RA/Dec edges.
     ramin, ramax = float(sweepname[6:9]), float(sweepname[14:17])
     decmin, decmax = float(sweepname[10:13]), float(sweepname[18:21])
 
-    # ADM flip the signs on the DECs, if needed
+    # ADM flip the signs on the DECs, if needed.
     if sweepname[9] == 'm':
         decmin *= -1
     if sweepname[17] == 'm':
         decmax *= -1
 
-    return [ramin, ramax, decmin, decmax]
+    if nside is None:
+        return [ramin, ramax, decmin, decmax]
+    
+    # ADM convert RA/Dec to co-latitude and longitude in radians.
+    rapairs = np.array([ramin, ramin, ramax, ramax])
+    decpairs = np.array([decmin, decmax, decmax, decmin])
+    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
+
+    # ADM convert the colatitudes to Cartesian vectors remembering to
+    # ADM transpose to pass the array to query_polygon in the correct order.
+    vecs = hp.dir2vec(thetapairs, phipairs).T
+
+    # ADM determine the pixels that touch the box.                                                                                                                                                       
+    pixnum = hp.query_polygon(nside, vecs, 
+                              inclusive=inclusive, fact=fact, nest=True)
+
+    return pixnum
