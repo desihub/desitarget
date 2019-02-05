@@ -23,6 +23,7 @@ from scipy.ndimage.filters import gaussian_filter
 from desitarget.skyutilities.astrometry.fits import fits_table
 from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
+from desitarget.geomask import bundle_bricks
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 
@@ -657,135 +658,6 @@ def plot_good_bad_skies(survey, brickname, skies,
     plt.savefig(outplotname)
 
 
-def bundle_bricks(pixnum, maxpernode, nside,
-                  surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
-    """Determine the optimal packing for bricks collected by HEALpixel integer.
-
-    Parameters
-    ----------
-    pixnum : :class:`np.array`
-        List of integers, e.g., HEALPixel numbers occupied by a set of bricks
-        (e.g. array([16, 16, 16...12 , 13, 19]) ).
-    maxpernode : :class:`int`
-        The maximum number of pixels to bundle together (e.g., if you were
-        trying to pass maxpernode bricks, delineated by the HEALPixels they
-        occupy, parallelized across a set of nodes).
-    nside : :class:`int`
-        The HEALPixel nside number that was used to generate `pixnum`.
-    surveydir : :class:`str`, optional, defaults to the DR6 directory at NERSC
-        The root directory pointing to a Data Release from the Legacy Surveys,
-        (e.g. "/global/project/projectdirs/cosmo/data/legacysurvey/dr6").
-
-    Returns
-    -------
-    Nothing, but prints commands to screen that would facilitate running a
-    set of bricks by HEALPixel integer with the total number of bricks not
-    to exceed maxpernode. Also prints how many bricks would be on each node.
-
-    Notes
-    -----
-    h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
-    """
-    # ADM the number of pixels (numpix) in each pixel (pix)
-    pix, numpix = np.unique(pixnum, return_counts=True)
-
-    # ADM convert the pixel numbers back to integers
-    pix = pix.astype(int)
-
-    # ADM the indices needed to reverse-sort the array on number of pixels
-    reverse_order = np.flipud(np.argsort(numpix))
-    numpix = numpix[reverse_order]
-    pix = pix[reverse_order]
-
-    # ADM iteratively populate lists of the numbers of pixels
-    # ADM and the corrsponding pixel numbers
-    bins = []
-
-    for index, num in enumerate(numpix):
-        # Try to fit this sized number into a bin
-        for bin in bins:
-            if np.sum(np.array(bin)[:, 0]) + num <= maxpernode:
-                # print 'Adding', item, 'to', bin
-                bin.append([num, pix[index]])
-                break
-        else:
-            # item didn't fit into any bin, start a new bin
-            bin = []
-            bin.append([num, pix[index]])
-            bins.append(bin)
-
-    # ADM print to screen in the form of a slurm bash script, and
-    # ADM other useful information
-
-    print("#######################################################")
-    print("Numbers of bricks in each set of healpixels:")
-    print("")
-    maxeta = 0
-    for bin in bins:
-        num = np.array(bin)[:, 0]
-        pix = np.array(bin)[:, 1]
-        wpix = np.where(num > 0)[0]
-        if len(wpix) > 0:
-            goodpix, goodnum = pix[wpix], num[wpix]
-            sorter = goodpix.argsort()
-            goodpix, goodnum = goodpix[sorter], goodnum[sorter]
-            outnote = ['{}: {}'.format(pix, num) for pix, num in zip(goodpix, goodnum)]
-            # ADM add the total across all of the pixels
-            outnote.append('Total: {}'.format(np.sum(goodnum)))
-            # ADM a crude estimate of how long the script will take to run
-            # ADM brickspersec is bricks/sec
-            brickspersec = 1.
-            eta = np.sum(goodnum)/brickspersec/3600.
-            outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
-                           .format(eta))
-            # ADM track the maximum estimated time for shell scripts, etc.
-            if eta.astype(int) + 1 > maxeta:
-                maxeta = eta.astype(int) + 1
-            print(outnote)
-
-    print("")
-    print("#######################################################")
-    print("Possible salloc command if you want to run on the interactive queue:")
-    print("")
-    print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
-          .format(len(bins), maxeta))
-
-    print("")
-    print("#######################################################")
-    print('Example shell script for slurm:')
-    print('')
-    print('#!/bin/bash -l')
-    print('#SBATCH -q regular')
-    print('#SBATCH -N {}'.format(len(bins)))
-    print('#SBATCH -t 0{}:00:00'.format(maxeta))
-    print('#SBATCH -L SCRATCH,project')
-    print('#SBATCH -C haswell')
-    print('')
-
-    # ADM extract the Data Release number from the survey directory
-    dr = surveydir.split('dr')[-1][0]
-
-    outfiles = []
-    for bin in bins:
-        num = np.array(bin)[:, 0]
-        pix = np.array(bin)[:, 1]
-        wpix = np.where(num > 0)[0]
-        if len(wpix) > 0:
-            goodpix = pix[wpix]
-            goodpix.sort()
-            strgoodpix = ",".join([str(pix) for pix in goodpix])
-            outfile = "$CSCRATCH/skies-dr{}-hp-{}.fits".format(dr, strgoodpix)
-            outfiles.append(outfile)
-            print("srun -N 1 select_skies {} {} --numproc 32 --nside {} --healpixels {} &"
-                  .format(surveydir, outfile, nside, strgoodpix))
-    print("wait")
-    print("")
-    print("gather_targets '{}' $CSCRATCH/skies-dr{}.fits skies".format(";".join(outfiles), dr))
-    print("")
-
-    return
-
-
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
                  apertures_arcsec=[0.75, 1.0], badskyflux=[1000., 1000.],
                  nside=2, pixlist=None, writebricks=False, bundlebricks=None):
@@ -863,7 +735,8 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
 
     # ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
-        bundle_bricks(pixnum, bundlebricks, nside, surveydir=survey.survey_dir)
+        bundle_bricks(pixnum, bundlebricks, nside, prefix='skies',
+                      surveydir=survey.survey_dir)
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested
