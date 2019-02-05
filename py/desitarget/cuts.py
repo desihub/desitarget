@@ -2286,6 +2286,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             log.critical(msg)
             raise ValueError(msg)
 
+    
+
     def _finalize_targets(objects, desi_target, bgs_target, mws_target):
         # - desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         # - on desi_target != 0
