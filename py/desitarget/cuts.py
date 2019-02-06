@@ -875,6 +875,17 @@ def _check_BGS_targtype(targtype):
         raise ValueError(msg)
 
 
+def _check_BGS_targtype_sv(targtype):
+    """Fail if `targtype` is not one of the strings 'bright', 'faint', 'faint_ext', 'lowq' or 'fibmag'.
+    """
+    targposs = ['faint', 'bright', 'faint_ext', 'lowq', 'fibmag']
+
+    if targtype not in targposs:
+        msg = 'targtype must be one of {} not {}'.format(targposs, targtype)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
@@ -1463,6 +1474,7 @@ def _prepare_optical_wise(objects, colnames=None):
     zflux = flux['ZFLUX']
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
+    rfiberflux = flux['RFIBERFLUX']
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
@@ -1510,7 +1522,7 @@ def _prepare_optical_wise(objects, colnames=None):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
+            w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1599,7 +1611,7 @@ def unextinct_fluxes(objects):
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX', 'f4'), ('W2FLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'), ('RFIBERFLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -1610,6 +1622,7 @@ def unextinct_fluxes(objects):
     result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
     result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
     result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
+    result['RFIBERFLUX'] = objects['FIBERFLUX_R'] / objects['MW_TRANSMISSION_R']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -1618,7 +1631,7 @@ def unextinct_fluxes(objects):
 
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
-                    gflux, rflux, zflux, w1flux, w2flux,
+                    gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1640,6 +1653,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         `rflux` but WITHOUT any Galactic extinction correction.
     gflux, rflux, zflux, w1flux, w2flux : :class:`~numpy.ndarray`
         The flux in nano-maggies of g, r, z, W1 and W2 bands.
+        Corrected for Galactic extinction.
+    rfiberflux : :class:`~numpy.ndarray`
+        Predicted fiber flux in 1 arcsecond seeing in r-band.
+        Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
     gfluxivar, rfluxivar, zfluxivar: :class:`~numpy.ndarray`
@@ -2040,12 +2057,12 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     colnames = _get_colnames(objects)
 
     # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,              \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,     \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                  \
-        gfracmasked, rfracmasked, zfracmasked,                                 \
-        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                      \
+        w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar, \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                          \
+        gfracmasked, rfracmasked, zfracmasked,                                         \
+        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                       \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =          \
         _prepare_optical_wise(objects, colnames=colnames)
 
     # Process the Gaia inputs for target selection.
@@ -2073,7 +2090,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
-        gflux, rflux, zflux, w1flux, w2flux,
+        gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,

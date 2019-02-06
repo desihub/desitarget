@@ -510,12 +510,12 @@ def apply_cuts(objects, cmxdir=None):
     # ADM As we need the column names.
     colnames = _get_colnames(objects)
 
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,              \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,     \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                  \
-        gfracmasked, rfracmasked, zfracmasked,                                 \
-        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                      \
+        w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar, \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                          \
+        gfracmasked, rfracmasked, zfracmasked,                                         \
+        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                       \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =          \
         _prepare_optical_wise(objects, colnames=colnames)
 
     # ADM in addition, cmx needs ra and dec.
