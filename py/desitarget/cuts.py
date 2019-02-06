@@ -2414,6 +2414,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             for x in infiles:
                 targets.append(_update_status(_select_targets_file(x)))
 
+    # ADM it's possible that somebody could pass an arangment of HEALPixels
+    # ADM that contain no targets, in which case exit (somewhat) gracefully.
+    if targets == []:
+        log.warning('ZERO targets for passed file list or region!!!')
+        return targets
+
     targets = np.concatenate(targets)
 
     # ADM restrict to only targets in a set of HEALPixels, if requested.
