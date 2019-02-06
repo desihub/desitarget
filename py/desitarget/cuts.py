@@ -2324,9 +2324,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     # ADM if the bundlefiles option was sent, call the packing code.
     if bundlefiles is not None:
+        prefix = "targets"
+        if survey != "main":
+            prefix = "{}_targets".format(survey)
         bundle_bricks(pixnum, bundlefiles, nside, 
                       brickspersec=filespersec, gather=False, 
-                      prefix='targets', surveydir=os.path.dirname(infiles[0]))
+                      prefix=prefix, surveydir=os.path.dirname(infiles[0]))
         return
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
