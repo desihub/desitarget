@@ -19,6 +19,7 @@ import numbers
 import sys
 
 import numpy as np
+import healpy as hp
 from pkg_resources import resource_filename
 
 from astropy.table import Table, Row
@@ -28,6 +29,7 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
+from desitarget.geomask import bundle_bricks
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -2226,6 +2228,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
+                   nside=2, pixlist=None, bundlefiles=None, filespersec=1.,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main'):
     """Process input files in parallel to select targets.
@@ -2250,6 +2253,23 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         in the sandbox directory.
     Method : :class:`str`, optional, defaults to `None`
         Method used in the sandbox.
+    nside : :class:`int`, optional, defaults to nside=2
+        The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlefiles` inputs.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Input files will only be processed if region  lies within the bounds of
+        pixels that are in this list of integers, at the supplied HEALPixel `nside`.
+        Uses the HEALPix NESTED scheme. Useful for parallelizing. If pixlist is None
+        then all bricks in the passed `survey` will be processed.
+    bundlefiles : :class:`int`, defaults to `None`
+        If not `None`, then instead of selecting the skies, print, to screen, the slurm
+        script that will approximately balance the input file distribution at `bundlefiles`
+        files per node. So, for instance, if `bundlefiles` is 100 then commands would be 
+        returned with the correct `pixlist` values set to pass to the code to pack at 
+        about 100 files per node across all of the passed `infiles`.
+    filespersec : :class:`float`, optional, defaults to 1.
+        The rough number of files processed per second by the code (parallelized across
+        a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
+        to estimate time to completion when parallelizing across pixels.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
@@ -2275,18 +2295,54 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     log.info("Running on the {} survey".format(survey))
 
-    # - Convert single file to list of files
+    # - Convert single file to list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
 
-    # - Sanity check that files exist before going further
+    # - Sanity check that files exist before going further.
     for filename in infiles:
         if not os.path.exists(filename):
             msg = "{} doesn't exist".format(filename)
             log.critical(msg)
             raise ValueError(msg)
 
-    
+    # ADM if the pixlist or bundlefiles option was sent, we'll need to know          
+    # ADM which HEALPixels touch each file.
+    if pixlist is not None or bundlefiles is not None:
+        # ADM a list of HEALPixels that touch each file.
+        # ADM this will break for Tractor files!!!
+        pixelsperfile = [io.decode_sweep_name(file, nside=nside) for file in infiles]
+        # ADM a flattened array of all HEALPixels touched by the input
+        # ADM files. Each HEALPixel can appear multiple times if it's
+        # ADM touched by multiple input sweep files.
+        pixnum = np.hstack(pixelsperfile)
+        # ADM create a list of files that touch each HEALPixel.
+        filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
+        for ifile, pixels in enumerate(pixelsperfile):                                       
+            for pix in pixels:
+                filesperpixel[pix].append(infiles[ifile])
+
+    # ADM if the bundlefiles option was sent, call the packing code.
+    if bundlefiles is not None:
+        bundle_bricks(pixnum, bundlefiles, nside, 
+                      brickspersec=filespersec, gather=False, 
+                      prefix='targets', surveydir=os.path.dirname(infiles[0]))
+        return
+
+    # ADM restrict to only input files in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        # ADM if an integer was passed, turn it into a list.
+        if isinstance(pixlist, int):
+            pixlist = [pixlist]
+        infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        if len(infiles) == 0:
+            log.warning('ZERO files in passed pixel list!!!')
+        log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
+                 .format(nside, pixlist))
+
+    # ADM a little more information if we're slurming across nodes.
+    if os.getenv('SLURMD_NODENAME') is not None:
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     def _finalize_targets(objects, desi_target, bgs_target, mws_target):
         # - desi_target includes BGS_ANY and MWS_ANY, so we can filter just
@@ -2359,5 +2415,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                 targets.append(_update_status(_select_targets_file(x)))
 
     targets = np.concatenate(targets)
+
+    # ADM restrict to only targets in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        theta, phi = np.radians(90-targets["DEC"]), np.radians(targets["RA"])
+        pixnums = hp.ang2pix(nside, theta, phi, nest=True)
+        w = np.hstack([np.where(pixnums==pix)[0] for pix in pixlist])
+        targets = targets[w]
 
     return targets
