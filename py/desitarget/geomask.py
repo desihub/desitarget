@@ -576,7 +576,7 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
     return np.hstack(ras), np.hstack(decs)
 
 
-def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', bundle=True,
+def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', gather=True,
                   surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
     """Determine the optimal packing for bricks collected by HEALpixel integer
 
@@ -598,7 +598,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
         Should correspond to the binary executable "X" that is run as select_X for a 
         target type. Depending on the type of target file that is being packed for 
         parallelization, this could be 'randoms', 'skies', etc. 
-    bundle : :class:`bool`, optional, defaults to ``True``
+    gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
     surveydir : :class:`str`, optional, defaults to the DR6 directory at NERSC
@@ -643,7 +643,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     # ADM print to screen in the form of a slurm bash script, and
     # ADM other useful information
     print("#######################################################")
-    print("Numbers of bricks in each set of healpixels:")
+    print("Numbers of bricks or files in each set of HEALPixels:")
     print("")
     # ADM margin of 30 minutes for writing to disk
     margin = 30./60
@@ -671,7 +671,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
             print(outnote)
 
     print("")
-    print('Estimated additional margin for writing to disk in hours: {:.2f}h'.format(margin))
+    if gather:
+        print('Estimated additional margin for writing to disk in hours: {:.2f}h'
+              .format(margin))
 
     print("")
     print("#######################################################")
@@ -695,7 +697,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     # ADM extract the Data Release number from the survey directory
     dr = surveydir.split('dr')[-1][0]
     comment = '#'
-    if bundle:
+    if gather:
         comment = ''
 
     outfiles = []
