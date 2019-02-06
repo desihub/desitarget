@@ -700,6 +700,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     if gather:
         comment = ''
 
+    # ADM to handle inputs that look like "sv1_targets".
+    prefix2 = prefix
+    if prefix[0:2] == "sv":
+        prefix2 = "sv_targets"
+
     outfiles = []
     for bin in bins:
         num = np.array(bin)[:, 0]
@@ -709,14 +714,16 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
             goodpix = pix[wpix]
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix, dr, strgoodpix)
+            # ADM the replace is to handle inputs that look like "sv1_targets".
+            outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_","-"), dr, strgoodpix)
             outfiles.append(outfile)
             print("srun -N 1 select_{} {} {} --numproc 32 --nside {} --healpixels {} &"
-                  .format(prefix, surveydir, outfile, nside, strgoodpix))
+                  .format(prefix2, surveydir, outfile, nside, strgoodpix))
     print("{}wait".format(comment))
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
-          .format(comment, prefix, ";".join(outfiles), dr, prefix))
+            # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
+          .format(comment, prefix2.split("_")[-1], ";".join(outfiles), dr, prefix))
     print("")
 
     return
