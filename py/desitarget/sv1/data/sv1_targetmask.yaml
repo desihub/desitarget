@@ -79,17 +79,23 @@ sv1_desi_mask:
     
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
-    - [BGS_FAINT,           0, "BGS faint targets",    {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT,          1, "BGS bright targets",   {obsconditions: BRIGHT}]
-    - [BGS_WISE,            2, "BGS wise targets",     {obsconditions: BRIGHT}]     #GRAY and DARK?
+    - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT}]
+    - [BGS_BRIGHT,          1, "BGS bright targets",             {obsconditions: BRIGHT}]
+    - [BGS_FAINT_EXT,       2, "BGS faint extended targets",     {obsconditions: BRIGHT}]
+    - [BGS_LOWQ,            3, "BGS low quality targets",        {obsconditions: BRIGHT}]
+    - [BGS_FIBMAG,          4, "BGS fiber magnitude targets",    {obsconditions: BRIGHT}]
 
     #- BGS North vs. South selections
-    - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic", {obsconditions: BRIGHT}]
-    - [BGS_WISE_NORTH,      10, "BGS wise cuts tuned for Bok/Mosaic",  {obsconditions: BRIGHT}]    #GRAY and DARK
-    - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",     {obsconditions: BRIGHT}]
-    - [BGS_WISE_SOUTH,      18, "BGS wise cuts tuned for DECam",       {obsconditions: BRIGHT}]    #GRAY and DARK?
+    - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",           {obsconditions: BRIGHT}]
+    - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic",          {obsconditions: BRIGHT}]
+    - [BGS_FAINT_EXT_NORTH, 10, "BGS faint extended cuts tuned for Bok/Mosaic", {obsconditions: BRIGHT}]
+    - [BGS_LOWQ_NORTH,      11, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}]
+    - [BGS_FIBMAG_NORTH,    12, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}] 
+    - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",               {obsconditions: BRIGHT}]
+    - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",              {obsconditions: BRIGHT}]
+    - [BGS_FAINT_EXT_SOUTH, 18, "BGS faint extended cuts tuned for DECam",      {obsconditions: BRIGHT}]
+    - [BGS_LOWQ_SOUTH,      19, "BGS low quality cuts tuned for DECam",         {obsconditions: BRIGHT}]
+    - [BGS_FIBMAG_SOUTH,    20, "BGS fiber magnitude cuts tuned for DECam",     {obsconditions: BRIGHT}] 
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey",    {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided",  {obsconditions: BRIGHT}]
@@ -215,14 +221,20 @@ priorities:
     sv1_bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_FAINT_EXT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_LOWQ: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_FIBMAG: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         BGS_FAINT_SOUTH: {UNOBS: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_BRIGHT_NORTH: SAME_AS_BGS_FAINT_SOUTH
-        BGS_WISE_SOUTH: SAME_AS_BGS_FAINT_SOUTH
-        BGS_WISE_NORTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_FAINT_EXT_SOUTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_FAINT_EXT_NORTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_LOWQ_SOUTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_LOWQ_NORTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_FIBMAG_SOUTH: SAME_AS_BGS_FAINT_SOUTH
+        BGS_FIBMAG_NORTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_KNOWN_ANY: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_COLLIDED: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_KNOWN_SDSS: {UNOBS: 100, MORE_ZWARN: 200, MORE_ZGOOD: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -308,14 +320,20 @@ numobs:
     sv1_bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
-        BGS_WISE: 1
+        BGS_FAINT_EXT: 1
+        BGS_LOWQ: 1
+        BGS_FIBMAG: 1
         # ADM don't observe a N/S target if it doesn't have other bits set
         BGS_FAINT_SOUTH: 0
         BGS_FAINT_NORTH: 0
         BGS_BRIGHT_SOUTH: 0
         BGS_BRIGHT_NORTH: 0
-        BGS_WISE_SOUTH: 0
-        BGS_WISE_NORTH: 0
+        BGS_FAINT_EXT_SOUTH: 0
+        BGS_FAINT_EXT_NORTH: 0
+        BGS_LOWQ_SOUTH: 0
+        BGS_LOWQ_NORTH: 0
+        BGS_FIBMAG_SOUTH: 0
+        BGS_FIBMAG_NORTH: 0
         BGS_KNOWN_ANY: 1
         BGS_KNOWN_COLLIDED: 1
         BGS_KNOWN_SDSS: 1

@@ -39,8 +39,8 @@ def _load_mask_priorities(bitdefs, handle="priorities", prename=""):
         for bitname in priorities:
             # -"SAME_AS_XXX" enables one bit to inherit priorities from another
             if isinstance(priorities[bitname], str) and priorities[bitname].startswith('SAME_AS_'):
-                    other = priorities[bitname][8:]
-                    priorities[bitname] = priorities[other]
+                other = priorities[bitname][8:]
+                priorities[bitname] = priorities[other]
 
             # -fill in default "more" priority to be same as "unobs"
             # ADM specifically applies to dictionary of priorities

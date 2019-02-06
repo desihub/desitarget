@@ -5,6 +5,7 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
+* Update the SV selections for BGS [`PR #457`_].
 * Update MTL to work for SV0-like cmx and SV1 tables [`PR #456`_]. Includes:
     * Make SUBPRIORITY a random number (0->1) in skies output.
     * New :func:`targets.main_cmx_or_sv` to parse flavor of survey.
@@ -21,6 +22,7 @@ desitarget Change Log
 .. _`PR #449`: https://github.com/desihub/desitarget/pull/449
 .. _`PR #452`: https://github.com/desihub/desitarget/pull/452
 .. _`PR #456`: https://github.com/desihub/desitarget/pull/456
+.. _`PR #457`: https://github.com/desihub/desitarget/pull/457
 
 0.27.0 (2018-12-14)
 -------------------
