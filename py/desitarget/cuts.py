@@ -2229,7 +2229,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
-                   nside=2, pixlist=None, bundlefiles=None, filespersec=1.,
+                   nside=2, pixlist=None, bundlefiles=None, filespersec=0.12,
                    radecbox=None, radecrad=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main'):
