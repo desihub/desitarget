@@ -752,7 +752,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
             # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
-          .format(comment, prefix2.split("_")[-1], ";".join(outfiles), dr, prefix))
+          .format(comment, ";".join(outfiles), prefix, dr, prefix2.split("_")[-1]))
     print("")
 
     return

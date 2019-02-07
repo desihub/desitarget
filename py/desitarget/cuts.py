@@ -2318,7 +2318,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     # ADM check that only one of pixlist, radecrad, radecbox was sent.
     inputs = [ins for ins in (pixlist, radecbox, radecrad) if ins is not None]
-    if len(ins) > 1:
+    if len(inputs) > 1:
         msg = "Only one of pixist, radecbox or radecrad can be passed"
         log.critical(msg)
         raise ValueError(msg)
