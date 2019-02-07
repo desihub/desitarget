@@ -113,7 +113,7 @@ if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
 if ns.bundlefiles is None:
-    io.write_targets(ns.dest, targets, indir=ns.src, survey=survey, 
-                     nsidefile=ns.nside, hpxlist=pixlist, 
+    io.write_targets(ns.dest, targets, indir=ns.src, survey=survey,
+                     nsidefile=ns.nside, hpxlist=pixlist,
                      qso_selection=survey, nside=nside)
     log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
