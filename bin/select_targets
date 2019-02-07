@@ -52,8 +52,8 @@ ap.add_argument("--numproc", type=int,
 ap.add_argument('-t','--tcnames', default=None,
                 help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
 ap.add_argument('--nside', type=int,
-                help="Process targets in parallel across sweeps files that define regions that touch HEALPixels at this resolution (defaults to 2)",
-                default=2)
+                help="Process targets in parallel across sweeps files that define regions that touch HEALPixels at this resolution (defaults to None)",
+                default=None)
 ap.add_argument('--healpixels',
                 help="HEALPixels (corresponding to `nside`) to process (e.g. '6,21,57'). If not passed, run all sweeps files in the `src` directory",
                 default=None)
@@ -115,4 +115,3 @@ else:
                          indir=ns.src, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
                          qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
         log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
-
