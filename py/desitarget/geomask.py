@@ -470,7 +470,7 @@ def box_area(radecbox):
     ramin, ramax, decmin, decmax = radecbox
 
     # ADM check for some common mistakes.
-    if decmin < -90. or decmax > 90. or decmax < decmin or ramax < ramin:
+    if decmin < -90. or decmax > 90. or decmax <= decmin or ramax <= ramin:
         msg = "Strange input: [ramin, ramax, decmin, decmax] = {}".format(radecbox)
         log.critical(msg)
         raise ValueError(msg)
@@ -748,7 +748,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
             outfiles.append(outfile)
             print("srun -N 1 select_{} {} {} --numproc 32 --nside {} --healpixels {} &"
                   .format(prefix2, surveydir, outfile, nside, strgoodpix))
-    print("{}wait".format(comment))
+    print("wait")
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
             # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
@@ -800,8 +800,42 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     return pixnum
 
 
+def is_in_box(objs, radecbox):
+    """Determine which of an array of objects are inside an RA, Dec box.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        An array of objects. Must include at least the columns "RA" and "DEC".
+    radecbox :class:`list`
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
+        of a box in RA/Dec (degrees).
+    
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        ``True`` for objects in the box, ``False`` for objects outside of the box.
+
+    Notes
+    -----
+        - Tests the minimum RA/Dec with >= and the maximum with <
+    """
+    ramin, ramax, decmin, decmax = radecbox
+
+    # ADM check for some common mistakes.
+    if decmin < -90. or decmax > 90. or decmax <= decmin or ramax <= ramin:
+        msg = "Strange input: [ramin, ramax, decmin, decmax] = {}".format(radecbox)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    ii = ((objs["RA"] >= ramin) & (objs["RA"] < ramax) 
+          & (objs["DEC"] >= decmin) & (objs["DEC"] < decmax))
+
+    return ii
+
+
 def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
-    """Determine which HEALPixels touch an RA, Dec box.
+    """Determine which HEALPixels touch an RA, Dec, radius cap.
 
     Parameters
     ----------
@@ -838,6 +872,37 @@ def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
                            inclusive=inclusive, fact=fact, nest=True)
 
     return pixnum
+
+
+def is_in_cap(objs, radecrad):
+    """Determine which of an array of objects lie inside an RA, Dec, radius cap.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        An array of objects. Must include at least the columns "RA" and "DEC".
+    radecrad :class:`list`, defaults to `None`
+        3-entry list of coordinates [ra, dec, radius] forming a cap or 
+        "circle" on the sky. ra, dec and radius are all in degrees.
+    
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        ``True`` for objects in the cap, ``False`` for objects outside of the cap.
+
+    Notes
+    -----
+        - Tests the separation with <=, so include objects on the cap boundary.
+        - See also is_in_circle() which handles multiple caps.
+    """
+    ra, dec, radius = radecrad
+    
+    cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
+    center = SkyCoord(ra*u.degree, dec*u.degree)
+   
+    ii = center.separation(cobjs) <= radius*u.degree
+
+    return ii
 
 
 def pixarea2nside(area):

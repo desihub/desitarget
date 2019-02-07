@@ -62,7 +62,7 @@ ap.add_argument("--bundlefiles", type=int,
                 default=None)
 ap.add_argument("--filespersec", type=float,
                 help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 1)",
-                default=1.)
+                default=0.12)
 
 
 ns = ap.parse_args()
