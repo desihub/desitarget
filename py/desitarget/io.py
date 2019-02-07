@@ -428,18 +428,35 @@ def release_to_photsys(release):
 
 
 def write_targets(filename, data, indir=None, qso_selection=None,
-                  sandboxcuts=False, nside=None, survey="?"):
+                  sandboxcuts=False, nside=None, survey="?",
+                  nsidefile=None, hpxlist=None):
     """Write a target catalogue.
 
     Parameters
     ----------
-    filename : output target selection file.
-    data     : numpy structured array of targets to save.
-    nside: :class:`int`
+    filename : :class:`str`
+        output target selection file.
+    data : :class:`str`
+        numpy structured array of targets to save.
+    indir, qso_selection : :class:`str`, optional, default to `None`
+        If passed, note these as the input directory and
+        quasar selection method in the output file header.
+    sandboxcuts : :class:`bool`, optional, defaults to ``False``
+        If passed, note this whether we ran target seletion
+        in the sandbox in the output file header.
+    nside : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
         with HEALPixels at resolution `nside`.
-    survey: :class:`str`, optional, defaults to "?"
+    survey : :class:`str`, optional, defaults to "?"
         Written to output file header as the keyword `SURVEY`.
+    nsidefile : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
     """
     # FIXME: assert data and tsbits schema
 
@@ -487,6 +504,18 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
     hdr["SURVEY"] = survey
+
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if hpxlist is not None or nsidefile is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        if hpxlist is None or nsidefile is None:
+            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
+                .format(hpxlist, nsidefile)
+            log.critical(msg)
+            raise ValueError(msg)
+        hdr['FILENSID'] = nsidefile
+        hdr['FILENEST'] = True
+        hdr['FILEHPX'] = hpxlist
 
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
@@ -1071,7 +1100,7 @@ def decode_sweep_name(sweepname, nside=None, inclusive=True, fact=4):
         see documentation for `healpy.query_polygon()`
     fact : :class:`int`, optional defaults to 4
         see documentation for `healpy.query_polygon()`
-    
+
     Returns
     -------
     :class:`list` (if nside is None)
@@ -1097,8 +1126,8 @@ def decode_sweep_name(sweepname, nside=None, inclusive=True, fact=4):
 
     if nside is None:
         return [ramin, ramax, decmin, decmax]
-    
-    pixnum = hp_in_box(nside, [ramin, ramax, decmin, decmax], 
+
+    pixnum = hp_in_box(nside, [ramin, ramax, decmin, decmax],
                        inclusive=inclusive, fact=fact)
 
     return pixnum

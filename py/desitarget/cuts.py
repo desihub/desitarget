@@ -2265,8 +2265,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     bundlefiles : :class:`int`, defaults to `None`
         If not `None`, then instead of selecting the skies, print, to screen, the slurm
         script that will approximately balance the input file distribution at `bundlefiles`
-        files per node. So, for instance, if `bundlefiles` is 100 then commands would be 
-        returned with the correct `pixlist` values set to pass to the code to pack at 
+        files per node. So, for instance, if `bundlefiles` is 100 then commands would be
+        returned with the correct `pixlist` values set to pass to the code to pack at
         about 100 files per node across all of the passed `infiles`.
     filespersec : :class:`float`, optional, defaults to 1.
         The rough number of files processed per second by the code (parallelized across
@@ -2333,7 +2333,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         nside = pixarea2nside(cap_area(np.array(radecrad[2])))
         pixlist = hp_in_cap(nside, radecrad)
 
-    # ADM if the pixlist or bundlefiles option was sent, we'll need to know          
+    # ADM if the pixlist or bundlefiles option was sent, we'll need to know
     # ADM which HEALPixels touch each file.
     if pixlist is not None or bundlefiles is not None:
         # ADM a list of HEALPixels that touch each file.
@@ -2345,7 +2345,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         pixnum = np.hstack(pixelsperfile)
         # ADM create a list of files that touch each HEALPixel.
         filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
-        for ifile, pixels in enumerate(pixelsperfile):                                       
+        for ifile, pixels in enumerate(pixelsperfile):
             for pix in pixels:
                 filesperpixel[pix].append(infiles[ifile])
 
@@ -2354,8 +2354,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         prefix = "targets"
         if survey != "main":
             prefix = "{}_targets".format(survey)
-        bundle_bricks(pixnum, bundlefiles, nside, 
-                      brickspersec=filespersec, gather=False, 
+        bundle_bricks(pixnum, bundlefiles, nside,
+                      brickspersec=filespersec, gather=False,
                       prefix=prefix, surveydir=os.path.dirname(infiles[0]))
         return
 
@@ -2456,7 +2456,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     if pixlist is not None:
         theta, phi = np.radians(90-targets["DEC"]), np.radians(targets["RA"])
         pixnums = hp.ang2pix(nside, theta, phi, nest=True)
-        w = np.hstack([np.where(pixnums==pix)[0] for pix in pixlist])
+        w = np.hstack([np.where(pixnums == pix)[0] for pix in pixlist])
         targets = targets[w]
 
     return targets
