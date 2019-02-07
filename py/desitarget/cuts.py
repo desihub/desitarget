@@ -30,7 +30,8 @@ from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
 from desitarget.geomask import bundle_bricks, pixarea2nside
-from desitarget.geomask import cap_area, box_area, hp_in_box, hp_in_cap
+from desitarget.geomask import box_area, hp_in_box, is_in_box
+from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -2458,5 +2459,15 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         pixnums = hp.ang2pix(nside, theta, phi, nest=True)
         w = np.hstack([np.where(pixnums == pix)[0] for pix in pixlist])
         targets = targets[w]
+
+    # ADM restrict to only targets in an RA, Dec box, if requested.
+    if radecbox is not None:
+        ii = is_in_box(targets, radecbox)
+        targets = targets[ii]
+
+    # ADM restrict to only targets in an RA, Dec, radius cap, if requested.
+    if radecrad is not None:
+        ii = is_in_cap(targets, radecrad)
+        targets = targets[ii]
 
     return targets
