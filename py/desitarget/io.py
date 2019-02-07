@@ -18,6 +18,7 @@ import numpy.lib.recfunctions as rfn
 import healpy as hp
 
 from desiutil import depend
+from desitarget.geomask import hp_in_box
 
 # ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South".
 # ADM photometric system. This will expand with the definition of RELEASE in the
@@ -1097,17 +1098,7 @@ def decode_sweep_name(sweepname, nside=None, inclusive=True, fact=4):
     if nside is None:
         return [ramin, ramax, decmin, decmax]
     
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    rapairs = np.array([ramin, ramin, ramax, ramax])
-    decpairs = np.array([decmin, decmax, decmax, decmin])
-    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
-
-    # ADM convert the colatitudes to Cartesian vectors remembering to
-    # ADM transpose to pass the array to query_polygon in the correct order.
-    vecs = hp.dir2vec(thetapairs, phipairs).T
-
-    # ADM determine the pixels that touch the box.                                                                                                                                                       
-    pixnum = hp.query_polygon(nside, vecs, 
-                              inclusive=inclusive, fact=fact, nest=True)
+    pixnum = hp_in_box(nside, [ramin, ramax, decmin, decmax], 
+                       inclusive=inclusive, fact=fact)
 
     return pixnum

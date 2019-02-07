@@ -29,7 +29,8 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
-from desitarget.geomask import bundle_bricks
+from desitarget.geomask import bundle_bricks, pixarea2nside
+from desitarget.geomask import cap_area, box_area, hp_in_box, hp_in_cap
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -2229,6 +2230,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
                    nside=2, pixlist=None, bundlefiles=None, filespersec=1.,
+                   radecbox=None, radecrad=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main'):
     """Process input files in parallel to select targets.
@@ -2270,6 +2272,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         The rough number of files processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
         to estimate time to completion when parallelizing across pixels.
+    radecbox :class:`list`, defaults to `None`
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
+        of a box in RA/Dec (degrees). Only targets in this box region will be processed.
+    radecrad :class:`list`, defaults to `None`
+        3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
+        RA/Dec/radius in degrees. Only targets in this circle region will be processed.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
@@ -2289,6 +2297,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     Notes
     -----
         - if numproc==1, use serial code instead of parallel.
+        - only one of pixlist, radecbox, radecrad should be passed. They are all
+          intended to denote regions on the sky, using different formalisms.
     """
     from desiutil.log import get_logger
     log = get_logger()
@@ -2305,6 +2315,23 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             msg = "{} doesn't exist".format(filename)
             log.critical(msg)
             raise ValueError(msg)
+
+    # ADM check that only one of pixlist, radecrad, radecbox was sent.
+    inputs = [ins for ins in (pixlist, radecbox, radecrad) if ins is not None]
+    if len(ins) > 1:
+        msg = "Only one of pixist, radecbox or radecrad can be passed"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM if radecbox was sent, determine which pixels touch the box.
+    if radecbox is not None:
+        nside = pixarea2nside(box_area(radec))
+        pixlist = hp_in_box(nside, radecbox)
+
+    # ADM if radecrad was sent, determine which pixels touch the box.
+    if radecrad is not None:
+        nside = pixarea2nside(cap_area(np.array(radecrad[2])))
+        pixlist = hp_in_cap(nside, radecrad)
 
     # ADM if the pixlist or bundlefiles option was sent, we'll need to know          
     # ADM which HEALPixels touch each file.

@@ -25,9 +25,11 @@ from desitarget.internal import sharedmem
 
 import numpy.lib.recfunctions as rfn
 
-from . import __version__ as desitarget_version
-
 import healpy as hp
+
+# ADM set up the DESI default logger.
+from desiutil.log import get_logger
+log = get_logger()
 
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
@@ -452,6 +454,34 @@ def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
     return collection
 
 
+def box_area(radecbox):
+    """Determines the area of an RA, Dec box in square degrees.
+
+    Parameters
+    ----------
+    radecbox :class:`list`                                                                                                          
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
+        of a box in RA/Dec (degrees).
+    
+    Returns
+    -------
+    :class:`list`
+        The area of the passed box in square degrees.
+    """
+    ramin, ramax, decmin, decmax = radecbox
+
+    # ADM check for some common mistakes.
+    if decmin < -90. or decmax > 90. or decmax < decmin or ramax < ramin:
+        msg = "Strange input: [ramin, ramax, decmin, decmax] = {}".format(radecbox)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
+    spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
+
+    return spharea
+
+
 def cap_area(theta):
     """True area of a circle of a given radius drawn on the surface of a sphere
 
@@ -578,7 +608,7 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', gather=True,
                   surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
-    """Determine the optimal packing for bricks collected by HEALpixel integer
+    """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
     ----------
@@ -597,7 +627,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     prefix : :class:`str`, optional, defaults to 'targets'
         Should correspond to the binary executable "X" that is run as select_X for a 
         target type. Depending on the type of target file that is being packed for 
-        parallelization, this could be 'randoms', 'skies', etc. 
+        parallelization, this could be 'randoms', 'skies', 'targets', etc. 
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
@@ -727,3 +757,117 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     print("")
 
     return
+
+
+def hp_in_box(nside, radecbox, inclusive=True, fact=4):
+    """Determine which HEALPixels touch an RA, Dec box.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    radecbox :class:`list`
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
+        of a box in RA/Dec (degrees).
+    inclusive : :class:`bool`, optional, defaults to ``True``
+        see documentation for `healpy.query_polygon()`.
+    fact : :class:`int`, optional defaults to 4
+        see documentation for `healpy.query_polygon()`.
+    
+    Returns
+    -------
+    :class:`list`
+        A list of HEALPixels at the passed `nside` that touch the passed RA/Dec box.
+
+    Notes
+    -----
+        - Just syntactic sugar around `healpy.query_polygon()`.
+    """
+    ramin, ramax, decmin, decmax = radecbox
+    
+    # ADM convert RA/Dec to co-latitude and longitude in radians.
+    rapairs = np.array([ramin, ramin, ramax, ramax])
+    decpairs = np.array([decmin, decmax, decmax, decmin])
+    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
+
+    # ADM convert the colatitudes to Cartesian vectors remembering to
+    # ADM transpose to pass the array to query_polygon in the correct order.
+    vecs = hp.dir2vec(thetapairs, phipairs).T
+
+    # ADM determine the pixels that touch the box.
+    pixnum = hp.query_polygon(nside, vecs, 
+                              inclusive=inclusive, fact=fact, nest=True)
+
+    return pixnum
+
+
+def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
+    """Determine which HEALPixels touch an RA, Dec box.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    radecrad :class:`list`, defaults to `None`
+        3-entry list of coordinates [ra, dec, radius] forming a cap or 
+        "circle" on the sky. ra, dec and radius are all in degrees.
+    inclusive : :class:`bool`, optional, defaults to ``True``
+        see documentation for `healpy.query_disc()`.
+    fact : :class:`int`, optional defaults to 4
+        see documentation for `healpy.query_disc()`.
+    
+    Returns
+    -------
+    :class:`list`
+        A list of HEALPixels at the passed `nside` that touch the cap.
+
+    Notes
+    -----
+        - Just syntactic sugar around `healpy.query_disc()`.
+    """
+    ra, dec, radius = radecrad
+    
+    # ADM convert RA/Dec to co-latitude/longitude and everything to radians.
+    theta, phi, rad = np.radians(90.-dec), np.radians(ra), np.radians(radius)
+
+    # ADM convert the colatitudes to Cartesian vectors remembering to
+    # ADM transpose to pass the array to query_disc in the correct order.
+    vec = hp.dir2vec(theta, phi).T
+
+    # ADM determine the pixels that touch the box.
+    pixnum = hp.query_disc(nside, vec, rad,
+                           inclusive=inclusive, fact=fact, nest=True)
+
+    return pixnum
+
+
+def pixarea2nside(area):
+    """Closest HEALPix nside for a given area.
+
+    Parameters
+    ----------
+    area : :class:`float`
+        area in square degrees.
+    
+    Returns
+    -------
+    :class:`int`
+        HEALPix nside that corresponds to passed area.
+
+    Notes
+    -----
+        - Only considers 2**x nside values (1, 2, 4, 8 etc.)
+    """
+    # ADM loop through nsides until we cross the passed area.
+    nside = 1
+    while (hp.nside2pixarea(nside, degrees=True) > area):
+        nside *= 2
+
+    # ADM is the nside with the area that is smaller or larger
+    # ADM than the passed area "closest" to the passed area?
+    smaller = hp.nside2pixarea(nside, degrees=True)
+    larger = hp.nside2pixarea(nside/2, degrees=True)
+    if larger/area < area/smaller:
+        return int(nside/2)
+
+    return int(nside)
