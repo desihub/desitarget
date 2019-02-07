@@ -435,7 +435,6 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, density=1
     # ADM retrieve the E(B-V) values for each random point
     ebv = get_dust(ras, decs, dustdir=dustdir)
 
-
     # ADM convert the dictionary to a structured array
     qinfo = np.zeros(len(ras),
                      dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),

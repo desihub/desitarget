@@ -31,7 +31,7 @@ from desiutil.log import get_logger
 log = get_logger()
 
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
-import matplotlib
+import matplotlib   # noqa: E402
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt   # noqa: E402
 from matplotlib.patches import Circle, Ellipse, Rectangle  # noqa: E402
@@ -458,10 +458,10 @@ def box_area(radecbox):
 
     Parameters
     ----------
-    radecbox :class:`list`                                                                                                          
+    radecbox :class:`list`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
         of a box in RA/Dec (degrees).
-    
+
     Returns
     -------
     :class:`list`
@@ -624,9 +624,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes)
     prefix : :class:`str`, optional, defaults to 'targets'
-        Should correspond to the binary executable "X" that is run as select_X for a 
-        target type. Depending on the type of target file that is being packed for 
-        parallelization, this could be 'randoms', 'skies', 'targets', etc. 
+        Should correspond to the binary executable "X" that is run as select_X for a
+        target type. Depending on the type of target file that is being packed for
+        parallelization, this could be 'randoms', 'skies', 'targets', etc.
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
@@ -744,14 +744,14 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
             goodpix.sort()
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
-            outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_","-"), dr, strgoodpix)
+            outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
             outfiles.append(outfile)
             print("srun -N 1 select_{} {} {} --numproc 32 --nside {} --healpixels {} &"
                   .format(prefix2, surveydir, outfile, nside, strgoodpix))
     print("wait")
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
-            # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
+          # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
           .format(comment, ";".join(outfiles), prefix, dr, prefix2.split("_")[-1]))
     print("")
 
@@ -772,7 +772,7 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
         see documentation for `healpy.query_polygon()`.
     fact : :class:`int`, optional defaults to 4
         see documentation for `healpy.query_polygon()`.
-    
+
     Returns
     -------
     :class:`list`
@@ -783,7 +783,7 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
         - Just syntactic sugar around `healpy.query_polygon()`.
     """
     ramin, ramax, decmin, decmax = radecbox
-    
+
     # ADM convert RA/Dec to co-latitude and longitude in radians.
     rapairs = np.array([ramin, ramin, ramax, ramax])
     decpairs = np.array([decmin, decmax, decmax, decmin])
@@ -794,7 +794,7 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     vecs = hp.dir2vec(thetapairs, phipairs).T
 
     # ADM determine the pixels that touch the box.
-    pixnum = hp.query_polygon(nside, vecs, 
+    pixnum = hp.query_polygon(nside, vecs,
                               inclusive=inclusive, fact=fact, nest=True)
 
     return pixnum
@@ -810,7 +810,7 @@ def is_in_box(objs, radecbox):
     radecbox :class:`list`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
         of a box in RA/Dec (degrees).
-    
+
     Returns
     -------
     :class:`~numpy.ndarray`
@@ -828,7 +828,7 @@ def is_in_box(objs, radecbox):
         log.critical(msg)
         raise ValueError(msg)
 
-    ii = ((objs["RA"] >= ramin) & (objs["RA"] < ramax) 
+    ii = ((objs["RA"] >= ramin) & (objs["RA"] < ramax)
           & (objs["DEC"] >= decmin) & (objs["DEC"] < decmax))
 
     return ii
@@ -842,13 +842,13 @@ def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
     nside : :class:`int`
         (NESTED) HEALPixel nside.
     radecrad :class:`list`, defaults to `None`
-        3-entry list of coordinates [ra, dec, radius] forming a cap or 
+        3-entry list of coordinates [ra, dec, radius] forming a cap or
         "circle" on the sky. ra, dec and radius are all in degrees.
     inclusive : :class:`bool`, optional, defaults to ``True``
         see documentation for `healpy.query_disc()`.
     fact : :class:`int`, optional defaults to 4
         see documentation for `healpy.query_disc()`.
-    
+
     Returns
     -------
     :class:`list`
@@ -859,7 +859,7 @@ def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
         - Just syntactic sugar around `healpy.query_disc()`.
     """
     ra, dec, radius = radecrad
-    
+
     # ADM convert RA/Dec to co-latitude/longitude and everything to radians.
     theta, phi, rad = np.radians(90.-dec), np.radians(ra), np.radians(radius)
 
@@ -882,9 +882,9 @@ def is_in_cap(objs, radecrad):
     objs : :class:`~numpy.ndarray`
         An array of objects. Must include at least the columns "RA" and "DEC".
     radecrad :class:`list`, defaults to `None`
-        3-entry list of coordinates [ra, dec, radius] forming a cap or 
+        3-entry list of coordinates [ra, dec, radius] forming a cap or
         "circle" on the sky. ra, dec and radius are all in degrees.
-    
+
     Returns
     -------
     :class:`~numpy.ndarray`
@@ -896,10 +896,10 @@ def is_in_cap(objs, radecrad):
         - See also is_in_circle() which handles multiple caps.
     """
     ra, dec, radius = radecrad
-    
+
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     center = SkyCoord(ra*u.degree, dec*u.degree)
-   
+
     ii = center.separation(cobjs) <= radius*u.degree
 
     return ii
@@ -912,7 +912,7 @@ def pixarea2nside(area):
     ----------
     area : :class:`float`
         area in square degrees.
-    
+
     Returns
     -------
     :class:`int`
