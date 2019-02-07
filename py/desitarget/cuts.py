@@ -2326,13 +2326,17 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     # ADM if radecbox was sent, determine which pixels touch the box.
     if radecbox is not None:
-        nside = pixarea2nside(box_area(radec))
+        nside = pixarea2nside(box_area(radecbox))
         pixlist = hp_in_box(nside, radecbox)
+        log.info("Run targets in box bounded by [RAmin, RAmax, Decmin, Decmax]={}"
+                 .format(radecbox))
 
     # ADM if radecrad was sent, determine which pixels touch the box.
     if radecrad is not None:
         nside = pixarea2nside(cap_area(np.array(radecrad[2])))
         pixlist = hp_in_cap(nside, radecrad)
+        log.info("Run targets in cap bounded by [centerRA, centerDec, radius]={}"
+                 .format(radecrad))
 
     # ADM if the pixlist or bundlefiles option was sent, we'll need to know
     # ADM which HEALPixels touch each file.

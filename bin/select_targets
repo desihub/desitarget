@@ -61,9 +61,14 @@ ap.add_argument("--bundlefiles", type=int,
                 help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
                 default=None)
 ap.add_argument("--filespersec", type=float,
-                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 1)",
+                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.12)",
                 default=0.12)
-
+ap.add_argument('--radecbox',
+                help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
+                default=None)
+ap.add_argument('--radecrad',
+                help="Only return targets in an RA/Dec circle/cap denoted by 'centerRA,centerDec,radius' in degrees (e.g. '140,150,0.5')",
+                default=None)
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -79,7 +84,13 @@ if ns.bundlefiles is None:
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels
 if pixlist is not None:
-    pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
+    pixlist = [ int(pix) for pix in pixlist.split(',') ]
+
+# ADM parse the list of RA/Dec regions in which to run.
+inlists = [ns.radecbox, ns.radecrad]
+for i, inlist in enumerate(inlists):
+    if inlist is not None:
+        inlists[i] = [ float(num) for num in inlist.split(',') ]
 
 # ADM if specific bit names were passed, use them, otherwise run all target classes.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
@@ -94,6 +105,7 @@ else:
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
                              nside=ns.nside, pixlist=pixlist,
                              bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
+                             radecbox=inlists[0], radecrad=inlists[1],
                              tcnames=tcnames, survey='main')
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)

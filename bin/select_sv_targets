@@ -50,8 +50,13 @@ ap.add_argument("--bundlefiles", type=int,
                 default=None)
 ap.add_argument("--filespersec", type=float,
                 help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 1)",
-                default=1.)
-
+                default=1)
+ap.add_argument('--radecbox',
+                help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
+                default=None)
+ap.add_argument('--radecrad',
+                help="Only return targets in an RA/Dec circle/cap denoted by 'centerRA,centerDec,radius' in degrees (e.g. '140,150,0.5')",
+                default=None)
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -90,17 +95,25 @@ pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
 
+# ADM parse the list of RA/Dec regions in which to run.
+inlists = [ns.radecbox, ns.radecrad]
+for i, inlist in enumerate(inlists):
+    if inlist is not None:
+        inlists[i] = [ float(num) for num in inlist.split(',') ]
+
 # ADM if specific bit names were passed, use them, otherwise run all target classes
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 targets = select_targets(infiles, numproc=ns.numproc, 
                          nside=ns.nside, pixlist=pixlist,
                          bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
+                         radecbox=inlists[0], radecrad=inlists[1],
                          tcnames=tcnames, survey=survey)
 if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
 if ns.bundlefiles is None:
-    io.write_targets(ns.dest, targets, indir=ns.src, survey=survey,
+    io.write_targets(ns.dest, targets, indir=ns.src, survey=survey, 
+                     nsidefile=ns.nside, hpxlist=pixlist, 
                      qso_selection=survey, nside=nside)
     log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
