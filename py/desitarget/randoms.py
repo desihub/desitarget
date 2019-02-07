@@ -16,7 +16,7 @@ import healpy as hp
 import fitsio
 from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
-from desitarget.geomask import bundle_bricks
+from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 # ADM the parallelization script
@@ -107,12 +107,10 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
     # ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that
     if ramax - ramin > 350.:
         ramax -= 360.
-    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
-    spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
+    spharea = box_area([ramin, ramax, decmin, decmax])
 
     if poisson:
         nrand = int(np.random.poisson(spharea*density))
-
     else:
         nrand = int(spharea*density)
 #    log.info('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
@@ -176,8 +174,8 @@ def randoms_in_a_brick_from_name(brickname, density=100000,
     # ADM guard against potential wraparound bugs
     if ramax - ramin > 350.:
         ramax -= 360.
-    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
-    spharea = (ramax-ramin)*np.degrees(sindecmax-sindecmin)
+    spharea = box_area([ramin, ramax, decmin, decmax])
+
     nrand = int(spharea*density)
     # log.info('Full area covered by brick {} is {:.5f} sq. deg....t = {:.1f}s'
     #          .format(brickname,spharea,time()-start))

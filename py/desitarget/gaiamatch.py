@@ -20,6 +20,7 @@ from os.path import basename
 from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
+from desitarget.geomask import hp_in_box
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -661,20 +662,8 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     gaiadir = _get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
-    # ADM retrive the RA/Dec bounds from the passed list
-    ramin, ramax, decmin, decmax = gaiabounds
-
-    # ADM convert RA/Dec to co-latitude and longitude in radians
-    rapairs = np.array([ramin, ramin, ramax, ramax])
-    decpairs = np.array([decmin, decmax, decmax, decmin])
-    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
-
-    # ADM convert the colatitudes to Cartesian vectors remembering to
-    # ADM transpose to pass the array to query_polygon in the correct order
-    vecs = hp.dir2vec(thetapairs, phipairs).T
-
     # ADM determine the pixels that touch the box.
-    pixnum = hp.query_polygon(nside, vecs, inclusive=True, fact=4, nest=True)
+    pixnum = hp_in_box(nside, gaiabounds, inclusive=True, fact=4)
 
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
