@@ -2348,6 +2348,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         # ADM files. Each HEALPixel can appear multiple times if it's
         # ADM touched by multiple input sweep files.
         pixnum = np.hstack(pixelsperfile)
+        # ADM restrict input pixels to only those that touch an input file.
+        ii = [pix in pixnum for pix in pixlist]
+        pixlist = pixlist[ii]
         # ADM create a list of files that touch each HEALPixel.
         filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
         for ifile, pixels in enumerate(pixelsperfile):
