@@ -16,9 +16,14 @@ import re
 from . import __version__ as desitarget_version
 import numpy.lib.recfunctions as rfn
 import healpy as hp
+from glob import glob
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box
+
+# ADM set up the DESI default logger
+from desiutil.log import get_logger
+log = get_logger()
 
 # ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South".
 # ADM photometric system. This will expand with the definition of RELEASE in the
@@ -92,7 +97,7 @@ def convert_from_old_data_model(fx, columns=None):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Array with the tractor schema, uppercase field names.
 
     Notes
@@ -154,12 +159,12 @@ def add_gaia_columns(indata):
 
     Parameters
     ----------
-    indata : :class:`numpy.ndarray`
+    indata : :class:`~numpy.ndarray`
         Numpy structured array to which to add Gaia-relevant columns.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Input array with the Gaia columns added.
 
     Notes
@@ -194,12 +199,12 @@ def add_dr7_columns(indata):
 
     Parameters
     ----------
-    indata : :class:`numpy.ndarray`
+    indata : :class:`~numpy.ndarray`
         Numpy structured array to which to add DR7 columns.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Input array with DR7 columns added.
 
     Notes
@@ -226,12 +231,12 @@ def add_photsys(indata):
 
     Parameters
     ----------
-    indata : :class:`numpy.ndarray`
+    indata : :class:`~numpy.ndarray`
         Numpy structured array to which to add PHOTSYS column.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Input array with PHOTSYS added (and set using RELEASE).
 
     Notes
@@ -277,13 +282,9 @@ def read_tractor(filename, header=False, columns=None):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Array with the tractor schema, uppercase field names.
     """
-    # ADM set up the default DESI logger.
-    from desiutil.log import get_logger
-    log = get_logger()
-
     check_fitsio_version()
 
     fx = fitsio.FITS(filename, upper=True)
@@ -460,10 +461,6 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     """
     # FIXME: assert data and tsbits schema
 
-    # ADM set up the default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
-
     # ADM use RELEASE to determine the release string for the input targets.
     ntargs = len(data)
     if ntargs == 0:
@@ -543,10 +540,6 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         If passed, add a column to the skies array popluated with HEALPixels
         at resolution `nside`.
     """
-    # ADM set up the default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
-
     nskies = len(data)
 
     # ADM force OBSCONDITIONS to be 65535
@@ -613,10 +606,6 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
         Gaia proper motion reference epoch. If not None, write to header of
         output file. If None, default to an epoch of 2015.5.
     """
-    # ADM set up the default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
-
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
 
@@ -669,10 +658,6 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
     """
-    # ADM set up the default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
-
     # ADM create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
@@ -736,9 +721,6 @@ def iter_files(root, prefix, ext='fits'):
 def list_sweepfiles(root):
     """Return a list of sweep files found under `root` directory.
     """
-    from desiutil.log import get_logger
-    log = get_logger(timestamp=True)
-
     # ADM check for duplicate files in case the listing was run
     # ADM at too low a level in the directory structure.
     check = [os.path.basename(x) for x in iter_sweepfiles(root)]
@@ -757,9 +739,6 @@ def iter_sweepfiles(root):
 def list_tractorfiles(root):
     """Return a list of tractor files found under `root` directory.
     """
-    from desiutil.log import get_logger
-    log = get_logger(timestamp=True)
-
     # ADM check for duplicate files in case the listing was run
     # ADM at too low a level in the directory structure.
     check = [os.path.basename(x) for x in iter_tractorfiles(root)]
@@ -933,10 +912,6 @@ def load_pixweight(inmapfile, nside, pixmap=None):
     :class:`~numpy.array`
         HEALPixel weight map resampled to the requested nside.
     """
-    import healpy as hp
-    from desiutil.log import get_logger
-    log = get_logger()
-
     if pixmap is not None:
         log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
     else:
@@ -982,10 +957,6 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
           if a column `HPXPIXEL` is passed. That column is reassigned the appropriate
           pixel number at the new nside.
     """
-    import healpy as hp
-    from desiutil.log import get_logger
-    log = get_logger()
-
     if pixmap is not None:
         log.debug('Using input pixel weight map of length {}.'.format(len(pixmap)))
     else:
@@ -1052,7 +1023,10 @@ def read_external_file(filename, header=False, columns=["RA", "DEC"]):
 
     Returns
     -------
-    :class:`numpy.ndarray``
+    :class:`~numpy.ndarray`
+        The output data array.
+    :class:`~numpy.ndarray`, optional
+        The output file header, if input `header` was ``True``.
 
     Notes
     -----
@@ -1131,3 +1105,66 @@ def decode_sweep_name(sweepname, nside=None, inclusive=True, fact=4):
                        inclusive=inclusive, fact=fact)
 
     return pixnum
+
+
+def check_hp_targets_dir(hpdirname):
+    """Check fidelity of a directory of HEALPixel-partitioned targets.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory of targets that have been split by
+        HEALPixel.
+
+    Returns
+    -------
+    :class:`int`
+        The HEALPixel NSIDE for the files in the passed directory.
+    :class:`~numpy.ndarray`
+        An array of HEALPixel numbers touched by the files.
+
+    Notes
+    -----
+        - Checks that all files are at the same NSIDE.
+        - Checks that no two files contain the same HEALPixels.
+        - Checks that HEALPixel numbers are consistent with NSIDE.
+    """
+    # ADM glob all the files in the directory, read the pixel
+    # ADM numbers and NSIDEs.
+    nside = []
+    pixlist = []
+    fns = glob(os.path.join(hpdirname,"*fits"))
+    for fn in fns:
+        hdr = fitsio.read_header(fn, "TARGETS")
+        nside.append(hdr["FILENSID"])
+        pixlist.append(hdr["FILEHPX"])
+    nside = np.array(nside)
+    # ADM as well as having just an array of all the pixels.
+    pixlist = np.hstack(pixlist)
+
+    msg = None
+    # ADM check all NSIDEs are the same.
+    if not np.all(nside == nside[0]):
+        msg = 'Not all files in {} are at the same NSIDE'     \
+            .format(hpdirname)
+
+    # ADM check that no two files contain the same HEALPixels.
+    if not len(set(pixlist)) == len(pixlist):
+        dup = set([pix for pix in pixlist if list(pixlist).count(pix) > 1])
+        msg = 'Duplicate pixel ({}) in files in {}'           \
+            .format(dup, hpdirname)
+
+    # ADM check that the pixels are consistent with the nside.
+    goodpix = np.arange(hp.nside2npix(nside[0]))
+    badpix = set(pixlist) - set(goodpix)
+    if len(badpix) > 0:
+        msg = 'Pixel ({}) not allowed at NSIDE={} in {}'.     \
+              format(badpix, nside[0], hpdirname)
+
+    if msg is not None:
+        log.critical(msg)
+        raise AssertionError(msg)
+
+    pixlist.sort()
+
+    return nside[0], pixlist

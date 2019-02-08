@@ -219,7 +219,7 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
 
     Parameters
     ----------
-    objects: :class:`numpy.ndarray` or `str`
+    objects: :class:`~numpy.ndarray` or `str`
         Numpy structured array with UPPERCASE columns needed for target selection, OR
         a string corresponding to a sweep filename.
     maglim : :class:`float`, optional, defaults to 18
@@ -233,7 +233,7 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         GFA objects from Gaia for the region bounded by `gaiabounds`, formatted
         according to `desitarget.gfa.gfadatamodel`.
     """
@@ -370,7 +370,7 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         GFA objects from Gaia across all of the passed input files, formatted
         according to `desitarget.gfa.gfadatamodel`.
 
