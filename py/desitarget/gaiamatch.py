@@ -463,12 +463,12 @@ def pop_gaia_coords(inarr):
 
     Parameters
     ----------
-    inarr : :class:`numpy.ndarray`
+    inarr : :class:`~numpy.ndarray`
         Structured array with various column names.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Input array with columns called "GAIA_RA" and/or "GAIA_DEC" removed.
     """
     # ADM list of the column names of the passed array
@@ -495,14 +495,14 @@ def pop_gaia_columns(inarr, cols):
 
     Parameters
     ----------
-    inarr : :class:`numpy.ndarray`
+    inarr : :class:`~numpy.ndarray`
         Structured array with various column names.
     cols : :class:`list`
         List of columns to remove from the input array.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Input array with columns in cols removed.
     """
     # ADM list of the column names of the passed array
@@ -533,7 +533,7 @@ def read_gaia_file(filename, header=False):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         Gaia data translated to targeting format (upper-case etc.) with the
         columns corresponding to `desitarget.gaiamatch.gaiadatamodel`
 
@@ -576,7 +576,7 @@ def find_gaia_files(objs, neighbors=True):
 
     Parameters
     ----------
-    objs : :class:`numpy.ndarray`
+    objs : :class:`~numpy.ndarray`
         Array of objects. Must contain at least the columns "RA" and "DEC".
     neighbors : :class:`bool`, optional, defaults to ``True``
         Return all of the pixels that touch the Gaia files of interest
@@ -697,7 +697,7 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
 
     Parameters
     ----------
-    objs : :class:`numpy.ndarray`
+    objs : :class:`~numpy.ndarray`
         Must contain at least "RA" and "DEC".
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
@@ -714,7 +714,7 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         The matching Gaia information for each object, where the returned format and
         columns correspond to `desitarget.secondary.gaiadatamodel`
 
@@ -801,14 +801,14 @@ def match_gaia_to_primary_single(objs, matchrad=1.):
 
     Parameters
     ----------
-    objs : :class:`numpy.ndarray`
+    objs : :class:`~numpy.ndarray`
         Must contain at least "RA" and "DEC". MUST BE A SINGLE ROW.
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         The matching Gaia information for the object, where the returned format and
         columns correspond to `desitarget.secondary.gaiadatamodel`
 
@@ -870,7 +870,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
 
     Returns
     -------
-    :class:`numpy.ndarray`
+    :class:`~numpy.ndarray`
         The original sweeps files with the columns in `gaiadatamodel`
         added (except for the columns `GAIA_RA` and `GAIA_DEC`) are
         written to file. The filename is the same as the input
