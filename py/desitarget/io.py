@@ -1113,15 +1113,17 @@ def check_hp_targets_dir(hpdirname):
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to a directory of targets that have been split by
-        HEALPixel.
+        Full path to a directory containing targets that have been 
+        split by HEALPixel.
 
     Returns
     -------
     :class:`int`
         The HEALPixel NSIDE for the files in the passed directory.
-    :class:`~numpy.ndarray`
-        An array of HEALPixel numbers touched by the files.
+    :class:`dict`
+        A dictionary where the keys are each HEALPixel covered in the
+        passed directory and the values are the file that includes
+        that HEALPixel.
 
     Notes
     -----
@@ -1134,10 +1136,15 @@ def check_hp_targets_dir(hpdirname):
     nside = []
     pixlist = []
     fns = glob(os.path.join(hpdirname,"*fits"))
+    pixdict = {}
     for fn in fns:
         hdr = fitsio.read_header(fn, "TARGETS")
         nside.append(hdr["FILENSID"])
-        pixlist.append(hdr["FILEHPX"])
+        pixels = hdr["FILEHPX"]
+        # ADM create a look-up dictionary of file-for-each-pixel.
+        for pix in pixels:
+            pixdict[pix] = fn
+        pixlist.append(pixels)
     nside = np.array(nside)
     # ADM as well as having just an array of all the pixels.
     pixlist = np.hstack(pixlist)
@@ -1165,6 +1172,28 @@ def check_hp_targets_dir(hpdirname):
         log.critical(msg)
         raise AssertionError(msg)
 
-    pixlist.sort()
+    return nside[0], pixdict
 
-    return nside[0], pixlist
+
+def targets_in_hp(hpdirname, nside, pixlist, columns=None):
+    """Read in targets in a set of HEALPixels.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory containing targets that have been 
+        split by HEALPixel.
+    nside : :class:`int`
+        The (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int` or `~numpy.ndarray`
+        Return targets in these HEALPixels at the passed `nside`.
+    columns : :class:`list`, optional
+        Only read in these target columns.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of targets in the passed pixels.
+    """
+    # ADM check, and grab information from, the target directory.
+    filenside, filedict = check_hp_targets_dir(hpdirname)

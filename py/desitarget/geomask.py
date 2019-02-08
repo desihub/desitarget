@@ -935,3 +935,72 @@ def pixarea2nside(area):
         return int(nside/2)
 
     return int(nside)
+
+
+def check_nside(nside):
+    """Flag an error if nside is not OK for NESTED HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int` or `~numpy.ndarray`
+        The HEALPixel nside number (NESTED scheme) or an
+        array of such numbers.
+
+    Returns
+    -------
+    Nothing, but raises a ValueRrror for a bad `nside`.
+    """
+    nside = np.atleast_1d(nside)
+    good = hp.isnsideok(nside, nest=True)
+    if not np.all(good):
+        msg = "NSIDE = {} not valid in the NESTED scheme"  \
+            .format(np.array(nside)[~good])
+        log.critical(msg)
+        raise ValueError(msg)
+
+
+def nside2nside(nside, nsidenew, pixlist):
+    """Change a list of HEALPixel numbers to a different NSIDE.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        The current HEALPixel nside number (NESTED scheme).
+    nsidenew : :class:`int`
+        The new HEALPixel nside number (NESTED scheme).
+    pixlist : :class:`list` or `~numpy.ndarray`
+        The list of HEALPixels to be changed.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The altered list of HEALPixels.
+    
+    Notes
+    -----
+        - The size of the input list will be altered. For instance, 
+          nside=2, pixlist=[0,1] is covered by only pixel [0] at 
+          nside=1 but by pixels [0, 1, 2, 3, 4, 5, 6, 7] at nside=4.
+        - Doesn't check that the passed pixels are valid at `nside`.
+    """
+    # ADM sanity check that we're in the nested scheme.
+    check_nside([nside, nsidenew])
+
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM remember to use integer division throughout.
+    # ADM if nsidenew is smaller (at a lower resolution), then
+    # ADM downgrade the passed pixel numbers.
+    if nsidenew <= nside:
+        fac = (nside//nsidenew)**2
+        pixlistnew = np.array(list(set(pixlist//fac)))
+    else:
+        # ADM if nsidenew is larger (at a higher resolution), then
+        # ADM upgrade the passed pixel numbers.
+        fac = (nsidenew//nside)**2
+        pixlistnew = []
+        for pix in pixlist:
+            pixlistnew.append(np.arange(pix*fac, pix*fac+fac))
+        pixlistnew = np.hstack(pixlistnew)
+
+    return pixlistnew
