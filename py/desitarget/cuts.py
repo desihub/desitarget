@@ -29,7 +29,7 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
-from desitarget.geomask import bundle_bricks, pixarea2nside
+from desitarget.geomask import bundle_bricks, pixarea2nside, check_nside
 from desitarget.geomask import box_area, hp_in_box, is_in_box
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
@@ -2230,7 +2230,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
-                   nside=2, pixlist=None, bundlefiles=None, filespersec=0.12,
+                   nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
                    radecbox=None, radecrad=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main'):
@@ -2256,13 +2256,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         in the sandbox directory.
     Method : :class:`str`, optional, defaults to `None`
         Method used in the sandbox.
-    nside : :class:`int`, optional, defaults to nside=2
+    nside : :class:`int`, optional, defaults to `None`
         The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlefiles` inputs.
     pixlist : :class:`list` or `int`, optional, defaults to `None`
-        Input files will only be processed if region  lies within the bounds of
-        pixels that are in this list of integers, at the supplied HEALPixel `nside`.
-        Uses the HEALPix NESTED scheme. Useful for parallelizing. If pixlist is None
-        then all bricks in the passed `survey` will be processed.
+        Only return targets in a set of (NESTED) HEALpixels at the supplied `nside`.
+        Also useful for parallelizing as input files will only be processed if they
+        touch a pixel in the passed list.
     bundlefiles : :class:`int`, defaults to `None`
         If not `None`, then instead of selecting the skies, print, to screen, the slurm
         script that will approximately balance the input file distribution at `bundlefiles`
@@ -2341,6 +2340,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # ADM if the pixlist or bundlefiles option was sent, we'll need to know
     # ADM which HEALPixels touch each file.
     if pixlist is not None or bundlefiles is not None:
+        # ADM sanity check that nside is OK.
+        check_nside(nside)
         # ADM a list of HEALPixels that touch each file.
         # ADM this will break for Tractor files!!!
         pixelsperfile = [io.decode_sweep_name(file, nside=nside) for file in infiles]
