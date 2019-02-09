@@ -1,4 +1,4 @@
-# Licensed under a 3-clause BSD style license - see LICENSE.rst
+B41;281;0c# Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
 ==========================
@@ -116,6 +116,7 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
 #    log.info('Full area covered by brick is {:.5f} sq. deg....t = {:.1f}s'
 #              .format(spharea,time()-start))
     ras = np.random.uniform(ramin, ramax, nrand)
+    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax, 1-sindecmin, nrand)))
 
     nrand = len(ras)
@@ -180,6 +181,7 @@ def randoms_in_a_brick_from_name(brickname, density=100000,
     # log.info('Full area covered by brick {} is {:.5f} sq. deg....t = {:.1f}s'
     #          .format(brickname,spharea,time()-start))
     ras = np.random.uniform(ramin, ramax, nrand)
+    sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
     decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax, 1-sindecmin, nrand)))
 
     nrand = len(ras)
