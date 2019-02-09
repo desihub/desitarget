@@ -459,8 +459,8 @@ def box_area(radecbox):
     Parameters
     ----------
     radecbox :class:`list`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
-        of a box in RA/Dec (degrees).
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
+        edges of a box in RA/Dec (degrees).
 
     Returns
     -------
@@ -766,8 +766,8 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     nside : :class:`int`
         (NESTED) HEALPixel nside.
     radecbox :class:`list`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
-        of a box in RA/Dec (degrees).
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
+        edges of a box in RA/Dec (degrees).
     inclusive : :class:`bool`, optional, defaults to ``True``
         see documentation for `healpy.query_polygon()`.
     fact : :class:`int`, optional defaults to 4
@@ -808,8 +808,8 @@ def is_in_box(objs, radecbox):
     objs : :class:`~numpy.ndarray`
         An array of objects. Must include at least the columns "RA" and "DEC".
     radecbox :class:`list`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
-        of a box in RA/Dec (degrees).
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
+        edges of a box in RA/Dec (degrees).
 
     Returns
     -------
@@ -901,6 +901,32 @@ def is_in_cap(objs, radecrad):
     center = SkyCoord(ra*u.degree, dec*u.degree)
 
     ii = center.separation(cobjs) <= radius*u.degree
+
+    return ii
+
+
+def is_in_hp(objs, nside, pixlist):
+    """Determine which of an array of objects lie inside a set of HEALPixels.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        An array of objects. Must include at least the columns "RA" and "DEC".
+    nside : :class:`int`
+        The HEALPixel nside number (NESTED scheme).
+    pixlist : :class:`list` or `~numpy.ndarray`
+        The list of HEALPixels in which to find objects.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        ``True`` for objects in pixlist, ``False`` for objects outside of pixlist.
+    """
+    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+    pixnums = hp.ang2pix(nside, theta, phi, nest=True)
+    w = np.hstack([np.where(pixnums == pix)[0] for pix in pixlist])
+    ii = np.zeros(len(pixnums), dtype='bool')
+    ii[w] = True
 
     return ii
 

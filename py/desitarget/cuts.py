@@ -30,7 +30,7 @@ from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
 from desitarget.geomask import bundle_bricks, pixarea2nside, check_nside
-from desitarget.geomask import box_area, hp_in_box, is_in_box
+from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
 # ADM set up the DESI default logger
@@ -2273,7 +2273,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
         to estimate time to completion when parallelizing across pixels.
     radecbox :class:`list`, defaults to `None`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the vertices
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
         of a box in RA/Dec (degrees). Only targets in this box region will be processed.
     radecrad :class:`list`, defaults to `None`
         3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
@@ -2340,6 +2340,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # ADM if the pixlist or bundlefiles option was sent, we'll need to know
     # ADM which HEALPixels touch each file.
     if pixlist is not None or bundlefiles is not None:
+        # ADM work with pixlist as an array.
+        pixlist = np.atleast_1d(pixlist)
         # ADM sanity check that nside is OK.
         check_nside(nside)
         # ADM a list of HEALPixels that touch each file.
@@ -2370,9 +2372,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:
-        # ADM if an integer was passed, turn it into a list.
-        if isinstance(pixlist, int):
-            pixlist = [pixlist]
         infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
         if len(infiles) == 0:
             log.warning('ZERO files in passed pixel list!!!')
@@ -2463,10 +2462,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     # ADM restrict to only targets in a set of HEALPixels, if requested.
     if pixlist is not None:
-        theta, phi = np.radians(90-targets["DEC"]), np.radians(targets["RA"])
-        pixnums = hp.ang2pix(nside, theta, phi, nest=True)
-        w = np.hstack([np.where(pixnums == pix)[0] for pix in pixlist])
-        targets = targets[w]
+        ii = is_in_hp(targets, nside, pixlist)
+        targets = targets[ii]
 
     # ADM restrict to only targets in an RA, Dec box, if requested.
     if radecbox is not None:
