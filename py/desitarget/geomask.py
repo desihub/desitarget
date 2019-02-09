@@ -1001,11 +1001,11 @@ def nside2nside(nside, nsidenew, pixlist):
     -------
     :class:`~numpy.ndarray`
         The altered list of HEALPixels.
-    
+
     Notes
     -----
-        - The size of the input list will be altered. For instance, 
-          nside=2, pixlist=[0,1] is covered by only pixel [0] at 
+        - The size of the input list will be altered. For instance,
+          nside=2, pixlist=[0,1] is covered by only pixel [0] at
           nside=1 but by pixels [0, 1, 2, 3, 4, 5, 6, 7] at nside=4.
         - Doesn't check that the passed pixels are valid at `nside`.
     """

@@ -17,6 +17,7 @@ from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
 from desitarget.geomask import hp_in_box, pixarea2nside, box_area
 
+
 class TestCuts(unittest.TestCase):
 
     @classmethod
@@ -324,7 +325,7 @@ class TestCuts(unittest.TestCase):
         targets = cuts.select_targets(infiles, numproc=1, tcnames=tc)
 
         # ADM test the RA/Dec box input.
-        radecbox = [np.min(targets["RA"])-0.01, np.max(targets["RA"])+0.01, 
+        radecbox = [np.min(targets["RA"])-0.01, np.max(targets["RA"])+0.01,
                     np.min(targets["DEC"])-0.01, np.max(targets["DEC"]+0.01)]
         t1 = cuts.select_targets(infiles, numproc=1, tcnames=tc, radecbox=radecbox)
 
@@ -338,7 +339,7 @@ class TestCuts(unittest.TestCase):
         # ADM test the pixel input.
         nside = pixarea2nside(box_area(radecbox))
         pixlist = hp_in_box(nside, radecbox)
-        t3 = cuts.select_targets(infiles, numproc=1, tcnames=tc, 
+        t3 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  nside=nside, pixlist=pixlist)
 
         # ADM sort each set of targets on TARGETID to compare them.
@@ -357,9 +358,9 @@ class TestCuts(unittest.TestCase):
         """Test the code fails if more than one spatial input is passed
         """
         # ADM set up some fake inputs.
-        pixlist = [0,1]
-        radecbox = [2,3,4,5]
-        radecrad = [6,7,8]
+        pixlist = [0, 1]
+        radecbox = [2, 3, 4, 5]
+        radecrad = [6, 7, 8]
         # ADM we should throw an error every time we pass 2 inputs that aren't NoneType.
         timesthrown = 0
         for i in range(3):
@@ -372,6 +373,7 @@ class TestCuts(unittest.TestCase):
                 timesthrown += 1
 
         self.assertEqual(timesthrown, 3)
+
 
 if __name__ == '__main__':
     unittest.main()
