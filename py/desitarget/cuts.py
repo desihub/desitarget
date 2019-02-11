@@ -1811,7 +1811,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
-
+    
     # ADM set the BGS bits
     if "BGS" in tcnames:
         bgs_classes = []
@@ -2268,14 +2268,14 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         files per node. So, for instance, if `bundlefiles` is 100 then commands would be
         returned with the correct `pixlist` values set to pass to the code to pack at
         about 100 files per node across all of the passed `infiles`.
-    filespersec : :class:`float`, optional, defaults to 1.
+    filespersec : :class:`float`, optional, defaults to 1
         The rough number of files processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
         to estimate time to completion when parallelizing across pixels.
-    radecbox :class:`list`, defaults to `None`
+    radecbox : :class:`list`, defaults to `None`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
         of a box in RA/Dec (degrees). Only targets in this box region will be processed.
-    radecrad :class:`list`, defaults to `None`
+    radecrad : :class:`list`, defaults to `None`
         3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
         RA/Dec/radius in degrees. Only targets in this circle region will be processed.
     tcnames : :class:`list`, defaults to running all target classes

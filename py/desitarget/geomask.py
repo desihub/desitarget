@@ -458,7 +458,7 @@ def box_area(radecbox):
 
     Parameters
     ----------
-    radecbox :class:`list`
+    radecbox : :class:`list`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
         edges of a box in RA/Dec (degrees).
 
@@ -765,7 +765,7 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     ----------
     nside : :class:`int`
         (NESTED) HEALPixel nside.
-    radecbox :class:`list`
+    radecbox : :class:`list`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
         edges of a box in RA/Dec (degrees).
     inclusive : :class:`bool`, optional, defaults to ``True``
@@ -807,7 +807,7 @@ def is_in_box(objs, radecbox):
     ----------
     objs : :class:`~numpy.ndarray`
         An array of objects. Must include at least the columns "RA" and "DEC".
-    radecbox :class:`list`
+    radecbox : :class:`list`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
         edges of a box in RA/Dec (degrees).
 
@@ -841,7 +841,7 @@ def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
     ----------
     nside : :class:`int`
         (NESTED) HEALPixel nside.
-    radecrad :class:`list`, defaults to `None`
+    radecrad : :class:`list`, defaults to `None`
         3-entry list of coordinates [ra, dec, radius] forming a cap or
         "circle" on the sky. ra, dec and radius are all in degrees.
     inclusive : :class:`bool`, optional, defaults to ``True``
@@ -881,7 +881,7 @@ def is_in_cap(objs, radecrad):
     ----------
     objs : :class:`~numpy.ndarray`
         An array of objects. Must include at least the columns "RA" and "DEC".
-    radecrad :class:`list`, defaults to `None`
+    radecrad : :class:`list`, defaults to `None`
         3-entry list of coordinates [ra, dec, radius] forming a cap or
         "circle" on the sky. ra, dec and radius are all in degrees.
 
