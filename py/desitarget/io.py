@@ -1199,10 +1199,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
+    columnscopy = None
     if columns is not None:
+        # ADM make a copy of columns, as it's a kwarg we'll modify.
+        columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
-            if radec not in columns:
-                columns.append(radec)
+            if radec not in columnscopy:
+                columnscopy.append(radec)
                 addedcols.append(radec)
 
     # ADM check, and grab information from, the target directory.
@@ -1219,7 +1222,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
     # ADM read in the files and concatenate the resulting targets.
     targets = []
     for pix in filepixlist:
-        targets.append(fitsio.read(filedict[pix], columns=columns))
+        targets.append(fitsio.read(filedict[pix], 
+                                   columns=columnscopy))
     targets = np.concatenate(targets)
 
     # ADM restrict the targets to the actual requested HEALPixels...
@@ -1251,10 +1255,13 @@ def read_targets_in_box(hpdirname, radecbox, columns=None):
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
+    columnscopy = None
     if columns is not None:
+        # ADM make a copy of columns, as it's a kwarg we'll modify.
+        columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
-            if radec not in columns:
-                columns.append(radec)
+            if radec not in columnscopy:
+                columnscopy.append(radec)
                 addedcols.append(radec)
 
     # ADM approximate nside for area of passed box.
@@ -1264,7 +1271,8 @@ def read_targets_in_box(hpdirname, radecbox, columns=None):
     pixlist = hp_in_box(nside, radecbox)
 
     # ADM read in targets in these HEALPixels.
-    targets = read_targets_in_hp(hpdirname, nside, pixlist, columns=columns)
+    targets = read_targets_in_hp(hpdirname, nside, pixlist, 
+                                 columns=columnscopy)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
@@ -1295,10 +1303,13 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
+    columnscopy = None
     if columns is not None:
+        # ADM make a copy of columns, as it's a kwarg we'll modify.
+        columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
-            if radec not in columns:
-                columns.append(radec)
+            if radec not in columnscopy:
+                columnscopy.append(radec)
                 addedcols.append(radec)
 
     # ADM approximate nside for area of passed cap.
@@ -1309,7 +1320,8 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
 
     # FIXME: factor of 2 speed-up if we don't read the file twice.
     # ADM read in targets in these HEALPixels.
-    targets = read_targets_in_hp(hpdirname, nside, pixlist, columns=columns)
+    targets = read_targets_in_hp(hpdirname, nside, pixlist, 
+                                 columns=columnscopy)
 
     # ADM restrict only to targets in the requested cap...
     ii = is_in_cap(targets, radecrad)
