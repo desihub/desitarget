@@ -1222,7 +1222,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
     # ADM read in the files and concatenate the resulting targets.
     targets = []
     for pix in filepixlist:
-        targets.append(fitsio.read(filedict[pix], 
+        targets.append(fitsio.read(filedict[pix],
                                    columns=columnscopy))
     targets = np.concatenate(targets)
 
@@ -1242,7 +1242,7 @@ def read_targets_in_box(hpdirname, radecbox, columns=None):
     hpdirname : :class:`str`
         Full path to a directory containing targets THAT HAVE
         BEEN PARTITIONED BY HEALPIXEL.
-    radecbox :class:`list`
+    radecbox : :class:`list`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
         of a box in RA/Dec (degrees).
     columns : :class:`list`, optional
@@ -1271,7 +1271,7 @@ def read_targets_in_box(hpdirname, radecbox, columns=None):
     pixlist = hp_in_box(nside, radecbox)
 
     # ADM read in targets in these HEALPixels.
-    targets = read_targets_in_hp(hpdirname, nside, pixlist, 
+    targets = read_targets_in_hp(hpdirname, nside, pixlist,
                                  columns=columnscopy)
 
     # ADM restrict only to targets in the requested RA/Dec box...
@@ -1290,7 +1290,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     hpdirname : :class:`str`
         Full path to a directory containing targets THAT HAVE
         BEEN PARTITIONED BY HEALPIXEL.
-    radecrad :class:`list`
+    radecrad : :class:`list`
         3-entry list of coordinates [ra, dec, radius] forming a cap or
         "circle" on the sky. ra, dec and radius are all in degrees.
     columns : :class:`list`, optional
@@ -1320,7 +1320,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
 
     # FIXME: factor of 2 speed-up if we don't read the file twice.
     # ADM read in targets in these HEALPixels.
-    targets = read_targets_in_hp(hpdirname, nside, pixlist, 
+    targets = read_targets_in_hp(hpdirname, nside, pixlist,
                                  columns=columnscopy)
 
     # ADM restrict only to targets in the requested cap...
