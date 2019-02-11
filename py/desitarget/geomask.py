@@ -976,6 +976,10 @@ def check_nside(nside):
     -------
     Nothing, but raises a ValueRrror for a bad `nside`.
     """
+    if nside is None:
+        msg = "need to pass the NSIDE parameter?"
+        log.critical(msg)
+        raise ValueError(msg)
     nside = np.atleast_1d(nside)
     good = hp.isnsideok(nside, nest=True)
     if not np.all(good):
