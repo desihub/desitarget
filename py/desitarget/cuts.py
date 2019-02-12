@@ -1811,7 +1811,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM combine quasar target bits for a quasar target based on any imaging
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
-    
+
     # ADM set the BGS bits
     if "BGS" in tcnames:
         bgs_classes = []
