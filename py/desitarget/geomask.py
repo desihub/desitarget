@@ -975,7 +975,7 @@ def pixarea2nside(area):
     while (hp.nside2pixarea(nside, degrees=True) > area):
         nside *= 2
 
-    # ADM there is no nside of 0 so bail is nside is still 1.
+    # ADM there is no nside of 0 so bail if nside is still 1.
     if nside > 1:
         # ADM is the nside with the area that is smaller or larger
         # ADM than the passed area "closest" to the passed area?
