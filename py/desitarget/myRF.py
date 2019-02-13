@@ -70,7 +70,7 @@ class myRF(object):
         leftCond = (self.data[indices, feature] <= threshold)
         leftChildIndices = indices[leftCond]
 #        rightCond = (self.data[indices,feature] > threshold)
-        rightChildIndices = indices[leftCond is False]
+        rightChildIndices = indices[~leftCond]
 
         self.searchNodes(leftChildIndices, nodeId=leftChildId)
         self.searchNodes(rightChildIndices, nodeId=rightChildId)
