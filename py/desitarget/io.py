@@ -1183,8 +1183,10 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to a directory containing targets THAT HAVE
-        BEEN PARTITIONED BY HEALPIXEL.
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
     nside : :class:`int`
         The (NESTED) HEALPixel nside.
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
@@ -1208,23 +1210,29 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
                 columnscopy.append(radec)
                 addedcols.append(radec)
 
-    # ADM check, and grab information from, the target directory.
-    filenside, filedict = check_hp_target_dir(hpdirname)
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM check, and grab information from, the target directory.
+        filenside, filedict = check_hp_target_dir(hpdirname)
 
-    # ADM change the passed pixels to the nside of the file schema.
-    filepixlist = nside2nside(nside, filenside, pixlist)
+        # ADM change the passed pixels to the nside of the file schema.
+        filepixlist = nside2nside(nside, filenside, pixlist)
 
-    # ADM only consider pixels for which we have a file.
-    isindict = [pix in filedict for pix in filepixlist]
-    filepixlist = filepixlist[isindict]
+        # ADM only consider pixels for which we have a file.
+        isindict = [pix in filedict for pix in filepixlist]
+        filepixlist = filepixlist[isindict]
 
-    # FIXME: factor of 2 speed-up if we don't read the file twice.
-    # ADM read in the files and concatenate the resulting targets.
-    targets = []
-    for pix in filepixlist:
-        targets.append(fitsio.read(filedict[pix],
-                                   columns=columnscopy))
-    targets = np.concatenate(targets)
+        # ADM make sure each file is only read once.
+        infiles = set([filedict[pix] for pix in filepixlist])
+
+        # ADM read in the files and concatenate the resulting targets.
+        targets = []
+        for infile in infiles:
+            targets.append(fitsio.read(infile, columns=columnscopy))
+        targets = np.concatenate(targets)
+    # ADM ...otherwise just read in the targets.
+    else:
+        targets = fitsio.read(hpdirname, columns=columnscopy)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
@@ -1234,17 +1242,20 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
     return targets
 
 
-def read_targets_in_box(hpdirname, radecbox, columns=None):
+def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
+                        columns=None):
     """Read in targets in an RA/Dec box.
 
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to a directory containing targets THAT HAVE
-        BEEN PARTITIONED BY HEALPIXEL.
-    radecbox : :class:`list`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
-        of a box in RA/Dec (degrees).
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    radecbox : :class:`list`, defaults to the entire sky
+        4-entry list of coordinates [ramin, ramax, decmin, decmax]
+        forming the edges of a box in RA/Dec (degrees).
     columns : :class:`list`, optional
         Only read in these target columns.
 
@@ -1264,15 +1275,20 @@ def read_targets_in_box(hpdirname, radecbox, columns=None):
                 columnscopy.append(radec)
                 addedcols.append(radec)
 
-    # ADM approximate nside for area of passed box.
-    nside = pixarea2nside(box_area(radecbox))
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM approximate nside for area of passed box.
+        nside = pixarea2nside(box_area(radecbox))
 
-    # ADM HEALPixels that touch the box for that nside.
-    pixlist = hp_in_box(nside, radecbox)
+        # ADM HEALPixels that touch the box for that nside.
+        pixlist = hp_in_box(nside, radecbox)
 
-    # ADM read in targets in these HEALPixels.
-    targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                 columns=columnscopy)
+        # ADM read in targets in these HEALPixels.
+        targets = read_targets_in_hp(hpdirname, nside, pixlist,
+                                     columns=columnscopy)
+    # ADM ...otherwise just read in the targets.
+    else:
+        targets = fitsio.read(hpdirname, columns=columnscopy)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
@@ -1288,8 +1304,10 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to a directory containing targets THAT HAVE
-        BEEN PARTITIONED BY HEALPIXEL.
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
     radecrad : :class:`list`
         3-entry list of coordinates [ra, dec, radius] forming a cap or
         "circle" on the sky. ra, dec and radius are all in degrees.
@@ -1312,16 +1330,20 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
                 columnscopy.append(radec)
                 addedcols.append(radec)
 
-    # ADM approximate nside for area of passed cap.
-    nside = pixarea2nside(cap_area(np.array(radecrad[2])))
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM approximate nside for area of passed cap.
+        nside = pixarea2nside(cap_area(np.array(radecrad[2])))
 
-    # ADM HEALPixels that touch the cap for that nside.
-    pixlist = hp_in_cap(nside, radecrad)
+        # ADM HEALPixels that touch the cap for that nside.
+        pixlist = hp_in_cap(nside, radecrad)
 
-    # FIXME: factor of 2 speed-up if we don't read the file twice.
-    # ADM read in targets in these HEALPixels.
-    targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                 columns=columnscopy)
+        # ADM read in targets in these HEALPixels.
+        targets = read_targets_in_hp(hpdirname, nside, pixlist,
+                                     columns=columnscopy)
+    # ADM ...otherwise just read in the targets.
+    else:
+        targets = fitsio.read(hpdirname, columns=columnscopy)
 
     # ADM restrict only to targets in the requested cap...
     ii = is_in_cap(targets, radecrad)

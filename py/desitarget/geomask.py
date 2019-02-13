@@ -781,8 +781,30 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     Notes
     -----
         - Just syntactic sugar around `healpy.query_polygon()`.
+        - If -90o or 90o are passed, then decmin and decmax are moved slightly away
+          from the poles.
+        - When the RA range exceeds 180o, `healpy.query_polygon()` defines the box as
+          that with the smallest area (i.e the box can wrap-around in RA). To avoid
+          any ambiguity, this function will return ALL HEALPixels in such cases.
     """
     ramin, ramax, decmin, decmax = radecbox
+
+    # ADM handle some edge cases. Don't be too close to the poles.
+    leeway = 1e-5
+    if decmax > 90-leeway:
+        decmax = 90-leeway
+        log.warning('Max Dec too close to pole; set to {}o'.format(decmax))
+    if decmin < -90+leeway:
+        decmin = -90+leeway
+        log.warning('Min Dec too close to pole; set to {}o'.format(decmin))
+
+    # ADM area enclosed isn't well-defined if RA covers more than 180o.
+    if np.abs(ramax-ramin) > 180.:
+        log.warning('Max RA ({}) and Min RA ({}) separated by > 180o...'
+                    .format(ramax, ramin))
+        log.warning('...returning full set of HEALPixels at nside={}'
+                    .format(nside))
+        return np.arange(hp.nside2npix(nside))
 
     # ADM convert RA/Dec to co-latitude and longitude in radians.
     rapairs = np.array([ramin, ramin, ramax, ramax])
@@ -953,14 +975,16 @@ def pixarea2nside(area):
     while (hp.nside2pixarea(nside, degrees=True) > area):
         nside *= 2
 
-    # ADM is the nside with the area that is smaller or larger
-    # ADM than the passed area "closest" to the passed area?
-    smaller = hp.nside2pixarea(nside, degrees=True)
-    larger = hp.nside2pixarea(nside/2, degrees=True)
-    if larger/area < area/smaller:
-        return int(nside/2)
+    # ADM there is no nside of 0 so bail is nside is still 1.
+    if nside > 1:
+        # ADM is the nside with the area that is smaller or larger
+        # ADM than the passed area "closest" to the passed area?
+        smaller = hp.nside2pixarea(nside, degrees=True)
+        larger = hp.nside2pixarea(nside//2, degrees=True)
+        if larger/area < area/smaller:
+            return nside//2
 
-    return int(nside)
+    return nside
 
 
 def check_nside(nside):
