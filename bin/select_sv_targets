@@ -39,6 +39,24 @@ ap.add_argument('-t','--tcnames', default=None,
                 help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
 ap.add_argument('-i','--iteration', default="1", 
                 help="Iteration of SV target selection to run [defaults to 1 for 'sv1']")
+ap.add_argument('--nside', type=int,
+                help="Process targets in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
+                default=None)
+ap.add_argument('--healpixels',
+                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
+                default=None)
+ap.add_argument("--bundlefiles", type=int,
+                help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
+                default=None)
+ap.add_argument("--filespersec", type=float,
+                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.08)",
+                default=0.08)
+ap.add_argument('--radecbox',
+                help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
+                default=None)
+ap.add_argument('--radecrad',
+                help="Only return targets in an RA/Dec circle/cap denoted by 'centerRA,centerDec,radius' in degrees (e.g. '140,150,0.5')",
+                default=None)
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -58,7 +76,7 @@ if ~isinstance(infiles, str):
     fn = infiles[0]
 data = fitsio.read(fn, columns=["RELEASE","PMRA"])
 if np.any(data["RELEASE"] < 6000):
-    log.critical('Commissioning cuts only coded for DR6 or above')
+    log.critical('SV cuts only coded for DR6 or above')
     raise ValueError
 if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
     d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
@@ -69,16 +87,33 @@ if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
     )
     raise IOError
 
-log.info("running on {} processors".format(ns.numproc))
+if ns.bundlefiles is None:
+    log.info("running on {} processors".format(ns.numproc))
 
-#ADM if specific bit names were passed, use them, otherwise run all target classes
+# ADM parse the list of HEALPixels in which to run.
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
+
+# ADM parse the list of RA/Dec regions in which to run.
+inlists = [ns.radecbox, ns.radecrad]
+for i, inlist in enumerate(inlists):
+    if inlist is not None:
+        inlists[i] = [ float(num) for num in inlist.split(',') ]
+
+# ADM if specific bit names were passed, use them, otherwise run all target classes
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
-targets = select_targets(infiles, numproc=ns.numproc, tcnames=tcnames, survey=survey)
+targets = select_targets(infiles, numproc=ns.numproc, 
+                         nside=ns.nside, pixlist=pixlist,
+                         bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
+                         radecbox=inlists[0], radecrad=inlists[1],
+                         tcnames=tcnames, survey=survey)
 if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-io.write_targets(ns.dest, targets, indir=ns.src, survey=survey,
-                 qso_selection=survey, nside=nside)
-
-log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
+if ns.bundlefiles is None:
+    io.write_targets(ns.dest, targets, indir=ns.src, survey=survey,
+                     nsidefile=ns.nside, hpxlist=pixlist,
+                     qso_selection=survey, nside=nside)
+    log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
