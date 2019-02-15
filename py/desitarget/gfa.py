@@ -10,7 +10,7 @@ import numpy as np
 import os.path
 import glob
 import os
-
+import healpy as hp
 import desimodel.focalplane
 import desimodel.io
 
@@ -354,7 +354,7 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
 
 
 def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
-    """Create a set of GFA locations using Gaia
+    """Create a set of GFA locations using Gaia.
 
     Parameters
     ----------
@@ -378,7 +378,6 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     -----
         - if numproc==1, use the serial code instead of the parallel code.
     """
-
     # ADM convert a single file, if passed to a list of files
     if isinstance(infiles, str):
         infiles = [infiles, ]
@@ -395,7 +394,6 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
         # ADM we need to pass the boundaries of the sweeps file, too
         bounds = desitarget.io.decode_sweep_name(fn)
-
         return gaia_gfas_from_sweep(
             fn, maglim=maglim, gaiamatch=gaiamatch, gaiabounds=bounds
         )
