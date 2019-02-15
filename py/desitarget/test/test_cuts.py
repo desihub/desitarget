@@ -15,6 +15,7 @@ import numpy as np
 
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
+from desitarget.geomask import hp_in_box, pixarea2nside, box_area
 
 
 class TestCuts(unittest.TestCase):
@@ -220,7 +221,7 @@ class TestCuts(unittest.TestCase):
     def test_select_targets(self):
         """Test select targets works with either data or filenames
         """
-        # ADM only test the ELG cuts for speed. There's a
+        # ADM only test the LRG cuts for speed. There's a
         # ADM full run through all classes in test_cuts_basic.
         tc = ["LRG"]
 
@@ -312,6 +313,66 @@ class TestCuts(unittest.TestCase):
                 bgs1 = (targets['DESI_TARGET'] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets['BGS_TARGET'] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
+
+    def test_targets_spatial(self):
+        """Test applying RA/Dec/HEALpixel inputs to sweeps recovers same targets
+        """
+        # ADM only test some of the galaxy cuts for speed. There's a
+        # ADM full run through all classes in test_cuts_basic.
+        tc = ["LRG", "ELG", "BGS"]
+        infiles = self.sweepfiles[2]
+
+        targets = cuts.select_targets(infiles, numproc=1, tcnames=tc)
+
+        # ADM test the RA/Dec box input.
+        radecbox = [np.min(targets["RA"])-0.01, np.max(targets["RA"])+0.01,
+                    np.min(targets["DEC"])-0.01, np.max(targets["DEC"]+0.01)]
+        t1 = cuts.select_targets(infiles, numproc=1, tcnames=tc, radecbox=radecbox)
+
+        # ADM test the RA/Dec/radius cap input.
+        centra, centdec = 0.5*(radecbox[0]+radecbox[1]), 0.5*(radecbox[2]+radecbox[3])
+        # ADM 20 degrees should be a large enough radius for the sweeps.
+        maxrad = 20.
+        radecrad = centra, centdec, maxrad
+        t2 = cuts.select_targets(infiles, numproc=1, tcnames=tc, radecrad=radecrad)
+
+        # ADM test the pixel input.
+        nside = pixarea2nside(box_area(radecbox))
+        pixlist = hp_in_box(nside, radecbox)
+        t3 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
+                                 nside=nside, pixlist=pixlist)
+
+        # ADM sort each set of targets on TARGETID to compare them.
+        targets = targets[np.argsort(targets["TARGETID"])]
+        t1 = t1[np.argsort(t1["TARGETID"])]
+        t2 = t2[np.argsort(t2["TARGETID"])]
+        t3 = t3[np.argsort(t3["TARGETID"])]
+
+        # ADM test the same targets were recovered and that
+        # ADM each recovered target has the same bits set.
+        for targs in t1, t2, t3:
+            for col in "TARGETID", "DESI_TARGET", "BGS_TARGET", "MWS_TARGET":
+                self.assertTrue(np.all(targs[col] == targets[col]))
+
+    def test_targets_spatial_inputs(self):
+        """Test the code fails if more than one spatial input is passed
+        """
+        # ADM set up some fake inputs.
+        pixlist = [0, 1]
+        radecbox = [2, 3, 4, 5]
+        radecrad = [6, 7, 8]
+        # ADM we should throw an error every time we pass 2 inputs that aren't NoneType.
+        timesthrown = 0
+        for i in range(3):
+            inputs = [pixlist, radecbox, radecrad]
+            inputs[i] = None
+            try:
+                cuts.select_targets(self.sweepfiles, numproc=1,
+                                    pixlist=inputs[0], radecbox=inputs[1], radecrad=inputs[2])
+            except ValueError:
+                timesthrown += 1
+
+        self.assertEqual(timesthrown, 3)
 
 
 if __name__ == '__main__':

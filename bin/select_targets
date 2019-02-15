@@ -19,6 +19,7 @@ start = time()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+# ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
 nside = io.desitarget_nside()
 
 from desiutil.log import get_logger
@@ -26,21 +27,21 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates DESI target bits from Legacy Surveys sweeps or tractor files')
-ap.add_argument("src", 
+ap.add_argument("src",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
-ap.add_argument("dest", 
+ap.add_argument("dest",
                 help="Output target selection file")
 ap.add_argument('-c', "--check", action='store_true',
                 help="Process tractor/sweeps files to check for corruption, without running full target selection")
-ap.add_argument('-m', "--mask", 
+ap.add_argument('-m', "--mask",
                 help="If sent then mask the targets, the name of the mask file should be supplied")
 ap.add_argument("--sandbox", action='store_true',
                 help="Apply the sandbox target selection algorithms")
 ap.add_argument("--FoMthresh", type=float,
                 help='XD Figure of Merit Threshold for an ELG (sandbox)')
-ap.add_argument('--qsoselection',choices=qso_selection_options,default='randomforest',
+ap.add_argument('--qsoselection', choices=qso_selection_options, default='randomforest',
                 help="QSO target selection method")
-ap.add_argument('--Method',choices=Method_sandbox_options,default='XD',
+ap.add_argument('--Method' ,choices=Method_sandbox_options, default='XD',
                 help="Method used in sandbox target for ELG")
 ### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
 ap.add_argument("--gaiamatch", action='store_true',
@@ -48,8 +49,26 @@ ap.add_argument("--gaiamatch", action='store_true',
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
-ap.add_argument('-t','--tcnames', default=None, 
+ap.add_argument('-t','--tcnames', default=None,
                 help="Comma-separated names of target classes to run (e.g. QSO,LRG). Options are ELG, QSO, LRG, MWS, BGS, STD. Default is to run everything)")
+ap.add_argument('--nside', type=int,
+                help="Process targets in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
+                default=None)
+ap.add_argument('--healpixels',
+                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
+                default=None)
+ap.add_argument("--bundlefiles", type=int,
+                help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
+                default=None)
+ap.add_argument("--filespersec", type=float,
+                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.12)",
+                default=0.12)
+ap.add_argument('--radecbox',
+                help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
+                default=None)
+ap.add_argument('--radecrad',
+                help="Only return targets in an RA/Dec circle/cap denoted by 'centerRA,centerDec,radius' in degrees (e.g. '140,150,0.5')",
+                default=None)
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -59,9 +78,21 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-log.info("running on {} processors".format(ns.numproc))
+if ns.bundlefiles is None:
+    log.info("running on {} processors".format(ns.numproc))
 
-#ADM if specific bit names were passed, use them, otherwise run all target classes
+# ADM parse the list of HEALPixels in which to run.
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [ int(pix) for pix in pixlist.split(',') ]
+
+# ADM parse the list of RA/Dec regions in which to run.
+inlists = [ns.radecbox, ns.radecrad]
+for i, inlist in enumerate(inlists):
+    if inlist is not None:
+        inlists[i] = [ float(num) for num in inlist.split(',') ]
+
+# ADM if specific bit names were passed, use them, otherwise run all target classes.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 if ns.check:
@@ -72,12 +103,15 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
+                             nside=ns.nside, pixlist=pixlist,
+                             bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
+                             radecbox=inlists[0], radecrad=inlists[1],
                              tcnames=tcnames, survey='main')
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-    io.write_targets(ns.dest, targets, indir=ns.src, survey="main",
-                     qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
-
-    log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
-
+    if ns.bundlefiles is None:
+        io.write_targets(ns.dest, targets,
+                         indir=ns.src, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+                         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
+        log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))

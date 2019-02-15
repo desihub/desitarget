@@ -19,6 +19,7 @@ import numbers
 import sys
 
 import numpy as np
+import healpy as hp
 from pkg_resources import resource_filename
 
 from astropy.table import Table, Row
@@ -28,6 +29,9 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize
+from desitarget.geomask import bundle_bricks, pixarea2nside, check_nside
+from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
+from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -1229,7 +1233,7 @@ def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
 
     # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "numpy.ndarray"
+    # Return "numpy.bool_" instead of "~numpy.ndarray"
     if nbEntries == 1:
         qso = qso[0]
 
@@ -1336,7 +1340,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
 
     # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "numpy.ndarray"
+    # Return "numpy.bool_" instead of "~numpy.ndarray"
     if nbEntries == 1:
         qso = qso[0]
 
@@ -2226,6 +2230,8 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
+                   nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
+                   radecbox=None, radecrad=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main'):
     """Process input files in parallel to select targets.
@@ -2250,6 +2256,28 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         in the sandbox directory.
     Method : :class:`str`, optional, defaults to `None`
         Method used in the sandbox.
+    nside : :class:`int`, optional, defaults to `None`
+        The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlefiles` inputs.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at the supplied `nside`.
+        Also useful for parallelizing as input files will only be processed if they
+        touch a pixel in the passed list.
+    bundlefiles : :class:`int`, defaults to `None`
+        If not `None`, then instead of selecting the skies, print, to screen, the slurm
+        script that will approximately balance the input file distribution at `bundlefiles`
+        files per node. So, for instance, if `bundlefiles` is 100 then commands would be
+        returned with the correct `pixlist` values set to pass to the code to pack at
+        about 100 files per node across all of the passed `infiles`.
+    filespersec : :class:`float`, optional, defaults to 1
+        The rough number of files processed per second by the code (parallelized across
+        a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
+        to estimate time to completion when parallelizing across pixels.
+    radecbox : :class:`list`, defaults to `None`
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
+        of a box in RA/Dec (degrees). Only targets in this box region will be processed.
+    radecrad : :class:`list`, defaults to `None`
+        3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
+        RA/Dec/radius in degrees. Only targets in this circle region will be processed.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
@@ -2269,22 +2297,90 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     Notes
     -----
         - if numproc==1, use serial code instead of parallel.
+        - only one of pixlist, radecbox, radecrad should be passed. They are all
+          intended to denote regions on the sky, using different formalisms.
     """
     from desiutil.log import get_logger
     log = get_logger()
 
     log.info("Running on the {} survey".format(survey))
 
-    # - Convert single file to list of files
+    # - Convert single file to list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
 
-    # - Sanity check that files exist before going further
+    # - Sanity check that files exist before going further.
     for filename in infiles:
         if not os.path.exists(filename):
             msg = "{} doesn't exist".format(filename)
             log.critical(msg)
             raise ValueError(msg)
+
+    # ADM check that only one of pixlist, radecrad, radecbox was sent.
+    inputs = [ins for ins in (pixlist, radecbox, radecrad) if ins is not None]
+    if len(inputs) > 1:
+        msg = "Only one of pixist, radecbox or radecrad can be passed"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM if radecbox was sent, determine which pixels touch the box.
+    if radecbox is not None:
+        nside = pixarea2nside(box_area(radecbox))
+        pixlist = hp_in_box(nside, radecbox)
+        log.info("Run targets in box bounded by [RAmin, RAmax, Decmin, Decmax]={}"
+                 .format(radecbox))
+
+    # ADM if radecrad was sent, determine which pixels touch the box.
+    if radecrad is not None:
+        nside = pixarea2nside(cap_area(np.array(radecrad[2])))
+        pixlist = hp_in_cap(nside, radecrad)
+        log.info("Run targets in cap bounded by [centerRA, centerDec, radius]={}"
+                 .format(radecrad))
+
+    # ADM if the pixlist or bundlefiles option was sent, we'll need to know
+    # ADM which HEALPixels touch each file.
+    if pixlist is not None or bundlefiles is not None:
+        # ADM work with pixlist as an array.
+        pixlist = np.atleast_1d(pixlist)
+        # ADM sanity check that nside is OK.
+        check_nside(nside)
+        # ADM a list of HEALPixels that touch each file.
+        # ADM this will break for Tractor files!!!
+        pixelsperfile = [io.decode_sweep_name(file, nside=nside) for file in infiles]
+        # ADM a flattened array of all HEALPixels touched by the input
+        # ADM files. Each HEALPixel can appear multiple times if it's
+        # ADM touched by multiple input sweep files.
+        pixnum = np.hstack(pixelsperfile)
+        # ADM restrict input pixels to only those that touch an input file.
+        ii = [pix in pixnum for pix in pixlist]
+        pixlist = pixlist[ii]
+        # ADM create a list of files that touch each HEALPixel.
+        filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
+        for ifile, pixels in enumerate(pixelsperfile):
+            for pix in pixels:
+                filesperpixel[pix].append(infiles[ifile])
+
+    # ADM if the bundlefiles option was sent, call the packing code.
+    if bundlefiles is not None:
+        prefix = "targets"
+        if survey != "main":
+            prefix = "{}_targets".format(survey)
+        bundle_bricks(pixnum, bundlefiles, nside,
+                      brickspersec=filespersec, gather=False,
+                      prefix=prefix, surveydir=os.path.dirname(infiles[0]))
+        return
+
+    # ADM restrict to only input files in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        if len(infiles) == 0:
+            log.warning('ZERO files in passed pixel list!!!')
+        log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
+                 .format(nside, pixlist))
+
+    # ADM a little more information if we're slurming across nodes.
+    if os.getenv('SLURMD_NODENAME') is not None:
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     def _finalize_targets(objects, desi_target, bgs_target, mws_target):
         # - desi_target includes BGS_ANY and MWS_ANY, so we can filter just
@@ -2356,6 +2452,27 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             for x in infiles:
                 targets.append(_update_status(_select_targets_file(x)))
 
+    # ADM it's possible that somebody could pass an arangment of HEALPixels
+    # ADM that contain no targets, in which case exit (somewhat) gracefully.
+    if targets == []:
+        log.warning('ZERO targets for passed file list or region!!!')
+        return targets
+
     targets = np.concatenate(targets)
+
+    # ADM restrict to only targets in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        ii = is_in_hp(targets, nside, pixlist)
+        targets = targets[ii]
+
+    # ADM restrict to only targets in an RA, Dec box, if requested.
+    if radecbox is not None:
+        ii = is_in_box(targets, radecbox)
+        targets = targets[ii]
+
+    # ADM restrict to only targets in an RA, Dec, radius cap, if requested.
+    if radecrad is not None:
+        ii = is_in_cap(targets, radecrad)
+        targets = targets[ii]
 
     return targets

@@ -5,6 +5,15 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
+* Refactor SV/main targeting for spatial queries [`PR #458`_]. Includes:
+    * Many new spatial query capabilities in :func:`desitarget.geomask`.
+    * Parallelize target selection by splitting across HEALPixels.
+    * Wrappers to read in HEALPix-split target files split by:
+        * HEALPixels, RA/Dec boxes, RA/Dec/radius caps, column names.
+    * Only process subsets of targets in regions of space, again including:
+        * HEALPixels, RA/Dec boxes, RA/Dec/radius caps.
+    * New unit tests to check these spatial queries.
+    * Updated notebook including tutorials on spatial queries.
 * Update the SV selections for BGS [`PR #457`_].
 * Update MTL to work for SV0-like cmx and SV1 tables [`PR #456`_]. Includes:
     * Make SUBPRIORITY a random number (0->1) in skies output.
@@ -23,6 +32,7 @@ desitarget Change Log
 .. _`PR #452`: https://github.com/desihub/desitarget/pull/452
 .. _`PR #456`: https://github.com/desihub/desitarget/pull/456
 .. _`PR #457`: https://github.com/desihub/desitarget/pull/457
+.. _`PR #458`: https://github.com/desihub/desitarget/pull/458
 
 0.27.0 (2018-12-14)
 -------------------
