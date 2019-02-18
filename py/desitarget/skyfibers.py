@@ -111,8 +111,9 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     brickname : :class:`str`
         Name of the brick in which to generate sky locations.
-    nskiespersqdeg : :class:`float`, optional, defaults to reading from desimodel.io
-        The minimum DENSITY of sky fibers to generate.
+    nskiespersqdeg : :class:`float`, optional
+        The minimum DENSITY of sky fibers to generate. Defaults to reading from 
+        :func:`~desimodel.io` with a margin of 4x.
     bands : :class:`list`, optional, defaults to ['g', 'r', 'z']
         List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`, optional, defaults to [0.75, 1.0]
@@ -151,7 +152,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
 
     # ADM if needed, determine the minimum density of sky fibers to generate
     if nskiespersqdeg is None:
-        nskiespersqdeg = density_of_sky_fibers(margin=2)
+        nskiespersqdeg = density_of_sky_fibers(margin=4)
 
     # ADM the hard-coded size of a DESI brick expressed as an area
     # ADM this is actually slightly larger than the largest brick size
@@ -670,8 +671,9 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         :func:`~desitarget.skyutilities.legacypipe.util.LegacySurveyData` for details.
     numproc : :class:`int`, optional, defaults to 16
         The number of processes over which to parallelize.
-    nskiespersqdeg : :class:`float`, optional, defaults to reading from desimodel.io
-        The minimum DENSITY of sky fibers to generate.
+    nskiespersqdeg : :class:`float`, optional
+        The minimum DENSITY of sky fibers to generate. Defaults to reading from 
+        :func:`~desimodel.io` with a margin of 4x.
     bands : :class:`list`, optional, defaults to ['g', 'r', 'z']
         List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`, optional, defaults to [0.75, 1.0]
