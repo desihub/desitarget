@@ -479,7 +479,7 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
         The number of parallel processes to use.
     gaiamatch : defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate
-        Gaia columns, otherwise assume those columns already exist
+        Gaia columns, otherwise assume those columns already exist.
 
     Returns
     -------
@@ -513,7 +513,6 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
 
     # ADM this is just to count sweeps files in _update_status
     nfile = np.zeros((), dtype='i8')
-
     t0 = time()
 
     def _update_status(result):
@@ -538,7 +537,8 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     gfas = np.concatenate(gfas)
 
     # ADM retrieve all Gaia objects in the DESI footprint.
-    log.info('Retrieving additional Gaia objects...t={:.1f}s'.format(time()-t0))
+    log.info('Retrieving additional Gaia objects...t={:.1f}mins'
+             .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc)
     # ADM and limit them to just any missing bricks...
     brickids = set(gfas['BRICKID'])
