@@ -520,7 +520,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
 
 def write_skies(filename, data, indir=None, apertures_arcsec=None,
-                badskyflux=None, nside=None):
+                nside=None):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -533,9 +533,6 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
     apertures_arcsec : :class:`list` or `float`, optional, defaults to None
-        list of aperture radii in arcsecondsm write each aperture as an
-        individual line in the header, if passed (and if not None).
-    badskyflux : :class:`list` or `float`, optional, defaults to None
         list of aperture radii in arcsecondsm write each aperture as an
         individual line in the header, if passed (and if not None).
     nside: :class:`int`
@@ -566,12 +563,6 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
             apname = "AP{}".format(i)
             apsize = "{:.2f}".format(ap)
             hdr[apname] = apsize
-
-    if badskyflux is not None:
-        for i, bs in enumerate(badskyflux):
-            bsname = "BADFLUX{}".format(i)
-            bssize = "{:.2f}".format(bs)
-            hdr[bsname] = bssize
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:

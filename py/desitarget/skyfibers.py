@@ -47,7 +47,7 @@ start = time()
 # ADM this is an empty array of the full TS data model columns and dtypes for the skies
 skydatamodel = np.array([], dtype=[
     ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
-    ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'),
+    ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'), ('BLOBDIST', '>f4'),
     ('APFLUX_G', '>f4'), ('APFLUX_R', '>f4'), ('APFLUX_Z', '>f4'),
     ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4'),
     ('OBSCONDITIONS', '>i4')])
@@ -100,8 +100,7 @@ def model_density_of_sky_fibers(margin=1.5):
 
 
 def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                           apertures_arcsec=[0.75, 1.0], badskyflux=[1000., 1000.],
-                           write=False):
+                           apertures_arcsec=[0.75], write=False):
     """Generate skies for one brick in the typical format for DESI sky targets.
 
     Parameters
@@ -112,16 +111,12 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     brickname : :class:`str`
         Name of the brick in which to generate sky locations.
     nskiespersqdeg : :class:`float`, optional
-        The minimum DENSITY of sky fibers to generate. Defaults to reading from 
+        The minimum DENSITY of sky fibers to generate. Defaults to reading from
         :func:`~desimodel.io` with a margin of 4x.
     bands : :class:`list`, optional, defaults to ['g', 'r', 'z']
         List of bands to be used to define good sky locations.
-    apertures_arcsec : :class:`list`, optional, defaults to [0.75, 1.0]
-        Radii in arcsec of apertures to sink and derive flux at a sky location.
-    badskyflux : :class:`list` or `~numpy.array`, optional, defaults to [1000., 1000.]
-        The flux level used to classify a sky position as "BAD" in nanomaggies in
-        ANY band for each aperture size. The default corresponds to a magnitude of 15.
-        Must have the same length as `apertures_arcsec`.
+    apertures_arcsec : :class:`list`, optional, defaults to [0.75]
+        Radii in arcsec of apertures for which to derive flux at a sky location.
     write : :class:`boolean`, defaults to False
         If `True`, write the skyfibers object (which is in the format of the output
         from :func:`sky_fibers_for_brick()`) to file. The file name is derived from
@@ -199,7 +194,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SKY
 
-    # ADM Find locations where the fluxes are bad. First check if locations
+    # ADM Find where the fluxes are potentially bad. First check if locations
     # ADM have infinite errors (zero ivars) or zero fluxes in BOTH of g and r
     # ADM (these are typically outside the imaging footprint, in CCD gaps, etc.).
     # ADM checking on z, too, is probably overkill, e.g.:
@@ -212,22 +207,17 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     if hasattr(skytable, 'apflux_r'):
         bstracker &= (skytable.apflux_r == 0) | (skytable.apflux_ivar_r == 0)
 
-    # ADM ...now check for locations that exceed badskyflux limits in any band.
-    # ADM Remember to make badskyflux an array in case it wasn't passed as such.
-    badskyflux = np.array(badskyflux)
-    if hasattr(skytable, 'apflux_g'):
-        bstracker |= (skytable.apflux_g > badskyflux)
-    if hasattr(skytable, 'apflux_r'):
-        bstracker |= (skytable.apflux_r > badskyflux)
-    if hasattr(skytable, 'apflux_z'):
-        bstracker |= (skytable.apflux_z > badskyflux)
+    # ADM as BLOBDIST doesn't depend on the aperture, collapse across apertures.
+    bstracker = np.any(bstracker, axis=1)
 
-    # ADM check if this is a bad sky in any aperture, if so then set it to bad
-    wbad = np.where(np.any(bstracker, axis=1))
-    if len(wbad) > 0:
-        desi_target[wbad] = desi_mask.BAD_SKY
+    # ADM ...now check for BADSKY locations that are in a blob.
+    if hasattr(skytable, 'blobdist'):
+        bstracker |= (skytable.blobdist == 0.)
 
-    # ADM add the aperture flux measurements
+    # ADM set any bad skies to BADSKY.
+    desi_target[bstracker] = desi_mask.BAD_SKY
+
+    # ADM add the aperture flux measurements.
     if naps == 1:
         if hasattr(skytable, 'apflux_g'):
             skies["APFLUX_G"] = np.hstack(skytable.apflux_g)
@@ -249,21 +239,22 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
             skies["APFLUX_Z"] = skytable.apflux_z
             skies["APFLUX_IVAR_Z"] = skytable.apflux_ivar_z
 
-    # ADM add the brick information for the sky targets
+    # ADM add the brick info and blob distance for the sky targets.
     skies["BRICKID"] = skytable.brickid
     skies["BRICKNAME"] = skytable.brickname
+    skies["BLOBDIST"] = skytable.blobdist
 
-    # ADM set the data release from the Legacy Surveys DR directory
+    # ADM set the data release from the Legacy Surveys DR directory.
     dr = int(survey.survey_dir.split('dr')[-1][0])*1000
     skies["RELEASE"] = dr
 
     # ADM set the objid (just use a sequential number as setting skies
-    # ADM to 1 in the TARGETID will make these unique
+    # ADM to 1 in the TARGETID will make these unique.
     skies["OBJID"] = np.arange(nskies)
 
     # log.info('Finalizing target bits...t = {:.1f}s'.format(time()-start))
     # ADM add target bit columns to the output array, note that mws_target
-    # ADM and bgs_target should be zeros for all sky objects
+    # ADM and bgs_target should be zeros for all sky objects.
     dum = np.zeros_like(desi_target)
     skies = finalize(skies, desi_target, dum, dum, sky=1)
 
@@ -294,7 +285,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     bands : :class:`list`, optional, defaults to ['g', 'r', 'z']
         List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`, optional, defaults to [0.5,0.75,1.,1.5,2.,3.5,5.,7.]
-        Radii in arcsec of apertures to sink and derive flux at a sky location.
+        Radii in arcsec of apertures for which to derive flux at a sky location.
 
     Returns
     -------
@@ -409,7 +400,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
 
     header = fitsio.FITSHDR()
     for i, ap in enumerate(apertures_arcsec):
-        header.add_record(dict(name='AP%i' % i, value=ap, comment='Aperture radius (arcsec)'))
+        header.add_record(dict(name='AP%i' % i, value=ap, 
+                               comment='Aperture radius (arcsec)'))
     skyfibers._header = header
 
     return skyfibers
@@ -660,8 +652,8 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                 apertures_arcsec=[0.75, 1.0], badskyflux=[1000., 1000.],
-                 nside=2, pixlist=None, writebricks=False, bundlebricks=None):
+                 apertures_arcsec=[0.75], nside=2, pixlist=None, 
+                 writebricks=False, bundlebricks=None):
     """Generate skies in parallel for all bricks in a Legacy Surveys Data Release.
 
     Parameters
@@ -676,12 +668,8 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         :func:`~desimodel.io` with a margin of 4x.
     bands : :class:`list`, optional, defaults to ['g', 'r', 'z']
         List of bands to be used to define good sky locations.
-    apertures_arcsec : :class:`list`, optional, defaults to [0.75, 1.0]
-        Radii in arcsec of apertures to sink and derive flux at a sky location.
-    badskyflux : :class:`list` or `~numpy.array`, optional, defaults to [1000., 1000.]
-        The flux level used to classify a sky position as "BAD" in nanomaggies in
-        ANY band for each aperture size. The default corresponds to a magnitude of 15.
-        Must have the same length as `apertures_arcsec`.
+    apertures_arcsec : :class:`list`, optional, defaults to [0.75]
+        Radii in arcsec of apertures for which to derive flux at a sky location.
     nside : :class:`int`, optional, defaults to nside=2 (859.4 sq. deg.)
         The HEALPixel nside number to be used with the `pixlist` input.
     pixlist : :class:`list` or `int`, optional, defaults to None
@@ -768,7 +756,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         return make_skies_for_a_brick(survey, brickname,
                                       nskiespersqdeg=nskiespersqdeg, bands=bands,
                                       apertures_arcsec=apertures_arcsec,
-                                      badskyflux=badskyflux, write=writebricks)
+                                      write=writebricks)
 
     # ADM this is just in order to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
