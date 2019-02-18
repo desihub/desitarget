@@ -13,7 +13,7 @@ import os
 
 import desimodel.focalplane
 import desimodel.io
-from desimodel.footprint import is_point_in_desi, load_tiles
+from desimodel.footprint import is_point_in_desi
 
 import desitarget.io
 from desitarget.internal import sharedmem
@@ -397,7 +397,7 @@ def gaia_in_file(infile, maglim=18):
             gfas[col] = 'U'
         if isinstance(gfas[col][0].item(), int):
             gfas[col] = -1
-    
+
     # ADM populate the common columns in the Gaia/GFA data models.
     cols = set(gfas.dtype.names).intersection(set(objs.dtype.names))
     for col in cols:
@@ -538,13 +538,15 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     gfas = np.concatenate(gfas)
 
     # ADM retrieve all Gaia objects in the DESI footprint.
+    log.info('Retrieving additional Gaia objects...t={:.1f}s'.format(time()-t0))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc)
     # ADM and limit them to just any missing bricks...
     brickids = set(gfas['BRICKID'])
     ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
     gaia = gaia[ii]
     # ADM ...and also to the DESI footprint
-    ii = is_point_in_desi(load_tiles(), gaia["RA"], gaia["DEC"])
+    tiles = desimodel.io.load_tiles()
+    ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
     gaia = gaia[ii]
-    
+
     return np.concatenate([gfas, gaia])
