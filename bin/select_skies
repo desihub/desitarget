@@ -27,7 +27,7 @@ ap.add_argument("surveydir",
 ap.add_argument("dest", 
                 help="Output sky targets file (e.g. /project/projectdirs/desi/target/catalogs/skies-dr4-0.20.0.fits)")
 ap.add_argument("--nskiespersqdeg", 
-                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io)",
+                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
                 default=None)
 ap.add_argument("--bands", 
                 help='Bands in this Legacy Survey Data Release to consider when deriving sky location and aperture fluxes (e.g, "g,r")',
@@ -67,7 +67,7 @@ if pixlist is not None:
 #ADM if needed, determine the minimum density of sky fibers to generate
 nskiespersqdeg = ns.nskiespersqdeg
 if nskiespersqdeg is None:
-    nskiespersqdeg = density_of_sky_fibers(margin=2)
+    nskiespersqdeg = density_of_sky_fibers(margin=4)
 #ADM and log how many sky positions per brick we expect to be generated
 area = 0.25*0.25
 nskiesfloat = area*nskiespersqdeg
