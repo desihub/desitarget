@@ -520,7 +520,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
 
 def write_skies(filename, data, indir=None, apertures_arcsec=None,
-                nside=None):
+                nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -529,13 +529,16 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         Output target selection file name
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
-    indir : :class:`str`, optional, defaults to None
+    indir : :class:`str`, optional
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
-    apertures_arcsec : :class:`list` or `float`, optional, defaults to None
-        list of aperture radii in arcsecondsm write each aperture as an
+    apertures_arcsec : :class:`list` or `float`, optional
+        list of aperture radii in arcseconds to write each aperture as an
         individual line in the header, if passed (and if not None).
-    nside: :class:`int`
+    nskiespersqdeg : :class:`float`, optional
+        Number of sky locations generated per sq. deg., write to header
+        of output file if passed (and if not None).
+    nside: :class:`int`, optional
         If passed, add a column to the skies array popluated with HEALPixels
         at resolution `nside`.
     """
@@ -561,8 +564,11 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     if apertures_arcsec is not None:
         for i, ap in enumerate(apertures_arcsec):
             apname = "AP{}".format(i)
-            apsize = "{:.2f}".format(ap)
+            apsize = ap
             hdr[apname] = apsize
+
+    if nskiespersqdeg is not None:
+        hdr['NPERSDEG'] = nskiespersqdeg
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:

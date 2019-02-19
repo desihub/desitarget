@@ -655,7 +655,7 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
                  apertures_arcsec=[0.75], nside=2, pixlist=None,
-                 writebricks=False, bundlebricks=None, brickspersec=1.8):
+                 writebricks=False, bundlebricks=None, brickspersec=1.6):
     """Generate skies in parallel for all bricks in a Legacy Surveys Data Release.
 
     Parameters
@@ -692,7 +692,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         the latest git push works well to fit on the interactive nodes on Cori), then
         commands would be returned with the correct pixlist values to pass to the code
         to pack at about 14000 bricks per node across all of the bricks in `survey`.
-    brickspersec : :class:`float`, optional, defaults to 1.8
+    brickspersec : :class:`float`, optional, defaults to 1.6
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
         to estimate time to completion when parallelizing across pixels.
@@ -732,7 +732,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     # ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
         bundle_bricks(pixnum, bundlebricks, nside, prefix='skies',
-                      surveydir=survey.survey_dir, brickspersec=1.8)
+                      surveydir=survey.survey_dir, brickspersec=brickspersec)
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested

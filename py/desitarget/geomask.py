@@ -674,8 +674,13 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     print("#######################################################")
     print("Numbers of bricks or files in each set of HEALPixels:")
     print("")
-    # ADM margin of 30 minutes for writing to disk
-    margin = 30./60
+
+    # ADM the estimated margin for writing to disk in minutes.
+    margin = 30
+    if prefix == 'skies':
+        margin = 5
+    margin /= 60.
+
     maxeta = 0
     for bin in bins:
         num = np.array(bin)[:, 0]
