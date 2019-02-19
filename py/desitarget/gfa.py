@@ -4,12 +4,12 @@ desitarget.gfa
 
 Guide/Focus/Alignment targets
 """
-
 import fitsio
 import numpy as np
 import os.path
 import glob
 import os
+from time import time
 
 import desimodel.focalplane
 import desimodel.io
@@ -21,16 +21,14 @@ from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import find_gaia_files_tiles, read_gaia_file
 from desitarget.targets import encode_targetid
 
-from time import time
-
-# ADM set up default DESI logger.
+from desiutil import brick
 from desiutil.log import get_logger
-log = get_logger()
-start = time()
 
 # ADM set up the Legacy Surveys bricks object.
-from desiutil import brick
 bricks = brick.Bricks(bricksize=0.25)
+# ADM set up the default DESI logger.
+log = get_logger()
+start = time()
 
 # ADM the current data model for columns in the GFA files.
 gfadatamodel = np.array([], dtype=[

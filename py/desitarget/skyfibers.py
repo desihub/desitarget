@@ -400,7 +400,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
 
     header = fitsio.FITSHDR()
     for i, ap in enumerate(apertures_arcsec):
-        header.add_record(dict(name='AP%i' % i, value=ap, 
+        header.add_record(dict(name='AP%i' % i, value=ap,
                                comment='Aperture radius (arcsec)'))
     skyfibers._header = header
 
@@ -617,7 +617,7 @@ def plot_good_bad_skies(survey, brickname, skies,
         log.info("Plotting sky locations on brick {}".format(brickname))
 
     # ADM derive the x and y pixel information for the sky fiber locations
-    # ADM from the WCS of the survey blobs image
+    # ADM from the WCS of the survey blobs image.
     fn = survey.find_file('blobmap', brick=brickname)
     header = fitsio.read_header(fn)
     wcs = WCS(header)
@@ -626,23 +626,25 @@ def plot_good_bad_skies(survey, brickname, skies,
     # ADM derive which of the sky fibers are BAD_SKY. The others are good.
     wbad = np.where((skies["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)
 
-    rgbkwargs = dict(mnmx=(-1, 100.), arcsinh=1.)
-
-    # ADM find the images from the survey object and plot them
+    # ADM find the images from the survey object and plot them.
     imgs = []
     for band in bands:
         fn = survey.find_file('image',  brick=brickname, band=band)
         imgs.append(fitsio.read(fn))
+
+    rgbkwargs = dict(mnmx=(-1, 100.), arcsinh=1.)
     rgb = get_rgb(imgs, bands, **rgbkwargs)
+    # ADM hack to make sure rgb is never negative.
+    rgb[rgb < 0] = 0
 
     ima = dict(interpolation='nearest', origin='lower')
     plt.clf()
     plt.imshow(rgb, **ima)
-    # ADM plot the good skies in green and the bad in red
+    # ADM plot the good skies in green and the bad in red.
     plt.plot(xxx, yyy, 'o', mfc='none', mec='g', mew=2, ms=10)
     plt.plot(xxx[wbad], yyy[wbad], 'o', mfc='none', mec='r', mew=2, ms=10)
 
-    # ADM determine the plot title and name, and write it out
+    # ADM determine the plot title and name, and write it out.
     bandstr = "".join(bands)
     plt.title('Skies for brick {} (BAD_SKY in red); bands = {}'
               .format(brickname, bandstr))
@@ -652,8 +654,8 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                 apertures_arcsec=[0.75], nside=2, pixlist=None, 
-                 writebricks=False, bundlebricks=None):
+                 apertures_arcsec=[0.75], nside=2, pixlist=None,
+                 writebricks=False, bundlebricks=None, brickspersec=1.8):
     """Generate skies in parallel for all bricks in a Legacy Surveys Data Release.
 
     Parameters
@@ -664,7 +666,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     numproc : :class:`int`, optional, defaults to 16
         The number of processes over which to parallelize.
     nskiespersqdeg : :class:`float`, optional
-        The minimum DENSITY of sky fibers to generate. Defaults to reading from 
+        The minimum DENSITY of sky fibers to generate. Defaults to reading from
         :func:`~desimodel.io` with a margin of 4x.
     bands : :class:`list`, optional, defaults to ['g', 'r', 'z']
         List of bands to be used to define good sky locations.
@@ -690,6 +692,10 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         the latest git push works well to fit on the interactive nodes on Cori), then
         commands would be returned with the correct pixlist values to pass to the code
         to pack at about 14000 bricks per node across all of the bricks in `survey`.
+    brickspersec : :class:`float`, optional, defaults to 1.8
+        The rough number of bricks processed per second by the code (parallelized across
+        a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
+        to estimate time to completion when parallelizing across pixels.
 
     Returns
     -------
@@ -726,7 +732,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     # ADM if the bundlebricks option was sent, call the packing code
     if bundlebricks is not None:
         bundle_bricks(pixnum, bundlebricks, nside, prefix='skies',
-                      surveydir=survey.survey_dir)
+                      surveydir=survey.survey_dir, brickspersec=1.8)
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested
