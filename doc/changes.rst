@@ -6,7 +6,7 @@ desitarget Change Log
 -------------------
 
 * Updates to GFAs and skies for some cmx issues [`PR #459`_]. Includes:
-    * Assign BADSKY on BLOBDIST rather than using aperture fluxes.
+    * Assign ``BADSKY`` using ``BLOBDIST`` rather than aperture fluxes.
     * Increase default density at which sky locations are generated.
     * Store only aperture fluxes that match the DESI fiber radius.
     * Ensure GFAs exist throughout the spectroscopic footprint.
