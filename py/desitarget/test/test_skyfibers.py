@@ -140,24 +140,21 @@ class TestSKYFIBERS(unittest.TestCase):
 
     def test_target_bits(self):
         """
-        Test that apertures with bad extracted fluxes have the BAD_SKY bit set
+        Test that apertures that are in blobs have the BAD_SKY bit set
         """
-        # ADM force anything with fluxes higher than 0 to be bad
-        bsflux = [0, 0]
-
         # ADM get sky locations in g-band (which should be THE ONLY GOOD band)!
-        # ADM which is why I set up these tests with brick 0959p805
+        # ADM which is why I set up these tests with brick 0959p805.
         gskies = skyfibers.make_skies_for_a_brick(self.survey, self.brickname,
                                                   nskiespersqdeg=self.nskiespersqdeg,
                                                   apertures_arcsec=self.ap_arcsec,
-                                                  bands=["g"], badskyflux=bsflux)
+                                                  bands=["g"])
 
-        # ADM note that these only work because the IVARs are good for
-        # ADM brick 0959p805 in DR6 of the Legacy Surveys
-        wgood = np.where(np.all(gskies['APFLUX_G'] < bsflux, axis=1))
-        wbad = np.where(np.any(gskies['APFLUX_G'] >= bsflux, axis=1))
+        # ADM note that these only technically work because the IVARs are good
+        # ADM good for brick 0959p805 in DR6 of the Legacy Surveys.
+        wgood = gskies["BLOBDIST"] > 0.
+        wbad = gskies["BLOBDIST"] == 0.
 
-        # ADM check apertures with good/bad flux have good/bad sky bits set
+        # ADM check apertures with good/bad flux have good/bad sky bits set.
         self.assertTrue(
             np.all(gskies[wgood]["DESI_TARGET"] == desi_mask.SKY)
         )
