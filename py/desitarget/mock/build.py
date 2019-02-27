@@ -935,7 +935,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                             seed=healseed)
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
-                   nside, log, seed=None, survey='main'):
+                   nside, log, seed=None):
     """Add hpxpixel, brick_objid, targetid, subpriority, priority, and numobs to the
     target catalog.
     
@@ -959,11 +959,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
        Logger object.
     seed : :class:`int`, optional
         Seed for the random number generation.  Defaults to None.
-    survey : :class:`str`
-        Specifies which target masks yaml file to use. Options are `main`, `cmx`
-        and `sv` for the main survey, commissioning and SV, respectively.
-        Defaults to `main`.
-            
+
     Returns
     -------
     Updated versions of targets, truth, objtruth, skytargets, and skytruth.
@@ -1013,8 +1009,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                 log.warning('Mismatching TARGETIDs!')
                 raise ValueError                
                     
-        targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = initial_priority_numobs(
-            targets, survey=survey)
+        targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = \
+                initial_priority_numobs(targets)
 
         # Rename TYPE --> MORPHTYPE
         targets.rename_column('TYPE', 'MORPHTYPE')
@@ -1028,8 +1024,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
         skytruth['TARGETID'][:] = targetid[nobj:]
 
-        skytargets['PRIORITY_INIT'], skytargets['NUMOBS_INIT'] = initial_priority_numobs(
-            skytargets, survey=survey)
+        skytargets['PRIORITY_INIT'], skytargets['NUMOBS_INIT'] = \
+                initial_priority_numobs(skytargets)
 
         # Rename TYPE --> MORPHTYPE
         skytargets.rename_column('TYPE', 'MORPHTYPE')
