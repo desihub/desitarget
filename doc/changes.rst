@@ -5,6 +5,11 @@ desitarget Change Log
 0.27.1 (unreleased)
 -------------------
 
+* Updates to GFAs and skies for some cmx issues [`PR #459`_]. Includes:
+    * Assign ``BADSKY`` using ``BLOBDIST`` rather than aperture fluxes.
+    * Increase default density at which sky locations are generated.
+    * Store only aperture fluxes that match the DESI fiber radius.
+    * Ensure GFAs exist throughout the spectroscopic footprint.
 * Refactor SV/main targeting for spatial queries [`PR #458`_]. Includes:
     * Many new spatial query capabilities in :func:`desitarget.geomask`.
     * Parallelize target selection by splitting across HEALPixels.
@@ -33,6 +38,7 @@ desitarget Change Log
 .. _`PR #456`: https://github.com/desihub/desitarget/pull/456
 .. _`PR #457`: https://github.com/desihub/desitarget/pull/457
 .. _`PR #458`: https://github.com/desihub/desitarget/pull/458
+.. _`PR #459`: https://github.com/desihub/desitarget/pull/459
 
 0.27.0 (2018-12-14)
 -------------------

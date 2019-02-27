@@ -674,8 +674,13 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     print("#######################################################")
     print("Numbers of bricks or files in each set of HEALPixels:")
     print("")
-    # ADM margin of 30 minutes for writing to disk
-    margin = 30./60
+
+    # ADM the estimated margin for writing to disk in minutes.
+    margin = 30
+    if prefix == 'skies':
+        margin = 5
+    margin /= 60.
+
     maxeta = 0
     for bin in bins:
         num = np.array(bin)[:, 0]
@@ -756,6 +761,48 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     print("")
 
     return
+
+
+def add_hp_neighbors(nside, pixnum):
+    """Add all neighbors in the NESTED scheme to a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixnum : :class:`list` or `int`
+        list of HEALPixel numbers (or a single HEALPixel number).
+
+    Returns
+    -------
+    :class:`list`
+        The passed list of pixels with all neighbors added to the list.
+
+    Notes
+    -----
+        - Syntactic sugar around `healpy.pixelfunc.get_all_neighbours()`.
+    """
+    # ADM convert pixels to theta/phi space and retrieve neighbors.
+    theta, phi = hp.pix2ang(nside, pixnum, nest=True)
+    # ADM remember to retain the original pixel numbers, too.
+    pixnum = np.hstack(
+        [pixnum, np.hstack(
+            hp.pixelfunc.get_all_neighbours(nside, theta, phi, nest=True)
+        )]
+    )
+
+    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
+    # ADM one pixel was produced, so guard against pixnum being non-iterable.
+    if not isinstance(pixnum, np.integer):
+        pixnum = list(set(pixnum))
+    else:
+        pixnum = [pixnum]
+
+    # ADM there are pixels with no neighbors, which returns -1. Remove these:
+    if -1 in pixnum:
+        pixnum.remove(-1)
+
+    return pixnum
 
 
 def hp_in_box(nside, radecbox, inclusive=True, fact=4):

@@ -13,8 +13,8 @@ import numpy as np
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-#ADM default HEALPix Nside used throughout desitarget
-#ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
+# ADM default HEALPix Nside used throughout desitarget.
+# ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
 nside = 64 
 
 from desiutil.log import get_logger
@@ -27,17 +27,14 @@ ap.add_argument("surveydir",
 ap.add_argument("dest", 
                 help="Output sky targets file (e.g. /project/projectdirs/desi/target/catalogs/skies-dr4-0.20.0.fits)")
 ap.add_argument("--nskiespersqdeg", 
-                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io)",
+                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
                 default=None)
 ap.add_argument("--bands", 
                 help='Bands in this Legacy Survey Data Release to consider when deriving sky location and aperture fluxes (e.g, "g,r")',
                 default="g,r,z")
 ap.add_argument("--apertures", 
-                help='Aperture radii in arcseconds at which to derive flux measurements for each sky location (e.g, "1.0,2.0")',
-                default="0.75,1.0")
-ap.add_argument("--badskyflux",
-                help='Flux level in nanomaggies used for BAD SKY locations in any band for each aperture size (must be the same length as apertures)',
-                default="1000,1000")
+                help='Aperture radii in arcseconds at which to derive flux measurements for each sky location (e.g, "0.75, 1.0"; defaults to "0.75")',
+                default="0.75")
 ap.add_argument('--nside', type=int,
                 help='Process sky locations in parallel in bricks that have centers within HEALPixels at this resolution (defaults to 2)',
                 default=2)
@@ -49,26 +46,28 @@ ap.add_argument("--writebricks", action="store_true",
 ap.add_argument("--bundlebricks", type=int,
                 help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 14000)",
                 default=None)
+ap.add_argument("--brickspersec", type=float,
+                help="estimate of bricks completed per second by the (parallelized) code. Used with `bundlebricks` to guess run times (defaults to 1.6)",
+                default=1.6)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
 
 ns = ap.parse_args()
 
-#ADM convert passed csv strings to lists
+# ADM convert passed csv strings to lists.
 bands = [ band for band in ns.bands.split(',') ]
 apertures = [ float(aperture) for aperture in ns.apertures.split(',') ]
-badskyflux = [ float(bsflux) for bsflux in ns.badskyflux.split(',') ]
 
 pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
 
-#ADM if needed, determine the minimum density of sky fibers to generate
+# ADM if needed, determine the minimum density of sky fibers to generate.
 nskiespersqdeg = ns.nskiespersqdeg
 if nskiespersqdeg is None:
-    nskiespersqdeg = density_of_sky_fibers(margin=2)
-#ADM and log how many sky positions per brick we expect to be generated
+    nskiespersqdeg = density_of_sky_fibers(margin=4)
+# ADM and log how many sky positions per brick we expect to be generated.
 area = 0.25*0.25
 nskiesfloat = area*nskiespersqdeg
 nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
@@ -77,16 +76,15 @@ log.info('Generating {} sky positions in each brick'.format(nskies))
 survey = LegacySurveyData(survey_dir=ns.surveydir)
 
 skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg, 
-                     bands=bands, apertures_arcsec=apertures, badskyflux=badskyflux, 
+                     bands=bands, apertures_arcsec=apertures,
                      nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks,
-                     bundlebricks=ns.bundlebricks)
+                     bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec)
 
-#ADM if skies is None then the bundlebricks informational option was sent
+# ADM if skies is None then the bundlebricks informational option was sent.
 if skies is not None:
-    #ADM this correctly records the apertures and bad sky flux levels in the output file header
-    #ADM as well as adding HEALPixel information
-    write_skies(ns.dest, skies, indir=ns.surveydir, 
-                apertures_arcsec=apertures, badskyflux=badskyflux, nside=nside)
+    # ADM this correctly records the apertures in the output file header
+    # ADM as well as adding HEALPixel information.
+    write_skies(ns.dest, skies, indir=ns.surveydir, nside=nside,
+                apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))
-

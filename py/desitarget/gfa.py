@@ -4,29 +4,33 @@ desitarget.gfa
 
 Guide/Focus/Alignment targets
 """
-
 import fitsio
 import numpy as np
 import os.path
 import glob
 import os
+from time import time
 
 import desimodel.focalplane
 import desimodel.io
+from desimodel.footprint import is_point_in_desi
 
 import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import find_gaia_files_tiles, read_gaia_file
 from desitarget.targets import encode_targetid
 
-from time import time
-
-# ADM set up default DESI logger
+from desiutil import brick
 from desiutil.log import get_logger
+
+# ADM set up the Legacy Surveys bricks object.
+bricks = brick.Bricks(bricksize=0.25)
+# ADM set up the default DESI logger.
 log = get_logger()
 start = time()
 
-# ADM the current data model for columns in the GFA files
+# ADM the current data model for columns in the GFA files.
 gfadatamodel = np.array([], dtype=[
     ('TARGETID', 'i8'),  ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),
     ('RA', 'f8'), ('DEC', 'f8'), ('RA_IVAR', 'f4'), ('DEC_IVAR', 'f4'),
@@ -353,8 +357,115 @@ def gaia_gfas_from_sweep(objects, maglim=18.,
     return gfas
 
 
+def gaia_in_file(infile, maglim=18):
+    """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
+
+    Parameters
+    ----------
+    maglim : :class:`float`, optional, defaults to 18
+        Magnitude limit for GFAs in Gaia G-band.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Gaia objects in the passed Gaia file brighter than `maglim`,
+        formatted according to `desitarget.gfa.gfadatamodel`.
+
+    Notes
+    -----
+       - A "Gaia file" here is as made by, e.g.
+         :func:`~desitarget.gaiamatch.gaia_fits_to_healpix()`
+    """
+    # ADM read in the Gaia file and limit to the passed magnitude.
+    objs = read_gaia_file(infile)
+    ii = objs['GAIA_PHOT_G_MEAN_MAG'] < maglim
+    objs = objs[ii]
+
+    # ADM rename GAIA_RA/DEC to RA/DEC, as that's what's used for GFAs.
+    for radec in ["RA", "DEC"]:
+        objs.dtype.names = [radec if col == "GAIA_"+radec else col
+                            for col in objs.dtype.names]
+
+    # ADM initiate the GFA data model.
+    gfas = np.zeros(len(objs), dtype=gfadatamodel.dtype)
+    # ADM make sure all columns initially have "ridiculous" numbers
+    gfas[...] = -99.
+    for col in gfas.dtype.names:
+        if isinstance(gfas[col][0].item(), (bytes, str)):
+            gfas[col] = 'U'
+        if isinstance(gfas[col][0].item(), int):
+            gfas[col] = -1
+
+    # ADM populate the common columns in the Gaia/GFA data models.
+    cols = set(gfas.dtype.names).intersection(set(objs.dtype.names))
+    for col in cols:
+        gfas[col] = objs[col]
+
+    # ADM populate the BRICKID columns.
+    gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
+
+    return gfas
+
+
+def all_gaia_in_tiles(maglim=18, numproc=4):
+    """An array of all Gaia objects in the DESI tiling footprint
+
+    Parameters
+    ----------
+    maglim : :class:`float`, optional, defaults to 18
+        Magnitude limit for GFAs in Gaia G-band.
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        All Gaia objects in the DESI tiling footprint brighter than
+        `maglim`, formatted according to `desitarget.gfa.gfadatamodel`.
+
+    Notes
+    -----
+       - The environment variables $GAIA_DIR and $DESIMODEL must be set.
+    """
+    # ADM paths to all of the Gaia files in the DESI footprint.
+    infiles = find_gaia_files_tiles(neighbors=False)
+    nfiles = len(infiles)
+
+    # ADM the critical function to run on every file
+    def _get_gaia_gfas(fn):
+        '''wrapper on gaia_in_file() given a file name'''
+        return gaia_in_file(fn, maglim=maglim)
+
+    # ADM this is just to count sweeps files in _update_status
+    nfile = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if nfile % 1000 == 0 and nfile > 0:
+            rate = nfile / (time() - t0)
+            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+        nfile[...] += 1    # this is an in-place modification
+        return result
+
+    # - Parallel process input files
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            gfas = pool.map(_get_gaia_gfas, infiles, reduce=_update_status)
+    else:
+        gfas = list()
+        for file in infiles:
+            gfas.append(_update_status(_get_gaia_gfas(file)))
+
+    gfas = np.concatenate(gfas)
+
+    return gfas
+
+
 def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
-    """Create a set of GFA locations using Gaia
+    """Create a set of GFA locations using Gaia.
 
     Parameters
     ----------
@@ -366,7 +477,7 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
         The number of parallel processes to use.
     gaiamatch : defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate
-        Gaia columns, otherwise assume those columns already exist
+        Gaia columns, otherwise assume those columns already exist.
 
     Returns
     -------
@@ -378,7 +489,6 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     -----
         - if numproc==1, use the serial code instead of the parallel code.
     """
-
     # ADM convert a single file, if passed to a list of files
     if isinstance(infiles, str):
         infiles = [infiles, ]
@@ -393,16 +503,14 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     # ADM the critical function to run on every file
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
-        # ADM we need to pass the boundaries of the sweeps file, too
+        # ADM we may need to pass the boundaries of the sweeps file, too
         bounds = desitarget.io.decode_sweep_name(fn)
-
         return gaia_gfas_from_sweep(
             fn, maglim=maglim, gaiamatch=gaiamatch, gaiabounds=bounds
         )
 
     # ADM this is just to count sweeps files in _update_status
     nfile = np.zeros((), dtype='i8')
-
     t0 = time()
 
     def _update_status(result):
@@ -426,4 +534,17 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
 
     gfas = np.concatenate(gfas)
 
-    return gfas
+    # ADM retrieve all Gaia objects in the DESI footprint.
+    log.info('Retrieving additional Gaia objects...t={:.1f}mins'
+             .format((time()-t0)/60))
+    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc)
+    # ADM and limit them to just any missing bricks...
+    brickids = set(gfas['BRICKID'])
+    ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
+    gaia = gaia[ii]
+    # ADM ...and also to the DESI footprint
+    tiles = desimodel.io.load_tiles()
+    ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
+    gaia = gaia[ii]
+
+    return np.concatenate([gfas, gaia])
