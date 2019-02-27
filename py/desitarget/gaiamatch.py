@@ -22,6 +22,7 @@ from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
 from desitarget.geomask import hp_in_box
 from desimodel.footprint import radec2pix
+from desitarget.geomask import add_hp_neighbors
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.io import ascii
@@ -579,7 +580,7 @@ def find_gaia_files(objs, neighbors=True):
     objs : :class:`~numpy.ndarray`
         Array of objects. Must contain at least the columns "RA" and "DEC".
     neighbors : :class:`bool`, optional, defaults to ``True``
-        Return all of the pixels that touch the Gaia files of interest
+        Also return all neighboring pixels that touch the files of interest
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
         away from a primary source and so in an adjacent pixel)
 
@@ -608,20 +609,7 @@ def find_gaia_files(objs, neighbors=True):
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
-        pixnum = np.hstack(
-            [pixnum, np.hstack(hp.pixelfunc.get_all_neighbours(nside, theta, phi, nest=True))]
-        )
-
-    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
-    # ADM one pixel was produced, so guard against pixnum being non-iterable.
-    if not isinstance(pixnum, np.integer):
-        pixnum = list(set(pixnum))
-    else:
-        pixnum = [pixnum]
-
-    # ADM there are pixels with no neighbors, which returns -1. Remove these:
-    if -1 in pixnum:
-        pixnum.remove(-1)
+        pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
     gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
@@ -638,8 +626,9 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
         A region of the sky bounded by RA/Dec. Pass as a 4-entry list to
         represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
     neighbors : :class:`bool`, optional, defaults to ``True``
-        Return all of the pixels that touch the pixels in the box in
-        order to guard against edge effects
+        Also return all neighboring pixels that touch the files of interest
+        in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
+        away from a primary source and so in an adjacent pixel)
 
     Returns
     -------
@@ -668,22 +657,56 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
-        # ADM first convert back to theta/phi to retrieve neighbors.
-        theta, phi = hp.pix2ang(nside, pixnum, nest=True)
-        pixnum = np.hstack(
-            hp.pixelfunc.get_all_neighbours(nside, theta, phi, nest=True)
-        )
+        pixnum = add_hp_neighbors(nside, pixnum)
 
-    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
-    # ADM one pixel was produced, so guard against pixnum being non-iterable
-    if not isinstance(pixnum, np.integer):
-        pixnum = list(set(pixnum))
-    else:
-        pixnum = [pixnum]
+    # ADM reformat in the Gaia healpix format used by desitarget.
+    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
 
-    # ADM there are pixels with no neighbors, which returns -1. Remove these:
-    if -1 in pixnum:
-        pixnum.remove(-1)
+    return gaiafiles
+
+
+def find_gaia_files_tiles(tiles=None, neighbors=True):
+    """
+    Parameters
+    ----------
+    tiles : :class:`~numpy.ndarray`
+        Integer tile IDs, or ``None`` to use all DESI tiles from
+        :func:`desimodel.io.load_tiles`.
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Also return all neighboring pixels that touch the files of interest
+        in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
+        away from a primary source and so in an adjacent pixel).
+
+    Returns
+    -------
+    :class:`list`
+        A list of all Gaia files that touch the passed tiles.
+
+    Notes
+    -----
+        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
+    """
+    # ADM check that the DESIMODEL environement variable is set.
+    if os.environ.get('DESIMODEL') is None:
+        msg = "DESIMODEL environment variable must be set!!!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM the resolution at which the healpix files are stored.
+    nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM determine the pixels that touch the tiles.
+    from desimodel.footprint import tiles2pix
+    pixnum = tiles2pix(nside, tiles=tiles)
+
+    # ADM if neighbors was sent, then retrieve all pixels that touch each
+    # ADM pixel covered by the provided locations, to prevent edge effects...
+    if neighbors:
+        pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
     gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]

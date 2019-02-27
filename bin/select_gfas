@@ -29,10 +29,17 @@ ap.add_argument("--gaiamatch", action='store_true',
 ap.add_argument('-n', "--numproc", type=int,
                 help='number of concurrent processes to use (defaults to [{}])'.format(nproc),
                 default=nproc)
+ap.add_argument('-s2', "--surveydir2",
+                help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR6 and DR7 into one file)',
+                default=None)
 
 ns = ap.parse_args()
 
 infiles = io.list_sweepfiles(ns.surveydir)
+if ns.surveydir2 is not None:
+    infiles2 = io.list_sweepfiles(ns.surveydir2)
+    infiles += infiles2
+
 if len(infiles) == 0:
     infiles = io.list_tractorfiles(ns.surveydir)
 if len(infiles) == 0:
