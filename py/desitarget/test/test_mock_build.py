@@ -3,19 +3,66 @@
 """Test desitarget.mock.build, but only add_mock_shapes_and_fluxes for now.
 """
 import unittest
+import tempfile
+import os
+import shutil
+from pkg_resources import resource_filename
 import numpy as np
 from astropy.table import Table
 import healpy as hp
+import fitsio
 
 import desimodel.footprint
 
 from desitarget.mock.sky import random_sky
+from desitarget.mock.build import targets_truth
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 class TestMockBuild(unittest.TestCase):
     
     def setUp(self):
-        pass
+        self.outdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        if os.path.exists(self.outdir):
+            shutil.rmtree(self.outdir)
+
+    @unittest.skipUnless('DESITARGET_RUN_MOCK_UNITTEST' in os.environ, '$DESITARGET_RUN_MOCK_UNITTEST not set; skipping expensive mock tests')
+    def test_targets_truth(self):
+        configfile = resource_filename('desitarget.mock', 'data/select-mock-targets.yaml')
+
+        import yaml
+        with open(configfile) as fx:
+            params = yaml.load(fx)
+
+        for targettype in params['targets'].keys():
+            mockfile = params['targets'][targettype]['mockfile'].format(**os.environ)
+            self.assertTrue(os.path.exists(mockfile), 'Missing {}'.format(mockfile))
+
+        #- Test without spectra
+        targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=True)
+        targetfile = self.outdir + '/997/99737/targets-256-99737.fits'
+        truthfile = self.outdir + '/997/99737/truth-256-99737.fits'
+        self.assertTrue(os.path.exists(targetfile))
+        self.assertTrue(os.path.exists(truthfile))
+
+        with fitsio.FITS(truthfile) as fx:
+            self.assertTrue('TRUTH' in fx)
+            #- WAVE is there, and FLUX is there but with strange shape (n,0)
+            # self.assertTrue('WAVE' not in fx)
+            # self.assertTrue('FLUX' not in fx)
+
+        #- Test with spectra
+        shutil.rmtree(self.outdir+'/997')
+
+        targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=False)
+        self.assertTrue(os.path.exists(targetfile))
+        self.assertTrue(os.path.exists(truthfile))
+
+        with fitsio.FITS(truthfile) as fx:
+            self.assertTrue('TRUTH' in fx)
+            self.assertTrue('WAVE' in fx)
+            self.assertTrue('FLUX' in fx)
 
     @unittest.skip('This test is deprecated, so skip for now.')
     def test_shapes_and_fluxes(self):
