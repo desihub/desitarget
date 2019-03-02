@@ -416,7 +416,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
-    allsky :class:`bool`,  defaults to ``False``
+    allsky : :class:`bool`,  defaults to ``False``
         If ``True``, assume that the DESI tiling footprint is the
         entire sky (i.e. return *all* Gaia objects across the sky).
 
@@ -483,7 +483,7 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False, gaiamatch=False):
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
-    cmx :class:`bool`,  defaults to ``False``
+    cmx : :class:`bool`,  defaults to ``False``
         If ``True``, do not limit output to DESI tiling footprint.
         Used for selecting wider-ranging commissioning targets.
     gaiamatch : defaults to ``False``
