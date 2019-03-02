@@ -450,8 +450,10 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
         if nfile % 1000 == 0 and nfile > 0:
-            rate = nfile / (time() - t0)
-            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+            elapsed = (time()-t0)/60.
+            rate = nfile/elapsed/60.
+            log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
+                     .format(nfile, nfiles, rate, elapsed))
         nfile[...] += 1    # this is an in-place modification.
         return result
 
@@ -526,8 +528,10 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False, gaiamatch=False):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
         if nfile % 50 == 0 and nfile > 0:
-            rate = nfile / (time() - t0)
-            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+            elapsed = (time()-t0)/60.
+            rate = nfile/elapsed/60.
+            log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
+                     .format(nfile, nfiles, rate, elapsed))
         nfile[...] += 1    # this is an in-place modification.
         return result
 
@@ -544,7 +548,7 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False, gaiamatch=False):
     gfas = np.concatenate(gfas)
 
     # ADM retrieve all Gaia objects in the DESI footprint.
-    log.info('Retrieving additional Gaia objects...t={:.1f}mins'
+    log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx)
     # ADM and limit them to just any missing bricks...
