@@ -18,11 +18,11 @@ nside = 64 #ADM default HEALPix Nside used throughout desitarget
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates a file of GFA (Guide/Focus/Alignment) targets via matching to Gaia')
-ap.add_argument("surveydir", 
+ap.add_argument("surveydir",
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC)")
-ap.add_argument("dest", 
+ap.add_argument("dest",
                 help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/cmx-gfas-dr6-0.20.0.fits' at NERSC)")
-ap.add_argument('-m', '--maglim', type=float, 
+ap.add_argument('-m', '--maglim', type=float,
                 help='Magnitude limit on GFA targets in Gaia G-band (defaults to [18])',
                 default=18)
 ap.add_argument("--gaiamatch", action='store_true',
@@ -62,6 +62,6 @@ bgood = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
 # ADM limit to requested Dec range.
 decgood = is_in_box(gfas, [0., 360., ns.mindec, 90.])
 
-io.write_gfas(ns.dest, gfas[bgood & decgood], indir=ns.surveydir, nside=nside, cmx=True)
+io.write_gfas(ns.dest, gfas[bgood & decgood], indir=ns.surveydir, nside=nside, survey='cmx')
 
 log.info('{} cmx GFAs written to {}...t={:.1f}mins'.format(len(gfas), ns.dest, (time()-time0)/60.))
