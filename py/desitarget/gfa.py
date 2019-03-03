@@ -17,8 +17,8 @@ from desimodel.footprint import is_point_in_desi
 
 import desitarget.io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary
-from desitarget.gaiamatch import find_gaia_files_tiles, read_gaia_file
+from desitarget.gaiamatch import match_gaia_to_primary, read_gaia_file
+from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.targets import encode_targetid
 
 from desiutil import brick
@@ -407,7 +407,7 @@ def gaia_in_file(infile, maglim=18):
     return gfas
 
 
-def all_gaia_in_tiles(maglim=18, numproc=4):
+def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -416,6 +416,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4):
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
+    allsky : :class:`bool`,  defaults to ``False``
+        If ``True``, assume that the DESI tiling footprint is the
+        entire sky (i.e. return *all* Gaia objects across the sky).
 
     Returns
     -------
@@ -427,16 +430,19 @@ def all_gaia_in_tiles(maglim=18, numproc=4):
     -----
        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
-    # ADM paths to all of the Gaia files in the DESI footprint.
-    infiles = find_gaia_files_tiles(neighbors=False)
+    # ADM grab paths to Gaia files in the sky or the DESI footprint.
+    if allsky:
+        infiles = find_gaia_files_box([0, 360, -90, 90])
+    else:
+        infiles = find_gaia_files_tiles(neighbors=False)
     nfiles = len(infiles)
 
-    # ADM the critical function to run on every file
+    # ADM the critical function to run on every file.
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
         return gaia_in_file(fn, maglim=maglim)
 
-    # ADM this is just to count sweeps files in _update_status
+    # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
     t0 = time()
 
@@ -444,12 +450,14 @@ def all_gaia_in_tiles(maglim=18, numproc=4):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
         if nfile % 1000 == 0 and nfile > 0:
-            rate = nfile / (time() - t0)
-            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
-        nfile[...] += 1    # this is an in-place modification
+            elapsed = (time()-t0)/60.
+            rate = nfile/elapsed/60.
+            log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
+                     .format(nfile, nfiles, rate, elapsed))
+        nfile[...] += 1    # this is an in-place modification.
         return result
 
-    # - Parallel process input files
+    # - Parallel process input files.
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
@@ -464,7 +472,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4):
     return gfas
 
 
-def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
+def select_gfas(infiles, maglim=18, numproc=4, cmx=False, gaiamatch=False):
     """Create a set of GFA locations using Gaia.
 
     Parameters
@@ -475,6 +483,9 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
+    cmx : :class:`bool`,  defaults to ``False``
+        If ``True``, do not limit output to DESI tiling footprint.
+        Used for selecting wider-ranging commissioning targets.
     gaiamatch : defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate
         Gaia columns, otherwise assume those columns already exist.
@@ -489,27 +500,27 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     -----
         - if numproc==1, use the serial code instead of the parallel code.
     """
-    # ADM convert a single file, if passed to a list of files
+    # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
 
-    # ADM check that files exist before proceeding
+    # ADM check that files exist before proceeding.
     for filename in infiles:
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
 
     nfiles = len(infiles)
 
-    # ADM the critical function to run on every file
+    # ADM the critical function to run on every file.
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
-        # ADM we may need to pass the boundaries of the sweeps file, too
+        # ADM we may need to pass the boundaries of the sweeps file, too.
         bounds = desitarget.io.decode_sweep_name(fn)
         return gaia_gfas_from_sweep(
             fn, maglim=maglim, gaiamatch=gaiamatch, gaiabounds=bounds
         )
 
-    # ADM this is just to count sweeps files in _update_status
+    # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
     t0 = time()
 
@@ -517,12 +528,14 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
         if nfile % 50 == 0 and nfile > 0:
-            rate = nfile / (time() - t0)
-            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
-        nfile[...] += 1    # this is an in-place modification
+            elapsed = (time()-t0)/60.
+            rate = nfile/elapsed/60.
+            log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
+                     .format(nfile, nfiles, rate, elapsed))
+        nfile[...] += 1    # this is an in-place modification.
         return result
 
-    # - Parallel process input files
+    # - Parallel process input files.
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
@@ -535,16 +548,17 @@ def select_gfas(infiles, maglim=18, numproc=4, gaiamatch=False):
     gfas = np.concatenate(gfas)
 
     # ADM retrieve all Gaia objects in the DESI footprint.
-    log.info('Retrieving additional Gaia objects...t={:.1f}mins'
+    log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
-    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc)
+    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx)
     # ADM and limit them to just any missing bricks...
     brickids = set(gfas['BRICKID'])
     ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
     gaia = gaia[ii]
-    # ADM ...and also to the DESI footprint
-    tiles = desimodel.io.load_tiles()
-    ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
-    gaia = gaia[ii]
+    # ADM ...and also to the DESI footprint, if we're not cmx'ing.
+    if not cmx:
+        tiles = desimodel.io.load_tiles()
+        ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
+        gaia = gaia[ii]
 
     return np.concatenate([gfas, gaia])

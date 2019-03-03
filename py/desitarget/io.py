@@ -586,7 +586,8 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
 
-def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
+def write_gfas(filename, data, indir=None, nside=None, survey="?",
+               gaiaepoch=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -601,6 +602,8 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
     nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with HEALPixels
         at resolution `nside`.
+    survey : :class:`str`, optional, defaults to "?"
+        Written to output file header as the keyword `SURVEY`.
     gaiaepoch: :class:`float`, defaults to None
         Gaia proper motion reference epoch. If not None, write to header of
         output file. If None, default to an epoch of 2015.5.
@@ -629,6 +632,10 @@ def write_gfas(filename, data, indir=None, nside=None, gaiaepoch=None):
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
+    # ADM add the type of survey (main, or commissioning "cmx") to the header.
+    hdr["SURVEY"] = survey
+
+    # ADM add the Gaia reference epoch, or pass 2015.5 if not included.
     hdr['REFEPOCH'] = {'name': 'REFEPOCH',
                        'value': 2015.5,
                        'comment': "Gaia Proper Motion Reference Epoch"}
