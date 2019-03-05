@@ -17,7 +17,7 @@ from desimodel.footprint import is_point_in_desi
 
 import desitarget.io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary, read_gaia_file
+from desitarget.gaiamatch import read_gaia_file
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.targets import encode_targetid
 
@@ -218,7 +218,7 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, gfa_data, extname='GFA')
 
 
-def gaia_gfas_from_sweep(objects, maglim=18.)
+def gaia_gfas_from_sweep(objects, maglim=18.):
     """Create a set of GFAs for one sweep file or sweep objects.
 
     Parameters
@@ -253,24 +253,33 @@ def gaia_gfas_from_sweep(objects, maglim=18.)
     w = np.where(objects["REF_ID"] > 0)[0]
     objects = objects[w]
 
+    # ADM determine a TARGETID for any objects on a brick.
+    targetid = encode_targetid(objid=objects['OBJID'],
+                               brickid=objects['BRICKID'],
+                               release=objects['RELEASE'])
+
     # ADM format everything according to the data model.
     gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
-    # ADM make sure all columns initially have "ridiculous" numbers
+    # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
-    # ADM remove the BRICK_OBJID column and populate it later as it
-    # ADM requires special treatment.
+    # ADM remove the TARGETID and BRICK_OBJID columns and populate them later
+    # ADM as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
-    cols.remove("BRICK_OBJID")
+    for col in ["TARGETID", "BRICK_OBJID"]:
+        cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
+    # ADM populate the TARGETID column.
+    gfas["TARGETID"] = targetid
+    # ADM populate the BRICK_OBJID column.
     gfas["BRICK_OBJID"] = objects["OBJID"]
 
-    # ADM cut the GFAs by a hard limit on magnitude
+    # ADM cut the GFAs by a hard limit on magnitude.
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
     # ADM a final clean-up to remove columns that are Nan (from
-    # ADM Gaia-matching) or are 0 (in the sweeps)
+    # ADM Gaia-matching) or are 0 (in the sweeps).
     for col in ["PMRA", "PMDEC"]:
         ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
         gfas = gfas[ii]
@@ -432,7 +441,6 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False):
     # ADM the critical function to run on every file.
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
-        # ADM we may need to pass the boundaries of the sweeps file, too.
         return gaia_gfas_from_sweep(fn, maglim=maglim)
 
     # ADM this is just to count sweeps files in _update_status.
