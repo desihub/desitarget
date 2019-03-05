@@ -82,9 +82,15 @@ dr7datamodel = np.array([], dtype=[
 
 
 def desitarget_nside():
-    """Default HEALPix Nside for all target selection algorithms. """
+    """Default HEALPix Nside for all target selection algorithms."""
     nside = 64
     return nside
+
+
+def desitarget_resolve_dec():
+    """Default Dec cut to separate targets in BASS/MzLS from DECaLS."""
+    dec = 30.
+    return dec
 
 
 def convert_from_old_data_model(fx, columns=None):
