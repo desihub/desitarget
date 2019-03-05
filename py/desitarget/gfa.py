@@ -19,7 +19,7 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
-from desitarget.targets import encode_targetid
+from desitarget.targets import encode_targetid, resolve
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -469,6 +469,9 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False):
             gfas.append(_update_status(_get_gfas(file)))
 
     gfas = np.concatenate(gfas)
+
+    # ADM resolve any duplicates between imaging data releases.
+    gfas = resolve(gfas)
 
     # ADM retrieve all Gaia objects in the DESI footprint.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
