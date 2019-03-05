@@ -1143,7 +1143,7 @@ def is_in_gal_box(objs, lbbox, radec=False):
         ra, dec = objs
     else:
         ra, dec = objs["RA"], objs["DEC"]
-    
+
     c = SkyCoord(ra*u.degree, dec*u.degree)
     gal = c.galactic
 
