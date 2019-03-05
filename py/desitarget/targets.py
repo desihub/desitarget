@@ -648,7 +648,7 @@ def resolve(targets):
     split = desitarget_resolve_dec()
 
     # ADM determine which targets are north of the Galactic plane. As
-    # ADM a speed-up, bin in ~1 sq.deg. HEALPixels and determine 
+    # ADM a speed-up, bin in ~1 sq.deg. HEALPixels and determine
     # ADM which of those pixels are north of the Galactic plane.
     # ADM We should never be as close as ~1o to the plane.
     from desitarget.geomask import is_in_gal_box, pixarea2nside

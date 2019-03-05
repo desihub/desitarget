@@ -89,7 +89,7 @@ def desitarget_nside():
 
 def desitarget_resolve_dec():
     """Default Dec cut to separate targets in BASS/MzLS from DECaLS."""
-    dec = 30.
+    dec = 32.
     return dec
 
 
