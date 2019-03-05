@@ -10,6 +10,8 @@ import numpy.lib.recfunctions as rfn
 from astropy.table import Table
 
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask
+from desitarget.cuts import _isonnorthphotsys
+from desitarget.io import release_to_photsys, desitarget_resolve_dec
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -618,6 +620,38 @@ def calc_numobs(targets):
         nobs[ii] = targets['NUMOBS'][ii]+1
 
     return nobs
+
+
+def resolve(targets):
+    """Resolve which targets are primary in imaging overlap regions.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.ndarray`
+        Structured array of targets. Must have columns "RELEASE" and "DEC".
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The original target list trimmed to only objects from the "northern"
+        photometry in the northern imaging area and objects from "southern"
+        photometry in the southern imaging area.
+    """
+    # ADM retrieve the photometric system from the RELEASE.
+    photsys = release_to_photsys(targets["RELEASE"])
+
+    # ADM a flag of which targets are from the 'N' photometry.
+    photn = _isonnorthphotsys(photsys)
+
+    # ADM grab the declination used to resolve targets and
+    # ADM determine which targets are in the northern area.
+    split = desitarget_resolve_dec()
+    arean = targets["DEC"] >= split
+
+    # ADM retain 'N' targets in 'N' area and 'S' in 'S' area.
+    keep = (photn & arean) | (~photn & ~arean)
+
+    return targets[keep]
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,

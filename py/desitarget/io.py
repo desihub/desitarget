@@ -445,7 +445,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     ----------
     filename : :class:`str`
         output target selection file.
-    data : :class:`str`
+    data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, qso_selection : :class:`str`, optional, default to `None`
         If passed, note these as the input directory and
