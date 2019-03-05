@@ -5,9 +5,14 @@ desitarget Change Log
 0.28.1 (unreleased)
 -------------------
 
+* Add resolve capability for post-DR7 imaging [`PR #462`_]. Includes:
+    * Resolve N/S duplicates by combining ``RELEASE`` and areal cuts.
+    * Apply this resolve code (:func:`targets.resolve`) to GFAs.
+    * Deprecate Gaia-matching code for GFAs, as we no longer need it.
 * Add code to select GFAs for cmx across wider sky areas [`PR #461`_].
 
 .. _`PR #461`: https://github.com/desihub/desitarget/pull/461
+.. _`PR #462`: https://github.com/desihub/desitarget/pull/462
 
 0.28.0 (2019-02-28)
 -------------------
@@ -19,7 +24,7 @@ desitarget Change Log
     * Store only aperture fluxes that match the DESI fiber radius.
     * Ensure GFAs exist throughout the spectroscopic footprint.
 * Refactor SV/main targeting for spatial queries [`PR #458`_]. Includes:
-    * Many new spatial query capabilities in :func:`desitarget.geomask`.
+    * Many new spatial query capabilities in :mod:`desitarget.geomask`.
     * Parallelize target selection by splitting across HEALPixels.
     * Wrappers to read in HEALPix-split target files split by:
         * HEALPixels, RA/Dec boxes, RA/Dec/radius caps, column names.
