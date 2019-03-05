@@ -1107,16 +1107,19 @@ def nside2nside(nside, nsidenew, pixlist):
     return pixlistnew
 
 
-def is_in_gal_box(objs, lbbox):
+def is_in_gal_box(objs, lbbox, radec=False):
     """Determine which of an array of objects are in a Galactic l, b box.
 
     Parameters
     ----------
-    objs : :class:`~numpy.ndarray`
+    objs : :class:`~numpy.ndarray` or `list`
         An array of objects. Must include at least the columns "RA" and "DEC".
     radecbox : :class:`list`
         4-entry list of coordinates [lmin, lmax, bmin, bmax] forming the
         edges of a box in Galactic l, b (degrees).
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
 
     Returns
     -------
@@ -1136,7 +1139,12 @@ def is_in_gal_box(objs, lbbox):
         raise ValueError(msg)
 
     # ADM convert input RA/Dec to Galactic coordinates.
-    c = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+    
+    c = SkyCoord(ra*u.degree, dec*u.degree)
     gal = c.galactic
 
     # ADM and limit to (l, b) ranges.
