@@ -663,7 +663,7 @@ def resolve(targets):
     # ADM which targets are in pixels north of the Galactic plane.
     galn = pixn[pixnum]
 
-    # ADM which rargets are in the northern imaging area.
+    # ADM which targets are in the northern imaging area.
     arean = (targets["DEC"] >= split) & galn
 
     # ADM retain 'N' targets in 'N' area and 'S' in 'S' area.
