@@ -5,9 +5,10 @@ desitarget Change Log
 0.28.1 (unreleased)
 -------------------
 
-* Add resolve capability for post-DR7 imaging [`PR #462`_]. Includes:
+* New resolve capability for post-DR7 imaging [`PR #462`_]. Includes:
+    * Add ``RELEASE`` to GFA data model to help resolve duplicates.
     * Resolve N/S duplicates by combining ``RELEASE`` and areal cuts.
-    * Apply this resolve code (:func:`targets.resolve`) to GFAs.
+    * Apply the new resolve code (:func:`targets.resolve`) to GFAs.
     * Deprecate Gaia-matching code for GFAs, as we no longer need it.
 * Add code to select GFAs for cmx across wider sky areas [`PR #461`_].
 
