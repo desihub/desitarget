@@ -5,6 +5,7 @@ desitarget.targets
 Presumably this defines targets.
 """
 import numpy as np
+import healpy as hp
 import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
@@ -618,6 +619,57 @@ def calc_numobs(targets):
         nobs[ii] = targets['NUMOBS'][ii]+1
 
     return nobs
+
+
+def resolve(targets):
+    """Resolve which targets are primary in imaging overlap regions.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.ndarray`
+        Rec array of targets. Must have columns "RELEASE", "RA" and "DEC".
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The original target list trimmed to only objects from the "northern"
+        photometry in the northern imaging area and objects from "southern"
+        photometry in the southern imaging area.
+    """
+    # ADM retrieve the photometric system from the RELEASE.
+    from desitarget.io import release_to_photsys, desitarget_resolve_dec
+    photsys = release_to_photsys(targets["RELEASE"])
+
+    # ADM a flag of which targets are from the 'N' photometry.
+    from desitarget.cuts import _isonnorthphotsys
+    photn = _isonnorthphotsys(photsys)
+
+    # ADM grab the declination used to resolve targets.
+    split = desitarget_resolve_dec()
+
+    # ADM determine which targets are north of the Galactic plane. As
+    # ADM a speed-up, bin in ~1 sq.deg. HEALPixels and determine
+    # ADM which of those pixels are north of the Galactic plane.
+    # ADM We should never be as close as ~1o to the plane.
+    from desitarget.geomask import is_in_gal_box, pixarea2nside
+    nside = pixarea2nside(1)
+    theta, phi = np.radians(90-targets["DEC"]), np.radians(targets["RA"])
+    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+    # ADM find the pixels north of the Galactic plane...
+    allpix = np.arange(hp.nside2npix(nside))
+    theta, phi = hp.pix2ang(nside, allpix, nest=True)
+    ra, dec = np.degrees(phi), 90-np.degrees(theta)
+    pixn = is_in_gal_box([ra, dec], [0., 360., 0., 90.], radec=True)
+    # ADM which targets are in pixels north of the Galactic plane.
+    galn = pixn[pixnum]
+
+    # ADM which targets are in the northern imaging area.
+    arean = (targets["DEC"] >= split) & galn
+
+    # ADM retain 'N' targets in 'N' area and 'S' in 'S' area.
+    keep = (photn & arean) | (~photn & ~arean)
+
+    return targets[keep]
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
