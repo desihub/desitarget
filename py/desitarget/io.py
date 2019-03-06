@@ -82,9 +82,15 @@ dr7datamodel = np.array([], dtype=[
 
 
 def desitarget_nside():
-    """Default HEALPix Nside for all target selection algorithms. """
+    """Default HEALPix Nside for all target selection algorithms."""
     nside = 64
     return nside
+
+
+def desitarget_resolve_dec():
+    """Default Dec cut to separate targets in BASS/MzLS from DECaLS."""
+    dec = 32.375
+    return dec
 
 
 def convert_from_old_data_model(fx, columns=None):
@@ -439,7 +445,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     ----------
     filename : :class:`str`
         output target selection file.
-    data : :class:`str`
+    data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, qso_selection : :class:`str`, optional, default to `None`
         If passed, note these as the input directory and
