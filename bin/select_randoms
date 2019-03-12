@@ -64,10 +64,10 @@ if not os.path.exists(ns.surveydir):
 if ns.bundlebricks is None:
     log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
 
-randoms = select_randoms(density=ns.density, numproc=ns.numproc, 
-                         nside=ns.nside, pixlist=pixlist, 
+randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
+                         nside=ns.nside, pixlist=pixlist,
                          bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
-                         drdir=ns.surveydir, dustdir=ns.dustdir)
+                         dustdir=ns.dustdir)
 
 if ns.bundlebricks is None:
     io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)
