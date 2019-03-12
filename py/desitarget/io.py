@@ -30,7 +30,9 @@ log = get_logger()
 # ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South".
 # ADM photometric system. This will expand with the definition of RELEASE in the
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
-releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S'}
+# ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
+releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
+               8000: 'S', 8001: 'N'}
 
 oldtscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
@@ -78,6 +80,12 @@ dr7datamodel = np.array([], dtype=[
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('BRIGHTSTARINBLOB', '?')
+    ])
+
+dr8datamodel = np.array([], dtype=[
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('BRIGHTBLOB', '>i2')
     ])
 
 
@@ -202,26 +210,33 @@ def add_gaia_columns(indata):
     return outdata
 
 
-def add_dr7_columns(indata):
-    """Add columns that are in dr7 that weren't in dr6.
+def add_dr_columns(indata, dr8=True):
+    """Add columns that are in dr7/dr8 that weren't in dr6.
 
     Parameters
     ----------
     indata : :class:`~numpy.ndarray`
-        Numpy structured array to which to add DR7 columns.
+        Numpy structured array to which to add DR7/DR8 columns.
+    dr8 : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then add the DR6->DR8 columns, otherwise
+        add the DR6->DR7 columns.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        Input array with DR7 columns added.
+        Input array with DR7/DR8 columns added.
 
     Notes
     -----
         - DR7 columns are stored in :mod:`desitarget.io.dr7datamodel`.
-        - The DR7 columns returned are set to all ``0`` or ``False``.
+        - DR8 columns are stored in :mod:`desitarget.io.dr8datamodel`.
+        - The returned columns are set to all ``0`` or ``False``.
     """
     # ADM create the combined data model.
-    dt = indata.dtype.descr + dr7datamodel.dtype.descr
+    if dr8:
+        dt = indata.dtype.descr + dr8datamodel.dtype.descr
+    else:
+        dt = indata.dtype.descr + dr7datamodel.dtype.descr
 
     # ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
@@ -319,6 +334,13 @@ def read_tractor(filename, header=False, columns=None):
         for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
 
+    # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
+    # ADM the other DR6->DR8 data model updates.
+    if (columns is None) and \
+       (('BRIGHTBLOB' in fxcolnames) or ('brightblob' in fxcolnames)):
+        for col in dr8datamodel.dtype.names:
+            readcolumns.append(col)
+
     # ADM if Gaia information was passed, add it to the columns to read.
     if (columns is None):
         if (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
@@ -348,10 +370,10 @@ def read_tractor(filename, header=False, columns=None):
        (('REF_ID' not in fxcolnames) and ('ref_id' not in fxcolnames)):
         data = add_gaia_columns(data)
 
-    # ADM add DR7 data model updates (with zero/False) columns if not passed.
+    # ADM add DR8 data model updates (with zero/False) columns if not passed.
     if (columns is None) and \
-       (('BRIGHTSTARINBLOB' not in fxcolnames) and ('brightstarinblob' not in fxcolnames)):
-        data = add_dr7_columns(data)
+       (('BRIGHTBLOB' not in fxcolnames) and ('brightblob' not in fxcolnames)):
+        data = add_dr_columns(data)
 
     # ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname.
     if len(data) == 0:
