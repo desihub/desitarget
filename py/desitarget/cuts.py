@@ -1513,7 +1513,7 @@ def _prepare_optical_wise(objects, colnames=None):
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
     # For BGS target selection
-    brightstarinblob = objects['BRIGHTSTARINBLOB']
+    brightstarinblob = (objects['BRIGHTBLOB'] & 2**1) != 0
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
