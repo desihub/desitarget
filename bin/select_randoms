@@ -71,5 +71,6 @@ randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
 
 if ns.bundlebricks is None:
     io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)
-    log.info('wrote file of randoms to {}...t = {:.1f}s'.format(ns.dest,time()-start))
+    log.info('wrote file of {} randoms to {}...t = {:.1f}s'
+             .format(len(randoms), ns.dest,time()-start))
 
