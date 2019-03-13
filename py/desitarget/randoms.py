@@ -929,7 +929,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
             qinfo.append(_update_status(_get_quantities(brickname)))
 
     qinfo = np.concatenate(qinfo)
-    
+
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(616)
     np.random.shuffle(qinfo)
