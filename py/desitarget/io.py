@@ -673,7 +673,11 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-def write_randoms(filename, data, indir=None, nside=None, density=None):
+    # ADM add the SCXDIR to the file header.                                                                                                                                                          
+    hdr["SCXDIR"] = scxdir
+
+
+def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -685,6 +689,8 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
+    hdr : :class:`str`, optional, defaults to `None`
+        If passed, use this header to start the header of the output `filename`.
     nside: :class:`int`
         If passed, add a column to the randoms array popluated with HEALPixels
         at resolution `nside`.
@@ -692,8 +698,10 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
     """
-    # ADM create header to include versions, etc.
-    hdr = fitsio.FITSHDR()
+    # ADM create header to include versions, etc. If a `hdr` was
+    # ADM passed, then use it, if not then create a new header.
+    if hdr is None:
+        hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
 
