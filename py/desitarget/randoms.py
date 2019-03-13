@@ -839,15 +839,12 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         hdu = fits.open(sbfile)
         brickinfo = hdu[1].data
         bricknames = brickinfo['brickname']
-    # ADM this is a hack for test bricks where we don't always generate the bricks
-    # ADM file. It's probably safe to remove it at some point.
     else:
-        # ADM read in the test brick file list.
-        tbrxfns = glob(os.path.join(drdir, "brick-lists", "test*"))
-        tbrx = []
-        for fn in tbrxfns:
-            tbrx.append(np.loadtxt(fn, dtype='str'))
-        bricknames = np.concatenate(tbrx)
+        # ADM this is a hack for test bricks where we don't always generate the
+        # ADM bricks file. It's probably safe to remove it at some point.
+        fns = glob(os.path.join(drdir, 'tractor', '*', '*fits'))
+        from desitarget.io import brickname_from_filename
+        bricknames =[brickname_from_filename(fn) for fn in fns]
         if pixlist is not None or bundlebricks is not None:
             msg = 'DR-specific bricks file not found'
             msg += 'and pixlist of bundlebricks passed!!!'
