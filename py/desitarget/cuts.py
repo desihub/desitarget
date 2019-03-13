@@ -28,7 +28,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
-from desitarget.targets import finalize
+from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, check_nside
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
@@ -2394,6 +2394,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         # - Add *_target mask columns
         targets = finalize(objects, desi_target, bgs_target, mws_target,
                            survey=survey)
+        # ADM resolve any duplicates between imaging data releases.
+        targets = resolve(targets)
 
         return targets
 
