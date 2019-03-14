@@ -52,7 +52,7 @@ class TestCMX(unittest.TestCase):
         """
         # ADM add the DR7/DR8 data columns if they aren't there yet.
         # ADM can remove this once DR8 is finalized.
-        if not "BRIGHTBLOB" in targets.dtype.names:
+        if "BRIGHTBLOB" not in targets.dtype.names:
             targets = io.add_dr8_columns(targets)
 
         cmx, pshift = cuts.apply_cuts(targets,
