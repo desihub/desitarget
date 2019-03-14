@@ -18,6 +18,7 @@ from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+from desitarget.targets import resolve
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -208,7 +209,8 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     if os.path.exists(os.path.join(drdir, "coadd")):
         drdirs = [drdir]
     else:
-        drdirs = glob(os.path.join(drdir, '*', "coadd"))
+        wcoadd = glob(os.path.join(drdir, '*', "coadd"))
+        drdirs = [os.path.dirname(dd) for dd in wcoadd]
 
     # ADM determine the dictionary of quantities for one or two directories.
     qall = []
@@ -260,6 +262,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     # as a speed up, we assume all images in different filters for the brick have the same WCS
     # -> if we have read it once (iswcs=True), we use this info
     iswcs = False
+    # ADM this will store the instrument name the first time we touch the wcs
+    instrum = None
 
     rootdir = os.path.join(drdir, 'coadd', brickname[:3], brickname)
     # ADM loop through each of the filters and store the number of observations at the
@@ -278,6 +282,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
             if os.path.exists(fn):
                 img = fits.open(fn)
                 if not iswcs:
+                    # ADM also store the instrument name.
+                    instrum = img[extn_nb].header["INSTRUME"].lower().strip()
                     w = WCS(img[extn_nb].header)
                     x, y = w.all_world2pix(ras, decs, 0)
                     iswcs = True
@@ -300,6 +306,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
         img = fits.open(fn)
         # ADM use the WCS calculated for the per-filter quantities above, if it exists.
         if not iswcs:
+            # ADM also store the instrument name.
+            instrum = img[extn_nb].header["INSTRUME"].lower().strip()
             w = WCS(img[extn_nb].header)
             x, y = w.all_world2pix(ras, decs, 0)
             iswcs = True
@@ -309,6 +317,11 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
         # ADM if there is no maskbits file, populate with zeros.
         qdict['maskbits'] = np.zeros(npts, dtype='i2')
 
+    # ADM finally, populate the photometric system in the quantity dictionary.
+    if instrument == 'decam':
+        qdict['photsys'] = np.array([b"S" for x in range(npts)], dtype='|S1')
+    else:
+        qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
 #    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
 #                  .format(brickname,time()-start))
 
@@ -474,7 +487,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                             ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
-                            ('MASKBITS', 'i2'), ('EBV', 'f4')])
+                            ('MASKBITS', 'i2'), ('EBV', 'f4'), ('PHOTSYS', '|S1')])
     # ADM store each quantity of interest in the structured array
     # ADM remembering that the dictionary keys are in lower case text.
     cols = qdict.keys()
@@ -958,7 +971,10 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         for brickname in bricknames:
             qinfo.append(_update_status(_get_quantities(brickname)))
 
+    # ADM concatenate the randoms into a single long list and resolve whether
+    # ADM they are officially in the north or the south.
     qinfo = np.concatenate(qinfo)
+    qinfo = resolve(qinfo)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(616)
