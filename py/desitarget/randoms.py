@@ -193,6 +193,36 @@ def randoms_in_a_brick_from_name(brickname, drdir, density=100000):
     return ras, decs
 
 
+def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
+    """Wrapper on `quantities_at_positions_in_a_brick` for DR8 imaging and beyond.
+
+    Notes
+    -----
+        - See :func:`~desitarget.randoms.quantities_at_positions_in_a_brick`
+          for details. This function detects whether we have TWO coadd directories
+          in the `drdir` (e.g. one for DECaLS and one for MzLS/BASS) and, if so,
+          creates randoms for both surveys within the the passed brick. If not, it
+          defaults to the behavior for only having one survey.
+    """
+    # ADM determine whether we have to traverse two sets of brick directories.
+    if os.path.exists(os.path.join(drdir, "coadd")):
+        drdirs = [drdir]
+    else:
+        drdirs = glob(os.path.join(drdir, '*', "coadd"))
+
+    # ADM determine the dictionary of quantities for one or two directories.
+    qall = []
+    for dd in drdirs:
+        qall.append(quantities_at_positions_in_a_brick(ras, decs, brickname, dd))
+
+    # ADM concatenate everything in qall into one dictionary.
+    qcombine = {}
+    for k in qall[0].keys():
+        qcombine[k] = np.concatenate([q[k] for q in qall])
+
+    return qcombine
+
+
 def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     """Return NOBS, GALDEPTH, PSFDEPTH (per-band) at positions in one brick of the Legacy Surveys
 
@@ -424,21 +454,21 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
             EBV: E(B-V) at this location from the SFD dust maps
     """
-    # ADM this is only intended to work on one brick, so die if a larger array is passed
+    # ADM this is only intended to work on one brick, so die if a larger array is passed.
     if not isinstance(brickname, str):
         log.fatal("Only one brick can be passed at a time!")
         raise ValueError
 
-    # ADM generate random points within the brick at the requested density
+    # ADM generate random points within the brick at the requested density.
     ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=density)
 
-    # ADM retrieve the dictionary of quantities for each random point
-    qdict = quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
+    # ADM retrieve the dictionary of quantities for each random point.
+    qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
 
-    # ADM retrieve the E(B-V) values for each random point
+    # ADM retrieve the E(B-V) values for each random point.
     ebv = get_dust(ras, decs, dustdir=dustdir)
 
-    # ADM convert the dictionary to a structured array
+    # ADM convert the dictionary to a structured array.
     qinfo = np.zeros(len(ras),
                      dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),
                             ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
@@ -446,15 +476,15 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
                             ('MASKBITS', 'i2'), ('EBV', 'f4')])
     # ADM store each quantity of interest in the structured array
-    # ADM remembering that the dictionary keys are in lower case text
+    # ADM remembering that the dictionary keys are in lower case text.
     cols = qdict.keys()
     for col in cols:
         qinfo[col.upper()] = qdict[col]
 
-    # ADM add the RAs/Decs and brick name
+    # ADM add the RAs/Decs and brick name.
     qinfo["RA"], qinfo["DEC"], qinfo["BRICKNAME"] = ras, decs, brickname
 
-    # ADM add the dust values
+    # ADM add the dust values.
     qinfo["EBV"] = ebv
 
     return qinfo
@@ -831,7 +861,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
             EBV: E(B-V) at this location from the SFD dust maps
     """
-    # ADM read in the survey bricks file, which lists the bricks of interest for this DR
+    # ADM read in the survey bricks file, which lists the bricks of interest for this DR.
     from glob import glob
     sbfile = glob(drdir+'/*bricks-dr*')
     if len(sbfile) > 0:
@@ -844,28 +874,28 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         # ADM bricks file. It's probably safe to remove it at some point.
         fns = glob(os.path.join(drdir, 'tractor', '*', '*fits'))
         from desitarget.io import brickname_from_filename
-        bricknames =[brickname_from_filename(fn) for fn in fns]
+        bricknames = [brickname_from_filename(fn) for fn in fns]
         if pixlist is not None or bundlebricks is not None:
             msg = 'DR-specific bricks file not found'
             msg += 'and pixlist of bundlebricks passed!!!'
             log.critical(msg)
-            raise ValueError(msg)        
+            raise ValueError(msg)
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
-    # ADM information for each brick
+    # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
         theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
-    # ADM if the bundlebricks option was sent, call the packing code
+    # ADM if the bundlebricks option was sent, call the packing code.
     if bundlebricks is not None:
         bundle_bricks(pixnum, bundlebricks, nside, brickspersec=brickspersec,
                       prefix='randoms', surveydir=drdir)
         return
 
-    # ADM restrict to only bricks in a set of HEALPixels, if requested
+    # ADM restrict to only bricks in a set of HEALPixels, if requested.
     if pixlist is not None:
-        # ADM if an integer was passed, turn it into a list
+        # ADM if an integer was passed, turn it into a list.
         if isinstance(pixlist, int):
             pixlist = [pixlist]
         wbricks = np.where([pix in pixlist for pix in pixnum])[0]
@@ -879,16 +909,16 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     log.info('Processing {} bricks from DR at {} at density {:.1e} per sq. deg...t = {:.1f}s'
              .format(nbricks, drdir, density, time()-start))
 
-    # ADM a little more information if we're slurming across nodes
+    # ADM a little more information if we're slurming across nodes.
     if os.getenv('SLURMD_NODENAME') is not None:
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     # ADM initialize the bricks class, and retrieve the brick information look-up table
-    # ADM so it can be used in a common fashion
+    # ADM so it can be used in a common fashion.
     from desiutil import brick
     bricktable = brick.Bricks(bricksize=0.25).to_table()
 
-    # ADM the critical function to run on every brick
+    # ADM the critical function to run on every brick.
     def _get_quantities(brickname):
         '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
         # ADM retrieve the edges for the brick that we're working on
@@ -896,7 +926,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         ramin, ramax, decmin, decmax = np.array(bricktable[wbrick]["RA1", "RA2", "DEC1", "DEC2"])[0]
 
         # ADM populate the brick with random points, and retrieve the quantities
-        # ADM of interest at those points
+        # ADM of interest at those points.
         return get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                                          density=density, dustdir=dustdir)
 
