@@ -210,16 +210,13 @@ def add_gaia_columns(indata):
     return outdata
 
 
-def add_dr_columns(indata, dr8=True):
+def add_dr_columns(indata):
     """Add columns that are in dr7/dr8 that weren't in dr6.
 
     Parameters
     ----------
     indata : :class:`~numpy.ndarray`
         Numpy structured array to which to add DR7/DR8 columns.
-    dr8 : :class:`bool`, optional, defaults to ``True``
-        If ``True`` then add the DR6->DR8 columns, otherwise
-        add the DR6->DR7 columns.
 
     Returns
     -------
@@ -232,11 +229,16 @@ def add_dr_columns(indata, dr8=True):
         - DR8 columns are stored in :mod:`desitarget.io.dr8datamodel`.
         - The returned columns are set to all ``0`` or ``False``.
     """
-    # ADM create the combined data model.
-    if dr8:
-        dt = indata.dtype.descr + dr8datamodel.dtype.descr
+    # ADM if BRIGHSTARINBLOB was sent (the dr7 version of BRIGHTBLOB)
+    # ADM then we need to update that column.
+    if 'BRIGHTSTARINBLOB' in indata.dtype.names:
+        newt = dr8datamodel["BRIGHTBLOB"].dtype.str
+        newdt = ("BRIGHTBLOB", newt)
+        dt = [fld if fld[0] != 'BRIGHTSTARINBLOB' else newdt 
+              for fld in indata.dtype.descr]
     else:
-        dt = indata.dtype.descr + dr7datamodel.dtype.descr
+        # ADM otherwise, create the combined data model.
+        dt = indata.dtype.descr + dr8datamodel.dtype.descr
 
     # ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
@@ -244,7 +246,10 @@ def add_dr_columns(indata, dr8=True):
 
     # ADM ...and populate them with the passed columns of data.
     for col in indata.dtype.names:
-        outdata[col] = indata[col]
+        if col == "BRIGHTSTARINBLOB":
+            outdata["BRIGHTBLOB"] = indata["BRIGHTSTARINBLOB"].astype(newt)
+        else:
+            outdata[col] = indata[col]
 
     return outdata
 
@@ -333,13 +338,13 @@ def read_tractor(filename, header=False, columns=None):
        (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
         for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
-
     # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
     # ADM the other DR6->DR8 data model updates.
-    if (columns is None) and \
-       (('BRIGHTBLOB' in fxcolnames) or ('brightblob' in fxcolnames)):
-        for col in dr8datamodel.dtype.names:
-            readcolumns.append(col)
+    else:
+        if (columns is None) and \
+           (('BRIGHTBLOB' in fxcolnames) or ('brightblob' in fxcolnames)):
+            for col in dr8datamodel.dtype.names:
+                readcolumns.append(col)
 
     # ADM if Gaia information was passed, add it to the columns to read.
     if (columns is None):

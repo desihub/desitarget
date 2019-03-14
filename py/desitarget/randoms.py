@@ -921,7 +921,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                 raise ValueError(msg)
     bricknames = np.concatenate(bricknames)
     brickinfo = np.concatenate(brickinfo)
-        
+
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
