@@ -210,7 +210,7 @@ def add_gaia_columns(indata):
     return outdata
 
 
-def add_dr_columns(indata):
+def add_dr8_columns(indata):
     """Add columns that are in dr7/dr8 that weren't in dr6.
 
     Parameters
@@ -234,7 +234,7 @@ def add_dr_columns(indata):
     if 'BRIGHTSTARINBLOB' in indata.dtype.names:
         newt = dr8datamodel["BRIGHTBLOB"].dtype.str
         newdt = ("BRIGHTBLOB", newt)
-        dt = [fld if fld[0] != 'BRIGHTSTARINBLOB' else newdt 
+        dt = [fld if fld[0] != 'BRIGHTSTARINBLOB' else newdt
               for fld in indata.dtype.descr]
     else:
         # ADM otherwise, create the combined data model.
@@ -378,7 +378,7 @@ def read_tractor(filename, header=False, columns=None):
     # ADM add DR8 data model updates (with zero/False) columns if not passed.
     if (columns is None) and \
        (('BRIGHTBLOB' not in fxcolnames) and ('brightblob' not in fxcolnames)):
-        data = add_dr_columns(data)
+        data = add_dr8_columns(data)
 
     # ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname.
     if len(data) == 0:
