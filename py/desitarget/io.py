@@ -673,10 +673,6 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-    # ADM add the SCXDIR to the file header.                                                                                                                                                          
-    hdr["SCXDIR"] = scxdir
-
-
 def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
