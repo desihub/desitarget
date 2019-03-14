@@ -194,6 +194,31 @@ def randoms_in_a_brick_from_name(brickname, drdir, density=100000):
     return ras, decs
 
 
+def _pre_or_post_dr8(drdir):
+    """Whether the imaging surveys directory structure is before or after DR8
+
+    Parameters
+    ----------
+    drdir : :class:`str`
+       The root directory pointing to a Data Release from the Legacy Surveys
+       e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
+
+    Returns
+    -------
+    :class:`list`
+       For DR8, this just returns the original directory as a list. For DR8
+       this returns a list of two directories, one corresponding to DECaLS
+       and one corresponding to BASS/MzLS.
+    """
+    if os.path.exists(os.path.join(drdir, "coadd")):
+        drdirs = [drdir]
+    else:
+        wcoadd = glob(os.path.join(drdir, '*', "coadd"))
+        drdirs = [os.path.dirname(dd) for dd in wcoadd]
+
+    return drdirs
+
+
 def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     """Wrapper on `quantities_at_positions_in_a_brick` for DR8 imaging and beyond.
 
@@ -206,11 +231,7 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
           defaults to the behavior for only having one survey.
     """
     # ADM determine whether we have to traverse two sets of brick directories.
-    if os.path.exists(os.path.join(drdir, "coadd")):
-        drdirs = [drdir]
-    else:
-        wcoadd = glob(os.path.join(drdir, '*', "coadd"))
-        drdirs = [os.path.dirname(dd) for dd in wcoadd]
+    drdirs = _pre_or_post_dr8(drdir)
 
     # ADM determine the dictionary of quantities for one or two directories.
     qall = []
@@ -282,7 +303,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
             if os.path.exists(fn):
                 img = fits.open(fn)
                 if not iswcs:
-                    # ADM also store the instrument name.
+                    # ADM also store the instrument name, if it isn't yet stored.
                     instrum = img[extn_nb].header["INSTRUME"].lower().strip()
                     w = WCS(img[extn_nb].header)
                     x, y = w.all_world2pix(ras, decs, 0)
@@ -306,7 +327,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
         img = fits.open(fn)
         # ADM use the WCS calculated for the per-filter quantities above, if it exists.
         if not iswcs:
-            # ADM also store the instrument name.
+            # ADM also store the instrument name, if it isn't yet stored.
             instrum = img[extn_nb].header["INSTRUME"].lower().strip()
             w = WCS(img[extn_nb].header)
             x, y = w.all_world2pix(ras, decs, 0)
@@ -318,7 +339,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
         qdict['maskbits'] = np.zeros(npts, dtype='i2')
 
     # ADM finally, populate the photometric system in the quantity dictionary.
-    if instrument == 'decam':
+    if instrum == 'decam':
         qdict['photsys'] = np.array([b"S" for x in range(npts)], dtype='|S1')
     else:
         qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
@@ -875,25 +896,32 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
             EBV: E(B-V) at this location from the SFD dust maps
     """
     # ADM read in the survey bricks file, which lists the bricks of interest for this DR.
-    from glob import glob
-    sbfile = glob(drdir+'/*bricks-dr*')
-    if len(sbfile) > 0:
-        sbfile = sbfile[0]
-        hdu = fits.open(sbfile)
-        brickinfo = hdu[1].data
-        bricknames = brickinfo['brickname']
-    else:
-        # ADM this is a hack for test bricks where we don't always generate the
-        # ADM bricks file. It's probably safe to remove it at some point.
-        fns = glob(os.path.join(drdir, 'tractor', '*', '*fits'))
-        from desitarget.io import brickname_from_filename
-        bricknames = [brickname_from_filename(fn) for fn in fns]
-        if pixlist is not None or bundlebricks is not None:
-            msg = 'DR-specific bricks file not found'
-            msg += 'and pixlist of bundlebricks passed!!!'
-            log.critical(msg)
-            raise ValueError(msg)
-
+    # ADM if this is pre-or-post-DR8 we need to find the correct directory or directories.
+    drdirs = _pre_or_post_dr8(drdir)
+    bricknames = []
+    brickinfo = []
+    for dd in drdirs:
+        sbfile = glob(dd+'/*bricks-dr*')
+        if len(sbfile) > 0:
+            sbfile = sbfile[0]
+            hdu = fits.open(sbfile)
+            brickinfo.append(hdu[1].data)
+            bricknames.append(hdu[1].data['BRICKNAME'])
+        else:
+            # ADM this is a hack for test bricks where we didn't always generate the
+            # ADM bricks file. It's probably safe to remove it at some point.
+            from desitarget.io import brickname_from_filename
+            fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
+            bricknames.append([brickname_from_filename(fn) for fn in fns])
+            brickinfo.append([])
+            if pixlist is not None or bundlebricks is not None:
+                msg = 'DR-specific bricks file not found'
+                msg += 'and pixlist or bundlebricks passed!!!'
+                log.critical(msg)
+                raise ValueError(msg)
+    bricknames = np.concatenate(bricknames)
+    brickinfo = np.concatenate(brickinfo)
+        
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
