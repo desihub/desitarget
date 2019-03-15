@@ -63,7 +63,7 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles, cmx=True)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles, cmx=ns.cmx)
 
 log.info('limiting to Dec > {}o and areas beyond -{}o <= Galactic b < {}o...t = {:.1f} mins'
          .format(ns.mindec, ns.mingalb, ns.mingalb, (time()-t0)/60.))
