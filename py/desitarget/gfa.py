@@ -46,7 +46,7 @@ gfadatamodel = np.array([], dtype=[
 
 
 def near_tile(data, tilera, tiledec, window_ra=4.0, window_dec=4.0):
-    """Trims the input data to a rectangular windonw in RA,DEC.
+    """Trims the input data to a rectangular window in RA,DEC.
 
     Parameters
     ----------
@@ -402,7 +402,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
     return gfas
 
 
-def select_gfas(infiles, maglim=18, numproc=4, cmx=False):
+def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     """Create a set of GFA locations using Gaia.
 
     Parameters
@@ -413,6 +413,10 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False):
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
+    tilesfile : :class:`str`, optional, defaults to ``None``
+        Name of tiles file to load. If ``None`` or file doesn't exist,
+        then load the entire footprint. If no path is sent, then look
+        in $DESIMODEL/data/footprint.
     cmx : :class:`bool`,  defaults to ``False``
         If ``True``, do not limit output to DESI tiling footprint.
         Used for selecting wider-ranging commissioning targets.
@@ -483,7 +487,7 @@ def select_gfas(infiles, maglim=18, numproc=4, cmx=False):
     gaia = gaia[ii]
     # ADM ...and also to the DESI footprint, if we're not cmx'ing.
     if not cmx:
-        tiles = desimodel.io.load_tiles()
+        tiles = desimodel.io.load_tiles(tilesfile)
         ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
         gaia = gaia[ii]
 

@@ -22,13 +22,16 @@ ap.add_argument("surveydir",
 ap.add_argument("dest",
                 help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument('-m', '--maglim', type=float,
-                help='Magnitude limit on GFA targets in Gaia G-band (defaults to [18])',
+                help="Magnitude limit on GFA targets in Gaia G-band (defaults to [18])",
                 default=18)
 ap.add_argument('-n', "--numproc", type=int,
-                help='number of concurrent processes to use (defaults to [{}])'.format(nproc),
+                help="number of concurrent processes to use (defaults to [{}])".format(nproc),
                 default=nproc)
 ap.add_argument('-s2', "--surveydir2",
-                help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR6 and DR7 into one file)',
+                help="Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR6 and DR7 into one file)",
+                default=None)
+ap.add_argument('-t', "--tiles",
+                help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
                 default=None)
 
 ns = ap.parse_args()
@@ -46,7 +49,7 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles)
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside, survey='main')
 
