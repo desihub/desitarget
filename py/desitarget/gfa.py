@@ -242,11 +242,11 @@ def gaia_morph(gaia):
     )
 
     # ADM populate morphological information.
-    gaia[psf] == 'GPSF'
-    gaia[~psf] == 'GGAL'
+    gaia[psf] = b'GPSF'
+    gaia[~psf] = b'GGAL'
 
     return gaia
-    
+
 
 def gaia_gfas_from_sweep(objects, maglim=18.):
     """Create a set of GFAs for one sweep file or sweep objects.
@@ -450,8 +450,8 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
         The number of parallel processes to use.
     tilesfile : :class:`str`, optional, defaults to ``None``
         Name of tiles file to load. If ``None`` or file doesn't exist,
-        then load the entire footprint. If no path is sent, then look
-        in $DESIMODEL/data/footprint.
+        then load the entire footprint. If no path to the file is
+        sent, then look in $DESIMODEL/data/footprint.
     cmx : :class:`bool`,  defaults to ``False``
         If ``True``, do not limit output to DESI tiling footprint.
         Used for selecting wider-ranging commissioning targets.
@@ -464,18 +464,29 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
 
     Notes
     -----
-        - if numproc==1, use the serial code instead of the parallel code.
+        - If numproc==1, use the serial code instead of the parallel code.
+        - The tiles loaded from `tilesfile` will only be those in DESI.
+          So, for custom tilings, set `IN_DESI`==1 in your tiles file.
     """
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
+    nfiles = len(infiles)
 
     # ADM check that files exist before proceeding.
     for filename in infiles:
         if not os.path.exists(filename):
-            raise ValueError("{} doesn't exist".format(filename))
+            msg = "{} doesn't exist".format(filename)
+            log.critical(msg)
+            raise ValueError(msg)
 
-    nfiles = len(infiles)
+    # ADM load the tiles file.
+    tiles = desimodel.io.load_tiles(tilesfile=tilesfile)
+    # ADM check some files loaded.
+    if len(tiles) == 0:
+        msg = "no tiles found in {}".format(tilesfile)
+        log.critical(msg)
+        raise ValueError(msg)
 
     # ADM the critical function to run on every file.
     def _get_gfas(fn):
@@ -512,21 +523,20 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     # ADM resolve any duplicates between imaging data releases.
     gfas = resolve(gfas)
 
-    # ADM load the tiles file.
-    tiles = desimodel.io.load_tiles(tilesfile)
-
-    # ADM retrieve all Gaia objects in the DESI footprint.
+    # ADM retrieve Gaia objects in the DESI footprint or passed tiles.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
-    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx, 
+    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
                              tiles=tiles)
     # ADM and limit them to just any missing bricks...
     brickids = set(gfas['BRICKID'])
     ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
     gaia = gaia[ii]
-    # ADM ...and also to the DESI footprint, if we're not cmx'ing.
-    if not cmx:
-        ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
-        gaia = gaia[ii]
 
-    return np.concatenate([gfas, gaia])
+    gfas = np.concatenate([gfas, gaia])
+    # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
+    if not cmx:
+        ii = is_point_in_desi(tiles, gfas["RA"], gfas["DEC"])
+        gfas = gfas[ii]
+
+    return gfas
