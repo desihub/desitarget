@@ -218,6 +218,36 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
             fitsio.write(tileout, gfa_data, extname='GFA')
 
 
+def gaia_morph(gaia):
+    """Assign morphological type to Gaia point sources.
+
+    Parameters
+    ----------
+    gaia: :class:`~numpy.ndarray`
+        Numpy structured array containing at least the columns `TYPE`,
+        `GAIA_PHOT_G_MEAN_MAG` and `GAIA_ASTROMETRIC_EXCESS_NOISE`.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Input array, with the ``TYPE`` column updated to "GPSF" or "GGAL"
+        based on a morphological cut with Gaia.
+    """
+    # ADM determine which objects are Gaia point sources.
+    g = gaia['GAIA_PHOT_G_MEAN_MAG']
+    aen = gaia['GAIA_ASTROMETRIC_EXCESS_NOISE']
+    psf = np.logical_or(
+        (g <= 19.) * (aen < 10.**0.5),
+        (g >= 19.) * (aen < 10.**(0.5 + 0.2*(g - 19.)))
+    )
+
+    # ADM populate morphological information.
+    gaia[psf] == 'GPSF'
+    gaia[~psf] == 'GGAL'
+
+    return gaia
+    
+
 def gaia_gfas_from_sweep(objects, maglim=18.):
     """Create a set of GFAs for one sweep file or sweep objects.
 
@@ -331,13 +361,16 @@ def gaia_in_file(infile, maglim=18):
     for col in cols:
         gfas[col] = objs[col]
 
+    # ADM update the Gaia morphological type.
+    gfas = gaia_morph(gfas)
+
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
 
     return gfas
 
 
-def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
+def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False, tiles=None):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -349,6 +382,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
     allsky : :class:`bool`,  defaults to ``False``
         If ``True``, assume that the DESI tiling footprint is the
         entire sky (i.e. return *all* Gaia objects across the sky).
+    tiles : :class:`~numpy.ndarray`, optional, defaults to ``None``
+        Array of DESI tiles. If None, then load the entire footprint.
 
     Returns
     -------
@@ -364,7 +399,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False):
     if allsky:
         infiles = find_gaia_files_box([0, 360, -90, 90])
     else:
-        infiles = find_gaia_files_tiles(neighbors=False)
+        infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False)
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -477,17 +512,20 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     # ADM resolve any duplicates between imaging data releases.
     gfas = resolve(gfas)
 
+    # ADM load the tiles file.
+    tiles = desimodel.io.load_tiles(tilesfile)
+
     # ADM retrieve all Gaia objects in the DESI footprint.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
-    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx)
+    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx, 
+                             tiles=tiles)
     # ADM and limit them to just any missing bricks...
     brickids = set(gfas['BRICKID'])
     ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
     gaia = gaia[ii]
     # ADM ...and also to the DESI footprint, if we're not cmx'ing.
     if not cmx:
-        tiles = desimodel.io.load_tiles(tilesfile)
         ii = is_point_in_desi(tiles, gaia["RA"], gaia["DEC"])
         gaia = gaia[ii]
 
