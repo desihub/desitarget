@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import argparse
 from desitarget.gfa import select_gfas
+from desitarget.geomask import is_in_gal_box, is_in_box
 from desitarget import io
 from time import time
 time0 = time()
@@ -33,6 +34,12 @@ ap.add_argument('-s2', "--surveydir2",
 ap.add_argument('-t', "--tiles",
                 help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
                 default=None)
+ap.add_argument('-dec', "--mindec", type=float,
+                help='Minimum declination to include in output file (degrees; defaults to [-25])',
+                default=-25)
+ap.add_argument('-b', "--mingalb", type=float,
+                help='Closest latitude to Galactic plane to output (e.g. send the default [20] to limit to areas beyond -20o <= b < -20o)',
+                default=20)
 
 ns = ap.parse_args()
 
@@ -50,6 +57,15 @@ if len(infiles) == 0:
 log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles)
+
+log.info('limiting to Dec > {}o and areas beyond -{}o <= Galactic b < {}o...t = {:.1f} mins'
+         .format(ns.mindec, ns.mingalb, ns.mingalb, (time()-t0)/60.))
+# ADM limit by Dec first to speed transformation to Galactic coordinates.
+decgood = is_in_box(gfas, [0., 360., ns.mindec, 90.])
+gfas = gfas[decgood]
+# ADM limit to requesed Galactic latitude range.
+bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
+gfas = gfas[~bbad]
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside, survey='main')
 
