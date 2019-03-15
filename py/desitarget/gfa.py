@@ -242,8 +242,8 @@ def gaia_morph(gaia):
     )
 
     # ADM populate morphological information.
-    gaia[psf] = b'GPSF'
-    gaia[~psf] = b'GGAL'
+    gaia['TYPE'][psf] = b'GPSF'
+    gaia['TYPE'][~psf] = b'GGAL'
 
     return gaia
 
