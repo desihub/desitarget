@@ -35,13 +35,20 @@ ap.add_argument('-t', "--tiles",
                 help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
                 default=None)
 ap.add_argument('-dec', "--mindec", type=float,
-                help='Minimum declination to include in output file (degrees; defaults to [-30])',
+                help="Minimum declination to include in output file (degrees; defaults to [-30])",
                 default=-30)
 ap.add_argument('-b', "--mingalb", type=float,
-                help='Closest latitude to Galactic plane to output (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)',
+                help="Closest latitude to Galactic plane to output (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
                 default=10)
+ap.add_argument("--cmx", action='store_true',
+                help="If sent, then create a commissioning file. Commissioning files are not restricted by any tiling pattern, even if --tiles is sent")
 
 ns = ap.parse_args()
+
+survey = 'main'
+if ns.cmx:
+    log.info('Making a cmx-style file. No restrictions on tiling')
+    survey = 'cmx'
 
 infiles = io.list_sweepfiles(ns.surveydir)
 if ns.surveydir2 is not None:
@@ -54,9 +61,9 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-t0)/60.))
+log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles, cmx=True)
 
 log.info('limiting to Dec > {}o and areas beyond -{}o <= Galactic b < {}o...t = {:.1f} mins'
          .format(ns.mindec, ns.mingalb, ns.mingalb, (time()-t0)/60.))
@@ -67,6 +74,6 @@ gfas = gfas[decgood]
 bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
 gfas = gfas[~bbad]
 
-io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside, survey='main')
+io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside, survey=survey)
 
-log.info('{} GFAs written to {}...t={:.1f}mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
+log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
