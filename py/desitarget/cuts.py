@@ -1564,10 +1564,10 @@ def _prepare_gaia(objects, colnames=None):
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     # ADM a mild hack, as GAIA_DUPLICATED_SOURCE was a 0/1 integer at some point.
-    if len(set(np.atleast_1d(objects['GAIA_DUPLICATED_SOURCE'])) - set([0, 1])) == 0:
-        gaiadupsource = objects['GAIA_DUPLICATED_SOURCE'].astype(bool)
-    else:
-        gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
+    gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
+    if issubclass(gaiadupsource.dtype.type, np.integer):
+        if len(set(np.atleast_1d(gaiadupsource)) - set([0, 1])) == 0:
+            gaiadupsource = objects['GAIA_DUPLICATED_SOURCE'].astype(bool)
 
     # For BGS target selection
     Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
