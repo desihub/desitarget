@@ -466,7 +466,7 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     -----
         - If numproc==1, use the serial code instead of the parallel code.
         - The tiles loaded from `tilesfile` will only be those in DESI.
-          So, for custom tilings, set `IN_DESI`==1 in your tiles file.
+          So, for custom tilings, set IN_DESI==1 in your tiles file.
     """
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
