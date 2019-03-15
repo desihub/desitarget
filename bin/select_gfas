@@ -35,11 +35,11 @@ ap.add_argument('-t', "--tiles",
                 help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
                 default=None)
 ap.add_argument('-dec', "--mindec", type=float,
-                help='Minimum declination to include in output file (degrees; defaults to [-25])',
-                default=-25)
+                help='Minimum declination to include in output file (degrees; defaults to [-30])',
+                default=-30)
 ap.add_argument('-b', "--mingalb", type=float,
-                help='Closest latitude to Galactic plane to output (e.g. send the default [20] to limit to areas beyond -20o <= b < -20o)',
-                default=20)
+                help='Closest latitude to Galactic plane to output (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)',
+                default=10)
 
 ns = ap.parse_args()
 
