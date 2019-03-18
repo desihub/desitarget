@@ -79,6 +79,6 @@ gfas = gfas[decgood]
 bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
 gfas = gfas[~bbad]
 
-io.write_gfas(ns.dest, gfas, indir=indir, nside=nside, survey='main')
+io.write_gfas(ns.dest, gfas, indir=indir, nside=nside, survey=survey)
 
 log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
