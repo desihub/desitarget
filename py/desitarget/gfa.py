@@ -219,19 +219,20 @@ def add_gfa_info_to_fa_tiles(gfa_file_path="./", fa_file_path=None, output_path=
 
 
 def gaia_morph(gaia):
-    """Assign morphological type to Gaia point sources.
+    """Retrieve morphological type for Gaia sources.
 
     Parameters
     ----------
     gaia: :class:`~numpy.ndarray`
-        Numpy structured array containing at least the columns `TYPE`,
+        Numpy structured array containing at least the columns,
         `GAIA_PHOT_G_MEAN_MAG` and `GAIA_ASTROMETRIC_EXCESS_NOISE`.
 
     Returns
     -------
-    :class:`~numpy.ndarray`
-        Input array, with the ``TYPE`` column updated to "GPSF" or "GGAL"
-        based on a morphological cut with Gaia.
+    :class:`~numpy.array`
+        An array of strings that is the same length as the input array
+        and is set to either "GPSF" or "GGAL" based on a
+        morphological cut with Gaia.
     """
     # ADM determine which objects are Gaia point sources.
     g = gaia['GAIA_PHOT_G_MEAN_MAG']
@@ -242,10 +243,11 @@ def gaia_morph(gaia):
     )
 
     # ADM populate morphological information.
-    gaia['TYPE'][psf] = b'GPSF'
-    gaia['TYPE'][~psf] = b'GGAL'
+    morph = np.zeros(len(gaia), dtype=gfadatamodel["TYPE"].dtype)
+    morph[psf] = b'GPSF'
+    morph[~psf] = b'GGAL'
 
-    return gaia
+    return morph
 
 
 def gaia_gfas_from_sweep(objects, maglim=18.):
@@ -362,7 +364,7 @@ def gaia_in_file(infile, maglim=18):
         gfas[col] = objs[col]
 
     # ADM update the Gaia morphological type.
-    gfas = gaia_morph(gfas)
+    gfas["TYPE"] = gaia_morph(gfas)
 
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
@@ -449,9 +451,8 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
     tilesfile : :class:`str`, optional, defaults to ``None``
-        Name of tiles file to load. If ``None`` or file doesn't exist,
-        then load the entire footprint. If no path to the file is
-        sent, then look in $DESIMODEL/data/footprint.
+        Name of tiles file to load. For full details, see
+        :func:`~desimodel.io.load_tiles`.
     cmx : :class:`bool`,  defaults to ``False``
         If ``True``, do not limit output to DESI tiling footprint.
         Used for selecting wider-ranging commissioning targets.
