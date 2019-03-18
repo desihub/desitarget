@@ -29,7 +29,7 @@ ap.add_argument('-n', "--numproc", type=int,
                 help="number of concurrent processes to use (defaults to [{}])".format(nproc),
                 default=nproc)
 ap.add_argument('-s2', "--surveydir2",
-                help="Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR6 and DR7 into one file)",
+                help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR8 into one file of GFAs)',
                 default=None)
 ap.add_argument('-t', "--tiles",
                 help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
@@ -51,12 +51,17 @@ if ns.cmx:
     survey = 'cmx'
 
 infiles = io.list_sweepfiles(ns.surveydir)
+indir = ns.surveydir
 if ns.surveydir2 is not None:
     infiles2 = io.list_sweepfiles(ns.surveydir2)
     infiles += infiles2
-
+    indir = "{} {}".format(ns.surveydir, ns.surveydir2)
 if len(infiles) == 0:
     infiles = io.list_tractorfiles(ns.surveydir)
+    if ns.surveydir2 is not None:
+        infiles2 = io.list_tractorfiles(ns.surveydir2)
+        infiles += infiles2
+        indir = "{} {}".format(ns.surveydir, ns.surveydir2)
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
@@ -74,6 +79,6 @@ gfas = gfas[decgood]
 bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
 gfas = gfas[~bbad]
 
-io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside, survey=survey)
+io.write_gfas(ns.dest, gfas, indir=indir, nside=nside, survey='main')
 
 log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))

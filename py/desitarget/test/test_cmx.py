@@ -50,6 +50,11 @@ class TestCMX(unittest.TestCase):
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
+        # ADM add the DR7/DR8 data columns if they aren't there yet.
+        # ADM can remove this once DR8 is finalized.
+        if "BRIGHTBLOB" not in targets.dtype.names:
+            targets = io.add_dr8_columns(targets)
+
         cmx, pshift = cuts.apply_cuts(targets,
                                       cmxdir=self.cmxdir)
         self.assertEqual(len(cmx), len(targets))

@@ -186,6 +186,10 @@ class TestCuts(unittest.TestCase):
         # ADM only test the ELG cuts for speed. There's a
         # ADM full run through all classes in test_cuts_basic.
         tc = ["ELG"]
+        # ADM add the DR7/DR8 data columns if they aren't there yet.
+        # ADM can remove this once DR8 is finalized.
+        if "BRIGHTBLOB" not in targets.dtype.names:
+            targets = io.add_dr8_columns(targets)
 
         self.assertFalse(cuts._is_row(targets))
         self.assertTrue(cuts._is_row(targets[0]))
