@@ -711,7 +711,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
 
     print("")
     print("#######################################################")
-    print("Possible salloc command if you want to run on the interactive queue:")
+    print("Possible salloc command if you want to run on the Cori interactive queue:")
     print("")
     print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
           .format(len(bins), maxeta))

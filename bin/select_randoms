@@ -9,6 +9,8 @@ start = time()
 
 from desitarget import io
 from desitarget.randoms import pixweight, select_randoms
+from glob import iglob
+import fitsio
 
 #import warnings
 #warnings.simplefilter('error')
@@ -64,12 +66,30 @@ if not os.path.exists(ns.surveydir):
 if ns.bundlebricks is None:
     log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
 
-randoms = select_randoms(density=ns.density, numproc=ns.numproc, 
-                         nside=ns.nside, pixlist=pixlist, 
+# ADM go looking for a maskbits file to steal the header for the
+# ADM bit names. Try a couple of configurations (pre/post DR7).
+gen = iglob(os.path.join(ns.surveydir, "*", "coadd", "*", "*", "*maskbits*"))
+try:
+    fn = next(gen)
+except StopIteration:
+    gen = iglob(os.path.join(ns.surveydir, "coadd", "*", "*", "*maskbits*"))
+    fn = next(gen)
+hdrall = fitsio.read_header(fn, 1)
+# ADM retrieve the record dictionary for the entire header.
+rmhdr = vars(hdrall)
+# ADM write only the maskbits-relevant headers to a new header.
+hdr = fitsio.FITSHDR()
+for record in rmhdr['_record_map']:
+    if 'BITNM' in record:
+        hdr[record] = rmhdr['_record_map'][record]
+
+randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
+                         nside=ns.nside, pixlist=pixlist,
                          bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
-                         drdir=ns.surveydir, dustdir=ns.dustdir)
+                         dustdir=ns.dustdir)
 
 if ns.bundlebricks is None:
-    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, nside=nside, density=ns.density)
-    log.info('wrote file of randoms to {}...t = {:.1f}s'.format(ns.dest,time()-start))
+    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, hdr=hdr, nside=nside, density=ns.density)
+    log.info('wrote file of {} randoms to {}...t = {:.1f}s'
+             .format(len(randoms), ns.dest,time()-start))
 
