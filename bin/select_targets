@@ -27,10 +27,13 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates DESI target bits from Legacy Surveys sweeps or tractor files')
-ap.add_argument("src",
+ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest",
                 help="Output target selection file")
+ap.add_argument('-s2', "--sweepdir2",
+                help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
+                default=None)
 ap.add_argument('-c', "--check", action='store_true',
                 help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('-m', "--mask",
@@ -71,9 +74,19 @@ ap.add_argument('--radecrad',
                 default=None)
 
 ns = ap.parse_args()
-infiles = io.list_sweepfiles(ns.src)
+
+infiles = io.list_sweepfiles(ns.sweepdir)
+indir = ns.sweepdir
+if ns.sweepdir2 is not None:
+    infiles2 = io.list_sweepfiles(ns.sweepdir2)
+    infiles += infiles2
+    indir = "{} {}".format(ns.sweepdir, ns.sweepdir2)
 if len(infiles) == 0:
-    infiles = io.list_tractorfiles(ns.src)
+    infiles = io.list_tractorfiles(ns.sweepdir)
+    if ns.sweepdir2 is not None:
+        infiles2 = io.list_tractorfiles(ns.sweepdir2)
+        infiles += infiles2
+        indir = "{} {}".format(ns.sweepdir, ns.sweepdir2)
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
@@ -112,6 +125,6 @@ else:
 
     if ns.bundlefiles is None:
         io.write_targets(ns.dest, targets,
-                         indir=ns.src, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+                         indir=indir, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
                          qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
         log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))

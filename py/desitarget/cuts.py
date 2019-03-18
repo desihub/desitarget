@@ -28,7 +28,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
-from desitarget.targets import finalize
+from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, check_nside
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
@@ -1512,16 +1512,16 @@ def _prepare_optical_wise(objects, colnames=None):
     w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
-    # For BGS target selection
-    brightstarinblob = objects['BRIGHTSTARINBLOB']
+    # For BGS target selection.
+    brightstarinblob = (objects['BRIGHTBLOB'] & 2**0) != 0
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
 
-    # ADM remove handful of NaN values from DCHISQ values and make them unselectable
+    # ADM remove handful of NaN values from DCHISQ values and make them unselectable.
     w = np.where(deltaChi2 != deltaChi2)
-    # ADM this is to catch the single-object case for unit tests
+    # ADM this is to catch the single-object case for unit tests.
     if len(w[0]) > 0:
         deltaChi2[w] = -1e6
 
@@ -1563,7 +1563,11 @@ def _prepare_gaia(objects, colnames=None):
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
+    # ADM a mild hack, as GAIA_DUPLICATED_SOURCE was a 0/1 integer at some point.
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
+    if issubclass(gaiadupsource.dtype.type, np.integer):
+        if len(set(np.atleast_1d(gaiadupsource)) - set([0, 1])) == 0:
+            gaiadupsource = objects['GAIA_DUPLICATED_SOURCE'].astype(bool)
 
     # For BGS target selection
     Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
@@ -2394,6 +2398,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         # - Add *_target mask columns
         targets = finalize(objects, desi_target, bgs_target, mws_target,
                            survey=survey)
+        # ADM resolve any duplicates between imaging data releases.
+        targets = resolve(targets)
 
         return targets
 
