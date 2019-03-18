@@ -78,7 +78,7 @@ class TestIO(unittest.TestCase):
         tscolumns = list(io.tsdatamodel.dtype.names)     \
             + ['BRICK_PRIMARY', 'PHOTSYS']               \
             + list(gaiadatamodel.dtype.names)            \
-            + list(io.dr7datamodel.dtype.names)
+            + list(io.dr8datamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))

@@ -30,7 +30,9 @@ log = get_logger()
 # ADM this is a lookup dictionary to map RELEASE to a simpler "North" or "South".
 # ADM photometric system. This will expand with the definition of RELEASE in the
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
-releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S'}
+# ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
+releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
+               8000: 'S', 8001: 'N'}
 
 oldtscolumns = [
     'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
@@ -49,8 +51,8 @@ oldtscolumns = [
 # ADM this is an empty array of the full TS data model columns and dtypes
 # ADM other columns can be added in read_tractor.
 tsdatamodel = np.array([], dtype=[
-    ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
-    ('OBJID', '<i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
+    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
+    ('OBJID', '>i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
     ('DEC', '>f8'), ('DEC_IVAR', '>f4'), ('DCHISQ', '>f4', (5,)), ('EBV', '>f4'),
     ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
     ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'),
@@ -78,6 +80,12 @@ dr7datamodel = np.array([], dtype=[
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('BRIGHTSTARINBLOB', '?')
+    ])
+
+dr8datamodel = np.array([], dtype=[
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('BRIGHTBLOB', '>i2')
     ])
 
 
@@ -202,26 +210,35 @@ def add_gaia_columns(indata):
     return outdata
 
 
-def add_dr7_columns(indata):
-    """Add columns that are in dr7 that weren't in dr6.
+def add_dr8_columns(indata):
+    """Add columns that are in dr7/dr8 that weren't in dr6.
 
     Parameters
     ----------
     indata : :class:`~numpy.ndarray`
-        Numpy structured array to which to add DR7 columns.
+        Numpy structured array to which to add DR7/DR8 columns.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        Input array with DR7 columns added.
+        Input array with DR7/DR8 columns added.
 
     Notes
     -----
         - DR7 columns are stored in :mod:`desitarget.io.dr7datamodel`.
-        - The DR7 columns returned are set to all ``0`` or ``False``.
+        - DR8 columns are stored in :mod:`desitarget.io.dr8datamodel`.
+        - The returned columns are set to all ``0`` or ``False``.
     """
-    # ADM create the combined data model.
-    dt = indata.dtype.descr + dr7datamodel.dtype.descr
+    # ADM if BRIGHSTARINBLOB was sent (the dr7 version of BRIGHTBLOB)
+    # ADM then we need to update that column.
+    if 'BRIGHTSTARINBLOB' in indata.dtype.names:
+        newt = dr8datamodel["BRIGHTBLOB"].dtype.str
+        newdt = ("BRIGHTBLOB", newt)
+        dt = [fld if fld[0] != 'BRIGHTSTARINBLOB' else newdt
+              for fld in indata.dtype.descr]
+    else:
+        # ADM otherwise, create the combined data model.
+        dt = indata.dtype.descr + dr8datamodel.dtype.descr
 
     # ADM create a new numpy array with the fields from the new data model...
     nrows = len(indata)
@@ -229,7 +246,10 @@ def add_dr7_columns(indata):
 
     # ADM ...and populate them with the passed columns of data.
     for col in indata.dtype.names:
-        outdata[col] = indata[col]
+        if col == "BRIGHTSTARINBLOB":
+            outdata["BRIGHTBLOB"] = indata["BRIGHTSTARINBLOB"].astype(newt)
+        else:
+            outdata[col] = indata[col]
 
     return outdata
 
@@ -318,6 +338,13 @@ def read_tractor(filename, header=False, columns=None):
        (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
         for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
+    # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
+    # ADM the other DR6->DR8 data model updates.
+    else:
+        if (columns is None) and \
+           (('BRIGHTBLOB' in fxcolnames) or ('brightblob' in fxcolnames)):
+            for col in dr8datamodel.dtype.names:
+                readcolumns.append(col)
 
     # ADM if Gaia information was passed, add it to the columns to read.
     if (columns is None):
@@ -348,10 +375,10 @@ def read_tractor(filename, header=False, columns=None):
        (('REF_ID' not in fxcolnames) and ('ref_id' not in fxcolnames)):
         data = add_gaia_columns(data)
 
-    # ADM add DR7 data model updates (with zero/False) columns if not passed.
+    # ADM add DR8 data model updates (with zero/False) columns if not passed.
     if (columns is None) and \
-       (('BRIGHTSTARINBLOB' not in fxcolnames) and ('brightstarinblob' not in fxcolnames)):
-        data = add_dr7_columns(data)
+       (('BRIGHTBLOB' not in fxcolnames) and ('brightblob' not in fxcolnames)):
+        data = add_dr8_columns(data)
 
     # ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname.
     if len(data) == 0:
@@ -651,7 +678,7 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-def write_randoms(filename, data, indir=None, nside=None, density=None):
+def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -663,6 +690,8 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to header
         of output file if passed (and if not None).
+    hdr : :class:`str`, optional, defaults to `None`
+        If passed, use this header to start the header of the output `filename`.
     nside: :class:`int`
         If passed, add a column to the randoms array popluated with HEALPixels
         at resolution `nside`.
@@ -670,8 +699,10 @@ def write_randoms(filename, data, indir=None, nside=None, density=None):
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
     """
-    # ADM create header to include versions, etc.
-    hdr = fitsio.FITSHDR()
+    # ADM create header to include versions, etc. If a `hdr` was
+    # ADM passed, then use it, if not then create a new header.
+    if hdr is None:
+        hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
 

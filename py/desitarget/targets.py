@@ -627,7 +627,8 @@ def resolve(targets):
     Parameters
     ----------
     targets : :class:`~numpy.ndarray`
-        Rec array of targets. Must have columns "RELEASE", "RA" and "DEC".
+        Rec array of targets. Must have columns "RA" and "DEC" and
+        either "RELEASE" or "PHOTSYS".
 
     Returns
     -------
@@ -638,7 +639,10 @@ def resolve(targets):
     """
     # ADM retrieve the photometric system from the RELEASE.
     from desitarget.io import release_to_photsys, desitarget_resolve_dec
-    photsys = release_to_photsys(targets["RELEASE"])
+    if 'PHOTSYS' in targets.dtype.names:
+        photsys = targets["PHOTSYS"]
+    else:
+        photsys = release_to_photsys(targets["RELEASE"])
 
     # ADM a flag of which targets are from the 'N' photometry.
     from desitarget.cuts import _isonnorthphotsys
