@@ -1245,18 +1245,18 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr
                 )
             )
-        lrg_n, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n,    \
-            lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
+        lrg_north, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n,    \
+            lrg_south, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
             np.vstack(lrg_classes)
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
-        lrg_n, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n = \
+        lrg_north, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n = \
             ~primary, ~primary, ~primary, ~primary, ~primary
-        lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
+        lrg_south, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
             ~primary, ~primary, ~primary, ~primary, ~primary
 
     # ADM combine LRG target bits for an LRG target based on any imaging
-    lrg = (lrg_n & photsys_north) | (lrg_s & photsys_south)
+    lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
     lrginit = (lrginit_n & photsys_north) | (lrginit_s & photsys_south)
     lrglowz = (lrglowz_n & photsys_north) | (lrglowz_s & photsys_south)
     lrghighz = (lrghighz_n & photsys_north) | (lrghighz_s & photsys_south)
