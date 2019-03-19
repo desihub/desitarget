@@ -1872,6 +1872,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr
         )
+    else:
+        # ADM if not running the MWS selection, set everything to arrays of False
+        mws_broad_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
+        mws_broad_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
+        mws_nearby = ~primary
+
+    if "MWS" in tcnames or "STD" in tcnames:
+        # ADM have to run the white dwarfs for standards
+        # ADM as well as for MWS science targets.
         mws_wd = isMWS_WD(
             gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
@@ -1879,10 +1888,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
     else:
-        # ADM if not running the MWS selection, set everything to arrays of False
-        mws_broad_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
-        mws_broad_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
-        mws_nearby, mws_wd = ~primary, ~primary
+        mws_wd = ~primary
 
     if "STD" in tcnames:
         # ADM Make sure to pass all of the needed columns! At one point we stopped
