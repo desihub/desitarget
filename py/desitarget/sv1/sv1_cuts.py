@@ -706,7 +706,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - Current version (03/19/19) is version 52 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -1145,14 +1145,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             )
         lrg_n, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n,    \
-            lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s   = \
+            lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
             np.vstack(lrg_classes)
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
         lrg_n, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n = \
-            ~primary, ~primary, ~primary, ~primary , ~primary
+            ~primary, ~primary, ~primary, ~primary, ~primary
         lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
-            ~primary, ~primary, ~primary, ~primary , ~primary
+            ~primary, ~primary, ~primary, ~primary, ~primary
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_n & photsys_north) | (lrg_s & photsys_south)
