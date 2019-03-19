@@ -1312,20 +1312,32 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype=objtype, south=south
                 )
             )
-        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
+            qso_classes.append(
+                isQSO_highz_faint(
+                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                    w1flux=w1flux, w2flux=w2flux,
+                    dchisq=dchisq, brightstarinblob=brightstarinblob,
+                    objtype=objtype, south=south
+                )
+            )
+
+        qsocolor_north, qsorf_north, qsohizf_north, \
+            qsocolor_south, qsorf_south, qsohizf_south = \
             qso_classes
 
     else:
         # ADM if not running the QSO selection, set everything to arrays of False
-        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
-                                    ~primary, ~primary, ~primary, ~primary
+        qsocolor_north, qsorf_north, qsohizf_north, \
+            qsocolor_south, qsorf_south, qsohizf_south = \
+                ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
 
     # ADM combine quasar target bits for a quasar target based on any imaging
-    qso_north = qsocolor_north | qsorf_north
-    qso_south = qsocolor_south | qsorf_south
+    qso_north = qsocolor_north | qsorf_north | qsohizf_north
+    qso_south = qsocolor_south | qsorf_south | qsohizf_south
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
     qsocolor = (qsocolor_north & photsys_north) | (qsocolor_south & photsys_south)
     qsorf = (qsorf_north & photsys_north) | (qsorf_south & photsys_south)
+    qsohizf = (qsohizf_north & photsys_north) | (qsohizf_south & photsys_south)
 
     # ADM set the BGS bits
     if "BGS" in tcnames:
@@ -1460,6 +1472,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...and QSOs.
     desi_target |= qsocolor_south * desi_mask.QSO_COLOR_SOUTH
     desi_target |= qsorf_south * desi_mask.QSO_RF_SOUTH
+    desi_target |= qsohizf_south * desi_mask.QSO_HZ_F_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
     desi_target |= lrginit_n * desi_mask.LRG_INIT_NORTH
@@ -1475,6 +1488,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...and QSOs.
     desi_target |= qsocolor_north * desi_mask.QSO_COLOR_NORTH
     desi_target |= qsorf_north * desi_mask.QSO_RF_NORTH
+    desi_target |= qsohizf_north * desi_mask.QSO_HZ_F_NORTH
 
     # ADM combined per-bit information for the LRGs...
     desi_target |= lrginit * desi_mask.LRG_INIT
@@ -1490,6 +1504,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...and QSOs.
     desi_target |= qsocolor * desi_mask.QSO_COLOR
     desi_target |= qsorf * desi_mask.QSO_RF
+    desi_target |= qsohizf * desi_mask.QSO_HZ_F
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
