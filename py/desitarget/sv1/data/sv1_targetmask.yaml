@@ -4,52 +4,65 @@ sv1_desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
-    #- ADM allow the primary LRG targets to be split by number of passes
-    - [LRG_1PASS,   3, "LRG to be observed once",   {obsconditions: DARK}]
-    - [LRG_2PASS,   4, "LRG to be observed twice",  {obsconditions: DARK}]
+    #- ADM LRG sub-classes
+    - [LRG_INIT,     3, "LRG using initial optical and IR cuts", {obsconditions: DARK}]
+    - [LRG_LOWZ,     4, "LRG with a low-z extension",            {obsconditions: DARK}]
+    - [LRG_HIGHZ,    5, "LRG with a high-z extenstion",          {obsconditions: DARK}]
+    - [LRG_RELAX,    6, "LRG with a relaxed set of cuts",        {obsconditions: DARK}]
+    - [LRG_SUPER,    7, "LRG that is a superset of other cuts",  {obsconditions: DARK}]
 
     #- ADM ELG sub-classes
-    - [ELG_FDR,         5, "ELG using FDR cuts",             {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT,   6, "ELG using fainter FDR cuts",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE,     7, "ELG red extension in rz color",  {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED,      8, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
+    - [ELG_FDR,        8, "ELG using FDR cuts",             {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT,  9, "ELG using fainter FDR cuts",     {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE,   10, "ELG red extension in rz color",  {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED,    11, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
 
     #- ADM QSO sub-classes
-    - [QSO_COLOR,   9, "QSO using color cuts",    {obsconditions: DARK}]
-    - [QSO_RF,     10, "QSO using random forest", {obsconditions: DARK}]
+    - [QSO_COLOR,   12, "QSO using color cuts",           {obsconditions: DARK}]
+    - [QSO_RF,      13, "QSO using random forest",        {obsconditions: DARK}]
+    - [QSO_HZ_F,    14, "QSO at high-redshift and faint", {obsconditions: DARK}]
 
     #- North vs. South selections
-    - [LRG_NORTH,   11, "LRG cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
-    - [ELG_NORTH,   12, "ELG cuts tuned for Bok/Mosaic data", {obsconditions: DARK|GRAY}]
-    - [QSO_NORTH,   13, "QSO cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
+    - [LRG_NORTH,   15, "LRG cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
+    - [ELG_NORTH,   16, "ELG cuts tuned for Bok/Mosaic data", {obsconditions: DARK|GRAY}]
+    - [QSO_NORTH,   17, "QSO cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
 
-    - [LRG_SOUTH,   14, "LRG cuts tuned for DECam data", {obsconditions: DARK}]
-    - [ELG_SOUTH,   15, "ELG cuts tuned for DECam data", {obsconditions: DARK|GRAY}]
-    - [QSO_SOUTH,   16, "QSO cuts tuned for DECam data", {obsconditions: DARK}]
+    - [LRG_SOUTH,   18, "LRG cuts tuned for DECam data", {obsconditions: DARK}]
+    - [ELG_SOUTH,   19, "ELG cuts tuned for DECam data", {obsconditions: DARK|GRAY}]
+    - [QSO_SOUTH,   20, "QSO cuts tuned for DECam data", {obsconditions: DARK}]
 
-    #- North vs. South selections for different passes
-    - [LRG_1PASS_NORTH,  17, "LRG to be observed once tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_2PASS_NORTH,  18, "LRG to be observed twice tuned for Bok/Mosaic", {obsconditions: DARK}]
+    #- North vs. South selections for different sub-classes
+    - [LRG_INIT_NORTH,   21, "LRG using initial optical and IR cuts tuned for Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_LOWZ_NORTH,   22, "LRG with a low-z extension tuned for Bok/Mosaic",            {obsconditions: DARK}]
+    - [LRG_HIGHZ_NORTH,  23, "LRG with a high-z extenstion tuned for Bok/Mosaic",          {obsconditions: DARK}]
+    - [LRG_RELAX_NORTH,  24, "LRG with a relaxed set of cuts tuned for Bok/Mosaic",        {obsconditions: DARK}]
+    - [LRG_SUPER_NORTH,  25, "LRG that is a superset of other cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
 
-    - [LRG_1PASS_SOUTH,  19, "LRG to be observed once tuned for DECam",       {obsconditions: DARK}]
-    - [LRG_2PASS_SOUTH,  20, "LRG to be observed twice tuned for DECam",      {obsconditions: DARK}]
+    - [LRG_INIT_SOUTH,   26, "LRG using initial optical and IR cuts tuned for DECam", {obsconditions: DARK}]
+    - [LRG_LOWZ_SOUTH,   27, "LRG with a low-z extension tuned for DECam",            {obsconditions: DARK}]
+    - [LRG_HIGHZ_SOUTH,  28, "LRG with a high-z extenstion tuned for DECam",          {obsconditions: DARK}]
+    - [LRG_RELAX_SOUTH,  29, "LRG with a relaxed set of cuts tuned for DECam",        {obsconditions: DARK}]
+    - [LRG_SUPER_SOUTH,  30, "LRG that is a superset of other cuts tuned for DECam",  {obsconditions: DARK}]
 
-    - [ELG_FDR_NORTH,         21, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_NORTH,   22, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_NORTH,     23, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_NORTH,      24, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
-
-    - [ELG_FDR_SOUTH,         25, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_SOUTH,   26, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_SOUTH,     27, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_SOUTH,      28, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
-
-    - [QSO_COLOR_NORTH,  29, "QSO using color cuts tuned for Bok/Mosaic",            {obsconditions: DARK}]
-    - [QSO_RF_NORTH,     30, "QSO using random forest tuned for Bok/Mosaic",         {obsconditions: DARK}]
-
-    - [QSO_COLOR_SOUTH,  31, "QSO using color cuts tuned for DECam",                 {obsconditions: DARK}]
+    - [ELG_FDR_NORTH,         31, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
     #- ADM leave 32-36 reserved for calibration targets (to mirror the main survey)
-    - [QSO_RF_SOUTH,     37, "QSO using random forest tuned for DECam",              {obsconditions: DARK}]
+    - [ELG_FDR_FAINT_NORTH,   37, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     38, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      39, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
+
+    - [ELG_FDR_SOUTH,         40, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_SOUTH,   41, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_SOUTH,     42, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_SOUTH,      43, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
+
+    - [QSO_COLOR_NORTH,  44, "QSO using color cuts tuned for Bok/Mosaic",            {obsconditions: DARK}]
+    - [QSO_RF_NORTH,     45, "QSO using random forest tuned for Bok/Mosaic",         {obsconditions: DARK}]
+    - [QSO_HZ_F_NORTH,   46, "QSO at high-redshift and faint tuned for Bok/Mosaic",  {obsconditions: DARK}]
+
+    - [QSO_COLOR_SOUTH,  47, "QSO using color cuts tuned for DECam",                 {obsconditions: DARK}]
+    - [QSO_RF_SOUTH,     48, "QSO using random forest tuned for DECam",              {obsconditions: DARK}]
+    #- ADM retain bits 49-52 for masking/convenience (to mirror the main survey)
+    - [QSO_HZ_F_SOUTH,   53, "QSO at high-redshift and faint tuned for DECam",       {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
