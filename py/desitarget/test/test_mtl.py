@@ -8,6 +8,7 @@ import numpy as np
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
+from desitarget.sv1.sv1_targetmask import desi_mask as MxSV
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
@@ -40,8 +41,8 @@ class TestMTL(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
-    def rename_target_cols(self, prefix):
-        """Retrieve test table with TARGET columns renamed by adding a prefix"""
+    def reset_targets(self, prefix):
+        """Add a prefix to TARGET columns, map LRG_2PASS/main to LRG/SV1"""
 
         t = self.targets.copy()
         main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
@@ -55,6 +56,11 @@ class TestMTL(unittest.TestCase):
             for name in main_names:
                 t.rename_column(name, prefix+name)
 
+        if prefix == "SV1_":
+            # ADM change any occurences of LRG_2PASS to just LRG.
+            ii = t["SV1_DESI_TARGET"] == Mx.LRG_2PASS
+            t["SV1_DESI_TARGET"][ii] = MxSV.LRG
+
         return t
 
     def test_mtl(self):
@@ -62,7 +68,7 @@ class TestMTL(unittest.TestCase):
         """
         # ADM loop through once each for the main survey, commissioning and SV.
         for prefix in ["", "CMX_", "SV1_"]:
-            t = self.rename_target_cols(prefix)
+            t = self.reset_targets(prefix)
             mtl = make_mtl(t)
             goodkeys = sorted(set(t.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
             mtlkeys = sorted(mtl.dtype.names)
@@ -73,7 +79,7 @@ class TestMTL(unittest.TestCase):
         """
         # ADM loop through once for SV and once for the main survey.
         for prefix in ["", "SV1_"]:
-            t = self.rename_target_cols(prefix)
+            t = self.reset_targets(prefix)
             mtl = make_mtl(t)
             mtl.sort(keys='TARGETID')
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
@@ -88,7 +94,7 @@ class TestMTL(unittest.TestCase):
         """
         # ADM loop through once for SV and once for the main survey.
         for prefix in ["", "SV1_"]:
-            t = self.rename_target_cols(prefix)
+            t = self.reset_targets(prefix)
             mtl = make_mtl(t, self.zcat, trim=False)
             mtl.sort(keys='TARGETID')
             self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
@@ -104,7 +110,7 @@ class TestMTL(unittest.TestCase):
         """
         # ADM loop through once for SV and once for the main survey.
         for prefix in ["", "SV1_"]:
-            t = self.rename_target_cols(prefix)
+            t = self.reset_targets(prefix)
             mtl = make_mtl(t, self.zcat, trim=True)
             testfile = 'test-aszqweladfqwezceas.fits'
             mtl.write(testfile, overwrite=True)
