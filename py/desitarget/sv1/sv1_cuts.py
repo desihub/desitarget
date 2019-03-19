@@ -581,7 +581,8 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     Notes
     -----
-   
+    - Current version (03/19/19) is version 52 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
     if primary is None:
@@ -594,66 +595,67 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     if not south:
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
 
-    # ADM photOK here should ensure (g > 0.) & (r > 0.) & (z > 0.) & (W1 > 0.) & (W2 > 0.)
+    # ADM photOK here should ensure (g > 0.) & (r > 0.) & (z > 0.) & (W1 > 0.) & (W2 > 0.).
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
-    # ADM Preselection to speed up the pocess
-    # Selection of faint objects
-    rMax = 23.5  # r < 23.5 
+    # ADM Preselection to speed up the process.
+    # Selection of faint objects.
+    rMax = 23.5  # r < 23.5
     rMin = 22.7  # r > 22.7
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
-    # Color Selection of QSO with z>2.0
+    # Color Selection of QSO with z>2.0.
     wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-    color_cut   =   ( (wflux<gflux*10**(2.7/2.5)) | (rflux*(gflux**0.3)>gflux*(wflux**0.3)*10**(0.3/2.5)) ) # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
-    color_cut &= ( wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
-    preSelection &= color_cut 
+    color_cut = ((wflux < gflux*10**(2.7/2.5)) |
+                 (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
+    color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
+    preSelection &= color_cut
 
-    # Standard morphology cut 
-    preSelection &= _psflike(objtype) 
+    # Standard morphology cut.
+    preSelection &= _psflike(objtype)
 
     #  Reject objects flagged inside a blob.
     preSelection &= ~brightstarinblob
 
-    # "qso" mask initialized to "preSelection" mask
+    # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
 
     if np.any(preSelection):
 
         from desitarget.myRF import myRF
 
-        # Data reduction to preselected objects
+        # Data reduction to preselected objects.
         colorsReduced = colors[preSelection]
         r_Reduced = r[preSelection]
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
 
-        # Path to random forest files
+        # Path to random forest files.
         pathToRF = resource_filename('desitarget', 'data')
-        # Use RF trained over DR7
+        # Use RF trained over DR7.
         rf_fileName = pathToRF + '/rf_model_dr7.npz'
 
-        # rf initialization - colors data duplicated within "myRF"
+        # rf initialization - colors data duplicated within "myRF".
         rf = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
 
-        # rf loading
+        # rf loading.
         rf.loadForest(rf_fileName)
-        
-        # Compute rf probabilities
+
+        # Compute rf probabilities.
         tmp_rf_proba = rf.predict_proba()
-        
-        # Compute optimized proba cut (all different for SV)
+
+        # Compute optimized proba cut (all different for SV).
         # The probabilities may be different for the north and the south.
         if south:
             pcut = 0.20
         else:
             pcut = 0.20
-            
+
         # Add rf proba test result to "qso" mask
-        qso[colorsReducedIndex] =  (tmp_rf_proba >= pcut)
-        
+        qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
+
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "numpy.ndarray"
     if nbEntries == 1:
