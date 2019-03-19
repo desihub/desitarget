@@ -10,6 +10,12 @@ cmx_mask:
     - [SV0_BGS,         8, "Any SV-like BGS (North) bit is set (from initial SV selection)", {obsconditions: BRIGHT}]
     - [SV0_MWS,         9, "Any SV-like MWS (North) bit is set (from initial SV selection)", {obsconditions: BRIGHT}]
 
+    #- Calibration targets. Shared between main/cmx/sv programs.
+    - [SKY,         32, "Blank sky locations",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BAD_SKY,      36, "Blank sky locations that are imperfect but still useable",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
 #- will consider the observations "DONE" while another bit will want "MORE".
@@ -45,6 +51,9 @@ priorities:
         STD_CALSPEC: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_BGS: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_MWS: {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
+        #- Standards and sky are treated specially; priorities don't apply
+        SKY: -1
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -57,3 +66,6 @@ numobs:
         STD_CALSPEC: 1
         SV0_BGS: 1
         SV0_MWS: 1
+        BAD_SKY: 0
+        #- Standards and sky are treated specially; NUMOBS doesn't apply
+        SKY: -1
