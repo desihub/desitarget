@@ -10,7 +10,7 @@ import sys
 from astropy.table import Table
 
 from desitarget.targetmask import obsmask, obsconditions
-from desitarget.targets import calc_numobs, calc_priority, main_cmx_or_sv
+from desitarget.targets import calc_priority, main_cmx_or_sv
 
 
 def make_mtl(targets, zcat=None, trim=False):

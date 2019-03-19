@@ -1257,11 +1257,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_n & photsys_north) | (lrg_s & photsys_south)
-    lrginit = (lrginit_north & photsys_north) | (lrginit_south & photsys_south)
-    lrglowz = (lrglowz_north & photsys_north) | (lrglowz_south & photsys_south)
-    lrghighz = (lrghighz_north & photsys_north) | (lrghighz_south & photsys_south)
-    lrgrelax = (lrgrelax_north & photsys_north) | (lrgrelax_south & photsys_south)
-    lrgsuper = (lrgsuper_north & photsys_north) | (lrgsuper_south & photsys_south)
+    lrginit = (lrginit_n & photsys_north) | (lrginit_s & photsys_south)
+    lrglowz = (lrglowz_n & photsys_north) | (lrglowz_s & photsys_south)
+    lrghighz = (lrghighz_n & photsys_north) | (lrghighz_s & photsys_south)
+    lrgrelax = (lrgrelax_n & photsys_north) | (lrgrelax_s & photsys_south)
+    lrgsuper = (lrgsuper_n & photsys_north) | (lrgsuper_s & photsys_south)
 
     if "ELG" in tcnames:
         elg_classes = []
@@ -1329,9 +1329,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         # ADM if not running the QSO selection, set everything to arrays of False
         qsocolor_north, qsorf_north, qsohizf_north, \
             qsocolor_south, qsorf_south, qsohizf_south = \
-                ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
+            ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
 
-    # ADM combine quasar target bits for a quasar target based on any imaging
+    # ADM combine quasar target bits for a quasar target based on any imaging.
     qso_north = qsocolor_north | qsorf_north | qsohizf_north
     qso_south = qsocolor_south | qsorf_south | qsohizf_south
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)

@@ -178,14 +178,18 @@ priorities:
         ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        LRG_1PASS: SAME_AS_LRG
-        LRG_2PASS: SAME_AS_LRG
+        LRG_INIT: SAME_AS_LRG
+        LRG_LOWZ: SAME_AS_LRG
+        LRG_HIGHZ: SAME_AS_LRG
+        LRG_RELAX: SAME_AS_LRG
+        LRG_SUPER: SAME_AS_LRG
         ELG_FDR:       SAME_AS_ELG
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
         ELG_RZ_RED:    SAME_AS_ELG
         QSO_COLOR: SAME_AS_QSO
         QSO_RF:    SAME_AS_QSO
+        QSO_HZ_F:  SAME_AS_QSO
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         ELG_NORTH: SAME_AS_LRG_NORTH
@@ -193,10 +197,16 @@ priorities:
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
-        LRG_1PASS_NORTH: SAME_AS_LRG_NORTH
-        LRG_2PASS_NORTH: SAME_AS_LRG_NORTH
-        LRG_1PASS_SOUTH: SAME_AS_LRG_NORTH
-        LRG_2PASS_SOUTH: SAME_AS_LRG_NORTH
+        LRG_INIT_NORTH: SAME_AS_LRG_NORTH
+        LRG_LOWZ_NORTH: SAME_AS_LRG_NORTH
+        LRG_HIGHZ_NORTH: SAME_AS_LRG_NORTH
+        LRG_RELAX_NORTH: SAME_AS_LRG_NORTH
+        LRG_SUPER_NORTH: SAME_AS_LRG_NORTH
+        LRG_INIT_SOUTH: SAME_AS_LRG_NORTH
+        LRG_LOWZ_SOUTH: SAME_AS_LRG_NORTH
+        LRG_HIGHZ_SOUTH: SAME_AS_LRG_NORTH
+        LRG_RELAX_SOUTH: SAME_AS_LRG_NORTH
+        LRG_SUPER_SOUTH: SAME_AS_LRG_NORTH
         ELG_FDR_NORTH: SAME_AS_LRG_NORTH
         ELG_FDR_FAINT_NORTH: SAME_AS_LRG_NORTH
         ELG_RZ_BLUE_NORTH: SAME_AS_LRG_NORTH
@@ -207,8 +217,10 @@ priorities:
         ELG_RZ_RED_SOUTH: SAME_AS_LRG_NORTH
         QSO_COLOR_NORTH: SAME_AS_LRG_NORTH
         QSO_RF_NORTH: SAME_AS_LRG_NORTH
+        QSO_HZ_F_NORTH: SAME_AS_LRG_NORTH
         QSO_COLOR_SOUTH: SAME_AS_LRG_NORTH
         QSO_RF_SOUTH: SAME_AS_LRG_NORTH
+        QSO_HZ_F_SOUTH: SAME_AS_LRG_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -276,17 +288,20 @@ numobs:
     # ADM initial number of observations for targets in the main (dark time) survey
     sv1_desi_mask:
         ELG: 1
-        # ADM The LRG numobs should always be superseded by the LRG_1PASS/2PASS bits.
-        LRG: 0
+        LRG: 2
         QSO: 4
-        LRG_1PASS: 1
-        LRG_2PASS: 2
+        LRG_INIT: SAME_AS_LRG
+        LRG_LOWZ: SAME_AS_LRG
+        LRG_HIGHZ: SAME_AS_LRG
+        LRG_RELAX: SAME_AS_LRG
+        LRG_SUPER: SAME_AS_LRG
         ELG_FDR:       SAME_AS_ELG
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
         ELG_RZ_RED:    SAME_AS_ELG
         QSO_COLOR: SAME_AS_QSO
         QSO_RF: SAME_AS_QSO
+        QSO_HZ_F: SAME_AS_QSO
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_NORTH: 0
         ELG_NORTH: 0
@@ -294,10 +309,16 @@ numobs:
         LRG_SOUTH: 0
         ELG_SOUTH: 0
         QSO_SOUTH: 0
-        LRG_1PASS_NORTH: 0
-        LRG_2PASS_NORTH: 0
-        LRG_1PASS_SOUTH: 0
-        LRG_2PASS_SOUTH: 0
+        LRG_INIT_NORTH:  0
+        LRG_LOWZ_NORTH:  0
+        LRG_HIGHZ_NORTH: 0
+        LRG_RELAX_NORTH: 0
+        LRG_SUPER_NORTH: 0
+        LRG_INIT_SOUTH:  0
+        LRG_LOWZ_SOUTH:  0
+        LRG_HIGHZ_SOUTH: 0
+        LRG_RELAX_SOUTH: 0
+        LRG_SUPER_SOUTH: 0
         ELG_FDR_NORTH:       0
         ELG_FDR_FAINT_NORTH: 0
         ELG_RZ_BLUE_NORTH:   0
@@ -308,8 +329,10 @@ numobs:
         ELG_RZ_RED_SOUTH:    0
         QSO_COLOR_NORTH: 0
         QSO_RF_NORTH:    0
+        QSO_HZ_F_NORTH:  0
         QSO_COLOR_SOUTH: 0
         QSO_RF_SOUTH:    0
+        QSO_HZ_F_SOUTH:  0
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
