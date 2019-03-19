@@ -29,7 +29,7 @@ log = get_logger()
 start = time()
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
@@ -45,13 +45,19 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     :class:`array_like`
         ``True`` if and only if the object is an LRG target.
     :class:`array_like`
-        ``True`` if the object is a ONE pass (bright) LRG target.
+        ``True`` if the object is a nominal optical + nominal IR LRG.
     :class:`array_like`
-        ``True`` if the object is a TWO pass (fainter) LRG target.
+        ``True`` if the object is an optical + IR + low-z extension LRG.
+    :class:`array_like`
+        ``True`` if the object is an optical + IR + high-z extension LRG.
+    :class:`array_like`
+        ``True`` if the object is an optical + IR + low-z + high-z + relaxed cuts LRG.
+    :class:`array_like`
+        ``True`` if the object is a superset of all other subsamples LRG.
 
     Notes
     -----
-    - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - Current version (03/19/19) is version 52 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets, pass-based.
@@ -65,9 +71,9 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM pass the lrg that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
     lrg_all, lrg1, lrg2, lrg3, lrg4, lrg5 = isLRG_colors(gflux=gflux, rflux=rflux,
-                                           zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                                           gflux_ivar=gflux_ivar,
-                                           south=south, primary=lrg)
+                                                         zflux=zflux, w1flux=w1flux,
+                                                         gflux_ivar=gflux_ivar,
+                                                         south=south, primary=lrg)
 
     return lrg_all, lrg1, lrg2, lrg3, lrg4, lrg5
 
@@ -85,15 +91,15 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
-    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r
-    lrg &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z
-    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1
+    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
+    lrg &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z.
+    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
 
     return lrg
 
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, gflux_ivar=None, south=True, primary=None):
+                 gflux_ivar=None, south=True, primary=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
     """
     if primary is None:
@@ -101,7 +107,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg = primary.copy()
     lrg1, lrg2, lrg3, lrg4, lrg5 = np.tile(primary, [5, 1])
 
-    # ADM safe as these fluxes are set to > 0 in notinLRG_mask
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
     rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
     zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
@@ -110,105 +116,111 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if south:
 
         # subsample 1: Nominal optical + Nominal IR:
-        lrg1 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6  # non-stellar cut        
-        lrg1 &= zmag < 20.41                          # faint limit        
-        lrg1 &= rmag - zmag > 0.75                    # broad color box
-        lrg1 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0)) # Low-z cut
-        lrg_opt = rmag - zmag > (zmag - 17.18) / 2    # sliding optical cut
-        lrg_ir = rmag - w1mag > (w1mag - 17.74) / 0.4 # sliding IR cut
+        lrg1 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6   # non-stellar cut
+        lrg1 &= zmag < 20.41                           # faint limit
+        lrg1 &= rmag - zmag > 0.75                     # broad color box
+        lrg1 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.18) / 2     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.74) / 0.4  # sliding IR cut
         lrg1 &= lrg_opt | lrg_ir
 
         # subsample 2: optical + IR + low-z extension:
-        lrg2 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6  # non-stellar cut        
-        lrg2 &= zmag < 20.41                          # faint limit        
+        lrg2 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6  # non-stellar cut
+        lrg2 &= zmag < 20.41                          # faint limit
         lrg2 &= rmag - zmag > 0.75                    # broad color box
-        lrg2 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0)) # Low-z cut
+        lrg2 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0))  # Low-z cut
         lrg_opt = ((rmag - zmag > (zmag - 17.18) / 2) |
                    (zmag < 19.7))                            # sliding optical cut with low-z extension
-        lrg_ir = ((rmag - w1mag > (w1mag - 17.74) / 0.4) | 
-                  ((w1mag < 19.15) & (rmag - w1mag < 1.88))) # sliding IR cut with low-z extension
+        lrg_ir = ((rmag - w1mag > (w1mag - 17.74) / 0.4) |
+                  ((w1mag < 19.15) & (rmag - w1mag < 1.88)))  # sliding IR cut with low-z extension
         lrg2 &= lrg_opt | lrg_ir
 
         # subsample 3: optical + IR + high-z extension:
-        lrg3 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6  # non-stellar cut        
-        lrg3 &= zmag < 20.80                          # extended faint limit        
-        lrg3 &= rmag - zmag > 0.75                    # broad color box
-        lrg3 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0)) # Low-z cut
-        lrg_opt = rmag - zmag > (zmag - 17.18) / 2    # sliding optical cut
-        lrg_ir = rmag - w1mag > (w1mag - 17.74) / 0.4 # sliding IR cut
+        lrg3 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6   # non-stellar cut
+        lrg3 &= zmag < 20.80                           # extended faint limit
+        lrg3 &= rmag - zmag > 0.75                     # broad color box
+        lrg3 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.18) / 2     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.74) / 0.4  # sliding IR cut
         lrg3 &= lrg_opt | lrg_ir
 
-        # subsample 4: optical + IR + low-z + high-z + relaxed cuts (relaxed stellar rejection + relaxed sliding cuts + relaxed g-r cut):
-        lrg4 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8  # relaxed non-stellar cut        
-        lrg4 &= zmag < 20.80                          # extended faint limit        
+        # subsample 4: optical + IR + low-z + high-z + relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + relaxed g-r cut):
+        lrg4 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8  # relaxed non-stellar cut
+        lrg4 &= zmag < 20.80                          # extended faint limit
         lrg4 &= rmag - zmag > 0.75                    # broad color box
-        lrg4 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.45) & (gflux_ivar > 0)) # relaxed low-z cut
+        lrg4 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.45) & (gflux_ivar > 0))  # relaxed low-z cut
         lrg_opt = ((((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2) |
-                   (zmag < 19.7))                            # curved sliding optical cut with low-z extension
-        lrg_ir = (((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) | 
-                  ((w1mag < 19.15) & (rmag - w1mag < 1.88))) # curved sliding IR cut with low-z extension
+                   (zmag < 19.7))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.15) & (rmag - w1mag < 1.88)))  # curved sliding IR cut with low-z extension
         lrg4 &= lrg_opt | lrg_ir
 
-        # subsample 5 (this is a superset of all other subsamples): optical + IR + low-z + high-z + more relaxed cuts (relaxed stellar rejection + relaxed sliding cuts + no g-r cut + relaxed broad r-z cut):
-        lrg5 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8  # relaxed non-stellar cut        
-        lrg5 &= zmag < 20.80                          # extended faint limit        
-        lrg5 &= rmag - zmag > 0.65                    # relaxed broad color box
+        # subsample 5 (this is a superset of all other subsamples):
+        # optical + IR + low-z + high-z + more relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + no g-r cut + relaxed broad r-z cut):
+        lrg5 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8   # relaxed non-stellar cut
+        lrg5 &= zmag < 20.80                           # extended faint limit
+        lrg5 &= rmag - zmag > 0.65                     # relaxed broad color box
         lrg_opt = ((((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2) |
-                   (zmag < 19.7))                            # curved sliding optical cut with low-z extension
-        lrg_ir = (((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) | 
-                  ((w1mag < 19.15) & (rmag - w1mag < 1.88))) # curved sliding IR cut with low-z extension
+                   (zmag < 19.7))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.15) & (rmag - w1mag < 1.88)))  # curved sliding IR cut with low-z extension
         lrg5 &= lrg_opt | lrg_ir
 
     else:
 
         # subsample 1: nominal optical + nominal IR:
-        lrg1 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735 # non-stellar cut        
-        lrg1 &= zmag < 20.365                          # faint limit        
-        lrg1 &= rmag - zmag > 0.85                     # broad color box
-        lrg1 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0)) # Low-z cut
-        lrg_opt = rmag - zmag > (zmag - 17.105) / 1.8    # sliding optical cut
-        lrg_ir = rmag - w1mag > (w1mag - 17.723) / 0.385 # sliding IR cut
+        lrg1 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735    # non-stellar cut
+        lrg1 &= zmag < 20.365                             # faint limit
+        lrg1 &= rmag - zmag > 0.85                        # broad color box
+        lrg1 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.105) / 1.8     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.723) / 0.385  # sliding IR cut
         lrg1 &= lrg_opt | lrg_ir
 
         # subsample 2: optical + IR + low-z extension:
-        lrg2 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735 # non-stellar cut        
-        lrg2 &= zmag < 20.365                          # faint limit        
-        lrg2 &= rmag - zmag > 0.85                     # broad color box
-        lrg2 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0)) # Low-z cut
+        lrg2 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735  # non-stellar cut
+        lrg2 &= zmag < 20.365                           # faint limit
+        lrg2 &= rmag - zmag > 0.85                      # broad color box
+        lrg2 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0))  # Low-z cut
         lrg_opt = ((rmag - zmag > (zmag - 17.105) / 1.8) |
-                   (zmag < 19.655))                            # sliding optical cut with low-z extension
-        lrg_ir = ((rmag - w1mag > (w1mag - 17.723) / 0.385) | 
-                  ((w1mag < 19.139) & (rmag - w1mag < 1.833))) # sliding IR cut with low-z extension
+                   (zmag < 19.655))                             # sliding optical cut with low-z extension
+        lrg_ir = ((rmag - w1mag > (w1mag - 17.723) / 0.385) |
+                  ((w1mag < 19.139) & (rmag - w1mag < 1.833)))  # sliding IR cut with low-z extension
         lrg2 &= lrg_opt | lrg_ir
 
         # subsample 3: optical + IR + high-z extension:
-        lrg3 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735 # non-stellar cut        
-        lrg3 &= zmag < 20.755                          # extended faint limit        
-        lrg3 &= rmag - zmag > 0.85                     # broad color box
-        lrg3 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0)) # Low-z cut
-        lrg_opt = rmag - zmag > (zmag - 17.105) / 1.8    # sliding optical cut
-        lrg_ir = rmag - w1mag > (w1mag - 17.723) / 0.385 # sliding IR cut
+        lrg3 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735  # non-stellar cut
+        lrg3 &= zmag < 20.755                           # extended faint limit
+        lrg3 &= rmag - zmag > 0.85                      # broad color box
+        lrg3 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.105) / 1.8     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.723) / 0.385  # sliding IR cut
         lrg3 &= lrg_opt | lrg_ir
 
-        # subsample 4: optical + IR + low-z + high-z + relaxed cuts (relaxed stellar rejection + relaxed sliding cuts + relaxed g-r cut):
-        lrg4 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935 # relaxed non-stellar cut        
-        lrg4 &= zmag < 20.755                          # extended faint limit        
-        lrg4 &= rmag - zmag > 0.85                     # broad color box
-        lrg4 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.455) & (gflux_ivar > 0)) # relaxed low-z cut
+        # subsample 4: optical + IR + low-z + high-z + relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + relaxed g-r cut):
+        lrg4 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # relaxed non-stellar cut
+        lrg4 &= zmag < 20.755                           # extended faint limit
+        lrg4 &= rmag - zmag > 0.85                      # broad color box
+        lrg4 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.455) & (gflux_ivar > 0))  # relaxed low-z cut
         lrg_opt = ((((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2) |
-                   (zmag < 19.655))                            # curved sliding optical cut with low-z extension
-        lrg_ir = (((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) | 
-                  ((w1mag < 19.139) & (rmag - w1mag < 1.833))) # curved sliding IR cut with low-z extension
+                   (zmag < 19.655))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.139) & (rmag - w1mag < 1.833)))  # curved sliding IR cut with low-z extension
         lrg4 &= lrg_opt | lrg_ir
 
-        # subsample 5 (this is a superset of all other subsamples): optical + IR + low-z + high-z + more relaxed cuts (relaxed stellar rejection + relaxed sliding cuts + no g-r cut + relaxed broad r-z cut):
-        lrg5 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935 # relaxed non-stellar cut        
-        lrg5 &= zmag < 20.755                          # extended faint limit        
-        lrg5 &= rmag - zmag > 0.75                     # relaxed broad color box
+        # subsample 5 (this is a superset of all other subsamples):
+        # optical + IR + low-z + high-z + more relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + no g-r cut + relaxed broad r-z cut):
+        lrg5 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # relaxed non-stellar cut
+        lrg5 &= zmag < 20.755                           # extended faint limit
+        lrg5 &= rmag - zmag > 0.75                      # relaxed broad color box
         lrg_opt = ((((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2) |
-                   (zmag < 19.655))                            # curved sliding optical cut with low-z extension
-        lrg_ir = (((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) | 
-                  ((w1mag < 19.139) & (rmag - w1mag < 1.833))) # curved sliding IR cut with low-z extension
+                   (zmag < 19.655))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.139) & (rmag - w1mag < 1.833)))  # curved sliding IR cut with low-z extension
         lrg5 &= lrg_opt | lrg_ir
 
     lrg = lrg1 | lrg2 | lrg3 | lrg4 | lrg5
