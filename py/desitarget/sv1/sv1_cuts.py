@@ -1144,18 +1144,23 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr
                 )
             )
-        lrg_north, lrg1pass_north, lrg2pass_north,  \
-            lrg_south, lrg1pass_south, lrg2pass_south = \
+        lrg_n, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n,    \
+            lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s   = \
             np.vstack(lrg_classes)
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
-        lrg_north, lrg1pass_north, lrg2pass_north = ~primary, ~primary, ~primary
-        lrg_south, lrg1pass_south, lrg2pass_south = ~primary, ~primary, ~primary
+        lrg_n, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n = \
+            ~primary, ~primary, ~primary, ~primary , ~primary
+        lrg_s, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
+            ~primary, ~primary, ~primary, ~primary , ~primary
 
     # ADM combine LRG target bits for an LRG target based on any imaging
-    lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
-    lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
-    lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
+    lrg = (lrg_n & photsys_north) | (lrg_s & photsys_south)
+    lrginit = (lrginit_north & photsys_north) | (lrginit_south & photsys_south)
+    lrglowz = (lrglowz_north & photsys_north) | (lrglowz_south & photsys_south)
+    lrghighz = (lrghighz_north & photsys_north) | (lrghighz_south & photsys_south)
+    lrgrelax = (lrgrelax_north & photsys_north) | (lrgrelax_south & photsys_south)
+    lrgsuper = (lrgsuper_north & photsys_north) | (lrgsuper_south & photsys_south)
 
     if "ELG" in tcnames:
         elg_classes = []
@@ -1341,8 +1346,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qso * desi_mask.QSO
 
     # ADM add the per-bit information in the south for LRGs...
-    desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
-    desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
+    desi_target |= lrginit_s * desi_mask.LRG_INIT_SOUTH
+    desi_target |= lrglowz_s * desi_mask.LRG_LOWZ_SOUTH
+    desi_target |= lrghighz_s * desi_mask.LRG_HIGHZ_SOUTH
+    desi_target |= lrgrelax_s * desi_mask.LRG_RELAX_SOUTH
+    desi_target |= lrgsuper_s * desi_mask.LRG_SUPER_SOUTH
     # ADM ...and ELGs...
     desi_target |= elgfdr_south * desi_mask.ELG_FDR_SOUTH
     desi_target |= elgfdrfaint_south * desi_mask.ELG_FDR_FAINT_SOUTH
@@ -1353,8 +1361,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsorf_south * desi_mask.QSO_RF_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
-    desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
-    desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
+    desi_target |= lrginit_n * desi_mask.LRG_INIT_NORTH
+    desi_target |= lrglowz_n * desi_mask.LRG_LOWZ_NORTH
+    desi_target |= lrghighz_n * desi_mask.LRG_HIGHZ_NORTH
+    desi_target |= lrgrelax_n * desi_mask.LRG_RELAX_NORTH
+    desi_target |= lrgsuper_n * desi_mask.LRG_SUPER_NORTH
     # ADM ...and ELGs...
     desi_target |= elgfdr_north * desi_mask.ELG_FDR_NORTH
     desi_target |= elgfdrfaint_north * desi_mask.ELG_FDR_FAINT_NORTH
@@ -1365,8 +1376,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsorf_north * desi_mask.QSO_RF_NORTH
 
     # ADM combined per-bit information for the LRGs...
-    desi_target |= lrg1pass * desi_mask.LRG_1PASS
-    desi_target |= lrg2pass * desi_mask.LRG_2PASS
+    desi_target |= lrginit * desi_mask.LRG_INIT
+    desi_target |= lrglowz * desi_mask.LRG_LOWZ
+    desi_target |= lrghighz * desi_mask.LRG_HIGHZ
+    desi_target |= lrgrelax * desi_mask.LRG_RELAX
+    desi_target |= lrgsuper * desi_mask.LRG_SUPER
     # ADM ...and ELGs...
     desi_target |= elgfdr * desi_mask.ELG_FDR
     desi_target |= elgfdrfaint * desi_mask.ELG_FDR_FAINT
