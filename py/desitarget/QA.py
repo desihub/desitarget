@@ -352,12 +352,19 @@ def read_data(targfile, mocks=False):
 
     # ADM from the header of the input files, retrieve the appropriate
     # ADM names for the SV, main, or cmx _TARGET columns.
+    targcols = []
     fn = targfile
     if os.path.isdir(targfile):
         fn = next(iglob(os.path.join(targfile, '*fits')))
-        hdr = fitsio.read_header(fn, 'TARGETS')
-        allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
-        targcols = allcols[['_TARGET' in col for col in allcols]]
+    # ADM all file extensions should be readable by name, now...
+    try:
+        hdr = fitsio.read_header(fn, "TARGETS")
+    # ADM ...but just in case.
+    except IOError:
+        hdr = fitsio.read_header(fn, 1)
+
+    allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
+    targcols = allcols[['_TARGET' in col for col in allcols]]
 
     # ADM limit to the data columns used by the QA code to save memory.
     colnames = ["RA", "DEC", "RELEASE", "PARALLAX", "PMRA", "PMDEC"]
