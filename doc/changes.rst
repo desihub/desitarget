@@ -5,6 +5,7 @@ desitarget Change Log
 0.28.1 (unreleased)
 -------------------
 
+* Write Gaia morphologies and allow custom tilings for GFAs [`PR #467`_].
 * New resolve capability for post-DR7 imaging [`PR #462`_]. Includes:
     * Add ``RELEASE`` to GFA data model to help resolve duplicates.
     * Resolve N/S duplicates by combining ``RELEASE`` and areal cuts.
@@ -14,6 +15,7 @@ desitarget Change Log
 
 .. _`PR #461`: https://github.com/desihub/desitarget/pull/461
 .. _`PR #462`: https://github.com/desihub/desitarget/pull/462
+.. _`PR #467`: https://github.com/desihub/desitarget/pull/467
 
 0.28.0 (2019-02-28)
 -------------------

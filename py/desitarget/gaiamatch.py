@@ -670,7 +670,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     Parameters
     ----------
     tiles : :class:`~numpy.ndarray`
-        Integer tile IDs, or ``None`` to use all DESI tiles from
+        Array of tiles, or ``None`` to use all DESI tiles from
         :func:`desimodel.io.load_tiles`.
     neighbors : :class:`bool`, optional, defaults to ``True``
         Also return all neighboring pixels that touch the files of interest
