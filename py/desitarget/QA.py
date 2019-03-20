@@ -1767,7 +1767,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     If making plots, then the ``DESIMODEL`` environment variable must be set to find
     the file of HEALPixels that overlap the DESI footprint.
     """
-# ADM the following parameter assignments die on my NERSC build 
+# ADM the following parameter assignments die on my NERSC build
 # ADM for some reason, so I'm turning them off, for now.
 #    import matplotlib as mpl
 #    mpl.rcParams['xtick.major.width'] = 2
