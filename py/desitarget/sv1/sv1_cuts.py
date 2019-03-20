@@ -57,7 +57,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     Notes
     -----
-    - Current version (03/19/19) is version 52 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets, pass-based.
@@ -395,7 +395,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (03/19/19) is version 52 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -482,7 +482,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (03/19/19) is version 52 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -581,7 +581,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     Notes
     -----
-    - Current version (03/19/19) is version 52 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -784,6 +784,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
 
 
 def isELG(gflux=None, rflux=None, zflux=None,
+          gnobs=None, rnobs=None, znobs=None, brightstarinblob=None,
           gallmask=None, rallmask=None, zallmask=None,
           gsnr=None, rsnr=None, zsnr=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
@@ -807,7 +808,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (03/19/19) is version 52 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -815,6 +816,8 @@ def isELG(gflux=None, rflux=None, zflux=None,
     elg = primary.copy()
 
     elg &= notinELG_mask(gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                         brightstarinblob=brightstarinblob,
                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, primary=primary)
 
     # ADM pass the elg that pass cuts as primary, to restrict to the
@@ -827,6 +830,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
 
 
 def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
+                  gnobs=None, rnobs=None, znobs=None, brightstarinblob=None,
                   gsnr=None, rsnr=None, zsnr=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes
     (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isELG` for parameters).
@@ -835,8 +839,10 @@ def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
         primary = np.ones_like(gallmask, dtype='?')
     elg = primary.copy()
 
-    elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
+    elg &= ~brightstarinblob
+    elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+    elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
 
     return elg
 
@@ -1269,6 +1275,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             elg_classes.append(
                 isELG(
                     primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                    brightstarinblob=brighstarinblob,
                     gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
                     gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, south=south
                 )
