@@ -20,7 +20,7 @@ import itertools
 import numpy.lib.recfunctions as rfn
 import healpy as hp
 from collections import defaultdict
-from glob import glob
+from glob import glob, iglob
 from scipy.optimize import leastsq
 from scipy.spatial import ConvexHull
 from astropy import units as u
@@ -31,7 +31,7 @@ from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
-from deistarget.io import read_targets_in_box
+from desitarget.io import read_targets_in_box
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
@@ -1766,15 +1766,15 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     -----
     If making plots, then the ``DESIMODEL`` environment variable must be set to find
     the file of HEALPixels that overlap the DESI footprint.
-
     """
-    import matplotlib as mpl
-
-    mpl.rcParams['xtick.major.width'] = 2
-    mpl.rcParams['ytick.major.width'] = 2
-    mpl.rcParams['xtictark.minor.width'] = 2
-    mpl.rcParams['ytick.minor.width'] = 2
-    mpl.rcParams['font.size'] = 13
+# ADM the following parameter assignments die on my NERSC build 
+# ADM for some reason, so I'm turning them off, for now.
+#    import matplotlib as mpl
+#    mpl.rcParams['xtick.major.width'] = 2
+#    mpl.rcParams['ytick.major.width'] = 2
+#    mpl.rcParams['xtictark.minor.width'] = 2
+#    mpl.rcParams['ytick.minor.width'] = 2
+#    mpl.rcParams['font.size'] = 13
 
     from desispec.io.util import makepath
     # ADM set up the default logger from desiutil.

@@ -14,8 +14,8 @@ sv1_desi_mask:
     #- ADM ELG sub-classes
     - [ELG_FDR,        8, "ELG using FDR cuts",             {obsconditions: DARK|GRAY}]
     - [ELG_FDR_FAINT,  9, "ELG using fainter FDR cuts",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE,   10, "ELG red extension in rz color",  {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED,    11, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE,   10, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED,    11, "ELG red extension in rz color",  {obsconditions: DARK|GRAY}]
 
     #- ADM QSO sub-classes
     - [QSO_COLOR,   12, "QSO using color cuts",           {obsconditions: DARK}]
@@ -47,13 +47,13 @@ sv1_desi_mask:
     - [ELG_FDR_NORTH,         31, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
     #- ADM leave 32-36 reserved for calibration targets (to mirror the main survey)
     - [ELG_FDR_FAINT_NORTH,   37, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_NORTH,     38, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_NORTH,      39, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     38, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      39, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
 
     - [ELG_FDR_SOUTH,         40, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
     - [ELG_FDR_FAINT_SOUTH,   41, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_SOUTH,     42, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_SOUTH,      43, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_SOUTH,     42, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_SOUTH,      43, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
 
     - [QSO_COLOR_NORTH,  44, "QSO using color cuts tuned for Bok/Mosaic",            {obsconditions: DARK}]
     - [QSO_RF_NORTH,     45, "QSO using random forest tuned for Bok/Mosaic",         {obsconditions: DARK}]
