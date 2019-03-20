@@ -1276,7 +1276,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isELG(
                     primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
                     gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                    brightstarinblob=brighstarinblob,
+                    brightstarinblob=brightstarinblob,
                     gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
                     gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, south=south
                 )

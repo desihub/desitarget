@@ -499,6 +499,13 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     # ADM retrieve the dictionary of quantities for each random point.
     qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
 
+    # ADM if we duplicated the RAs/DECs across 2 Data Release directories
+    # ADM (i.e. if this is a DR8-style directory structure) then we need to
+    # ADM duplicate the ras, decs as well.
+    if len( _pre_or_post_dr8(drdir)) == 2:
+        ras = np.concatenate([ras, ras])
+        decs = np.concatenate([decs, decs])
+
     # ADM retrieve the E(B-V) values for each random point.
     ebv = get_dust(ras, decs, dustdir=dustdir)
 

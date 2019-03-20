@@ -82,7 +82,7 @@ cmx_targets = finalize(data[keep], desi_target[keep],
 # ADM remove some columns from the target file that aren't needed for
 # ADM testing. It's a big file.
 needtargs = np.empty(
-    len(many), dtype=[('RA', '>f8'), ('DEC', '>f8'),
+    len(many), dtype=[('RA', '>f8'), ('DEC', '>f8'), ('RELEASE', '>i2'),
                       ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
                       ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'), ('MW_TRANSMISSION_G', '>f4'),
                       ('MW_TRANSMISSION_R', '>f4'), ('MW_TRANSMISSION_Z', '>f4'),
@@ -92,8 +92,8 @@ needtargs = np.empty(
 )
 for col in needtargs.dtype.names:
     needtargs[col] = targets[col]
-fitsio.write('t/targets.fits', needtargs, header=hdr, clobber=True)
-fitsio.write('t/cmx-targets.fits', cmx_targets, header=hdr, clobber=True)
+fitsio.write('t/targets.fits', needtargs, extname='TARGETS', header=hdr, clobber=True)
+fitsio.write('t/cmx-targets.fits', cmx_targets, extname='TARGETS', header=hdr, clobber=True)
 
 # ADM as of DR7, ignore the Gaia files
 # ADM adding Gaia files to which to match
