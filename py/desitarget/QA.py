@@ -31,6 +31,7 @@ from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
+from deistarget.io import read_targets_in_box
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
@@ -322,7 +323,10 @@ def read_data(targfile, mocks=False):
     ----------
     targfile : :class:`str`
         The full path to a mock target file in the DESI X per cent survey directory structure
-        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/.
+        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/, or to a
+        data file, or to a directory of HEALPixel-split target files which will be
+        read in with :func:`desitarget.io.read_targets_in_box`.
+
     mocks : :class:`boolean`, optional, default=False
         If ``True``, read in mock data.
 
@@ -331,7 +335,7 @@ def read_data(targfile, mocks=False):
     targs : :class:`~numpy.array`
         A rec array containing the targets catalog.
     truths : :class:`~numpy.array`
-        A rec array containing the targets catalog (if present and `mocks=True`).
+        A rec array containing the truths catalog (if present and `mocks=True`).
     objtruths : :class:`dict`
         Object type-specific truth metadata (if present and `mocks=True`).
 
@@ -346,12 +350,24 @@ def read_data(targfile, mocks=False):
     if targdir == '':
         targdir = '.'
 
-    # ADM retrieve the mock data release name.
-    dcdir = os.path.dirname(targdir)
-    dc = os.path.basename(dcdir)
+    # ADM from the header of the input files, retrieve the appropriate
+    # ADM names for the SV, main, or cmx _TARGET columns.
+    fn = targfile
+    if os.path.isdir(targfile):
+        fn = next(iglob(os.path.join(targfile, '*fits')))
+        hdr = fitsio.read_header(fn, 'TARGETS')
+        allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
+        targcols = allcols[['_TARGET' in col for col in allcols]]
+
+    # ADM limit to the data columns used by the QA code to save memory.
+    colnames = ["RA", "DEC", "RELEASE", "PARALLAX", "PMRA", "PMDEC"]
+    for band in "G", "R", "Z", "W1", "W2":
+        colnames.append("{}_{}".format("FLUX", band))
+        colnames.append("{}_{}".format("MW_TRANSMISSION", band))
+    cols = np.concatenate([colnames, targcols])
 
     # ADM read in the targets catalog and return it.
-    targs = fitsio.read(targfile)
+    targs = read_targets_in_box(targfile, columns=cols)
     log.info('Read in targets...t = {:.1f}s'.format(time()-start))
     truths, objtruths = None, None
 
@@ -1712,6 +1728,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     targs : :class:`~numpy.array` or `str`
         An array of targets in the DESI data model format. If a string is passed then the
         targets are read from the file with the passed name (supply the full directory path).
+        The string can also be a directory of HEALPixel-split target files which will be
+        read in with :func:`desitarget.io.read_targets_in_box`.
     mocks : :class:`boolean`, optional, default=False
         If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
     makeplots : :class:`boolean`, optional, default=True
@@ -1730,7 +1748,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         ``DESIMODEL`` HEALPix footprint file for mock targets.
     imaging_map_file : :class:`str`, optional, defaults to no weights
         If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.randoms.pixmap()`. If this is not sent,
+        map (e.g. made by :func:`desitarget.randoms.pixmap`. If this is not sent,
         then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
         If this is not set, then systematics plots cannot be made.
     tcnames : :class:`list`
@@ -1754,7 +1772,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     mpl.rcParams['xtick.major.width'] = 2
     mpl.rcParams['ytick.major.width'] = 2
-    mpl.rcParams['xtick.minor.width'] = 2
+    mpl.rcParams['xtictark.minor.width'] = 2
     mpl.rcParams['ytick.minor.width'] = 2
     mpl.rcParams['font.size'] = 13
 
