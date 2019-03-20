@@ -356,13 +356,7 @@ def read_data(targfile, mocks=False):
     fn = targfile
     if os.path.isdir(targfile):
         fn = next(iglob(os.path.join(targfile, '*fits')))
-    # ADM all file extensions should be readable by name, now...
-    try:
-        hdr = fitsio.read_header(fn, "TARGETS")
-    # ADM ...but just in case.
-    except IOError:
-        hdr = fitsio.read_header(fn, 1)
-
+    hdr = fitsio.read_header(fn, "TARGETS")
     allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
     targcols = allcols[['_TARGET' in col for col in allcols]]
 
