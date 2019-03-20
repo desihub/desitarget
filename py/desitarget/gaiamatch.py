@@ -300,7 +300,7 @@ def gaia_fits_to_healpix(numproc=4):
         But the archived Gaia FITS files in $GAIA_DIR/fits are
         rearranged by HEALPixel in the directory $GAIA_DIR/healpix.
         The HEALPixel sense is nested with nside=_get_gaia_nside(), and
-        each file in $GAIA_DIR/healpix is called healpy-xxxxx.fits,
+        each file in $GAIA_DIR/healpix is called healpix-xxxxx.fits,
         where xxxxx corresponds to the HEALPixel number.
 
     Notes
@@ -419,7 +419,7 @@ def make_gaia_files(numproc=4, download=False):
         - FITS files reorganized by HEALPixel in $GAIA_DIR/healpix.
 
         The HEALPixel sense is nested with nside=_get_gaia_nside(), and
-        each file in $GAIA_DIR/healpix is called healpy-xxxxx.fits,
+        each file in $GAIA_DIR/healpix is called healpix-xxxxx.fits,
         where xxxxx corresponds to the HEALPixel number.
 
     Notes
