@@ -236,7 +236,10 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     # ADM determine the dictionary of quantities for one or two directories.
     qall = []
     for dd in drdirs:
-        qall.append(quantities_at_positions_in_a_brick(ras, decs, brickname, dd))
+        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd)
+        # ADM don't count bricks where we never read a file header.
+        if q is not None:
+            qall.append(q)
 
     # ADM concatenate everything in qall into one dictionary.
     qcombine = {}
@@ -339,7 +342,10 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
         qdict['maskbits'] = np.zeros(npts, dtype='i2')
 
     # ADM finally, populate the photometric system in the quantity dictionary.
-    if instrum == 'decam':
+    if instrum is None:
+        # ADM don't count bricks where we never read a file header.
+        return
+    elif instrum == 'decam':
         qdict['photsys'] = np.array([b"S" for x in range(npts)], dtype='|S1')
     else:
         qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
@@ -499,10 +505,9 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     # ADM retrieve the dictionary of quantities for each random point.
     qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
 
-    # ADM if we duplicated the RAs/DECs across 2 Data Release directories
-    # ADM (i.e. if this is a DR8-style directory structure) then we need to
-    # ADM duplicate the ras, decs as well.
-    if len( _pre_or_post_dr8(drdir)) == 2:
+    # ADM if we detected different cameras corresponding to 2 Data Releases
+    # ADM for this brick then we need to duplicate the ras, decs as well.
+    if len(qdict['photsys']) == 2*len(ras):
         ras = np.concatenate([ras, ras])
         decs = np.concatenate([decs, decs])
 
@@ -846,7 +851,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
                    dustdir=None):
-    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
+    """NOBS, DEPTHs, MASKBITs (per-band) for random points in a Legacy Surveys DR.
 
     Parameters
     ----------
@@ -926,7 +931,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                 msg += 'and pixlist or bundlebricks passed!!!'
                 log.critical(msg)
                 raise ValueError(msg)
-    bricknames = np.concatenate(bricknames)
+    # ADM we don't want to count bricks twice.
+    # ADM at some point when we have dr8 proper we'll need to uniq-ify brickinfo, too.
+    bricknames = np.unique(np.concatenate(bricknames))
     brickinfo = np.concatenate(brickinfo)
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
