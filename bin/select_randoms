@@ -8,7 +8,7 @@ from time import time
 start = time()
 
 from desitarget import io
-from desitarget.randoms import pixweight, select_randoms, dr_extension
+from desitarget.randoms import pixweight, select_randoms
 from glob import iglob
 import fitsio
 

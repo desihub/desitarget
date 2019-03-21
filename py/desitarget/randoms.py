@@ -930,7 +930,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     bricktable = brick.Bricks(bricksize=0.25).to_table()
     brickdict = {}
     for b in bricktable:
-        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"], 
+        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
                                      b["RA1"], b["RA2"], b["DEC1"], b["DEC2"]]
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
