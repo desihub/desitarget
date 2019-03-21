@@ -850,7 +850,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
-                   dustdir=None):
+                   dustdir=None, resolverands=True):
     """NOBS, DEPTHs, MASKBITs (per-band) for random points in a Legacy Surveys DR.
 
     Parameters
@@ -886,6 +886,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         The root directory pointing to SFD dust maps. If not
         sent the code will try to use $DUST_DIR+'maps')
         before failing.
+    resolverands : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, resolve randoms into northern randoms in northern regions
+        and southern randoms in southern regions.
 
     Returns
     -------
@@ -1009,7 +1012,8 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM concatenate the randoms into a single long list and resolve whether
     # ADM they are officially in the north or the south.
     qinfo = np.concatenate(qinfo)
-    qinfo = resolve(qinfo)
+    if resolverands:
+        qinfo = resolve(qinfo)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(616)

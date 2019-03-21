@@ -493,7 +493,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
     resolve : :class:`bool`, optional, defaults to ``True``
-        Written to the output file header as `resolve`.
+        Written to the output file header as `RESOLVE`.
     """
     # FIXME: assert data and tsbits schema
 
@@ -681,7 +681,8 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None):
+def write_randoms(filename, data, indir=None, hdr=None, nside=None, 
+                  density=None, resolve=True):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -701,6 +702,9 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
+    resolve : :class:`bool`, optional, defaults to ``True``
+        Written to the output file header as `RESOLVE`.
+
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -745,6 +749,9 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None
     # ADM add density of points if requested by input.
     if density is not None:
         hdr['DENSITY'] = density
+
+    # ADM add whether or not the randoms were resolved to the header.
+    hdr["RESOLVE"] = resolve
 
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
 

@@ -51,6 +51,9 @@ ap.add_argument("--brickspersec", type=float,
 ap.add_argument("--dustdir",
                 help="Directory of SFD dust maps (defaults to the equivalent of $DUST_DIR+'/maps')",
                 default=None)
+ap.add_argument("--noresolve", action='store_true',
+                help="Do NOT resolve into northern randoms in northern regions and southern randoms in southern regions")
+
 
 ns = ap.parse_args()
 
@@ -88,10 +91,10 @@ for record in rmhdr['_record_map']:
 randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist,
                          bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
-                         dustdir=ns.dustdir)
+                         dustdir=ns.dustdir, resolverands=not(ns.noresolve))
 
 if ns.bundlebricks is None:
-    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, hdr=hdr, nside=nside, density=ns.density)
+    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, 
+                     hdr=hdr, nside=nside, density=ns.density, resolve=not(ns.noresolve))
     log.info('wrote file of {} randoms to {}...t = {:.1f}s'
              .format(len(randoms), ns.dest,time()-start))
-
