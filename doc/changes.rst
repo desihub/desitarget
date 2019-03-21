@@ -4,7 +4,7 @@ desitarget Change Log
 
 0.28.1 (unreleased)
 -------------------
-* Update SV selection [`PR #474`_]. Includes:
+* Update SV selection [`PR #475`_]. Includes:
     * New SV targeting bits for QSOs and LRGs.
     * New SV selection algorithms for QSOs, ELGs and LRGs.
     * MTL fixes to handle SV LRGs (which are now not 1PASS/2PASS).
@@ -13,6 +13,7 @@ desitarget Change Log
     * SKY and BAD_SKY added to commissioning bits yaml file.
     * Randoms fully handle overlap regions and dual directory structure.
     * Write overlap regions in addition to resolve for targets/randoms.
+* Fix Gaia files format in doc string (healpix not healpy) [`PR #474`_].
 * Initial updates for DR8 [`PR #466`_]. Includes:
     * DR8 data model updates (e.g BRIGHTSTARBLOB -> bitmask BRIGHTBLOB).
     * Apply resolve capability to targets and randoms.
@@ -28,6 +29,7 @@ desitarget Change Log
 .. _`PR #462`: https://github.com/desihub/desitarget/pull/462
 .. _`PR #466`: https://github.com/desihub/desitarget/pull/466
 .. _`PR #474`: https://github.com/desihub/desitarget/pull/474
+.. _`PR #475`: https://github.com/desihub/desitarget/pull/475
 
 0.28.0 (2019-02-28)
 -------------------
