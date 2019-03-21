@@ -907,10 +907,6 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
             EBV: E(B-V) at this location from the SFD dust maps
     """
-    # ADM initialize the bricks class, and retrieve the brick information look-up table.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
-
     # ADM read in the survey bricks file, which lists the bricks of interest for this DR.
     # ADM if this is pre-or-post-DR8 we need to find the correct directory or directories.
     drdirs = _pre_or_post_dr8(drdir)
@@ -928,14 +924,21 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
             bricknames.append([brickname_from_filename(fn) for fn in fns])
     # ADM don't count bricks twice.
     bricknames = np.unique(np.concatenate(bricknames))
-    
+    # ADM initialize the bricks class, retrieve the brick information look-up table,
+    # ADM turn it into a fast look-up dictionary.
+    from desiutil import brick
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    brickdict = {}
+    for b in bricktable:
+        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"], 
+                                     b["RA1"], b["RA2"], b["DEC1"], b["DEC2"]]
+
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        # ADM retrieve the full brickinfo from the brick look-up table.
-        brickinfo = np.hstack([bricktable[bricktable['BRICKNAME'] == bn] 
-                               for bn in bricknames])
-        theta, phi = np.radians(90-brickinfo["DEC"]), np.radians(brickinfo["RA"])
+        bra, bdec, bramin, bramax, bdecmin, bdecmax = np.vstack(
+            [np.array(brickdict[bn]) for bn in bricknames]).T
+        theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
     # ADM if the bundlebricks option was sent, call the packing code.
@@ -968,13 +971,12 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     def _get_quantities(brickname):
         '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
         # ADM retrieve the edges for the brick that we're working on
-        wbrick = np.where(bricktable["BRICKNAME"] == brickname)[0]
-        ramin, ramax, decmin, decmax = np.array(bricktable[wbrick]["RA1", "RA2", "DEC1", "DEC2"])[0]
+        bra, bdec, bramin, bramax, bdecmin, bdecmax = brickdict[brickname]
 
         # ADM populate the brick with random points, and retrieve the quantities
         # ADM of interest at those points.
-        return get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
-                                         density=density, dustdir=dustdir)
+        return get_quantities_in_a_brick(bramin, bramax, bdecmin, bdecmax, brickname,
+                                         drdir, density=density, dustdir=dustdir)
 
     # ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')

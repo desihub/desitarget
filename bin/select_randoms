@@ -8,7 +8,7 @@ from time import time
 start = time()
 
 from desitarget import io
-from desitarget.randoms import pixweight, select_randoms
+from desitarget.randoms import pixweight, select_randoms, dr_extension
 from glob import iglob
 import fitsio
 
@@ -71,10 +71,12 @@ if ns.bundlebricks is None:
 gen = iglob(os.path.join(ns.surveydir, "*", "coadd", "*", "*", "*maskbits*"))
 try:
     fn = next(gen)
+    hdrall = fitsio.read_header(fn, 1)
 except StopIteration:
     gen = iglob(os.path.join(ns.surveydir, "coadd", "*", "*", "*maskbits*"))
     fn = next(gen)
-hdrall = fitsio.read_header(fn, 1)
+    hdrall = fitsio.read_header(fn, 0)
+
 # ADM retrieve the record dictionary for the entire header.
 rmhdr = vars(hdrall)
 # ADM write only the maskbits-relevant headers to a new header.
