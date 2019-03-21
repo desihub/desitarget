@@ -19,7 +19,7 @@ def load_mask_bits(prefix=""):
     fn = "{}/data/{}targetmask.yaml".format(prefix, prename)
     _filepath = resource_filename('desitarget', fn)
     with open(_filepath) as fx:
-        bitdefs = yaml.load(fx)
+        bitdefs = yaml.safe_load(fx)
         try:
             bitdefs = _load_mask_priorities(bitdefs, handle="priorities", prename=prename)
         except TypeError:
