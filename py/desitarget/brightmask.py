@@ -210,9 +210,13 @@ def collect_bright_sources(bands, maglim, numproc=4,
         """Retrieves bright sources from a sweeps/Tractor file"""
         objs = io.read_tractor(filename)
         # ADM write the fluxes as an array instead of as named columns.
-        fluxes = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
+
         # ADM Retain rows for which ANY band is brighter than maglim.
-        w = np.where(np.any(fluxes > fluxlim, axis=1))
+        ok = np.zeros(objs[bandnames[0]].shape, dtype=bool)
+        for i, bandname in enumerate(bandnames):
+            ok |= (objs[bandname] > fluxlim[i])
+
+        w = np.where(ok)
         if len(w[0]) > 0:
             return objs[w]
 
@@ -502,18 +506,19 @@ def make_bright_source_mask(bands, maglim, numproc=4,
         objs = collect_bright_sources(bands, maglim, numproc, rootdirname, outfilename)
 
     # ADM write the fluxes and bands as arrays instead of named columns
-    # ADM to circumvent a numpy future warning, this requires two copies of the fluxes array.
-    fluxcheck = objs[bandnames].view(objs[bandnames].dtype[0]).reshape(objs[bandnames].shape + (-1,))
-    fluxes = fluxcheck.copy()
-    nobs = objs[nobsnames].view(objs[nobsnames].dtype[0]).reshape(objs[nobsnames].shape + (-1,))
-
-    # ADM set any observations with NOBS = 0 to have small flux so glitches don't end up as bright object masks.
-    w = np.where(nobs == 0)
-    if len(w[0]) > 0:
-        fluxes[w] = 0.
 
     # ADM limit to the passed faint limit.
-    w = np.where(np.any(fluxes > fluxlim, axis=1))
+    ok = np.zeros(objs[bandnames[0]].shape, dtype=bool)
+    fluxes = np.zeros((len(ok), len(bandnames)), dtype=objs[bandnames[0]].dtype)
+    for i, (bandname, nobsname) in enumerate(zip(bandnames, nobsnames)):
+        fluxes[:,i] = objs[bandname].copy()
+        # ADM set any observations with NOBS = 0 to have small flux
+        # so glitches don't end up as bright object masks.
+        fluxes[objs[nobsname] == 0, i] = 0.0
+        ok |= (fluxes[:,i] > fluxlim[i])
+
+    w = np.where(ok)
+
     fluxes = fluxes[w]
     objs = objs[w]
 
