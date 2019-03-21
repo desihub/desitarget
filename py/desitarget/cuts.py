@@ -2243,7 +2243,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
                    radecbox=None, radecrad=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-                   survey='main'):
+                   survey='main', resolvetargs=True):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2296,6 +2296,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         Specifies which target masks yaml file and target selection cuts
         to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
+    resolvetargs : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, resolve targets into northern targets in northern regions
+        and southern targets in southern regions.
 
     Returns
     -------
@@ -2405,7 +2408,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         targets = finalize(objects, desi_target, bgs_target, mws_target,
                            survey=survey)
         # ADM resolve any duplicates between imaging data releases.
-        targets = resolve(targets)
+        if resolvetargs:
+            targets = resolve(targets)
 
         return targets
 
