@@ -4,13 +4,19 @@ desitarget Change Log
 
 0.28.1 (unreleased)
 -------------------
-* Update SV selection [`PR #474`_] Includes:
+* Update SV selection [`PR #474`_]. Includes:
     * New SV targeting bits for QSOs and LRGs.
     * New SV selection algorithms for QSOs, ELGs and LRGs.
     * MTL fixes to handle SV LRGs (which are now not 1PASS/2PASS).
     * QA can now interpret HEALPixel-split targeting files.
     * Updated test files for the quasi-DR8 imaging data model.
     * SKY and BAD_SKY added to commissioning bits yaml file.
+    * Randoms fully handle overlap regions and dual directory structure.
+    * Write overlap regions in addition to resolve for targets/randoms.
+* Initial updates for DR8 [`PR #466`_]. Includes:
+    * DR8 data model updates (e.g BRIGHTSTARBLOB -> bitmask BRIGHTBLOB).
+    * Apply resolve capability to targets and randoms.
+    * Handle BASS/MzLS and DECaLS existing in the same input directory.
 * New resolve capability for post-DR7 imaging [`PR #462`_]. Includes:
     * Add ``RELEASE`` to GFA data model to help resolve duplicates.
     * Resolve N/S duplicates by combining ``RELEASE`` and areal cuts.
@@ -20,6 +26,7 @@ desitarget Change Log
 
 .. _`PR #461`: https://github.com/desihub/desitarget/pull/461
 .. _`PR #462`: https://github.com/desihub/desitarget/pull/462
+.. _`PR #466`: https://github.com/desihub/desitarget/pull/466
 .. _`PR #474`: https://github.com/desihub/desitarget/pull/474
 
 0.28.0 (2019-02-28)
