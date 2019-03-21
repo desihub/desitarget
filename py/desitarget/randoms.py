@@ -907,39 +907,35 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
             EBV: E(B-V) at this location from the SFD dust maps
     """
+    # ADM initialize the bricks class, and retrieve the brick information look-up table.
+    from desiutil import brick
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+
     # ADM read in the survey bricks file, which lists the bricks of interest for this DR.
     # ADM if this is pre-or-post-DR8 we need to find the correct directory or directories.
     drdirs = _pre_or_post_dr8(drdir)
     bricknames = []
-    brickinfo = []
     for dd in drdirs:
         sbfile = glob(dd+'/*bricks-dr*')
         if len(sbfile) > 0:
             sbfile = sbfile[0]
             hdu = fits.open(sbfile)
-            brickinfo.append(hdu[1].data)
             bricknames.append(hdu[1].data['BRICKNAME'])
         else:
-            # ADM this is a hack for test bricks where we didn't always generate the
-            # ADM bricks file. It's probably safe to remove it at some point.
+            # ADM hack for test bricks where we didn't generate the bricks file.
             from desitarget.io import brickname_from_filename
             fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
             bricknames.append([brickname_from_filename(fn) for fn in fns])
-            brickinfo.append([])
-            if pixlist is not None or bundlebricks is not None:
-                msg = 'DR-specific bricks file not found'
-                msg += 'and pixlist or bundlebricks passed!!!'
-                log.critical(msg)
-                raise ValueError(msg)
-    # ADM we don't want to count bricks twice.
-    # ADM at some point when we have dr8 proper we'll need to uniq-ify brickinfo, too.
+    # ADM don't count bricks twice.
     bricknames = np.unique(np.concatenate(bricknames))
-    brickinfo = np.concatenate(brickinfo)
-
+    
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
+        # ADM retrieve the full brickinfo from the brick look-up table.
+        brickinfo = np.hstack([bricktable[bricktable['BRICKNAME'] == bn] 
+                               for bn in bricknames])
+        theta, phi = np.radians(90-brickinfo["DEC"]), np.radians(brickinfo["RA"])
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
     # ADM if the bundlebricks option was sent, call the packing code.
@@ -967,11 +963,6 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM a little more information if we're slurming across nodes.
     if os.getenv('SLURMD_NODENAME') is not None:
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
-
-    # ADM initialize the bricks class, and retrieve the brick information look-up table
-    # ADM so it can be used in a common fashion.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
 
     # ADM the critical function to run on every brick.
     def _get_quantities(brickname):
