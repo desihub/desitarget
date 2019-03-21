@@ -33,7 +33,7 @@ class TestMockBuild(unittest.TestCase):
 
         import yaml
         with open(configfile) as fx:
-            params = yaml.load(fx)
+            params = yaml.safe_load(fx)
 
         for targettype in params['targets'].keys():
             mockfile = params['targets'][targettype]['mockfile'].format(**os.environ)
