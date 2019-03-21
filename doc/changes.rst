@@ -4,7 +4,7 @@ desitarget Change Log
 
 0.28.1 (unreleased)
 -------------------
-* Update SV selection for DR8 [`PR #476`_]. Includes:
+* Update SV selection for DR8 [`PR #477`_]. Includes:
     * New SV targeting bits for QSOs and LRGs.
     * New SV selection algorithms for QSOs, ELGs and LRGs.
     * MTL fixes to handle SV LRGs (which are now not 1PASS/2PASS).
@@ -31,7 +31,7 @@ desitarget Change Log
 .. _`PR #466`: https://github.com/desihub/desitarget/pull/466
 .. _`PR #474`: https://github.com/desihub/desitarget/pull/474
 .. _`PR #475`: https://github.com/desihub/desitarget/pull/475
-.. _`PR #476`: https://github.com/desihub/desitarget/pull/476
+.. _`PR #476`: https://github.com/desihub/desitarget/pull/477
 
 0.28.0 (2019-02-28)
 -------------------
