@@ -681,7 +681,7 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-def write_randoms(filename, data, indir=None, hdr=None, nside=None, 
+def write_randoms(filename, data, indir=None, hdr=None, nside=None,
                   density=None, resolve=True):
     """Write a catalogue of randoms and associated pixel-level information.
 
