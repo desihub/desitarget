@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.28.1 (unreleased)
+0.29.1 (unreleased)
+-------------------
+
+* no changes yet.
+
+0.29.0 (2019-03-22)
 -------------------
 * Update SV selection for DR8 [`PR #477`_]. Includes:
     * New SV targeting bits for QSOs and LRGs.
