@@ -72,7 +72,7 @@ if ns.bundlebricks is None:
 # ADM go looking for a maskbits file to steal the header for the
 # ADM bit names. Try a couple of configurations (pre/post DR8).
 hdr = None
-if 'dr7' in ns.surveydir or 'dr8' in ns.surveydir:
+if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
     gen = iglob(os.path.join(ns.surveydir, "*", "coadd", "*", "*", "*maskbits*"))
     try:
         fn = next(gen)
