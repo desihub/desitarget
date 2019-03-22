@@ -70,23 +70,24 @@ if ns.bundlebricks is None:
     log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
 
 # ADM go looking for a maskbits file to steal the header for the
-# ADM bit names. Try a couple of configurations (pre/post DR7).
-gen = iglob(os.path.join(ns.surveydir, "*", "coadd", "*", "*", "*maskbits*"))
-try:
-    fn = next(gen)
-    hdrall = fitsio.read_header(fn, 1)
-except StopIteration:
-    gen = iglob(os.path.join(ns.surveydir, "coadd", "*", "*", "*maskbits*"))
-    fn = next(gen)
-    hdrall = fitsio.read_header(fn, 0)
-
-# ADM retrieve the record dictionary for the entire header.
-rmhdr = vars(hdrall)
-# ADM write only the maskbits-relevant headers to a new header.
-hdr = fitsio.FITSHDR()
-for record in rmhdr['_record_map']:
-    if 'BITNM' in record:
-        hdr[record] = rmhdr['_record_map'][record]
+# ADM bit names. Try a couple of configurations (pre/post DR8).
+hdr = None
+if 'dr7' in ns.surveydir or 'dr8' in ns.surveydir:
+    gen = iglob(os.path.join(ns.surveydir, "*", "coadd", "*", "*", "*maskbits*"))
+    try:
+        fn = next(gen)
+        hdrall = fitsio.read_header(fn, 1)
+    except StopIteration:
+        gen = iglob(os.path.join(ns.surveydir, "coadd", "*", "*", "*maskbits*"))
+        fn = next(gen)
+        hdrall = fitsio.read_header(fn, 0)
+    # ADM retrieve the record dictionary for the entire header.
+    rmhdr = vars(hdrall)
+    # ADM write only the maskbits-relevant headers to a new header.
+    hdr = fitsio.FITSHDR()
+    for record in rmhdr['_record_map']:
+        if 'BITNM' in record:
+            hdr[record] = rmhdr['_record_map'][record]
 
 randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist,
