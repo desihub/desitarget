@@ -29,7 +29,7 @@ log = get_logger()
 start = time()
 
 
-def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
@@ -45,13 +45,19 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     :class:`array_like`
         ``True`` if and only if the object is an LRG target.
     :class:`array_like`
-        ``True`` if the object is a ONE pass (bright) LRG target.
+        ``True`` if the object is a nominal optical + nominal IR LRG.
     :class:`array_like`
-        ``True`` if the object is a TWO pass (fainter) LRG target.
+        ``True`` if the object is an optical + IR + low-z extension LRG.
+    :class:`array_like`
+        ``True`` if the object is an optical + IR + high-z extension LRG.
+    :class:`array_like`
+        ``True`` if the object is an optical + IR + low-z + high-z + relaxed cuts LRG.
+    :class:`array_like`
+        ``True`` if the object is a superset of all other subsamples LRG.
 
     Notes
     -----
-    - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets, pass-based.
@@ -64,11 +70,12 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
-    lrg, lrg1pass, lrg2pass = isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                                           w1flux=w1flux, w2flux=w2flux,
-                                           south=south, primary=lrg)
+    lrg_all, lrg1, lrg2, lrg3, lrg4, lrg5 = isLRG_colors(gflux=gflux, rflux=rflux,
+                                                         zflux=zflux, w1flux=w1flux,
+                                                         gflux_ivar=gflux_ivar,
+                                                         south=south, primary=lrg)
 
-    return lrg, lrg1pass, lrg2pass
+    return lrg_all, lrg1, lrg2, lrg3, lrg4, lrg5
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
@@ -84,58 +91,149 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
-    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r
-    lrg &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z
-    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1
+    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
+    lrg &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z.
+    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
 
     return lrg
 
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, south=True, primary=None):
+                 gflux_ivar=None, south=True, primary=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
+    lrg1, lrg2, lrg3, lrg4, lrg5 = np.tile(primary, [5, 1])
 
-    # ADM safe as these fluxes are set to > 0 in notinLRG_mask
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
+    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
     rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
     zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
 
     if south:
-        lrg &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8  # Non-stellar cut
-        lrg &= zmag < 20.8                           # z < 20.8 (two exposure limit)
-        lrg &= zmag >= 18.01                         # z > 18.01 (reduce overlap with BGS)
-        lrg &= rmag - zmag > 0.65                    # r-z > 0.65 (broad color box)
-        lrg &= (
-            (((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2) |
-            (zmag < 19.7) |
-            ((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) |
-            ((w1mag < 19.15) & (rmag-w1mag < 1.88))  # Curved sliding optical and IR cuts with low-z extension
-        )
+
+        # subsample 1: Nominal optical + Nominal IR:
+        lrg1 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6   # non-stellar cut
+        lrg1 &= zmag < 20.41                           # faint limit
+        lrg1 &= rmag - zmag > 0.75                     # broad color box
+        lrg1 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.18) / 2     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.74) / 0.4  # sliding IR cut
+        lrg1 &= lrg_opt | lrg_ir
+
+        # subsample 2: optical + IR + low-z extension:
+        lrg2 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6  # non-stellar cut
+        lrg2 &= zmag < 20.41                          # faint limit
+        lrg2 &= rmag - zmag > 0.75                    # broad color box
+        lrg2 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = ((rmag - zmag > (zmag - 17.18) / 2) |
+                   (zmag < 19.7))                            # sliding optical cut with low-z extension
+        lrg_ir = ((rmag - w1mag > (w1mag - 17.74) / 0.4) |
+                  ((w1mag < 19.15) & (rmag - w1mag < 1.88)))  # sliding IR cut with low-z extension
+        lrg2 &= lrg_opt | lrg_ir
+
+        # subsample 3: optical + IR + high-z extension:
+        lrg3 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.6   # non-stellar cut
+        lrg3 &= zmag < 20.80                           # extended faint limit
+        lrg3 &= rmag - zmag > 0.75                     # broad color box
+        lrg3 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.65) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.18) / 2     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.74) / 0.4  # sliding IR cut
+        lrg3 &= lrg_opt | lrg_ir
+
+        # subsample 4: optical + IR + low-z + high-z + relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + relaxed g-r cut):
+        lrg4 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8  # relaxed non-stellar cut
+        lrg4 &= zmag < 20.80                          # extended faint limit
+        lrg4 &= rmag - zmag > 0.75                    # broad color box
+        lrg4 &= (rmag - zmag > 1.15) | ((gmag - rmag > 1.45) & (gflux_ivar > 0))  # relaxed low-z cut
+        lrg_opt = ((((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2) |
+                   (zmag < 19.7))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.15) & (rmag - w1mag < 1.88)))  # curved sliding IR cut with low-z extension
+        lrg4 &= lrg_opt | lrg_ir
+
+        # subsample 5 (this is a superset of all other subsamples):
+        # optical + IR + low-z + high-z + more relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + no g-r cut + relaxed broad r-z cut):
+        lrg5 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.8   # relaxed non-stellar cut
+        lrg5 &= zmag < 20.80                           # extended faint limit
+        lrg5 &= rmag - zmag > 0.65                     # relaxed broad color box
+        lrg_opt = ((((zmag - 22.) / 1.3)**2 + (rmag - zmag + 1.27)**2 > 3.0**2) |
+                   (zmag < 19.7))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.01)**2 + ((rmag - w1mag - 0.42) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.15) & (rmag - w1mag < 1.88)))  # curved sliding IR cut with low-z extension
+        lrg5 &= lrg_opt | lrg_ir
+
     else:
-        lrg &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # Non-stellar cut
-        lrg &= zmag < 20.755                           # z < 20.755 (two exposure limit)
-        lrg &= zmag >= 17.965                          # z > 17.965 (reduce overlap with BGS)
-        lrg &= rmag - zmag > 0.75                      # r-z > 0.75 (broad color box)
-        lrg &= (
-            (((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2) |
-            (zmag < 19.655) |
-            ((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) |
-            ((w1mag < 19.139) & (rmag-w1mag < 1.833))  # Curved sliding optical and IR cuts with low-z extension
-        )
 
-    lrg1pass = lrg.copy()
-    lrg2pass = lrg.copy()
+        # subsample 1: nominal optical + nominal IR:
+        lrg1 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735    # non-stellar cut
+        lrg1 &= zmag < 20.365                             # faint limit
+        lrg1 &= rmag - zmag > 0.85                        # broad color box
+        lrg1 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.105) / 1.8     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.723) / 0.385  # sliding IR cut
+        lrg1 &= lrg_opt | lrg_ir
 
-    # ADM one-pass LRGs are (the BGS limit) <= z < 20
-    lrg1pass &= zmag < 20.
-    # ADM two-pass LRGs are 20 <= z < (the two pass limit)
-    lrg2pass &= zmag >= 20.
+        # subsample 2: optical + IR + low-z extension:
+        lrg2 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735  # non-stellar cut
+        lrg2 &= zmag < 20.365                           # faint limit
+        lrg2 &= rmag - zmag > 0.85                      # broad color box
+        lrg2 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = ((rmag - zmag > (zmag - 17.105) / 1.8) |
+                   (zmag < 19.655))                             # sliding optical cut with low-z extension
+        lrg_ir = ((rmag - w1mag > (w1mag - 17.723) / 0.385) |
+                  ((w1mag < 19.139) & (rmag - w1mag < 1.833)))  # sliding IR cut with low-z extension
+        lrg2 &= lrg_opt | lrg_ir
 
-    return lrg, lrg1pass, lrg2pass
+        # subsample 3: optical + IR + high-z extension:
+        lrg3 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.735  # non-stellar cut
+        lrg3 &= zmag < 20.755                           # extended faint limit
+        lrg3 &= rmag - zmag > 0.85                      # broad color box
+        lrg3 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.655) & (gflux_ivar > 0))  # Low-z cut
+        lrg_opt = rmag - zmag > (zmag - 17.105) / 1.8     # sliding optical cut
+        lrg_ir = rmag - w1mag > (w1mag - 17.723) / 0.385  # sliding IR cut
+        lrg3 &= lrg_opt | lrg_ir
+
+        # subsample 4: optical + IR + low-z + high-z + relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + relaxed g-r cut):
+        lrg4 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # relaxed non-stellar cut
+        lrg4 &= zmag < 20.755                           # extended faint limit
+        lrg4 &= rmag - zmag > 0.85                      # broad color box
+        lrg4 &= (rmag - zmag > 1.25) | ((gmag - rmag > 1.455) & (gflux_ivar > 0))  # relaxed low-z cut
+        lrg_opt = ((((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2) |
+                   (zmag < 19.655))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.139) & (rmag - w1mag < 1.833)))  # curved sliding IR cut with low-z extension
+        lrg4 &= lrg_opt | lrg_ir
+
+        # subsample 5 (this is a superset of all other subsamples):
+        # optical + IR + low-z + high-z + more relaxed cuts
+        # (relaxed stellar rejection + relaxed sliding cuts + no g-r cut + relaxed broad r-z cut):
+        lrg5 &= zmag - w1mag > 0.8*(rmag-zmag) - 0.935  # relaxed non-stellar cut
+        lrg5 &= zmag < 20.755                           # extended faint limit
+        lrg5 &= rmag - zmag > 0.75                      # relaxed broad color box
+        lrg_opt = ((((zmag - 22.1) / 1.3)**2 + (rmag - zmag + 1.04)**2 > 3.0**2) |
+                   (zmag < 19.655))                             # curved sliding optical cut with low-z extension
+        lrg_ir = (((w1mag - 21.)**2 + ((rmag - w1mag - 0.47) / 1.5)**2 > 2.5**2) |
+                  ((w1mag < 19.139) & (rmag - w1mag < 1.833)))  # curved sliding IR cut with low-z extension
+        lrg5 &= lrg_opt | lrg_ir
+
+    lrg = lrg1 | lrg2 | lrg3 | lrg4 | lrg5
+
+    # lrg1pass = lrg.copy()
+    # lrg2pass = lrg.copy()
+
+    # # ADM one-pass LRGs are (the BGS limit) <= z < 20
+    # lrg1pass &= zmag < 20.
+    # # ADM two-pass LRGs are 20 <= z < (the two pass limit)
+    # lrg2pass &= zmag >= 20.
+
+    return lrg, lrg1, lrg2, lrg3, lrg4, lrg5
 
 
 def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
@@ -297,7 +395,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (11/05/18) is version 33 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -384,7 +482,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (11/05/18) is version 33 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -456,6 +554,107 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = \
             (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+
+    # In case of call for a single object passed to the function with scalar arguments
+    # Return "numpy.bool_" instead of "numpy.ndarray"
+    if nbEntries == 1:
+        qso = qso[0]
+
+    return qso
+
+
+def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                      objtype=None, release=None, dchisq=None, brightstarinblob=None,
+                      primary=None, south=True):
+    """Definition of QSO target for highz (z>2.0) faint QSOs. Returns a boolean array.
+
+    Parameters
+    ----------
+    south : :class:`boolean`, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` for objects that pass the quasar color/morphology/logic cuts.
+
+    Notes
+    -----
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
+    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    """
+    # BRICK_PRIMARY
+    if primary is None:
+        primary = np.ones_like(gflux, dtype=bool)
+
+    # Build variables for random forest.
+    nFeatures = 11  # Number of attributes describing each object to be classified by the rf.
+    nbEntries = rflux.size
+    # ADM shift the northern photometry to the southern system.
+    if not south:
+        gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+
+    # ADM photOK here should ensure (g > 0.) & (r > 0.) & (z > 0.) & (W1 > 0.) & (W2 > 0.).
+    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+    r = np.atleast_1d(r)
+
+    # ADM Preselection to speed up the process.
+    # Selection of faint objects.
+    rMax = 23.5  # r < 23.5
+    rMin = 22.7  # r > 22.7
+    preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    # Color Selection of QSO with z>2.0.
+    wflux = 0.75*w1flux + 0.25*w2flux
+    grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
+    color_cut = ((wflux < gflux*10**(2.7/2.5)) |
+                 (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
+    color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
+    preSelection &= color_cut
+
+    # Standard morphology cut.
+    preSelection &= _psflike(objtype)
+
+    #  Reject objects flagged inside a blob.
+    preSelection &= ~brightstarinblob
+
+    # "qso" mask initialized to "preSelection" mask.
+    qso = np.copy(preSelection)
+
+    if np.any(preSelection):
+
+        from desitarget.myRF import myRF
+
+        # Data reduction to preselected objects.
+        colorsReduced = colors[preSelection]
+        r_Reduced = r[preSelection]
+        colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
+        colorsReducedIndex = colorsIndex[preSelection]
+
+        # Path to random forest files.
+        pathToRF = resource_filename('desitarget', 'data')
+        # Use RF trained over DR7.
+        rf_fileName = pathToRF + '/rf_model_dr7.npz'
+
+        # rf initialization - colors data duplicated within "myRF".
+        rf = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
+
+        # rf loading.
+        rf.loadForest(rf_fileName)
+
+        # Compute rf probabilities.
+        tmp_rf_proba = rf.predict_proba()
+
+        # Compute optimized proba cut (all different for SV).
+        # The probabilities may be different for the north and the south.
+        if south:
+            pcut = 0.20
+        else:
+            pcut = 0.20
+
+        # Add rf proba test result to "qso" mask
+        qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
 
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "numpy.ndarray"
@@ -585,6 +784,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
 
 
 def isELG(gflux=None, rflux=None, zflux=None,
+          gnobs=None, rnobs=None, znobs=None, brightstarinblob=None,
           gallmask=None, rallmask=None, zallmask=None,
           gsnr=None, rsnr=None, zsnr=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
@@ -608,7 +808,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (11/05/18) is version 24 on `the SV wiki`_.
+    - Current version (03/19/19) is version 56 on `the SV wiki`_.
     - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -616,6 +816,8 @@ def isELG(gflux=None, rflux=None, zflux=None,
     elg = primary.copy()
 
     elg &= notinELG_mask(gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                         brightstarinblob=brightstarinblob,
                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, primary=primary)
 
     # ADM pass the elg that pass cuts as primary, to restrict to the
@@ -628,6 +830,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
 
 
 def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
+                  gnobs=None, rnobs=None, znobs=None, brightstarinblob=None,
                   gsnr=None, rsnr=None, zsnr=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes
     (see, e.g., :func:`~desitarget.sv1.sv1_cuts.isELG` for parameters).
@@ -636,8 +839,10 @@ def notinELG_mask(gallmask=None, rallmask=None, zallmask=None,
         primary = np.ones_like(gallmask, dtype='?')
     elg = primary.copy()
 
-    elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
+    elg &= ~brightstarinblob
+    elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+    elg &= (gallmask == 0) & (rallmask == 0) & (zallmask == 0)
 
     return elg
 
@@ -1046,18 +1251,23 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr
                 )
             )
-        lrg_north, lrg1pass_north, lrg2pass_north,  \
-            lrg_south, lrg1pass_south, lrg2pass_south = \
+        lrg_north, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n,    \
+            lrg_south, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
             np.vstack(lrg_classes)
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
-        lrg_north, lrg1pass_north, lrg2pass_north = ~primary, ~primary, ~primary
-        lrg_south, lrg1pass_south, lrg2pass_south = ~primary, ~primary, ~primary
+        lrg_north, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n = \
+            ~primary, ~primary, ~primary, ~primary, ~primary
+        lrg_south, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
+            ~primary, ~primary, ~primary, ~primary, ~primary
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
-    lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
-    lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
+    lrginit = (lrginit_n & photsys_north) | (lrginit_s & photsys_south)
+    lrglowz = (lrglowz_n & photsys_north) | (lrglowz_s & photsys_south)
+    lrghighz = (lrghighz_n & photsys_north) | (lrghighz_s & photsys_south)
+    lrgrelax = (lrgrelax_n & photsys_north) | (lrgrelax_s & photsys_south)
+    lrgsuper = (lrgsuper_n & photsys_north) | (lrgsuper_s & photsys_south)
 
     if "ELG" in tcnames:
         elg_classes = []
@@ -1065,6 +1275,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             elg_classes.append(
                 isELG(
                     primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                    brightstarinblob=brightstarinblob,
                     gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
                     gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, south=south
                 )
@@ -1108,20 +1320,32 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype=objtype, south=south
                 )
             )
-        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
+            qso_classes.append(
+                isQSO_highz_faint(
+                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                    w1flux=w1flux, w2flux=w2flux,
+                    dchisq=dchisq, brightstarinblob=brightstarinblob,
+                    objtype=objtype, south=south
+                )
+            )
+
+        qsocolor_north, qsorf_north, qsohizf_north, \
+            qsocolor_south, qsorf_south, qsohizf_south = \
             qso_classes
 
     else:
         # ADM if not running the QSO selection, set everything to arrays of False
-        qsocolor_north, qsorf_north, qsocolor_south, qsorf_south = \
-                                    ~primary, ~primary, ~primary, ~primary
+        qsocolor_north, qsorf_north, qsohizf_north, \
+            qsocolor_south, qsorf_south, qsohizf_south = \
+            ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
 
-    # ADM combine quasar target bits for a quasar target based on any imaging
-    qso_north = qsocolor_north | qsorf_north
-    qso_south = qsocolor_south | qsorf_south
+    # ADM combine quasar target bits for a quasar target based on any imaging.
+    qso_north = qsocolor_north | qsorf_north | qsohizf_north
+    qso_south = qsocolor_south | qsorf_south | qsohizf_south
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
     qsocolor = (qsocolor_north & photsys_north) | (qsocolor_south & photsys_south)
     qsorf = (qsorf_north & photsys_north) | (qsorf_south & photsys_south)
+    qsohizf = (qsohizf_north & photsys_north) | (qsohizf_south & photsys_south)
 
     # ADM set the BGS bits
     if "BGS" in tcnames:
@@ -1185,6 +1409,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr
         )
+    else:
+        # ADM if not running the MWS selection, set everything to arrays of False
+        mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
+        mws_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
+        mws_nearby = ~primary
+
+    if "MWS" in tcnames or "STD" in tcnames:
+        # ADM have to run the white dwarfs for standards
+        # ADM as well as for MWS science targets.
         mws_wd = isMWS_WD(
             gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
@@ -1192,10 +1425,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
     else:
-        # ADM if not running the MWS selection, set everything to arrays of False
-        mws_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
-        mws_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
-        mws_nearby, mws_wd = ~primary, ~primary
+        mws_wd = ~primary
 
     if "STD" in tcnames:
         std_classes = []
@@ -1243,8 +1473,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qso * desi_mask.QSO
 
     # ADM add the per-bit information in the south for LRGs...
-    desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
-    desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
+    desi_target |= lrginit_s * desi_mask.LRG_INIT_SOUTH
+    desi_target |= lrglowz_s * desi_mask.LRG_LOWZ_SOUTH
+    desi_target |= lrghighz_s * desi_mask.LRG_HIGHZ_SOUTH
+    desi_target |= lrgrelax_s * desi_mask.LRG_RELAX_SOUTH
+    desi_target |= lrgsuper_s * desi_mask.LRG_SUPER_SOUTH
     # ADM ...and ELGs...
     desi_target |= elgfdr_south * desi_mask.ELG_FDR_SOUTH
     desi_target |= elgfdrfaint_south * desi_mask.ELG_FDR_FAINT_SOUTH
@@ -1253,10 +1486,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...and QSOs.
     desi_target |= qsocolor_south * desi_mask.QSO_COLOR_SOUTH
     desi_target |= qsorf_south * desi_mask.QSO_RF_SOUTH
+    desi_target |= qsohizf_south * desi_mask.QSO_HZ_F_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
-    desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
-    desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
+    desi_target |= lrginit_n * desi_mask.LRG_INIT_NORTH
+    desi_target |= lrglowz_n * desi_mask.LRG_LOWZ_NORTH
+    desi_target |= lrghighz_n * desi_mask.LRG_HIGHZ_NORTH
+    desi_target |= lrgrelax_n * desi_mask.LRG_RELAX_NORTH
+    desi_target |= lrgsuper_n * desi_mask.LRG_SUPER_NORTH
     # ADM ...and ELGs...
     desi_target |= elgfdr_north * desi_mask.ELG_FDR_NORTH
     desi_target |= elgfdrfaint_north * desi_mask.ELG_FDR_FAINT_NORTH
@@ -1265,10 +1502,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...and QSOs.
     desi_target |= qsocolor_north * desi_mask.QSO_COLOR_NORTH
     desi_target |= qsorf_north * desi_mask.QSO_RF_NORTH
+    desi_target |= qsohizf_north * desi_mask.QSO_HZ_F_NORTH
 
     # ADM combined per-bit information for the LRGs...
-    desi_target |= lrg1pass * desi_mask.LRG_1PASS
-    desi_target |= lrg2pass * desi_mask.LRG_2PASS
+    desi_target |= lrginit * desi_mask.LRG_INIT
+    desi_target |= lrglowz * desi_mask.LRG_LOWZ
+    desi_target |= lrghighz * desi_mask.LRG_HIGHZ
+    desi_target |= lrgrelax * desi_mask.LRG_RELAX
+    desi_target |= lrgsuper * desi_mask.LRG_SUPER
     # ADM ...and ELGs...
     desi_target |= elgfdr * desi_mask.ELG_FDR
     desi_target |= elgfdrfaint * desi_mask.ELG_FDR_FAINT
@@ -1277,6 +1518,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM ...and QSOs.
     desi_target |= qsocolor * desi_mask.QSO_COLOR
     desi_target |= qsorf * desi_mask.QSO_RF
+    desi_target |= qsohizf * desi_mask.QSO_HZ_F
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT

@@ -236,7 +236,10 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     # ADM determine the dictionary of quantities for one or two directories.
     qall = []
     for dd in drdirs:
-        qall.append(quantities_at_positions_in_a_brick(ras, decs, brickname, dd))
+        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd)
+        # ADM don't count bricks where we never read a file header.
+        if q is not None:
+            qall.append(q)
 
     # ADM concatenate everything in qall into one dictionary.
     qcombine = {}
@@ -339,7 +342,10 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
         qdict['maskbits'] = np.zeros(npts, dtype='i2')
 
     # ADM finally, populate the photometric system in the quantity dictionary.
-    if instrum == 'decam':
+    if instrum is None:
+        # ADM don't count bricks where we never read a file header.
+        return
+    elif instrum == 'decam':
         qdict['photsys'] = np.array([b"S" for x in range(npts)], dtype='|S1')
     else:
         qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
@@ -498,6 +504,12 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
 
     # ADM retrieve the dictionary of quantities for each random point.
     qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
+
+    # ADM if we detected different cameras corresponding to 2 Data Releases
+    # ADM for this brick then we need to duplicate the ras, decs as well.
+    if len(qdict['photsys']) == 2*len(ras):
+        ras = np.concatenate([ras, ras])
+        decs = np.concatenate([decs, decs])
 
     # ADM retrieve the E(B-V) values for each random point.
     ebv = get_dust(ras, decs, dustdir=dustdir)
@@ -838,8 +850,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
-                   dustdir=None):
-    """NOBS, GALDEPTH, PSFDEPTH (per-band) for random points in a DR of the Legacy Surveys
+                   dustdir=None, resolverands=True):
+    """NOBS, DEPTHs, MASKBITs (per-band) for random points in a Legacy Surveys DR.
 
     Parameters
     ----------
@@ -874,6 +886,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         The root directory pointing to SFD dust maps. If not
         sent the code will try to use $DUST_DIR+'maps')
         before failing.
+    resolverands : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, resolve randoms into northern randoms in northern regions
+        and southern randoms in southern regions.
 
     Returns
     -------
@@ -899,33 +914,34 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM if this is pre-or-post-DR8 we need to find the correct directory or directories.
     drdirs = _pre_or_post_dr8(drdir)
     bricknames = []
-    brickinfo = []
     for dd in drdirs:
         sbfile = glob(dd+'/*bricks-dr*')
         if len(sbfile) > 0:
             sbfile = sbfile[0]
             hdu = fits.open(sbfile)
-            brickinfo.append(hdu[1].data)
             bricknames.append(hdu[1].data['BRICKNAME'])
         else:
-            # ADM this is a hack for test bricks where we didn't always generate the
-            # ADM bricks file. It's probably safe to remove it at some point.
+            # ADM hack for test bricks where we didn't generate the bricks file.
             from desitarget.io import brickname_from_filename
             fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
             bricknames.append([brickname_from_filename(fn) for fn in fns])
-            brickinfo.append([])
-            if pixlist is not None or bundlebricks is not None:
-                msg = 'DR-specific bricks file not found'
-                msg += 'and pixlist or bundlebricks passed!!!'
-                log.critical(msg)
-                raise ValueError(msg)
-    bricknames = np.concatenate(bricknames)
-    brickinfo = np.concatenate(brickinfo)
+    # ADM don't count bricks twice.
+    bricknames = np.unique(np.concatenate(bricknames))
+    # ADM initialize the bricks class, retrieve the brick information look-up table,
+    # ADM turn it into a fast look-up dictionary.
+    from desiutil import brick
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    brickdict = {}
+    for b in bricktable:
+        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
+                                     b["RA1"], b["RA2"], b["DEC1"], b["DEC2"]]
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
+        bra, bdec, bramin, bramax, bdecmin, bdecmax = np.vstack(
+            [np.array(brickdict[bn]) for bn in bricknames]).T
+        theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
     # ADM if the bundlebricks option was sent, call the packing code.
@@ -954,22 +970,16 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     if os.getenv('SLURMD_NODENAME') is not None:
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
-    # ADM initialize the bricks class, and retrieve the brick information look-up table
-    # ADM so it can be used in a common fashion.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
-
     # ADM the critical function to run on every brick.
     def _get_quantities(brickname):
         '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
         # ADM retrieve the edges for the brick that we're working on
-        wbrick = np.where(bricktable["BRICKNAME"] == brickname)[0]
-        ramin, ramax, decmin, decmax = np.array(bricktable[wbrick]["RA1", "RA2", "DEC1", "DEC2"])[0]
+        bra, bdec, bramin, bramax, bdecmin, bdecmax = brickdict[brickname]
 
         # ADM populate the brick with random points, and retrieve the quantities
         # ADM of interest at those points.
-        return get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
-                                         density=density, dustdir=dustdir)
+        return get_quantities_in_a_brick(bramin, bramax, bdecmin, bdecmax, brickname,
+                                         drdir, density=density, dustdir=dustdir)
 
     # ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
@@ -1002,7 +1012,8 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM concatenate the randoms into a single long list and resolve whether
     # ADM they are officially in the north or the south.
     qinfo = np.concatenate(qinfo)
-    qinfo = resolve(qinfo)
+    if resolverands:
+        qinfo = resolve(qinfo)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(616)

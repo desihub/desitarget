@@ -107,7 +107,7 @@ class TestCuts(unittest.TestCase):
         gfracin = targets['FRACIN_G']
         rfracin = targets['FRACIN_R']
         zfracin = targets['FRACIN_Z']
-        brightstarinblob = targets['BRIGHTSTARINBLOB']
+        brightstarinblob = (targets['BRIGHTBLOB'] & 2**0) != 0
 
         gaiagmag = targets['GAIA_PHOT_G_MEAN_MAG']
         Grr = gaiagmag - 22.5 + 2.5*np.log10(targets['FLUX_R'])

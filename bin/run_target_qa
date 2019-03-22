@@ -14,7 +14,7 @@ log = get_logger()
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", 
-                help="Input target file (e.g. /project/projectdirs/desi/target/catalogs/targets-dr6-0.20.0.fits")
+                help="Input target file or directory of HEALPixel-split target files (e.g. /project/projectdirs/desi/target/catalogs/targets-dr6-0.20.0.fits")
 ap.add_argument("dest", 
                 help="Output directory to make QA webpage hierarchy (e.g. /project/projectdirs/desi/www/users/USERNAME/ will appear at http://portal.nersc.gov/project/desi/users/USERNAME)")
 ap.add_argument('-m', "--mocks", action='store_true', 
@@ -57,4 +57,3 @@ log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
 log.info('Mocks option was set to {}'.format(ns.mocks))
 log.info('No plots option was set to {}'.format(ns.noplots))
 log.info('No systematics option was set to {}'.format(ns.nosystematics))
-
