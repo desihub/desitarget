@@ -1872,6 +1872,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr
         )
+    else:
+        # ADM if not running the MWS selection, set everything to arrays of False
+        mws_broad_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
+        mws_broad_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
+        mws_nearby = ~primary
+
+    if "MWS" in tcnames or "STD" in tcnames:
+        # ADM have to run the white dwarfs for standards
+        # ADM as well as for MWS science targets.
         mws_wd = isMWS_WD(
             gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
             pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
@@ -1879,10 +1888,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
     else:
-        # ADM if not running the MWS selection, set everything to arrays of False
-        mws_broad_n, mws_red_n, mws_blue_n = ~primary, ~primary, ~primary
-        mws_broad_s, mws_red_s, mws_blue_s = ~primary, ~primary, ~primary
-        mws_nearby, mws_wd = ~primary, ~primary
+        mws_wd = ~primary
 
     if "STD" in tcnames:
         # ADM Make sure to pass all of the needed columns! At one point we stopped
@@ -2237,7 +2243,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
                    radecbox=None, radecrad=None,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-                   survey='main'):
+                   survey='main', resolvetargs=True):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2290,6 +2296,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         Specifies which target masks yaml file and target selection cuts
         to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
+    resolvetargs : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, resolve targets into northern targets in northern regions
+        and southern targets in southern regions.
 
     Returns
     -------
@@ -2399,7 +2408,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         targets = finalize(objects, desi_target, bgs_target, mws_target,
                            survey=survey)
         # ADM resolve any duplicates between imaging data releases.
-        targets = resolve(targets)
+        if resolvetargs:
+            targets = resolve(targets)
 
         return targets
 

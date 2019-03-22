@@ -489,7 +489,12 @@ def calc_priority(targets, zcat):
     # DESI dark time targets.
     if survey != 'cmx':
         if desi_target in targets.dtype.names:
-            for name in ('ELG', 'LRG_1PASS', 'LRG_2PASS'):
+            # ADM 'LRG' is the guiding column in SV
+            # ADM whereas 'LRG_1PASS' and 'LRG_2PASS' are in the main survey.
+            names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
+            if survey[0:2] == 'sv':
+                names = ('ELG', 'LRG')
+            for name in names:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
                 priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])

@@ -465,7 +465,7 @@ def release_to_photsys(release):
 
 def write_targets(filename, data, indir=None, qso_selection=None,
                   sandboxcuts=False, nside=None, survey="?",
-                  nsidefile=None, hpxlist=None):
+                  nsidefile=None, hpxlist=None, resolve=True):
     """Write a target catalogue.
 
     Parameters
@@ -478,8 +478,7 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         If passed, note these as the input directory and
         quasar selection method in the output file header.
     sandboxcuts : :class:`bool`, optional, defaults to ``False``
-        If passed, note this whether we ran target seletion
-        in the sandbox in the output file header.
+        Written to the output file header as `sandboxcuts`.
     nside : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
         with HEALPixels at resolution `nside`.
@@ -493,6 +492,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
+    resolve : :class:`bool`, optional, defaults to ``True``
+        Written to the output file header as `RESOLVE`.
     """
     # FIXME: assert data and tsbits schema
 
@@ -536,6 +537,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
     hdr["SURVEY"] = survey
+    # ADM add whether or not the targets were resolved to the header.
+    hdr["RESOLVE"] = resolve
 
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
@@ -678,7 +681,8 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None):
+def write_randoms(filename, data, indir=None, hdr=None, nside=None,
+                  density=None, resolve=True):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -698,6 +702,9 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
+    resolve : :class:`bool`, optional, defaults to ``True``
+        Written to the output file header as `RESOLVE`.
+
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -713,23 +720,6 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None
         # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
-        # ADM also write the mask bits header information
-        # ADM from a mask bits file in this DR.
-        from glob import iglob
-        files = iglob(indir+'/coadd/*/*/*maskbits*')
-        # ADM we built an iterator over mask bits files for speed
-        # ADM if there are no such files to iterate over, just pass.
-        try:
-            fn = next(files)
-            mbhdr = fitsio.read_header(fn)
-            # ADM extract the keys that include the string 'BITNM'.
-            bncols = [key for key in mbhdr.keys() if 'BITNM' in key]
-            for col in bncols:
-                hdr[col] = {'name': col,
-                            'value': mbhdr[col],
-                            'comment': mbhdr.get_comment(col)}
-        except StopIteration:
-            pass
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -742,6 +732,9 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, density=None
     # ADM add density of points if requested by input.
     if density is not None:
         hdr['DENSITY'] = density
+
+    # ADM add whether or not the randoms were resolved to the header.
+    hdr["RESOLVE"] = resolve
 
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
 
