@@ -15,6 +15,7 @@ desitarget Change Log
     * Write overlap regions in addition to resolve for targets/randoms.
 * Change instances of `yaml.load` to `yaml.safe_load` [`PR #475`_].
 * Fix Gaia files format in doc string (healpix not healpy) [`PR #474`_].
+* Write Gaia morphologies and allow custom tilings for GFAs [`PR #467`_].
 * Initial updates for DR8 [`PR #466`_]. Includes:
     * DR8 data model updates (e.g BRIGHTSTARBLOB -> bitmask BRIGHTBLOB).
     * Apply resolve capability to targets and randoms.
@@ -29,9 +30,10 @@ desitarget Change Log
 .. _`PR #461`: https://github.com/desihub/desitarget/pull/461
 .. _`PR #462`: https://github.com/desihub/desitarget/pull/462
 .. _`PR #466`: https://github.com/desihub/desitarget/pull/466
+.. _`PR #467`: https://github.com/desihub/desitarget/pull/467
 .. _`PR #474`: https://github.com/desihub/desitarget/pull/474
 .. _`PR #475`: https://github.com/desihub/desitarget/pull/475
-.. _`PR #476`: https://github.com/desihub/desitarget/pull/477
+.. _`PR #477`: https://github.com/desihub/desitarget/pull/477
 
 0.28.0 (2019-02-28)
 -------------------
