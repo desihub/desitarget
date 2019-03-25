@@ -37,6 +37,12 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt   # noqa: E402
 
+try:
+    from scipy import constants
+    C_LIGHT = constants.c/1000.0
+except TypeError: # This can happen during documentation builds.
+    C_LIGHT = 299792458.0/1000.0
+
 # ADM set up the default logger from desiutil
 log = get_logger()
 
@@ -1053,7 +1059,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     zmax = truez.max()*1.1
 
     if 'STD' in objtype or 'MWS' in objtype or 'WD' in objtype:
-        truez *= 2.99e5  # [km/s]
+        truez *= C_LIGHT  # [km/s]
         zlabel = 'True Radial Velocity (km/s)'
     else:
         zlabel = r'True Redshift $z$'
