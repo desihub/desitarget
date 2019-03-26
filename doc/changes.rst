@@ -2,10 +2,19 @@
 desitarget Change Log
 =====================
 
-0.29.1 (unreleased)
+0.29.2 (unreleased)
 -------------------
 
 * no changes yet.
+
+0.29.1 (2019-03-26)
+-------------------
+
+* Add ``REF_CAT``, ``WISEMASK_W1/W2`` to DR8 data model [`PR #479`_].
+* Use speed of light from scipy [`PR #478`_].
+
+.. _`PR #478`: https://github.com/desihub/desitarget/pull/478
+.. _`PR #479`: https://github.com/desihub/desitarget/pull/479
 
 0.29.0 (2019-03-22)
 -------------------
