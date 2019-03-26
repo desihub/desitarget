@@ -10,11 +10,13 @@ desitarget Change Log
 0.29.1 (2019-03-26)
 -------------------
 
+* Update `select_mock_targets` to (current) DR8 data model [`PR #480`_].
 * Add ``REF_CAT``, ``WISEMASK_W1/W2`` to DR8 data model [`PR #479`_].
 * Use speed of light from scipy [`PR #478`_].
 
 .. _`PR #478`: https://github.com/desihub/desitarget/pull/478
 .. _`PR #479`: https://github.com/desihub/desitarget/pull/479
+.. _`PR #480`: https://github.com/desihub/desitarget/pull/480
 
 0.29.0 (2019-03-22)
 -------------------
