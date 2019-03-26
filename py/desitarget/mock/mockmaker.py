@@ -50,10 +50,10 @@ def empty_targets_table(nobj=1):
     
     targets = Table()
 
-    targets.add_column(Column(name='RELEASE', length=nobj, dtype='i4'))
+    targets.add_column(Column(name='RELEASE', length=nobj, dtype='i2'))
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
-    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='i4'))
+    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='<i4'))
     targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
@@ -117,14 +117,15 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='SHAPEEXP_E2', length=nobj, dtype='f4'))
     targets.add_column(Column(name='SHAPEEXP_E2_IVAR', length=nobj, dtype='f4'))
 
-    targets.add_column(Column(name='FIBERFLUX_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FIBERFLUX_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FIBERFLUX_Z', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='f4'))
-    targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='FIBERFLUX_G', length=nobj, dtype='>f4'))
+    targets.add_column(Column(name='FIBERFLUX_R', length=nobj, dtype='>f4'))
+    targets.add_column(Column(name='FIBERFLUX_Z', length=nobj, dtype='>f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='>f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='>f4'))
+    targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='>f4'))
 
     # Gaia columns
+    targets.add_column(Column(name='REF_CAT', length=nobj, dtype='U2'))
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
@@ -141,7 +142,9 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PMDEC_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
 
-    targets.add_column(Column(name='BRIGHTSTARINBLOB', length=nobj, dtype=bool)) # default is False
+    targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
+    targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
+    targets.add_column(Column(name='BRIGHTINBLOB', length=nobj, dtype='>i2'))
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
@@ -3706,7 +3709,7 @@ class ELGMaker(SelectTargets):
 
         if self.GMM_ELG is None:
             self.read_GMM(target='ELG')
-        
+
     def read(self, mockfile=None, mockformat='gaussianfield', healpixels=None,
              nside=None, only_coords=False, mock_density=False, **kwargs):
         """Read the catalog.
