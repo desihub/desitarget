@@ -144,7 +144,7 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
     targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
-    targets.add_column(Column(name='BRIGHTINBLOB', length=nobj, dtype='>i2'))
+    targets.add_column(Column(name='BRIGHTBLOB', length=nobj, dtype='>i2'))
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
