@@ -511,11 +511,11 @@ def make_bright_source_mask(bands, maglim, numproc=4,
     ok = np.zeros(objs[bandnames[0]].shape, dtype=bool)
     fluxes = np.zeros((len(ok), len(bandnames)), dtype=objs[bandnames[0]].dtype)
     for i, (bandname, nobsname) in enumerate(zip(bandnames, nobsnames)):
-        fluxes[:,i] = objs[bandname].copy()
+        fluxes[:, i] = objs[bandname].copy()
         # ADM set any observations with NOBS = 0 to have small flux
         # so glitches don't end up as bright object masks.
         fluxes[objs[nobsname] == 0, i] = 0.0
-        ok |= (fluxes[:,i] > fluxlim[i])
+        ok |= (fluxes[:, i] > fluxlim[i])
 
     w = np.where(ok)
 
