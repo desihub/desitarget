@@ -485,7 +485,8 @@ class SelectTargets(object):
                 if getattr(self, 'GMM_{}'.format(target.upper())) is not None:
                     return
             except:
-                return
+                pass
+                #return
 
             gmmdir = resource_filename('desitarget', 'mock/data/dr7.1')
             if not os.path.isdir:
@@ -513,7 +514,7 @@ class SelectTargets(object):
             gmmcols = [info[1] for info in gmm]
             GMM = [info[2] for info in gmm]
 
-            setattr(SelectTargets, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
+            setattr(self, 'GMM_{}'.format(target.upper()), (morph, fractype, gmmcols, GMM))
 
     def sample_GMM(self, nobj, isouth=None, target=None, seed=None, morph=None,
                    prior_mag=None, prior_redshift=None):
