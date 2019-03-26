@@ -79,12 +79,14 @@ tsdatamodel = np.array([], dtype=[
 dr7datamodel = np.array([], dtype=[
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
     ('BRIGHTSTARINBLOB', '?')
     ])
 
 dr8datamodel = np.array([], dtype=[
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
     ('BRIGHTBLOB', '>i2')
     ])
 
@@ -353,12 +355,14 @@ def read_tractor(filename, header=False, columns=None):
             from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords, pop_gaia_columns
             gaiadatamodel = pop_gaia_coords(gaiadatamodel)
             # ADM the DR7 sweeps don't contain these columns, but DR8 should.
-            if 'REF_CAT' not in fxcolnames:
+            if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' not in fxcolnames:
                 gaiadatamodel = pop_gaia_columns(
                     gaiadatamodel,
-                    ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+                    ['GAIA_PHOT_BP_RP_EXCESS_FACTOR',
                      'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
                 )
+                if 'REF_CAT' not in fxcolnames:
+                    gaiadatamodel = pop_gaia_columns(gaiadatamodel, ['REF_CAT'])
             gaiacols = gaiadatamodel.dtype.names
             readcolumns += gaiacols
 

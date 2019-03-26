@@ -40,7 +40,7 @@ import matplotlib.pyplot as plt   # noqa: E402
 try:
     from scipy import constants
     C_LIGHT = constants.c/1000.0
-except TypeError: # This can happen during documentation builds.
+except TypeError:  # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
 
 # ADM set up the default logger from desiutil
