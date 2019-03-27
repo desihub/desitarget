@@ -1257,9 +1257,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     else:
         # ADM if not running the LRG selection, set everything to arrays of False
         lrg_north, lrginit_n, lrglowz_n, lrghighz_n, lrgrelax_n, lrgsuper_n = \
-            ~primary, ~primary, ~primary, ~primary, ~primary
+            ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
         lrg_south, lrginit_s, lrglowz_s, lrghighz_s, lrgrelax_s, lrgsuper_s = \
-            ~primary, ~primary, ~primary, ~primary, ~primary
+            ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
