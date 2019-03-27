@@ -5,18 +5,22 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
-* no changes yet.
+* Various bug and feature fixes [`PR #484`_]. Includes:
+    * Fix crash when using sv_select_targets with `--tcnames`.
+    * Only import matplotlib where needed in :mod:`desitarget.cuts`.
+* Update `select_mock_targets` to (current) DR8 data model [`PR #480`_].
+
+.. _`PR #480`: https://github.com/desihub/desitarget/pull/480
+.. _`PR #484`: https://github.com/desihub/desitarget/pull/484
 
 0.29.1 (2019-03-26)
 -------------------
 
-* Update `select_mock_targets` to (current) DR8 data model [`PR #480`_].
 * Add ``REF_CAT``, ``WISEMASK_W1/W2`` to DR8 data model [`PR #479`_].
 * Use speed of light from scipy [`PR #478`_].
 
 .. _`PR #478`: https://github.com/desihub/desitarget/pull/478
 .. _`PR #479`: https://github.com/desihub/desitarget/pull/479
-.. _`PR #480`: https://github.com/desihub/desitarget/pull/480
 
 0.29.0 (2019-03-22)
 -------------------
