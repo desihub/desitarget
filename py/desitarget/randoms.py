@@ -26,11 +26,6 @@ from desitarget.internal import sharedmem
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 
-# ADM fake the matplotlib display so it doesn't die on allocated nodes.
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt   # noqa: E402
-
 # ADM set up the default logger from desiutil
 log = get_logger()
 
@@ -577,6 +572,8 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
+    import matplotlib.pyplot as plt
+
     # ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
         randoms = fitsio.read(randoms)
