@@ -30,13 +30,6 @@ import healpy as hp
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM fake the matplotlib display so it doesn't die on allocated nodes.
-import matplotlib   # noqa: E402
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt   # noqa: E402
-from matplotlib.patches import Circle, Ellipse, Rectangle  # noqa: E402
-from matplotlib.collections import PatchCollection  # noqa: E402
-
 
 def ellipse_matrix(r, e1, e2):
     """Calculate transformation matrix from half-light-radius to ellipse
@@ -343,6 +336,9 @@ def circles(x, y, s, c='b', vmin=None, vmax=None, **kwargs):
     ----------
     With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Circle
+    from matplotlib.collections import PatchCollection
 
     if np.isscalar(c):
         kwargs.setdefault('color', c)
@@ -416,6 +412,9 @@ def ellipses(x, y, w, h=None, rot=0.0, c='b', vmin=None, vmax=None, **kwargs):
     ----------
     With thanks to https://gist.github.com/syrte/592a062c562cd2a98a83
     """
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Ellipse
+    from matplotlib.collections import PatchCollection
 
     if np.isscalar(c):
         kwargs.setdefault('color', c)

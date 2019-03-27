@@ -33,11 +33,6 @@ from desitarget.internal import sharedmem
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 
-# ADM fake the matplotlib display so it doesn't die on allocated nodes.
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt   # noqa: E402
-
 # ADM initialize the logger
 log = get_logger()
 
