@@ -7,7 +7,7 @@ desitarget Change Log
 
 * Various bug and feature fixes [`PR #484`_]. Includes:
     * Fix crash when using sv_select_targets with `--tcnames`.
-    * Only import matplotlib where needed in :mod:`desitarget.cuts`.
+    * Only import matplotlib where explicitly needed.
 * Update `select_mock_targets` to (current) DR8 data model [`PR #480`_].
 
 .. _`PR #480`: https://github.com/desihub/desitarget/pull/480
