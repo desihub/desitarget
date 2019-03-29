@@ -20,6 +20,7 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.targets import encode_targetid, resolve
+from desitarget.geomatch import is_in_box
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -250,14 +251,13 @@ def gaia_morph(gaia):
     return morph
 
 
-def gaia_gfas_from_sweep(objects, maglim=18.):
-    """Create a set of GFAs for one sweep file or sweep objects.
+def gaia_gfas_from_sweep(filename, maglim=18.):
+    """Create a set of GFAs for one sweep file.
 
     Parameters
     ----------
-    objects: :class:`~numpy.ndarray` or `str`
-        Numpy structured array with UPPERCASE columns needed for target selection, OR
-        a string corresponding to a sweep filename.
+    filename: :class:`str`
+        A string corresponding to the full path to a sweep file name.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
 
@@ -266,24 +266,22 @@ def gaia_gfas_from_sweep(objects, maglim=18.):
     :class:`~numpy.ndarray`
         GFA objects from Gaia, formatted according to `desitarget.gfa.gfadatamodel`.
     """
-    # ADM read in objects if a filename was passed instead of the actual data.
-    if isinstance(objects, str):
-        objects = desitarget.io.read_tractor(objects)
+    # ADM read in the objects.
+    objects = desitarget.io.read_tractor(filename)
 
     # ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     # ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
     # ADM approximates SDSS r-band.
-    w = np.where((objects["FLUX_G"] > 10**((22.5-(maglim+3))/2.5)) |
-                 (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
-                 (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)))[0]
-    objects = objects[w]
+    ii = ((objects["FLUX_G"] > 10**((22.5-(maglim+3))/2.5)) |
+          (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
+          (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)))
+    objects = objects[ii]
     nobjs = len(objects)
 
     # ADM only retain objects with Gaia matches.
     # ADM It's fine to propagate an empty array if there are no matches
     # ADM The sweeps use 0 for objects with no REF_ID.
-    w = np.where(objects["REF_ID"] > 0)[0]
-    objects = objects[w]
+    objects = objects[objects["REF_ID"] > 0]
 
     # ADM determine a TARGETID for any objects on a brick.
     targetid = encode_targetid(objid=objects['OBJID'],
@@ -310,8 +308,26 @@ def gaia_gfas_from_sweep(objects, maglim=18.):
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
-    # ADM a final clean-up to remove columns that are Nan (from
-    # ADM Gaia-matching) or are 0 (in the sweeps).
+    # ADM add any Gaia objects within the boundary of the sweep file. NOTE
+    # ADM THAT THIS WILL DUPLICATE Gaia objects that are already in the gfas.
+    radecbox = desitarget.io.decode_sweep_name(filename)
+    gfiles = find_gaia_files_box(radecbox, neighbors=False)
+    gobjs = []
+    for gfile in gfiles:
+        gobjs.append(gaia_in_file(gfile, maglim=maglim))
+    gobjs = np.concatenate(gobjs)
+    ii = is_in_box(gobjs, radecbox)
+    gobjs = gobjs[ii]
+
+    # ADM remove any duplicates. Order is important here, as np.unique keeps
+    # ADM The first occurence of an object, and we want to retain sweeps
+    # ADM information as much as possible.
+    gfas = np.concatenate([gfas, gobjs])
+    _, ind = np.unique(gfas["REF_ID"], return_index=True)
+    gfas = gfas[ind]
+
+    # ADM a final clean-up to remove columns that are NaN (from
+    # ADM Gaia-matching) or are exactly 0 (in the sweeps).
     for col in ["PMRA", "PMDEC"]:
         ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
         gfas = gfas[ii]
@@ -324,6 +340,8 @@ def gaia_in_file(infile, maglim=18):
 
     Parameters
     ----------
+    infile : :class:`str`
+        File name of a single Gaia "healpix" file.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
 
@@ -335,7 +353,7 @@ def gaia_in_file(infile, maglim=18):
 
     Notes
     -----
-       - A "Gaia file" here is as made by, e.g.
+       - A "Gaia healpix file" here is as made by, e.g.
          :func:`~desitarget.gaiamatch.gaia_fits_to_healpix()`
     """
     # ADM read in the Gaia file and limit to the passed magnitude.
