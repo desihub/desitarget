@@ -20,7 +20,6 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.targets import encode_targetid, resolve
-from desitarget.geomask import is_in_box
 
 from desiutil import brick
 from desiutil.log import get_logger
