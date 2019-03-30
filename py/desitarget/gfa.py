@@ -308,24 +308,6 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
-    # ADM add any Gaia objects within the boundary of the sweep file. NOTE
-    # ADM THAT THIS WILL DUPLICATE Gaia objects that are already in the gfas.
-    radecbox = desitarget.io.decode_sweep_name(filename)
-    gfiles = find_gaia_files_box(radecbox, neighbors=False)
-    gobjs = []
-    for gfile in gfiles:
-        gobjs.append(gaia_in_file(gfile, maglim=maglim))
-    gobjs = np.concatenate(gobjs)
-    ii = is_in_box(gobjs, radecbox)
-    gobjs = gobjs[ii]
-
-    # ADM remove any duplicates. Order is important here, as np.unique keeps
-    # ADM The first occurence of an object, and we want to retain sweeps
-    # ADM information as much as possible.
-    gfas = np.concatenate([gfas, gobjs])
-    _, ind = np.unique(gfas["REF_ID"], return_index=True)
-    gfas = gfas[ind]
-
     # ADM a final clean-up to remove columns that are NaN (from
     # ADM Gaia-matching) or are exactly 0 (in the sweeps).
     for col in ["PMRA", "PMDEC"]:

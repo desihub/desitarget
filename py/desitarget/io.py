@@ -452,17 +452,21 @@ def release_to_photsys(release):
 
     Notes
     -----
-    Defaults to 'U' if the system is not recognized.
+    Flags an error if the system is not recognized.
     """
     # ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict.
     releasenums = np.array(list(releasedict.keys()))
     photstrings = np.array(list(releasedict.values()))
 
+    # ADM explicitly check no unknown release numbers were passed.
+    unknown = set(release) - set(releasenums)
+    if bool(unknown):
+        msg = 'Unknown release number {}'.format(unknown)
+        log.critical(msg)
+        raise ValueError(msg)
+
     # ADM an array with indices running from 0 to the maximum release number + 1.
     r2p = np.empty(np.max(releasenums)+1, dtype='|S1')
-
-    # ADM set each entry to 'U' for an unidentified photometric system.
-    r2p[:] = 'U'
 
     # ADM populate where the release numbers exist with the PHOTSYS.
     r2p[releasenums] = photstrings
