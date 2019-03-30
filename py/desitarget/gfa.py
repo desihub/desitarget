@@ -529,12 +529,14 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
              .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
                              tiles=tiles)
-    # ADM and limit them to just any missing bricks...
-    brickids = set(gfas['BRICKID'])
-    ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
-    gaia = gaia[ii]
 
+    # ADM remove any duplicates. Order is important here, as np.unique
+    # ADM keeps the first occurence, and we want to retain sweeps
+    # ADM information as much as possible.
     gfas = np.concatenate([gfas, gaia])
+    _, ind = np.unique(gfas["REF_ID"], return_index=True)
+    gfas = gfas[ind]
+
     # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
     if not cmx:
         ii = is_point_in_desi(tiles, gfas["RA"], gfas["DEC"])
