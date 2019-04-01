@@ -1112,8 +1112,6 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         primary: array_like or None
             If given, the BRICK_PRIMARY column of the catalogue.
         south: boolean, defaults to ``True``
-            Call isQSO_randomforest_north if ``south=False``,
-            otherwise call isQSO_randomforest_south.
 
     Returns:
         mask : array_like. True if and only if the object is a QSO
@@ -1123,130 +1121,6 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         as of 10/16/18, based on version 143 on `the wiki`_.
     """
 
-    if south is False:
-        return isQSO_randomforest_north(gflux=gflux, rflux=rflux, zflux=zflux,
-                                        w1flux=w1flux, w2flux=w2flux, objtype=objtype,
-                                        release=release, deltaChi2=deltaChi2,
-                                        brightstarinblob=brightstarinblob, primary=primary)
-    else:
-        return isQSO_randomforest_south(gflux=gflux, rflux=rflux, zflux=zflux,
-                                        w1flux=w1flux, w2flux=w2flux, objtype=objtype,
-                                        release=release, deltaChi2=deltaChi2,
-                                        brightstarinblob=brightstarinblob, primary=primary)
-
-
-def isQSO_randomforest_north(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                             objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
-                             primary=None):
-    """
-    Target definition of QSO using a random forest for the BASS/MzLS photometric system.
-    (see :func:`~desitarget.cuts.isQSO_randomforest`).
-    """
-    # BRICK_PRIMARY
-    if primary is None:
-        primary = np.ones_like(gflux, dtype=bool)
-
-    # RELEASE
-    # ADM default to RELEASE of 6000 if nothing is passed.
-    if release is None:
-        release = np.zeros_like(gflux, dtype='?') + 6000
-    release = np.atleast_1d(release)
-
-    # Build variables for random forest
-    nFeatures = 11   # Number of attributes describing each object to be classified by the rf
-    nbEntries = rflux.size
-    gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
-    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
-    r = np.atleast_1d(r)
-
-    # Preselection to speed up the process
-    rMax = 22.7   # r < 22.7
-    rMin = 17.5   # r > 17.5
-    preSelection = (r < rMax) & (r > rMin) & photOK & primary
-
-    if objtype is not None:
-        preSelection &= _psflike(objtype)
-    if deltaChi2 is not None:
-        deltaChi2 = np.atleast_1d(deltaChi2)
-        preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
-    # CAC Reject objects flagged inside a blob.
-    if brightstarinblob is not None:
-        preSelection &= ~brightstarinblob
-
-    # "qso" mask initialized to "preSelection" mask
-    qso = np.copy(preSelection)
-
-    if np.any(preSelection):
-
-        from desitarget.myRF import myRF
-
-        # Data reduction to preselected objects
-        colorsReduced = colors[preSelection]
-        releaseReduced = release[preSelection]
-        r_Reduced = r[preSelection]
-        colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
-        colorsReducedIndex = colorsIndex[preSelection]
-
-        # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
-        # rf filenames
-        rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr7.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
-
-        tmpReleaseOK = releaseReduced < 6000
-        if np.any(tmpReleaseOK):
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                          numberOfTrees=200, version=1)
-            # rf loading
-            rf_DR3.loadForest(rf_DR3_fileName)
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR3.predict_proba()
-            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            # Compute optimized proba cut
-            pcut = np.where(tmp_r_Reduced > 20.0,
-                            0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
-            # Add rf proba test result to "qso" mask
-            qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
-
-        tmpReleaseOK = releaseReduced >= 6000
-        if np.any(tmpReleaseOK):
-            # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                          numberOfTrees=500, version=2)
-            rf_DR5_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                                numberOfTrees=500, version=2)
-            # rf loading
-            rf_DR5.loadForest(rf_DR5_fileName)
-            rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
-            # Compute rf probabilities
-            tmp_rf_proba = rf_DR5.predict_proba()
-            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
-            # Compute optimized proba cut
-            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            pcut = np.where(tmp_r_Reduced > 20.,
-                            0.60 - (tmp_r_Reduced - 20.) * 0.08, 0.60)
-            pcut_HighZ = 0.42
-            # Add rf proba test result to "qso" mask
-            qso[colorsReducedIndex[tmpReleaseOK]] = \
-                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
-
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "~numpy.ndarray"
-    if nbEntries == 1:
-        qso = qso[0]
-
-    return qso
-
-
-def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                             objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
-                             primary=None):
-    """
-    Target definition of QSO using a random forest for the DECaLS photometric system.
-    (see :func:`~desitarget.cuts.isQSO_randomforest`).
-    """
     # BRICK_PRIMARY
     if primary is None:
         primary = np.ones_like(gflux, dtype=bool)
@@ -1260,6 +1134,8 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     # Build variables for random forest
     nFeatures = 11   # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
+    #if south is False:
+    #    gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
@@ -1295,8 +1171,8 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         pathToRF = resource_filename('desitarget', 'data')
         # rf filenames
         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
-        rf_DR5_fileName = pathToRF + '/rf_model_dr7.npz'
-        rf_DR5_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
+        rf_fileName = pathToRF + '/rf_model_dr7.npz'
+        rf_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1317,16 +1193,16 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
         tmpReleaseOK = releaseReduced >= 5000
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
-            rf_DR5 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+            rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                           numberOfTrees=500, version=2)
-            rf_DR5_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                                 numberOfTrees=500, version=2)
             # rf loading
-            rf_DR5.loadForest(rf_DR5_fileName)
-            rf_DR5_HighZ.loadForest(rf_DR5_HighZ_fileName)
+            rf.loadForest(rf_fileName)
+            rf_HighZ.loadForest(rf_HighZ_fileName)
             # Compute rf probabilities
-            tmp_rf_proba = rf_DR5.predict_proba()
-            tmp_rf_HighZ_proba = rf_DR5_HighZ.predict_proba()
+            tmp_rf_proba = rf.predict_proba()
+            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = np.where(tmp_r_Reduced > 20.8,
@@ -1344,7 +1220,7 @@ def isQSO_randomforest_south(gflux=None, rflux=None, zflux=None, w1flux=None, w2
     if nbEntries == 1:
         qso = qso[0]
 
-    return qso
+    return qso   
 
 
 def _psflike(psftype):
