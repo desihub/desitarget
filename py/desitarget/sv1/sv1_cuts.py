@@ -1381,17 +1381,17 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qsorf_highz_north = (qsorf_north & qsocolor_high_z_north)
     qsocolor_lowz_north = (qsocolor_north & ~qsocolor_high_z_north)
     qsorf_lowz_north = (qsorf_north & ~qsocolor_high_z_north)
-    qso_north = qsocolor_lowz_north | qsorf_lowz_north | qsocolor_highz_north | qsorf_highz_north | qsohizf_north
+    qso_north = (qsocolor_lowz_north | qsorf_lowz_north | qsocolor_highz_north
+                 | qsorf_highz_north | qsohizf_north)
 
     qsocolor_highz_south = (qsocolor_south & qsocolor_high_z_south)
     qsorf_highz_south = (qsorf_south & qsocolor_high_z_south)
     qsocolor_lowz_south = (qsocolor_south & ~qsocolor_high_z_south)
     qsorf_lowz_south = (qsorf_south & ~qsocolor_high_z_south)
-    qso_south = qsocolor_lowz_south | qsorf_lowz_south | qsocolor_highz_south | qsorf_highz_south | qsohizf_south
+    qso_south = (qsocolor_lowz_south | qsorf_lowz_south | qsocolor_highz_south
+                 | qsorf_highz_south | qsohizf_south)
 
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
-    qsocolor = (qsocolor_north & photsys_north) | (qsocolor_south & photsys_south)
-    qsorf = (qsorf_north & photsys_north) | (qsorf_south & photsys_south)
     qsocolor_highz = (qsocolor_highz_north & photsys_north) | (qsocolor_highz_south & photsys_south)
     qsorf_highz = (qsorf_highz_north & photsys_north) | (qsorf_highz_south & photsys_south)
     qsocolor_lowz = (qsocolor_lowz_north & photsys_north) | (qsocolor_lowz_south & photsys_south)
@@ -1508,6 +1508,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
 
+    # ADM the formal bit-setting using desi_mask/bgs_mask/mws_mask...
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
@@ -1535,8 +1536,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elgrzblue_south * desi_mask.ELG_RZ_BLUE_SOUTH
     desi_target |= elgrzred_south * desi_mask.ELG_RZ_RED_SOUTH
     # ADM ...and QSOs.
-    desi_target |= qsocolor_south * desi_mask.QSO_COLOR_SOUTH
-    desi_target |= qsorf_south * desi_mask.QSO_RF_SOUTH
+    desi_target |= qsocolor_lowz_south * desi_mask.QSO_COLOR_4PASS_SOUTH
+    desi_target |= qsorf_lowz_south * desi_mask.QSO_RF_4PASS_SOUTH
+    desi_target |= qsocolor_highz_south * desi_mask.QSO_COLOR_8PASS_SOUTH
+    desi_target |= qsorf_highz_south * desi_mask.QSO_RF_8PASS_SOUTH
     desi_target |= qsohizf_south * desi_mask.QSO_HZ_F_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
@@ -1551,8 +1554,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elgrzblue_north * desi_mask.ELG_RZ_BLUE_NORTH
     desi_target |= elgrzred_north * desi_mask.ELG_RZ_RED_NORTH
     # ADM ...and QSOs.
-    desi_target |= qsocolor_north * desi_mask.QSO_COLOR_NORTH
-    desi_target |= qsorf_north * desi_mask.QSO_RF_NORTH
+    desi_target |= qsocolor_lowz_north * desi_mask.QSO_COLOR_4PASS_NORTH
+    desi_target |= qsorf_lowz_north * desi_mask.QSO_RF_4PASS_NORTH
+    desi_target |= qsocolor_highz_north * desi_mask.QSO_COLOR_8PASS_NORTH
+    desi_target |= qsorf_highz_north * desi_mask.QSO_RF_8PASS_NORTH
     desi_target |= qsohizf_north * desi_mask.QSO_HZ_F_NORTH
 
     # ADM combined per-bit information for the LRGs...
@@ -1567,8 +1572,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elgrzblue * desi_mask.ELG_RZ_BLUE
     desi_target |= elgrzred * desi_mask.ELG_RZ_RED
     # ADM ...and QSOs.
-    desi_target |= qsocolor * desi_mask.QSO_COLOR
-    desi_target |= qsorf * desi_mask.QSO_RF
+    desi_target |= qsocolor_lowz * desi_mask.QSO_COLOR_4PASS
+    desi_target |= qsorf_lowz * desi_mask.QSO_RF_4PASS
+    desi_target |= qsocolor_highz * desi_mask.QSO_COLOR_8PASS
+    desi_target |= qsorf_highz * desi_mask.QSO_RF_8PASS
     desi_target |= qsohizf * desi_mask.QSO_HZ_F
 
     # ADM Standards.
