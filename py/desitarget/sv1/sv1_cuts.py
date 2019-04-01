@@ -1375,13 +1375,17 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             ~primary, ~primary, ~primary, ~primary, ~primary, ~primary, ~primary, ~primary
 
     # ADM combine quasar target bits for a quasar target based on any imaging.
-    qso_highz_north = (qsocolor_north&qsocolor_high_z_north) | (qsorf_north&qsocolor_high_z_north) | qsohizf_north
-    qso_lowz_north = ((qsocolor_north&~qsocolor_high_z_north) | (qsorf_north&~qsocolor_high_z_north)) &~qsohizf_north
-    qso_north =  qso_highz_north | qso_lowz_north # qso_highz_north and qso_lowz_north are exclusive
-    
-    qso_highz_south = (qsocolor_south&qsocolor_high_z_south) | (qsorf_south&qsocolor_high_z_south) | qsohizf_south
-    qso_lowz_south = ((qsocolor_south&~qsocolor_high_z_south) | (qsorf_south&~qsocolor_high_z_south)) &~qsohizf_south    
-    qso_south =  qso_highz_south | qso_lowz_south # qso_highz_south and qso_lowz_south are exclusive
+    qsocolor_highz_north = (qsocolor_north&qsocolor_high_z_north) 
+    qsorf_highz_north = (qsorf_north&qsocolor_high_z_north) 
+    qsocolor_lowz_north = (qsocolor_north&~qsocolor_high_z_north) 
+    qsorf_lowz_north =  (qsorf_north&~qsocolor_high_z_north)
+    qso_north =  qsocolor_lowz_north | qsorf_lowz_north | qsocolor_highz_north | qsorf_highz_north | qsohizf_north
+
+    qsocolor_highz_south = (qsocolor_south&qsocolor_high_z_south) 
+    qsorf_highz_south = (qsorf_south&qsocolor_high_z_south) 
+    qsocolor_lowz_south = (qsocolor_south&~qsocolor_high_z_south) 
+    qsorf_lowz_south =  (qsorf_south&~qsocolor_high_z_south)
+    qso_south =  qsocolor_lowz_south | qsorf_lowz_south | qsocolor_highz_south | qsorf_highz_south | qsohizf_south
     
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
     qsocolor = (qsocolor_north & photsys_north) | (qsocolor_south & photsys_south)
