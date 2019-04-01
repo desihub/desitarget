@@ -311,9 +311,11 @@ numobs:
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
         ELG_RZ_RED:    SAME_AS_ELG
-        QSO_COLOR: SAME_AS_QSO
-        QSO_RF: SAME_AS_QSO
-        QSO_HZ_F: SAME_AS_QSO
+        QSO_COLOR_4PASS: 4
+        QSO_RF_4PASS:    4
+        QSO_COLOR_8PASS: 8
+        QSO_RF_8PASS:    8
+        QSO_HZ_F:        SAME_AS_QSO
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_NORTH: 0
         ELG_NORTH: 0
@@ -339,12 +341,16 @@ numobs:
         ELG_FDR_FAINT_SOUTH: 0
         ELG_RZ_BLUE_SOUTH:   0
         ELG_RZ_RED_SOUTH:    0
-        QSO_COLOR_NORTH: 0
-        QSO_RF_NORTH:    0
-        QSO_HZ_F_NORTH:  0
-        QSO_COLOR_SOUTH: 0
-        QSO_RF_SOUTH:    0
-        QSO_HZ_F_SOUTH:  0
+        QSO_COLOR_4PASS_NORTH: 0
+        QSO_RF_4PASS_NORTH:    0
+        QSO_COLOR_8PASS_NORTH: 0
+        QSO_RF_8PASS_NORTH:    0
+        QSO_HZ_F_NORTH:        0
+        QSO_COLOR_4PASS_SOUTH: 0
+        QSO_RF_4PASS_SOUTH:    0
+        QSO_COLOR_8PASS_SOUTH: 0
+        QSO_RF_8PASS_SOUTH:    0
+        QSO_HZ_F_SOUTH:        0
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
