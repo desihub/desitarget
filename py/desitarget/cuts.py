@@ -1134,8 +1134,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # Build variables for random forest
     nFeatures = 11   # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
-    #if south is False:
-    #    gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+    if not south:
+        gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+        
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
