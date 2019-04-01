@@ -5,6 +5,9 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Update QSO targeting algorithms for DR8 [`PR #489`_]. Includes:
+    * Update baseline quasar selection for the main survey.
+    * Update QSO bits and selection algorithms for SV.
 * Various bug and feature fixes [`PR #484`_]. Includes:
     * Fix crash when using sv_select_targets with `--tcnames`.
     * Only import matplotlib where explicitly needed.
@@ -12,6 +15,7 @@ desitarget Change Log
 
 .. _`PR #480`: https://github.com/desihub/desitarget/pull/480
 .. _`PR #484`: https://github.com/desihub/desitarget/pull/484
+.. _`PR #489`: https://github.com/desihub/desitarget/pull/489
 
 0.29.1 (2019-03-26)
 -------------------
