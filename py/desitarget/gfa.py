@@ -307,12 +307,6 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
-    # ADM a final clean-up to remove columns that are NaN (from
-    # ADM Gaia-matching) or are exactly 0 (in the sweeps).
-    for col in ["PMRA", "PMDEC"]:
-        ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
-        gfas = gfas[ii]
-
     return gfas
 
 
@@ -535,6 +529,12 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     gfas = np.concatenate([gfas, gaia])
     _, ind = np.unique(gfas["REF_ID"], return_index=True)
     gfas = gfas[ind]
+
+    # ADM a final clean-up to remove columns that are NaN (from
+    # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
+    for col in ["PMRA", "PMDEC"]:
+        ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
+        gfas = gfas[ii]
 
     # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
     if not cmx:
