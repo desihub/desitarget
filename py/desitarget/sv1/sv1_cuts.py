@@ -1390,6 +1390,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
     qsocolor = (qsocolor_north & photsys_north) | (qsocolor_south & photsys_south)
     qsorf = (qsorf_north & photsys_north) | (qsorf_south & photsys_south)
+    qsocolor_highz =  (qsocolor_highz_north & photsys_north)  | (qsocolor_highz_south & photsys_south)
+    qsorf_highz =  (qsorf_highz_north & photsys_north)  | (qsorf_highz_south & photsys_south)
+    qsocolor_lowz =  (qsocolor_lowz_north & photsys_north)  | (qsocolor_lowz_south & photsys_south)
+    qsorf_lowz =  (qsorf_lowz_north & photsys_north)  | (qsorf_lowz_south & photsys_south)
     qsohizf = (qsohizf_north & photsys_north) | (qsohizf_south & photsys_south)
 
     # ADM set the BGS bits
