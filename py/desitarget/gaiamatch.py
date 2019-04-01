@@ -626,9 +626,9 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
         A region of the sky bounded by RA/Dec. Pass as a 4-entry list to
         represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
     neighbors : :class:`bool`, optional, defaults to ``True``
-        Also return all neighboring pixels that touch the files of interest
-        in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
-        away from a primary source and so in an adjacent pixel)
+        Also return files corresponding to all neighboring pixels that touch
+        the files that touch the box in order to prevent edge effects (e.g. if a Gaia
+        source might be 1 arcsec outside of the box and so in an adjacent pixel)
 
     Returns
     -------
