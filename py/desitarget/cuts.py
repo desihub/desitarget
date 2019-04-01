@@ -1136,7 +1136,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     nbEntries = rflux.size
     if not south:
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
-        
+
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
@@ -1195,9 +1195,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                          numberOfTrees=500, version=2)
+                      numberOfTrees=500, version=2)
             rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                                numberOfTrees=500, version=2)
+                            numberOfTrees=500, version=2)
             # rf loading
             rf.loadForest(rf_fileName)
             rf_HighZ.loadForest(rf_HighZ_fileName)
@@ -1221,7 +1221,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if nbEntries == 1:
         qso = qso[0]
 
-    return qso   
+    return qso
 
 
 def _psflike(psftype):
