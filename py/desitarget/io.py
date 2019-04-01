@@ -340,6 +340,10 @@ def read_tractor(filename, header=False, columns=None):
        (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
         for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
+        # ADM deal with some custom files I made that don't contain WISEMASK.
+        if 'WISEMASK_W1' not in fxcolnames:
+            readcolumns.remove('WISEMASK_W1')
+            readcolumns.remove('WISEMASK_W2')
     # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
     # ADM the other DR6->DR8 data model updates.
     else:
@@ -448,17 +452,21 @@ def release_to_photsys(release):
 
     Notes
     -----
-    Defaults to 'U' if the system is not recognized.
+    Flags an error if the system is not recognized.
     """
     # ADM arrays of the key (RELEASE) and value (PHOTSYS) entries in the releasedict.
     releasenums = np.array(list(releasedict.keys()))
     photstrings = np.array(list(releasedict.values()))
 
+    # ADM explicitly check no unknown release numbers were passed.
+    unknown = set(release) - set(releasenums)
+    if bool(unknown):
+        msg = 'Unknown release number {}'.format(unknown)
+        log.critical(msg)
+        raise ValueError(msg)
+
     # ADM an array with indices running from 0 to the maximum release number + 1.
     r2p = np.empty(np.max(releasenums)+1, dtype='|S1')
-
-    # ADM set each entry to 'U' for an unidentified photometric system.
-    r2p[:] = 'U'
 
     # ADM populate where the release numbers exist with the PHOTSYS.
     r2p[releasenums] = photstrings
