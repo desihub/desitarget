@@ -1096,31 +1096,24 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                        objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
                        primary=None, south=True):
-    """Convenience function for backwards-compatability prior to north/south split.
+    """Definition of QSO target classes from a Random Forest. Returns a boolean array.
 
-    Args:
-        gflux, rflux, zflux, w1flux, w2flux: array_like
-            The flux in nano-maggies of g, r, z, W1, and W2 bands.
-        objtype: array_like or None
-            If given, the TYPE column of the Tractor catalogue.
-        release: array_like[ntargets]
-            `The Legacy Surveys`_ imaging RELEASE.
-        deltaChi2: array_like or None
-             If given, difference in chi2 bteween PSF and SIMP morphology
-        brightstarinblob: boolean array_like or None
-            ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-        primary: array_like or None
-            If given, the BRICK_PRIMARY column of the catalogue.
-        south: boolean, defaults to ``True``
+    Parameters
+    ----------
+    south : :class:`boolean`, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
-    Returns:
-        mask : array_like. True if and only if the object is a QSO
-            target.
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` for objects that are Random Forest quasar targets.
 
-    Notes:
-        as of 10/16/18, based on version 143 on `the wiki`_.
+    Notes
+    -----
+    - Current version (10/16/18) is version 143 on `the wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-
     # BRICK_PRIMARY
     if primary is None:
         primary = np.ones_like(gflux, dtype=bool)
