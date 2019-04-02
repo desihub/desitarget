@@ -26,10 +26,13 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates DESI SV target bits from Legacy Surveys sweeps or tractor files')
-ap.add_argument("src", 
+ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
-ap.add_argument("dest", 
+ap.add_argument("dest",
                 help="Output target selection file")
+ap.add_argument('-s2', "--sweepdir2",
+                help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
+                default=None)
 ap.add_argument('-m', "--mask", 
                 help="If sent then mask the targets, the name of the mask file should be supplied")
 ap.add_argument("--numproc", type=int,
@@ -57,11 +60,24 @@ ap.add_argument('--radecbox',
 ap.add_argument('--radecrad',
                 help="Only return targets in an RA/Dec circle/cap denoted by 'centerRA,centerDec,radius' in degrees (e.g. '140,150,0.5')",
                 default=None)
+ap.add_argument("--noresolve", action='store_true',
+                help="Do NOT resolve into northern targets in northern regions and southern targets in southern regions")
+
 
 ns = ap.parse_args()
-infiles = io.list_sweepfiles(ns.src)
+
+infiles = io.list_sweepfiles(ns.sweepdir)
+indir = ns.sweepdir
+if ns.sweepdir2 is not None:
+    infiles2 = io.list_sweepfiles(ns.sweepdir2)
+    infiles += infiles2
+    indir = "{} {}".format(ns.sweepdir, ns.sweepdir2)
 if len(infiles) == 0:
-    infiles = io.list_tractorfiles(ns.src)
+    infiles = io.list_tractorfiles(ns.sweepdir)
+    if ns.sweepdir2 is not None:
+        infiles2 = io.list_tractorfiles(ns.sweepdir2)
+        infiles += infiles2
+        indir = "{} {}".format(ns.sweepdir, ns.sweepdir2)
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
@@ -108,7 +124,7 @@ targets = select_targets(infiles, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist,
                          bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
                          radecbox=inlists[0], radecrad=inlists[1],
-                         tcnames=tcnames, survey=survey)
+                         tcnames=tcnames, survey=survey, resolvetargs=not(ns.noresolve))
 if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
