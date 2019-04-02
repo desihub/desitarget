@@ -409,7 +409,10 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     qso &= ~brightstarinblob
 
     # ADM relaxed morphology cut for SV.
-    morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.01
+    if south:
+        morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.01
+    else:
+        morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.005
     qso &= _psflike(objtype) | morph2
 
     # ADM SV cuts are different for WISE SNR.
@@ -454,7 +457,10 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qso &= zflux < rflux * 10**(3.0/2.5)    # (r-z) < 3.0 (different for SV)
 
     # ADM the WISE-optical color cut.
-    qso &= wflux * gflux > zflux * grzflux * 10**(-1.3/2.5)  # (grz-W) > (g-z)-1.3 (different for SV)
+    if south:
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.3/2.5)  # (grz-W) > (g-z)-1.3 (different for SV)
+    else:
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.1/2.5)  # (grz-W) > (g-z)-1.1 (different for SV)
 
     # ADM the WISE color cut.
     qso &= w2flux > w1flux * 10**(-0.4/2.5)  # (W1-W2) > -0.4
@@ -467,8 +473,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
         mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
     else:
-        mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.090+0.175)/2.5)
-        mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.090+0.175)/2.5)
+        mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
+        mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
 
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
     qso &= ~mainseq
@@ -487,7 +493,10 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
     qso_hz = ((wflux < gflux*10**(2.0/2.5)) |
               (rflux*(gflux**0.4) > gflux*(wflux**0.4)*10**(0.3/2.5)))  # (g-w<2.0 or g-r>O.4*(g-w)+0.3)
-    qso_hz &= (wflux * (rflux**1.2) < (zflux**1.2) * grzflux * 10**(+0.8/2.5))  # (grz-W) < (r-z)*1.2+0.8
+    if south:
+        qso_hz &= (wflux * (rflux**1.2) < (zflux**1.2) * grzflux * 10**(+0.8/2.5))  # (grz-W) < (r-z)*1.2+0.8
+    else:
+        qso_hz &= (wflux * (rflux**1.2) < (zflux**1.2) * grzflux * 10**(+0.7/2.5))  # (grz-W) < (r-z)*1.2+0.7
 
     return qso_hz
 
@@ -682,7 +691,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         if south:
             pcut = 0.30
         else:
-            pcut = 0.30
+            pcut = 0.35
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
