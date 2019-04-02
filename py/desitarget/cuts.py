@@ -2256,9 +2256,11 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         prefix = "targets"
         if survey != "main":
             prefix = "{}_targets".format(survey)
+        # ADM determine if one or two input directories were passed.
+        surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks(pixnum, bundlefiles, nside,
                       brickspersec=filespersec, gather=False,
-                      prefix=prefix, surveydir=os.path.dirname(infiles[0]))
+                      prefix=prefix, surveydirs=surveydirs)
         return
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
