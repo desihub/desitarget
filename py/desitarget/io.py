@@ -475,9 +475,9 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def write_targets(filename, data, indir=None, qso_selection=None,
-                  sandboxcuts=False, nside=None, survey="?",
-                  nsidefile=None, hpxlist=None, resolve=True):
+def write_targets(filename, data, indir=None, indir2=None,
+                  qso_selection=None, sandboxcuts=False, nside=None,
+                  survey="?", nsidefile=None, hpxlist=None, resolve=True):
     """Write a target catalogue.
 
     Parameters
@@ -486,9 +486,9 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         output target selection file.
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
-    indir, qso_selection : :class:`str`, optional, default to `None`
-        If passed, note these as the input directory and
-        quasar selection method in the output file header.
+    indir, indir2, qso_selection : :class:`str`, optional, default to `None`
+        If passed, note these as the input directory, an additional input
+        directory, and the QSO selection method in the output file header.
     sandboxcuts : :class:`bool`, optional, defaults to ``False``
         Written to the output file header as `sandboxcuts`.
     nside : :class:`int`, optional, defaults to `None`
@@ -527,6 +527,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
     if indir is not None:
         depend.setdep(hdr, 'tractor-files', indir)
+    if indir2 is not None:
+        depend.setdep(hdr, 'tractor-files-2', indir2)
 
     if qso_selection is None:
         log.warning('qso_selection method not specified for output file')
