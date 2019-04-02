@@ -1204,17 +1204,15 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
                 pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
                 pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
                 pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
-                                    0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
+                                      0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
             else:
                 pcut = np.where(tmp_r_Reduced > 20.8,
                                 0.90 - (tmp_r_Reduced - 20.8) * 0.025, 0.90)
                 pcut[tmp_r_Reduced > 21.5] = 0.8825 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
                 pcut[tmp_r_Reduced > 22.3] = 0.7625 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
                 pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
-                                    0.70 - (tmp_r_Reduced - 20.5) * 0.025, 0.70) 
+                                      0.70 - (tmp_r_Reduced - 20.5) * 0.025, 0.70)
 
-
-            
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
