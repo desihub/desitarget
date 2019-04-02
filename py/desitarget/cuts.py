@@ -1101,8 +1101,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     Parameters
     ----------
     south : :class:`boolean`, defaults to ``True``
-        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+        If ``False``, shift photometry to the Northern (BASS/MzLS) imaging system.
 
     Returns
     -------
