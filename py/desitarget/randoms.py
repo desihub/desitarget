@@ -944,7 +944,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM if the bundlebricks option was sent, call the packing code.
     if bundlebricks is not None:
         bundle_bricks(pixnum, bundlebricks, nside, brickspersec=brickspersec,
-                      prefix='randoms', surveydir=drdir)
+                      prefix='randoms', surveydirs=[drdir])
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
