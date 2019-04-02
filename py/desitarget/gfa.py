@@ -250,14 +250,13 @@ def gaia_morph(gaia):
     return morph
 
 
-def gaia_gfas_from_sweep(objects, maglim=18.):
-    """Create a set of GFAs for one sweep file or sweep objects.
+def gaia_gfas_from_sweep(filename, maglim=18.):
+    """Create a set of GFAs for one sweep file.
 
     Parameters
     ----------
-    objects: :class:`~numpy.ndarray` or `str`
-        Numpy structured array with UPPERCASE columns needed for target selection, OR
-        a string corresponding to a sweep filename.
+    filename: :class:`str`
+        A string corresponding to the full path to a sweep file name.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
 
@@ -266,24 +265,22 @@ def gaia_gfas_from_sweep(objects, maglim=18.):
     :class:`~numpy.ndarray`
         GFA objects from Gaia, formatted according to `desitarget.gfa.gfadatamodel`.
     """
-    # ADM read in objects if a filename was passed instead of the actual data.
-    if isinstance(objects, str):
-        objects = desitarget.io.read_tractor(objects)
+    # ADM read in the objects.
+    objects = desitarget.io.read_tractor(filename)
 
     # ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     # ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
     # ADM approximates SDSS r-band.
-    w = np.where((objects["FLUX_G"] > 10**((22.5-(maglim+3))/2.5)) |
-                 (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
-                 (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)))[0]
-    objects = objects[w]
+    ii = ((objects["FLUX_G"] > 10**((22.5-(maglim+3))/2.5)) |
+          (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
+          (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)))
+    objects = objects[ii]
     nobjs = len(objects)
 
     # ADM only retain objects with Gaia matches.
     # ADM It's fine to propagate an empty array if there are no matches
     # ADM The sweeps use 0 for objects with no REF_ID.
-    w = np.where(objects["REF_ID"] > 0)[0]
-    objects = objects[w]
+    objects = objects[objects["REF_ID"] > 0]
 
     # ADM determine a TARGETID for any objects on a brick.
     targetid = encode_targetid(objid=objects['OBJID'],
@@ -310,12 +307,6 @@ def gaia_gfas_from_sweep(objects, maglim=18.):
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
-    # ADM a final clean-up to remove columns that are Nan (from
-    # ADM Gaia-matching) or are 0 (in the sweeps).
-    for col in ["PMRA", "PMDEC"]:
-        ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
-        gfas = gfas[ii]
-
     return gfas
 
 
@@ -324,6 +315,8 @@ def gaia_in_file(infile, maglim=18):
 
     Parameters
     ----------
+    infile : :class:`str`
+        File name of a single Gaia "healpix" file.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
 
@@ -335,7 +328,7 @@ def gaia_in_file(infile, maglim=18):
 
     Notes
     -----
-       - A "Gaia file" here is as made by, e.g.
+       - A "Gaia healpix file" here is as made by, e.g.
          :func:`~desitarget.gaiamatch.gaia_fits_to_healpix()`
     """
     # ADM read in the Gaia file and limit to the passed magnitude.
@@ -529,12 +522,20 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
              .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
                              tiles=tiles)
-    # ADM and limit them to just any missing bricks...
-    brickids = set(gfas['BRICKID'])
-    ii = [gbrickid not in brickids for gbrickid in gaia["BRICKID"]]
-    gaia = gaia[ii]
 
+    # ADM remove any duplicates. Order is important here, as np.unique
+    # ADM keeps the first occurence, and we want to retain sweeps
+    # ADM information as much as possible.
     gfas = np.concatenate([gfas, gaia])
+    _, ind = np.unique(gfas["REF_ID"], return_index=True)
+    gfas = gfas[ind]
+
+    # ADM a final clean-up to remove columns that are NaN (from
+    # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
+    for col in ["PMRA", "PMDEC"]:
+        ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
+        gfas = gfas[ii]
+
     # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
     if not cmx:
         ii = is_point_in_desi(tiles, gfas["RA"], gfas["DEC"])
