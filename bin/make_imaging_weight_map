@@ -31,7 +31,7 @@ ap.add_argument("--nside", type=int,
                 help='The resolution (HEALPixel nside number) at which to build the map (defaults to 256)',
                 default="256")
 ap.add_argument("--gaialoc",
-                help='Directory of Gaia "chunks" files (to derive stellar density). A FITS file that already contains the Gaia stellar densities at nside can be passed as a speed-up')
+                help='A FITS file that already contains the Gaia stellar densities at nside to speed-up density calculations')
 
 ns = ap.parse_args()
 

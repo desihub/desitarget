@@ -20,6 +20,7 @@ from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import resolve
 from desitarget.skyfibers import get_brick_info
+from desitarget.io import read_targets_in_box
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -532,7 +533,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     return qinfo
 
 
-def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outarea=True):
+def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outarea=True):
     """Fraction of area covered in HEALPixels by a random catalog
 
     Parameters
@@ -552,9 +553,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
         than -1) in r-band and z-band.
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel NESTED nside number) at which to build the map.
-    outplot : :class:`str`, optional, defaults to not making a plot
-        Create a plot and write it to a file named `outplot` (this is passed to
-        the `savefig` routine from `matplotlib.pyplot`.
     outarea : :class:`boolean`, optional, defaults to True
         Print the total area of the survey for these values of `nobsgrz` to screen.
 
@@ -573,8 +571,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    import matplotlib.pyplot as plt
-
     # ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
         randoms = fitsio.read(randoms)
@@ -601,12 +597,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
     expected_cnt = hp.nside2pixarea(nside, degrees=True)*density
     # ADM create a weight map based on the actual counts divided by the expected counts
     pix_weight = pix_cnt/expected_cnt
-
-    # ADM if outplot was passed, make a plot of the weights in Mollweide projection
-    if outplot is not None:
-        log.info('Plotting pixel map and writing to {}'.format(outplot))
-        hp.mollview(pix_weight, nest=True)
-        plt.savefig(outplot)
 
     # ADM if requested, print the total area of the survey to screen
     if outarea:
@@ -673,7 +663,7 @@ def stellar_density(nside=256):
 
 
 def get_targ_dens(targets, nside=256):
-    """The density of targets in HEALPixels
+    """The density of targets in HEALPixels.
 
     Parameters
     ----------
@@ -739,8 +729,10 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         A random catalog as made by, e.g., :func:`select_randoms()` or
         :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
     targets : :class:`~numpy.ndarray` or `str`
-        A corresponding (same Legacy Surveys Data Release) target catalog as made by,
-        e.g., :func:`desitarget.cuts.select_targets()`, or the name of such a file.
+        A corresponding (i.e. same Data Release) target catalog as made by, e.g.,
+        :func:`desitarget.cuts.select_targets()`, or a file name of such targets,
+        or the name of a directory containing HEALPixel-split targets that can
+        be read by :func:`desitarget.io.read_targets_in_box()`.
     rand_density : :class:`int`
         The number of random points per sq. deg. At which the random catalog was
         generated (see also :func:`select_randoms()`).
@@ -781,7 +773,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM if a file name was passed for the targets catalog, read it in
     if isinstance(targets, str):
         log.info('Reading in target catalog...t = {:.1f}s'.format(time()-start))
-        targets = fitsio.read(targets)
+        cols = ["RA", "DEC", "BGS_TARGET", "MWS_TARGET", "DESI_TARGET"]
+        targets = read_targets_in_box(targets, columns=cols)
 
     # ADM determine the areal coverage at of the randoms at this nside
     log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
