@@ -6,6 +6,7 @@ from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies, density_of_sky_fibers, get_brick_info
 from desitarget import io
 from desitarget.geomask import bundle_bricks
+from desitarget.targets import resolve
 
 import numpy as np
 import healpy as hp
@@ -108,9 +109,12 @@ else:
     ii = [sk is not None for sk in skies]
     skies = np.concatenate(skies[ii])
 
+    # ADM resolve any duplicates between imaging data releases. 
+    skies = resolve(skies)
+
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
-    io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2, 
+    io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2,
                    nside=nside, apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))
