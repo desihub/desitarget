@@ -162,13 +162,6 @@ class TestSKYFIBERS(unittest.TestCase):
             np.all(gskies[wbad]["DESI_TARGET"] == desi_mask.BAD_SKY)
         )
 
-    def test_bundle_bricks(self):
-        """
-        Test the bundle_bricks scripting code simply executes without bugs
-        """
-        dum = skyfibers.bundle_bricks(1, 1, 1, surveydir=self.survey.survey_dir)
-        self.assertTrue(dum is None)
-
     def test_select_skies(self):
         """
         Test the wrapper function for batch selection of skies

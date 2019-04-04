@@ -926,7 +926,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     if bundlebricks is not None:
         # ADM pixnum only contains unique bricks, need to add duplicates.
         allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
-                            for cnt, pix in zip(cnts.astype(int), pixnum)])
+                                    for cnt, pix in zip(cnts.astype(int), pixnum)])
         bundle_bricks(allpixnum, bundlebricks, nside, brickspersec=brickspersec,
                       prefix='randoms', surveydirs=[drdir])
         return
