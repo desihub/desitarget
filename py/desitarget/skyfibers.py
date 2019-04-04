@@ -298,9 +298,11 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     skies["BRICKNAME"] = skytable.brickname
     skies["BLOBDIST"] = skytable.blobdist
 
-    # ADM set the data release from the Legacy Surveys DR directory.
-    dr = int(survey.survey_dir.split('dr')[-1][0])*1000
-    skies["RELEASE"] = dr
+    # ADM set the data release from an object in a Tractor file.
+    tfn = survey.find_file("tractor", brick=brickname)
+    # ADM this file should be guaranteed to exist, except for unit tests.
+    if os.path.exists(tfn):
+        skies["RELEASE"] = fitsio.read(tfn, rows=0, columns='RELEASE')[0]
 
     # ADM set the objid (just use a sequential number as setting skies
     # ADM to 1 in the TARGETID will make these unique.
