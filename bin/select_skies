@@ -90,7 +90,7 @@ if ns.bundlebricks is not None:
     theta, phi = np.radians(90-bdec), np.radians(bra)
     pixnum = hp.ang2pix(ns.nside, theta, phi, nest=True)
     # ADM pixnum only contains unique bricks, need to add duplicates.
-    allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix 
+    allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
                         for cnt, pix in zip(cnts.astype(int), pixnum)])
     bundle_bricks(allpixnum, ns.bundlebricks, ns.nside, prefix='skies',
                   surveydirs=drdirs, brickspersec=ns.brickspersec)
@@ -99,7 +99,7 @@ else:
     skies = []
     for survey in surveys:
         skies.append(select_skies(
-            survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg, 
+            survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg,
             bands=bands, apertures_arcsec=apertures,
             nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks)
         )
@@ -110,7 +110,7 @@ else:
 
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
-    io.write_skies(ns.dest, skies, indir=ns.surveydir, nside=nside,
-                   apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
+    io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2, 
+                   nside=nside, apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))

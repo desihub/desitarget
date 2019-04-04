@@ -569,8 +569,8 @@ def write_targets(filename, data, indir=None, indir2=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
-def write_skies(filename, data, indir=None, apertures_arcsec=None,
-                nskiespersqdeg=None, nside=None):
+def write_skies(filename, data, indir=None, indir2=None,
+                apertures_arcsec=None, nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -579,9 +579,9 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         Output target selection file name
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
-    indir : :class:`str`, optional
-        Name of input Legacy Survey Data Release directory, write to header
-        of output file if passed (and if not None).
+    indir, indir2 : :class:`str`, optional
+        Name of input Legacy Survey Data Release directory or directories,
+        write to header of output file if passed (and if not None).
     apertures_arcsec : :class:`list` or `float`, optional
         list of aperture radii in arcseconds to write each aperture as an
         individual line in the header, if passed (and if not None).
@@ -610,6 +610,8 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
+    if indir2 is not None:
+        depend.setdep(hdr, 'input-data-release-2', indir2)
 
     if apertures_arcsec is not None:
         for i, ap in enumerate(apertures_arcsec):
@@ -636,8 +638,8 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
 
-def write_gfas(filename, data, indir=None, nside=None, survey="?",
-               gaiaepoch=None):
+def write_gfas(filename, data, indir=None, indir2=None, nside=None,
+               survey="?", gaiaepoch=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -646,9 +648,9 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
         Output file name.
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
-    indir : :class:`str`, optional, defaults to None.
-        Name of input Legacy Survey Data Release directory, write to header
-        of output file if passed (and if not None).
+    indir, indir2 : :class:`str`, optional, defaults to None.
+        Name of input Legacy Survey Data Release directory or directories,
+        write to header of output file if passed (and if not None).
     nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with HEALPixels
         at resolution `nside`.
@@ -673,6 +675,8 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
         # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
+    if indir2 is not None:
+        depend.setdep(hdr, 'input-data-release-2', indir2)
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:

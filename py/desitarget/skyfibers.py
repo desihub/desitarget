@@ -88,7 +88,7 @@ def get_brick_info(drdirs, counts=False):
             fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
             bricknames.append([brickname_from_filename(fn) for fn in fns])
 
-    # ADM don't count bricks twice.
+    # ADM don't count bricks twice, but record number of duplicate bricks.
     bricknames, cnts = np.unique(np.concatenate(bricknames), return_counts=True)
 
     # ADM initialize the bricks class, retrieve the brick information look-up
