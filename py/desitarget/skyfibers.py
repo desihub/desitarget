@@ -5,7 +5,7 @@
 desitarget.skyfibers
 ====================
 
-Module dealing with the assignation of sky fibers at the pixel-level for target selection
+Module to assign sky fibers at the pixel-level for target selection
 """
 import os
 import sys
@@ -15,6 +15,7 @@ from astropy.wcs import WCS
 from time import time
 import photutils
 import healpy as hp
+from glob import glob
 from scipy.ndimage.morphology import binary_dilation, binary_erosion
 from scipy.ndimage.measurements import label, find_objects, center_of_mass
 from scipy.ndimage.filters import gaussian_filter
@@ -23,9 +24,9 @@ from scipy.ndimage.filters import gaussian_filter
 from desitarget.skyutilities.astrometry.fits import fits_table
 from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
-from desitarget.geomask import bundle_bricks
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
+from desitarget.io import brickname_from_filename
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -46,6 +47,64 @@ skydatamodel = np.array([], dtype=[
     ('APFLUX_G', '>f4'), ('APFLUX_R', '>f4'), ('APFLUX_Z', '>f4'),
     ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4'),
     ('OBSCONDITIONS', '>i4')])
+
+
+def get_brick_info(drdirs, counts=False):
+    """Retrieve brick names and coordinates from Legacy Surveys directories.
+
+    Parameters
+    ----------
+    drdirs : :class:`list`
+        A list of strings, each of which corresponds to a directory pointing
+        to a Data Release from the Legacy Surveys. Can be of length one.
+        e.g. ['/global/project/projectdirs/cosmo/data/legacysurvey/dr7'].
+    counts : :class:`bool`, optional, defaults to ``False``
+        If ``True`` also return a count of the number of times each brick
+        appears ([RAcen, DECcen, RAmin, RAmax, DECmin, DECmax, CNT]).
+
+    Returns
+    -------
+    :class:`dict`
+        UNIQUE bricks covered by the Data Release(s). Keys are brick names
+        and values are a list of the brick center and the brick corners
+        ([RAcen, DECcen, RAmin, RAmax, DECmin, DECmax]).
+
+    Notes
+    -----
+        - Tries a few different ways in case the survey bricks files have
+          not ywt been created.
+    """
+    bricknames = []
+    for dd in drdirs:
+        # ADM in the simplest case, read in the survey bricks file, which lists
+        # ADM the bricks of interest for this DR.
+        sbfile = glob(dd+'/*bricks-dr*')
+        if len(sbfile) > 0:
+            brickinfo = fitsio.read(sbfile[0])
+            # ADM fitsio reads things in as bytes, so convert to unicode.
+            bricknames.append(brickinfo['brickname'].astype('U'))
+        else:
+            # ADM hack for test bricks where we didn't generate the bricks file.
+            fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
+            bricknames.append([brickname_from_filename(fn) for fn in fns])
+
+    # ADM don't count bricks twice.
+    bricknames, cnts = np.unique(np.concatenate(bricknames), return_counts=True)
+
+    # ADM initialize the bricks class, retrieve the brick information look-up
+    # ADM table and turn it into a fast look-up dictionary.
+    from desiutil import brick
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    brickdict = {}
+    for b in bricktable:
+        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
+                                     b["RA1"], b["RA2"],
+                                     b["DEC1"], b["DEC2"]]
+
+    # ADM only return the subset of the dictionary with bricks in the DR.
+    if counts:
+        return {bn: brickdict[bn] + [cnt] for bn, cnt in zip(bricknames, cnts)}
+    return {bn: brickdict[bn] for bn in bricknames}
 
 
 def density_of_sky_fibers(margin=1.5):
@@ -649,8 +708,7 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                 apertures_arcsec=[0.75], nside=2, pixlist=None,
-                 writebricks=False, bundlebricks=None, brickspersec=1.6):
+                 apertures_arcsec=[0.75], nside=2, pixlist=None, writebricks=False):
     """Generate skies in parallel for all bricks in a Legacy Surveys Data Release.
 
     Parameters
@@ -680,17 +738,6 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         from the input `survey` object and is in the form:
         `%(survey.survey_dir)/metrics/%(brick).3s/skies-%(brick)s.fits.gz`
         which is returned by `survey.find_file('skies')`.
-    bundlebricks : :class:`int`, defaults to None
-        If not None, then instead of selecting the skies, print, to screen, the slurm
-        script that will approximately balance the brick distribution at `bundlebricks`
-        bricks per node. So, for instance, if bundlebricks is 14000 (which as of
-        the latest git push works well to fit on the interactive nodes on Cori), then
-        commands would be returned with the correct pixlist values to pass to the code
-        to pack at about 14000 bricks per node across all of the bricks in `survey`.
-    brickspersec : :class:`float`, optional, defaults to 1.6
-        The rough number of bricks processed per second by the code (parallelized across
-        a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
-        to estimate time to completion when parallelizing across pixels.
 
     Returns
     -------
@@ -701,44 +748,25 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     Notes
     -----
         - Some core code in this module was initially written by Dustin Lang (@dstndstn).
-        - Returns nothing if bundlebricks is passed (and is not ``None``).
     """
-    # ADM these comments were for debugging photutils/astropy dependencies
-    # ADM and they can be removed at any time
-#    import astropy
-#    print(astropy.version)
-#    print(astropy.version.version)
-#    print(photutils.version)
-#    print(photutils.version.version)
+    # ADM retrieve the bricks of interest for this DR.
+    brickdict = get_brick_info([survey.survey_dir])
+    bricknames = np.array(list(brickdict.keys()))
 
-    # ADM read in the survey bricks file, which lists the bricks of interest for this DR
-    from glob import glob
-    sbfile = glob(survey.survey_dir+'/*bricks-dr*')[0]
-    brickinfo = fitsio.read(sbfile)
-    # ADM remember that fitsio reads things in as bytes, so convert to unicode
-    bricknames = brickinfo['brickname'].astype('U')
-
-    # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPpixel
-    # ADM information for each brick
-    if pixlist is not None or bundlebricks is not None:
-        theta, phi = np.radians(90-brickinfo["dec"]), np.radians(brickinfo["ra"])
-        pixnum = hp.ang2pix(nside, theta, phi, nest=True)
-
-    # ADM if the bundlebricks option was sent, call the packing code
-    if bundlebricks is not None:
-        bundle_bricks(pixnum, bundlebricks, nside, prefix='skies',
-                      surveydir=survey.survey_dir, brickspersec=brickspersec)
-        return
-
-    # ADM restrict to only bricks in a set of HEALPixels, if requested
+    # ADM restrict to only bricks in a set of HEALPixels, if requested.
     if pixlist is not None:
-        # ADM if an integer was passed, turn it into a list
+        bra, bdec, _, _, _, _ = np.vstack(brickdict.values()).T
+        theta, phi = np.radians(90-bdec), np.radians(bra)
+        pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+        # ADM if an integer was passed, turn it into a list.
         if isinstance(pixlist, int):
             pixlist = [pixlist]
-        wbricks = np.where([pix in pixlist for pix in pixnum])[0]
-        bricknames = bricknames[wbricks]
-        if len(wbricks) == 0:
+        ii = [pix in pixlist for pix in pixnum]
+        bricknames = bricknames[ii]
+        # ADM if there are no bricks to process, then die immediately.
+        if len(bricknames) == 0:
             log.warning('ZERO bricks in passed pixel list!!!')
+            return
         log.info("Processing bricks in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
 
