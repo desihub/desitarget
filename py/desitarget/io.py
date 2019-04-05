@@ -1426,7 +1426,7 @@ def target_columns_from_header(hpdirname):
     fn = hpdirname
     if os.path.isdir(hpdirname):
         fn = next(iglob(os.path.join(hpdirname, '*fits')))
-    
+
     # ADM read in the header and find any columns matching _TARGET.
     hdr = fitsio.read_header(fn, "TARGETS")
     allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
