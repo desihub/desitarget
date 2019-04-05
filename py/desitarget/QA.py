@@ -169,9 +169,15 @@ def _load_targdens(tcnames=None, bit_mask=None):
     -------
     :class:`dictionary`
         A dictionary where the keys are the bit names and the values are the densities.
+    
+    Notes
+    -----
+        If `bit_mask` happens to correpond to the main survey masks, then the default
+        behavior is triggered (as if `bit_mask=None`).
     """
+    bit_masks = np.atleast_1d(bit_mask)
 
-    if bit_mask is None:
+    if bit_mask is None or bit_masks[0]._name == 'desi_mask':
         from desimodel import io
         targdict = io.load_target_info()
 
@@ -202,7 +208,6 @@ def _load_targdens(tcnames=None, bit_mask=None):
         targdens['MWS_WD'] = 0.
         targdens['MWS_NEARBY'] = 0.
     else:
-        bit_masks = np.atleast_1d(bit_mask)
         names = []
         for bit_mask in bit_masks:
             # ADM this is the list of words contained in bits that we don't want to consider for QA.
@@ -1813,10 +1818,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM Set up the names of the target classes and their goal densities using
     # ADM the goal target densities for DESI (read from the DESIMODEL defaults).
-    if svs == "MAIN":
-        targdens = _load_targdens(tcnames=tcnames)
-    else:
-        targdens = _load_targdens(tcnames=tcnames, bit_mask=masks)
+    targdens = _load_targdens(tcnames=tcnames, bit_mask=masks)
 
     # ADM set up the html file and write preamble to it.
     htmlfile = makepath(os.path.join(qadir, 'index.html'))

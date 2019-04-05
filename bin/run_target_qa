@@ -7,6 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget.QA import make_qa_page, _parse_tcnames
+from desitarget.io import read_targets_in_box_header
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -32,10 +33,23 @@ ap.add_argument('--nosystematics', action='store_true',
 
 ns = ap.parse_args()
 
-#ADM fail if systematics were requested but no systematics map was passed
+# ADM fail if systematics were requested but no systematics map was passed
 if ns.weightmapfile is None and ns.nosystematics is False:
     log.error("The weightmap file was not passed so systematics cannot be tracked. Try again sending --nosystematics.")
     raise IOError
+
+# ADM check that the passed pixweight file corresponds to the passed target file.
+if ns.weightmapfile is not None and not ns.mocks:
+    dsurv = read_targets_in_box_header(ns.src)["SURVEY"]
+    try:
+        psurv = fitsio.read_header(ns.weightmapfile, "PIXWEIGHTS")["SURVEY"]
+        if dsurv != psurv and 'cmx' not in dsurv:
+            msg = 'target file is type {} but pixweight file is type {}!!!'.format(dsurv, psurv)
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM we'll flag an error for early versions of files, which is fine.
+    except KeyError:
+        pass
 
 tcnames = ns.tcnames
 if tcnames is not None:

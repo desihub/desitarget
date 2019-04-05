@@ -1229,7 +1229,8 @@ def check_hp_target_dir(hpdirname):
     return nside[0], pixdict
 
 
-def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
+def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, 
+                       header=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -1245,11 +1246,19 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
         Return targets in these HEALPixels at the passed `nside`.
     columns : :class:`list`, optional
         Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         An array of targets in the passed pixels.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
@@ -1280,22 +1289,28 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
         # ADM read in the files and concatenate the resulting targets.
         targets = []
         for infile in infiles:
-            targets.append(fitsio.read(infile, columns=columnscopy))
-        targets = np.concatenate(targets)
+            targs, hdr = fitsio.read(infile, 'TARGETS',
+                                     columns=columnscopy, header=True)
+            targets.append(targs)
+        targets = np.concatenate(targets)            
     # ADM ...otherwise just read in the targets.
     else:
-        targets = fitsio.read(hpdirname, columns=columnscopy)
+        targets, hdr = fitsio.read_header(hpdirname, 'TARGETS',
+                                          columns=columnscopy,
+                                          header=True)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
     # ADM ...and remove RA/Dec columns if we added them.
     targets = rfn.drop_fields(targets[ii], addedcols)
 
+    if header:
+        return targets, hdr
     return targets
 
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
-                        columns=None):
+                        columns=None, header=False):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -1310,11 +1325,19 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         forming the edges of a box in RA/Dec (degrees).
     columns : :class:`list`, optional
         Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         An array of targets in the passed RA/Dec box.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
@@ -1336,17 +1359,22 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         pixlist = hp_in_box(nside, radecbox)
 
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                     columns=columnscopy)
+        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
+                                          columns=columnscopy,
+                                          header=True)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = fitsio.read(hpdirname, columns=columnscopy)
+        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
+                                   columns=columnscopy,
+                                   header=True)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
     # ADM ...and remove RA/Dec columns if we added them.
     targets = rfn.drop_fields(targets[ii], addedcols)
 
+    if header:
+        return targets, hdr
     return targets
 
 
@@ -1403,6 +1431,30 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     targets = rfn.drop_fields(targets[ii], addedcols)
 
     return targets
+
+
+def read_targets_in_box_header(hpdirname):
+    """Read in targets in an RA/Dec box.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+
+    Returns
+    -------
+    :class:`FITSHDR`
+        The header of `hpdirname` if it is a file, or the header
+        of the first file encountered in `hpdirname`
+    """
+    if os.path.isdir(hpdirname):
+        gen = iglob(os.path.join(hpdirname, '*fits'))
+        hpdirname = next(gen)
+
+    return fitsio.read_header(hpdirname, 'TARGETS')
 
 
 def target_columns_from_header(hpdirname):

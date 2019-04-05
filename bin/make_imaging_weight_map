@@ -44,11 +44,13 @@ if not os.path.exists(ns.targets):
     sys.exit(1)
 
 hdr = fitsio.read_header(ns.randoms,"RANDOMS")
-#ADM add HEALPixel information to the header
+#ADM add HEALPixel and gaialoc information to the header
+hdr['GAIALOC'] = ns.gaialoc
 hdr['HPXNSIDE'] = ns.nside
 hdr['HPXNEST'] = True
 
-pixmap = pixmap(ns.randoms, ns.targets, hdr["DENSITY"], nside=ns.nside, gaialoc=ns.gaialoc)
+pixmap, survey = pixmap(ns.randoms, ns.targets, hdr["DENSITY"], nside=ns.nside, gaialoc=ns.gaialoc)
+hdr["SURVEY"] = survey
 
 #ADM write out the map
 log.info('Writing pixel map to {}'.format(ns.dest))
