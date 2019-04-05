@@ -16,7 +16,7 @@ import re
 from . import __version__ as desitarget_version
 import numpy.lib.recfunctions as rfn
 import healpy as hp
-from glob import glob
+from glob import glob, iglob
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -1403,3 +1403,33 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     targets = rfn.drop_fields(targets[ii], addedcols)
 
     return targets
+
+
+def target_columns_from_header(hpdirname):
+    """Grab the _TARGET column names from a target file or directory.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+
+    Returns
+    -------
+    :class:`list`
+        The names of the _TARGET columns, notably whether they are
+        SV, main, or cmx _TARGET columns.
+    """
+    # ADM determine whether we're dealing with a file or directory.
+    fn = hpdirname
+    if os.path.isdir(hpdirname):
+        fn = next(iglob(os.path.join(hpdirname, '*fits')))
+    
+    # ADM read in the header and find any columns matching _TARGET.
+    hdr = fitsio.read_header(fn, "TARGETS")
+    allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
+    targcols = allcols[['_TARGET' in col for col in allcols]]
+
+    return targcols

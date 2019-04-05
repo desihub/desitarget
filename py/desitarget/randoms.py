@@ -20,7 +20,7 @@ from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import resolve
 from desitarget.skyfibers import get_brick_info
-from desitarget.io import read_targets_in_box
+from desitarget.io import read_targets_in_box, target_columns_from_header
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -773,28 +773,30 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM if a file name was passed for the targets catalog, read it in
     if isinstance(targets, str):
         log.info('Reading in target catalog...t = {:.1f}s'.format(time()-start))
-        cols = ["RA", "DEC", "BGS_TARGET", "MWS_TARGET", "DESI_TARGET"]
+        # ADM grab appropriate columns for an SV/cmx/main survey file.
+        targcols = target_columns_from_header(targets)
+        cols = np.concatenate([["RA", "DEC"], targcols])
         targets = read_targets_in_box(targets, columns=cols)
 
-    # ADM determine the areal coverage at of the randoms at this nside
+    # ADM determine the areal coverage of the randoms at this nside.
     log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
     pw = pixweight(randoms, rand_density, nside=nside)
     npix = len(pw)
 
-    # ADM get the target densities
+    # ADM get the target densities.
     log.info('Calculating target densities...t = {:.1f}s'.format(time()-start))
     targdens = get_targ_dens(targets, nside=nside)
 
-    # ADM set up the output array
+    # ADM set up the output array.
     datamodel = [('HPXPIXEL', '>i4'), ('FRACAREA', '>f4'), ('STARDENS', '>f4'), ('EBV', '>f4'),
                  ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
                  ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4')]
     datamodel += targdens.dtype.descr
     hpxinfo = np.zeros(npix, dtype=datamodel)
-    # ADM set initial values to -1 so that they can easily be clipped
+    # ADM set initial values to -1 so that they can easily be clipped.
     hpxinfo[...] = -1
 
-    # ADM add the areal coverage, pixel information and target densities
+    # ADM add the areal coverage, pixel information and target densities.
     hpxinfo['HPXPIXEL'] = np.arange(npix)
     hpxinfo['FRACAREA'] = pw
     for col in targdens.dtype.names:
@@ -812,20 +814,20 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                          .format(gaialoc, nside))
     hpxinfo["STARDENS"] = sd
 
-    # ADM add the median values of all of the other systematics
+    # ADM add the median values of all of the other systematics.
     log.info('Calculating medians of systematics from random catalog...t = {:.1f}s'
              .format(time()-start))
     ras, decs = randoms["RA"], randoms["DEC"]
     pixnums = hp.ang2pix(nside, np.radians(90.-decs), np.radians(ras), nest=True)
 
-    # ADM some sorting to order the values to extract the medians
+    # ADM some sorting to order the values to extract the medians.
     pixorder = np.argsort(pixnums)
     pixels, pixcnts = np.unique(pixnums, return_counts=True)
     pixcnts = np.insert(pixcnts, 0, 0)
     pixcnts = np.cumsum(pixcnts)
 
     # ADM work through the ordered pixels to populate the median for
-    # ADM each quantity of interest
+    # ADM each quantity of interest.
     cols = ['EBV', 'PSFDEPTH_G', 'GALDEPTH_G', 'PSFDEPTH_R', 'GALDEPTH_R',
             'PSFDEPTH_Z', 'GALDEPTH_Z']
     for i in range(len(pixcnts)-1):
