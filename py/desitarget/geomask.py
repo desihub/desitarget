@@ -851,10 +851,10 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     leeway = 1e-5
     if decmax > 90-leeway:
         decmax = 90-leeway
-        log.warning('Max Dec too close to pole; set to {}o'.format(decmax))
+        log.warning('Max Dec too close to pole; setting to {}o'.format(decmax))
     if decmin < -90+leeway:
         decmin = -90+leeway
-        log.warning('Min Dec too close to pole; set to {}o'.format(decmin))
+        log.warning('Min Dec too close to pole; setting to {}o'.format(decmin))
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
     if np.abs(ramax-ramin) > 180.:
